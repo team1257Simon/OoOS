@@ -4,6 +4,9 @@
 #include "stdint.h"
 #endif
 #include "stddef.h"
+#ifndef KERNEL_FILENAME
+#define KERNEL_FILENAME "\\sys\\core.elf"
+#endif
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #define __pack __attribute__((packed))
@@ -43,7 +46,7 @@ typedef struct __pt_entry
     uint16_t                     : 15;
     bool execute_disable         : 1;
 } __pack __align(1) pt_entry;
-typedef pt_entry paging_table[512];
+typedef pt_entry* paging_table;
 typedef struct __vaddr48
 {
     uint16_t offset     : 12;
@@ -53,6 +56,11 @@ typedef struct __vaddr48
     uint16_t pml4_idx   :  9;
     uint16_t ext        : 16;
 } __pack __align(1) vaddr48_t;
+typedef union __vaddr
+{
+    vaddr48_t idx;
+    uintptr_t addr;
+} __pack vaddr_t;
 typedef union __guid
 {
     struct
@@ -82,18 +90,20 @@ typedef struct __mmap
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
+// Pointers to sequential page tables.
 typedef struct __pagefile_entry
 {
     struct __pagefile_entry* prev;
     struct __pagefile_entry* next;
-    vaddr48_t start_idx;
+    vaddr_t start_idx;
     size_t num_tables;
-    paging_table* tables;
+    paging_table tables[];
 } __pack pagefile_entry;
 typedef struct __pagefile
 {
     size_t num_entries;
     pagefile_entry* tail;
-    pagefile_entry head;
+    pagefile_entry* head;
 } __pack pagefile;
+typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(framebuf_t*, mmap_t*, pagefile*);
 #endif

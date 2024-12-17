@@ -1,0 +1,145 @@
+
+File: /home/nathan/OoOS/common/lib/libk.a(font.o)
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          2968 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           64 (bytes)
+  Number of section headers:         12
+  Section header string table index: 11
+
+Section Headers:
+  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        0000000000000000 000040 000134 00  AX  0   0 16
+  [ 2] .data             PROGBITS        0000000000000000 000178 000008 00  WA  0   0  8
+  [ 3] .rela.data        RELA            0000000000000000 000b10 000018 18   I  9   2  8
+  [ 4] .bss              NOBITS          0000000000000000 000180 000000 00  WA  0   0  1
+  [ 5] .rodata           PROGBITS        0000000000000000 000180 000820 00   A  0   0 32
+  [ 6] .comment          PROGBITS        0000000000000000 0009a0 000013 01  MS  0   0  1
+  [ 7] .eh_frame         PROGBITS        0000000000000000 0009b8 000050 00   A  0   0  8
+  [ 8] .rela.eh_frame    RELA            0000000000000000 000b28 000018 18   I  9   7  8
+  [ 9] .symtab           SYMTAB          0000000000000000 000a08 0000a8 18     10   5  8
+  [10] .strtab           STRTAB          0000000000000000 000ab0 000059 00      0   0  1
+  [11] .shstrtab         STRTAB          0000000000000000 000b40 000051 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  D (mbind), l (large), p (processor specific)
+
+There are no section groups in this file.
+
+There are no program headers in this file.
+
+There is no dynamic section in this file.
+
+Relocation section '.rela.data' at offset 0xb10 contains 1 entry:
+    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+0000000000000000  0000000400000001 R_X86_64_64            0000000000000000 .rodata + 0
+
+Relocation section '.rela.eh_frame' at offset 0xb28 contains 1 entry:
+    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+0000000000000020  0000000200000002 R_X86_64_PC32          0000000000000000 .text + 0
+No processor specific unwind information to decode
+
+Symbol table '.symtab' contains 7 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS font.cpp
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000  2080 OBJECT  LOCAL  DEFAULT    5 __startup_font_data
+     4: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     5: 0000000000000000   308 FUNC    GLOBAL DEFAULT    1 font_render::operator()(char, unsigned int*, pixel_index const&) const
+     6: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    2 __startup_font
+
+No version information found in this file.
+
+File: /home/nathan/OoOS/common/lib/libk.a(ccorelib_amd64.o)
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          1024 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           64 (bytes)
+  Number of section headers:         8
+  Section header string table index: 7
+
+Section Headers:
+  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        0000000000000000 000040 0000d5 00  AX  0   0  1
+  [ 2] .rela.text        RELA            0000000000000000 000380 000048 18   I  5   1  8
+  [ 3] .data             PROGBITS        0000000000000000 000115 000000 00  WA  0   0  1
+  [ 4] .bss              NOBITS          0000000000000000 000115 000000 00  WA  0   0  1
+  [ 5] .symtab           SYMTAB          0000000000000000 000118 0001e0 18      6   1  8
+  [ 6] .strtab           STRTAB          0000000000000000 0002f8 000086 00      0   0  1
+  [ 7] .shstrtab         STRTAB          0000000000000000 0003c8 000031 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  D (mbind), l (large), p (processor specific)
+
+There are no section groups in this file.
+
+There are no program headers in this file.
+
+There is no dynamic section in this file.
+
+Relocation section '.rela.text' at offset 0x380 contains 3 entries:
+    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+0000000000000083  0000000b00000004 R_X86_64_PLT32         0000000000000068 strnlen - 4
+000000000000009a  0000000b00000004 R_X86_64_PLT32         0000000000000068 strnlen - 4
+00000000000000c7  0000000b00000004 R_X86_64_PLT32         0000000000000068 strnlen - 4
+No processor specific unwind information to decode
+
+Symbol table '.symtab' contains 20 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000    21 FUNC    GLOBAL DEFAULT    1 memcmp
+     2: 0000000000000015    11 FUNC    GLOBAL DEFAULT    1 abset
+     3: 0000000000000020    12 FUNC    GLOBAL DEFAULT    1 awset
+     4: 000000000000002c    11 FUNC    GLOBAL DEFAULT    1 alset
+     5: 0000000000000037    12 FUNC    GLOBAL DEFAULT    1 aqset
+     6: 0000000000000043     8 FUNC    GLOBAL DEFAULT    1 sbcopy
+     7: 000000000000004b     9 FUNC    GLOBAL DEFAULT    1 swcopy
+     8: 0000000000000054     8 FUNC    GLOBAL DEFAULT    1 slcopy
+     9: 000000000000005c     9 FUNC    GLOBAL DEFAULT    1 sqcopy
+    10: 0000000000000065    21 FUNC    GLOBAL DEFAULT    1 strlen
+    11: 0000000000000068    18 FUNC    GLOBAL DEFAULT    1 strnlen
+    12: 000000000000007a    23 FUNC    GLOBAL DEFAULT    1 strcmp
+    13: 000000000000007d    20 FUNC    GLOBAL DEFAULT    1 strncmp
+    14: 0000000000000091    40 FUNC    GLOBAL DEFAULT    1 strchr
+    15: 0000000000000094    37 FUNC    GLOBAL DEFAULT    1 strnchr
+    16: 00000000000000a3    22 FUNC    GLOBAL DEFAULT    1 memchr
+    17: 00000000000000b9     5 FUNC    GLOBAL DEFAULT    1 memcpy
+    18: 00000000000000be    23 FUNC    GLOBAL DEFAULT    1 strcpy
+    19: 00000000000000c1    20 FUNC    GLOBAL DEFAULT    1 strncpy
+
+No version information found in this file.

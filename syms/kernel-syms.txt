@@ -1,0 +1,71 @@
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          768 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           64 (bytes)
+  Number of section headers:         12
+  Section header string table index: 11
+
+Section Headers:
+  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            0000000000000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        0000000000000000 000040 00007d 00  AX  0   0 16
+  [ 2] .rela.text        RELA            0000000000000000 000230 000060 18   I  9   1  8
+  [ 3] .data             PROGBITS        0000000000000000 0000bd 000000 00  WA  0   0  1
+  [ 4] .bss              NOBITS          0000000000000000 0000bd 000000 00  WA  0   0  1
+  [ 5] .rodata.str1.1    PROGBITS        0000000000000000 0000bd 000009 01 AMS  0   0  1
+  [ 6] .comment          PROGBITS        0000000000000000 0000c6 000013 01  MS  0   0  1
+  [ 7] .eh_frame         PROGBITS        0000000000000000 0000e0 000040 00   A  0   0  8
+  [ 8] .rela.eh_frame    RELA            0000000000000000 000290 000018 18   I  9   7  8
+  [ 9] .symtab           SYMTAB          0000000000000000 000120 0000c0 18     10   4  8
+  [10] .strtab           STRTAB          0000000000000000 0001e0 00004e 00      0   0  1
+  [11] .shstrtab         STRTAB          0000000000000000 0002a8 000058 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  D (mbind), l (large), p (processor specific)
+
+There are no section groups in this file.
+
+There are no program headers in this file.
+
+There is no dynamic section in this file.
+
+Relocation section '.rela.text' at offset 0x230 contains 4 entries:
+    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+0000000000000021  0000000500000002 R_X86_64_PC32          0000000000000000 __startup_font - 4
+0000000000000042  0000000600000004 R_X86_64_PLT32         0000000000000000 alset - 4
+0000000000000053  000000030000000b R_X86_64_32S           0000000000000000 .rodata.str1.1 + 0
+0000000000000071  0000000700000004 R_X86_64_PLT32         0000000000000000 font_render::operator()(char, unsigned int*, pixel_index const&) const - 4
+
+Relocation section '.rela.eh_frame' at offset 0x290 contains 1 entry:
+    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
+0000000000000020  0000000200000002 R_X86_64_PC32          0000000000000000 .text + 0
+No processor specific unwind information to decode
+
+Symbol table '.symtab' contains 8 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS kernel.cpp
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata.str1.1
+     4: 0000000000000000   125 FUNC    GLOBAL DEFAULT    1 kmain
+     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND __startup_font
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND alset
+     7: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND font_render::operator()(char, unsigned int*, pixel_index const&) const
+
+No version information found in this file.
