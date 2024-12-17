@@ -1,0 +1,14 @@
+*/*.o
+*/*/*.o
+*.img
+*/*.elf
+*/*.a
+*/*/*.a
+*/*.EFI
+build/*
+*/build/*
+kernel/asm_test/*
+lib/asm_test/*
+.vscode/*
+*.txt
+*/*.txt
