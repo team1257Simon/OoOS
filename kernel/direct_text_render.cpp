@@ -1,0 +1,47 @@
+#include "direct_text_render.hpp"
+#include "string.h"
+
+void direct_text_render::__advance() noexcept 
+{
+    if(__cursor_pos.x < __fb_col_cap()) __cursor_pos.x++;
+    else endl();
+}
+
+void direct_text_render::__write_one(char c)
+{
+    __render(c, __fb_ptr, __cursor_pos);
+    __advance();
+}
+
+void direct_text_render::cls()
+{
+    for(point p {0, 0}; p.y < __fb_row_cap(); p.y++) 
+    {
+        for(p.x = 0; p.x < __fb_col_cap(); p.x++)
+        {
+            __render.fill(__render.bg_color(), __fb_ptr, p);
+        }
+    }
+}
+
+void direct_text_render::endl()
+{
+    __cursor_pos.x = 0;
+    if(__cursor_pos.y < __fb_row_cap()) 
+    {
+        __cursor_pos.y++;
+    }
+    else
+    {
+        __cursor_pos.y = 0;
+    }
+}
+
+void direct_text_render::print_text(const char *text)
+{
+    size_t n = strnlen(text, __fb_col_cap() * __fb_row_cap());
+    for(size_t i = 0; i < n; i++) 
+    {
+        __write_one(text[i]);
+    }
+}

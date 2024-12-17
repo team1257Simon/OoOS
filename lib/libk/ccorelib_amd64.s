@@ -131,16 +131,34 @@
     movq    %rdi,   %rax
     jmp     sbcopy
     .size   memcpy,     .-memcpy
+    defglobal   stpcpy
+    pushq   $1
+    jmp     .L11
     defglobal   strcpy
-    xorq    %rdx,   %rdx
-    defglobal   strncpy
-    pushq   %rsi
+    pushq   $0
+.L11:
     pushq   %rdi
-    movq    %rdx,   %rsi
-    call    strnlen
+    pushq   %rsi
+    movq    %rdi,   %rsi
+    call    strlen
     movq    %rax,   %rdx
-    popq    %rdi
     popq    %rsi
-    jmp     sbcopy
+    popq    %rdi
+    popq    %r9
+    defglobal   strncpy
+    movq    %rdx,   %rcx
+    jrcxz   .L13
+    movq    %rdi,   %r8
+.L12:
+    lodsb
+    stosb
+    testq   %rax,   %rax
+    loopnz  .L12
+    testq   %r9,    %r9
+    cmovnz  %rdi,   %r8
+    movq    %r8,    %rax
+.L13:
+    ret
     .size   strcpy,     .-strcpy
     .size   strncpy,    .-strncpy
+    .size   stpcpy,     .-stpcpy

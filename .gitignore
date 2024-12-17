@@ -1,6 +1,7 @@
 */*.o
 */*/*.o
 *.img
+*/*.img
 */*.elf
 */*.a
 */*/*.a
@@ -12,3 +13,4 @@ lib/asm_test/*
 .vscode/*
 *.txt
 */*.txt
+syms/*.*

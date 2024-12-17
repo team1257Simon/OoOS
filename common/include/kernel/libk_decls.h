@@ -27,5 +27,7 @@ template<QWordGranular T> void arrayset(T* dest, uint64_t value, size_t n) { aqs
 template<DWordGranular T> void arrayset(T* dest, uint32_t value, size_t n) { alset(dest, value, n); }
 template<WordGranular T> void arrayset(T* dest, uint16_t value, size_t n) { awset(dest, value, n); }
 template<ByteGranular T> void arrayset(T* dest, uint8_t value, size_t n) { abset(dest, value, n * sizeof(T)); }
+[[nodiscard]] void* operator new(size_t, void* ptr) noexcept { return ptr; }
+[[nodiscard]] void* operator new[](size_t, void* ptr) noexcept { return ptr; }
 #endif
 #endif
