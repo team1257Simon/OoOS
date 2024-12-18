@@ -20,61 +20,53 @@
     defglobal   abset
     movq    %rsi,   %rax
     movq    %rdx,   %rcx
-    jrcxz   .L1
+    jrcxz   .L0
     rep     stosb
-.L1:
     ret
     .size   abset, .-abset
     defglobal    awset
     movq    %rsi,   %rax
     movq    %rdx,   %rcx
-    jrcxz   .L2
+    jrcxz   .L0
     rep     stosw
-.L2:
     ret
     .size   awset, .-awset
     defglobal   alset
     movq    %rsi,   %rax
     movq    %rdx,   %rcx
-    jrcxz   .L3
+    jrcxz   .L0
     rep     stosl
-.L3:
     ret
     .size   alset, .-alset
     defglobal   aqset
     movq    %rsi,   %rax
     movq    %rdx,   %rcx
-    jrcxz   .L4
+    jrcxz   .L0
     rep     stosq
-.L4:
     ret
     .size   aqset, .-aqset
     defglobal   sbcopy
     movq    %rdx,   %rcx
-    jrcxz   .L5
+    jrcxz   .L0
     rep     movsb
-.L5:
     ret
     .size   sbcopy, .-sbcopy
     defglobal   swcopy
     movq    %rdx,   %rcx
-    jrcxz   .L6
+    jrcxz   .L0
     rep     movsw
-.L6:
     ret
     .size   swcopy, .-swcopy
     defglobal   slcopy
     movq    %rdx,   %rcx
-    jrcxz   .L7
+    jrcxz   .L0
     rep     movsl
-.L7:
     ret
     .size   slcopy, .-slcopy
     defglobal   sqcopy
     movq    %rdx,   %rcx
-    jrcxz   .L8
+    jrcxz   .L0
     rep     movsq
-.L8:
     ret
     .size   sqcopy, .-sqcopy
     defglobal   strlen
@@ -114,15 +106,15 @@
 	popq	%rsi
     defglobal   memchr
 	movq	%rdx, 		%rcx
-	jrcxz	.L9
+	jrcxz	.L1
 	movq	%rsi, 		%rax
 	repne	scasb
-	jne		.L9
+	jne		.L1
 	leaq	-1(%rdi),	%rax
-	jmp		.L10
-.L9:
+	jmp		.L2
+.L1:
 	xorq	%rax,	%rax
-.L10:
+.L2:
 	ret
 	.size	strchr, 	.-strchr
     .size   strnchr,    .-strnchr
@@ -133,10 +125,10 @@
     .size   memcpy,     .-memcpy
     defglobal   stpcpy
     pushq   $1
-    jmp     .L11
+    jmp     .L3
     defglobal   strcpy
     pushq   $0
-.L11:
+.L3:
     pushq   %rdi
     pushq   %rsi
     movq    %rdi,   %rsi
@@ -147,18 +139,23 @@
     popq    %r9
     defglobal   strncpy
     movq    %rdx,   %rcx
-    jrcxz   .L13
+    jrcxz   .L2
     movq    %rdi,   %r8
-.L12:
+.L4:
     lodsb
     stosb
     testq   %rax,   %rax
-    loopnz  .L12
+    loopnz  .L4
     testq   %r9,    %r9
     cmovnz  %rdi,   %r8
     movq    %r8,    %rax
-.L13:
     ret
     .size   strcpy,     .-strcpy
     .size   strncpy,    .-strncpy
     .size   stpcpy,     .-stpcpy
+    defglobal memset
+    pushq   %rdi
+    call    abset
+    popq    %rax
+    ret
+    .size   memset,     .-memset

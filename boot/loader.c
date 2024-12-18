@@ -84,7 +84,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
 {
     size_t total_mem = num_pages * PAGESIZE;
     size_t current_table_num = 0;
-    vaddr_t current_idx = (vaddr_t)vaddr_start;
+    indexed_address current_idx = (indexed_address)vaddr_start;
     size_t pt_num = direct_table_idx(current_idx.idx);
     size_t n = pt_num + num_pages / PT_LEN;
     uintptr_t current_phys = phys_start;
@@ -114,7 +114,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
             pd[current_idx.idx.pd_idx].present = 1;
             pd[current_idx.idx.pd_idx].write = 1;
             pd[current_idx.idx.pd_idx].physical_address = (uintptr_t)pt >> 12;
-            __boot_pagefile->head->tables[pt_num] = pt;
+            __boot_pagefile->boot_entry->tables[pt_num] = pt;
             pt_num++;
             current_table_num++;
         }
@@ -152,9 +152,9 @@ efi_status_t map_id_pages(size_t num_pages)
     }
     __boot_pml4 = tables_start;
     size_t pts_only = num_pages / PT_LEN;
-    __boot_pagefile->head = (pagefile_entry*)malloc(sizeof(pagefile_entry) + pts_only * sizeof(paging_table));
-    memset(__boot_pagefile->head, 0, sizeof(pagefile_entry) + pts_only * sizeof(paging_table));
-    __boot_pagefile->head->num_tables = pts_only;
+    __boot_pagefile->boot_entry = (page_frame*)malloc(sizeof(page_frame) + pts_only * sizeof(paging_table));
+    memset(__boot_pagefile->boot_entry, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
+    __boot_pagefile->boot_entry->num_tables = pts_only;
     __boot_pagefile->num_entries = 1;
     map_some_pages(0, 0, num_pages, tables_start + 512);
     return EFI_SUCCESS;
@@ -163,21 +163,21 @@ efi_status_t map_id_pages(size_t num_pages)
 efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages)
 {
     size_t n = required_tables_postinit(num_pages);
-    vaddr_t sv_start = {};
+    indexed_address sv_start = {};
     sv_start.addr = vaddr_start;
-    if(n < 1 && direct_table_idx(sv_start.idx) > __boot_pagefile->head->num_tables)
+    if(n < 1 && direct_table_idx(sv_start.idx) > __boot_pagefile->boot_entry->num_tables)
     {
         n = 1;
-        size_t old_num = __boot_pagefile->head->num_tables;
+        size_t old_num = __boot_pagefile->boot_entry->num_tables;
         size_t new_num = direct_table_idx(sv_start.idx);
-        __boot_pagefile->head = (pagefile_entry*)realloc(__boot_pagefile->head, sizeof(pagefile_entry) + new_num * sizeof(paging_table));
+        __boot_pagefile->boot_entry = (page_frame*)realloc(__boot_pagefile->boot_entry, sizeof(page_frame) + new_num * sizeof(paging_table));
         size_t delta = (size_t)(new_num - old_num);
-        memset(__boot_pagefile->head->tables + old_num, 0, delta * sizeof(paging_table));
+        memset(__boot_pagefile->boot_entry->tables + old_num, 0, delta * sizeof(paging_table));
     }
     paging_table tables_start;
     if (n == 0)
     {
-        tables_start = __boot_pagefile->head->tables[direct_table_idx(sv_start.idx)];
+        tables_start = __boot_pagefile->boot_entry->tables[direct_table_idx(sv_start.idx)];
         if(tables_start == NULL)
         {
             efi_status_t status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, (efi_physical_address_t*)&tables_start);
@@ -240,7 +240,8 @@ int main(int argc, char** argv)
     }
     size_t n = 0;
     size_t k = 0;
-    mmap_t* map = (mmap_t*)malloc(sizeof(mmap_t));
+    size_t predicted = (memory_map_size / desc_size);
+    mmap_t* map = (mmap_t*)malloc(sizeof(mmap_t) + predicted * sizeof(mmap_entry));
     efi_memory_descriptor_t* prev = NULL;
     printf("Address              Size Type\n");
     for(mement = memory_map; n < memory_map_size; mement = NextMemoryDescriptor(mement, desc_size)) 
@@ -252,9 +253,9 @@ int main(int argc, char** argv)
         }
         else 
         {
-            map = (mmap_t*)realloc(map, sizeof(mmap_t) + (k + 1) * sizeof(mmap_entry));
+            if(k >= predicted) map = (mmap_t*)realloc(map, sizeof(mmap_t) + (k + 1) * sizeof(mmap_entry));
             map->entries[k].addr = mement->PhysicalStart;
-            map->entries[n].len = mement->NumberOfPages;
+            map->entries[k].len = mement->NumberOfPages;
             switch(mement->Type)
             {
             case 7:
@@ -282,6 +283,7 @@ int main(int argc, char** argv)
         prev = mement;
         n += desc_size;
     }
+    map->num_entries = k;
     fb = (framebuf_t*)malloc(sizeof(framebuf_t));
     MALLOC_CK(fb);
     efi_guid_t gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
@@ -363,6 +365,7 @@ int main(int argc, char** argv)
     free(buff);
     /* execute the "kernel" */
     exit_bs();
+    __boot_pagefile->cr3 = __boot_pml4;
     // In order to be able to map pages in the kernel, we need to disable the WP bit so that ring 0 can write to the paging tables
     asm volatile("movq %%cr0, %%rax\n" "andq %0, %%rax\n" "movq %%rax, %%cr0" :: "i"(0xFFFEFFFF) : "%rax");
     // Put the new paging tables into cr3
