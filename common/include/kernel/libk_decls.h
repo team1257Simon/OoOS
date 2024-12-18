@@ -3,6 +3,7 @@
 #include "kernel/kernel_defs.h"
 #ifdef __cplusplus
 #include "concepts"
+#include "concepts"
 extern "C"
 {
 #endif
@@ -16,8 +17,13 @@ void alset(void* buf, uint32_t value, size_t n);
 void aqset(void* buf, uint64_t value, size_t n);
 inline void cli() { asm volatile("cli" ::: "memory"); }
 inline void sti() { asm volatile("sti" ::: "memory"); }
+inline void cli() { asm volatile("cli" ::: "memory"); }
+inline void sti() { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
+template<typename T> concept QWordGranular = (sizeof(T) % 8 == 0 || alignof(T) % 8 == 0);
+template<typename T> concept DWordGranular = (sizeof(T) == 4 || (alignof(T) == 4 && sizeof(T) % 4 == 0));
+template<typename T> concept WordGranular = (sizeof(T) == 2 || (alignof(T) == 2 && sizeof(T) % 2 == 0));
 template<typename T> concept QWordGranular = (sizeof(T) % 8 == 0 || alignof(T) % 8 == 0);
 template<typename T> concept DWordGranular = (sizeof(T) == 4 || (alignof(T) == 4 && sizeof(T) % 4 == 0));
 template<typename T> concept WordGranular = (sizeof(T) == 2 || (alignof(T) == 2 && sizeof(T) % 2 == 0));
