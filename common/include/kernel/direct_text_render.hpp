@@ -26,5 +26,7 @@ public:
     void cls();
     void endl();
     void print_text(const char* text);
+    void print_hex(uint64_t number);
+    void print_addr(void* addr) ;
 };
 #endif

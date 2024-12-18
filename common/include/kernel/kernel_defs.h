@@ -60,7 +60,7 @@ typedef union __vaddr
 {
     vaddr48_t idx;
     uintptr_t addr;
-} __pack vaddr_t;
+} __pack indexed_address;
 typedef union __guid
 {
     struct
@@ -90,20 +90,19 @@ typedef struct __mmap
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
-// Pointers to sequential page tables.
-typedef struct __pagefile_entry
+// Pointers to page frames.
+typedef struct __pageframe_t
 {
-    struct __pagefile_entry* prev;
-    struct __pagefile_entry* next;
-    vaddr_t start_idx;
+    indexed_address start_idx;
     size_t num_tables;
     paging_table tables[];
-} __pack pagefile_entry;
+} __pack page_frame;
 typedef struct __pagefile
 {
     size_t num_entries;
-    pagefile_entry* tail;
-    pagefile_entry* head;
+    paging_table cr3;
+    page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
+    page_frame frame_entries[];
 } __pack pagefile;
 typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(framebuf_t*, mmap_t*, pagefile*);
 #endif

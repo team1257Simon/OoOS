@@ -7,6 +7,8 @@
 
 namespace std
 {
+    template<typename OT, typename NT> concept convertible_to = is_convertible_v<OT, NT> && requires { static_cast<NT>(std::declval<OT>()); };
+
     namespace __detail
     {
         template<typename T, typename U> concept __same_as = std::is_same_v<T, U>;
@@ -14,8 +16,7 @@ namespace std
         template<typename T> using __cref = const remove_reference_t<T>&;
 
         template<typename T> concept __class_or_enum = is_class_v<T> || is_union_v<T> || is_enum_v<T>;
-        template<typename T>
-        concept __boolean_testable_impl = convertible_to<T, bool>;
+        template<typename T> concept __boolean_testable_impl = convertible_to<T, bool>;
 
         template<typename T>
         concept __boolean_testable = __boolean_testable_impl<T>
@@ -46,8 +47,6 @@ namespace std
     template<typename T, typename U> concept same_as = __detail::__same_as<T, U> && __detail::__same_as<U, T>;
 
     template<typename DT, typename BT> concept derived_from = __is_base_of(BT, DT) && is_convertible_v<const volatile DT*, const volatile BT*>;
-
-    template<typename OT, typename NT> concept convertible_to = is_convertible_v<OT, NT> && requires { static_cast<NT>(std::declval<OT>()); };
 
     template<typename T, typename U> 
     concept common_reference_with = same_as<common_reference_t<T, U>, common_reference_t<U, T>> 
