@@ -1,6 +1,7 @@
 #include "direct_text_render.hpp"
 #include "kernel/libk_decls.h"
 #include "string.h"
+const char* hex {"0123456789ABCDEF"};
 
 void direct_text_render::__advance() noexcept 
 {
@@ -41,7 +42,7 @@ void direct_text_render::endl()
         __cursor_pos.y = 0;
     }
 }
-const char* hex {"0123456789ABCDEF"};
+
 void direct_text_render::print_text(const char *text)
 {
     size_t n = strnlen(text, __fb_col_cap() * __fb_row_cap());

@@ -7,6 +7,8 @@
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\sys\\core.elf"
 #endif
+#define PAGESIZE 0x1000
+#define PT_LEN 0x200
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #define __pack __attribute__((packed))
@@ -15,13 +17,12 @@
 typedef unsigned char bool;
 #else
 #define restrict
-template<class T> struct __is_void_ptr { constexpr static bool value = false; };
-template<> struct __is_void_ptr<void*> { constexpr static bool value = true; };
-template<> struct __is_void_ptr<const void*> { constexpr static bool value = true; };
-template<> struct __is_void_ptr<volatile void*> { constexpr static bool value = true; };
-template<> struct __is_void_ptr<const volatile void*> { constexpr static bool value = true; };
-template<class T> concept NotVoidPointer = !__is_void_ptr<T>::value;
+#include "concepts"
+#include "bits/move.h"
+template<class T> concept NotVoidPointer = !std::same_as<std::remove_cvref_t<T>, void*>;
 #endif
+#define PAUSE asm volatile ("pause" ::: "memory")
+#define BARRIER asm volatile ("" ::: "memory")
 typedef enum mme_type
 {
     AVAILABLE = 1,
@@ -47,18 +48,54 @@ typedef struct __pt_entry
     bool execute_disable         : 1;
 } __pack __align(1) pt_entry;
 typedef pt_entry* paging_table;
-typedef struct __vaddr48
+typedef struct __vaddr
 {
+   #ifdef __cplusplus 
+    uint16_t offset     : 12 {0};
+    uint16_t page_idx   :  9 {0};
+    uint16_t pd_idx     :  9 {0};
+    uint16_t pdp_idx    :  9 {0};
+    uint16_t pml4_idx   :  9 {0};
+    uint16_t ext        : 16 {0};
+    constexpr __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
+        offset      { offs },
+        page_idx    { idx0 },
+        pd_idx      { idx1 },
+        pdp_idx     { idx2 },
+        pml4_idx    { idx3 },
+        ext         { sign } 
+                    {}
+    constexpr __vaddr(uintptr_t i) noexcept : 
+        offset      { static_cast<uint16_t>(i & 0x0FFF) },
+        page_idx    { static_cast<uint16_t>((i >> 12) & 0x1FFuL) }, 
+        pd_idx      { static_cast<uint16_t>((i >> 21) & 0x1FFuL) },
+        pdp_idx     { static_cast<uint16_t>((i >> 30) & 0x1FFuL) },
+        pml4_idx    { static_cast<uint16_t>((i >> 39) & 0x1FFuL) },
+        ext         { static_cast<uint16_t>(pml4_idx & 0x100 ? 0xFFFFu : 0u) } 
+                    {}    
+    constexpr __vaddr(void* ptr) noexcept : __vaddr { std::bit_cast<uintptr_t>(ptr) } {}
+    constexpr __vaddr() = default;
+    constexpr ~__vaddr() = default;
+    constexpr __vaddr(__vaddr const&) = default;
+    constexpr __vaddr(__vaddr &&) = default;
+    constexpr __vaddr& operator=(__vaddr const&) = default;
+    constexpr __vaddr& operator=(__vaddr &&) = default;
+    constexpr operator void*() const noexcept { return std::bit_cast<void*>(*this); }
+    constexpr operator uintptr_t() const noexcept { return std::bit_cast<uintptr_t>(*this); }
+    constexpr operator bool() const noexcept { return static_cast<void*>(*this) != NULL; }
+    constexpr bool operator!() const noexcept { return static_cast<void*>(*this) == NULL; }
+#else
     uint16_t offset     : 12;
     uint16_t page_idx   :  9;
     uint16_t pd_idx     :  9;
     uint16_t pdp_idx    :  9;
     uint16_t pml4_idx   :  9;
     uint16_t ext        : 16;
-} __pack __align(1) vaddr48_t;
-typedef union __vaddr
+#endif
+} __pack __align(1) vaddr_t;
+typedef union __idx_addr
 {
-    vaddr48_t idx;
+    vaddr_t idx;
     uintptr_t addr;
 } __pack indexed_address;
 typedef union __guid
@@ -95,12 +132,12 @@ typedef struct __pageframe_t
 {
     indexed_address start_idx;
     size_t num_tables;
+    paging_table cr3;
     paging_table tables[];
 } __pack page_frame;
 typedef struct __pagefile
 {
     size_t num_entries;
-    paging_table cr3;
     page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
     page_frame frame_entries[];
 } __pack pagefile;

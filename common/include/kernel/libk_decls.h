@@ -3,10 +3,10 @@
 #include "kernel/kernel_defs.h"
 #ifdef __cplusplus
 #include "concepts"
-#include "concepts"
 extern "C"
 {
 #endif
+typedef struct spinlock_t { volatile bool : 8; } __pack *mutex;
 void sbcopy(void* restrict dest, const void* restrict src, size_t n);
 void swcopy(void* restrict dest, const void* restrict src, size_t n);
 void slcopy(void* restrict dest, const void* restrict src, size_t n);
@@ -15,15 +15,12 @@ void abset(void* buf, uint8_t value, size_t n);
 void awset(void* buf, uint16_t value, size_t n);
 void alset(void* buf, uint32_t value, size_t n);
 void aqset(void* buf, uint64_t value, size_t n);
-inline void cli() { asm volatile("cli" ::: "memory"); }
-inline void sti() { asm volatile("sti" ::: "memory"); }
+bool acquire(mutex m);
+void release(mutex m);
 inline void cli() { asm volatile("cli" ::: "memory"); }
 inline void sti() { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
-template<typename T> concept QWordGranular = (sizeof(T) % 8 == 0 || alignof(T) % 8 == 0);
-template<typename T> concept DWordGranular = (sizeof(T) == 4 || (alignof(T) == 4 && sizeof(T) % 4 == 0));
-template<typename T> concept WordGranular = (sizeof(T) == 2 || (alignof(T) == 2 && sizeof(T) % 2 == 0));
 template<typename T> concept QWordGranular = (sizeof(T) % 8 == 0 || alignof(T) % 8 == 0);
 template<typename T> concept DWordGranular = (sizeof(T) == 4 || (alignof(T) == 4 && sizeof(T) % 4 == 0));
 template<typename T> concept WordGranular = (sizeof(T) == 2 || (alignof(T) == 2 && sizeof(T) % 2 == 0));

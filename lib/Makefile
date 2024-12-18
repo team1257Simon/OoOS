@@ -2,7 +2,7 @@ OUTDIR := $(LIB_DIR)
 OBJ_BASE_DIR := $(CURDIR)/build
 ASMT_DIR := $(CURDIR)/asm_test
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat 
-CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS -Wno-terminate $(CFLAGS)$(addprefix -I,$(INCLUDES_CXX)) -std=c++20 
+CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS -Wno-terminate $(CFLAGS)$(addprefix -I,$(INCLUDES_CXX)) -std=c++20 -fno-rtti -fno-exceptions -fno-use-cxa-atext
 CCFLAGS := $(CFLAGS) -std=gnu17
 ARFLAGS := -rcs
 AS := $(ARCH)-elf-as

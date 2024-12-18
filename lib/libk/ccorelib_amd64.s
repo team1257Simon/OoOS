@@ -45,12 +45,15 @@
     rep     stosq
     ret
     .size   aqset, .-aqset
+    defglobal   memcpy
+    movq    %rdi,   %rax
     defglobal   sbcopy
     movq    %rdx,   %rcx
     jrcxz   .L0
     rep     movsb
     ret
     .size   sbcopy, .-sbcopy
+    .size   memcpy, .-memcpy
     defglobal   swcopy
     movq    %rdx,   %rcx
     jrcxz   .L0
@@ -159,3 +162,14 @@
     popq    %rax
     ret
     .size   memset,     .-memset
+    defglobal acquire
+    orb         $1,     %al
+    lock xchgb  (%rdi), %al
+    movzbq      %al,    %rax
+    ret
+    .size   acquire,    .-acquire
+    defglobal release
+    xorq        %rax,   %rax
+    lock xchgb  (%rdi), %al
+    ret
+    .size   release,    .-release

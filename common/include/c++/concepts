@@ -223,6 +223,23 @@ namespace std
     template<typename RT, typename T, typename U>
     concept strict_weak_order = relation<RT, T, U>;
 
+    template<typename LT, typename RT>
+    concept same_size = sizeof(LT) == sizeof(RT);
+
+    template<typename LT, typename RT>
+    concept smaller = sizeof(LT) < sizeof(RT);
+
+    template<typename LT, typename RT>
+    concept larger = sizeof(LT) > sizeof(RT);
+
+    template<typename LT, typename RT>
+    concept not_smaller = same_size<LT, RT> || larger<LT, RT>;
+
+    template<typename LT, typename RT>
+    concept not_larger = same_size<LT, RT> || smaller<LT, RT>;
+
+    template<typename FT, typename TT>
+    concept bit_castable = is_trivially_copyable_v<TT> && is_trivially_copyable_v<FT> && same_size<FT, TT>;
 }
 
 #endif 

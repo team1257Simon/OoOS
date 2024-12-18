@@ -9,9 +9,7 @@
 #define ENOELF 4
 #define ENOGFX 6
 #define ESETGFX 7
-#define MMAP_MAX_PG 0x200000
-#define PAGESIZE 0x1000
-#define PT_LEN 0x200
+#define MMAP_MAX_PG 0x40000
 #define K_ADDR 0x2000000
 
 const char *types[] = 
@@ -53,7 +51,7 @@ inline static uintptr_t read_pt_entry_ptr(pt_entry ent)
     return ent.physical_address << 12;
 }
 
-inline static size_t direct_table_idx(vaddr48_t idx) 
+inline static size_t direct_table_idx(vaddr_t idx) 
 {
     return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000;
 }
@@ -365,7 +363,7 @@ int main(int argc, char** argv)
     free(buff);
     /* execute the "kernel" */
     exit_bs();
-    __boot_pagefile->cr3 = __boot_pml4;
+    __boot_pagefile->boot_entry->cr3 = __boot_pml4;
     // In order to be able to map pages in the kernel, we need to disable the WP bit so that ring 0 can write to the paging tables
     asm volatile("movq %%cr0, %%rax\n" "andq %0, %%rax\n" "movq %%rax, %%cr0" :: "i"(0xFFFEFFFF) : "%rax");
     // Put the new paging tables into cr3

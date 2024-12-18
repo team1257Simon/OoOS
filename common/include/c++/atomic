@@ -1,0 +1,9 @@
+#ifndef __ATOMIC
+#define __ATOMIC
+#include "bits/atomic_base.h"
+namespace std
+{
+    template<typename T> using atomic_ptr = std::atomic<T*>;
+}
+
+#endif
