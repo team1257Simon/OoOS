@@ -9,7 +9,6 @@
 #define ENOELF 4
 #define ENOGFX 6
 #define ESETGFX 7
-#define MMAP_MAX_PG 0x40000
 #define K_ADDR 0x2000000
 
 const char *types[] = 
@@ -84,7 +83,6 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
     size_t current_table_num = 0;
     indexed_address current_idx = (indexed_address)vaddr_start;
     size_t pt_num = direct_table_idx(current_idx.idx);
-    size_t n = pt_num + num_pages / PT_LEN;
     uintptr_t current_phys = phys_start;
     uintptr_t end_vaddr = total_mem + vaddr_start;
     paging_table pdpt = NULL, pd = NULL, pt = NULL;
@@ -240,6 +238,7 @@ int main(int argc, char** argv)
     size_t k = 0;
     size_t predicted = (memory_map_size / desc_size);
     mmap_t* map = (mmap_t*)malloc(sizeof(mmap_t) + predicted * sizeof(mmap_entry));
+    map->total_memory = 0x200000000; // TODO: use ACPI to get this number for real
     efi_memory_descriptor_t* prev = NULL;
     printf("Address              Size Type\n");
     for(mement = memory_map; n < memory_map_size; mement = NextMemoryDescriptor(mement, desc_size)) 

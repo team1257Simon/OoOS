@@ -2,27 +2,28 @@
 #define __HEAP_ALLOC
 #include "kernel/libk_decls.h"
 #ifndef MAX_BLOCK_EXP
-#define MAX_BLOCK_EXP 32
+#define MAX_BLOCK_EXP 32u
 #endif
 #ifndef MIN_BLOCK_SIZE
-#define MIN_BLOCK_SIZE 4 // This times 2^(index) is the number of pages in a block at that index in a frame 
+#define MIN_BLOCK_SIZE 4u // This times 2^(index) is the number of pages in a block at that index in a frame 
 #endif
 // 64 bits means new levels of l33tpuns! Now featuring Pokemon frustrations using literal suffixes.
 constexpr uint64_t BLOCK_MAGIC = 0xB1600FBA615FULL;
 // Of course, we wouldn't want to offend anyone, so... (the 7s are T's...don't judge me >.<)
 constexpr uint64_t FRAME_MAGIC = 0xD0BE7AC7FUL;
+constexpr inline uint64_t REGION_SIZE = PAGESIZE * PT_LEN;
 struct block_tag
 {
     uint64_t magic { BLOCK_MAGIC };
     size_t block_size;
     size_t held_size;
-    uint32_t index;
+    int32_t index;
     block_tag* left_split { nullptr };
     block_tag* right_split { nullptr };
     block_tag* previous { nullptr };
     block_tag* next { nullptr };
     constexpr block_tag() = default;
-    constexpr block_tag(size_t size, size_t held, uint32_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr) noexcept :
+    constexpr block_tag(size_t size, size_t held, int32_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr) noexcept :
         block_size      { size },
         held_size       { held },
         index           { idx },
@@ -31,7 +32,8 @@ struct block_tag
         previous        { prev },
         next            { nxt }
                         {}
-    constexpr block_tag(size_t size, size_t held, uint32_t idx) noexcept : block_size{ size }, held_size{ held }, index { idx } {}
+    constexpr block_tag(size_t size, size_t held, int32_t idx = 0) noexcept : block_size{ size }, held_size{ held }, index { idx } {}
+    block_tag* split();
 } __pack;
 struct frame_tag
 {
@@ -44,22 +46,24 @@ struct frame_tag
     frame_tag* next { nullptr };
     constexpr frame_tag() = default;
     constexpr frame_tag(page_frame* frame, uintptr_t vaddr_next = 0, frame_tag* prev = nullptr, frame_tag* nxt = nullptr) noexcept :
-        the_frame{ frame }, 
-        next_vaddr{ vaddr_next },
-        previous{ prev }, 
-        next{ nxt } {}
+        the_frame   { frame }, 
+        next_vaddr  { vaddr_next },
+        previous    { prev }, 
+        next        { nxt } {}
+    void insert_block(block_tag* blk, int idx);
+    void remove_block(block_tag* blk);
 } __pack;
 enum block_idx : uint8_t
 {
-    I0 = 0,
-    I1 = 1,
-    I2 = 2,
-    I3 = 3,
-    I4 = 4,
-    I5 = 5,
-    I6 = 6,
-    I7 = 7,
-    ALL = 8
+    I0  = 0x01,
+    I1  = 0x02,
+    I2  = 0x04,
+    I3  = 0x08,
+    I4  = 0x10,
+    I5  = 0x20,
+    I6  = 0x40,
+    I7  = 0x80,
+    ALL = 0xFF
 };
 enum block_size : uint32_t
 {
@@ -69,9 +73,10 @@ enum block_size : uint32_t
     S64  = 64*PAGESIZE,
     S32  = 32*PAGESIZE,
     S16  = 16*PAGESIZE,
-    S8   = 8*PAGESIZE,
-    S04   = 4*PAGESIZE
+    S08  = 8*PAGESIZE,
+    S04  = 4*PAGESIZE
 };
+#define BS2BI(i) i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i ==  S16 ? I4 : (i ==  S32 ? I3 : (i ==  S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))
 /*
  *  Each 512-page region of physical memory is divided into the following blocks:
  *  [256P] B0: |< 000 - 255 >|
@@ -82,17 +87,38 @@ enum block_size : uint32_t
  *  [008P] B5: |< 496 - 503 >|
  *  [004P] B6: |< 504 - 507 >|
  *  [004P] B7: |< 508 - 511 >|
+ *  In addition, a region can be allocated in its entirety as a 512-page block.
+ *  Blocks are assigned as follows:
+ *      1. When memory is requested (i.e. a frame needs additional blocks), the amount of memory requested is used to determine the block size to allocate.
+ *          - If the requested block is larger than 256 pages but smaller than 512 pages, a 512-page block is allocated to be divided later.
+ *          - If the requested block is larger than 512 pages, a set of physically-contiguous 512-page blocks is allocated as a single block to be divided later.
+ *      2. Physical addresses are assigned in order low-to-high, globally, from regions of conventional memory.
+ *      3. An amount of identity-mapped space directly after the kernel is reserved at startup for use with these structures. It is never released.
+ *          - This amount depends on how much memory is available; 512 bytes track 1 GB of RAM. The kernel's frame-tag will also go here.
+ *          - The pagefile entry for the kernel has been allocated by the bootloader and should be below the kernel in memory. 
+ *            Entries generated after startup will come from the kernel heap.
+ *      4. Virtual addresses are assigned in order low-to-high per page frame. Each page frame tracks its own address-mapping watermark.
+ *          - Because of the extreme size of the address space, it should not be necessary to track released virtual addresses.
+ *            Instead, blocks that are released from the frame are unmapped, and if they are reallocated later their virtual address will likely change.
+ *      5. The kernel heap is initially allocated and mapped by the bootloader and consists of all addresses between the status byte array
+ *         and the address corresponding to the end of the identity-mapped region (1GB by default) at startup.
  */
 typedef struct mem_status_byte
 {
     uint8_t byte : 8;
+private:
+    constexpr bool __has(uint8_t i) const noexcept
+    {
+        return (byte & i) == 0;
+    }
+ public:
     constexpr bool all_free() const noexcept
     {
         return byte == 0;
     }
     constexpr bool has_free(block_idx i) const noexcept
     {
-        return i == ALL ? all_free() : ((byte & (1 << i)) == 0);
+        return __has(i);
     }
     constexpr bool all_used() const noexcept
     {
@@ -100,11 +126,11 @@ typedef struct mem_status_byte
     }
     constexpr void set_used(block_idx i) noexcept 
     {
-        byte |= (i == ALL ? 0xFF : (1 << i));
+        byte |= i;
     }
     constexpr void set_free(block_idx i) noexcept
     {
-        byte &= (i == ALL ? 0 : ~(1 << i));
+        byte &= ~i;
     }
     constexpr bool operator[](block_idx i) const noexcept
     {
@@ -112,13 +138,7 @@ typedef struct mem_status_byte
     }
     constexpr bool operator[](block_size i) const noexcept
     {
-        return i <= S04 ? has_free(I6) || has_free(I7) : has_free(i <=   S8 ? I5 
-                                                                : i <=  S16 ? I4 
-                                                                : i <=  S32 ? I3
-                                                                : i <=  S64 ? I2 
-                                                                : i <= S128 ? I1
-                                                                : i <= S256 ? I0 
-                                                                : ALL);
+        return __has(BS2BI(i));
     }
     constexpr operator bool() const noexcept
     {
@@ -128,12 +148,37 @@ typedef struct mem_status_byte
     {
         return all_used();
     }
+    constexpr static unsigned int gb_of(uintptr_t addr) { return addr / GIGABYTE; }
+    constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / (PAGESIZE * PT_LEN)) % 512; }
 } __align(1) __pack status_byte, gb_status[512];
 class heap_allocator
 {
-    frame_tag __kernel_frame;
-    pagefile* __my_pagefile;
-    uint16_t __active_frame_index;
-    // stuff
+    pagefile* const __my_pagefile;
+    uint16_t __active_frame_index;        // 0 is kernel; 1+ is anything else
+    gb_status* const __status_bytes;      // Array of 512-byte arrays
+    size_t const __num_status_bytes;      // Length of said array
+    uintptr_t const __kernel_heap_begin;  // Convenience pointer to the end of above array
+    uintptr_t __physical_open_watermark;  // The lowest physical address known to be open.
+    static heap_allocator* const __instance;
+    constexpr heap_allocator(pagefile* pagefile, gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
+        __my_pagefile               { pagefile },
+        __active_frame_index        { 0 },
+        __status_bytes              { status_bytes },
+        __num_status_bytes          { num_status_bytes },
+        __kernel_heap_begin         { kernel_heap_addr },
+        __physical_open_watermark   { MMAP_MAX_PG * PAGESIZE }
+                                    {}
+    constexpr status_byte* __get_sb(uintptr_t addr) { return &(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
+    void __mark_used(uintptr_t addr_start, size_t num_regions);
+    uintptr_t __find_claim_avail_region(size_t sz);
+public:
+    static void init_instance(pagefile* pagefile, mmap_t* mmap);
+    static constexpr inline heap_allocator& get() { return *__instance; }
+    heap_allocator(heap_allocator const&) = delete;
+    heap_allocator(heap_allocator&&) = delete;
+    heap_allocator& operator=(heap_allocator const&) = delete;
+    heap_allocator& operator=(heap_allocator&&) = delete;
+    paging_table allocate_pt();
+    vaddr_t allocate_block(vaddr_t const& base, size_t sz, uint64_t align = 0);
 };
 #endif

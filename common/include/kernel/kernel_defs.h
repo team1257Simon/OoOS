@@ -9,6 +9,7 @@
 #endif
 #define PAGESIZE 0x1000
 #define PT_LEN 0x200
+#define MMAP_MAX_PG 0x40000
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #define __pack __attribute__((packed))
@@ -20,6 +21,7 @@ typedef unsigned char bool;
 #include "concepts"
 #include "bits/move.h"
 template<class T> concept NotVoidPointer = !std::same_as<std::remove_cvref_t<T>, void*>;
+template<class T> concept NotVoid = !std::is_void_v<T>;
 #endif
 #define PAUSE asm volatile ("pause" ::: "memory")
 #define BARRIER asm volatile ("" ::: "memory")
@@ -80,7 +82,20 @@ typedef struct __vaddr
     constexpr __vaddr(__vaddr &&) = default;
     constexpr __vaddr& operator=(__vaddr const&) = default;
     constexpr __vaddr& operator=(__vaddr &&) = default;
+    constexpr __vaddr operator+(ptrdiff_t value) const { return { std::bit_cast<uintptr_t>(*this) + value }; }
+    constexpr __vaddr& operator+=(ptrdiff_t value) { return *this = (*this + value); }
+    constexpr __vaddr operator%(uint64_t unit) const { return { std::bit_cast<uintptr_t>(*this) % unit }; }
+    constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
+    constexpr __vaddr operator-(ptrdiff_t value) const { return { std::bit_cast<uintptr_t>(*this) - value }; }
+    constexpr __vaddr& operator-=(ptrdiff_t value) { return *this = (*this - value); }
     constexpr operator void*() const noexcept { return std::bit_cast<void*>(*this); }
+    constexpr operator const void*() const noexcept { return std::bit_cast<const void*>(*this); }
+    constexpr operator volatile void*() const volatile noexcept { return std::bit_cast<volatile void*>(*this); }
+    constexpr operator const volatile void*() const volatile noexcept { return std::bit_cast<const volatile void*>(*this); }
+    template<NotVoid T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(*this); }
+    template<NotVoid T> constexpr operator const T*() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(*this); }
+    template<NotVoid T> constexpr operator volatile T*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(*this); }
+    template<NotVoid T> constexpr operator volatile T const*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T> const*>(*this); }
     constexpr operator uintptr_t() const noexcept { return std::bit_cast<uintptr_t>(*this); }
     constexpr operator bool() const noexcept { return static_cast<void*>(*this) != NULL; }
     constexpr bool operator!() const noexcept { return static_cast<void*>(*this) == NULL; }
@@ -124,6 +139,7 @@ typedef struct fb_info
 } __pack framebuf_t;
 typedef struct __mmap
 {
+    size_t total_memory;
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
@@ -139,7 +155,7 @@ typedef struct __pagefile
 {
     size_t num_entries;
     page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
-    page_frame frame_entries[];
+    page_frame* frame_entries;
 } __pack pagefile;
 typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(framebuf_t*, mmap_t*, pagefile*);
 #endif

@@ -17,10 +17,16 @@ void alset(void* buf, uint32_t value, size_t n);
 void aqset(void* buf, uint64_t value, size_t n);
 bool acquire(mutex m);
 void release(mutex m);
+void __sysinternal_tlb_flush();
+void __sysinternal_set_cr3(void*);
+paging_table __sysinternal_get_cr3();
 inline void cli() { asm volatile("cli" ::: "memory"); }
 inline void sti() { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
+vaddr_t sys_mmap(vaddr_t const& start, uintptr_t phys, size_t pages);
+// We need the "in<size>" and "out<size>" code to inline so that the assembly will give the right sizes
+#define INLINE __attribute__((__always_inline__))
 template<typename T> concept QWordGranular = (sizeof(T) % 8 == 0 || alignof(T) % 8 == 0);
 template<typename T> concept DWordGranular = (sizeof(T) == 4 || (alignof(T) == 4 && sizeof(T) % 4 == 0));
 template<typename T> concept WordGranular = (sizeof(T) == 2 || (alignof(T) == 2 && sizeof(T) % 2 == 0));
@@ -35,7 +41,8 @@ template<WordGranular T> constexpr void arrayset(T* dest, uint16_t value, size_t
 template<ByteGranular T> constexpr void arrayset(T* dest, uint8_t value, size_t n) { abset(dest, value, n * sizeof(T)); }
 [[nodiscard]] constexpr void* operator new(size_t, void* ptr) noexcept { return ptr; }
 [[nodiscard]] constexpr void* operator new[](size_t, void* ptr) noexcept { return ptr; }
-template<std::integral I> constexpr inline I in(uint16_t from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
-template<std::integral I> constexpr inline void out(uint16_t to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
+template<std::integral I> constexpr INLINE I in(uint16_t from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
+template<std::integral I> constexpr INLINE void out(uint16_t to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
+constexpr inline size_t GIGABYTE = 0x40000000;
 #endif
 #endif

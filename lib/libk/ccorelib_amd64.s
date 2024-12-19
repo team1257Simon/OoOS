@@ -173,3 +173,17 @@
     lock xchgb  (%rdi), %al
     ret
     .size   release,    .-release
+    defglobal __sysinternal_tlb_flush
+    movq    %cr3,   %rax
+    movq    %rax,   %cr3
+    ret
+    .size   __sysinternal_tlb_flush,    .-__sysinternal_tlb_flush
+    defglobal __sysinternal_set_cr3
+    movq    %rdi,   %rax
+    movq    %rax,   %cr3
+    ret
+    .size     __sysinternal_set_cr3,     .-__sysinternal_set_cr3
+    defglobal __sysinternal_get_cr3
+    movq    %cr3,   %rax
+    ret
+    .size     __sysinternal_get_cr3,     .-__sysinternal_get_cr3
