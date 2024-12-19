@@ -32,6 +32,7 @@
         "syscalls.h": "c",
         "stdlib.h": "c",
         "uefi.h": "c",
-        "concepts": "cpp"
+        "concepts": "cpp",
+        "kernel_defs.h": "c"
     }
 }
