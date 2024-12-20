@@ -125,10 +125,10 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
 efi_status_t map_id_pages(size_t num_pages)
 {
     size_t n = required_tables(num_pages);
-    printf("map %i pages\n", n);
-    // By setting the value passed in the address parameter, using AllocateMaxAddress we can control how high it's allowed to go
+    printf("map %i pages\n", num_pages);
     paging_table tables_start;
     efi_status_t status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, n, (efi_physical_address_t*)&tables_start);
+    printf("%p\n", tables_start);
     if(EFI_ERROR(status)) 
     {
         printf("Unable to get pages for page tables: 0x%X\n", status);
@@ -152,7 +152,7 @@ efi_status_t map_id_pages(size_t num_pages)
     memset(__boot_pagefile->boot_entry, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
     __boot_pagefile->boot_entry->num_tables = pts_only;
     __boot_pagefile->num_entries = 1;
-    map_some_pages(0, 0, num_pages, tables_start + 512);
+    map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512*sizeof(pt_entry)));
     return EFI_SUCCESS;
 }
 
@@ -205,6 +205,8 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
 
 int main(int argc, char** argv)
 {
+    // In order to be able to map pages in the kernel, we need to disable the WP bit so that ring 0 can write to the paging tables
+    asm volatile("movq %%cr0, %%rax\n" "andq %0, %%rax\n" "movq %%rax, %%cr0" :: "i"(0xFFFEFFFF) : "%rax");
     (void)argc;
     (void)argv;
     efi_status_t status;
@@ -228,6 +230,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "unable to allocate memory\n");
         return EMALLOC;
     }
+    // Put the new paging tables into cr3
+    asm volatile("movq %0, %%rax\n" "movq %%rax, %%cr3" :: "r"(__boot_pml4) : "%rax");
     status = BS->GetMemoryMap(&memory_map_size, memory_map, &map_key, &desc_size, NULL);
     if(EFI_ERROR(status)) 
     {
@@ -361,12 +365,8 @@ int main(int argc, char** argv)
      /* free resources */
     free(buff);
     /* execute the "kernel" */
+     __boot_pagefile->boot_entry->cr3 = __boot_pml4;
     exit_bs();
-    __boot_pagefile->boot_entry->cr3 = __boot_pml4;
-    // In order to be able to map pages in the kernel, we need to disable the WP bit so that ring 0 can write to the paging tables
-    asm volatile("movq %%cr0, %%rax\n" "andq %0, %%rax\n" "movq %%rax, %%cr0" :: "i"(0xFFFEFFFF) : "%rax");
-    // Put the new paging tables into cr3
-    asm volatile("movq %0, %%rax\n" "movq %%rax, %%cr3" :: "r"(__boot_pml4) : "%rax");
     (*fn)(fb, map, __boot_pagefile);
     while (1);
     return OK;

@@ -9,7 +9,7 @@
 #endif
 #define PAGESIZE 0x1000
 #define PT_LEN 0x200
-#define MMAP_MAX_PG 0x40000
+#define MMAP_MAX_PG 0x100000uL
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #define __pack __attribute__((packed))
@@ -67,12 +67,12 @@ typedef struct __vaddr
         pml4_idx    { idx3 },
         ext         { sign } 
                     {}
-    constexpr __vaddr(uintptr_t i) noexcept : 
+    constexpr __vaddr(unsigned long i) noexcept : 
         offset      { static_cast<uint16_t>(i & 0x0FFF) },
-        page_idx    { static_cast<uint16_t>((i >> 12) & 0x1FFuL) }, 
-        pd_idx      { static_cast<uint16_t>((i >> 21) & 0x1FFuL) },
-        pdp_idx     { static_cast<uint16_t>((i >> 30) & 0x1FFuL) },
-        pml4_idx    { static_cast<uint16_t>((i >> 39) & 0x1FFuL) },
+        page_idx    { static_cast<uint16_t>(uint64_t(i >> 12) & 0x1FFuL) }, 
+        pd_idx      { static_cast<uint16_t>(uint64_t(i >> 21) & 0x1FFuL) },
+        pdp_idx     { static_cast<uint16_t>(uint64_t(i >> 30) & 0x1FFuL) },
+        pml4_idx    { static_cast<uint16_t>(uint64_t(i >> 39) & 0x1FFuL) },
         ext         { static_cast<uint16_t>(pml4_idx & 0x100 ? 0xFFFFu : 0u) } 
                     {}    
     constexpr __vaddr(void* ptr) noexcept : __vaddr { std::bit_cast<uintptr_t>(ptr) } {}
@@ -88,17 +88,28 @@ typedef struct __vaddr
     constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
     constexpr __vaddr operator-(ptrdiff_t value) const { return { std::bit_cast<uintptr_t>(*this) - value }; }
     constexpr __vaddr& operator-=(ptrdiff_t value) { return *this = (*this - value); }
-    constexpr operator void*() const noexcept { return std::bit_cast<void*>(*this); }
-    constexpr operator const void*() const noexcept { return std::bit_cast<const void*>(*this); }
-    constexpr operator volatile void*() const volatile noexcept { return std::bit_cast<volatile void*>(*this); }
-    constexpr operator const volatile void*() const volatile noexcept { return std::bit_cast<const volatile void*>(*this); }
-    template<NotVoid T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(*this); }
-    template<NotVoid T> constexpr operator const T*() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(*this); }
-    template<NotVoid T> constexpr operator volatile T*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(*this); }
-    template<NotVoid T> constexpr operator volatile T const*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T> const*>(*this); }
-    constexpr operator uintptr_t() const noexcept { return std::bit_cast<uintptr_t>(*this); }
-    constexpr operator bool() const noexcept { return static_cast<void*>(*this) != NULL; }
-    constexpr bool operator!() const noexcept { return static_cast<void*>(*this) == NULL; }
+    constexpr operator void*() const noexcept { void* ptr = std::bit_cast<void*>(operator uintptr_t()); return ptr ? ptr : nullptr; }
+    constexpr operator const void*() const noexcept { const void* ptr = std::bit_cast<const void*>(operator uintptr_t()); return ptr ? ptr : nullptr; }
+    constexpr operator volatile void*() const volatile noexcept { volatile void* ptr = std::bit_cast<volatile void*>((const_cast<__vaddr*>(this))->operator uintptr_t()); return ptr ? ptr : nullptr; }
+    constexpr operator const volatile void*() const volatile noexcept { const volatile void* ptr = std::bit_cast<const volatile void*>((const_cast<__vaddr*>(this))->operator uintptr_t()); return ptr ? ptr : nullptr;  }
+    template<NotVoid T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(operator void*()); }
+    template<NotVoid T> constexpr operator const T*() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(operator const void*()); }
+    template<NotVoid T> constexpr operator volatile T*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(operator volatile void*()); }
+    template<NotVoid T> constexpr operator const volatile T*() const volatile noexcept { return std::bit_cast<const volatile std::remove_cv_t<T>*>(operator const volatile void*()); }
+    constexpr operator uintptr_t() const noexcept
+    { 
+        return static_cast<uintptr_t>
+        (
+            (static_cast<uint64_t>(offset))         |
+            (static_cast<uint64_t>(page_idx) << 12) |
+            (static_cast<uint64_t>(pd_idx)   << 21) |
+            (static_cast<uint64_t>(pdp_idx)  << 30) |
+            (static_cast<uint64_t>(pml4_idx) << 39) |
+            (static_cast<uint64_t>(ext)      << 48)
+        );
+    }
+    constexpr operator bool() const noexcept { return static_cast<const void*>(*this) != nullptr; }
+    constexpr bool operator!() const noexcept { return static_cast<const void*>(*this) == nullptr; }
 #else
     uint16_t offset     : 12;
     uint16_t page_idx   :  9;

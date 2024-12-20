@@ -24,6 +24,7 @@ SECTIONS
           __bss = .;
           *(COMMON)
      }
+     /*
      
      .ctors : AT(ADDR(.ctors))
      {
@@ -80,6 +81,7 @@ SECTIONS
      {
           *(.gnu_extab*)
      }
+     */
 
      /DISCARD/ :
      {

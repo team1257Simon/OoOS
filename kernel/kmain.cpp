@@ -1,9 +1,9 @@
 #include "kernel/libk_decls.h"
 #include "kernel/direct_text_render.hpp"
 #include "kernel/idt_amd64.h"
+#include "kernel/heap_allocator.hpp"
 extern psf2_t* __startup_font;
-uint8_t tty_space[sizeof(direct_text_render)];
-direct_text_render* tty = reinterpret_cast<direct_text_render*>(tty_space);
+direct_text_render* tty;
 extern "C"
 {
     extern void gdt_setup();
@@ -11,9 +11,11 @@ extern "C"
     {
         gdt_setup();
         idt_init();
-        new (tty) direct_text_render { fb, __startup_font, 0x00FFFFFF, 0 };
+        heap_allocator::init_instance(pg, mmap);
+        tty = new direct_text_render { fb, __startup_font, 0x00FFFFFF, 0 };
         tty->cls();
         tty->print_text("Hi there!");
+        tty->endl();
         while(1);
     }
 }

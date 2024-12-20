@@ -122,10 +122,6 @@
 	.size	strchr, 	.-strchr
     .size   strnchr,    .-strnchr
 	.size	memchr,		.-memchr
-    defglobal   memcpy
-    movq    %rdi,   %rax
-    jmp     sbcopy
-    .size   memcpy,     .-memcpy
     defglobal   stpcpy
     pushq   $1
     jmp     .L3
@@ -173,6 +169,11 @@
     lock xchgb  (%rdi), %al
     ret
     .size   release,    .-release
+    defglobal testlock
+    xorq    %rax,  %rax
+    orb    (%rdi), %al
+    ret
+    .size   testlock,   .-testlock
     defglobal __sysinternal_tlb_flush
     movq    %cr3,   %rax
     movq    %rax,   %cr3
