@@ -16,55 +16,26 @@ namespace std
 		static constexpr T value = __v;
 		using value_type = T;
 		using type = integral_constant <T, __v>;
-		constexpr operator value_type() const noexcept
-		{
-			return value;
-		}
-		constexpr value_type operator()() const noexcept
-		{
-			return value;
-		}
+		constexpr operator value_type() const noexcept { return value; }
+		constexpr value_type operator()() const noexcept { return value; }
 	};
 	template <bool __v> 
 	using __bool_constant = integral_constant <bool, __v>;
 	using true_type = __bool_constant <true>;
 	using false_type = __bool_constant <false>;
-	template <bool __v> 
-	using bool_constant = __bool_constant <__v>;
-	template <bool, typename T = void> 
-	struct enable_if {};
-	template <typename T> 
-	struct enable_if <true, T>
-	{
-		using type = T;
-	};
-	template <bool CT, typename T = void> 
-	using __enable_if_t = typename enable_if <CT, T>::type;
-	template <bool>
-    struct __conditional
-	{
-		template <typename T, typename> 
-		using type = T;
-	};
-	template <> 
-    struct __conditional <false>
-	{
-		template <typename, typename U> 
-		using type = U;
-	};
-	template <bool CT, typename _If, typename _Else> 
-	using __conditional_t = typename __conditional <CT>::template type <_If, _Else>;
-	template <typename _Type> 
-	struct __type_identity
-	{
-		using type = _Type;
-	};
-	template <typename T> 
-	using __type_identity_t = typename __type_identity <T>::type;
+	template <bool __v> using bool_constant = __bool_constant <__v>;
+	template <bool, typename T = void> struct enable_if {};
+	template <typename T> struct enable_if <true, T> { using type = T; };
+	template <bool CT, typename T = void> using __enable_if_t = typename enable_if <CT, T>::type;
+	template <bool> struct __conditional { template <typename T, typename>	using type = T; };
+	template <>  struct __conditional <false> { template <typename, typename U> using type = U; };
+	template <bool CT, typename TT, typename FT> 
+	using __conditional_t = typename __conditional <CT>::template type <TT, FT>;
+	template <typename T>  struct __type_identity { using type = T; };
+	template <typename T>  using __type_identity_t = typename __type_identity <T>::type;
 	namespace __detail
 	{
-		template <typename T, typename...> 
-	using __first_t = T;
+		template <typename T, typename...> using __first_t = T;
 		template <typename..._Bn> auto __or_fn(int) -> __first_t <false_type, __enable_if_t <!bool(_Bn::value)> ...>;
 		template <typename..._Bn> auto __or_fn(...) -> true_type;
 		template <typename..._Bn> auto __and_fn(int) -> __first_t <true_type, __enable_if_t <bool(_Bn::value)> ...>;
@@ -1601,12 +1572,10 @@ namespace std
 	template <typename X, typename Y> 
 	struct __common_ref_impl <X &&, Y &&, __require_all <is_convertible <X &&, __common_ref_C <X, Y>>, is_convertible <Y &&, __common_ref_C <X, Y>>>>
 	{
-		using type = __common_ref_C <X,
-		Y>;
+		using type = __common_ref_C <X, Y>;
 	};
 	template <typename X, typename Y> 
-	using __common_ref_D = __common_ref <
-		const X &, Y &>;
+	using __common_ref_D = __common_ref <const X &, Y &>;
 	template <typename X, typename Y> 
 	struct __common_ref_impl <X &&, Y &, __require_all <is_convertible <X &&, __common_ref_D <X, Y>>>>
 	{
@@ -1615,14 +1584,12 @@ namespace std
 	};
 	template <typename X, typename Y> 
 	struct __common_ref_impl <X &, Y &&>: __common_ref_impl <Y &&, X &> {};
-	template <typename T, typename U, template <typename> 
-	class QT, template <typename> class UQT> 
+	template <typename T, typename U, template <typename> class QT, template <typename> class UQT> 
 	struct basic_common_reference {};
 	template <typename T> 
 	struct __xref
 	{
-		template <typename U> 
-	using __type = __copy_cv <T, U>;
+		template <typename U> using __type = __copy_cv <T, U>;
 	};
 	template <typename T> 
 	struct __xref <T &>
@@ -1694,5 +1661,11 @@ namespace std
 	struct common_reference <T1, T2, Ts...>: __common_type_fold <common_reference <T1, T2>, __common_type_pack <Ts...>> {};
 	template <typename T1, typename T2, typename...Ts> 
 	struct __common_type_fold <common_reference <T1, T2>, __common_type_pack <Ts...>, void_t <common_reference_t <T1, T2>>>: public common_reference <common_reference_t <T1, T2>, Ts...> {};
+	namespace __detail
+	{
+		template<typename T>
+		constexpr T* __null__() { return NULL; }
+	}
+	using ptrdiff_t = decltype(__detail::__null__<int>() - __detail::__null__<int>());
 }
 #endif

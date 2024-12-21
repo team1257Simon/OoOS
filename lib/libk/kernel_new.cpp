@@ -18,3 +18,5 @@ void operator delete(void* ptr, size_t) noexcept { __kernel_frame_tag->deallocat
 void operator delete[](void* ptr, size_t) noexcept { __kernel_frame_tag->deallocate(ptr); }
 void operator delete(void* ptr, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }
 void operator delete[](void* ptr, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }
+void operator delete(void* ptr, size_t, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }
+void operator delete[](void* ptr, size_t, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }

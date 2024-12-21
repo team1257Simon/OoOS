@@ -2,6 +2,7 @@
 #include "kernel/direct_text_render.hpp"
 #include "kernel/idt_amd64.h"
 #include "kernel/heap_allocator.hpp"
+#include "memory"
 extern psf2_t* __startup_font;
 direct_text_render* tty;
 extern "C"
@@ -16,6 +17,14 @@ extern "C"
         tty->cls();
         tty->print_text("Hi there!");
         tty->endl();
+        std::allocator<uint8_t> alloc{};
+        uint8_t* is = alloc.allocate(4);
+        is[0] = 0xDE;
+        is[1] = 0xC0;
+        is[2] = 0x01;
+        is[3] = 0xC0;
+        tty->print_hex(*reinterpret_cast<uint64_t*>(is));
+        alloc.deallocate(is, 4);
         while(1);
     }
 }
