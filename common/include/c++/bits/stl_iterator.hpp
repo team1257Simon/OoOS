@@ -125,8 +125,8 @@ namespace __impl
         constexpr __iterator operator++(int) noexcept { return __iterator{ current++ }; }
         constexpr __iterator& operator--() noexcept { --current; return *this; }
         constexpr __iterator operator--(int) noexcept { return __iterator { current-- }; }
-        constexpr __iterator& operator+=(difference_type __n) noexcept { current += n; return *this; }
-        constexpr __iterator& operator-=(difference_type __n) noexcept { current -= n; return *this; }
+        constexpr __iterator& operator+=(difference_type __n) noexcept { current += __n; return *this; }
+        constexpr __iterator& operator-=(difference_type __n) noexcept { current -= __n; return *this; }
         constexpr __iterator operator+(difference_type __n) const noexcept { return __iterator{ current + __n }; }
         constexpr __iterator operator-(difference_type __n) const noexcept { return __iterator{ current - __n }; }
     };

@@ -97,7 +97,6 @@
 	popq	%rsi
     defglobal   memchr
 	movq	%rdx, 		%rcx
-	jrcxz	.L1
 	movq	%rsi, 		%rax
 	repne	scasb
 	jne		.L1

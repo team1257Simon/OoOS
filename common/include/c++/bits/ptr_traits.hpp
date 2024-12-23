@@ -43,8 +43,7 @@ namespace std
         typedef T* pointer;
         typedef T  element_type;
         typedef ptrdiff_t difference_type;
-        template<typename U>
-        using rebind = U*;
+        template<typename U> using rebind = U*;
         static constexpr pointer pointer_to(__make_not_void<element_type>& __r) noexcept { return std::addressof(__r); }
     };
     template<typename PT, typename T> using __ptr_rebind = typename pointer_traits<PT>::template rebind<T>;

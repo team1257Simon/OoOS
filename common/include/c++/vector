@@ -1,11 +1,12 @@
 #ifndef __VECTOR
 #define __VECTOR
 #include "bits/stl_iterator.hpp"
+#include "bits/stl_allocator.h"
 #include "bits/dynamic_buffer.hpp"
 namespace std
 {
-    template<typename T, std::allocator_object<T> A>
-    class vector : __impl::__dynamic_buffer<T, A>
+    template<typename T, std::allocator_object<T> A = std::allocator<T>>
+    class vector : protected __impl::__dynamic_buffer<T, A>
     {
         typedef __impl::__dynamic_buffer<T, A> __base;
     public:
@@ -22,13 +23,16 @@ namespace std
         typedef std::reverse_iterator<iterator> reverse_iterator;
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
         constexpr explicit vector(allocator_type const& alloc) noexcept : __base { alloc } {}
-        constexpr vector() noexcept(noexcept(allocator_type())) : vector {allocator_type{}} {}
-        constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type{}) : __base { count, alloc } { arrayset<T>(this->__my_data.__begin, value, count); }
-        template<std::input_iterator IT> requires requires(IT it, pointer p) { ::new (p) T {*it}; } 
-        constexpr vector(IT start, IT end, allocator_type const& alloc = A{}) : __base { size_type(end - start), alloc } { arraycopy<T>(this->__my_data.__begin, start, size_type(end - start)); }
+        constexpr vector() noexcept(noexcept(allocator_type())) : __base{} {}
+        constexpr vector(size_type count) noexcept : __base{ count, allocator_type{} } { }
+        constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type{}) : __base { count, value, alloc } {}
+        template<std::matching_input_iterator<value_type> IT>
+        constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base { start, end, alloc } {}
         constexpr vector(vector const& that) : __base { static_cast<__base const&>(that) } {}
         constexpr vector(vector&& that) : __base { forward<__base>(that) } {}
-        vector(initializer_list<T> init) : __base { init } {}
+        constexpr vector(vector const& that, allocator_type const& alloc) : __base{ static_cast<__base const&>(that), alloc } {}
+        constexpr vector(vector&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
+        constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type{}) : __base { init, alloc } {}
         allocator_type get_allocator() const { return this->__allocator; }
         constexpr pointer data() noexcept { return this->__access(); }
         constexpr const_pointer data() const noexcept { return this->__access(); }
@@ -50,18 +54,18 @@ namespace std
         constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator{ cbegin() }; }
         constexpr const_reverse_iterator rbegin() const { return crbegin(); }
         constexpr reverse_iterator rend() { return reverse_iterator{ end() }; }
-        constexpr const_reverse_iterator crend() const { return const_reverse_iterator{ cend(); } }
+        constexpr const_reverse_iterator crend() const { return const_reverse_iterator{ cend() }; }
         constexpr const_reverse_iterator rend() const { return crend(); }
-        constexpr bool empty() const noexcept { return this->__actual_size() == 0; }
-        constexpr size_t size() const noexcept { return this->__actual_size(); }
+        constexpr bool empty() const noexcept { return this->__size() == 0; }
+        constexpr size_t size() const noexcept { return this->__size(); }
         constexpr size_t max_size() const noexcept { return 0xFFFFFFFFFFFFFFFFUL; }
         constexpr void reserve(size_type count) { if(count > this->__capacity()) this->__grow_buffer(size_type(count - this->__capacity())); }
         constexpr size_type capacity() const noexcept { return this->__capacity(); }
         constexpr void shrink_to_fit() { this->__trim_buffer(); }
         constexpr void clear() { this->__clear(); }
-        constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value); }; }
-        template<std::input_iterator IT> requires requires(IT it, pointer p) { ::new (p) T {*it}; } 
-        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->__insert_range(pos.base(), &(*start), &(*end)) }; }
+        constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
+        template<std::matching_input_iterator<value_type> IT>
+        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->__insert_elements(pos.base(), &(*start), &(*end)) }; }
         template<typename ... Args> 
         requires constructible_from<T, Args...>
         constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }

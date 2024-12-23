@@ -2,7 +2,7 @@
 // GCC / glibcxx is under the GPL
 #ifndef __CONCEPTS
 #define __CONCEPTS 
-#include <type_traits>
+#include "type_traits"
 namespace std
 {
     template<typename OT, typename NT> concept convertible_to = is_convertible_v<OT, NT> && requires { static_cast<NT>(std::declval<OT>()); };
@@ -36,7 +36,7 @@ namespace std
         namespace __cust_swap
         {
             template<typename T> void swap(T&, T&) = delete;
-            template<typename T, typename U> concept __adl_swap = (__detail::__class_or_enum<remove_reference_t<T>> || __detail::__class_or_enum<remove_reference_t<U>>) && requires(T&& __t, U&& __u) { swap(static_cast<T&&>(__t), static_cast<U&&>(__u)); };
+            template<typename T, typename U> concept __adl_swap = (std::__detail::__class_or_enum<remove_reference_t<T>> || std::__detail::__class_or_enum<remove_reference_t<U>>) && requires(T&& __t, U&& __u) { swap(static_cast<T&&>(__t), static_cast<U&&>(__u)); };
             struct __swap
             {
             private:
@@ -64,7 +64,7 @@ namespace std
     template<typename RT, typename T, typename U> concept relation = predicate<RT, T, T> && predicate<RT, U, U> && predicate<RT, T, U> && predicate<RT, U, T>;
     template<typename RT, typename T, typename U> concept equivalence_relation = relation<RT, T, U>;
     template<typename RT, typename T, typename U> concept strict_weak_order = relation<RT, T, U>;
-    // Some other useful non-standard concepts
+#pragma region non-standard useful concepts
     template<typename LT, typename RT> concept not_self = !std::is_same_v<__remove_cvref_t<LT>, RT>;
     template<typename LT, typename RT> concept same_size = sizeof(LT) == sizeof(RT);
     template<typename LT, typename RT> concept smaller = sizeof(LT) < sizeof(RT);
@@ -78,5 +78,6 @@ namespace std
     template<typename T> concept non_object = !is_object_v<T>;
     template<typename T> concept object = is_object_v<T>;
     template<typename A, typename T> concept allocator_object = is_default_constructible_v<A> && requires(A a, T* ptr, size_t n) { { a.allocate(n) } -> same_as<T*>; a.deallocate(ptr, n); };
+#pragma endregion
 }
 #endif 

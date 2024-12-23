@@ -52,7 +52,7 @@ namespace std
     template<typename IT> struct incrementable_traits<const IT> : incrementable_traits<IT> {};
     template<typename T> requires requires { typename T::difference_type; } struct incrementable_traits<T> { using difference_type = typename T::difference_type; };
     template<typename T> requires (!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; })
-    struct incrementable_traits<T> { using difference_type = make_signed_t<decltype(std::declval<T>() - std::declval<T>())>; };
+    struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(std::declval<T>() - std::declval<T>())>::type; };
     #if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
     template<> struct incrementable_traits<__int128> { using difference_type = __int128; };
     template<> struct incrementable_traits<unsigned __int128> { using difference_type = __int128; };
@@ -118,8 +118,8 @@ namespace std
     template<typename T> using iter_value_t = __detail::__iter_value_t<remove_cvref_t<T>>;
     template<typename IT> requires __detail::__iter_with_nested_types<IT> struct __iterator_traits<IT, void> {
     private:
-        template<typename IT> struct __ptr { using type = void; };
-        template<typename IT> requires requires { typename IT::pointer; } struct __ptr<IT> { using type = typename IT::pointer; };
+        template<typename JT> struct __ptr { using type = void; };
+        template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
     public:
         using iterator_category = typename IT::iterator_category;
         using value_type	      = typename IT::value_type;
@@ -132,19 +132,17 @@ namespace std
     struct __iterator_traits<IT, void> 
     {
     private:
-        template<typename IT> struct __cat { using type = input_iterator_tag; };
-        template<typename IT> requires requires { typename IT::iterator_category; } struct __cat<IT> { using type = typename IT::iterator_category; };
-        template<typename IT> requires __detail::__iter_without_category<IT> && __detail::__cpp17_randacc_iterator<IT> struct __cat<IT> { using type = random_access_iterator_tag; };
-        template<typename IT> requires __detail::__iter_without_category<IT> && __detail::__cpp17_bidi_iterator<IT> struct __cat<IT> { using type = bidirectional_iterator_tag; };
-        template<typename IT> requires __detail::__iter_without_category<IT> && __detail::__cpp17_fwd_iterator<IT> struct __cat<IT> { using type = forward_iterator_tag; };
-        template<typename IT> struct __ptr { using type = void; };
-        template<typename IT> requires requires { typename IT::pointer; }
-        struct __ptr<IT> { using type = typename IT::pointer; };
-        template<typename IT> requires (!requires { typename IT::pointer; } && requires(IT& __it) { __it.operator->(); })
-        struct __ptr<IT> { using type = decltype(std::declval<IT&>().operator->()); };
-        template<typename IT> struct __ref { using type = iter_reference_t<IT>; };
-        template<typename IT> requires requires { typename IT::reference; }
-        struct __ref<IT> { using type = typename IT::reference; };
+        template<typename JT> struct __cat { using type = input_iterator_tag; };
+        template<typename JT> requires requires { typename JT::iterator_category; } struct __cat<JT> { using type = typename JT::iterator_category; };
+        template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_randacc_iterator<JT> struct __cat<JT> { using type = random_access_iterator_tag; };
+        template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_bidi_iterator<JT> struct __cat<JT> { using type = bidirectional_iterator_tag; };
+        template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_fwd_iterator<JT> struct __cat<JT> { using type = forward_iterator_tag; };
+        template<typename JT> struct __ptr { using type = void; };
+        template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
+        template<typename JT> requires (!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(std::declval<JT&>().operator->()); };
+        template<typename JT> struct __ref { using type = iter_reference_t<JT>; };
+        template<typename JT> requires requires { typename JT::reference; }
+        struct __ref<JT> { using type = typename JT::reference; };
         public:
         using iterator_category = typename __cat<IT>::type;
         using value_type = typename indirectly_readable_traits<IT>::value_type;
@@ -157,9 +155,9 @@ namespace std
     struct __iterator_traits<IT, void>
     {
     private:
-        template<typename IT> struct __diff { using type = void; };
-        template<typename IT> requires requires { typename incrementable_traits<IT>::difference_type; }
-        struct __diff<IT> { using type = typename incrementable_traits<IT>::difference_type; };
+        template<typename JT> struct __diff { using type = void; };
+        template<typename JT> requires requires { typename incrementable_traits<JT>::difference_type; }
+        struct __diff<JT> { using type = typename incrementable_traits<JT>::difference_type; };
     public:
         using iterator_category = output_iterator_tag;
         using value_type	      = void;
@@ -302,7 +300,7 @@ namespace std
     namespace ranges::__cust_access
     {
         using std::__detail::__class_or_enum;
-        struct __decay_copy final { template<typename T> constexpr decay_t<T> operator()(T&& __t) const noexcept(is_nothrow_convertible_v<T, decay_t<T>>) { return std::forward<T>(__t); } } inline constexpr __decay_copy{};
+        struct __decay_copy final { template<typename T> constexpr decay_t<T> operator()(T&& __t) const { return std::forward<T>(__t); } } inline constexpr __decay_copy{};
         template<typename T> concept __member_begin = requires(T& __t) { { __decay_copy(__t.begin()) } -> input_or_output_iterator; };
         void begin(auto&) = delete;
         void begin(const auto&) = delete;
@@ -316,5 +314,8 @@ namespace std
         }
     }
     namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); } 
+#pragma region non-standard useful concepts
+    template<typename IT, typename VT> concept matching_input_iterator = std::input_iterator<IT> && requires(VT* p, IT i) { { ::new (p) VT {*i} } -> std::same_as<VT*>; };
+#pragma endregion
 }
 #endif
