@@ -1,6 +1,6 @@
 #ifndef __NEW
 #define __NEW
-#include "bits/allocator_base.h"
+#include "bits/stl_allocator.h"
 [[nodiscard]] void* operator new(std::size_t count) __attribute__((__externally_visible__));
 [[nodiscard]] void* operator new[](std::size_t count) __attribute__((__externally_visible__));
 [[nodiscard]] void* operator new(std::size_t count, std::align_val_t al) __attribute__((__externally_visible__));
@@ -12,8 +12,8 @@ void operator delete[](void* ptr, std::align_val_t al) __attribute__((__external
 void operator delete(void* ptr, std::size_t, std::align_val_t al) __attribute__((__externally_visible__));
 void operator delete[](void* ptr, std::size_t, std::align_val_t al) __attribute__((__externally_visible__));
 #define INLINE __attribute__((__always_inline__))
-[[nodiscard]] [[gnu::always_inline]] constexpr void* operator new(std::size_t, void* ptr) noexcept { return ptr; }
-[[nodiscard]] [[gnu::always_inline]] constexpr void* operator new[](std::size_t, void* ptr) noexcept { return ptr; }
-[[gnu::always_inline]] constexpr void operator delete  (void*, void*) {}
-[[gnu::always_inline]] constexpr void operator delete[](void*, void*) {}
+[[nodiscard]] [[gnu::always_inline]] __attribute__((__externally_visible__)) constexpr void* operator new(std::size_t, void* ptr) noexcept { return ptr; }
+[[nodiscard]] [[gnu::always_inline]] __attribute__((__externally_visible__)) constexpr void* operator new[](std::size_t, void* ptr) noexcept { return ptr; }
+[[gnu::always_inline]] __attribute__((__externally_visible__)) constexpr void operator delete  (void*, void*) {}
+[[gnu::always_inline]] __attribute__((__externally_visible__)) constexpr void operator delete[](void*, void*) {}
 #endif

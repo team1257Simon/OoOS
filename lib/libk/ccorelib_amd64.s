@@ -72,18 +72,6 @@
     rep     movsq
     ret
     .size   sqcopy, .-sqcopy
-    defglobal   strlen
-    xorq    %rsi,   %rsi
-    defglobal   strnlen
-    movq    %rsi,   %rcx
-    xorq    %rax,   %rax
-    movq    %rdi,   %rdx
-    repnz   scasb
-    movq    %rdi,   %rax
-    subq    %rdx,   %rax
-    ret
-    .size   strlen,  .-strlen
-    .size   strnlen, .-strnlen
     defglobal   strcmp
     xorq    %rdx,   %rdx
     defglobal   strncmp
@@ -158,6 +146,22 @@
     popq    %rax
     ret
     .size   memset,     .-memset
+    defglobal   strlen
+    xorq    %rsi,   %rsi
+    defglobal   strnlen
+    movq    %rsi,   %rcx
+    xorq    %rax,   %rax
+    xorq    %rdx,   %rdx
+.L5:
+    scasb
+    jz      .L6
+    incq    %rdx
+    loop    .L5
+.L6:
+    movq    %rdx,   %rax
+    ret
+    .size   strlen,  .-strlen
+    .size   strnlen, .-strnlen
     defglobal acquire
     orb         $1,     %al
     lock xchgb  (%rdi), %al

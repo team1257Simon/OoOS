@@ -1,5 +1,5 @@
-#include "kernel/libk_decls.h"
-#include "kernel/idt_amd64.h"
+#include "libk_decls.h"
+#include "arch/idt_amd64.h"
 
 extern "C"
 {

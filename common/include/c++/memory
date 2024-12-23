@@ -1,6 +1,6 @@
 #ifndef __MEMORY
 #define __MEMORY
-#include "bits/allocator_base.h"
+#include "bits/stl_allocator.h"
 #include "concepts"
 #include "bits/move.h"
 namespace std
@@ -9,14 +9,15 @@ namespace std
     struct allocator : __base_allocator<T>
     {
         typedef T value_type;
+        typedef true_type propagate_on_container_move_assignment;
         using size_type = decltype(sizeof(T));
         using difference_type = decltype(__detail::__null__<T>() - __detail::__null__<T>());
         constexpr allocator() noexcept = default;
         constexpr allocator(allocator const&) noexcept = default;
         template<typename U> constexpr allocator(allocator<U> const&) noexcept {};
         constexpr ~allocator() noexcept = default;
-        [[nodiscard]][[gnu::always_inline]] constexpr T* allocate(size_type count) { return this->__allocate(count); }
-        [[gnu::always_inline]] constexpr void deallocate(T* ptr, size_type count) { this->__deallocate(ptr, count); }
+        [[nodiscard]] constexpr T* allocate(size_type count) { return this->__allocate(count); }
+        constexpr void deallocate(T* ptr, size_type count) { this->__deallocate(ptr, count); }
     };
     template<typename T> concept __non_array = !std::is_array_v<T>;
     template<typename ... Args> concept __zero_size = sizeof...(Args) == 0;

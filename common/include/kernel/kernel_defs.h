@@ -169,4 +169,8 @@ typedef struct __pagefile
     page_frame* frame_entries;
 } __pack pagefile;
 typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(framebuf_t*, mmap_t*, pagefile*);
+typedef uint8_t byte;
+typedef uint16_t word;
+typedef uint32_t dword;
+typedef uint64_t qword;
 #endif

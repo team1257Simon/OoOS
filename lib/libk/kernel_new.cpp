@@ -20,3 +20,10 @@ void operator delete(void* ptr, std::align_val_t al) noexcept { __kernel_frame_t
 void operator delete[](void* ptr, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }
 void operator delete(void* ptr, size_t, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }
 void operator delete[](void* ptr, size_t, std::align_val_t al) noexcept { __kernel_frame_tag->deallocate(ptr, static_cast<size_t>(al)); }
+namespace std
+{
+    namespace __detail
+    {
+        void* __aligned_reallocate(void* ptr, size_t n, size_t align) { return __kernel_frame_tag->reallocate(ptr, n, align); }
+    }
+}

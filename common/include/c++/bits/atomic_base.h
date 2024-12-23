@@ -21,10 +21,10 @@ namespace std
     constexpr inline memory_order memory_order_seq_cst = memory_order::seq_cst;
     enum __memory_order_modifier
     {
-      __memory_order_mask          = 0x0ffff,
-      __memory_order_modifier_mask = 0xffff0000,
-      __memory_order_hle_acquire   = 0x10000,
-      __memory_order_hle_release   = 0x20000
+      __memory_order_mask          = 0x0000FFFF,
+      __memory_order_modifier_mask = 0xFFFF0000,
+      __memory_order_hle_acquire   = 0x00010000,
+      __memory_order_hle_release   = 0x00020000
     };
     constexpr memory_order operator|(memory_order __m, __memory_order_modifier __mod) { return memory_order(int(__m) | int(__mod)); }
     constexpr memory_order operator&(memory_order __m, __memory_order_modifier __mod) { return memory_order(int(__m) & int(__mod)); }
@@ -62,7 +62,7 @@ namespace std
         template<__detail::__can_atomic T> constexpr INL T xor_fetch(T* __ptr, __val<T> __i) { return __atomic_xor_fetch(__ptr, __i, __ATOMIC_SEQ_CST); }
         template<__detail::__can_atomic T> constexpr INL T __fetch_add_flt(T* __ptr, __val<T> __i, memory_order __m) noexcept { __val<T> __old = load(__ptr, memory_order_relaxed); __val<T> __new = __old + __i; while(!compare_exchange_weak(__ptr, __old, __new, __m, memory_order_relaxed)) __new = __old + i; return __old; }
         template<__detail::__can_atomic T> constexpr INL T __fetch_sub_flt(T* __ptr, __val<T> __i, memory_order __m) noexcept { __val<T> __old = load(__ptr, memory_order_relaxed); __val<T> __new = __old - __i; while(!compare_exchange_weak(__ptr, __old, __new, __m, memory_order_relaxed)) __new = __old - i; return __old; }
-        template<__detail::__can_atomic T>  constexpr INL T __add_fetch_flt(T* __ptr, __val<T> __i) noexcept { __val<T> __old = load(__ptr, memory_order_relaxed); __val<T> __new = __old + __i; while(!compare_exchange_weak(__ptr, __old, __new, memory_order_seq_cst, memory_order_relaxed)) __new = __old + i; return __old; }
+        template<__detail::__can_atomic T> constexpr INL T __add_fetch_flt(T* __ptr, __val<T> __i) noexcept { __val<T> __old = load(__ptr, memory_order_relaxed); __val<T> __new = __old + __i; while(!compare_exchange_weak(__ptr, __old, __new, memory_order_seq_cst, memory_order_relaxed)) __new = __old + i; return __old; }
         template<__detail::__can_atomic T> constexpr INL T __sub_fetch_flt(T* __ptr, __val<T> __i) noexcept { __val<T> __old = load(__ptr, memory_order_relaxed); __val<T> __new = __old - __i; while(!compare_exchange_weak(__ptr, __old, __new, memory_order_seq_cst, memory_order_relaxed)) __new = __old - i; return __old; }
     }
     #ifdef __GCC_ATOMIC_TEST_AND_SET_TRUEVAL

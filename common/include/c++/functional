@@ -1,0 +1,9 @@
+#ifndef __FUNCTIONAL
+#define __FUNCTIONAL
+#include "bits/stl_function.hpp"
+namespace std
+{
+    template<typename FT, typename ... Args> constexpr invoke_result_t<FT, Args...> invoke(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_v<FT, Args...>) { return __invoke(forward<FT>(ft), forward<Args>(args)...); }
+    template<typename RT, typename FT, typename ... Args> requires is_invocable_r_v<RT, FT, Args...> constexpr RT invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r(forward<FT>(ft), forward<Args>(args)...); }
+}
+#endif

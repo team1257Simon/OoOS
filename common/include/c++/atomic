@@ -1,9 +1,18 @@
 #ifndef __ATOMIC
 #define __ATOMIC
 #include "bits/atomic_base.h"
+/*
+ * <ObligatoryReference>
+ * (Cid Kagenoh Voice)
+ * I
+ * AM
+ * (font changes to Times New Roman Bold Italic)
+ * ATOMIC
+ * </ObligatoryReference>
+ */
 namespace std
 {
     template<typename T> using atomic_ptr = std::atomic<T*>;
+    // More as needed
 }
-
 #endif

@@ -1,6 +1,6 @@
 #ifndef __IDT
 #define __IDT
-#include "kernel/kernel_defs.h"
+#include "kernel/arch/arch_amd64.h"
 #ifdef __cplusplus
 extern "C"
 {
@@ -19,5 +19,4 @@ void idt_init();
 #ifdef __cplusplus
 }
 #endif
-
 #endif

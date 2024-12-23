@@ -1,8 +1,10 @@
-#include "kernel/libk_decls.h"
-#include "kernel/direct_text_render.hpp"
-#include "kernel/idt_amd64.h"
-#include "kernel/heap_allocator.hpp"
+#include "libk_decls.h"
+#include "direct_text_render.hpp"
+#include "arch/idt_amd64.h"
+#include "heap_allocator.hpp"
 #include "memory"
+#include "functional"
+#include "string.h"
 extern psf2_t* __startup_font;
 direct_text_render* tty;
 extern "C"
@@ -23,8 +25,15 @@ extern "C"
         is[1] = 0xC0;
         is[2] = 0x01;
         is[3] = 0xC0;
-        tty->print_hex(*reinterpret_cast<uint64_t*>(is));
+        tty->print_hex(*reinterpret_cast<uint32_t*>(is));
+        tty->endl();
         alloc.deallocate(is, 4);
+        std::function<size_t(const char*)> fstrlen{strlen};
+        tty->print_hex(fstrlen("stuff"));
+        tty->endl();
+        std::function<void(int, int)> test2 { [&](int a, int b) -> void { tty->print_hex(a + b); tty->endl(); } };
+        test2(5, 5);
+        test2(10, 8);
         while(1);
     }
 }

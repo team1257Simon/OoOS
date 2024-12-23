@@ -21,5 +21,10 @@ namespace std
         [[nodiscard]][[gnu::always_inline]] constexpr T* __allocate(std::size_t n) { return static_cast<T*>(::operator new(n * __size_val, static_cast<std::align_val_t>(__align_val))); }
         [[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
     };
+    namespace __detail
+    {
+        void* __aligned_reallocate(void* ptr, size_t n, size_t align);
+    }
+    template<typename T> [[nodiscard]][[gnu::always_inline]] T* resize(T* array, size_t ncount) { return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
 }
 #endif
