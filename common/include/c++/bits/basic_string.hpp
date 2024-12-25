@@ -13,9 +13,25 @@ namespace std
         template<typename CT> constexpr inline bool __is_char_type_v = __is_char_type<CT>::value;
     }
     template<typename CT> concept char_type = __detail::__is_char_type_v<CT>;
-    template<std::char_type CT> constexpr size_t strlen(const CT* str) { size_t i; for(i = 0; str[i]; i++); return i; }
-    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { size_t i; for(i = 0; str[i] && i < max; i++); return i; }
-    template<std::integral T> constexpr inline void* memset(void* ptr, T val, size_t n) { arrayset(ptr, val, n); }
+    namespace __impl
+    {
+        template<std::char_type CT> constexpr const CT* __find_impl(CT const* hs, CT const* ne) noexcept
+        {
+            CT c = ne[0];
+            if (!c) return hs;
+            for (; hs[0]; hs++)
+            {
+                if (hs[0] != c) continue;
+                size_t i;
+                for (i = 1; ne[i]; i++) if (hs[i] != ne[i]) break;
+                if (!ne[i]) return hs;
+            }
+            return NULL;
+        }
+    }
+    template<std::char_type CT> constexpr size_t strlen(const CT* str) { size_t i; for(i = 0; str[i]; i++); return i;  }
+    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { size_t i; for(i = 0; i <= max && str[i]; i++); return i; }
+    template<std::integral T> constexpr inline void* memset(void* ptr, T val, size_t n) { arrayset(ptr, val, n); return ptr; }
     template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { arrayset<CT>(ptr, c, n); return ptr; }
     template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }
     template<std::char_type CT> constexpr CT to_char_type(int i) { return static_cast<CT>(i); }
@@ -27,9 +43,18 @@ namespace std
     template<std::char_type CT> constexpr CT* strcpy(CT* dest, const CT* src) { arraycopy<CT>(dest, src, std::strlen(src)); }
     template<std::char_type CT> constexpr CT* strncpy(CT* dest, const CT* src, size_t n) { arraycopy<CT>(dest, src, std::strnlen(src, n)); return dest; }
     constexpr int memcmp(const void* s1, const void* s2, size_t n) { return __builtin_memcmp(s1, s2, n); }
-    template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return __builtin_strcmp(s1, s2); }
-    template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { return __builtin_strncmp(s1, s2, n * sizeof(CT)); }
-    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { return bit_cast<CT*>(__builtin_memchr(ptr, c, n * sizeof(CT))); }
+    template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) 
+    { 
+        bool lt, gt;
+        if constexpr(sizeof(CT) == 2) asm volatile(" repe cmpsw \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
+        else if constexpr(sizeof(CT) == 4) asm volatile(" repe cmpsl \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S" (s2), "c"(n) : "memory");
+        else if constexpr(sizeof(CT) % 8 == 0) asm volatile(" repe cmpsq \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
+        else asm volatile(" repe cmpsb \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
+        return lt ? -1 : gt ? 1 : 0;
+    }
+    template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
+    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { asm volatile("repne scas %1, (%0)" : "+D"(ptr) : "a"(c), "c"(n) : "memory"); return ptr; }
+    template<std::char_type CT> constexpr const CT* find(const CT* ptr, const CT* what) noexcept { return __impl::__find_impl(ptr, what); }
     typedef int64_t streamoff;
     template<typename ST>
     class fpos
@@ -67,36 +92,38 @@ namespace std
         typedef streamoff off_type;
         typedef mbstate_t state_type;
         typedef fpos<mbstate_t> pos_type;
-        static char_type* assign(char_type* ptr, char_type c, size_t n) { return std::memset(ptr, c, n); }
-        static void assign(char_type& c1, char_type const& c2) { c1 = c2; }
-        static bool eq(char_type a, char_type b) { return a == b; }
-        static bool lt(char_type a, char_type b) { return a < b; }
-        static char_type const* find(const char_type* ptr, size_t n, char_type const& c) { return std::find(ptr, n, c); }
-        static int_type to_int_type(char_type c) { return static_cast<int>(c); }
-        static char_type to_char_type(int_type i) { return static_cast<char_type>(i);}
+        static char_type* assign(char_type* ptr, char_type c, size_t n) { if(!n) return ptr; return std::memset(ptr, c, n); }
+        static void assign(char_type& c1, char_type const& c2) noexcept { c1 = c2; }
+        static bool eq(char_type a, char_type b) noexcept { return a == b; }
+        static bool lt(char_type a, char_type b) noexcept { return a < b; }
+        static char_type const* find(const char_type* ptr, size_t n, char_type const& c) noexcept { return std::find(ptr, n, c); }
+        static char_type const* find(const char_type* ptr, const char_type* what) noexcept { return std::find(ptr, what); }
+        static int_type to_int_type(char_type c) noexcept { return static_cast<int>(c); }
+        static char_type to_char_type(int_type i) noexcept { return static_cast<char_type>(i);}
         static char_type* copy(char_type* dest, const char_type* src, size_t n) { return std::strncpy(dest, src, n); }
         static char_type* move(char_type* dest, char_type* src, size_t n) { std::strncpy(dest, src, n); std::memset(src, 0, n); return dest; }
-        static size_t length(const char_type* str) { return std::strlen(str); }
-        static int_type eof() { return -1; }
-        static int_type not_eof(int_type e) { return e > 0 ? e : (e * -1); }
+        static size_t length(const char_type* str) noexcept { return std::strlen(str); }
+        static int_type eof() noexcept { return -1; }
+        static int_type not_eof(int_type e) noexcept { return e > 0 ? e : (e * -1); }
     };
     typedef char_traits<char>::pos_type streampos;
     template<typename TT, typename CT> concept char_traits_type = std::char_type<CT> && requires(CT& c1, CT const& c2, CT* ptr, CT* pt2, size_t n)
     {
         { typename TT::char_type{} } -> std::same_as<CT>;
-        { typename TT::int_type{}  } -> std::integral;
-        { typename TT::off_type{}  } -> std::signed_integral;
-        { TT::length(ptr) } -> std::same_as<decltype(sizeof(CT))>;
-        { TT::eof() } -> std::signed_integral;
-        { TT::eof() } -> std::integral;
-        { TT::to_int_type(c2) } -> std::same_as<typename TT::int_type>;
-        { TT::to_char_type(TT::to_int_type(c2)) } -> std::same_as<CT>;
-        { TT::lt(c1, c2) } -> std::__detail::__boolean_testable;
-        { TT::eq(c1, c2) } -> std::__detail::__boolean_testable;
+        { typename TT::int_type{} } -> std::integral;
+        { typename TT::off_type{} } -> std::signed_integral;
         { TT::assign(ptr, c2, n) } -> std::same_as<CT*>;
-        { TT::find(ptr, c2, n) } -> std::same_as<const CT*>;
         { TT::move(ptr, pt2, n) } -> std::same_as<CT*>;
         { TT::copy(ptr, pt2, n) } -> std::same_as<CT*>;
+        { TT::find(ptr, c2, n) } -> std::same_as<const CT*>;
+        { TT::to_int_type(c2) } -> std::same_as<typename TT::int_type>;
+        { TT::to_char_type(0) } -> std::same_as<CT>;
+        { TT::find(ptr, pt2) } -> std::same_as<const CT*>; 
+        { TT::length(ptr) } -> std::same_as<decltype(sizeof(CT))>;
+        { TT::lt(c1, c2) } -> std::__detail::__boolean_testable;
+        { TT::eq(c1, c2) } -> std::__detail::__boolean_testable;
+        { TT::eof() } -> std::signed_integral;
+        { TT::eof() } -> std::integral;
         TT::assign(c1, c2);
         typename TT::state_type;
         typename TT::pos_type;
@@ -135,8 +162,9 @@ namespace std
         constexpr size_type capacity() const noexcept { return this->__capacity(); }
         constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { 1, alloc } {}
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
+        constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{count + 1, alloc} {}
         constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { __set(this->__access(), value, count); this->__advance(count); }
-        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { __copy(this->__access(), start, size_type(end - start)); this->__advance(size_type(end - start);) }
+        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { this->__transfer(this->__access(), start, end); this->__advance(size_t(end - start)); }
         constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count, alloc } {}
         constexpr basic_string(const_pointer str, allocator_type const& alloc = allocator_type{}) : basic_string{ str, traits_type::length(str), alloc } {}
         constexpr basic_string(basic_string const& that) : __base{ static_cast<__base const&>(that) } {}
@@ -145,9 +173,9 @@ namespace std
         constexpr basic_string(basic_string&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, count, alloc } {}
-        constexpr basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
+        constexpr explicit basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr reference at(size_type i) { return this->__get(i); }
-        constexpr const_reference at(size_type i ) const { return this->__get(i); }
+        constexpr const_reference at(size_type i) const { return this->__get(i); }
         constexpr reference operator[](size_type i) { return this->__get(i); }
         constexpr const_reference operator[](size_type i ) const { return this->__get(i); }
         constexpr reference front() { return this->__get(0); }
@@ -167,20 +195,19 @@ namespace std
         constexpr const_reverse_iterator crend() const { return const_reverse_iterator{ cend() }; }
         constexpr const_reverse_iterator rend() const { return crend(); }
         constexpr bool empty() const noexcept { return this->__size() == 0; }
-        constexpr size_t size() const noexcept { return this->__size(); }
-        constexpr size_t max_size() const noexcept { return 0xFFFFFFFFFFFFFFFFUL; }
         constexpr void reserve(size_type count) { if(count > this->__capacity()) this->__grow_buffer(size_type(count - this->__capacity())); }
-        constexpr size_type capacity() const noexcept { return this->__capacity(); }
         constexpr void shrink_to_fit() { this->__trim_buffer(); }
         constexpr void clear() { this->__clear(); }
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
         template<std::matching_input_iterator<value_type> IT>
         constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->__insert_elements(pos.base(), &(*start), &(*end)) }; }
+        constexpr iterator insert(const_iterator pos, basic_string const& that) { return insert(pos, that.begin(), that.end()); }
+        constexpr iterator insert(const_iterator pos, const_pointer value) { return insert(pos, basic_string { value }); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
         constexpr void pop_back() { this->__erase_at_end(1); }
         constexpr iterator erase(const_iterator pos) { return iterator { this->__erase(pos.base()) }; }
         constexpr iterator erase(const_iterator start, const_iterator end) { return iterator { this->__erase_range(start.base(), end.base()) }; }
-        constexpr basic_string& replace(size_type pos, size_type count, const_pointer str, size_type count2) { this->__replace_elements(pos, (count < size() - pos ? count : size()), str, count2)); return *this; }
+        constexpr basic_string& replace(size_type pos, size_type count, const_pointer str, size_type count2) { this->__replace_elements(pos, (count < size() - pos ? count : size()), str, count2); return *this; }
         constexpr basic_string& replace(size_type pos, size_type count, basic_string const& that, size_type count2) { return replace(pos, count, that.data(), count2); }
         constexpr basic_string& replace(const_iterator first, const_iterator last, const_pointer str, size_t count) { this->__replace_elements(first.base(), last.base(), str, count); return *this; }
         constexpr basic_string& replace(const_iterator first, const_iterator last, basic_string const& that, size_t count) { return replace(first, last, that.data(), count); }
@@ -191,13 +218,24 @@ namespace std
         constexpr basic_string& append(size_type count, value_type val) { this->__append_elements(count, val); return *this; }
         constexpr basic_string& append(const_pointer str, size_type count) { this->__append_elements(str, str + count); return *this; }
         constexpr basic_string& append(const_pointer str) { return append(str, traits_type::length(str)); }
+        constexpr basic_string& append(value_type val) { this->__append_element(val); return *this; }
         constexpr basic_string& append(basic_string const& that) { return append(that.data(), that.size()); }
         template<std::matching_input_iterator<value_type> IT>
-        constexpr basic_string& append(IT start, IT end) { this->__append_elements(&(*start), &(*end)); return *this; }
+        constexpr basic_string& append(IT start, IT end) { this->template __append_elements<IT>(start, end); return *this; }
         constexpr basic_string& append(initializer_list<value_type> init) { return append(init.begin(), init.end()); }
         constexpr basic_string& append(basic_string const& that, size_type pos, size_type count = npos) { if(count == npos || that.begin() + pos + count > that.end()) return append(that.begin() + pos, that.end()); else return append(that.begin() + pos, that.begin() + pos + count); }
         constexpr basic_string& operator+=(basic_string const& that) { return append(that); }
         constexpr basic_string& operator+=(const_pointer str) { return append(str); }
+        constexpr basic_string& operator+=(value_type val) { return append(val); }
+        constexpr basic_string operator+(basic_string const& that) const { basic_string result{ *this }; result.append(that); return result; }
+        constexpr basic_string operator+(value_type val) const { basic_string result{ *this }; result.append(val); return result; }
+        constexpr void swap(basic_string& that) { this->__swap(that); }
+        constexpr basic_string& reverse() { basic_string{ this->rend(), this->rbegin() }.swap(*this); return *this; }
+        constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, str); if(result) return size_type(result - data()); return npos; }
+        constexpr size_type find(basic_string const& that, size_type pos = 0) const noexcept { return find(that.data(), pos); }
+        constexpr size_type find(const_pointer str, size_type pos, size_type count) const noexcept { return find(basic_string{ str, count }, pos); }
+        constexpr size_type find(value_type value, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, size() - pos, value); }
+        constexpr bool operator==(basic_string const& that) const noexcept { return std::strncmp(data(), that.data(), size()) == 0; }
     };
 }
 #endif

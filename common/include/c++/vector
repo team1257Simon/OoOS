@@ -65,7 +65,7 @@ namespace std
         constexpr void clear() { this->__clear(); }
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
         template<std::matching_input_iterator<value_type> IT>
-        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->__insert_elements(pos.base(), &(*start), &(*end)) }; }
+        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         template<typename ... Args> 
         requires constructible_from<T, Args...>
         constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
@@ -76,6 +76,7 @@ namespace std
         constexpr void pop_back() { this->__erase_at_end(1); }
         constexpr iterator erase(const_iterator pos) { return iterator { this->__erase(pos.base()) }; }
         constexpr iterator erase(const_iterator start, const_iterator end) { return iterator { this->__erase_range(start.base(), end.base()) }; }
+        constexpr void swap(vector& that) { this->__swap(that); }
     };
 }
 #endif

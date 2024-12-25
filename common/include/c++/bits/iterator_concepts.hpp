@@ -221,7 +221,8 @@ namespace std
     template<typename IT> concept input_or_output_iterator = requires(IT __i) { { *__i } -> __detail::__can_reference; } && weakly_incrementable<IT>;
     template<typename ST, typename IT> concept sentinel_for = semiregular<ST> && input_or_output_iterator<IT> && __detail::__weakly_eq_cmp_with<ST, IT>;
     template<typename ST, typename IT> inline constexpr bool disable_sized_sentinel_for = false;
-    template<typename ST, typename IT> concept sized_sentinel_for = sentinel_for<ST, IT> && !disable_sized_sentinel_for<remove_cv_t<ST>, remove_cv_t<IT>> && requires(const IT& __i, const ST& __s) { { __s - __i } -> same_as<iter_difference_t<IT>>; { __i - __s } -> same_as<iter_difference_t<IT>>; };template<typename IT> concept input_iterator = input_or_output_iterator<IT> && indirectly_readable<IT> && requires { typename __detail::__iter_concept<IT>; } && derived_from<__detail::__iter_concept<IT>, input_iterator_tag>;
+    template<typename ST, typename IT> concept sized_sentinel_for = sentinel_for<ST, IT> && !disable_sized_sentinel_for<remove_cv_t<ST>, remove_cv_t<IT>> && requires(const IT& __i, const ST& __s) { { __s - __i } -> same_as<iter_difference_t<IT>>; { __i - __s } -> same_as<iter_difference_t<IT>>; };
+    template<typename IT> concept input_iterator = input_or_output_iterator<IT> && indirectly_readable<IT> && requires { typename __detail::__iter_concept<IT>; } && derived_from<__detail::__iter_concept<IT>, input_iterator_tag>;
     template<typename IT, typename T> concept output_iterator = input_or_output_iterator<IT> && indirectly_writable<IT, T> && requires(IT __i, T&& __t) { *__i++ = std::forward<T>(__t); };
     template<typename IT> concept forward_iterator = input_iterator<IT> && derived_from<__detail::__iter_concept<IT>, forward_iterator_tag> && incrementable<IT> && sentinel_for<IT, IT>;
     template<typename IT> concept bidirectional_iterator = forward_iterator<IT> && derived_from<__detail::__iter_concept<IT>, bidirectional_iterator_tag> && requires(IT __i) { { --__i } -> same_as<IT&>; { __i-- } -> same_as<IT>; };template<typename IT> concept random_access_iterator = bidirectional_iterator<IT> && derived_from<__detail::__iter_concept<IT>, random_access_iterator_tag> && totally_ordered<IT> && sized_sentinel_for<IT, IT> && requires(IT __i, const IT __j, const iter_difference_t<IT> __n)
@@ -305,8 +306,9 @@ namespace std
         void begin(auto&) = delete;
         void begin(const auto&) = delete;
         template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
-        template<typename T> requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> auto
-        __begin(T& __t)
+        template<typename T> 
+        requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> 
+        auto __begin(T& __t)
         {
             if constexpr (is_array_v<T>) return __t + 0;
             else if constexpr (__member_begin<T&>) return __t.begin();
@@ -314,8 +316,7 @@ namespace std
         }
     }
     namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); } 
-#pragma region non-standard useful concepts
-    template<typename IT, typename VT> concept matching_input_iterator = std::input_iterator<IT> && requires(VT* p, IT i) { { ::new (p) VT {*i} } -> std::same_as<VT*>; };
-#pragma endregion
+    template<typename IT, typename VT> 
+    concept matching_input_iterator = std::input_iterator<IT> && requires(VT* p, IT i) { { ::new (p) VT {*i} } -> std::same_as<VT*>; };
 }
 #endif

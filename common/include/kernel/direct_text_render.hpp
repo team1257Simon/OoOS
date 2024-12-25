@@ -1,18 +1,20 @@
 #ifndef __DIRECT_RENDER
 #define __DIRECT_RENDER
 #include "kernel/font.hpp"
+#include "string"
 class direct_text_render
 {
-    uint32_t* __fb_ptr;
-    font_render __render;
-    uint32_t __fb_wid;
-    uint32_t __fb_ht;
+    uint32_t* __fb_ptr{};
+    font_render __render{};
+    uint32_t __fb_wid{};
+    uint32_t __fb_ht{};
     point __cursor_pos{ 0, 0 };
     constexpr uint32_t __fb_col_cap() const { return __fb_wid / __render.glyph_width(); }
     constexpr uint32_t __fb_row_cap() const { return __fb_ht / __render.glyph_height(); }
     void __advance() noexcept;
     void __write_one(char c);
 public:
+    constexpr direct_text_render() noexcept = default;
     constexpr direct_text_render(framebuf_t* fb_info, psf2_t* font_data, uint32_t fg_color, uint32_t bg_color) noexcept :
         __fb_ptr{ fb_info->ptr },
         __render{ font_data, fb_info->pitch, fg_color, bg_color },
@@ -26,7 +28,8 @@ public:
     void cls();
     void endl();
     void print_text(const char* text);
-    void print_hex(uint64_t number);
-    void print_addr(void* addr) ;
+    inline void print_text(std::string const& text) { print_text(text.c_str()); }
+    inline void print_line(const char* text) { print_text(text); endl(); }
+    inline void print_line(std::string const& text) { print_text(text); endl(); }
 };
 #endif

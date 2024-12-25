@@ -4,6 +4,10 @@ extern "C"
 {
     extern unsigned char __end;
     frame_tag* __kernel_frame_tag = reinterpret_cast<frame_tag*>(&__end);
+    extern void sbcopy(void* restrict dest, const void* restrict src, unsigned long n);
+    extern void swcopy(void* restrict dest, const void* restrict src, unsigned long n);
+    extern void slcopy(void* restrict dest, const void* restrict src, unsigned long n);
+    extern void sqcopy(void* restrict dest, const void* restrict src, unsigned long n);
 }
 static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
 heap_allocator* heap_allocator::__instance;
@@ -275,24 +279,7 @@ vaddr_t frame_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
 vaddr_t frame_tag::array_allocate(size_t num, size_t size)
 {
     vaddr_t result = allocate(num * size, size);
-    if(result)
-    {
-        switch(size)
-        {
-            case 2:
-                awset(result, 0, num);
-                break;
-            case 4:
-                alset(result, 0, num);
-                break;
-            case 8:
-                aqset(result, 0, num);
-                break;
-            default:
-                abset(result, 0, num * size);
-                break;
-        }
-    }
+    if(result) __builtin_memset(result, 0, num * size);
     return result;
 }
 constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (truncate(sz, S512) + nearest(sz % S512)) : nearest(sz); }

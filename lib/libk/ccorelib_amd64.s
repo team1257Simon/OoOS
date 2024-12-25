@@ -17,34 +17,13 @@
 .L0:
     ret
     .size   memcmp, .-memcmp
-    defglobal   abset
+    defglobal   memset
     movq    %rsi,   %rax
     movq    %rdx,   %rcx
     jrcxz   .L0
     rep     stosb
     ret
-    .size   abset, .-abset
-    defglobal    awset
-    movq    %rsi,   %rax
-    movq    %rdx,   %rcx
-    jrcxz   .L0
-    rep     stosw
-    ret
-    .size   awset, .-awset
-    defglobal   alset
-    movq    %rsi,   %rax
-    movq    %rdx,   %rcx
-    jrcxz   .L0
-    rep     stosl
-    ret
-    .size   alset, .-alset
-    defglobal   aqset
-    movq    %rsi,   %rax
-    movq    %rdx,   %rcx
-    jrcxz   .L0
-    rep     stosq
-    ret
-    .size   aqset, .-aqset
+    .size   memset, .-memset
     defglobal   memcpy
     movq    %rdi,   %rax
     defglobal   sbcopy
@@ -139,12 +118,6 @@
     .size   strcpy,     .-strcpy
     .size   strncpy,    .-strncpy
     .size   stpcpy,     .-stpcpy
-    defglobal memset
-    pushq   %rdi
-    call    abset
-    popq    %rax
-    ret
-    .size   memset,     .-memset
     defglobal   strlen
     xorq    %rsi,   %rsi
     defglobal   strnlen
