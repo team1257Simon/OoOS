@@ -1,23 +1,23 @@
 {
     "files.associations": {
-        "*.inc": "gas",
-        "*.asm": "gas",
+        "stream": "cpp",
         "utility": "cpp",
-        "string": "cpp",
-        "type_traits": "cpp",
         "functional": "cpp",
-        "compare": "cpp",
+        "type_traits": "cpp",
         "ios_base": "cpp",
-        "streambuf": "cpp",
-        "vector": "cpp",
         "tuple": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "streambuf": "cpp",
+        "new": "cpp",
         "tree": "cpp",
         "list": "cpp",
         "map": "cpp",
-        "set": "cpp",
-        "stream": "cpp",
-        "new": "cpp",
         "initializer_list": "cpp",
+        "set": "cpp",
+        "*.inc": "gas",
+        "*.asm": "gas",
+        "compare": "cpp",
         "*.tcc": "cpp",
         "random": "cpp",
         "istream": "cpp",
@@ -34,6 +34,7 @@
         "uefi.h": "c",
         "concepts": "cpp",
         "kernel_defs.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "stdint-gcc.h": "c"
     }
 }

@@ -17,7 +17,7 @@ extern "C"
         tty = new direct_text_render{ fb, __startup_font, 0x00FFFFFF, 0 };
         tty->cls();
         tty->print_line("Hello world!");
-        tty->print_line( std::string{"FB: "} + std::to_string(fb));
+        tty->print_line(std::string{"FB: "} + std::to_string(fb));
         while(1);
     }
 }
