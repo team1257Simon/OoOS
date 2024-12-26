@@ -39,11 +39,7 @@ namespace std::__impl
         } __my_data;
         template<std::matching_input_iterator<T> IT> void __transfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
         virtual void __set(__ptr where, T const& val, size_t n) { arrayset<T>(where, val, n); }
-        virtual void __zero(__ptr where, size_t n) 
-        { 
-            if constexpr(is_integral_v<T>) arrayset<T>(where, 0, n);
-            else for(size_t i = 0; i < n; i++, (void)++where) { where->~T(); }
-        }
+        virtual void __zero(__ptr where, size_t n)  { if constexpr(is_integral_v<T>) arrayset<T>(where, 0, n); else for(size_t i = 0; i < n; i++, (void)++where) { where->~T(); } }
         virtual void __copy(__ptr where, __const_ptr src, size_t n) { arraycopy<T>(where, src, n); }
         /**
          * Called whenever the end and/or max pointers are changed after initial construction.
@@ -95,11 +91,7 @@ namespace std::__impl
                 this->__on_modify();
             }
         }
-        void __replace_elements(__const_ptr start, __const_ptr end, __ptr from, size_t count)
-        { 
-            if(start < __my_data.__begin || start >= __my_data.__max || end < __my_data.__begin || end >= __my_data.__max || end <= start) return;
-            __replace_elements(start - __my_data.__begin, end - start, from, count);
-        }
+        void __replace_elements(__const_ptr start, __const_ptr end, __ptr from, size_t count) { if(!(start < __my_data.__begin || start >= __my_data.__max || end < __my_data.__begin || end >= __my_data.__max || end <= start)) __replace_elements(start - __my_data.__begin, end - start, from, count); }
         void __assign_elements(std::initializer_list<T> ini) { __assign_elements(ini.begin(), ini.end()); }
         void __grow_buffer(size_t added)
         {
@@ -312,17 +304,7 @@ namespace std::__impl
             __allocate_storage(cap);
             __on_modify();
         }
-        __ptr __erase_at_end(size_t how_many)
-        {
-            if(how_many >= __size()) __clear();
-            else
-            {
-                __my_data.__end -= how_many;
-                __zero(__my_data.__end, how_many);
-            }
-            __on_modify();
-            return __my_data.__end;
-        }
+        __ptr __erase_at_end(size_t how_many) { if(how_many >= __size()) __clear(); else { __my_data.__end -= how_many; __zero(__my_data.__end, how_many); } __on_modify(); return __my_data.__end; }
         __ptr __erase_range(__const_ptr start, __const_ptr end)
         {
             if(__my_data.__begin > start || __my_data.__begin > end || __my_data.__max <= start || __my_data.__max < end || end < start) return nullptr;
@@ -347,8 +329,7 @@ namespace std::__impl
         void __swap(__dynamic_buffer& that) { __my_data.__swap(that.__my_data); this->__on_modify(); }
         explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
-        template<std::matching_input_iterator<T> IT> 
-        __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(size_t(std::distance(start, end))), size_t(std::distance(start, end)) } { size_t n = std::distance(start, end); __transfer(__my_data.__begin, start, end); __advance(n); }
+        template<std::matching_input_iterator<T> IT> __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(size_t(std::distance(start, end))), size_t(std::distance(start, end)) } { size_t n = std::distance(start, end); __transfer(__my_data.__begin, start, end); __advance(n); }
         __dynamic_buffer(size_t sz) : __allocator{}, __my_data{} { __allocate_storage(sz); __zero(__my_data.__begin, sz); }
         __dynamic_buffer(size_t sz, A const& alloc) : __allocator{ alloc }, __my_data{} { __allocate_storage(sz); __zero(__my_data.__begin, sz); }
         __dynamic_buffer(size_t sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { __set(__my_data.__begin, val, sz); __advance(sz); }

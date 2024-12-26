@@ -29,8 +29,17 @@ namespace std
             return NULL;
         }
     }
-    template<std::char_type CT> constexpr size_t strlen(const CT* str) { size_t i; for(i = 0; str[i]; i++); return i;  }
-    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { size_t i; for(i = 0; i <= max && str[i]; i++); return i; }
+    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) 
+    { 
+        if constexpr(sizeof(CT) == 1) asm volatile("repne scasb" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
+        else if constexpr(sizeof(CT) == 2) asm volatile("repne scasw" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
+        else if constexpr(sizeof(CT) == 4) asm volatile("repne scasl" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
+        else if constexpr(sizeof(CT) == 8) asm volatile("repne scasq" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
+        else for(size_t i = 0; i < n && *ptr != c; i++, ++ptr);
+        return const_cast<CT*>(ptr);
+    }
+    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return size_t(std::find(str, max, CT(0)) - str); }
+    template<std::char_type CT> constexpr size_t strlen(const CT* str) { return strnlen(str, size_t(-1)); }
     template<std::integral T> constexpr inline void* memset(void* ptr, T val, size_t n) { arrayset(ptr, val, n); return ptr; }
     template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { arrayset<CT>(ptr, c, n); return ptr; }
     template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }
@@ -48,12 +57,11 @@ namespace std
         bool lt, gt;
         if constexpr(sizeof(CT) == 2) asm volatile(" repe cmpsw \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
         else if constexpr(sizeof(CT) == 4) asm volatile(" repe cmpsl \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S" (s2), "c"(n) : "memory");
-        else if constexpr(sizeof(CT) % 8 == 0) asm volatile(" repe cmpsq \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
-        else asm volatile(" repe cmpsb \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
+        else if constexpr(sizeof(CT) == 8) asm volatile(" repe cmpsq \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n) : "memory");
+        else asm volatile(" repe cmpsb \n setl %1 \n setg %2 " : "+D"(s1), "=g"(lt), "=g"(gt) : "S"(s2), "c"(n * sizeof(CT)) : "memory");
         return lt ? -1 : gt ? 1 : 0;
     }
     template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
-    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { asm volatile("repne scas %1, (%0)" : "+D"(ptr) : "a"(c), "c"(n) : "memory"); return ptr; }
     template<std::char_type CT> constexpr const CT* find(const CT* ptr, const CT* what) noexcept { return __impl::__find_impl(ptr, what); }
     typedef int64_t streamoff;
     template<typename ST>
@@ -200,8 +208,7 @@ namespace std
         constexpr void shrink_to_fit() { this->__trim_buffer(); }
         constexpr void clear() { this->__clear(); }
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
-        template<std::matching_input_iterator<value_type> IT>
-        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
+        template<std::matching_input_iterator<value_type> IT> constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         constexpr iterator insert(const_iterator pos, basic_string const& that) { return insert(pos, that.begin(), that.end()); }
         constexpr iterator insert(const_iterator pos, const_pointer value) { return insert(pos, basic_string { value }); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
@@ -221,8 +228,7 @@ namespace std
         constexpr basic_string& append(const_pointer str) { return append(str, traits_type::length(str)); }
         constexpr basic_string& append(value_type val) { this->__append_element(val); return *this; }
         constexpr basic_string& append(basic_string const& that) { return append(that.data(), that.size()); }
-        template<std::matching_input_iterator<value_type> IT>
-        constexpr basic_string& append(IT start, IT end) { this->template __append_elements<IT>(start, end); return *this; }
+        template<std::matching_input_iterator<value_type> IT> constexpr basic_string& append(IT start, IT end) { this->template __append_elements<IT>(start, end); return *this; }
         constexpr basic_string& append(initializer_list<value_type> init) { return append(init.begin(), init.end()); }
         constexpr basic_string& append(basic_string const& that, size_type pos, size_type count = npos) { if(count == npos || that.begin() + pos + count > that.end()) return append(that.begin() + pos, that.end()); else return append(that.begin() + pos, that.begin() + pos + count); }
         constexpr basic_string& operator+=(basic_string const& that) { return append(that); }

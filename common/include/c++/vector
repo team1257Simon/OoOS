@@ -26,14 +26,13 @@ namespace std
         constexpr vector() noexcept(noexcept(allocator_type())) : __base{} {}
         constexpr vector(size_type count) noexcept : __base{ count, allocator_type{} } { }
         constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type{}) : __base { count, value, alloc } {}
-        template<std::matching_input_iterator<value_type> IT>
-        constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base { start, end, alloc } {}
+        template<std::matching_input_iterator<value_type> IT> constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base { start, end, alloc } {}
         constexpr vector(vector const& that) : __base { static_cast<__base const&>(that) } {}
         constexpr vector(vector&& that) : __base { forward<__base>(that) } {}
         constexpr vector(vector const& that, allocator_type const& alloc) : __base{ static_cast<__base const&>(that), alloc } {}
         constexpr vector(vector&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
         constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type{}) : __base { init, alloc } {}
-        allocator_type get_allocator() const { return this->__allocator; }
+        constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
         constexpr pointer data() noexcept { return this->__access(); }
         constexpr const_pointer data() const noexcept { return this->__access(); }
         constexpr reference at(size_type i) { return this->__get(i); }
@@ -64,14 +63,9 @@ namespace std
         constexpr void shrink_to_fit() { this->__trim_buffer(); }
         constexpr void clear() { this->__clear(); }
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
-        template<std::matching_input_iterator<value_type> IT>
-        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
-        template<typename ... Args> 
-        requires constructible_from<T, Args...>
-        constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
-        template<typename ... Args> 
-        requires constructible_from<T, Args...>
-        constexpr reference emplace_back(Args&& ... args) { this->__emplace_element(this->__access_end(), forward<Args>(args)...); return back(); }
+        template<std::matching_input_iterator<value_type> IT>constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
+        template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
+        template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { this->__emplace_element(this->__access_end(), forward<Args>(args)...); return back(); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
         constexpr void pop_back() { this->__erase_at_end(1); }
         constexpr iterator erase(const_iterator pos) { return iterator { this->__erase(pos.base()) }; }

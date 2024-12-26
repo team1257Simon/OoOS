@@ -3,6 +3,7 @@
 #include "kernel/kernel_defs.h"
 #ifdef __cplusplus
 #include "concepts"
+#include "new"
 extern "C"
 {
 #else
@@ -21,7 +22,6 @@ vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 uintptr_t sys_unmap(vaddr_t start, size_t pages);
 #ifdef __cplusplus
 }
-#include "new"
 template<size_t S> struct granular_num { using type = byte; };
 template<> struct granular_num<2> { using type = word; };
 template<> struct granular_num<4> { using type = dword; };

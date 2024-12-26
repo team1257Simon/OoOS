@@ -1,0 +1,72 @@
+#ifndef __CPP_ARRAY
+#define __CPP_ARRAY
+#include "bits/range_access.hpp"
+#include "bits/stl_algobase.hpp"
+namespace std
+{
+    template<typename T, size_t N>
+    struct __array_traits
+    {
+        typedef T __type[N];
+        typedef __is_swappable<T> __swappable;
+        typedef __is_nothrow_swappable<T> __nothrow_swappable;
+        constexpr static T& __ref(__type const& arr, size_t n) noexcept { return const_cast<T&>(arr[n]); }
+        constexpr static T* __ptr(__type const& arr) noexcept { return const_cast<T*>(arr); }
+    };
+    template<typename T>
+    struct __array_traits<T, 0>
+    {
+        struct __type{};
+        typedef true_type __swappable;
+        typedef true_type __nothrow_swappable;
+        constexpr static T& __ref(__type const&, size_t) noexcept { return *static_cast<T*>(nullptr); }
+        constexpr static T* __ptr(__type const&) noexcept { return nullptr; }
+    };
+    template<typename T, size_t N>
+    struct array 
+    {
+        typedef T                       value_type;
+        typedef value_type*             pointer;
+        typedef value_type const*       const_pointer;
+        typedef value_type&             reference;
+        typedef value_type const&       const_reference;
+        typedef value_type*             iterator;
+        typedef value_type const*       const_iterator;
+        typedef std::size_t             size_type;
+        typedef std::ptrdiff_t          ifference_type;
+        typedef std::reverse_iterator<iterator>	        reverse_iterator;
+        typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
+    private:
+        typedef __array_traits<T, N> __trait_type;
+        typedef typename __trait_type::__type   __mem_type;
+        __mem_type __my_array;
+    public:
+        /* Implicit constructors, copy/assign and destructor */
+        constexpr pointer data() noexcept { return __trait_type::__ptr(__my_array); }
+        constexpr const_pointer data() const noexcept { return __trait_type::__ptr(__my_array);}
+        constexpr iterator begin() noexcept { return iterator{ data() }; }
+        constexpr const_iterator cbegin() const noexcept { return const_iterator{ data() }; }
+        constexpr const_iterator begin() const noexcept { return cbegin(); }
+        constexpr iterator end() noexcept { return iterator{ data() + N }; }
+        constexpr const_iterator cend() const noexcept {  return const_iterator{ data() + N }; }
+        constexpr const_iterator end() const noexcept { return cend(); }
+        constexpr reverse_iterator rbegin() noexcept { return reverse_iterator{ begin() }; }
+        constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator{ cbegin() }; }
+        constexpr const_reverse_iterator rbegin() const { return crbegin(); }
+        constexpr reverse_iterator rend() { return reverse_iterator{ end() }; }
+        constexpr const_reverse_iterator crend() const { return const_reverse_iterator{ cend() }; }
+        constexpr const_reverse_iterator rend() const { return crend(); }
+        constexpr size_type size() const noexcept { return N; }
+        constexpr size_type max_size() const noexcept { return N; }
+        constexpr bool empty() const noexcept { return size() == 0; }
+        constexpr void fill(value_type const& val) { std::fill_n(data(), size(), val); }
+        constexpr void swap(array& that) { std::swap_ranges(this->begin(), this->end(), that.begin()); }
+        constexpr reference operator[](size_type n) noexcept { return __trait_type::__ref(__my_array, n); }
+        constexpr const_reference operator[](size_t n) const noexcept { return __trait_type::__ref(__my_array, n); }
+        constexpr reference front() noexcept { return *begin(); }
+        constexpr const_reference front() const noexcept { return *cbegin(); }
+        constexpr reference back() noexcept { return __trait_type::__ref(__my_array, N ? N - 1 : 0); }
+        constexpr const_reference back() const noexcept { return __trait_type::__ref(__my_array, N ? N - 1 : 0); }
+    };
+}
+#endif

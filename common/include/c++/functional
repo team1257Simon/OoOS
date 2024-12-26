@@ -1,9 +1,22 @@
 #ifndef __FUNCTIONAL
 #define __FUNCTIONAL
 #include "bits/stl_function.hpp"
+#include "tuple"
 namespace std
 {
+    template<int I> struct __placeholder{};
+    template<typename T> struct is_placeholder : public integral_constant<int, 0> {};
+    template<int I> struct is_placeholder<__placeholder<I>> : public integral_constant<int, I> {};
+    template<size_t I, typename TT> using __safe_tuple_element_t = typename enable_if<(I < tuple_size<TT>::value), tuple_element<I, TT>>::type;
+    template<int I> struct is_placeholder<const __placeholder<I>> : public integral_constant<int, I> {};
     template<typename FT, typename ... Args> constexpr invoke_result_t<FT, Args...> invoke(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_v<FT, Args...>) { return __invoke(forward<FT>(ft), forward<Args>(args)...); }
     template<typename RT, typename FT, typename ... Args> requires is_invocable_r_v<RT, FT, Args...> constexpr RT invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r(forward<FT>(ft), forward<Args>(args)...); }
+    template<typename T> struct is_bind_expression : public false_type {};
+    template<typename AT, bool __is_bind = is_bind_expression<AT>::value, bool __is_placeholder = (is_placeholder<AT>::value > 0)> struct __mu;
+    template<typename AT> struct __mu<AT, true, false> { template<typename CVArg, typename ... Args, size_t ... Is> constexpr auto __call(CVArg& __arg, tuple<Args...>& __tuple, __index_tuple<Is...> const&) const volatile -> decltype(__arg(declval<Args>()...)) { return __arg(std::get<Is>(std::move(__tuple))...); } template<typename CVArg, typename ... Args> constexpr auto operator()(CVArg& __arg, tuple<Args...>& __tuple) const volatile -> decltype(__arg(declval<Args>()...)) { typedef typename __build_index_tuple<sizeof...(Args)>::type __idxs; return this->__call(__arg, __tuple, __idxs{}); } };
+    template<typename AT> struct __mu<AT, false, true> { template<typename TT> __safe_tuple_element_t<(is_placeholder<AT>::value - 1), TT>&& operator()(const volatile AT&, TT &__tuple) const volatile  { return std::get<(is_placeholder<AT>::value - 1)>(std::move(__tuple)); } };
+    template<typename AT> struct __mu<AT, false, false> { template<typename CVArg, typename TT> CVArg&& operator()(const volatile CVArg&& __arg, TT&) const volatile { return std::forward<CVArg>(__arg); } };
+    template<std::size_t I, typename... Ts> inline auto __volget(volatile tuple<Ts...>& __tuple) -> __elem_t<I, tuple<Ts...>> volatile& { return std::get<I>(const_cast<tuple<Ts...>&>(__tuple)); }
+    template<std::size_t I, typename... Ts> inline auto __volget(const volatile tuple<Ts...>& __tuple) -> __elem_t<I, tuple<Ts...>> const volatile& { return std::get<I>(const_cast<const tuple<Ts...>&>(__tuple)); }
 }
 #endif
