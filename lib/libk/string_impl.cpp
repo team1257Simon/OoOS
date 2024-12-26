@@ -39,24 +39,27 @@ namespace std
             constexpr static CT __get_hex_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_hex_digit_v(num, idx)]; }
             constexpr static std::basic_string<CT> __to_string(IT i)
             {
+               
                 std::basic_string<CT> str{};
+                str.reserve(__max_dec);
                 IT j;
                 if constexpr(std::is_signed_v<IT>) j = (i < 0) ? -i : i;
                 else j = i;
                 for(size_t n = 0; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
                 if constexpr(std::is_signed_v<IT>) if(i < 0) str.append(__digi_type::minus);
-                return str.reverse();
+                return std::basic_string<CT>{ str.rend(), str.rbegin() };
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
                 std::basic_string<CT> hstr{};
+                hstr.reserve(__max_hex);
                 IT j;
                 if constexpr(std::is_signed_v<IT>) j = (i < 0) ? -i : i;
                 else j = i;
                 for(size_t n = 0; n < __max_hex && __get_pow16(n) <= j; n++) hstr.append(__get_hex_digit(j, n));
                 hstr.append(__digi_type::hexpref);
                 if constexpr(std::is_signed_v<IT>) if(i < 0) hstr.append(__digi_type::minus);
-                return hstr.reverse();
+                return std::basic_string<CT>{ hstr.rend(), hstr.rbegin() };
             }
         };
         template<typename T, typename CT> std::basic_string<CT> __to_string(T);

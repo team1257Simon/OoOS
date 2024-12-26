@@ -164,7 +164,7 @@ namespace std
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
         constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{count + 1, alloc} {}
         constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { __set(this->__access(), value, count); this->__advance(count); }
-        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { this->__transfer(this->__access(), start, end); this->__advance(size_t(end - start)); }
+        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); }
         constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count, alloc } {}
         constexpr basic_string(const_pointer str, allocator_type const& alloc = allocator_type{}) : basic_string{ str, traits_type::length(str), alloc } {}
         constexpr basic_string(basic_string const& that) : __base{ static_cast<__base const&>(that) } {}
@@ -173,6 +173,7 @@ namespace std
         constexpr basic_string(basic_string&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, count, alloc } {}
+        constexpr ~basic_string() { this->__destroy(); }
         constexpr explicit basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr reference at(size_type i) { return this->__get(i); }
         constexpr const_reference at(size_type i) const { return this->__get(i); }
@@ -200,7 +201,7 @@ namespace std
         constexpr void clear() { this->__clear(); }
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
         template<std::matching_input_iterator<value_type> IT>
-        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->__insert_elements(pos.base(), &(*start), &(*end)) }; }
+        constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         constexpr iterator insert(const_iterator pos, basic_string const& that) { return insert(pos, that.begin(), that.end()); }
         constexpr iterator insert(const_iterator pos, const_pointer value) { return insert(pos, basic_string { value }); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
@@ -230,7 +231,6 @@ namespace std
         constexpr basic_string operator+(basic_string const& that) const { basic_string result{ *this }; result.append(that); return result; }
         constexpr basic_string operator+(value_type val) const { basic_string result{ *this }; result.append(val); return result; }
         constexpr void swap(basic_string& that) { this->__swap(that); }
-        constexpr basic_string& reverse() { basic_string{ this->rend(), this->rbegin() }.swap(*this); return *this; }
         constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, str); if(result) return size_type(result - data()); return npos; }
         constexpr size_type find(basic_string const& that, size_type pos = 0) const noexcept { return find(that.data(), pos); }
         constexpr size_type find(const_pointer str, size_type pos, size_type count) const noexcept { return find(basic_string{ str, count }, pos); }

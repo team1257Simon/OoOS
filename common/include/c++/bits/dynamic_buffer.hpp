@@ -37,10 +37,13 @@ namespace std::__impl
             void __move(__data_impl&& that) { this->__copy_ptrs(that); that.__reset(); }
             void __swap(__data_impl& that) { __data_impl tmp; tmp.__copy_ptrs(*this); this->__copy_ptrs(that); that.__copy_ptrs(tmp); }
         } __my_data;
-        template<std::matching_input_iterator<T> IT> 
-        void __transfer(T* where, IT start, IT end) { for(IT i = start; i < end; i++, where++) { construct_at(where, *i); } }
+        template<std::matching_input_iterator<T> IT> void __transfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
         virtual void __set(__ptr where, T const& val, size_t n) { arrayset<T>(where, val, n); }
-        virtual void __zero(__ptr where, size_t n) { arrayset<T>(where, 0, n); }
+        virtual void __zero(__ptr where, size_t n) 
+        { 
+            if constexpr(is_integral_v<T>) arrayset<T>(where, 0, n);
+            else for(size_t i = 0; i < n; i++, (void)++where) { where->~T(); }
+        }
         virtual void __copy(__ptr where, __const_ptr src, size_t n) { arraycopy<T>(where, src, n); }
         /**
          * Called whenever the end and/or max pointers are changed after initial construction.
@@ -112,7 +115,7 @@ namespace std::__impl
         void __trim_buffer() 
         {
             size_t num_elements = __size();
-            __my_data.__begin = resize<T>(__my_data.__begin, num_elements, alignof(T));
+            __my_data.__begin = resize<T>(__my_data.__begin, num_elements);
             __my_data.__end = __my_data.__begin + num_elements;
             __my_data.__max = __my_data.__begin + num_elements;
             this->__on_modify();
@@ -127,7 +130,7 @@ namespace std::__impl
         void __append_elements(IT start_it, IT end_it)
         {
             size_t rem = __my_data.__max - __my_data.__end;
-            size_t num = end_it - start_it;
+            size_t num = std::distance(start_it, end_it);
             if(num > rem) this->__grow_buffer(num - rem);
             for(IT i = start_it; i < end_it; i++)
             {
@@ -246,7 +249,7 @@ namespace std::__impl
         __ptr __insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr)
         {
             if(__my_data.__begin > pos || __my_data.__max <= pos) return nullptr;
-            size_t range_size = end_ptr - start_ptr;
+            size_t range_size = std::distance(start_ptr, end_ptr);
             size_t offs = pos - __my_data.__begin;
             if(pos + range_size < __my_data.__max)
             {
@@ -339,12 +342,13 @@ namespace std::__impl
             __on_modify();
             return __my_data.__begin + start_pos;
         }
+        constexpr void __destroy() { if(__my_data.__begin) { __allocator.deallocate(__my_data.__begin, __capacity()); __my_data.__reset(); }}
         inline __ptr __erase(__const_ptr pos) { return __erase_range(pos, pos + 1); }
         void __swap(__dynamic_buffer& that) { __my_data.__swap(that.__my_data); this->__on_modify(); }
         explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
         template<std::matching_input_iterator<T> IT> 
-        __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(size_t(end - start)), size_t(end - start) } { size_t n = end - start; __transfer(__my_data.__begin, start, end); __advance(n); }
+        __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(size_t(std::distance(start, end))), size_t(std::distance(start, end)) } { size_t n = std::distance(start, end); __transfer(__my_data.__begin, start, end); __advance(n); }
         __dynamic_buffer(size_t sz) : __allocator{}, __my_data{} { __allocate_storage(sz); __zero(__my_data.__begin, sz); }
         __dynamic_buffer(size_t sz, A const& alloc) : __allocator{ alloc }, __my_data{} { __allocate_storage(sz); __zero(__my_data.__begin, sz); }
         __dynamic_buffer(size_t sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { __set(__my_data.__begin, val, sz); __advance(sz); }
@@ -355,7 +359,7 @@ namespace std::__impl
         __dynamic_buffer(__dynamic_buffer const& that, size_t start, size_t count, A const& alloc) : __dynamic_buffer{ that.__access() + start, that.__access() + (count < that.__size() - start ? count : that.__size()), alloc } {}
         __dynamic_buffer(__dynamic_buffer&& that) : __allocator{ move(that.__allocator) }, __my_data{ move(that.__my_data) } {}
         __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
-        ~__dynamic_buffer() { if(__my_data.__begin) __allocator.deallocate(__my_data.__begin, __capacity()); }
+        ~__dynamic_buffer() { __destroy(); }
         __dynamic_buffer& operator=(__dynamic_buffer const& that) { __my_data.__copy_ptrs(that.__my_data); return *this; }
         __dynamic_buffer& operator=(__dynamic_buffer&& that) { __my_data.__move(move(that.__my_data)); return *this; }
         constexpr __ptr __access() noexcept { return __my_data.__begin; }

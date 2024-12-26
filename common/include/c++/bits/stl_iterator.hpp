@@ -78,7 +78,6 @@ namespace std
         constexpr reverse_iterator operator-(difference_type __n) const { return reverse_iterator { current + __n }; }
         constexpr reverse_iterator& operator+=(difference_type __n) { current -= __n; return *this; }
         constexpr reverse_iterator& operator-=(difference_type __n) { current += __n; return *this; }
-        constexpr difference_type operator-(reverse_iterator const& that) const noexcept { return that.current - this->current; }
     };
     template<bidirectional_iterator IT, bidirectional_iterator JT> 
     requires totally_ordered_with<IT, JT>
@@ -98,6 +97,8 @@ namespace std
     template<bidirectional_iterator IT, bidirectional_iterator JT> 
     requires totally_ordered_with<IT, JT>
     constexpr bool operator >= (reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __this.base() <= __that.base(); }
+    template<bidirectional_iterator IT, bidirectional_iterator JT>
+    constexpr typename std::iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
 }
 namespace __impl
 {
@@ -130,7 +131,6 @@ namespace __impl
         constexpr __iterator& operator-=(difference_type __n) noexcept { current -= __n; return *this; }
         constexpr __iterator operator+(difference_type __n) const noexcept { return __iterator{ current + __n }; }
         constexpr __iterator operator-(difference_type __n) const noexcept { return __iterator{ current - __n }; }
-        constexpr difference_type operator-(__iterator const& that) const noexcept { return current - that.current; }
     };
     template<typename IT, std::totally_ordered_with<IT> JT, typename CT>
     constexpr bool operator == (__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() == __that.base(); }
@@ -144,5 +144,7 @@ namespace __impl
     constexpr bool operator  < (__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base()  < __that.base(); }
     template<typename IT, std::totally_ordered_with<IT> JT, typename CT>
     constexpr bool operator  > (__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base()  > __that.base(); }
+    template<typename IT, typename JT, typename CT>
+    constexpr typename __iterator<IT, CT>::difference_type operator-(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() - __that.base(); }
 }
 #endif

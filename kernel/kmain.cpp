@@ -4,6 +4,7 @@
 #include "heap_allocator.hpp"
 #include "limits"
 #include "string"
+#include "vector"
 extern psf2_t* __startup_font;
 direct_text_render* tty;
 extern "C"

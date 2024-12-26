@@ -72,7 +72,11 @@ static paging_table __find_table(vaddr_t const& of_page)
     }
     return NULL;
 }
-
+uintptr_t translate_vaddr(vaddr_t addr)
+{
+    if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset;
+    return 0;
+}
 extern "C" 
 {
     vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages)

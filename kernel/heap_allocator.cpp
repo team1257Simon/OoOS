@@ -1,5 +1,6 @@
 #include "kernel/heap_allocator.hpp"
-#include "heap_allocator.hpp"
+#include "direct_text_render.hpp"
+extern direct_text_render* tty;
 extern "C"
 {
     extern unsigned char __end;
@@ -165,11 +166,11 @@ vaddr_t heap_allocator::allocate_block(vaddr_t const &base, size_t sz, uint64_t 
     if(phys) return sys_mmap(aligned, phys, div_roundup(sz, PAGESIZE));
     return 0ul;
 }
+
 void heap_allocator::deallocate_block(vaddr_t const &base, size_t sz)
 {
     __lock();
-    uintptr_t phys = sys_unmap(base, div_roundup(sz, PAGESIZE));
-    __release_claimed_region(sz, phys);
+    if(uintptr_t phys = translate_vaddr(base)) __release_claimed_region(sz, phys);
     __unlock();
 }
 void frame_tag::insert_block(block_tag *blk, int idx)
@@ -223,7 +224,7 @@ vaddr_t frame_tag::allocate(size_t size, size_t align)
     {
         if(!(tag = __create_tag(size, align))) return nullptr;
         idx = log2trunc(tag->block_size - sizeof(block_tag));
-        result = vaddr_t { tag } + (ptrdiff_t)sizeof(block_tag);
+        result = vaddr_t { tag } + static_cast<ptrdiff_t>(sizeof(block_tag));
     }
     tag->index = idx;
     if((tag->available_size() - sizeof(block_tag)) >= MIN_BLOCK_SIZE*PAGESIZE) insert_block(tag->split(), -1);
@@ -235,8 +236,8 @@ void frame_tag::deallocate(vaddr_t ptr, size_t align)
     if(ptr)
     {
         __lock();
-        block_tag* tag = (ptr - (ptrdiff_t)sizeof(block_tag));
-        for(size_t i = 0; i < align && tag->magic != BLOCK_MAGIC; i++) tag = (ptr - (ptrdiff_t)(sizeof(block_tag) + i));
+        block_tag* tag = (ptr - static_cast<ptrdiff_t>(sizeof(block_tag)));
+        for(size_t i = 0; i < align && tag->magic != BLOCK_MAGIC; i++) tag = (ptr - static_cast<ptrdiff_t>(sizeof(block_tag) + i));
         if(tag->magic == BLOCK_MAGIC)
         {
             while(tag->left_split && (tag->left_split->index >= 0)) tag = __melt_left(tag);
@@ -256,7 +257,8 @@ vaddr_t frame_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
 {
     if(!ptr) return allocate(size, align);
     if(!size) return {};
-    block_tag* tag = (ptr - (ptrdiff_t)sizeof(block_tag));
+    block_tag* tag = (ptr - static_cast<ptrdiff_t>(sizeof(block_tag)));
+    for(size_t i = 0; i < align && tag->magic != BLOCK_MAGIC; i++) tag = (ptr - static_cast<ptrdiff_t>(sizeof(block_tag) + i));
     if(tag->magic == BLOCK_MAGIC && tag->block_size >= size)
     {
         size_t delta = size - tag->held_size;
@@ -265,14 +267,7 @@ vaddr_t frame_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
         return ptr;
     }
     vaddr_t result = allocate(size, align);
-    if(result)
-    {
-        if(align == 2 && size % 2 == 0) swcopy(result, ptr, tag->held_size > size ? size : tag->held_size);
-        else if(align == 4 && size % 4 == 0) slcopy(result, ptr, tag->held_size > size ? size : tag->held_size);
-        else if(align % 8 == 0 && size % 8 == 0) sqcopy(result, ptr, tag->held_size > size ? size : tag->held_size);
-        else sbcopy(result, ptr, tag->held_size > size ? size : tag->held_size);
-        
-    }
+    if(result) { __builtin_memcpy(result, ptr, tag->held_size > size ? size : tag->held_size); }
     deallocate(ptr);
     return result;
 }

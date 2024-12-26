@@ -22,16 +22,32 @@ uintptr_t sys_unmap(vaddr_t start, size_t pages);
 #ifdef __cplusplus
 }
 #include "new"
-template<typename T> requires(!std::is_trivial_v<T>) [[gnu::always_inline]] constexpr void arrayset(T* dest, T const& value, std::size_t n) { for(std::size_t i = 0; i < n; i++) ::new (dest + i) T { value }; }
-template<typename T> requires(std::is_trivial_v<T>) [[gnu::always_inline]] constexpr void arrayset(void* dest, T value, std::size_t n) { asm volatile("rep stos %1, (%0)" : "+D"(static_cast<T*>(dest)) : "a"(value), "c"(n) : "memory"); }
-template<typename T> requires(!std::is_trivial_v<T>) [[gnu::always_inline]] constexpr void arraycopy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++, src++) ::new (dest + i) T { *src }; }
-template<typename T> requires(std::is_trivial_v<T>) [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n)
+template<size_t S> struct granular_num { using type = byte; };
+template<> struct granular_num<2> { using type = word; };
+template<> struct granular_num<4> { using type = dword; };
+template<> struct granular_num<8> { using type = qword; };
+template<typename T> constexpr inline typename granular_num<sizeof(T)>::type __zero_v() { return 0; }
+template<typename T> constexpr inline size_t __n_zeros(size_t n) { return n * sizeof(T) / sizeof(granular_num<sizeof(T)>::type); }
+template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
+template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
+template<typename T> requires (nontrivial_copy<T> || std::larger<T, uint64_t>)[[gnu::always_inline]] constexpr void arrayset(T* dest, T const& value, std::size_t n) { for(std::size_t i = 0; i < n; i++, dest++) *dest = value; }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inline]] constexpr void arrayset(void* dest, T value, std::size_t n) 
+{ 
+    if constexpr(sizeof(T) == 2) asm volatile("rep stosw" : "+D"(dest) : "a"(value), "c"(n) : "memory");
+    else if constexpr(sizeof(T) == 4) asm volatile("rep stosl": "+D"(dest) : "a"(value), "c"(n) : "memory");
+    else if constexpr(sizeof(T) % 8 == 0) asm volatile("rep stosq": "+D"(dest) : "a"(value), "c"(n * sizeof(T) / 8) : "memory");
+    else asm volatile("rep stosb" : "+D"(dest) : "a"(value), "c"(n * sizeof(T)) : "memory");
+}
+template<nontrivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++, ++dest, ++src) *dest = *src; }
+template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n)
 {
     if constexpr(sizeof(T) == 2) asm volatile("rep movsw" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory"); 
     else if constexpr(sizeof(T) == 4) asm volatile("rep movsl" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory");
-    else if constexpr(sizeof(T) % 8 == 0) asm volatile("rep movsq" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory"); 
-    else asm volatile("rep movsb" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory");
+    else if constexpr(sizeof(T) % 8 == 0) asm volatile("rep movsq" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T) / 8) : "memory"); 
+    else asm volatile("rep movsb" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T)): "memory");
 }
+template<typename T> [[gnu::always_inline]] constexpr void arraymove(T* dest, T* src, std::size_t n) { for(size_t i = 0; i < n; ++i, (void)++src) dest[i] = *src; }
 constexpr inline size_t GIGABYTE = 0x40000000;
 #endif
+uintptr_t translate_vaddr(vaddr_t addr);
 #endif

@@ -28,8 +28,8 @@ public:
     void cls();
     void endl();
     void print_text(const char* text);
-    inline void print_text(std::string const& text) { print_text(text.c_str()); }
-    inline void print_line(const char* text) { print_text(text); endl(); }
-    inline void print_line(std::string const& text) { print_text(text); endl(); }
+    void print_text(std::string const& text);
+    void print_line(const char* text);
+    void print_line(std::string const& text);
 };
 #endif

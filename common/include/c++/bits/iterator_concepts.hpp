@@ -19,6 +19,12 @@ namespace std
         template<typename T> using __with_ref = T&;
         template<typename T> concept __can_reference = requires { typename __with_ref<T>; };
         template<typename T> concept __dereferenceable = requires(T& __t) { { *__t } -> __can_reference; };
+        template<typename IT, typename VT> concept __points_to = requires(VT* p, IT i, size_t n)
+        { 
+            { ::new (p) VT {*i} } -> std::same_as<VT*>; 
+            { *i } -> std::convertible_to<VT>;
+            { i[n] } -> std::convertible_to<VT>;
+        };
     }
     template<__detail::__dereferenceable T> using iter_reference_t = decltype(*std::declval<T&>());
     namespace ranges
@@ -316,7 +322,7 @@ namespace std
         }
     }
     namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); } 
-    template<typename IT, typename VT> 
-    concept matching_input_iterator = std::input_iterator<IT> && requires(VT* p, IT i) { { ::new (p) VT {*i} } -> std::same_as<VT*>; };
+    template<typename IT, typename VT> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, VT>;
+    template<typename IT, typename VT> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, VT>;
 }
 #endif

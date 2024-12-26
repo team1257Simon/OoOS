@@ -30,7 +30,6 @@ namespace std
         template<typename T> concept __non_array = !std::is_array_v<T>;
         template<typename ... Args> concept __zero_size = sizeof...(Args) == 0;
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
-    
     }
 #pragma region non-standard memory functions
     template<typename T> [[nodiscard]] __force_inline constexpr T* resize(T* array, size_t ncount) { return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }

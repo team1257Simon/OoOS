@@ -233,7 +233,7 @@ namespace std
 	template <typename FT, typename TT> class __is_convertible_helper<FT, TT, false> { template <typename T1> static void __test_aux(T1) noexcept; template <typename F1, typename T1, typename = decltype(__test_aux <T1> (declval<F1>()))> static true_type __test(int); template <typename, typename> static false_type __test(...); public: using type = decltype(__test <FT, TT> (0)); };
 	#pragma GCC diagnostic pop
 	template <typename FT, typename TT> struct is_convertible: public __is_convertible_helper<FT, TT>::type {};
-	template <typename _ToElementType, typename _FromElementType> using __is_array_convertible = is_convertible<_FromElementType( * )[], _ToElementType( * )[]>;
+	template <typename TET, typename FET> using __is_array_convertible = is_convertible<FET( * )[], TET( * )[]>;
 	template <typename T> struct remove_const { using type = T; };
 	template <typename T> struct remove_const<T const> { using type = T; };
 	template <typename T> struct remove_volatile { using type = T; };
@@ -305,6 +305,7 @@ namespace std
 	template <> struct make_signed<bool const>;
 	template <> struct make_signed<bool volatile>;
 	template <> struct make_signed<bool const volatile>;
+	template <typename T> using make_signed_t = typename make_signed<T>::type;
 	template <typename T> struct remove_extent { using type = T; };
 	template <typename T, size_t S> struct remove_extent<T[S]> { using type = T; };
 	template <typename T> struct remove_extent<T[]> { using type = T; };
@@ -615,5 +616,11 @@ namespace std
 	template <typename T1, typename T2, typename...Ts> struct common_reference<T1, T2, Ts...>: __common_type_fold<common_reference <T1, T2>, __common_type_pack<Ts...>> {};
 	template <typename T1, typename T2, typename...Ts> struct __common_type_fold<common_reference <T1, T2>, __common_type_pack<Ts...>, void_t<common_reference_t <T1, T2>>>: public common_reference<common_reference_t <T1, T2>, Ts...> {};
 	using ptrdiff_t = decltype(declval<int*>() - declval<int*>());
+	template<typename T> struct __is_nonvolatile_trivially_copyable { enum { __value = __is_trivially_copyable(T) }; };
+	template<typename T> struct __is_nonvolatile_trivially_copyable<volatile T> { enum { __value = 0 }; };
+	template<typename OIT, typename IIT> struct __memcpyable { enum { __value = 0 }; };
+	template<typename T> struct __memcpyable<T*, T*> : __is_nonvolatile_trivially_copyable<T> {};
+	template<typename T> struct __memcpyable<T*, const T*> : __is_nonvolatile_trivially_copyable<T> {};
+	template<typename T> constexpr inline bool __is_nonvolatile_trivially_copyable_v = __is_nonvolatile_trivially_copyable<T>::__value;
 }
 #endif

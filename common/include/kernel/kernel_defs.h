@@ -21,7 +21,7 @@ typedef unsigned char bool;
 #include "concepts"
 #include "bits/move.h"
 template<class T> concept NotVoidPointer = !std::same_as<std::remove_cvref_t<T>, void*>;
-template<class T> concept NotVoid = !std::is_void_v<T>;
+template<class T> concept non_void = !std::is_void_v<T>;
 #endif
 #define PAUSE asm volatile ("pause" ::: "memory")
 #define BARRIER asm volatile ("" ::: "memory")
@@ -92,10 +92,10 @@ typedef struct __vaddr
     constexpr operator const void*() const noexcept { const void* ptr = std::bit_cast<const void*>(operator uintptr_t()); return ptr ? ptr : nullptr; }
     constexpr operator volatile void*() const volatile noexcept { volatile void* ptr = std::bit_cast<volatile void*>((const_cast<__vaddr*>(this))->operator uintptr_t()); return ptr ? ptr : nullptr; }
     constexpr operator const volatile void*() const volatile noexcept { const volatile void* ptr = std::bit_cast<const volatile void*>((const_cast<__vaddr*>(this))->operator uintptr_t()); return ptr ? ptr : nullptr;  }
-    template<NotVoid T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(operator void*()); }
-    template<NotVoid T> constexpr operator const T*() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(operator const void*()); }
-    template<NotVoid T> constexpr operator volatile T*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(operator volatile void*()); }
-    template<NotVoid T> constexpr operator const volatile T*() const volatile noexcept { return std::bit_cast<const volatile std::remove_cv_t<T>*>(operator const volatile void*()); }
+    template<non_void T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(operator void*()); }
+    template<non_void T> constexpr operator const T*() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(operator const void*()); }
+    template<non_void T> constexpr operator volatile T*() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(operator volatile void*()); }
+    template<non_void T> constexpr operator const volatile T*() const volatile noexcept { return std::bit_cast<const volatile std::remove_cv_t<T>*>(operator const volatile void*()); }
     constexpr operator uintptr_t() const noexcept
     { 
         return static_cast<uintptr_t>
