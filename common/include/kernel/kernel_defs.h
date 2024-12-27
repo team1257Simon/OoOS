@@ -141,13 +141,13 @@ typedef struct __mmap_entry
     uint32_t len;       // Length in pages
     memtype_t type;     // Type
 } __pack mmap_entry;
-typedef struct fb_info 
+typedef struct __system_info 
 {
-    uint32_t width;
-    uint32_t height;
-    uint32_t pitch;
-    uint32_t* ptr;
-} __pack framebuf_t;
+    uint32_t fb_width;
+    uint32_t fb_height;
+    uint32_t fb_pitch;
+    uint32_t* fb_ptr;
+} __pack sysinfo_t;
 typedef struct __mmap
 {
     size_t total_memory;
@@ -168,7 +168,7 @@ typedef struct __pagefile
     page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
     page_frame* frame_entries;
 } __pack pagefile;
-typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(framebuf_t*, mmap_t*, pagefile*);
+typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(sysinfo_t*, mmap_t*, pagefile*);
 typedef uint8_t byte;
 typedef uint16_t word;
 typedef uint32_t dword;

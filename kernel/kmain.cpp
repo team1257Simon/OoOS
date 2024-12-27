@@ -8,7 +8,7 @@ direct_text_render tty;
 extern "C"
 {
     extern void gdt_setup();
-    void kmain(framebuf_t* fb, mmap_t* mmap, pagefile* pg)
+    void kmain(sysinfo_t* fb, mmap_t* mmap, pagefile* pg)
     {
         gdt_setup();
         idt_init();

@@ -31,7 +31,7 @@ const char *types[] =
 
 paging_table __boot_pml4 = NULL;
 pagefile* __boot_pagefile = NULL;
-framebuf_t* fb = NULL;
+sysinfo_t* fb = NULL;
 paging_table* pg_addrs;
 
 inline static bool validate_elf(elf64_ehdr * elf)
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
         n += desc_size;
     }
     map->num_entries = k;
-    fb = (framebuf_t*)malloc(sizeof(framebuf_t));
+    fb = (sysinfo_t*)malloc(sizeof(sysinfo_t));
     MALLOC_CK(fb);
     efi_guid_t gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     efi_gop_t *gop = NULL;
@@ -301,17 +301,17 @@ int main(int argc, char** argv)
             fprintf(stderr, "unable to set video mode\n");
             return ESETGFX;
         }
-        fb->ptr = (uint32_t*)gop->Mode->FrameBufferBase;
-        fb->width = gop->Mode->Information->HorizontalResolution;
-        fb->height = gop->Mode->Information->VerticalResolution;
-        fb->pitch = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
+        fb->fb_ptr = (uint32_t*)gop->Mode->FrameBufferBase;
+        fb->fb_width = gop->Mode->Information->HorizontalResolution;
+        fb->fb_height = gop->Mode->Information->VerticalResolution;
+        fb->fb_pitch = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
     } 
     else 
     {
         fprintf(stderr, "unable to get graphics output protocol\n");
         return ENOGFX;
     }
-    status = map_pages((uintptr_t)fb->ptr, (uintptr_t) fb->ptr, (4 * fb->height * fb->width * fb->pitch) / 4096);
+    status = map_pages((uintptr_t)fb->fb_ptr, (uintptr_t) fb->fb_ptr, (4 * fb->fb_height * fb->fb_width * fb->fb_pitch) / 4096);
     FILE *f;
     char *buff;
     long int size;
