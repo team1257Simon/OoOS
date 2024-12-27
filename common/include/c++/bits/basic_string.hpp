@@ -3,6 +3,7 @@
 #include "bits/dynamic_buffer.hpp"
 #include "bits/stl_iterator.hpp"
 #include "bits/ios_base.hpp"
+#include "bits/stl_algobase.hpp"
 namespace std
 {
     namespace __detail
@@ -168,6 +169,7 @@ namespace std
         constexpr size_type length() const noexcept { return size(); }
         constexpr size_type max_size() const noexcept { return 0xFFFFFFFFFFFFFFFFUL; }
         constexpr size_type capacity() const noexcept { return this->__capacity(); }
+        constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
         constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { 1, alloc } {}
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
         constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{count + 1, alloc} {}
@@ -234,14 +236,20 @@ namespace std
         constexpr basic_string& operator+=(basic_string const& that) { return append(that); }
         constexpr basic_string& operator+=(const_pointer str) { return append(str); }
         constexpr basic_string& operator+=(value_type val) { return append(val); }
-        constexpr basic_string operator+(basic_string const& that) const { basic_string result{ *this }; result.append(that); return result; }
-        constexpr basic_string operator+(value_type val) const { basic_string result{ *this }; result.append(val); return result; }
         constexpr void swap(basic_string& that) { this->__swap(that); }
         constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, str); if(result) return size_type(result - data()); return npos; }
         constexpr size_type find(basic_string const& that, size_type pos = 0) const noexcept { return find(that.data(), pos); }
         constexpr size_type find(const_pointer str, size_type pos, size_type count) const noexcept { return find(basic_string{ str, count }, pos); }
         constexpr size_type find(value_type value, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, size() - pos, value); }
-        constexpr bool operator==(basic_string const& that) const noexcept { return std::strncmp(data(), that.data(), size()) == 0; }
     };
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr int __lexical_cmp(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) noexcept { return __lex_compare(__this.data(), __this.data() + __this.size(), __that.data(), __that.data() + __that.size()); }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr basic_string<CT, TT, AT> operator+(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) { basic_string<CT, TT, AT> result{ __this }; result.append(__that); return result; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr basic_string<CT, TT, AT> operator+(const CT* __this, basic_string<CT, TT, AT> const& __that) { return basic_string<CT, TT, AT>{ __this, __that.get_allocator() } + __that; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr basic_string<CT, TT, AT> operator+(basic_string<CT, TT, AT> const& __this, const CT* __that) { return __this + basic_string<CT, TT, AT>{ __that, __this.get_allocator() }; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr basic_string<CT, TT, AT> operator+(basic_string<CT, TT, AT> const& __this, CT __that) { return __this + basic_string<CT, TT, AT>{ basic_string<CT, TT, AT>::size_type(1), __that, __this.get_allocator() }; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr basic_string<CT, TT, AT> operator+(CT __this, basic_string<CT, TT, AT> const& __that) { return basic_string<CT, TT, AT>{ basic_string<CT, TT, AT>::size_type(1), __this, __that.get_allocator()  } + __that; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr bool operator==(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) noexcept { return strncmp(__this.data(), __that.data(), std::min(__this.size(), __that.size())) == 0; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr bool operator<(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) noexcept { return __lexical_cmp(__this, __that) < 0; }
+    template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr bool operator>(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) noexcept { return __lexical_cmp(__this, __that) > 0; }
 }
 #endif

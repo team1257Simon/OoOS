@@ -22,6 +22,12 @@ vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 uintptr_t sys_unmap(vaddr_t start, size_t pages);
 #ifdef __cplusplus
 }
+#define DEFAULT_COPY_MOVE(T) constexpr T(T const&) = default; constexpr T(T&&) = default
+#define DEFAULT_ASSIGN(T) constexpr T& operator=(T const&) = default; constexpr T& operator=(T&&) = default
+#define DEFAULT_BOTH(T) DEFAULT_COPY_MOVE(T); DEFAULT_ASSIGN(T)
+#define DEFAULT_PLUS_DTOR(T) DEFAULT_BOTH(T); constexpr ~T() = default
+#define DEFAULT_PLUS_CTOR(T) DEFAULT_BOTH(T); constexpr T() = default
+#define DEFAULT_ALL(T) DEFAULT_PLUS_CTOR(T); constexpr ~T() = default
 template<size_t S> struct granular_num { using type = byte; };
 template<> struct granular_num<2> { using type = word; };
 template<> struct granular_num<4> { using type = dword; };

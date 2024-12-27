@@ -6,7 +6,7 @@ namespace std
 {
     class __undefined;
     template<typename T, typename U> struct __replace_first_arg {};
-    template<template<typename, typename...> class _Template, typename U, typename T, typename... _Types> struct __replace_first_arg<_Template<T, _Types...>, U> { using type = _Template<U, _Types...>; };
+    template<template<typename, typename...> class _Template, typename U, typename T, typename... Ts> struct __replace_first_arg<_Template<T, Ts...>, U> { using type = _Template<U, Ts...>; };
     template<typename T, typename U> using __replace_first_arg_t = typename __replace_first_arg<T, U>::type;
     template<typename T> using __make_not_void = typename conditional<is_void<T>::value, __undefined, T>::type;
     template<typename PT>

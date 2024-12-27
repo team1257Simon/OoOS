@@ -1,22 +1,172 @@
 #ifndef __FUNCTIONAL
 #define __FUNCTIONAL
 #include "bits/stl_function.hpp"
+#include "bits/invoke.hpp"
 #include "tuple"
+#include "bits/refwrap.hpp"
 namespace std
 {
+    template<typename MFT,
+	bool __is_mem_fn = is_member_function_pointer<MFT>::value>
+    class __mem_fn_base : public __mem_fn_traits<MFT>::__maybe_type
+    {
+        using __traits = __mem_fn_traits<MFT>;
+        using __arity = typename __traits::__arity;
+        using __varargs = typename __traits::__vararg;
+        template<typename FT, typename... BArgs> friend struct __bind_check_arity;
+        MFT __my_pmf;
+    public:
+        using result_type = typename __traits::__result_type;
+        explicit constexpr __mem_fn_base(MFT __pmf) noexcept : __my_pmf(__pmf) { }
+        template<typename... Args> constexpr auto operator()(Args&&... __args) const noexcept(noexcept(std::__invoke(__my_pmf, std::forward<Args>(__args)...))) -> decltype(std::__invoke(__my_pmf, std::forward<Args>(__args)...)) { return std::__invoke(__my_pmf, std::forward<Args>(__args)...); }
+    };
+    template<typename MPT>
+    class __mem_fn_base<MPT, false>
+    {
+        using __arity = integral_constant<size_t, 0>;
+        using __varargs = false_type;
+        template<typename FT, typename... BArgs> friend struct __bind_check_arity;
+        MPT __my_ptr;
+    public:
+        explicit constexpr  __mem_fn_base(MPT __pm) noexcept : __my_ptr(__pm) {}
+        template<typename T> constexpr auto operator()(T&& __obj) const noexcept(noexcept(std::__invoke(__my_ptr, std::forward<T>(__obj)))) -> decltype(std::__invoke(__my_ptr, std::forward<T>(__obj))) { return std::__invoke(__my_ptr, std::forward<T>(__obj)); }
+    };
+    template<typename MPT> struct __mem_fn;
+    template<typename RT, typename CT> struct __mem_fn<RT CT::*> : __mem_fn_base<RT CT::*> { using __mem_fn_base<RT CT::*>::__mem_fn_base; };
+    template<typename T, typename CT> constexpr inline __mem_fn<T CT::*> mem_fn(T CT::* __pm) noexcept { return __mem_fn<T CT::*>(__pm); }
     template<int I> struct __placeholder{};
     template<typename T> struct is_placeholder : public integral_constant<int, 0> {};
-    template<int I> struct is_placeholder<__placeholder<I>> : public integral_constant<int, I> {};
-    template<size_t I, typename TT> using __safe_tuple_element_t = typename enable_if<(I < tuple_size<TT>::value), tuple_element<I, TT>>::type;
     template<int I> struct is_placeholder<const __placeholder<I>> : public integral_constant<int, I> {};
-    template<typename FT, typename ... Args> constexpr invoke_result_t<FT, Args...> invoke(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_v<FT, Args...>) { return __invoke(forward<FT>(ft), forward<Args>(args)...); }
-    template<typename RT, typename FT, typename ... Args> requires is_invocable_r_v<RT, FT, Args...> constexpr RT invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r(forward<FT>(ft), forward<Args>(args)...); }
+    template<int I> struct is_placeholder<__placeholder<I>> : public integral_constant<int, I> {};
+    namespace placeholders
+    {
+        extern const __placeholder<1> _1;
+        extern const __placeholder<2> _2;
+        extern const __placeholder<3> _3;
+        extern const __placeholder<4> _4;
+        extern const __placeholder<5> _5;
+        extern const __placeholder<6> _6;
+        extern const __placeholder<7> _7;
+        extern const __placeholder<8> _8;
+        extern const __placeholder<9> _9;
+        extern const __placeholder<10> _10;
+        extern const __placeholder<11> _11;
+        extern const __placeholder<12> _12;
+        extern const __placeholder<13> _13;
+        extern const __placeholder<14> _14;
+        extern const __placeholder<15> _15;
+        extern const __placeholder<16> _16;
+        extern const __placeholder<17> _17;
+        extern const __placeholder<18> _18;
+        extern const __placeholder<19> _19;
+        extern const __placeholder<20> _20;
+        extern const __placeholder<21> _21;
+        extern const __placeholder<22> _22;
+        extern const __placeholder<23> _23;
+        extern const __placeholder<24> _24;
+        extern const __placeholder<25> _25;
+        extern const __placeholder<26> _26;
+        extern const __placeholder<27> _27;
+        extern const __placeholder<28> _28;
+        extern const __placeholder<29> _29;
+        extern const __placeholder<30> _30;
+    }
+    template<size_t I, typename TT> using __safe_tuple_element_t = typename enable_if<(I < tuple_size<TT>::value), tuple_element<I, TT>>::type::type;
+ 
+    template<typename FT, typename ... Args> constexpr invoke_result_t<FT, Args...> invoke(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_v<FT, Args...>) { return std::__invoke(forward<FT>(ft), forward<Args>(args)...); }
+    template<typename RT, typename FT, typename ... Args> requires is_invocable_r_v<RT, FT, Args...> constexpr RT invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return std::__invoke_r(forward<FT>(ft), forward<Args>(args)...); }
     template<typename T> struct is_bind_expression : public false_type {};
     template<typename AT, bool __is_bind = is_bind_expression<AT>::value, bool __is_placeholder = (is_placeholder<AT>::value > 0)> struct __mu;
     template<typename AT> struct __mu<AT, true, false> { template<typename CVArg, typename ... Args, size_t ... Is> constexpr auto __call(CVArg& __arg, tuple<Args...>& __tuple, __index_tuple<Is...> const&) const volatile -> decltype(__arg(declval<Args>()...)) { return __arg(std::get<Is>(std::move(__tuple))...); } template<typename CVArg, typename ... Args> constexpr auto operator()(CVArg& __arg, tuple<Args...>& __tuple) const volatile -> decltype(__arg(declval<Args>()...)) { typedef typename __build_index_tuple<sizeof...(Args)>::type __idxs; return this->__call(__arg, __tuple, __idxs{}); } };
-    template<typename AT> struct __mu<AT, false, true> { template<typename TT> __safe_tuple_element_t<(is_placeholder<AT>::value - 1), TT>&& operator()(const volatile AT&, TT &__tuple) const volatile  { return std::get<(is_placeholder<AT>::value - 1)>(std::move(__tuple)); } };
-    template<typename AT> struct __mu<AT, false, false> { template<typename CVArg, typename TT> CVArg&& operator()(const volatile CVArg&& __arg, TT&) const volatile { return std::forward<CVArg>(__arg); } };
+    template<typename AT> struct __mu<AT, false, true> { template<typename TT> __safe_tuple_element_t<(is_placeholder<AT>::value - 1), TT>&& operator()(const volatile AT&, TT &__tuple) const volatile { return ::std::get<(is_placeholder<AT>::value - 1)>(std::move(__tuple)); } };
+    template<typename AT> struct __mu<AT, false, false> { template<typename CVArg, typename TT> CVArg&& operator()(CVArg&& __arg, TT&) const volatile { return std::forward<CVArg>(__arg); } };
     template<std::size_t I, typename... Ts> inline auto __volget(volatile tuple<Ts...>& __tuple) -> __elem_t<I, tuple<Ts...>> volatile& { return std::get<I>(const_cast<tuple<Ts...>&>(__tuple)); }
     template<std::size_t I, typename... Ts> inline auto __volget(const volatile tuple<Ts...>& __tuple) -> __elem_t<I, tuple<Ts...>> const volatile& { return std::get<I>(const_cast<const tuple<Ts...>&>(__tuple)); }
+    template<typename ST> class __bind_expr;
+    template<typename FT, typename ... BArgs>
+    class __bind_expr<FT(BArgs...)> : public __weak_result_type<FT>
+    {
+        typedef typename __build_index_tuple<sizeof...(BArgs)>::__type __bound_indices;
+        FT __my_functor;
+        tuple<BArgs...> __my_bound_args;
+        template<typename RT, typename ... Args, size_t ... Is> constexpr RT __call(tuple<Args...>&& __args, __index_tuple<Is...>) { return std::__invoke(__my_functor, __mu<BArgs>()(std::get<Is>(__my_bound_args), __args)...); }
+        template<typename RT, typename ... Args, size_t ... Is> constexpr RT __call_c(tuple<Args...>&& __args, __index_tuple<Is...>) const { return std::__invoke(__my_functor, __mu<BArgs>()(std::get<Is>(__my_bound_args), __args)...); }
+        template<typename RT, typename ... Args, size_t ... Is> constexpr RT __call_v(tuple<Args...>&& __args, __index_tuple<Is...>) volatile { return std::__invoke(__my_functor, __mu<BArgs>()(__volget<Is>(__my_bound_args), __args)...); }
+        template<typename RT, typename ... Args, size_t ... Is> constexpr RT __call_c_v(tuple<Args...>&& __args, __index_tuple<Is...>) const volatile { return std::__invoke(__my_functor, __mu<BArgs>()(__volget<Is>(__my_bound_args), __args)...); }
+        template<typename BAT, typename CAT> using __mu_type = decltype(__mu<typename remove_cv<BAT>::type>()(declval<BAT&>(), declval<CAT&>()));
+        template<typename GT, typename CAT, typename ... BATs> using __res_type_impl = typename result_of<GT&(__mu_type<BATs, CAT>&&...)>::type;
+        template<typename CAT> using __res_type = __res_type_impl<FT, CAT, BArgs...>;
+        template<typename CAT> using __dependent = typename enable_if<bool(tuple_size<CAT>::value + 1), FT>::type;
+        template<typename CAT, template<typename> class QT> using __res_type_cv = __res_type_impl<typename QT<__dependent<CAT>>::type, CAT, typename QT<BArgs>::type...>;
+    public:
+        template<typename ... Args> constexpr explicit __bind_expr(FT const& __f, Args&& ... __args) : __my_functor{__f}, __my_bound_args{forward<Args>(__args)...} {}
+        template<typename ... Args> constexpr explicit __bind_expr(FT && __f, Args&& ... __args) : __my_functor{ move(__f) }, __my_bound_args{forward<Args>(__args)...} {}
+        constexpr __bind_expr(__bind_expr const&) = default;
+        constexpr __bind_expr(__bind_expr&&) = default;
+        template<typename ... Args, typename RT = __res_type<tuple<Args...>>> constexpr RT operator()(Args&&... __args) { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+        template<typename ... Args, typename RT = __res_type_cv<tuple<Args...>, add_const>> constexpr RT operator()(Args&&... __args) const { return this->__call_c<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+        template<typename ... Args, typename RT = __res_type_cv<tuple<Args...>, add_volatile>> constexpr RT operator()(Args&&... __args) volatile { return this->__call_v<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+        template<typename ... Args, typename RT = __res_type_cv<tuple<Args...>, add_cv>> constexpr RT operator()(Args&&... __args) const volatile { return this->__call_c_v<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+    };
+    template<typename RT, typename ST> class __bind_r_expr;
+    template<typename RT, typename FT, typename ... BArgs>
+    class __bind_r_expr<RT, FT(BArgs...)>
+    {
+        typedef typename __build_index_tuple<sizeof...(BArgs)>::__type __bound_indices;
+        FT __my_functor;
+        tuple<BArgs...> __my_bound_args;
+        template<typename RT2, typename ... Args, size_t ... Is> constexpr RT2 __call(tuple<Args...>&& __args, __index_tuple<Is...>) { return std::__invoke_r<RT2>(__my_functor, __mu<BArgs>()(std::get<Is>(__my_bound_args), __args)...); }
+        template<typename RT2, typename ... Args, size_t ... Is> constexpr RT2 __call(tuple<Args...>&& __args, __index_tuple<Is...>) const { return std::__invoke_r<RT2>(__my_functor, __mu<BArgs>()(std::get<Is>(__my_bound_args), __args)...); }
+        template<typename RT2, typename ... Args, size_t ... Is> constexpr RT2 __call(tuple<Args...>&& __args, __index_tuple<Is...>) volatile { return std::__invoke_r<RT2>(__my_functor, __mu<BArgs>()(__volget<Is>(__my_bound_args), __args)...); }
+        template<typename RT2, typename ... Args, size_t ... Is> constexpr RT2 __call(tuple<Args...>&& __args, __index_tuple<Is...>) const volatile { return std::__invoke_r<RT2>(__my_functor, __mu<BArgs>()(__volget<Is>(__my_bound_args), __args)...); }
+    public:
+        typedef RT result_type;
+        template<typename ... Args> constexpr explicit __bind_r_expr(FT const& __f, Args&& ... __args) : __my_functor{__f}, __my_bound_args{forward<Args>(__args)...} {}
+        template<typename ... Args> constexpr explicit __bind_r_expr(FT && __f, Args&& ... __args) : __my_functor{ move(__f) }, __my_bound_args{forward<Args>(__args)...} {}
+        constexpr __bind_r_expr(__bind_r_expr const&) = default;
+        constexpr __bind_r_expr(__bind_r_expr&&) = default;
+        template<typename ... Args> constexpr result_type operator()(Args&&... __args) { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+        template<typename ... Args> constexpr result_type operator()(Args&&... __args) const { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+        template<typename ... Args> constexpr result_type operator()(Args&&... __args) volatile { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+        template<typename ... Args> constexpr result_type operator()(Args&&... __args) const volatile { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }
+    };
+    template<typename ST> struct is_bind_expression<__bind_expr<ST>> : public true_type {};
+    template<typename ST> struct is_bind_expression<const __bind_expr<ST>> : public true_type {};
+    template<typename ST> struct is_bind_expression<volatile __bind_expr<ST>> : public true_type {};
+    template<typename ST> struct is_bind_expression<const volatile __bind_expr<ST>> : public true_type {};
+    template<typename RT, typename ST> struct is_bind_expression<__bind_r_expr<RT, ST>> : public true_type {};
+    template<typename RT, typename ST> struct is_bind_expression<const __bind_r_expr<RT, ST>> : public true_type {};
+    template<typename RT, typename ST> struct is_bind_expression<volatile __bind_r_expr<RT, ST>> : public true_type {};
+    template<typename RT, typename ST> struct is_bind_expression<const volatile __bind_r_expr<RT, ST>> : public true_type {};
+    template<typename FT, typename ... BArgs> struct __bind_check_arity{};
+    template<typename RT, typename ... Args, typename ... BArgs> struct __bind_check_arity<RT (*)(Args...), BArgs...> { static_assert(sizeof...(BArgs) == sizeof...(Args), "Wrong number of arguments"); };
+    template<typename RT, typename ... Args, typename ... BArgs> struct __bind_check_arity<RT (*)(Args... ...), BArgs...> { static_assert(sizeof...(BArgs) >= sizeof...(Args), "Wrong number of arguments"); };
+    template<typename RT, typename CT, typename ... BArgs> struct __bind_check_arity<RT CT::*, BArgs...> { using __arity = typename __mem_fn<RT CT::*>::__arity; using __varargs = typename __mem_fn<RT CT::*>::__varargs; static_assert(__varargs::value ? sizeof...(BArgs) >= __arity::value + 1 : sizeof...(BArgs) == __arity::value + 1, "Wrong number of arguments"); };
+    template<typename FT, typename ... BArgs> struct __bind_helper : __bind_check_arity<std::decay_t<FT>, BArgs...> { typedef __bind_expr<typename std::decay<FT>::type(typename std::decay<BArgs>::type...)> type; };
+    template<typename RT, typename FT, typename ... BArgs> struct __bind_r_helper : __bind_check_arity<std::decay_t<FT>, BArgs...> { typedef __bind_r_expr<RT, typename std::decay<FT>::type(typename std::decay<BArgs>::type...)> type; };
+    template<typename FT, typename ... BArgs> constexpr inline typename __bind_helper<FT, BArgs...>::type bind(FT&& __f, BArgs&&... __args) { return typename __bind_helper<FT, BArgs...>::type{ std::forward<FT>(__f), std::forward<BArgs>(__args)... }; }
+    template<typename RT, typename FT, typename ... BArgs> constexpr inline typename __bind_r_helper<RT, FT, BArgs...>::type bind(FT&& __f, BArgs&&... __args) { return typename __bind_r_helper<RT, FT, BArgs...>::type{ std::forward<FT>(__f), std::forward<BArgs>(__args)... }; }
+    template<move_constructible FT, move_constructible ... BArgs>
+    class __bind_front_expr
+    {
+        using __bound_indices = index_sequence_for<BArgs...>;
+        FT __my_functor;
+        tuple<BArgs...> __my_bound_args;
+        template<typename T, size_t ... Is, typename ... CArgs> constexpr static decltype(auto) __s_call(T&& __g, index_sequence<Is...>, CArgs&&... __args) { return invoke(forward<T>(__g).__my_functor, get<Is>(forward<T>(__g).__my_bound_args)..., forward<CArgs>(__args)...); }
+    public:
+        template<move_constructible GT, move_constructible ... Args> requires(sizeof...(Args) == sizeof...(BArgs))
+        constexpr explicit __bind_front_expr(int, GT&& __fn, Args&&... __args) noexcept(__and_v<is_nothrow_constructible<FT, GT>, is_nothrow_constructible<BArgs, Args>...>) : __my_functor{forward<GT>(__fn)}, __my_bound_args{forward<Args>(__args)...} {}
+        constexpr __bind_front_expr(__bind_front_expr const&) = default; 
+        constexpr __bind_front_expr(__bind_front_expr&&) = default; 
+        constexpr __bind_front_expr& operator=(__bind_front_expr const&) = default; 
+        constexpr __bind_front_expr& operator=(__bind_front_expr&&) = default; 
+        constexpr ~__bind_front_expr() = default;
+        template<typename ... CArgs> constexpr invoke_result_t<FT&, BArgs&..., CArgs...> operator()(CArgs&&... __args) & noexcept(is_nothrow_invocable_v<FT&, BArgs&..., CArgs...>) { return __s_call(*this, __bound_indices{}, forward<CArgs>(__args)...); }
+        template<typename ... CArgs> constexpr invoke_result_t<FT const&, BArgs const&..., CArgs...> operator()(CArgs&&... __args) const & noexcept(is_nothrow_invocable_v<FT const&, BArgs const&..., CArgs...>) { return __s_call(*this, __bound_indices{}, forward<CArgs>(__args)...); }
+        template<typename ... CArgs> constexpr invoke_result_t<FT, BArgs..., CArgs...> operator()(CArgs&&... __args) && noexcept(is_nothrow_invocable_v<FT, BArgs..., CArgs...>) { return __s_call(move(*this), __bound_indices{}, forward<CArgs>(__args)...); }
+        template<typename ... CArgs> constexpr invoke_result_t<const FT, const BArgs..., CArgs...> operator()(CArgs&&... __args) const && noexcept(is_nothrow_invocable_v<const FT, const BArgs..., CArgs...>) { return __s_call(move(*this), __bound_indices{}, forward<CArgs>(__args)...); }
+    };
+    template<typename FT, typename ... Args> using __bind_front_t = __bind_front_expr<decay_t<FT>, decay_t<Args>...>;
+    template<typename FT, typename ... Args> constexpr __bind_front_t<FT, Args...> bind_front(FT&& __f, Args&& ... __args) noexcept(is_nothrow_constructible_v<__bind_front_t<FT, Args...>, int, FT, Args...>) { return __bind_front_t<FT, Args...>(0, forward<FT>(__f), forward<Args>(__args)...); }
 }
 #endif
