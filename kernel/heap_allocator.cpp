@@ -18,6 +18,7 @@ constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? 
 constexpr size_t how_many_status_arrays(size_t mem_size) { return div_roundup(mem_size, GIGABYTE); }
 constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
 constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : truncate(n + unit, unit); }
+void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
 static uintptr_t block_offset(uintptr_t addr, block_idx idx) 
 {
     switch(idx)
@@ -40,7 +41,6 @@ static uintptr_t block_offset(uintptr_t addr, block_idx idx)
             return addr;
     }
 }
-void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
 uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
 {
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
@@ -166,7 +166,6 @@ vaddr_t heap_allocator::allocate_block(vaddr_t const &base, size_t sz, uint64_t 
     if(phys) return sys_mmap(aligned, phys, div_roundup(sz, PAGESIZE));
     return 0ul;
 }
-
 void heap_allocator::deallocate_block(vaddr_t const &base, size_t sz)
 {
     __lock();

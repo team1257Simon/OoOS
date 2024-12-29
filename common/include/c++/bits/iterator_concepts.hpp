@@ -19,12 +19,7 @@ namespace std
         template<typename T> using __with_ref = T&;
         template<typename T> concept __can_reference = requires { typename __with_ref<T>; };
         template<typename T> concept __dereferenceable = requires(T& __t) { { *__t } -> __can_reference; };
-        template<typename IT, typename VT> concept __points_to = requires(VT* p, IT i, size_t n)
-        { 
-            { ::new (p) VT {*i} } -> std::same_as<VT*>; 
-            { *i } -> std::convertible_to<VT>;
-            { i[n] } -> std::convertible_to<VT>;
-        };
+        template<typename IT, typename T2> concept __points_to = requires(T2* p, IT i, size_t n) { { ::new (p) T2 {*i} } -> std::same_as<T2*>; { *i } -> std::convertible_to<T2>; { i[n] } -> std::convertible_to<T2>; };
     }
     template<__detail::__dereferenceable T> using iter_reference_t = decltype(*std::declval<T&>());
     namespace ranges
@@ -42,12 +37,7 @@ namespace std
                 template<typename T> static constexpr bool _is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(std::declval<T>())); else return noexcept(*std::declval<T>()); }
             public:
                 template<std::__detail::__dereferenceable T> using __type = typename __result<T>::type; 
-                template<std::__detail::__dereferenceable T> constexpr __type<T> operator()(T&& __e) const noexcept(_is_noexcept<T>())
-                {
-                    if constexpr (__adl_imove<T>) return iter_move(static_cast<T&&>(__e));
-                    else if constexpr (is_lvalue_reference_v<iter_reference_t<T>>) return static_cast<__type<T>>(*__e);
-                    else return *__e;
-                }
+                template<std::__detail::__dereferenceable T> constexpr __type<T> operator()(T&& __e) const noexcept(_is_noexcept<T>()) { if constexpr (__adl_imove<T>) return iter_move(static_cast<T&&>(__e)); else if constexpr (is_lvalue_reference_v<iter_reference_t<T>>) return static_cast<__type<T>>(*__e); else return *__e; }
             };
         }
         inline namespace __cust { inline constexpr __cust_imove::__imove iter_move{}; }
@@ -111,13 +101,7 @@ namespace std
             { __it -  __it } -> same_as<decltype(__n)>;
             {  __it[__n]  } -> convertible_to<iter_reference_t<IT>>;
         };
-        template<typename IT> concept __iter_with_nested_types = requires 
-        {
-            typename IT::iterator_category;
-            typename IT::value_type;
-            typename IT::difference_type;
-            typename IT::reference;
-        };
+        template<typename IT> concept __iter_with_nested_types = requires { typename IT::iterator_category; typename IT::value_type; typename IT::difference_type; typename IT::reference; };
         template<typename IT> concept __iter_without_nested_types = !__iter_with_nested_types<IT>;
         template<typename IT> concept __iter_without_category = !requires { typename IT::iterator_category; };
     }
@@ -128,10 +112,10 @@ namespace std
         template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
     public:
         using iterator_category = typename IT::iterator_category;
-        using value_type	      = typename IT::value_type;
+        using value_type	    = typename IT::value_type;
         using difference_type   = typename IT::difference_type;
-        using pointer	      = typename __ptr<IT>::type;
-        using reference	      = typename IT::reference;
+        using pointer	        = typename __ptr<IT>::type;
+        using reference	        = typename IT::reference;
     };
     template<typename IT> 
     requires __detail::__iter_without_nested_types<IT> && __detail::__cpp17_input_iterator<IT> 
@@ -147,9 +131,8 @@ namespace std
         template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
         template<typename JT> requires (!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(std::declval<JT&>().operator->()); };
         template<typename JT> struct __ref { using type = iter_reference_t<JT>; };
-        template<typename JT> requires requires { typename JT::reference; }
-        struct __ref<JT> { using type = typename JT::reference; };
-        public:
+        template<typename JT> requires requires { typename JT::reference; } struct __ref<JT> { using type = typename JT::reference; };
+    public:
         using iterator_category = typename __cat<IT>::type;
         using value_type = typename indirectly_readable_traits<IT>::value_type;
         using difference_type = typename incrementable_traits<IT>::difference_type;
@@ -162,27 +145,20 @@ namespace std
     {
     private:
         template<typename JT> struct __diff { using type = void; };
-        template<typename JT> requires requires { typename incrementable_traits<JT>::difference_type; }
-        struct __diff<JT> { using type = typename incrementable_traits<JT>::difference_type; };
+        template<typename JT> requires requires { typename incrementable_traits<JT>::difference_type; } struct __diff<JT> { using type = typename incrementable_traits<JT>::difference_type; };
     public:
         using iterator_category = output_iterator_tag;
-        using value_type	      = void;
+        using value_type	    = void;
         using difference_type   = typename __diff<IT>::type;
-        using pointer	      = void;
-        using reference	      = void;
+        using pointer	        = void;
+        using reference	        = void;
     };
     namespace __detail
     {
         template<typename IT> struct __iter_concept_impl;
-        template<typename IT>
-        requires requires { typename __iter_traits<IT>::iterator_concept; }
-        struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_concept; };
-        template<typename IT> 
-        requires (!requires { typename __iter_traits<IT>::iterator_concept; } && requires { typename __iter_traits<IT>::iterator_category; })
-        struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_category; };
-        template<typename IT> 
-        requires (!requires { typename __iter_traits<IT>::iterator_concept; } && !requires { typename __iter_traits<IT>::iterator_category; } && __primary_traits_iter<IT>)
-        struct __iter_concept_impl<IT> { using type = random_access_iterator_tag; };
+        template<typename IT> requires requires { typename __iter_traits<IT>::iterator_concept; } struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_concept; };
+        template<typename IT> requires (!requires { typename __iter_traits<IT>::iterator_concept; } && requires { typename __iter_traits<IT>::iterator_category; }) struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_category; };
+        template<typename IT> requires (!requires { typename __iter_traits<IT>::iterator_concept; } && !requires { typename __iter_traits<IT>::iterator_category; } && __primary_traits_iter<IT>) struct __iter_concept_impl<IT> { using type = random_access_iterator_tag; };
         template<typename IT> struct __iter_concept_impl {};
         template<typename IT> using __iter_concept = typename __iter_concept_impl<IT>::type;
         template<typename I> concept __indirectly_readable_impl = requires
@@ -216,13 +192,7 @@ namespace std
         template<typename T> concept __is_signed_integer_like = signed_integral<T> || __is_signed_int128<T> || same_as<T, __max_diff_type>;
     }
     namespace __detail { using ranges::__detail::__is_signed_integer_like; }
-    template<typename IT> concept weakly_incrementable = movable<IT> && requires(IT __i)
-    {
-        typename iter_difference_t<IT>;
-        requires __detail::__is_signed_integer_like<iter_difference_t<IT>>;
-        { ++__i } -> same_as<IT&>;
-        __i++;
-    };
+    template<typename IT> concept weakly_incrementable = movable<IT> && requires(IT __i) { typename iter_difference_t<IT>; requires __detail::__is_signed_integer_like<iter_difference_t<IT>>; { ++__i } -> same_as<IT&>; __i++; };
     template<typename IT> concept incrementable = regular<IT> && weakly_incrementable<IT> && requires(IT __i) { { __i++ } -> same_as<IT>; };
     template<typename IT> concept input_or_output_iterator = requires(IT __i) { { *__i } -> __detail::__can_reference; } && weakly_incrementable<IT>;
     template<typename ST, typename IT> concept sentinel_for = semiregular<ST> && input_or_output_iterator<IT> && __detail::__weakly_eq_cmp_with<ST, IT>;
@@ -260,31 +230,14 @@ namespace std
         {
             template<typename I1, typename I2> void iter_swap(I1, I2) = delete;
             template<typename T, typename U> concept __adl_iswap = (std::__detail::__class_or_enum<remove_reference_t<T>> || std::__detail::__class_or_enum<remove_reference_t<U>>) && requires(T&& __t, U&& __u) { iter_swap(static_cast<T&&>(__t), static_cast<U&&>(__u)); };
-            template<typename X, typename Y>
-            constexpr iter_value_t<X> __iter_exchange_move(X&& __x, Y&& __y) noexcept(noexcept(iter_value_t<X>(iter_move(__x))) && noexcept(*__x = iter_move(__y)))
-            {
-                iter_value_t<X> __old_value(iter_move(__x));
-                *__x = iter_move(__y);
-                return __old_value;
-            }
+            template<typename X, typename Y> constexpr iter_value_t<X> __iter_exchange_move(X&& __x, Y&& __y) noexcept(noexcept(iter_value_t<X>(iter_move(__x))) && noexcept(*__x = iter_move(__y))) { iter_value_t<X> __old_value(iter_move(__x)); *__x = iter_move(__y); return __old_value; }
             struct __iter_swap
             {
             private:
-                template<typename T, typename U> static constexpr bool _is_noexcept()
-                {
-                    if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(std::declval<T>(), std::declval<U>()));
-                    else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>)
-                    return noexcept(ranges::swap(*std::declval<T>(), *std::declval<U>()));
-                    else return noexcept(*std::declval<T>() = __iter_exchange_move(std::declval<U>(), std::declval<T>()));
-                }
+                template<typename T, typename U> static constexpr bool _is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(std::declval<T>(), std::declval<U>())); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*std::declval<T>(), *std::declval<U>())); else return noexcept(*std::declval<T>() = __iter_exchange_move(std::declval<U>(), std::declval<T>())); }
             public:
                 template<typename T, typename U> requires __adl_iswap<T, U> || (indirectly_readable<remove_reference_t<T>> && indirectly_readable<remove_reference_t<U>> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) || (indirectly_movable_storable<T, U> && indirectly_movable_storable<U, T>)
-                constexpr void operator()(T&& __e1, U&& __e2) const noexcept(_is_noexcept<T, U>())
-                {
-                    if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2));
-                    else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2);
-                    else *__e1 = __iter_exchange_move(__e2, __e1);
-                }
+                constexpr void operator()(T&& __e1, U&& __e2) const noexcept(_is_noexcept<T, U>()) { if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2)); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2); else *__e1 = __iter_exchange_move(__e2, __e1); }
             };
         }
         inline namespace __cust { inline constexpr __cust_iswap::__iter_swap iter_swap{}; }
@@ -312,17 +265,10 @@ namespace std
         void begin(auto&) = delete;
         void begin(const auto&) = delete;
         template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
-        template<typename T> 
-        requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> 
-        auto __begin(T& __t)
-        {
-            if constexpr (is_array_v<T>) return __t + 0;
-            else if constexpr (__member_begin<T&>) return __t.begin();
-            else return begin(__t);
-        }
+        template<typename T> requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> auto __begin(T& __t) { if constexpr (is_array_v<T>) return __t + 0; else if constexpr (__member_begin<T&>) return __t.begin(); else return begin(__t); }
     }
     namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); } 
-    template<typename IT, typename VT> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, VT>;
-    template<typename IT, typename VT> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, VT>;
+    template<typename IT, typename T2> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, T2>;
+    template<typename IT, typename T2> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, T2>;
 }
 #endif

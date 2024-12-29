@@ -78,5 +78,3 @@ isr_ramp:
     .type       isr_table,      @object
 isr_table:
     xm256 wr_id
-     
-

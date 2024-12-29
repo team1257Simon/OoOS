@@ -112,18 +112,8 @@ namespace std
         constexpr tuple(FTs&& ... elements) : __base{ forward<FTs>(elements)... } {}
         constexpr tuple(const tuple&) = default;
         constexpr tuple(tuple&&) = default;
-        tuple& operator=(conditional_t<__assignable<ETs const&...>(), tuple const&, __nonesuch const&> that)
-        noexcept(__nothrow_assignable<ETs const&...>())
-        {
-            this->__assign(that);
-            return *this;
-        }
-        tuple& operator=(conditional_t<__assignable<ETs...>(), tuple&&, __nonesuch&&> that)
-        noexcept(__nothrow_assignable<ETs...>())
-        {
-            this->__assign(std::move(that));
-            return *this;
-        }
+        constexpr tuple& operator=(tuple const& that) noexcept(__nothrow_assignable<ETs const&...>()) requires(__assignable<ETs const&...>()) { this->__assign(that); return *this; }
+        constexpr tuple& operator=(tuple&& that) noexcept(__nothrow_assignable<ETs...>()) requires(__assignable<ETs const&...>()) { this->__assign(std::move(that)); return *this; }
     };
     template<> class tuple<>
     {

@@ -1,9 +1,33 @@
 #include "kernel/libk_decls.h"
 #include "string"
 #include "limits"
+static inline int __sign_q(int i) { return i == 0 ? 0 : (i < 0 ? -1 : 1); }
 extern "C"
 {
     char* strstr(const char *hs, const char *ne) { return const_cast<char*>(std::__impl::__find_impl(hs, ne)); }
+    int strncmp(const char* lhs, const char* rhs, size_t n) { for(size_t i = 0; i < n && *rhs == *lhs && (*lhs && *rhs); ++i, ++lhs, ++rhs); return __sign_q(int(*lhs - *rhs)); }
+    char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
+    {
+        static char* __errstr;
+        if(__errstr) 
+        {
+            delete[] __errstr;
+            __errstr = NULL;
+        }
+        std::string estr{"Assertion failed in function "};
+        estr.append(fname ? fname : "");
+        estr.append(", file ");
+        estr.append(filename ? filename : "");
+        std::string linestr = std::to_string(line);
+        estr.append(", line ");
+        estr.append(linestr);
+        estr.append(": ");
+        if(text) estr.append(text);
+        __errstr = new char[estr.size() + 1];
+        std::strncpy(__errstr, estr.c_str(), estr.size());
+        __errstr[estr.size()] = '\0';
+        return __errstr;
+    }
 }
 namespace std
 {
@@ -34,12 +58,12 @@ namespace std
             constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
             constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
             constexpr static IT __get_dec_digit_v(IT num, size_t idx) noexcept { return (num % __get_pow10(idx + 1)) / __get_pow10(idx); }
-            constexpr static IT __get_hex_digit_v(IT num, size_t idx) noexcept { return (num & (0xF << (idx * 4))) >> (idx * 4); }
+            constexpr static IT __get_hex_digit_v(IT num, size_t idx) noexcept { return (num & (IT(0xF) << (idx * 4))) >> (idx * 4); }
             constexpr static CT __get_dec_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_dec_digit_v(num, idx)]; }
             constexpr static CT __get_hex_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_hex_digit_v(num, idx)]; }
             constexpr static std::basic_string<CT> __to_string(IT i)
             {
-               
+                if(!i) return basic_string{__digi_type::digits[0]};
                 std::basic_string<CT> str{};
                 str.reserve(__max_dec);
                 IT j;
@@ -51,6 +75,7 @@ namespace std
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
+                if(!i) return basic_string{__digi_type::digits[0]};
                 std::basic_string<CT> hstr{};
                 hstr.reserve(__max_hex);
                 IT j;

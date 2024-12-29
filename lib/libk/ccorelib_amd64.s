@@ -51,19 +51,6 @@
     rep     movsq
     ret
     .size   sqcopy, .-sqcopy
-    defglobal   strcmp
-    xorq    %rdx,   %rdx
-    defglobal   strncmp
-    pushq   %rdi
-    pushq   %rsi
-    movq    %rdx,   %rsi
-    call    strnlen
-    movq    %rax,   %rdx
-    popq    %rsi
-    popq    %rdi
-    jmp     memcmp
-    .size   strcmp,     .-strcmp
-    .size   strncmp,    .-strncmp
     defglobal   strchr
     xorq    %rdx,   %rdx
     defglobal   strnchr
@@ -164,3 +151,9 @@
     movq    %cr3,   %rax
     ret
     .size     __sysinternal_get_cr3,     .-__sysinternal_get_cr3
+    .section    .data
+	.global		__atexit_guard
+    .type       __atexit_guard,     @object
+__atexit_guard:
+    .byte 0
+    .size       __atexit_guard, 1

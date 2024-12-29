@@ -1,8 +1,6 @@
 #ifndef __KERNEL_DEF
 #define __KERNEL_DEF
-#ifndef _GCC_STDINT_H
 #include "stdint.h"
-#endif
 #include "stddef.h"
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\sys\\core.elf"

@@ -1,0 +1,65 @@
+#ifndef __CXX_MAP
+#define __CXX_MAP
+#include "bits/stl_tree.hpp"
+#include "bits/stl_pair.hpp"
+#include "functional"
+#include "bits/stl_iterator.hpp"
+#include "memory"
+namespace std
+{
+    template<typename T, typename U, __valid_comparator<T> CP>
+    struct __key_compare
+    {
+        CP c{};
+        constexpr bool operator()(pair<const T, U> p, T const& t) const { return c(p.first, t); }
+        constexpr bool operator()(T const& t, pair<const T, U> p) const { return c(t, p.first); }
+        constexpr bool operator()(pair<const T, U> a, pair<const T, U> b) const { return c(a.first, b.first); }
+        constexpr bool operator()(T const& a, T const& b) const { return c(a, b); }
+    };
+    template<typename KT, typename VT, __valid_comparator<KT> CT = less<KT>, allocator_object<__node<pair<const KT, VT>>> AT = allocator<__node<pair<const KT, VT>>>>
+    class map : public __tree_base<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT>
+    {
+        typedef __tree_base<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT> __base;
+        typedef __node<pair<const KT, VT>>* __link_t;
+        typedef __node<pair<const KT, VT>> const* __clink_t;
+    public:
+        typedef KT key_type;
+        typedef VT mapped_type;
+        typedef pair<const KT, VT> value_type;
+        typedef size_t size_type;
+        typedef ptrdiff_t difference_type;
+        typedef CT key_compare;
+        typedef AT allocator_type;
+        typedef value_type& reference;
+        typedef value_type const& const_reference;
+        typedef value_type* pointer;
+        typedef const value_type* const_pointer;
+        typedef __tree_iterator<value_type> iterator;
+        typedef __tree_const_iterator<value_type> const_iterator;
+        typedef std::reverse_iterator<iterator> reverse_iterator;
+        typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+        constexpr allocator_type get_allocator() const noexcept { return this->__alloc; }
+        constexpr iterator begin() noexcept { return iterator{ this->__l_begin() }; }
+        constexpr iterator end() noexcept { return iterator{ this->__end() }; }
+        constexpr const_iterator cbegin() const noexcept { return const_iterator{ this->__l_begin() }; }
+        constexpr const_iterator cend() const noexcept { return const_iterator{ this->__end() }; }
+        constexpr const_iterator begin() const noexcept { return const_iterator{ this->__l_begin()}; }
+        constexpr const_iterator end() const noexcept { return const_iterator{ this->__end() }; }
+        constexpr reverse_iterator rbegin() noexcept { return reverse_iterator{ begin() }; }
+        constexpr reverse_iterator rend() noexcept { return reverse_iterator{ end() }; }
+        constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator{ cbegin() }; }
+        constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator{ cend() }; }
+        constexpr const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator{ begin() }; }
+        constexpr const_reverse_iterator rend() const noexcept { return const_reverse_iterator{ end() }; }
+        constexpr map() : __base{} {}
+        constexpr map(map const& that) : __base{ that } {}
+        constexpr map(map&& that) : __base{ move(that) } {}
+        constexpr void clear() { this->__clear(); }
+        template<typename U> requires (__valid_comparator<CT, value_type, U> || is_convertible_v<U, KT>) constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
+        template<typename U> requires (__valid_comparator<CT, value_type, U> || is_convertible_v<U, KT>) constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
+        template<std::convertible_to<KT> U> requires (is_default_constructible_v<VT>) constexpr VT& operator[](U const& u) { __link_t r = this->__find_node(u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__insert_unique(r, value_type{ u, VT{} }); } return r->__get_ref().second; }
+        pair<iterator, bool> insert(value_type && vt) { auto res = this->__insert_unique(vt); return pair{ iterator{res.first}, res.second }; }
+        template<std::convertible_to<VT> UT> pair<iterator, bool> insert_or_assign(KT && kt, UT && ut) { iterator i { this->__find_node(kt) }; if(i.__my_node == this->__end()) return pair{ iterator { this->__emplace_unique(forward<KT>(kt), forward<UT>(ut)) }, true}; (*i).second = forward<UT>(ut); return pair{ i, false }; }
+    };
+}
+#endif
