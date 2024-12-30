@@ -1,14 +1,9 @@
 #include "kernel/heap_allocator.hpp"
 #include "direct_text_render.hpp"
-extern direct_text_render* tty;
 extern "C"
 {
     extern unsigned char __end;
     frame_tag* __kernel_frame_tag = reinterpret_cast<frame_tag*>(&__end);
-    extern void sbcopy(void* restrict dest, const void* restrict src, unsigned long n);
-    extern void swcopy(void* restrict dest, const void* restrict src, unsigned long n);
-    extern void slcopy(void* restrict dest, const void* restrict src, unsigned long n);
-    extern void sqcopy(void* restrict dest, const void* restrict src, unsigned long n);
 }
 static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
 heap_allocator* heap_allocator::__instance;

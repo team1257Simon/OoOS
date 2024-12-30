@@ -4,19 +4,16 @@
     .global     gdt_descriptor
     .global     system_tss
     .global     idt_table
-    .global     idt_descriptor
     .type       gdt_table,          @object
     .type       gdt_descriptor,     @object
     .type       system_tss,         @object
     .type       local_tss_descr,    @object
     .type       idt_table,          @object
-    .type       idt_descriptor,     @object
     .size       gdt_table,          4096
     .size       gdt_descriptor,     10
     .size       system_tss,         104
     .size       local_tss_descr,    16
     .size       idt_table,          4096
-    .size       idt_descriptor,     10
 system_tss:
     .zero       104
     # The actual GDT

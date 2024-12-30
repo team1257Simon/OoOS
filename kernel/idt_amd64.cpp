@@ -2,9 +2,18 @@
 #include "arch/idt_amd64.h"
 #include "kernel/isr_table.hpp"
 #include "isr_table.hpp"
-std::vector<irq_handler> __handler_tables[16]{};
-void irq_table::add_handler(uint8_t idx, irq_handler handler) { if(idx >= 16) return;  __handler_tables[idx].push_back(handler); }
-void pic_eoi(byte irq ) { if (irq > 7) { outb(command_pic2, sig_pic_eoi); } outb(command_pic1, sig_pic_eoi); }
+std::vector<runnable> __handler_tables[16]{};
+std::vector<interrupt_callback> __registered_callbacks{};
+bool interrupt_table::add_irq_handler(byte idx, runnable&& handler) { if(idx < 16) { __handler_tables[idx].push_back(handler); return __handler_tables[idx].size() == 1; } return false; }
+void interrupt_table::add_interrupt_callback(interrupt_callback &&cb) { __registered_callbacks.push_back(cb); }
+void pic_eoi(byte irq)
+{
+    if (irq > 7)
+    {
+        outb(command_pic2, sig_pic_eoi);
+    }
+    outb(command_pic1, sig_pic_eoi);
+}
 extern "C"
 {
     extern void* isr_table[];
@@ -31,7 +40,7 @@ extern "C"
         if(idx > 0x19 && idx < 0x30) 
         { 
             byte irq = idx - 0x20;
-            for(irq_handler h : __handler_tables[irq]) h();
+            for(runnable h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }
         // Other stuff as needed

@@ -1,11 +1,31 @@
 #include "kernel/libk_decls.h"
 #include "string"
 #include "limits"
-static inline int __sign_q(int i) { return i == 0 ? 0 : (i < 0 ? -1 : 1); }
+// C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility
 extern "C"
 {
     char* strstr(const char *hs, const char *ne) { return const_cast<char*>(std::__impl::__find_impl(hs, ne)); }
-    int strncmp(const char* lhs, const char* rhs, size_t n) { for(size_t i = 0; i < n && *rhs == *lhs && (*lhs && *rhs); ++i, ++lhs, ++rhs); return __sign_q(int(*lhs - *rhs)); }
+    char* strnchr(const char* str, size_t n, char what) { return std::find<char>(str, n, what); }
+    char* strchr(const char* str, char what) { return std::find<char>(str, std::strlen(str), what); }
+    int strncmp(const char* lhs, const char* rhs, size_t n) { return std::strncmp<char>(lhs, rhs, n); }
+    int strcmp(const char* lhs, const char* rhs) { return std::strcmp<char>(lhs, rhs); }
+    size_t strlen(const char* str) { return std::strlen<char>(str); }
+    size_t strnlen(const char* str, size_t n) { return std::strnlen<char>(str, n); }
+    char* strcpy(char* dest, const char* src) { return std::strcpy<char>(dest, src); }
+    char* strncpy(char* dest, const char* src, size_t n) { return std::strncpy<char>(dest, src, n); }
+    char* stpcpy(char* dest, const char* src) { return std::stpcpy<char>(dest, src); }
+    char* stpncpy(char* dest, const char* src, size_t n) { return std::stpncpy<char>(dest, src, n); }
+    wchar_t* wstrnchr(const wchar_t* str, size_t n, wchar_t what) { return std::find<wchar_t>(str, n, what); }
+    wchar_t* wstrchr(const wchar_t* str, wchar_t what) { return std::find<wchar_t>(str, std::strlen(str), what); }
+    int wstrncmp(const wchar_t* lhs, const wchar_t* rhs, size_t n) { return std::strncmp<wchar_t>(lhs, rhs, n); }
+    int wstrcmp(const wchar_t* lhs, const wchar_t* rhs) { return std::strcmp<wchar_t>(lhs, rhs); }
+    size_t wstrlen(const wchar_t* str) { return std::strlen<wchar_t>(str); }
+    size_t wstrnlen(const wchar_t* str, size_t n) { return std::strnlen<wchar_t>(str, n); }
+    wchar_t* wstrcpy(wchar_t* dest, const wchar_t* src) { return std::strcpy<wchar_t>(dest, src); }
+    wchar_t* wstrncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::strncpy<wchar_t>(dest, src, n); }
+    wchar_t* wstpcpy(wchar_t* dest, const wchar_t* src) { return std::stpcpy<wchar_t>(dest, src); }
+    wchar_t* wstpncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::stpncpy<wchar_t>(dest, src, n); }
+    void* memset(void* buffer, int value, size_t n) { return std::memset<int>(buffer, value, n); }
     char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
     {
         static char* __errstr;

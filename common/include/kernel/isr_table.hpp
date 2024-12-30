@@ -4,9 +4,11 @@
 #include "functional"
 #include "kernel/libk_decls.h"
 #include "vector"
-using irq_handler = std::function<void()>;
-namespace irq_table
+using runnable = std::function<void()>;
+using interrupt_callback = std::function<void(byte)>;
+namespace interrupt_table
 {
-    void add_handler(uint8_t idx, irq_handler handler);
+    bool add_irq_handler(byte idx, runnable&& handler);
+    void add_interrupt_callback(interrupt_callback&& cb);
 }
 #endif

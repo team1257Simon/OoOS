@@ -1,5 +1,6 @@
 #ifndef __ARCH_AMD64
 #define __ARCH_AMD64
+#if defined(__x86_64__) || defined(_M_X64)
 #include "kernel/kernel_defs.h"
 #ifdef __cplusplus
 #include "concepts"
@@ -24,9 +25,9 @@ constexpr word command_keybd     =   0x64;      /* IO base address for keyboard 
 constexpr word data_keybd        =   0x60;      /* IO data address for keyboard controller */
 constexpr word command_rtc       =   0x70;      /* IO base address for the CMOS realtime clock */
 constexpr word data_rtc          =   0x71;      /* IO data address for the CMOS realtime clock */
-constexpr byte sig_keybd_ping    =   0xEE;
-constexpr byte sig_keybd_rst     =   0xFF;
-constexpr byte sig_keybd_enable  =   0xF4;
+constexpr byte sig_keybd_ping    =   0xEE;      /* The keyboard should respond with an equal byte */
+constexpr byte sig_keybd_rst     =   0xFF;      /* Use this to reset the keyboard, for instance at startup to ensure no stale data */
+constexpr byte sig_keybd_enable  =   0xF4;      /* Send to enable the keyboard. This must be used after any reset is performed */
 extern "C" 
 {
 #endif
@@ -71,6 +72,7 @@ inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
+void pic_eoi(byte irq);
 template<std::integral I = byte> [[gnu::always_inline]] constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
 template<std::integral I = byte> [[gnu::always_inline]] constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
 [[gnu::always_inline]] constexpr void outb(word to, byte value) { out(to, value); }
@@ -83,8 +85,7 @@ template<std::integral I = byte> [[gnu::always_inline]] constexpr void out(word 
 [[gnu::always_inline]] constexpr byte kb_get() { return inb(data_keybd); }
 [[gnu::always_inline]] constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(data_rtc); }
 [[gnu::always_inline]] constexpr void nmi_disable() { outb(command_rtc, inb(command_rtc) | 0x80); inb(data_rtc); }
-template<byte I> [[gnu::always_inline]] constexpr byte irq_mask() { if constexpr(I < 8) return 1 << I; else return (1 << (I - 8));   }
-void pic_eoi(byte irq);
+template<byte I> constexpr byte irq_mask() { if constexpr(I < 8) return 1 << I; else return (1 << (I - 8)); }
 template<byte O1, byte O2> constexpr void pic_remap() { byte a1 = inb(data_pic1), a2 = inb(data_pic2); outbw(command_pic1, icw1_init | icw1_icw4); outbw(command_pic2, icw1_init | icw1_icw4); outbw(data_pic1, O1); outbw(data_pic2, O2); outbw(data_pic1, 4); outbw(data_pic2, 2); outbw(data_pic1, icw4_8086_mode); outbw(data_pic2, icw4_8086_mode); outb(data_pic1, a1); outb(data_pic2, a2); }
 template<byte I> constexpr void irq_set_mask() { outb(data_pic1, inb(data_pic1) | irq_mask<I>()); }
 template<byte I> constexpr void irq_clear_mask() { outb(data_pic1, inb(data_pic1) & ~(irq_mask<I>())); }
@@ -97,5 +98,6 @@ constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0A>() 
 [[gnu::always_inline]] constexpr byte kb_enable() { irq_clear_mask<1>(); do { kb_rst(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
 template<dword R> [[gnu::always_inline]] constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return static_cast<qword>(static_cast<qword>(lo) | (static_cast<qword>(hi) << 32)); }
 template<dword R> [[gnu::always_inline]] constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(static_cast<dword>(value & 0xFFFFFFFF)), "d"(static_cast<dword>((value >> 32) & 0xFFFFFFFF)), "c"(R) : "memory"); }
+#endif
 #endif
 #endif

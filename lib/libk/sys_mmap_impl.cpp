@@ -15,7 +15,7 @@ static paging_table build_new_pt(paging_table in, uint16_t idx)
 
 static paging_table __get_table(vaddr_t const& of_page)
 {
-    paging_table pml4 = __sysinternal_get_cr3();
+    paging_table pml4 = get_cr3();
     if (pml4[of_page.pml4_idx].present)
     {
         paging_table pdp = vaddr_t{ pml4[of_page.pml4_idx].physical_address << 12 };
@@ -57,7 +57,7 @@ static paging_table __get_table(vaddr_t const& of_page)
 
 static paging_table __find_table(vaddr_t const& of_page)
 {
-    paging_table pml4 = __sysinternal_get_cr3();
+    paging_table pml4 = get_cr3();
     if (pml4[of_page.pml4_idx].present)
     {
         paging_table pdp = vaddr_t{ pml4[of_page.pml4_idx].physical_address << 12 };
@@ -88,14 +88,14 @@ extern "C"
             paging_table pt = __get_table(curr);
             if(!pt) 
             {
-                __sysinternal_tlb_flush();
+                tlb_flush();
                 return {};
             }
             pt[curr.page_idx].present = true;
             pt[curr.page_idx].write = true;
             pt[curr.page_idx].physical_address = phys >> 12;
         }
-        __sysinternal_tlb_flush();
+        tlb_flush();
         return start;
     }
 
@@ -113,7 +113,7 @@ extern "C"
                 pt[start.page_idx].physical_address = 0;
             }
         }
-        if(result) __sysinternal_tlb_flush();
+        if(result) tlb_flush();
         return result;
     }
 }
