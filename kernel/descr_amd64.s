@@ -35,9 +35,6 @@ gdt_descriptor:
     .quad       gdt_table
 idt_table:
     .zero       4096
-idt_descriptor:
-    .word       0x0FFF
-    .quad       idt_table
     .section    .text
     .global     gdt_setup
     .global     idt_register
