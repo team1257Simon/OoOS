@@ -78,6 +78,7 @@ namespace std
     template<typename T> concept non_object = !is_object_v<T>;
     template<typename T> concept object = is_object_v<T>;
     template<typename A, typename T> concept allocator_object = is_default_constructible_v<A> && requires(A a, T* ptr, size_t n) { { a.allocate(n) } -> same_as<T*>; a.deallocate(ptr, n); };
+    template<template<typename> class PT, typename T> concept recursive_template_derived = std::derived_from<T, PT<T>>;
 #pragma endregion
 }
 #endif 

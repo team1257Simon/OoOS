@@ -57,7 +57,8 @@ public:
         the_frame   { frame }, 
         next_vaddr  { vaddr_next },
         previous    { prev }, 
-        next        { nxt } {}
+        next        { nxt } 
+                    {}
     void insert_block(block_tag* blk, int idx);
     void remove_block(block_tag* blk);
     vaddr_t allocate(size_t size, size_t align = 0);
@@ -123,56 +124,26 @@ enum block_size : uint32_t
  */
 typedef struct mem_status_byte
 {
-    uint8_t byte : 8;
+    uint8_t the_byte : 8;
 private:
-    constexpr bool __has(uint8_t i) const noexcept
-    {
-        return (byte & i) == 0;
-    }
+    constexpr bool __has(uint8_t i) const noexcept { return (the_byte & i) == 0; }
  public:
-    constexpr bool all_free() const noexcept
-    {
-        return byte == 0;
-    }
-    constexpr bool has_free(block_idx i) const noexcept
-    {
-        return __has(i);
-    }
-    constexpr bool all_used() const noexcept
-    {
-        return byte == 0xFF;
-    }
-    constexpr void set_used(block_idx i) noexcept 
-    {
-        byte |= i;
-    }
-    constexpr void set_free(block_idx i) noexcept
-    {
-        byte &= ~i;
-    }
-    constexpr bool operator[](block_idx i) const noexcept
-    {
-        return has_free(i);
-    }
-    constexpr bool operator[](block_size i) const noexcept
-    {
-        return __has(BS2BI(i));
-    }
-    constexpr operator bool() const noexcept
-    {
-        return !all_used();
-    }
-    constexpr bool operator!() const noexcept
-    {
-        return all_used();
-    }
+    constexpr bool all_free() const noexcept { return the_byte == 0; }
+    constexpr bool has_free(block_idx i) const noexcept { return __has(i); }
+    constexpr bool all_used() const noexcept { return the_byte == 0xFF; }
+    constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
+    constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
+    constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
+    constexpr bool operator[](block_size i) const noexcept { return __has(BS2BI(i)); }
+    constexpr operator bool() const noexcept { return !all_used(); }
+    constexpr bool operator!() const noexcept { return all_used(); }
     constexpr static unsigned int gb_of(uintptr_t addr) { return addr / GIGABYTE; }
     constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / (PAGESIZE * PT_LEN)) % 512; }
 } __align(1) __pack status_byte, gb_status[512];
 class heap_allocator
 {
-    spinlock_t __heap_mutex{};
-    pagefile* const __my_pagefile;
+    spinlock_t __heap_mutex{};            // Calls to block allocations lock this mutex to prevent comodification
+    pagefile* const __my_pagefile;        // Contains pointers to the various page frames.
     uint16_t __active_frame_index;        // 0 is kernel; 1+ is anything else
     gb_status* const __status_bytes;      // Array of 512-byte arrays
     size_t const __num_status_bytes;      // Length of said array

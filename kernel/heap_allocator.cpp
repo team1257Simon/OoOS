@@ -110,7 +110,7 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
     }
 }
 uintptr_t heap_allocator::__new_page_table_block() { for(uintptr_t addr = __kernel_frame_tag->next_vaddr; addr < MMAP_MAX_PG*PAGESIZE; addr += REGION_SIZE) if(__status(addr).all_free()) { __get_sb(addr)->set_used(ALL); return addr; } return 0; }
-void heap_allocator::__lock() { while(acquire(&__heap_mutex)) PAUSE; }
+void heap_allocator::__lock() { lock(&__heap_mutex); }
 void heap_allocator::__unlock() { release(&__heap_mutex); }
 void heap_allocator::init_instance(pagefile *pagefile, mmap_t *mmap)
 {
@@ -300,7 +300,7 @@ block_tag *frame_tag::__melt_right(block_tag *tag) noexcept
     remove_block(right);
     return tag;
 }
-void frame_tag::__lock() { while(acquire(&__my_mutex)) PAUSE; }
+void frame_tag::__lock() { lock(&__my_mutex); }
 void frame_tag::__unlock() { release(&__my_mutex); }
 block_tag *block_tag::split()
 {

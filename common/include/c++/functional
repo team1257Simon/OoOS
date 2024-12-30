@@ -2,8 +2,8 @@
 #define __FUNCTIONAL
 #include "bits/stl_function.hpp"
 #include "bits/invoke.hpp"
-#include "tuple"
 #include "bits/refwrap.hpp"
+#include "tuple"
 namespace std
 {
     template<typename MFT,
@@ -72,7 +72,6 @@ namespace std
         extern const __placeholder<30> _30;
     }
     template<size_t I, typename TT> using __safe_tuple_element_t = typename enable_if<(I < tuple_size<TT>::value), tuple_element<I, TT>>::type::type;
- 
     template<typename FT, typename ... Args> constexpr invoke_result_t<FT, Args...> invoke(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_v<FT, Args...>) { return std::__invoke(forward<FT>(ft), forward<Args>(args)...); }
     template<typename RT, typename FT, typename ... Args> requires is_invocable_r_v<RT, FT, Args...> constexpr RT invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return std::__invoke_r(forward<FT>(ft), forward<Args>(args)...); }
     template<typename T> struct is_bind_expression : public false_type {};

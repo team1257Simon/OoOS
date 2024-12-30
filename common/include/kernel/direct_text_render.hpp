@@ -28,6 +28,7 @@ public:
     void cls();
     void endl();
     void cr();
+    void up();
     void print_text(const char* text);
     void print_text(std::string const& text);
     void print_line(const char* text);

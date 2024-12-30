@@ -72,7 +72,6 @@ inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
-void pic_eoi(byte irq);
 template<std::integral I = byte> [[gnu::always_inline]] constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
 template<std::integral I = byte> [[gnu::always_inline]] constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
 [[gnu::always_inline]] constexpr void outb(word to, byte value) { out(to, value); }
@@ -80,7 +79,7 @@ template<std::integral I = byte> [[gnu::always_inline]] constexpr void out(word 
 [[gnu::always_inline]] constexpr void io_wait() { outb(0x80, 0); }
 [[gnu::always_inline]] constexpr void outbw(word to, byte value) { outb(to, value); io_wait(); }
 [[gnu::always_inline]] constexpr byte inbw(word from) { byte result = inb(from); io_wait(); return result; }
-[[gnu::always_inline]] constexpr void kb_wait() { while(!(inb(command_keybd) & 0x02)); }
+[[gnu::always_inline]] constexpr void kb_wait() { for(uint8_t result ; ; ) { result = inb(0x64); if(!(result & 0x02)) return; } }
 [[gnu::always_inline]] constexpr void kb_put(byte b) { kb_wait(); outb(data_keybd, b); kb_wait(); }
 [[gnu::always_inline]] constexpr byte kb_get() { return inb(data_keybd); }
 [[gnu::always_inline]] constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(data_rtc); }
@@ -94,8 +93,7 @@ template<byte R> constexpr byte read_rtc_register() { rtc_select<R>(); return in
 template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
 constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0A>() & 0x80) != 0; }
 [[gnu::always_inline]] constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
-[[gnu::always_inline]] constexpr byte kb_rst() { kb_put(sig_keybd_rst); return kb_get(); }
-[[gnu::always_inline]] constexpr byte kb_enable() { irq_clear_mask<1>(); do { kb_rst(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
+[[gnu::always_inline]] constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
 template<dword R> [[gnu::always_inline]] constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return static_cast<qword>(static_cast<qword>(lo) | (static_cast<qword>(hi) << 32)); }
 template<dword R> [[gnu::always_inline]] constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(static_cast<dword>(value & 0xFFFFFFFF)), "d"(static_cast<dword>((value >> 32) & 0xFFFFFFFF)), "c"(R) : "memory"); }
 #endif

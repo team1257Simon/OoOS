@@ -1,6 +1,5 @@
 #include "kernel/libk_decls.h"
 #include "kernel/heap_allocator.hpp"
-
 static paging_table build_new_pt(paging_table in, uint16_t idx)
 {
     paging_table result = heap_allocator::get().allocate_pt();
@@ -12,7 +11,6 @@ static paging_table build_new_pt(paging_table in, uint16_t idx)
     }
     return result;
 }
-
 static paging_table __get_table(vaddr_t const& of_page)
 {
     paging_table pml4 = get_cr3();
@@ -22,22 +20,15 @@ static paging_table __get_table(vaddr_t const& of_page)
         if(pdp[of_page.pdp_idx].present) 
         {
             paging_table pd = vaddr_t { pdp[of_page.pdp_idx].physical_address << 12 };
-            if(static_cast<paging_table>(pd)[of_page.pd_idx].present)
-            {
-                return vaddr_t { pd[of_page.pd_idx].physical_address << 12 };
-            }
-            else 
-            {
-                return build_new_pt(pd, of_page.pd_idx);
-            }
+            if(static_cast<paging_table>(pd)[of_page.pd_idx].present) return vaddr_t { pd[of_page.pd_idx].physical_address << 12 };
+            else return build_new_pt(pd, of_page.pd_idx);
+            
         }
         else 
         {
             paging_table pd = build_new_pt(pdp, of_page.pdp_idx);
-            if(pd)
-            {
-                return build_new_pt(pd, of_page.pd_idx);
-            }
+            if(pd) return build_new_pt(pd, of_page.pd_idx);
+            
         }
     }
     else
@@ -46,10 +37,7 @@ static paging_table __get_table(vaddr_t const& of_page)
         if(pdp)
         {
             paging_table pd = build_new_pt(pdp, of_page.pdp_idx);
-            if(pd)
-            {
-                return build_new_pt(pd, of_page.pd_idx);
-            }
+            if(pd) return build_new_pt(pd, of_page.pd_idx);
         }
     }
     return NULL;
@@ -64,10 +52,7 @@ static paging_table __find_table(vaddr_t const& of_page)
         if(pdp[of_page.pdp_idx].present) 
         {
             paging_table pd = vaddr_t { pdp[of_page.pdp_idx].physical_address << 12 };
-            if(static_cast<paging_table>(pd)[of_page.pd_idx].present)
-            {
-                return vaddr_t { pd[of_page.pd_idx].physical_address << 12 };
-            }
+            if(static_cast<paging_table>(pd)[of_page.pd_idx].present) return vaddr_t { pd[of_page.pd_idx].physical_address << 12 };
         }
     }
     return NULL;

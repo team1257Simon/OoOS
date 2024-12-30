@@ -4,16 +4,15 @@
 #include "isr_table.hpp"
 std::vector<runnable> __handler_tables[16]{};
 std::vector<interrupt_callback> __registered_callbacks{};
-bool interrupt_table::add_irq_handler(byte idx, runnable&& handler) { if(idx < 16) { __handler_tables[idx].push_back(handler); return __handler_tables[idx].size() == 1; } return false; }
-void interrupt_table::add_interrupt_callback(interrupt_callback &&cb) { __registered_callbacks.push_back(cb); }
-void pic_eoi(byte irq)
+namespace interrupt_table
 {
-    if (irq > 7)
-    {
-        outb(command_pic2, sig_pic_eoi);
-    }
-    outb(command_pic1, sig_pic_eoi);
+    spinlock_t __itable_mutex;
+    void __lock() { lock (&__itable_mutex); }
+    void __unlock() { release(&__itable_mutex); }
+    bool add_irq_handler(byte idx, runnable&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(handler); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
+    void add_interrupt_callback(interrupt_callback &&cb) { __registered_callbacks.push_back(cb); }
 }
+inline void pic_eoi(byte irq) { if (irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
 extern "C"
 {
     extern void* isr_table[];
@@ -43,6 +42,7 @@ extern "C"
             for(runnable h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }
+        for(interrupt_callback c : __registered_callbacks) { c(idx); }
         // Other stuff as needed
     }
     void idt_init()

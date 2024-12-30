@@ -5,6 +5,7 @@
 #include "rtc.h"
 #include "bits/icxxabi.h"
 #include "isr_table.hpp"
+#include "keyboard_driver.hpp"
 using namespace std;
 extern psf2_t* __startup_font;
 direct_text_render startup_tty;
@@ -27,7 +28,8 @@ extern "C"
         new (&startup_tty) direct_text_render{ sysinfo, __startup_font, 0x00FFFFFF, 0 };
         startup_tty.cls();
         startup_tty.print_line("Hello world!");
-        interrupt_table::add_irq_handler(0, [&]() -> void { startup_tty.cr(); startup_tty.print_text(std::to_string(rtc_driver::get_instance().get_timestamp())); });
+        keyboard_driver_base* kb = get_kb_driver();
+        kb->initialize();
         nmi_enable();
         sti();
         while(1);
