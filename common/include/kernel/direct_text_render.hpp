@@ -27,6 +27,7 @@ public:
     constexpr uint32_t get_bg_color() const noexcept { return __render.bg_color(); }
     void cls();
     void endl();
+    void cr();
     void print_text(const char* text);
     void print_text(std::string const& text);
     void print_line(const char* text);

@@ -4,9 +4,15 @@
 #include "heap_allocator.hpp"
 #include "bits/icxxabi.h"
 #include "string"
+#include "kernel/isr_table.hpp"
 #include "vector"
+#include "atomic"
 extern psf2_t* __startup_font;
 direct_text_render tty;
+void something()
+{
+    tty.print_text("e");
+}
 extern "C" void _init();
 extern "C"
 {
@@ -14,10 +20,12 @@ extern "C"
     void kmain(sysinfo_t* fb, mmap_t* mmap, pagefile* pg)
     {
         _init();
+        cli();
         gdt_setup();
         idt_init();
         heap_allocator::init_instance(pg, mmap);
         new (&tty) direct_text_render{ fb, __startup_font, 0x00FFFFFF, 0 };
+        sti();
         tty.cls();
         tty.print_line("Hello world!");
         tty.print_line("FB: " + std::to_string(fb));

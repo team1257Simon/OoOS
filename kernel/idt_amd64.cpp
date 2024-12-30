@@ -1,8 +1,10 @@
 #include "libk_decls.h"
 #include "arch/idt_amd64.h"
 #include "kernel/isr_table.hpp"
-static irq_table __handlers{};
-irq_table& irq_table::get_instance() noexcept { return __handlers; }
+#include "isr_table.hpp"
+std::vector<irq_handler> __handler_tables[16]{};
+void irq_table::add_handler(uint8_t idx, irq_handler const &handler) { if(idx >= 16) return;  __handler_tables[idx].push_back(handler); }
+void pic_eoi(byte irq ) { if (irq > 7) { outb(command_pic2, sig_pic_eoi); } outb(command_pic1, sig_pic_eoi); }
 extern "C"
 {
     extern void* isr_table[];
@@ -21,7 +23,12 @@ extern "C"
     }
     void isr_dispatch(uint8_t idx)
     {
-        if(idx >= 0x20 && idx < 0x30) __handlers.dispatch(idx - 0x20);
+        if(idx >= 0x20 && idx < 0x30) 
+        { 
+            byte irq = idx - 0x20;
+            for(irq_handler h : __handler_tables[irq]) h();
+            pic_eoi(irq);
+        }
         // Other stuff as needed
     }
     void idt_init()

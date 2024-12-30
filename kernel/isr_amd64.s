@@ -37,42 +37,37 @@
     .macro xm256 macro
         xm_8 \macro 0
     .endm
-    .macro isr_enter i
+    .macro wrapper i
         .global     isr_\i
         .type       isr_\i,     @function
-    isr_\i:
-        pushq   $\i
-        jmp     isr_ramp
-        .size   isr_\i,     .-isr_\i
+        isr_\i:
+            pushq   %rax
+            pushq   %rcx
+            pushq   %rdx
+            pushq   %r11
+            pushq   %r10
+            pushq   %r9
+            pushq   %r8
+            pushq   %rsi
+            pushq   %rdi
+            movq    $\i,    %rdi
+            call    isr_dispatch
+            popq    %rdi
+            popq    %rsi
+            popq    %r8
+            popq    %r9
+            popq    %r10
+            popq    %r11
+            popq    %rdx
+            popq    %rcx
+            popq    %rax
+            iretq
+        .size       isr_\i,     .-isr_\i
     .endm
     .macro wr_id i
         .quad isr_\i
     .endm
-    .section    .text
-    .type   isr_ramp,   @function
-    xm256   isr_enter
-isr_ramp:
-    lock xchgq  %rdi,   (%rsp)
-    pushq       %rsi
-    pushq       %rdx
-    pushq       %rcx
-    pushq       %r8
-    pushq       %r9
-    pushq       %r10
-    pushq       %r11
-    pushq       %rax
-    call        isr_dispatch
-    popq        %rax
-    popq        %r11
-    popq        %r10
-    popq        %r9
-    popq        %r8
-    popq        %rcx
-    popq        %rdx
-    popq        %rsi
-    popq        %rdi
-    lretq
-    .size   isr_ramp,   .-isr_ramp
+    xm256 wrapper
     .section    .data
     .global     isr_table
     .type       isr_table,      @object
