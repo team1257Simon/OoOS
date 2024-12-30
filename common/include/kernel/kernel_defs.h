@@ -18,12 +18,12 @@ typedef unsigned char bool;
 #define restrict
 #include "concepts"
 #include "bits/move.h"
-template<class T> concept NotVoidPointer = !std::same_as<std::remove_cvref_t<T>, void*>;
+template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
 template<class T> concept non_void = !std::is_void_v<T>;
 #endif
 #define PAUSE asm volatile ("pause" ::: "memory")
 #define BARRIER asm volatile ("" ::: "memory")
-typedef enum mme_type
+typedef enum mem_type
 {
     AVAILABLE = 1,
     RESERVED = 2,
@@ -50,7 +50,7 @@ typedef struct __pt_entry
 typedef pt_entry* paging_table;
 typedef struct __vaddr
 {
-   #ifdef __cplusplus 
+#ifdef __cplusplus 
     uint16_t offset     : 12 {0};
     uint16_t page_idx   :  9 {0};
     uint16_t pd_idx     :  9 {0};
@@ -117,6 +117,260 @@ typedef struct __vaddr
     uint16_t ext        : 16;
 #endif
 } __pack __align(1) vaddr_t;
+#ifdef __cplusplus
+extern "C" {
+#endif
+struct acpi_header 
+{
+    char signature[4];
+    uint32_t length;
+    uint8_t revision;
+    uint8_t checksum;
+    char oem_id[6];
+    char oem_table_id[8];
+    uint32_t oem_revision;
+    uint32_t creator_id;
+    uint32_t creator_revision;
+} __pack;
+struct xsdp_t 
+{
+    char signature[8];
+    uint8_t checksum;
+    char oem_id[6];
+    uint8_t revision;
+    uint32_t rsdt_address;      // deprecated since version 2.0
+    uint32_t length;
+    uint64_t xsdt_address;
+    uint8_t extended_checksum;
+    uint8_t reserved[3];
+} __pack;
+struct xsdt_t
+{
+    struct acpi_header hdr;
+    uintptr_t __align(4) sdt_pointers[];
+} __pack;
+void* find_system_table(struct xsdt_t* xsdt, const char* expected_sig);
+typedef struct __generic_address_structure
+{
+  uint8_t address_space;
+  uint8_t bit_width;
+  uint8_t bit_offset;
+  uint8_t access_size;
+  uint64_t address;
+}__attribute__ ((packed)) generic_address_structure;
+struct dsdt
+{
+    struct acpi_header h;
+    uint8_t data[];
+} __pack;
+struct fadt_t
+{
+    struct   acpi_header h; // "FACP"
+    uint32_t firmware_ctrl;
+    uint32_t dsdt_legacy;
+    // field used in ACPI 1.0; no longer in use, for compatibility only
+    uint8_t  rsv0;
+    uint8_t  preferred_power_profile;
+    uint16_t sci_interrupt;
+    uint32_t smi_command_port;
+    uint8_t  acpi_enable;
+    uint8_t  acpi_disable;
+    uint8_t  s4bios_req;
+    uint8_t  pstate_control;
+    uint32_t pm1a_event_block;
+    uint32_t pm1b_event_block;
+    uint32_t pm1a_control_block;
+    uint32_t pm1b_control_block;
+    uint32_t pm2_control_block;
+    uint32_t pm_timer_block;
+    uint32_t gpe0_block;
+    uint32_t gpe1_block;
+    uint8_t  pm1_event_length;
+    uint8_t  pm1_control_length;
+    uint8_t  pm2_control_length;
+    uint8_t  pm_timer_length;
+    uint8_t  gpe0_length;
+    uint8_t  gpe1_length;
+    uint8_t  gpe1_base;
+    uint8_t  cstate_control;
+    uint16_t worst_c2_latency;
+    uint16_t worst_c3_latency;
+    uint16_t flush_size;
+    uint16_t flush_stride;
+    uint8_t  duty_offset;
+    uint8_t  duty_width;
+    uint8_t  day_alarm;
+    uint8_t  month_alarm;
+    uint8_t  century_register;
+    // reserved in ACPI 1.0; used since ACPI 2.0+
+    uint16_t arch_flags;
+    uint8_t  rsv1;
+    uint32_t flags;
+    // 12 byte structure; see below for details
+    generic_address_structure reset_register;
+    uint8_t  reset_value;
+    uint8_t  rsv3[3];
+    // 64bit pointers - Available on ACPI 2.0+
+    uint64_t                ext_firmware_control;
+    struct dsdt*            ext_dsdt;
+    generic_address_structure ext_pm1a_event_block;
+    generic_address_structure ext_pm1b_event_block;
+    generic_address_structure ext_pm1a_control_block;
+    generic_address_structure ext_pm1b_control_block;
+    generic_address_structure ext_pm2_control_block;
+    generic_address_structure ext_pm_timer_block;
+    generic_address_structure ext_gpe0_block;
+    generic_address_structure ext_gpe1_block;
+} __pack;
+struct madt_t
+{
+    struct acpi_header header; // "APIC"
+    uint32_t local_apic_physical_address;
+    uint32_t multiple_apic_flags;
+    uint8_t record_data[];
+} __pack;
+enum madt_record_type
+#ifdef __cplusplus 
+: uint8_t
+#endif
+{
+    LOCAL_APIC = 0x0,
+    IO_APIC = 0x1,
+    INTERRUPT_SOURCE_OVERRIDE = 0x2,
+    NMI_SOURCE_OVERRIDE = 0x3,
+    LOCAL_APIC_NMI = 0x4,
+    APIC_ADDRESS_OVERRIDE = 0x5,
+    IO_SAPIC = 0x6,
+    LOCAL_SAPIC = 0x7,
+    PLATFORM_INTERRUPT_SOURCE = 0x8,
+    LOCAL_2XAPIC = 0x9,
+    LOCAL_2XAPIC_NMI = 0xA,
+    GICC = 0xB,
+    GICD = 0xC,
+    GIC_MSI_FRAME = 0xD,
+    GICR = 0xE,
+    GIC_ITS = 0xF,
+    MULTUPROCESSOR_WAKEUP = 0x10,
+    CORE_PIC = 0x11,
+    LIO_PIC = 0x12,
+    HT_PIC = 0x13,
+    EIO_PIC = 0x14,
+    MSI_PIC = 0x15,
+    BIO_PIC = 0x16,
+    LPI_PIC = 0x17
+};
+struct madt_record_header
+{
+    enum madt_record_type type;
+    uint8_t length;
+} __pack;
+typedef union
+{
+    struct
+    {
+        bool     enabled         : 1;
+        bool     online_capable  : 1;
+        uint32_t                 : 30;
+    } __pack;
+    uint32_t align;
+ } __pack apic_flags;
+typedef union 
+{
+    struct 
+    {
+        uint8_t polarity        : 2;
+        uint8_t trigger_mode    : 2;
+        uint16_t                : 12;
+    } __pack;
+    uint32_t align;
+} __pack nmi_flags;
+struct local_apic_data
+{
+    uint8_t processor_uid;
+    uint8_t apic_id;
+    apic_flags flags;
+} __pack;
+struct io_apic_data
+{
+    uint8_t apic_id;
+    uint8_t rsv;
+    uint32_t io_apic_physical_address;
+    uint32_t global_system_interrupt_base;
+} __pack;
+struct interrupt_src_override_data
+{
+    uint8_t bus;
+    uint8_t src;
+    uint32_t global_system_interrupt;
+    nmi_flags flags;
+} __pack;
+struct nmi_source_override_data
+{
+    nmi_flags flags;
+    uint32_t global_system_interrupt;
+} __pack;
+struct local_apic_nmi_data
+{
+    uint8_t processor_uid;
+    nmi_flags flags;
+    uint8_t local_apic_lint;
+} __pack;
+struct local_apic_addr_override
+{
+    uint16_t rsv;
+    uint64_t local_apic_physical_addr;
+} __pack;
+struct io_sapic_data
+{
+    uint8_t apic_id;
+    uint8_t rsv;
+    uint32_t global_system_interrupt_base;
+    uint64_t io_sapic_physical_addr;
+} __pack;
+struct local_sapic_data
+{
+    uint8_t processor_id;
+    uint8_t sapic_id;
+    uint8_t sapic_eid;
+    uint8_t rsv[3];
+    apic_flags flags;
+    uint32_t processor_uid_value;
+    char uid_string[];
+} __pack;
+struct platform_interrupt_source_data
+{
+    nmi_flags flags;
+    uint8_t interrupt_type;
+    uint8_t processor_id;
+    uint8_t processor_eid;
+    uint8_t io_sapic_vector;
+    uint32_t global_system_interrupt;
+    uint32_t isrc_flags;
+} __pack;
+struct local_x2apic_data
+{
+    uint16_t srv;
+    uint32_t x2apic_id;
+    apic_flags flags;
+    uint32_t processor_uid;
+} __pack;
+#ifdef __cplusplus
+}
+template<typename T>
+struct madt_record
+{
+    madt_record_header header;
+    T data;
+} __pack;
+typedef madt_record<local_apic_data> local_apic;
+typedef madt_record<io_apic_data> io_apic;
+typedef madt_record<local_sapic_data> local_sapic;
+typedef madt_record<io_sapic_data> io_sapic;
+typedef madt_record<interrupt_src_override_data> isrc_override;
+typedef madt_record<nmi_source_override_data> nmi_override;
+typedef madt_record<local_apic_addr_override> apic_override;
+typedef madt_record<local_apic_nmi_data> lapic_nmi;
+#endif
 typedef union __idx_addr
 {
     vaddr_t idx;
@@ -145,6 +399,7 @@ typedef struct __system_info
     uint32_t fb_height;
     uint32_t fb_pitch;
     uint32_t* fb_ptr;
+    struct xsdt_t* xsdt;
 } __pack sysinfo_t;
 typedef struct __mmap
 {

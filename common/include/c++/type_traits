@@ -324,8 +324,8 @@ namespace std
 	template <typename T> struct add_pointer<T &&> { using type = T *; };
 	template <typename T> using remove_pointer_t = typename remove_pointer<T>::type;
 	template <typename T> using add_pointer_t = typename add_pointer<T>::type;
-	template <size_t N> struct __aligned_storage_msa { union __type { unsigned char __data[N]; struct __attribute__((__aligned__)) {} __align; }; };
-	template<size_t N, size_t A = alignof(typename __aligned_storage_msa<N>::__type)> struct aligned_storage { union type { unsigned char __data[N]; struct __attribute__((__aligned__((A)))) { } __align; }; };
+	template <size_t N> struct __aligned_storage_msa { union __type { unsigned char __data[N]; struct __attribute__((__aligned__)) {} __alignment; }; };
+	template<size_t N, size_t A = alignof(typename __aligned_storage_msa<N>::__type)> struct aligned_storage { union type { unsigned char __data[N]; struct __attribute__((__aligned__((A)))) { } __alignment; }; };
 	template <typename...Ts> struct __strictest_alignment { static const size_t __alignment = 0; static const size_t __size = 0; };
 	template <typename T, typename...Ts> struct __strictest_alignment<T, Ts...> { static const size_t __alignment = alignof(T)> __strictest_alignment<Ts...>::__alignment ? alignof(T) : __strictest_alignment<Ts...>::__alignment; static const size_t __size = sizeof(T)> __strictest_alignment<Ts...>::__size ? sizeof(T) : __strictest_alignment<Ts...>::__size; };
 	template <typename U> struct __decay_selector: __conditional_t<is_const <const U>::value, remove_cv<U>, add_pointer<U>> {};

@@ -31,9 +31,8 @@ const char *types[] =
 
 paging_table __boot_pml4 = NULL;
 pagefile* __boot_pagefile = NULL;
-sysinfo_t* fb = NULL;
+sysinfo_t* sysinfo = NULL;
 paging_table* pg_addrs;
-
 inline static bool validate_elf(elf64_ehdr * elf)
 {
     return (memcmp(elf->e_ident, ELFMAG, SELFMAG) == 0  /* magic match? */
@@ -60,7 +59,25 @@ inline static uint64_t div_roundup(uint64_t num, uint64_t denom)
     if (num % denom == 0) return num / denom;
     else return 1 + (num / denom);
 }
-
+static bool guid_equals(efi_guid_t a, efi_guid_t b)
+{
+    if(a.Data1 != b.Data1 || a.Data2 != b.Data2 || a.Data3 != b.Data3) return 0;
+    for(int i = 0; i < 4; i++) if(a.Data4[i] != b.Data4[i]) return 0;
+    return 1;
+}
+static bool checksum(struct xsdp_t* xsdp)
+{
+    signed char c = 0;
+    for(size_t i = 0; i < sizeof(struct xsdp_t); i++) c += ((char*)xsdp)[i];
+    if (c == 0) return 1;
+    return 0;
+}
+static bool xsdt_checksum(struct xsdt_t* xsdt)
+{
+    signed char c = 0;
+    for(size_t i = 0; i < xsdt->hdr.length; i++) c += ((char*)xsdt)[i];
+    return (c == 0);
+}
 inline static size_t required_tables(size_t num_pages_to_map)
 {
     size_t num_page_tables = div_roundup(num_pages_to_map, PT_LEN);
@@ -68,7 +85,6 @@ inline static size_t required_tables(size_t num_pages_to_map)
     size_t num_page_dir_tables = div_roundup(num_page_dirs, PT_LEN);
     return num_page_dir_tables + num_page_dirs + num_page_tables + 1; // Additional 1 for the PML4; each table itself fills one page of memory
 }
-
 size_t required_tables_postinit(size_t num_pages_to_map)
 {
     size_t num_page_tables = num_pages_to_map / PT_LEN;
@@ -76,7 +92,6 @@ size_t required_tables_postinit(size_t num_pages_to_map)
     size_t num_page_dir_tables = num_page_dirs / PT_LEN;
     return num_page_dir_tables + num_page_dirs + num_page_tables;
 }
-
 void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages, paging_table tables_start)
 {
     size_t total_mem = num_pages * PAGESIZE;
@@ -121,7 +136,6 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
         current_idx.addr += PAGESIZE;
     }
 }
-
 efi_status_t map_id_pages(size_t num_pages)
 {
     size_t n = required_tables(num_pages);
@@ -155,7 +169,6 @@ efi_status_t map_id_pages(size_t num_pages)
     map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512*sizeof(pt_entry)));
     return EFI_SUCCESS;
 }
-
 efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages)
 {
     size_t n = required_tables_postinit(num_pages);
@@ -196,13 +209,11 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
     map_some_pages(vaddr_start, phys_start, num_pages, tables_start);
     return EFI_SUCCESS;
 }
-
 #define MALLOC_CK(ptr) if(!ptr) \
 {\
     fprintf(stderr, "unable to allocate memory\n");\
     return EMALLOC;\
-}\
-
+}
 int main(int argc, char** argv)
 {
     // In order to be able to map pages in the kernel, we need to disable the WP bit so that ring 0 can write to the paging tables
@@ -285,8 +296,8 @@ int main(int argc, char** argv)
         n += desc_size;
     }
     map->num_entries = k;
-    fb = (sysinfo_t*)malloc(sizeof(sysinfo_t));
-    MALLOC_CK(fb);
+    sysinfo = (sysinfo_t*)malloc(sizeof(sysinfo_t));
+    MALLOC_CK(sysinfo);
     efi_guid_t gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     efi_gop_t *gop = NULL;
     // Setup the framebuffer for the kernel
@@ -301,17 +312,17 @@ int main(int argc, char** argv)
             fprintf(stderr, "unable to set video mode\n");
             return ESETGFX;
         }
-        fb->fb_ptr = (uint32_t*)gop->Mode->FrameBufferBase;
-        fb->fb_width = gop->Mode->Information->HorizontalResolution;
-        fb->fb_height = gop->Mode->Information->VerticalResolution;
-        fb->fb_pitch = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
+        sysinfo->fb_ptr = (uint32_t*)gop->Mode->FrameBufferBase;
+        sysinfo->fb_width = gop->Mode->Information->HorizontalResolution;
+        sysinfo->fb_height = gop->Mode->Information->VerticalResolution;
+        sysinfo->fb_pitch = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
     } 
     else 
     {
         fprintf(stderr, "unable to get graphics output protocol\n");
         return ENOGFX;
     }
-    status = map_pages((uintptr_t)fb->fb_ptr, (uintptr_t) fb->fb_ptr, (4 * fb->fb_height * fb->fb_width * fb->fb_pitch) / 4096);
+    status = map_pages((uintptr_t)sysinfo->fb_ptr, (uintptr_t) sysinfo->fb_ptr, (4 * sysinfo->fb_height * sysinfo->fb_width * sysinfo->fb_pitch) / 4096);
     FILE *f;
     char *buff;
     long int size;
@@ -339,6 +350,25 @@ int main(int argc, char** argv)
         fprintf(stderr, "Unable to open file\n");
         return EFOPEN;
     }
+    bool found = 0;
+    efi_guid_t acpi_id = ACPI_20_TABLE_GUID;
+    for(size_t j = 0; j < ST->NumberOfTableEntries && !found; j++)
+    {
+        if(guid_equals(ST->ConfigurationTable[j].VendorGuid, acpi_id))
+        {
+            struct xsdp_t* ptr = (struct xsdp_t*)(ST->ConfigurationTable[j].VendorTable);
+            if(checksum(ptr))
+            {
+                struct xsdt_t* xsdt = (struct xsdt_t*)ptr->xsdt_address;
+                if(xsdt_checksum(xsdt))
+                {
+                    sysinfo->xsdt = xsdt;
+                    found = 1;
+                }
+            }
+        }
+    }
+    if(!found) sysinfo->xsdt = NULL;
     elf = (elf64_ehdr *)buff;
     /* is it a valid ELF executable for this architecture? */
     if(validate_elf(elf))
@@ -367,7 +397,7 @@ int main(int argc, char** argv)
     /* execute the "kernel" */
      __boot_pagefile->boot_entry->cr3 = __boot_pml4;
     exit_bs();
-    (*fn)(fb, map, __boot_pagefile);
+    (*fn)(sysinfo, map, __boot_pagefile);
     while (1);
     return OK;
 }
