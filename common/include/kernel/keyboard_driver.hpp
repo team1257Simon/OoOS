@@ -46,6 +46,7 @@ protected:
     __isr_registers virtual bool __skip_send();
 public:
     virtual void add_listener(kb_listener&& kl) final;
+    virtual void clear_listeners() final;
     virtual void initialize() final;
 };
 keyboard_driver_base* get_kb_driver();

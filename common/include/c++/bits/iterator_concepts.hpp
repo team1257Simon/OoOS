@@ -267,8 +267,10 @@ namespace std
         template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
         template<typename T> requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> auto __begin(T& __t) { if constexpr (is_array_v<T>) return __t + 0; else if constexpr (__member_begin<T&>) return __t.begin(); else return begin(__t); }
     }
-    namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); } 
+    namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); }
+#pragma region nonstandard useful concepts
     template<typename IT, typename T2> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, T2>;
     template<typename IT, typename T2> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, T2>;
+#pragma endregion
 }
 #endif
