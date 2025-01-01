@@ -1,13 +1,13 @@
 #include "bits/icxxabi.h"
 #include "kernel/libk_decls.h"
-
 extern "C" void panic(const char* str);
+extern "C" const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line);
 namespace __cxxabiv1 
 {
     __extension__ typedef spinlock_t __guard;
-    extern "C" int __cxa_guard_acquire (__guard *g)  { while(acquire(g)); return 0; }
+    extern "C" int __cxa_guard_acquire (__guard *g)  { lock(g); return 0; }
     extern "C" void __cxa_guard_release (__guard *g) { release(g); }
-    extern "C" void __cxa_guard_abort (__guard *){}
+    extern "C" void __cxa_guard_abort (__guard *) {}
 }
 extern "C" 
 {	
@@ -39,20 +39,8 @@ extern "C"
 			__builtin_memset(__tmp_atexit_buff, 0, ATEXIT_MAX_FUNCS * sizeof(atexit_func_entry_t));
 			__atexit_func_count--;
 		}
-		if(!f)_fini();
+		if(!f) _fini();
 	};
-	void __cxa_pure_virtual()
-	{
-		panic("Call to pure virtual");
-		__builtin_abort();
-		__builtin_unreachable();
-	}
-	extern char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line);
-	void __on_fail_assert(const char* text, const char* fname, const char* filename, int line)
-	{
-		char* etxt = __assert_fail_text(text, fname, filename, line);
-		panic(etxt);
-		__builtin_abort();
-		__builtin_unreachable();
-	}
+	void __cxa_pure_virtual() { panic("Call to pure virtual"); __builtin_abort(); __builtin_unreachable(); }
+	void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; __builtin_abort(); __builtin_unreachable(); }
 }

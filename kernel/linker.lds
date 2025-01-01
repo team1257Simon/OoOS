@@ -25,7 +25,6 @@ SECTIONS
           *(COMMON)
      }
      
-     
      .ctors : AT(ADDR(.ctors))
      {
            __CTOR_LIST__ = .;

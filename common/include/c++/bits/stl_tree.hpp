@@ -72,6 +72,7 @@ namespace std
             __count = 0;
         }
         constexpr __tree_trunk() noexcept :  __trunk{ RED, NULL, NULL, NULL }, __count{0} { __reset(); }
+        virtual ~__tree_trunk() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
         constexpr inline void __copy(__tree_trunk const& that) noexcept
         {
             __trunk.__my_color = that.__trunk.__my_color;
@@ -95,6 +96,8 @@ namespace std
         constexpr __tree_trunk(__tree_trunk const& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent != NULL) __copy(that); }
         constexpr __tree_trunk& operator=(__tree_trunk const& that) noexcept { if(that.__trunk.__my_parent != NULL) __copy(that); return *this; }
         constexpr __tree_trunk& operator=(__tree_trunk&& that) noexcept { if(that.__trunk.__my_parent != NULL) __move(forward<__tree_trunk>(that)); return *this; }
+        constexpr bool __have_left() const noexcept { return (&__trunk != __trunk.__my_left)&& __trunk.__my_left != NULL; }
+        constexpr bool __have_right() const noexcept { return (&__trunk != __trunk.__my_right) && __trunk.__my_right != NULL; }
     };
     template<typename T>
     struct __node : public __node_base
@@ -104,6 +107,7 @@ namespace std
         ::__impl::__aligned_buffer<T> __my_data{};
     public:
         constexpr __node() {}
+        virtual ~__node() {}
         constexpr T* __get_ptr() { return __my_data.__get_ptr(); }
         constexpr const T* __get_ptr() const { return __my_data.__get_ptr(); }
         constexpr T& __get_ref() { return *__get_ptr(); }
@@ -165,16 +169,16 @@ namespace std
     template<typename T, allocator_object<__node<T>> A>
     struct __trunk_impl : public __tree_trunk
     {
-        A __allocator{};
         constexpr __trunk_impl() : __tree_trunk{} {}
         constexpr __trunk_impl(__trunk_impl&& that) : __tree_trunk{ move(that) } {}
         constexpr __trunk_impl(__trunk_impl const& that) : __tree_trunk{ that }{}
         constexpr __trunk_impl& operator=(__trunk_impl const& that) { __trunk = that.__trunk; __count = that.__count; return *this; }
         constexpr __trunk_impl& operator=(__trunk_impl&& that) { __trunk = move(that).__trunk; __count = move(that).__count; return *this; }
-        constexpr void __clear() noexcept { new (static_cast<__node<T>*>(&__trunk)) __node<T>{}; __count = 0; }
+        virtual ~__trunk_impl() {}
+        constexpr void __clear() noexcept { new (static_cast<__node_base*>(&__trunk)) __node_base{}; __count = 0; __reset(); }
     };
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
-    class __tree_base
+    class __tree_base : __trunk_impl<T, A>
     {
     protected: 
         typedef __node_base* __b_ptr;
@@ -188,7 +192,6 @@ namespace std
         typedef T __value_type;
         typedef A __alloc_type;
         typedef CP __compare_type;
-        typedef __alloc_rebind<A, __node_base> __base_alloc_type;
         typedef __trunk_impl<T, A> __trunk_type;
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __pos_pair __pos_for_unique(U const& u);
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __pos_pair __pos_for_equal(U && u);
@@ -204,29 +207,27 @@ namespace std
         constexpr static __cb_ptr __mini(__cb_ptr x) noexcept { return __node_base::__min(x); }
         constexpr static __cb_ptr __maxi(__cb_ptr x) noexcept { return __node_base::__max(x); }
         __compare_type __comparator{};
-        __trunk_type __my_impl{};
         __alloc_type __alloc{};
-        __base_alloc_type __a2{};
         constexpr bool __compare(__b_ptr p, __b_ptr q) { return __comparator(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_r(__b_ptr p, U const& u) { return __comparator(static_cast<__link>(p)->__get_ref(), u); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_l(U const& u, __b_ptr p) { return __comparator(u, static_cast<__link>(p)->__get_ref()); }
-        constexpr __link __get_root() noexcept { return static_cast<__link>(__my_impl.__trunk.__my_parent); }
-        constexpr __link __end() noexcept { return static_cast<__link>(&__my_impl.__trunk); }
-        constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(__my_impl.__trunk.__my_parent); }
-        constexpr __const_link __end() const noexcept { return static_cast<__const_link>(&__my_impl.__trunk); }
-        constexpr __b_ptr& __leftmost() noexcept { return __my_impl.__trunk.__my_left; }
-        constexpr __b_ptr& __rightmost() noexcept { return __my_impl.__trunk.__my_right; }
-        constexpr __link __l_begin() noexcept {  return static_cast<__link>(__my_impl.__trunk.__my_left); }
-        constexpr __link __l_rightmost() noexcept {  return static_cast<__link>(__my_impl.__trunk.__my_right); }
+        constexpr __link __get_root() noexcept { return static_cast<__link>(this->__trunk.__my_parent); }
+        constexpr __link __end() noexcept { return static_cast<__link>(&this->__trunk); }
+        constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(this->__trunk.__my_parent); }
+        constexpr __const_link __end() const noexcept { return static_cast<__const_link>(&this->__trunk); }
+        constexpr __b_ptr& __leftmost() noexcept { return this->__trunk.__my_left; }
+        constexpr __b_ptr& __rightmost() noexcept { return this->__trunk.__my_right; }
+        constexpr __link __l_begin() noexcept {  return static_cast<__link>(this->__trunk.__my_left); }
+        constexpr __link __l_rightmost() noexcept {  return static_cast<__link>(this->__trunk.__my_right); }
         constexpr __iterator __begin() noexcept { return __iterator { __l_begin() }; }
-        constexpr __const_link __l_begin() const noexcept { return static_cast<__const_link>(__my_impl.__trunk.__my_left); }
-        constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(__my_impl.__trunk.__my_right); }
+        constexpr __const_link __l_begin() const noexcept { return static_cast<__const_link>(this->__trunk.__my_left); }
+        constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(this->__trunk.__my_right); }
         constexpr __const_iterator __begin() const noexcept { return __const_iterator { __l_begin() }; }
         template<std::convertible_to<T> U> constexpr __link __construct_node(U&& u) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), forward<U>(u)); l->__my_color = RED; return l; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr __link __construct_node(Args&& ... args) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
-        constexpr void __destroy_node(__b_ptr n) { if(n) __a2.deallocate(n, 1); }
-        constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { __insert_and_rebalance((x != NULL || p == __end() || __compare(l, p)) ? LEFT : RIGHT, l, p, __my_impl.__trunk); __my_impl.__count++; return l; }
-        constexpr __link __insert_node_lower(__b_ptr p, __link l) { __insert_and_rebalance((p == __end() || __compare(l, p)) ? LEFT : RIGHT, l, p, __my_impl.__trunk); __my_impl.__count++; return l; }
+        constexpr void __destroy_node(__b_ptr n) { if(n) { __alloc.deallocate(static_cast<__link>(n), 1); } }
+        constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { __insert_and_rebalance((x != NULL || p == __end() || __compare(l, p)) ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
+        constexpr __link __insert_node_lower(__b_ptr p, __link l) { __insert_and_rebalance((p == __end() || __compare(l, p)) ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
         template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U&& u) { return __insert_node(x, p, __construct_node(forward<U>(u))); }
         template<std::convertible_to<T> U> constexpr __link __insert_lower(__b_ptr p, U&& u) { return __insert_node_lower(p, __construct_node(forward<U>(u))); }
         template<std::convertible_to<T> U> constexpr __link __insert_lower_equal(U&& u) { __link x = __get_root(), y = __end(); while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); } return __insert_lower(y, forward<U>(u)); }
@@ -240,17 +241,18 @@ namespace std
         template<matching_input_iterator<T> JT> constexpr void __insert_range(JT st, JT ed) { for(; st != ed; st++) __insert_unique(*st); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __link __find_node(U const& u) { __link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __const_link __find_node(U const& u) const {  __const_link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
-        void __erase_node(__node_base* n)  { __link y = static_cast<__link>(__rebalance_for_erase(n, __my_impl.__trunk)); __destroy_node(y); __my_impl.__count--; }
-        constexpr void __recursive_destroy(__b_ptr b) { if(b->__my_left) __recursive_destroy(b->__my_left); if(b->__my_right) __recursive_destroy(b->__my_right); __destroy_node(b); }
-        constexpr void __clear() { __recursive_destroy(__my_impl.__trunk.__my_left); __recursive_destroy(__my_impl.__trunk.__my_right); __my_impl.__clear(); }
+        void __erase_node(__node_base* n)  { __link y = static_cast<__link>(__rebalance_for_erase(n, this->__trunk)); __destroy_node(y); this->__count--; }
+        constexpr void __recursive_destroy(__link n) { while(n){ __recursive_destroy(__right_of(n)); __link m = __left_of(n); __destroy_node(n); n = m; } }
+        constexpr void __recursive_destroy_base() { __recursive_destroy(__get_root()); }
+        constexpr void __clear() { __recursive_destroy_base(); this->__clear(); }
     public:
-        constexpr size_t size() const noexcept { return __my_impl.__count; }
-        constexpr ~__tree_base() { __recursive_destroy(&__my_impl.__trunk); }
-        constexpr __tree_base() : __comparator{}, __my_impl{}, __alloc{}, __a2{}  {}
-        constexpr __tree_base(__tree_base const& that) : __comparator{}, __my_impl{ that.__my_impl }, __alloc{}, __a2{} {}
-        constexpr __tree_base(__tree_base&& that) : __comparator{}, __my_impl{ forward<__trunk_type>(that.__my_impl) }, __alloc{}, __a2{} {}
-        constexpr __tree_base& operator=(__tree_base const& that) { __recursive_destroy(&__my_impl.__trunk); __my_impl = that.__my_impl; return *this; }
-        constexpr __tree_base& operator=(__tree_base&& that) { __recursive_destroy(&__my_impl.__trunk); __my_impl = forward<__trunk_type>(that.__my_impl); return *this; }
+        constexpr size_t size() const noexcept { return this->__count; }
+        virtual ~__tree_base() { __recursive_destroy_base(); }
+        constexpr __tree_base() : __trunk_type{}, __comparator{}, __alloc{} {}
+        constexpr __tree_base(__tree_base const& that) : __trunk_type{that}, __comparator{}, __alloc{} {}
+        constexpr __tree_base(__tree_base&& that) : __trunk_type{ forward<__trunk_type>(that) }, __comparator{},  __alloc{} {}
+        constexpr __tree_base& operator=(__tree_base const& that) { __clear();  this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
+        constexpr __tree_base& operator=(__tree_base&& that) { __clear(); this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
     };
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
     template<typename U>
@@ -288,7 +290,7 @@ namespace std
         __link pos = const_cast<__link>(hint);
         if(pos == __end())
         {
-            if(__my_impl.__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() };
+            if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() };
             else return __pos_for_unique(u);
         }
         else if(__compare_l(u, pos))

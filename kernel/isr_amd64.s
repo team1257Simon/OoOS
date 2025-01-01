@@ -41,26 +41,24 @@
         .global     isr_\i
         .type       isr_\i,     @function
         isr_\i:
+            cli
             pushq   %rax
-            pushq   %rcx
-            pushq   %rdx
-            pushq   %r11
-            pushq   %r10
-            pushq   %r9
-            pushq   %r8
-            pushq   %rsi
+            addq    $8,         %rsp
+            popq    %rax
+            movq    %rax,       ecode
+            popq    %rax
+            movq    %rax,       errinst
+            subq    $0x18,      %rsp
             pushq   %rdi
-            movq    $\i,    %rdi
+            movq    $\i,        %rdi
             call    isr_dispatch
             popq    %rdi
-            popq    %rsi
-            popq    %r8
-            popq    %r9
-            popq    %r10
-            popq    %r11
-            popq    %rdx
-            popq    %rcx
+            testq   %rax,       %rax
             popq    %rax
+            jz      .L\i
+            addq    $0x8,       %rsp
+        .L\i:
+            sti
             iretq
         .size       isr_\i,     .-isr_\i
     .endm
@@ -70,6 +68,17 @@
     xm256 wrapper
     .section    .data
     .global     isr_table
+    .global     ecode
+    .global     errinst
     .type       isr_table,      @object
+    .type       ecode,          @object
+    .type       errinst,        @object
 isr_table:
     xm256 wr_id
+    .size       isr_table,      .-isr_table
+ecode:
+    .quad 0
+    .size       ecode,          .-ecode
+errinst:
+    .quad 0
+    .size       errinst,        .-errinst

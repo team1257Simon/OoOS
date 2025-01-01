@@ -19,19 +19,7 @@ namespace std
     namespace __impl
     {
         [[gnu::always_inline]] constexpr int __sign_of(int i) { return i == 0 ? 0 : (i < 0 ? -1 : 1); }
-        template<std::char_type CT> constexpr const CT* __find_impl(CT const* hs, CT const* ne) noexcept
-        {
-            CT c = ne[0];
-            if (!c) return hs;
-            for (; hs[0]; hs++)
-            {
-                if (hs[0] != c) continue;
-                size_t i;
-                for (i = 1; ne[i]; i++) if (hs[i] != ne[i]) break;
-                if (!ne[i]) return hs;
-            }
-            return NULL;
-        }
+        template<std::char_type CT> constexpr const CT* __find_impl(CT const* str, CT const* what) noexcept { if (!what[0]) return str; for (size_t i = 1; str[0]; str++) { if (str[0] == what[0]) { for (i = 1; what[i]; i++) { if (str[i] != what[i]) break; } if (!what[i]) return str; } } return NULL; }
     }
     #if defined(__x86_64__) || defined(_M_X64)
     template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) 
@@ -48,23 +36,23 @@ namespace std
     #endif
     template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return size_t(std::find(str, max, CT(0)) - str); }
     template<std::char_type CT> constexpr size_t strlen(const CT* str) { return strnlen(str, size_t(-1)); }
-    template<std::integral T> constexpr void* memset(void* ptr, T val, size_t n) { arrayset(ptr, val, n); return ptr; }
+    template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { arrayset(ptr, val, n); return ptr; }
     template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { arrayset<CT>(ptr, c, n); return ptr; }
     template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }
     template<std::char_type CT> constexpr CT to_char_type(int i) { return static_cast<CT>(i); }
     template<std::char_type CT> constexpr int to_int_type(CT c) { return static_cast<int>(c); }
     template<std::char_type CT> constexpr bool lt(CT a, CT b) { return a < b; }
-    template<> constexpr bool lt<char>(char a, char b) { return static_cast<unsigned char>(a) < static_cast<unsigned char>(b); }
     template<std::char_type CT> constexpr bool eq(CT a, CT b) { return a == b; }
-    template<> constexpr bool eq<char>(char a, char b) { return static_cast<unsigned char>(a) == static_cast<unsigned char>(b); }
     template<std::char_type CT> constexpr CT* strcpy(CT* dest, const CT* src) { arraycopy<CT>(dest, src, std::strlen(src)); return dest; }
     template<std::char_type CT> constexpr CT* strncpy(CT* dest, const CT* src, size_t n) { arraycopy<CT>(dest, src, std::strnlen(src, n)); return dest; }
     template<std::char_type CT> constexpr CT* stpcpy(CT* dest, const CT* src) { size_t n = std::strlen(src); arraycopy<CT>(dest, src, n); return dest + n; }
     template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); arraycopy<CT>(dest, src, n); return dest + n; }
-    constexpr int memcmp(const void* s1, const void* s2, size_t n) { return __builtin_memcmp(s1, s2, n); }
     template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && *s2 == *s1 && (*s1 && *s2); ++i, ++s1, ++s2); return std::__impl::__sign_of(int(*s1 - *s2));}
     template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
     template<std::char_type CT> constexpr const CT* find(const CT* ptr, const CT* what) noexcept { return __impl::__find_impl(ptr, what); }
+    template<> constexpr bool eq<char>(char a, char b) { return static_cast<unsigned char>(a) == static_cast<unsigned char>(b); }
+    template<> constexpr bool lt<char>(char a, char b) { return static_cast<unsigned char>(a) < static_cast<unsigned char>(b); }
+    constexpr int memcmp(const void* s1, const void* s2, size_t n) { return __builtin_memcmp(s1, s2, n); }
     typedef int64_t streamoff;
     template<typename ST>
     class fpos
@@ -76,20 +64,19 @@ namespace std
         void state(ST st) { __state = st; }
         fpos() = default;
         fpos(streamoff offs) : __state{}, __offs{offs}{}
-        fpos(fpos<ST> const&) = default;
-        fpos(fpos<ST>&&) = default;
-        fpos<ST>& operator=(fpos<ST> const&) = default;
-        fpos<ST>& operator=(fpos<ST>&&) = default;
+        fpos(fpos const&) = default;
+        fpos(fpos&&) = default;
+        fpos& operator=(fpos const&) = default;
+        fpos& operator=(fpos&&) = default;
         operator streamoff() const {return __offs;}
         bool operator==(fpos const& that){ return this->__state == that.__state && this->__offs == that.__offs; }
         bool operator!=(fpos const& that){ return !(*this == that); }
-        fpos<ST>& operator+=(streamoff off) { __offs += off; return *this; }
-        fpos<ST>& operator-=(streamoff off) { __offs -= off; return *this; }
-        fpos<ST> operator+(streamoff off) const { fpos<ST> r{*this}; r += off; return r; }
-        fpos<ST> operator-(streamoff off) const { fpos<ST> r{*this}; r -= off; return r; }
-        streamoff operator-(fpos<ST> const& that) const { return this->__offs - that.__offs; }
-        template<typename PT>
-        friend PT* operator+(PT* you, fpos<ST> const& me) { return (you + me.__offs); }
+        fpos& operator+=(streamoff off) { __offs += off; return *this; }
+        fpos& operator-=(streamoff off) { __offs -= off; return *this; }
+        fpos operator+(streamoff off) const { fpos<ST> r{*this}; r += off; return r; }
+        fpos operator-(streamoff off) const { fpos<ST> r{*this}; r -= off; return r; }
+        streamoff operator-(fpos const& that) const { return this->__offs - that.__offs; }
+        template<typename PT> friend PT* operator+(PT* you, fpos<ST> const& me) { return (you + me.__offs); }
     };
     template<typename ST>
     fpos<ST> operator+(streamoff off, fpos<ST> const& p) { return p + off; }
@@ -135,8 +122,8 @@ namespace std
         { TT::length(p1) } -> std::same_as<decltype(sizeof(CT))>;
         { TT::lt(c1, c2) } -> std::__detail::__boolean_testable;
         { TT::eq(c1, c2) } -> std::__detail::__boolean_testable;
+        { TT::not_eof(0) } -> std::integral;
         { TT::eof() } -> std::signed_integral;
-        { TT::eof() } -> std::integral;
         TT::assign(c1, c2);
         typename TT::state_type;
         typename TT::pos_type;
@@ -209,6 +196,8 @@ namespace std
         constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, count, alloc } {}
         constexpr ~basic_string() { this->__destroy(); }
+        constexpr basic_string& operator=(basic_string const& that) { this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); return *this; }
+        constexpr basic_string& operator=(basic_string&& that) {  this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__clear(); return *this; }
         constexpr explicit basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr reference at(size_type i) { return this->__get(i); }
         constexpr const_reference at(size_type i) const { return this->__get(i); }

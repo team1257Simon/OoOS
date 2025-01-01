@@ -26,15 +26,10 @@ extern "C"
     wchar_t* wstpcpy(wchar_t* dest, const wchar_t* src) { return std::stpcpy<wchar_t>(dest, src); }
     wchar_t* wstpncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::stpncpy<wchar_t>(dest, src, n); }
     void* memset(void* buffer, int value, size_t n) { return std::memset<int>(buffer, value, n); }
-    char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
+    const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
     {
-        static char* __errstr;
-        if(__errstr) 
-        {
-            delete[] __errstr;
-            __errstr = NULL;
-        }
-        std::string estr{"Assertion failed in function "};
+        static std::string estr;
+        estr = {"Assertion failed in function "};
         estr.append(fname ? fname : "");
         estr.append(", file ");
         estr.append(filename ? filename : "");
@@ -43,10 +38,7 @@ extern "C"
         estr.append(linestr);
         estr.append(": ");
         if(text) estr.append(text);
-        __errstr = new char[estr.size() + 1];
-        std::strncpy(__errstr, estr.c_str(), estr.size());
-        __errstr[estr.size()] = '\0';
-        return __errstr;
+        return estr.c_str();
     }
 }
 namespace std

@@ -2,19 +2,20 @@
 #include "arch/idt_amd64.h"
 #include "kernel/isr_table.hpp"
 #include "isr_table.hpp"
-std::vector<runnable> __handler_tables[16]{};
+std::vector<irq_callback> __handler_tables[16]{};
 std::vector<interrupt_callback> __registered_callbacks{};
 namespace interrupt_table
 {
     spinlock_t __itable_mutex;
     void __lock() { lock (&__itable_mutex); }
     void __unlock() { release(&__itable_mutex); }
-    bool add_irq_handler(byte idx, runnable&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(handler); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
+    bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(handler); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
     void add_interrupt_callback(interrupt_callback &&cb) { __registered_callbacks.push_back(cb); }
 }
 inline void pic_eoi(byte irq) { if (irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
 extern "C"
 {
+    extern uint64_t ecode;
     extern void* isr_table[];
     extern idt_entry_t* idt_table;
     struct 
@@ -34,16 +35,19 @@ extern "C"
         descriptor->isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
         descriptor->reserved       = 0;
     }
-    void isr_dispatch(uint8_t idx)
+    __isr_registers
+    bool isr_dispatch(uint8_t idx)
     {
+        bool is_err = (idx == 0x08 || (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E);
         if(idx > 0x19 && idx < 0x30) 
         { 
             byte irq = idx - 0x20;
-            for(runnable h : __handler_tables[irq]) h();
+            for(irq_callback h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }
-        for(interrupt_callback c : __registered_callbacks) { c(idx); }
+        else for(interrupt_callback c : __registered_callbacks) { c(idx, is_err ? ecode : 0); }
         // Other stuff as needed
+        return is_err;
     }
     void idt_init()
     {

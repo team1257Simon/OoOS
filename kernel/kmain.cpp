@@ -6,12 +6,42 @@
 #include "bits/icxxabi.h"
 #include "isr_table.hpp"
 #include "keyboard_driver.hpp"
+#include "map"
 using namespace std;
+bool can_print = false;
 extern psf2_t* __startup_font;
+extern "C" uint64_t errinst;
 direct_text_render startup_tty;
+extern uintptr_t translate_vaddr(vaddr_t addr);
+constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' }; 
+static char dbgbuf[19]{'0', 'x'};
+void debug_print_num(uintptr_t num, int lenmax = 16)
+{
+    for(size_t i = lenmax + 1; i > 1; i--)
+    {
+        dbgbuf[i] = digits[num & 0xF];
+        num >>= 4;
+    }
+    dbgbuf[lenmax + 2] = 0;
+    startup_tty.print_text(dbgbuf);
+}
+void direct_write(const char* str) { if(can_print) { startup_tty.print_text(str); } }
+__isr_registers void debug_ecode(byte idx, qword ecode)
+{
+    if(ecode) 
+    {
+        startup_tty.print_text("INT# ");
+        debug_print_num(idx, 2);
+        startup_tty.print_text(", ECODE ");
+        debug_print_num(ecode);
+        startup_tty.print_text(", RIP@ ");
+        debug_print_num(errinst);
+    }
+}
 extern "C" void _init();
 extern "C"
 {
+    extern void* isr_table[];
     extern void gdt_setup();
     void kmain(sysinfo_t* sysinfo, mmap_t* mmap, pagefile* pg)
     {
@@ -27,14 +57,16 @@ extern "C"
         else rtc_driver::init_instance();
         new (&startup_tty) direct_text_render{ sysinfo, __startup_font, 0x00FFFFFF, 0 };
         startup_tty.cls();
-        startup_tty.print_line("Hello world!");
         keyboard_driver_base* kb = get_kb_driver();
         kb->initialize();
         nmi_enable();
         sti();
+        interrupt_table::add_interrupt_callback(debug_ecode);
+        can_print = true;
+        startup_tty.print_line("Hello world");
         while(1);
         __cxa_finalize(0);
     }
-    __attribute__((noreturn)) void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); while(1) { asm volatile("hlt" ::: "memory"); } }
+    [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); while(1) { asm volatile("hlt" ::: "memory"); } }
     void panic(const char* msg) { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); }
 }

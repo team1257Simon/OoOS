@@ -1,6 +1,7 @@
 #ifndef __REALTIME_CLOCK
 #define __REALTIME_CLOCK
 #include "kernel/kernel_defs.h"
+#include "kernel/isr_table.hpp"
 #include "atomic"
 constexpr uint16_t UNIX_YEAR_BASE = 1970u;
 #ifdef __cplusplus
@@ -27,7 +28,7 @@ class rtc_driver
     rtc_driver() = default;
     static rtc_driver __instance;
 public:
-    void rtc_time_update() volatile noexcept;
+    __isr_registers void rtc_time_update() volatile noexcept;
     static void init_instance(uint8_t century_register = 0) noexcept;
     static rtc_driver volatile& get_instance() noexcept;
     rtc_time get_time() volatile;

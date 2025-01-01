@@ -4,8 +4,8 @@
 #ifndef MAX_BLOCK_EXP
 #define MAX_BLOCK_EXP 32u
 #endif
-#ifndef MIN_BLOCK_SIZE
-#define MIN_BLOCK_SIZE 4u // This times 2^(index) is the full size of a block at that index in a frame 
+#ifndef MIN_BLOCK_EXP
+#define MIN_BLOCK_EXP 8u // This times 2^(index) is the full size of a block at that index in a frame 
 #endif
 #ifndef MAX_COMPLETE_PAGES
 #define MAX_COMPLETE_PAGES 5u

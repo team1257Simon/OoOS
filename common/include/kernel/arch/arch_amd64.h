@@ -72,18 +72,18 @@ inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
-template<std::integral I = byte> [[gnu::always_inline]] constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
-template<std::integral I = byte> [[gnu::always_inline]] constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
-[[gnu::always_inline]] constexpr void outb(word to, byte value) { out(to, value); }
-[[gnu::always_inline]] constexpr byte inb(word from) { return in(from); }
-[[gnu::always_inline]] constexpr void io_wait() { outb(0x80, 0); }
-[[gnu::always_inline]] constexpr void outbw(word to, byte value) { outb(to, value); io_wait(); }
-[[gnu::always_inline]] constexpr byte inbw(word from) { byte result = inb(from); io_wait(); return result; }
-[[gnu::always_inline]] constexpr void kb_wait() { for(uint8_t result ; ; ) { result = inb(0x64); if(!(result & 0x02)) return; } }
-[[gnu::always_inline]] constexpr void kb_put(byte b) { kb_wait(); outb(data_keybd, b); kb_wait(); }
-[[gnu::always_inline]] constexpr byte kb_get() { return inb(data_keybd); }
-[[gnu::always_inline]] constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(data_rtc); }
-[[gnu::always_inline]] constexpr void nmi_disable() { outb(command_rtc, inb(command_rtc) | 0x80); inb(data_rtc); }
+template<std::integral I = byte> constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
+template<std::integral I = byte> constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
+constexpr void outb(word to, byte value) { out(to, value); }
+constexpr byte inb(word from) { return in(from); }
+constexpr void io_wait() { outb(0x80, 0); }
+constexpr void outbw(word to, byte value) { outb(to, value); io_wait(); }
+constexpr byte inbw(word from) { byte result = inb(from); io_wait(); return result; }
+constexpr void kb_wait() { for(uint8_t result ; ; ) { result = inb(0x64); if(!(result & 0x02)) return; } }
+constexpr void kb_put(byte b) { kb_wait(); outb(data_keybd, b); kb_wait(); }
+constexpr byte kb_get() { return inb(data_keybd); }
+constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(data_rtc); }
+constexpr void nmi_disable() { outb(command_rtc, inb(command_rtc) | 0x80); inb(data_rtc); }
 template<byte I> constexpr byte irq_mask() { if constexpr(I < 8) return 1 << I; else return (1 << (I - 8)); }
 template<byte O1, byte O2> constexpr void pic_remap() { byte a1 = inb(data_pic1), a2 = inb(data_pic2); outbw(command_pic1, icw1_init | icw1_icw4); outbw(command_pic2, icw1_init | icw1_icw4); outbw(data_pic1, O1); outbw(data_pic2, O2); outbw(data_pic1, 4); outbw(data_pic2, 2); outbw(data_pic1, icw4_8086_mode); outbw(data_pic2, icw4_8086_mode); outb(data_pic1, a1); outb(data_pic2, a2); }
 template<byte I> constexpr void irq_set_mask() { outb(data_pic1, inb(data_pic1) | irq_mask<I>()); }
@@ -92,10 +92,10 @@ template<byte R> constexpr void rtc_select() { byte prev = inbw(command_rtc); ou
 template<byte R> constexpr byte read_rtc_register() { rtc_select<R>(); return inb(data_rtc); }
 template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
 constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0A>() & 0x80) != 0; }
-[[gnu::always_inline]] constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
-[[gnu::always_inline]] constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
-template<dword R> [[gnu::always_inline]] constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return static_cast<qword>(static_cast<qword>(lo) | (static_cast<qword>(hi) << 32)); }
-template<dword R> [[gnu::always_inline]] constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(static_cast<dword>(value & 0xFFFFFFFF)), "d"(static_cast<dword>((value >> 32) & 0xFFFFFFFF)), "c"(R) : "memory"); }
+constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
+constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
+template<dword R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return static_cast<qword>(static_cast<qword>(lo) | (static_cast<qword>(hi) << 32)); }
+template<dword R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(static_cast<dword>(value & 0xFFFFFFFF)), "d"(static_cast<dword>((value >> 32) & 0xFFFFFFFF)), "c"(R) : "memory"); }
 #endif
 #endif
 #endif
