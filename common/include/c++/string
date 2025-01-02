@@ -15,6 +15,9 @@ namespace std
     string to_string(unsigned long value);
     string to_string(unsigned long long value);
     string to_string(void* ptr);
+	string to_string(float value);
+    string to_string(double value);
+    string to_string(long double value);
     wstring to_wstring(int value);
 	wstring to_wstring(long value);
 	wstring to_wstring(long long value);
@@ -22,6 +25,9 @@ namespace std
 	wstring to_wstring(unsigned long value);
 	wstring to_wstring(unsigned long long value);
 	wstring to_wstring(void* ptr);
+	wstring to_wstring(float value);
+    wstring to_wstring(double value);
+    wstring to_wstring(long double value);
     u8string to_u8string(int value);
 	u8string to_u8string(long value);
 	u8string to_u8string(long long value);
@@ -29,6 +35,9 @@ namespace std
 	u8string to_u8string(unsigned long value);
 	u8string to_u8string(unsigned long long value);
 	u8string to_u8string(void* ptr);
+	u8string to_u8string(float value);
+    u8string to_u8string(double value);
+    u8string to_u8string(long double value);
     u16string to_u16string(int value);
 	u16string to_u16string(long value);
 	u16string to_u16string(long long value);
@@ -36,6 +45,9 @@ namespace std
 	u16string to_u16string(unsigned long value);
 	u16string to_u16string(unsigned long long value);
 	u16string to_u16string(void* ptr);
+	u16string to_u16string(float value);
+    u16string to_u16string(double value);
+    u16string to_u16string(long double value);
     u32string to_u32string(int value);
 	u32string to_u32string(long value);
 	u32string to_u32string(long long value);
@@ -43,5 +55,14 @@ namespace std
 	u32string to_u32string(unsigned long value);
 	u32string to_u32string(unsigned long long value);
 	u32string to_u32string(void* ptr);
+	u32string to_u32string(float value);
+    u32string to_u32string(double value);
+    u32string to_u32string(long double value);
+	namespace ext
+	{
+		std::string fcvt(float f, int ndigits);
+		std::string fcvtd(double d, int ndigits);
+		std::string fcvtl(long double ld, int ndigits);
+	}
 }
 #endif

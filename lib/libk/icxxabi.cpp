@@ -42,5 +42,5 @@ extern "C"
 		if(!f) _fini();
 	};
 	void __cxa_pure_virtual() { panic("Call to pure virtual"); __builtin_abort(); __builtin_unreachable(); }
-	void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; __builtin_abort(); __builtin_unreachable(); }
+	[[noreturn]] void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; __builtin_abort(); __builtin_unreachable(); }
 }

@@ -12,15 +12,16 @@ int memcmp(const void* restrict a, const void* restrict b, size_t n);
 void* memset(void*, int, size_t);
 size_t strlen(const char*);
 size_t strnlen(const char*, size_t);
-int strcmp(const char* restrict a, const char* restrict b);
-int strncmp(const char* restrict a, const char* restrict b, size_t n);
-// not yet implemented
-// char* strdup(const char*);
+int strcmp(const char* restrict lhs, const char* restrict rhs);
+int strncmp(const char* restrict lhs, const char* restrict rhs, size_t);
+char* strdup(const char*);
+char* strndup(const char*, size_t);
 char* strcpy(char* restrict src, const char* restrict dst);
-char* strncpy(char* restrict src, const char* restrict dst, size_t n);
+char* strncpy(char* restrict src, const char* restrict dst, size_t);
 char* stpcpy(char* restrict src, const char* restrict dst);
-char* strstr(const char* restrict str, const char* restrict what);
+char* strstr(const char*, const char*);
 char* strchr(const char*, int);
+char* strnchr(const char*, size_t, int);
 void* memchr(const void*, int, size_t);
 #ifdef __cplusplus
 }

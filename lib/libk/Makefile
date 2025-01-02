@@ -1,7 +1,7 @@
 OUT_A := $(OUTDIR)/libk.a
 OBJDIR := $(OBJ_BASE_DIR)/libk
 SSRC = $(wildcard *.s)
-CSRC = $(wildcard *.c)
+CSRC = $(wildcard *.c gdtoa/*.c)
 CPPSRC = $(wildcard *.cpp)
 CXXFLAGS +=  -D__KERNEL__ 
 CCFLAGS +=  -D__KERNEL__ 
@@ -13,6 +13,7 @@ SYM_LOG := $(LOG_DIR)/libk-syms.txt
 all: $(OBJDIR) $(OUT_A) $(SYM_LOG)
 $(OBJDIR):
 	@mkdir -p $@
+	@mkdir -p $@/gdtoa
 $(OUT_A): $(OBJECTS)
 	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 $(OBJDIR)/%.o: %.cpp
@@ -27,6 +28,7 @@ $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 $(ASMT_DIR):
 	@mkdir -p $@
+	@mkdir -p $@/gdtoa
 $(SYM_LOG): $(OUT_A)
-	$(READ) $(READFLAGS) $< > $@  
+	$(READ) $(READFLAGS) $< > $@
 asmtest: $(ASMT_DIR) $(ASM_TEST)

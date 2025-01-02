@@ -1,5 +1,4 @@
 OUT_A := $(OUTDIR)/libc.a
-OBJDIR := $(OBJ_BASE_DIR)/libc
 SSRC = $(wildcard *.s)
 CSRC = $(wildcard *.c)
 CPPSRC = $(wildcard *.cpp)
@@ -26,5 +25,5 @@ $(ASMT_DIR)/%.test.asm: %.c
 $(ASMT_DIR):
 	@mkdir -p $@
 $(SYM_LOG): $(OUT_A)
-	$(READ) $(READFLAGS) $< > $@  
+	$(READ) $(READFLAGS) $< > $@
 asmtest: $(ASMT_DIR) $(ASM_TEST)

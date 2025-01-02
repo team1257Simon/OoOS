@@ -50,9 +50,17 @@
     movq    %cr3,   %rax
     ret
     .size     get_cr3,     .-get_cr3
+    defglobal __errno
+    movq	$errno,		%rax
+	ret
+    .size     __errno,    .-__errno
     .section    .data
 	.global		__atexit_guard
     .type       __atexit_guard,     @object
 __atexit_guard:
     .byte 0
     .size       __atexit_guard, 1
+errno:
+	.long	0
+	.size		errno,			4
+	.type		errno,			@object

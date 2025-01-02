@@ -1,20 +1,24 @@
 #include "kernel/libk_decls.h"
 #include "string"
+#include "string.h"
 #include "limits"
+#include "memory"
+extern "C" void direct_write(const char* str);
+extern void debug_print_num(uintptr_t num, int lenmax = 16);
 // C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility
 extern "C"
 {
-    char* strstr(const char *hs, const char *ne) { return const_cast<char*>(std::__impl::__find_impl(hs, ne)); }
-    char* strnchr(const char* str, size_t n, char what) { return std::find<char>(str, n, what); }
-    char* strchr(const char* str, char what) { return std::find<char>(str, std::strlen(str), what); }
-    int strncmp(const char* lhs, const char* rhs, size_t n) { return std::strncmp<char>(lhs, rhs, n); }
-    int strcmp(const char* lhs, const char* rhs) { return std::strcmp<char>(lhs, rhs); }
+    char* strstr(const char* str, const char* what) { return const_cast<char*>(std::__impl::__find_impl(str, what)); }
+    char* strnchr(const char* str, size_t n, int what) { return std::find<char>(str, n, char(what)); }
+    char* strchr(const char* str, int what) { return std::find<char>(str, std::strlen(str), char(what)); }
+    int strncmp(const char* restrict lhs, const char* restrict rhs, size_t n) { return std::strncmp<char>(lhs, rhs, n); }
+    int strcmp(const char* restrict lhs, const char* restrict rhs) { return std::strcmp<char>(lhs, rhs); }
     size_t strlen(const char* str) { return std::strlen<char>(str); }
     size_t strnlen(const char* str, size_t n) { return std::strnlen<char>(str, n); }
-    char* strcpy(char* dest, const char* src) { return std::strcpy<char>(dest, src); }
-    char* strncpy(char* dest, const char* src, size_t n) { return std::strncpy<char>(dest, src, n); }
-    char* stpcpy(char* dest, const char* src) { return std::stpcpy<char>(dest, src); }
-    char* stpncpy(char* dest, const char* src, size_t n) { return std::stpncpy<char>(dest, src, n); }
+    char* strcpy(char* restrict dest, const char* restrict src) { return std::strcpy<char>(dest, src); }
+    char* strncpy(char* restrict dest, const char* restrict src, size_t n) { return std::strncpy<char>(dest, src, n); }
+    char* stpcpy(char* restrict dest, const char* restrict src) { return std::stpcpy<char>(dest, src); }
+    char* stpncpy(char* restrict dest, const char* restrict src, size_t n) { return std::stpncpy<char>(dest, src, n); }
     wchar_t* wstrnchr(const wchar_t* str, size_t n, wchar_t what) { return std::find<wchar_t>(str, n, what); }
     wchar_t* wstrchr(const wchar_t* str, wchar_t what) { return std::find<wchar_t>(str, std::strlen(str), what); }
     int wstrncmp(const wchar_t* lhs, const wchar_t* rhs, size_t n) { return std::strncmp<wchar_t>(lhs, rhs, n); }
@@ -26,6 +30,8 @@ extern "C"
     wchar_t* wstpcpy(wchar_t* dest, const wchar_t* src) { return std::stpcpy<wchar_t>(dest, src); }
     wchar_t* wstpncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::stpncpy<wchar_t>(dest, src, n); }
     void* memset(void* buffer, int value, size_t n) { return std::memset<int>(buffer, value, n); }
+    char* strdup(const char* str) { size_t n = std::strlen(str) + 1; if(!n) return nullptr; char* result = std::allocator<char>{}.allocate(n); arraycopy<char>(result, str, n); return result; }
+    char* strndup(const char* str, size_t max) { size_t n = std::strnlen(str, max); if(!n) return nullptr; char* result = std::allocator<char>{}.allocate(n); arraycopy<char>(result, str, n); return result; }
     const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
     {
         static std::string estr;
@@ -40,17 +46,107 @@ extern "C"
         if(text) estr.append(text);
         return estr.c_str();
     }
+    extern char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve);
+    extern char* __ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sign, char** rve);
 }
 namespace std
 {
     namespace __impl
     {
-        template<std::char_type CT> struct __ch_digits { constexpr static CT minus = 0; constexpr static const CT digits[] = {}; constexpr static const CT hexpref[] = {};};
-        template<> struct __ch_digits<char> { constexpr static char minus = '-'; constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' }; constexpr static const char hexpref[] = "x0"; };
-        template<> struct __ch_digits<wchar_t> { constexpr static wchar_t minus = L'-';  constexpr static const wchar_t digits[] = { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' }; constexpr static const wchar_t hexpref[] = L"x0"; };
-        template<> struct __ch_digits<char8_t> { constexpr static char8_t minus = u8'-'; constexpr static const char8_t digits[] = { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' }; constexpr static const char8_t hexpref[] = u8"x0"; };
-        template<> struct __ch_digits<char16_t> { constexpr static char16_t minus = u'-'; constexpr static const char16_t digits[] = { u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8', u'9', u'A', u'B', u'C', u'D', u'E', u'F' }; constexpr static const char16_t hexpref[] = u"x0"; };
-        template<> struct __ch_digits<char32_t>  { constexpr static char32_t minus = U'-';  constexpr static const char32_t digits[] = { U'0', U'1', U'2', U'3', U'4', U'5', U'6', U'7', U'8', U'9', U'A', U'B', U'C', U'D', U'E', U'F' }; constexpr static const char32_t hexpref[] = U"x0"; };
+        template <std::char_type CT> struct __ch_digits
+        {
+            constexpr static CT minus = 0;
+            constexpr static const CT digits[] = {};
+            constexpr static const CT hexpref[] = {};
+            constexpr static int casediff = 32;
+            constexpr static CT dot = CT { 0 };
+            template <std::char_type DT> constexpr static DT __to_other(CT ct) { return DT{0}; }
+        };
+        template<> 
+        struct __ch_digits<char>
+        {
+            constexpr static char minus = '-';
+            constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+            constexpr static const char hexpref[] = "x0";
+            constexpr static int casediff = 'a' - 'A';
+            constexpr static char dot = '.';
+            template <std::char_type DT> constexpr static DT __to_other(char c) 
+            { 
+                if(c <= '9' && c >= '0') return __ch_digits<DT>::digits[c - '0']; 
+                else if(c >= 'A' && c <= 'F') return __ch_digits<DT>::digits[10 + c - 'A'];
+                else if(c >= 'a' && c <= 'f') return __ch_digits<DT>::digits[10 + c - 'a'];
+                else return __ch_digits<DT>::dot;
+            }
+            constexpr static char __to_other(char c) { return c; }
+        };
+        template<> 
+        struct __ch_digits<wchar_t> 
+        {
+            constexpr static wchar_t minus = L'-';
+            constexpr static const wchar_t digits[] = { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' };
+            constexpr static const wchar_t hexpref[] = L"x0";
+            constexpr static int casediff = L'a' - L'A';
+            constexpr static wchar_t dot = L'.';
+            template <std::char_type DT> constexpr static DT __to_other(wchar_t c) 
+            { 
+                if(c <= L'9' && c >= L'0') return __ch_digits<DT>::digits[c - L'0']; 
+                else if(c >= L'A' && c <= L'F') return __ch_digits<DT>::digits[10 + c - L'A'];
+                else if(c >= L'a' && c <= L'f') return __ch_digits<DT>::digits[10 + c - L'a'];
+                else return __ch_digits<DT>::dot;
+            }
+            constexpr static wchar_t __to_other(wchar_t c) { return c; }
+        };
+        template<> 
+        struct  __ch_digits<char8_t> 
+        {
+            constexpr static char8_t minus = u8'-';
+            constexpr static const char8_t digits[] = { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' };
+            constexpr static const char8_t hexpref[] = u8"x0";
+            constexpr static int casediff = u8'a' - u8'A';
+            constexpr static char8_t dot = u8'.';
+            template <std::char_type DT> constexpr static DT __to_other(char8_t c) 
+            { 
+                if(c <= u8'9' && c >= u8'0') return __ch_digits<DT>::digits[c - u8'0']; 
+                else if(c >= u8'A' && c <= u8'F') return __ch_digits<DT>::digits[10 + c - u8'A'];
+                else if(c >= u8'a' && c <= u8'f') return __ch_digits<DT>::digits[10 + c - u8'a'];
+                else return __ch_digits<DT>::dot;
+            }
+            constexpr static char8_t __to_other(char8_t c) { return c; }
+        };
+        template<>
+        struct __ch_digits<char16_t> 
+        {
+            constexpr static char16_t minus = u'-';
+            constexpr static const char16_t digits[] = { u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8', u'9', u'A', u'B', u'C', u'D', u'E', u'F' };
+            constexpr static const char16_t hexpref[] = u"x0";
+            constexpr static int casediff = u'a' - u'A';
+            constexpr static char16_t dot = u'.';
+            template <std::char_type DT> constexpr static DT __to_other(char16_t c) 
+            { 
+                if(c <= u'9' && c >= u'0') return __ch_digits<DT>::digits[c - u'0']; 
+                else if(c >= u'A' && c <= u'F') return __ch_digits<DT>::digits[10 + c - u'A'];
+                else if(c >= u'a' && c <= u'f') return __ch_digits<DT>::digits[10 + c - u'a'];
+                else return __ch_digits<DT>::dot;
+            }
+            constexpr static char16_t __to_other(char16_t c) { return c; }
+        };
+        template <> 
+        struct __ch_digits<char32_t> 
+        {
+            constexpr static char32_t minus = U'-';
+            constexpr static const char32_t digits[] = { U'0', U'1', U'2', U'3', U'4', U'5', U'6', U'7', U'8', U'9', U'A', U'B', U'C', U'D', U'E', U'F' };
+            constexpr static const char32_t hexpref[] = U"x0";
+            constexpr static int casediff = U'a' - U'A';
+            constexpr static char32_t dot = U'.';
+            template <std::char_type DT> constexpr static DT __to_other(char32_t c) 
+            { 
+                if(c <= U'9' && c >= U'0') return __ch_digits<DT>::digits[c - U'0']; 
+                else if(c >= U'A' && c <= U'F') return __ch_digits<DT>::digits[10 + c - U'A'];
+                else if(c >= U'a' && c <= U'f') return __ch_digits<DT>::digits[10 + c - U'a'];
+                else return __ch_digits<DT>::dot;
+            }
+            constexpr static char32_t __to_other(char32_t c) { return c; }
+        };
         template<std::integral IT> struct __pow_10 { constexpr static IT values[] = {}; };
         template<> struct __pow_10<uint8_t> { constexpr static uint8_t values[] = {1u, uint8_t(1E1), uint8_t(1E2)}; };
         template<> struct __pow_10<uint16_t> { constexpr static uint16_t values[] = {1u, uint16_t(1E1), uint16_t(1E2), uint16_t(1E3), uint16_t(1E4)}; };
@@ -75,33 +171,63 @@ namespace std
             constexpr static CT __get_hex_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_hex_digit_v(num, idx)]; }
             constexpr static std::basic_string<CT> __to_string(IT i)
             {
-                if(!i) return basic_string{__digi_type::digits[0]};
+                if(!i) return basic_string{ __digi_type::digits[0] };
                 std::basic_string<CT> str{};
                 str.reserve(__max_dec);
                 IT j;
-                if constexpr(std::is_signed_v<IT>) j = (i < 0) ? -i : i;
+                if constexpr(std::is_signed_v<IT>) { j = (i < 0) ? -i : i; }
                 else j = i;
                 for(size_t n = 0; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
-                if constexpr(std::is_signed_v<IT>) if(i < 0) str.append(__digi_type::minus);
+                if constexpr(std::is_signed_v<IT>) { if(i < 0) str.append(__digi_type::minus); }
                 return std::basic_string<CT>{ str.rend(), str.rbegin() };
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
-                if(!i) return basic_string{__digi_type::digits[0]};
+                if(!i) return basic_string{ __digi_type::digits[0] };
                 std::basic_string<CT> hstr{};
                 hstr.reserve(__max_hex);
                 IT j;
-                if constexpr(std::is_signed_v<IT>) j = (i < 0) ? -i : i;
+                if constexpr(std::is_signed_v<IT>){ j = (i < 0) ? -i : i; }
                 else j = i;
                 for(size_t n = 0; n < __max_hex && __get_pow16(n) <= j; n++) hstr.append(__get_hex_digit(j, n));
                 hstr.append(__digi_type::hexpref);
-                if constexpr(std::is_signed_v<IT>) if(i < 0) hstr.append(__digi_type::minus);
+                if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
                 return std::basic_string<CT>{ hstr.rend(), hstr.rbegin() };
             }
         };
-        template<typename T, typename CT> std::basic_string<CT> __to_string(T);
+        inline std::string __fptocs_conv(float f, int digits)
+        {
+            int dp = 0, sign = 0;
+            char *rve = NULL, *result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
+            if(!result) { return {"E"}; }
+            std::string str { result, rve };
+            if(sign) str.insert(str.cbegin(), '-');
+            if(dp != 9999) str.insert(str.cbegin() + dp, '.');
+            return str;
+        }
+        inline std::string __fptocs_conv(double d, int digits)
+        {
+            int dp = 0, sign = 0;
+            char *rve = NULL, *result = __dtoa(d, 0, digits, &dp, &sign, &rve);
+            if(!result) { return {"E"}; }
+            std::string str { result, rve };
+            if(sign) str.insert(str.cbegin(), '-');
+            if(dp != 9999) str.insert(str.cbegin() + dp, '.');
+            return str;
+        }
+        inline std::string __fptocs_conv(long double ld, int digits)
+        {
+            int dp = 0, sign = 0;
+            char *rve = NULL, *result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
+            if(!result) { return {"E"}; }
+            std::string str { result, rve };
+            if(sign) str.insert(str.cbegin(), '-');
+            if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
+            return str;
+        }
+        template<std::char_type DT> constexpr std::basic_string<DT> __cvt_digits(std::basic_string<char> const& in_str) { size_t n = in_str.size(); std::basic_string<DT> str{}; str.reserve(n + 1); for(size_t i = 0; i < n; i++) { str.append(__ch_digits<char>::template __to_other<DT>(in_str[i])); } return str; }
         template<std::integral IT, std::char_type CT> [[gnu::always_inline]] constexpr std::basic_string<CT> __to_string(IT it) { return __ntos_conv<IT, CT>::__to_string(it); }
-        template<std::char_type CT> [[gnu::always_inline]] constexpr std::basic_string<CT> __to_string(void* ptr) { return __ntos_conv<uintptr_t, CT>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
+        template<std::char_type CT> [[gnu::always_inline]] constexpr std::basic_string<CT> __ptr_to_string(void* ptr) { return __ntos_conv<uintptr_t, CT>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
     }
     string to_string(int value) { return __impl::__to_string<int, char>(value); }
     string to_string(long value) { return __impl::__to_string<long, char>(value); }
@@ -109,33 +235,54 @@ namespace std
     string to_string(unsigned int value) { return __impl::__to_string<unsigned int, char>(value); }
     string to_string(unsigned long value) { return __impl::__to_string<unsigned long, char>(value); }
     string to_string(unsigned long long value) { return __impl::__to_string<unsigned long long, char>(value); }
-    string to_string(void* ptr) { return __impl::__to_string<char>(ptr); }
+    string to_string(void* ptr) { return __impl::__ptr_to_string<char>(ptr); }
+    string to_string(float value) { return __impl::__fptocs_conv(value, 6); }
+    string to_string(double value) { return __impl::__fptocs_conv(value, 10); }
+    string to_string(long double value) { return __impl::__fptocs_conv(value, 256); }
     wstring to_wstring(int value) { return __impl::__to_string<int, wchar_t>(value); }
 	wstring to_wstring(long value) { return __impl::__to_string<long, wchar_t>(value); }
 	wstring to_wstring(long long value) { return __impl::__to_string<long long, wchar_t>(value); }
 	wstring to_wstring(unsigned int value) { return __impl::__to_string<unsigned int, wchar_t>(value); }
 	wstring to_wstring(unsigned long value) { return __impl::__to_string<unsigned long, wchar_t>(value); }
 	wstring to_wstring(unsigned long long value) { return __impl::__to_string<unsigned long long, wchar_t>(value); }
-	wstring to_wstring(void* ptr) { return __impl::__to_string<wchar_t>(ptr); }
+	wstring to_wstring(void* ptr) { return __impl::__ptr_to_string<wchar_t>(ptr); }
+    wstring to_wstring(float value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
+    wstring to_wstring(double value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
+    wstring to_wstring(long double value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
     u8string to_u8string(int value) { return __impl::__to_string<int, char8_t>(value); }
 	u8string to_u8string(long value) { return __impl::__to_string<long, char8_t>(value); }
 	u8string to_u8string(long long value) { return __impl::__to_string<long long, char8_t>(value); }
 	u8string to_u8string(unsigned int value) { return __impl::__to_string<unsigned int, char8_t>(value); }
 	u8string to_u8string(unsigned long value) { return __impl::__to_string<unsigned long, char8_t>(value); }
 	u8string to_u8string(unsigned long long value) { return __impl::__to_string<unsigned long long, char8_t>(value); }
-	u8string to_u8string(void* ptr) { return __impl::__to_string<char8_t>(ptr); }
+	u8string to_u8string(void* ptr) { return __impl::__ptr_to_string<char8_t>(ptr); }
+    u8string to_u8string(float value) { return __impl::__cvt_digits<char8_t>(to_string(value)); }
+    u8string to_u8string(double value) { return __impl::__cvt_digits<char8_t>(to_string(value)); }
+    u8string to_u8string(long double value) { return __impl::__cvt_digits<char8_t>(to_string(value));; }
     u16string to_u16string(int value) { return __impl::__to_string<int, char16_t>(value); }
 	u16string to_u16string(long value) { return __impl::__to_string<long, char16_t>(value); }
 	u16string to_u16string(long long value) { return __impl::__to_string<long long, char16_t>(value); }
 	u16string to_u16string(unsigned int value) { return __impl::__to_string<unsigned int, char16_t>(value); }
 	u16string to_u16string(unsigned long value) { return __impl::__to_string<unsigned long, char16_t>(value); }
 	u16string to_u16string(unsigned long long value) { return __impl::__to_string<unsigned long long, char16_t>(value); }
-	u16string to_u16string(void* ptr) { return __impl::__to_string<char16_t>(ptr); }
+	u16string to_u16string(void* ptr) { return __impl::__ptr_to_string<char16_t>(ptr); }
+    u16string to_u16string(float value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
+    u16string to_u16string(double value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
+    u16string to_u16string(long double value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
     u32string to_u32string(int value) { return __impl::__to_string<int, char32_t>(value); }
 	u32string to_u32string(long value) { return __impl::__to_string<long, char32_t>(value); }
 	u32string to_u32string(long long value) { return __impl::__to_string<long long, char32_t>(value); }
 	u32string to_u32string(unsigned int value) { return __impl::__to_string<unsigned int, char32_t>(value); }
 	u32string to_u32string(unsigned long value) { return __impl::__to_string<unsigned long, char32_t>(value); }
 	u32string to_u32string(unsigned long long value) { return __impl::__to_string<unsigned long long, char32_t>(value); }
-	u32string to_u32string(void* ptr) { return __impl::__to_string<char32_t>(ptr); }
+	u32string to_u32string(void* ptr) { return __impl::__ptr_to_string<char32_t>(ptr); }
+    u32string to_u32string(float value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
+    u32string to_u32string(double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
+    u32string to_u32string(long double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
+    namespace ext
+    {
+        std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }
+        std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
+        std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
+    }
 }

@@ -25,7 +25,7 @@ void debug_print_num(uintptr_t num, int lenmax = 16)
     dbgbuf[lenmax + 2] = 0;
     startup_tty.print_text(dbgbuf);
 }
-void direct_write(const char* str) { if(can_print) { startup_tty.print_text(str); } }
+extern "C" void direct_write(const char* str) { startup_tty.print_text(str); } 
 __isr_registers void debug_ecode(byte idx, qword ecode)
 {
     if(ecode) 
@@ -64,6 +64,9 @@ extern "C"
         interrupt_table::add_interrupt_callback(debug_ecode);
         can_print = true;
         startup_tty.print_line("Hello world");
+        startup_tty.print_line(std::to_string(42));
+        startup_tty.print_line(std::to_string(sysinfo));
+        startup_tty.print_line(std::to_string(3.14159265358L));
         while(1);
         __cxa_finalize(0);
     }

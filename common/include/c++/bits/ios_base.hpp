@@ -43,8 +43,8 @@ namespace std
             constexpr operator uint8_t() const noexcept { return bit_cast<uint8_t>(*this); }
             constexpr operator bool() const noexcept { return NZ(uint8_t(*this)); }
             constexpr openmode& operator=(openmode const&) = default;
-            constexpr openmode operator|(openmode const& that) const noexcept { return openmode{ uint8_t(*this) | uint8_t(that) }; }
-            constexpr openmode operator&(openmode const& that) const noexcept { return openmode{ uint8_t(*this) & uint8_t(that) }; }
+            constexpr openmode operator|(openmode const& that) const noexcept { return openmode{ uint8_t(uint8_t(*this) | uint8_t(that)) }; }
+            constexpr openmode operator&(openmode const& that) const noexcept { return openmode{ uint8_t(uint8_t(*this) & uint8_t(that)) }; }
             constexpr openmode& operator|=(openmode const& that) noexcept { return (*this = (*this | that)); }
             constexpr openmode& operator&=(openmode const& that) noexcept { return (*this = (*this & that)); }
         } __pack;
@@ -84,8 +84,8 @@ namespace std
             constexpr operator uint8_t() const noexcept { return bit_cast<uint8_t>(*this); }
             constexpr operator bool() const noexcept { return good();}
             constexpr bool operator!() const noexcept { return !good();}
-            constexpr iostate operator|(iostate const& that) const noexcept { return iostate{ uint8_t(*this) | uint8_t(that) }; }
-            constexpr iostate operator&(iostate const& that) const noexcept { return iostate{ uint8_t(*this) & uint8_t(that) }; }
+            constexpr iostate operator|(iostate const& that) const noexcept { return iostate{ uint8_t(uint8_t(*this) | uint8_t(that)) }; }
+            constexpr iostate operator&(iostate const& that) const noexcept { return iostate{ uint8_t(uint8_t(*this) & uint8_t(that)) }; }
             constexpr iostate& operator|=(iostate const& that) noexcept { return (*this = (*this | that)); }
             constexpr iostate& operator&=(iostate const& that) noexcept { return (*this = (*this & that)); }
         } __pack;
@@ -132,9 +132,9 @@ namespace std
             constexpr fmtflags(fmtflags const&) noexcept = default;
             constexpr fmtflags& operator=(fmtflags const&) noexcept = default;
             constexpr operator uint16_t() const noexcept { return bit_cast<uint16_t>(*this); }
-            constexpr fmtflags operator|(fmtflags const& that) const noexcept { return fmtflags{ uint16_t(*this) | uint16_t(that) }; }
+            constexpr fmtflags operator|(fmtflags const& that) const noexcept { return fmtflags{ uint16_t(uint16_t(*this) | uint16_t(that)) }; }
             constexpr fmtflags& operator|=(fmtflags const& that) noexcept { return *this = (*this | that); }
-            constexpr fmtflags operator&(fmtflags const& that) const noexcept { return fmtflags{ uint16_t(*this) & uint16_t(that) }; }
+            constexpr fmtflags operator&(fmtflags const& that) const noexcept { return fmtflags{ uint16_t(uint16_t(*this) & uint16_t(that)) }; }
             constexpr fmtflags& operator&=(fmtflags const& that) noexcept { return *this = (*this & that); }
             constexpr fmtflags basefield() const noexcept { return *this & fmtflags{ uint16_t(0b00000111) }; }
             constexpr fmtflags adjustfield() const noexcept { return *this & fmtflags{ uint16_t(0b00111000) }; }

@@ -46,6 +46,13 @@ namespace std::__impl
          * The default implementation does nothing.
          */
         virtual void __on_modify() {}
+        void __grow_buffer(size_t added);
+        template<std::matching_input_iterator<T> IT> void __append_elements(IT start_it, IT end_it);
+        void __append_elements(__const_ptr start_ptr, __const_ptr end_ptr);
+        __ptr __insert_element(__const_ptr pos, T const& t);
+        __ptr __insert_elements(__const_ptr pos, __const_ptr start_ptr, __const_ptr end_ptr);
+        template<matching_input_iterator<T> IT> __ptr __insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr);
+        template<typename ... Args> requires constructible_from<T, Args...> __ptr __emplace_element(__const_ptr pos, Args&& ... args);
         // Shortcut to move the end pointer. Note that this does NOT call the on-modify callback; it's just a space saver.
         inline void __advance(size_t n) { __my_data.__end += n; }
         void __allocate_storage(size_t n) { __my_data.__begin = __allocator.allocate(n); __my_data.__end  = __my_data.__begin; __my_data.__max  = __my_data.__begin + n; }
@@ -57,21 +64,14 @@ namespace std::__impl
         void __replace_elements(size_t pos, size_t count, __ptr from, size_t count2);
         void __replace_elements(__const_ptr start, __const_ptr end, __ptr from, size_t count) { if(!(start < __my_data.__begin || start >= __my_data.__max || end < __my_data.__begin || end >= __my_data.__max || end <= start)) __replace_elements(start - __my_data.__begin, end - start, from, count); }
         void __assign_elements(std::initializer_list<T> ini) { __assign_elements(ini.begin(), ini.end()); }
-        void __grow_buffer(size_t added);
         inline size_t __rem() const { return __my_data.__max - __my_data.__end; }
         void __trim_buffer() { size_t num_elements = __size(); __my_data.__begin = resize<T>(__my_data.__begin, num_elements); __my_data.__end = __my_data.__begin + num_elements; __my_data.__max = __my_data.__begin + num_elements; this->__on_modify(); }
         inline void __append_elements(size_t count, T const& t) { if(__my_data.__max < __my_data.__end + count) this->__grow_buffer(size_t(count - __rem())); for(size_t i = 0; i < count; i++, __my_data.__end++) construct_at(__my_data.__end, t); this->__on_modify(); }
-        template<std::matching_input_iterator<T> IT> void __append_elements(IT start_it, IT end_it);
-        void __append_elements(__const_ptr start_ptr, __const_ptr end_ptr);
         void __append_element(T const& t) { if(!(__my_data.__max > __my_data.__end)) __grow_buffer(1); construct_at(__my_data.__end, t); __my_data.__end++; this->__on_modify(); }
-        __ptr __insert_element(__const_ptr pos, T const& t);
-        __ptr __insert_elements(__const_ptr pos, __const_ptr start_ptr, __const_ptr end_ptr);
-        template<matching_input_iterator<T> IT> __ptr __insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr);
-        template<typename ... Args> requires constructible_from<T, Args...> __ptr __emplace_element(__const_ptr pos, Args&& ... args);
         void __clear() { size_t cap = __capacity(); __allocator.deallocate(__my_data.__begin, cap); __allocate_storage(cap); __on_modify(); }
         __ptr __erase_at_end(size_t how_many) { if(how_many >= __size()) __clear(); else { __my_data.__end -= how_many; __zero(__my_data.__end, how_many); } __on_modify(); return __my_data.__end; }
         __ptr __erase_range(__const_ptr start, __const_ptr end);
-        constexpr void __destroy() { if(__my_data.__begin) { __allocator.deallocate(__my_data.__begin, __capacity()); __my_data.__reset(); }}
+        constexpr void __destroy() { if(__my_data.__begin) { __allocator.deallocate(__my_data.__begin, __capacity()); __my_data.__reset(); } }
         inline __ptr __erase(__const_ptr pos) { return __erase_range(pos, pos + 1); }
         void __swap(__dynamic_buffer& that) { __my_data.__swap(that.__my_data); this->__on_modify(); }
         explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
@@ -87,7 +87,7 @@ namespace std::__impl
         __dynamic_buffer(__dynamic_buffer const& that, size_t start, size_t count, A const& alloc) : __dynamic_buffer{ that.__access() + start, that.__access() + (count < that.__size() - start ? count : that.__size()), alloc } {}
         __dynamic_buffer(__dynamic_buffer&& that) : __allocator{ move(that.__allocator) }, __my_data{ move(that.__my_data) } {}
         __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
-        ~__dynamic_buffer() { __destroy(); }
+        ~__dynamic_buffer() { if(__my_data.__begin) { __allocator.deallocate(__my_data.__begin, __capacity()); } }
         __dynamic_buffer& operator=(__dynamic_buffer const& that) { __my_data.__copy_ptrs(that.__my_data); return *this; }
         __dynamic_buffer& operator=(__dynamic_buffer&& that) { __my_data.__move(move(that.__my_data)); return *this; }
         constexpr __ptr __access() noexcept { return __my_data.__begin; }
