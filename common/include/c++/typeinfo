@@ -1,0 +1,5 @@
+#ifndef __TYPE_INFO
+#define __TYPE_INFO
+#include "bits/typeinfo.h"
+#include "bits/stdexcept.h"
+#endif

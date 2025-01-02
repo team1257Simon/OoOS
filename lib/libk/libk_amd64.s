@@ -54,6 +54,11 @@
     movq	$errno,		%rax
 	ret
     .size     __errno,    .-__errno
+    defglobal __rdseed
+    rdseed      %rax
+    cmovncq     %rdi,   %rax
+    ret
+    .size     __rdseed,   .-__rdseed
     .section    .data
 	.global		__atexit_guard
     .type       __atexit_guard,     @object

@@ -3,6 +3,7 @@
 #include "concepts"
 #include "bits/move.h"
 #include "bits/invoke.hpp"
+#include "bits/typeinfo.h"
 namespace std
 {
     template<typename FT> class function;
@@ -67,6 +68,8 @@ namespace std
                     __delete_wrapper(dest, __is_locally_storable{});
                     break;
                 case __get_type_info:
+                    dest.__access<type_info const*>() = &typeid(FT);
+                    break;
                 default:
                     break;
                 }
@@ -150,7 +153,7 @@ namespace std
         {
             if constexpr(is_object_v<FT>)
             {
-                if(__my_manager == &__target_helper<RT(Args...), FT>::__manager)
+                if(__my_manager == &__target_helper<RT(Args...), FT>::__manager || typeid(FT) == target_type())
                 {
                     __data_store ptr;
                     __my_manager(ptr, __my_functor, __get_functor_ptr);
@@ -166,6 +169,7 @@ namespace std
         constexpr function& operator=(nullptr_t) noexcept { if(__my_manager) { __my_manager(__my_functor, __my_functor, __destroy_functor); __my_manager = nullptr; __my_invoker = nullptr; } return *this; }
         template<typename FT> requires (__is_callable<FT>::value) constexpr function& operator=(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) { function{ forward<FT>(ft) }.swap(*this); return *this; }
         RT operator()(Args ... args) const { return __my_invoker(__my_functor, forward<Args>(args)...); }
+        constexpr type_info const& target_type() const noexcept { if(__my_manager) { __data_store __ti_result; __my_manager(__ti_result, __my_functor, __get_type_info); if(type_info const* result = __ti_result.__access<type_info const*>()) return *result; } return typeid(void); }
     };
     template<typename> struct __function_guide_helper{};
     template<typename RT, typename ST, bool NT, typename... Args> struct __function_guide_helper<RT (ST::*) (Args...) noexcept(NT)> { using type = RT (Args...); };

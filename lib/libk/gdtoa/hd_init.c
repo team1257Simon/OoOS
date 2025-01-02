@@ -1,4 +1,5 @@
 #include "gdtoa.h"
+unsigned char __hexdig_D2A[256];
 static void htinit(unsigned char* h, unsigned char* s, int inc)
 {
   int i, j;

@@ -251,10 +251,10 @@ namespace std
         constexpr basic_string& operator+=(const_pointer str) { return append(str); }
         constexpr basic_string& operator+=(value_type val) { return append(val); }
         constexpr void swap(basic_string& that) { this->__swap(that); }
-        constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, str); if(result) return size_type(result - data()); return npos; }
+        constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, str); if(result) { return size_type(result - data()); } return npos; }
         constexpr size_type find(basic_string const& that, size_type pos = 0) const noexcept { return find(that.data(), pos); }
         constexpr size_type find(const_pointer str, size_type pos, size_type count) const noexcept { return find(basic_string{ str, count }, pos); }
-        constexpr size_type find(value_type value, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, size() - pos, value); }
+        constexpr size_type find(value_type value, size_type pos = 0) const noexcept { const_pointer result = traits_type::find(data() + pos, size() - pos, value); if(result)  { return size_type(result - data()); } return npos; }
         constexpr int compare(basic_string const& that) const { const size_type __my_size = this->size(); const size_type __your_size = that.size(); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that.data(), __len); return result ? result : __size_compare(__my_size, __your_size); }
         constexpr int compare(const_pointer that) const { const size_type __my_size = this->size(); const size_type __your_size = traits_type::length(that); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that, __len); return result ? result : __size_compare(__my_size, __your_size); }
     };

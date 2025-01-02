@@ -3,6 +3,7 @@
 #include "string.h"
 #include "limits"
 #include "memory"
+#include "gdtoa.h"
 extern "C" void direct_write(const char* str);
 extern void debug_print_num(uintptr_t num, int lenmax = 16);
 // C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility
@@ -53,99 +54,123 @@ namespace std
 {
     namespace __impl
     {
-        template <std::char_type CT> struct __ch_digits
+        template <std::char_type CT> struct __char_encode
         {
-            constexpr static CT minus = 0;
+            constexpr static CT minus = CT{ 0 };
             constexpr static const CT digits[] = {};
             constexpr static const CT hexpref[] = {};
             constexpr static int casediff = 32;
             constexpr static CT dot = CT { 0 };
             template <std::char_type DT> constexpr static DT __to_other(CT ct) { return DT{0}; }
+            constexpr static bool __is_upper(CT c) { return false; }
+            constexpr static bool __is_lower(CT c) { return false; }
+            constexpr static CT __to_upper(CT c) { return c - casediff; }
+            constexpr static CT __to_lower(CT c) { return c + casediff; }
         };
         template<> 
-        struct __ch_digits<char>
+        struct __char_encode<char>
         {
             constexpr static char minus = '-';
             constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
             constexpr static const char hexpref[] = "x0";
             constexpr static int casediff = 'a' - 'A';
             constexpr static char dot = '.';
-            template <std::char_type DT> constexpr static DT __to_other(char c) 
+            template <std::char_type DT> requires (!is_same_v<DT, char>) constexpr static DT __to_other(char c) 
             { 
-                if(c <= '9' && c >= '0') return __ch_digits<DT>::digits[c - '0']; 
-                else if(c >= 'A' && c <= 'F') return __ch_digits<DT>::digits[10 + c - 'A'];
-                else if(c >= 'a' && c <= 'f') return __ch_digits<DT>::digits[10 + c - 'a'];
-                else return __ch_digits<DT>::dot;
+                if(c <= '9' && c >= '0') return __char_encode<DT>::digits[c - '0']; 
+                else if(c >= 'A' && c <= 'F') return __char_encode<DT>::digits[10 + c - 'A'];
+                else if(c >= 'a' && c <= 'f') return __char_encode<DT>::digits[10 + c - 'a'];
+                else return __char_encode<DT>::dot;
             }
             constexpr static char __to_other(char c) { return c; }
+            constexpr static bool __is_upper(char c) { return c >= 'A' && c <= 'Z'; }
+            constexpr static bool __is_lower(char c) { return c >= 'a' && c <= 'z';  }
+            constexpr static char __to_upper(char c) { return __is_lower(c) ? c - casediff : c; }
+            constexpr static char __to_lower(char c) { return __is_upper(c) ? c + casediff : c; }
         };
         template<> 
-        struct __ch_digits<wchar_t> 
+        struct __char_encode<wchar_t> 
         {
             constexpr static wchar_t minus = L'-';
             constexpr static const wchar_t digits[] = { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' };
             constexpr static const wchar_t hexpref[] = L"x0";
             constexpr static int casediff = L'a' - L'A';
             constexpr static wchar_t dot = L'.';
-            template <std::char_type DT> constexpr static DT __to_other(wchar_t c) 
+            template <std::char_type DT> requires(!is_same_v<DT, wchar_t>) constexpr static DT __to_other(wchar_t c) 
             { 
-                if(c <= L'9' && c >= L'0') return __ch_digits<DT>::digits[c - L'0']; 
-                else if(c >= L'A' && c <= L'F') return __ch_digits<DT>::digits[10 + c - L'A'];
-                else if(c >= L'a' && c <= L'f') return __ch_digits<DT>::digits[10 + c - L'a'];
-                else return __ch_digits<DT>::dot;
+                if(c <= L'9' && c >= L'0') return __char_encode<DT>::digits[c - L'0']; 
+                else if(c >= L'A' && c <= L'F') return __char_encode<DT>::digits[10 + c - L'A'];
+                else if(c >= L'a' && c <= L'f') return __char_encode<DT>::digits[10 + c - L'a'];
+                else return __char_encode<DT>::dot;
             }
             constexpr static wchar_t __to_other(wchar_t c) { return c; }
+            constexpr static bool __is_upper(wchar_t c) { return c >= L'A' && c <= L'Z'; }
+            constexpr static bool __is_lower(wchar_t c) { return c >= L'a' && c <= L'z';  }
+            constexpr static wchar_t __to_upper(wchar_t c) { return __is_lower(c) ? c - casediff : c; }
+            constexpr static wchar_t __to_lower(wchar_t c) { return __is_upper(c) ? c + casediff : c; }
         };
         template<> 
-        struct  __ch_digits<char8_t> 
+        struct  __char_encode<char8_t> 
         {
             constexpr static char8_t minus = u8'-';
             constexpr static const char8_t digits[] = { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' };
             constexpr static const char8_t hexpref[] = u8"x0";
             constexpr static int casediff = u8'a' - u8'A';
             constexpr static char8_t dot = u8'.';
-            template <std::char_type DT> constexpr static DT __to_other(char8_t c) 
+            template <std::char_type DT> requires(!is_same_v<DT, char8_t>) constexpr static DT __to_other(char8_t c) 
             { 
-                if(c <= u8'9' && c >= u8'0') return __ch_digits<DT>::digits[c - u8'0']; 
-                else if(c >= u8'A' && c <= u8'F') return __ch_digits<DT>::digits[10 + c - u8'A'];
-                else if(c >= u8'a' && c <= u8'f') return __ch_digits<DT>::digits[10 + c - u8'a'];
-                else return __ch_digits<DT>::dot;
+                if(c <= u8'9' && c >= u8'0') return __char_encode<DT>::digits[c - u8'0']; 
+                else if(c >= u8'A' && c <= u8'F') return __char_encode<DT>::digits[10 + c - u8'A'];
+                else if(c >= u8'a' && c <= u8'f') return __char_encode<DT>::digits[10 + c - u8'a'];
+                else return __char_encode<DT>::dot;
             }
             constexpr static char8_t __to_other(char8_t c) { return c; }
+            constexpr static bool __is_upper(char8_t c) { return c >= u8'A' && c <= u8'Z'; }
+            constexpr static bool __is_lower(char8_t c) { return c >= u8'a' && c <= u8'z';  }
+            constexpr static char8_t __to_upper(char8_t c) { return __is_lower(c) ? c - casediff : c; }
+            constexpr static char8_t __to_lower(char8_t c) { return __is_upper(c) ? c + casediff : c; }
         };
         template<>
-        struct __ch_digits<char16_t> 
+        struct __char_encode<char16_t> 
         {
             constexpr static char16_t minus = u'-';
             constexpr static const char16_t digits[] = { u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8', u'9', u'A', u'B', u'C', u'D', u'E', u'F' };
             constexpr static const char16_t hexpref[] = u"x0";
             constexpr static int casediff = u'a' - u'A';
             constexpr static char16_t dot = u'.';
-            template <std::char_type DT> constexpr static DT __to_other(char16_t c) 
+            template <std::char_type DT> requires(!is_same_v<DT, char16_t>) constexpr static DT __to_other(char16_t c) 
             { 
-                if(c <= u'9' && c >= u'0') return __ch_digits<DT>::digits[c - u'0']; 
-                else if(c >= u'A' && c <= u'F') return __ch_digits<DT>::digits[10 + c - u'A'];
-                else if(c >= u'a' && c <= u'f') return __ch_digits<DT>::digits[10 + c - u'a'];
-                else return __ch_digits<DT>::dot;
+                if(c <= u'9' && c >= u'0') return __char_encode<DT>::digits[c - u'0']; 
+                else if(c >= u'A' && c <= u'F') return __char_encode<DT>::digits[10 + c - u'A'];
+                else if(c >= u'a' && c <= u'f') return __char_encode<DT>::digits[10 + c - u'a'];
+                else return __char_encode<DT>::dot;
             }
             constexpr static char16_t __to_other(char16_t c) { return c; }
+            constexpr static bool __is_upper(char16_t c) { return c >= u'A' && c <= u'Z'; }
+            constexpr static bool __is_lower(char16_t c) { return c >= u'a' && c <= u'z';  }
+            constexpr static char16_t __to_upper(char16_t c) { return __is_lower(c) ? c - casediff : c; }
+            constexpr static char16_t __to_lower(char16_t c) { return __is_upper(c) ? c + casediff : c; }
         };
         template <> 
-        struct __ch_digits<char32_t> 
+        struct __char_encode<char32_t> 
         {
             constexpr static char32_t minus = U'-';
             constexpr static const char32_t digits[] = { U'0', U'1', U'2', U'3', U'4', U'5', U'6', U'7', U'8', U'9', U'A', U'B', U'C', U'D', U'E', U'F' };
             constexpr static const char32_t hexpref[] = U"x0";
             constexpr static int casediff = U'a' - U'A';
             constexpr static char32_t dot = U'.';
-            template <std::char_type DT> constexpr static DT __to_other(char32_t c) 
+            template <std::char_type DT> requires(!is_same_v<DT, char32_t>) constexpr static DT __to_other(char32_t c) 
             { 
-                if(c <= U'9' && c >= U'0') return __ch_digits<DT>::digits[c - U'0']; 
-                else if(c >= U'A' && c <= U'F') return __ch_digits<DT>::digits[10 + c - U'A'];
-                else if(c >= U'a' && c <= U'f') return __ch_digits<DT>::digits[10 + c - U'a'];
-                else return __ch_digits<DT>::dot;
+                if(c <= U'9' && c >= U'0') return __char_encode<DT>::digits[c - U'0']; 
+                else if(c >= U'A' && c <= U'F') return __char_encode<DT>::digits[10 + c - U'A'];
+                else if(c >= U'a' && c <= U'f') return __char_encode<DT>::digits[10 + c - U'a'];
+                else return __char_encode<DT>::dot;
             }
             constexpr static char32_t __to_other(char32_t c) { return c; }
+            constexpr static bool __is_upper(char32_t c) { return c >= U'A' && c <= U'Z'; }
+            constexpr static bool __is_lower(char32_t c) { return c >= U'a' && c <= U'z';  }
+            constexpr static char32_t __to_upper(char32_t c) { return __is_lower(c) ? c - casediff : c; }
+            constexpr static char32_t __to_lower(char32_t c) { return __is_upper(c) ? c + casediff : c; }
         };
         template<std::integral IT> struct __pow_10 { constexpr static IT values[] = {}; };
         template<> struct __pow_10<uint8_t> { constexpr static uint8_t values[] = {1u, uint8_t(1E1), uint8_t(1E2)}; };
@@ -159,7 +184,7 @@ namespace std
         template<std::integral IT> constexpr static size_t __max_dec_digits() noexcept { return sizeof(__pow_10<IT>::values) / sizeof(IT); }
         template<std::integral IT, std::char_type CT> struct __ntos_conv
         {
-            using __digi_type = __ch_digits<CT>;
+            using __digi_type = __char_encode<CT>;
             using __trait_type = std::char_traits<CT>;
             constexpr static size_t __max_dec = __max_dec_digits<IT>();
             constexpr static size_t __max_hex = 2 * sizeof(IT);
@@ -225,9 +250,57 @@ namespace std
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
             return str;
         }
-        template<std::char_type DT> constexpr std::basic_string<DT> __cvt_digits(std::basic_string<char> const& in_str) { size_t n = in_str.size(); std::basic_string<DT> str{}; str.reserve(n + 1); for(size_t i = 0; i < n; i++) { str.append(__ch_digits<char>::template __to_other<DT>(in_str[i])); } return str; }
+        template<std::char_type DT> requires(!is_same_v<DT, char>) constexpr std::basic_string<DT> __cvt_digits(std::basic_string<char> const& in_str) { size_t n = in_str.size(); std::basic_string<DT> str{}; str.reserve(n + 1); for(size_t i = 0; i < n; i++) { str.append(__char_encode<char>::template __to_other<DT>(in_str[i])); } return str; }
         template<std::integral IT, std::char_type CT> [[gnu::always_inline]] constexpr std::basic_string<CT> __to_string(IT it) { return __ntos_conv<IT, CT>::__to_string(it); }
         template<std::char_type CT> [[gnu::always_inline]] constexpr std::basic_string<CT> __ptr_to_string(void* ptr) { return __ntos_conv<uintptr_t, CT>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
+        bool __isalnum(char c)  { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+        bool __isalpha(char c)  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+        bool __iscntrl(char c)  { return (c > '\0' && c < ' ') || (c == '\x7F'); }
+        bool __isdigit(char c)  { return c <= '9' && c >= '0'; }
+        bool __isgraph(char c)  { return c > '\x1F' && c < '\x7F'; }
+        bool __islower(char c)  { return c <= 'z' && c >= 'a'; }
+        bool __isprint(char c)  { return __isgraph(c); }
+        bool __isspace(char c)  { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'; }
+        bool __ispunct(char c)  { return !__isalnum(c)&& !__isspace(c) && __isprint(c); }
+        bool __isupper(char c)  { return c >= 'A' && c <= 'Z'; }
+        bool __isxdigit(char c) { return __isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
+        char __tolower(char c) { return __char_encode<char>::__to_lower(c); }
+        char __toupper(char c) { return __char_encode<char>::__to_upper(c); }
+        template<std::integral IT>
+        IT ston(const char* str, char* &eptr, int base = 10)
+        {
+            if(base > 32) return 0;
+            bool neg = false;
+            if(str[0] == '+') str++;
+            if(str[0] == '-')
+            {
+                neg = true;
+                str++;
+            }
+            if((base == 0 || base == 16) && (str[0] == '0' && __tolower(str[1]) == 'x'))
+            {
+                base = 16;
+                str += 2;
+            }
+            else if(base == 0) base = (str[0] == '0') ? 8 : 10;
+            for(eptr = const_cast<char*>(str); *eptr; eptr++)
+            {
+                char c = __tolower(*eptr);
+                if(__isspace(c)) continue;
+                if(!__isalnum(c) || (__isalpha(c) && (base < 11 || (base - 10) <= (c - 'a'))) || (__isdigit(c) && (c - '0') >= base)) break;
+            }
+            IT result = 0;
+            for(const char* cc = str; cc < eptr; cc++)
+            {
+                result *= base;
+                char cdc = __tolower(*cc);
+                if(__isspace(cdc)) continue;
+                if(__isalpha(cdc)) result += ((cdc - 'a') + 10);
+                else result += (cdc - '0');
+            }
+            if(neg) result = -result;
+            return result;
+        }
     }
     string to_string(int value) { return __impl::__to_string<int, char>(value); }
     string to_string(long value) { return __impl::__to_string<long, char>(value); }
@@ -285,4 +358,70 @@ namespace std
         std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
         std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
     }
+}
+using namespace std::__impl;
+extern "C"
+{
+    size_t __strcat_basic(char* buffer, size_t max, const char* str1, const char* str2)
+    {
+        std::string cat{str1};
+        cat += str2;
+        strncpy(buffer, cat.c_str(), max);
+        return std::min(cat.size(), max);
+    }
+    size_t __tricat(char* buffer, size_t max, const char* str1, const char* str2, const char* str3)
+    {
+        std::string cat{ str1 };
+        cat += str2;
+        cat += str3;
+        strncpy(buffer, cat.c_str(), max);
+        return std::min(cat.size(), max);
+    }
+    int __ltoi_alloc(char** out, long n)
+    {
+        std::string s = std::to_string(n);
+        *out = new char[s.size() + 1];
+        if(!out) return -1;
+        std::strncpy(*out, s.c_str(), s.size());
+        (*out)[s.size()] = 0;
+        return int(s.size());
+    }
+    int __cfcvt(char* buffer, size_t len, float f)
+    {
+        std::string s = std::ext::fcvt(f, len - 2); // one for the decimal point or exponent "e", one for the sign
+        std::strncpy(buffer, s.c_str(), s.size());
+        return int(s.size());
+    }
+    int __cdcvt(char* buffer, size_t len, double d)
+    {
+        std::string s = std::ext::fcvtd(d, len - 2);
+        std::strncpy(buffer, s.c_str(), s.size());
+        return int(s.size());
+    }
+    int __cldcvt(char* buffer, size_t len, long double ld)
+    {
+        std::string s = std::ext::fcvtl(ld, len - 2);
+        std::strncpy(buffer, s.c_str(), s.size());
+        return int(s.size());
+    }
+    int isalnum(int c)	   { return __isalnum(static_cast<char>(c)) ? 1 : 0; }
+    int isalpha(int c)     { return __isalpha(static_cast<char>(c)) ? 1 : 0; }
+    int iscntrl(int c)     { return __iscntrl(static_cast<char>(c)) ? 1 : 0; }
+    int isdigit(int c)     { return __isdigit(static_cast<char>(c)) ? 1 : 0; }
+    int isgraph(int c)     { return __isgraph(static_cast<char>(c)) ? 1 : 0; }
+    int islower(int c)     { return __islower(static_cast<char>(c)) ? 1 : 0; }
+    int isprint(int c)     { return __isprint(static_cast<char>(c)) ? 1 : 0; }
+    int ispunct(int c)     { return __ispunct(static_cast<char>(c)) ? 1 : 0; }
+    int isspace(int c)     { return __isspace(static_cast<char>(c)) ? 1 : 0; }
+    int isupper(int c)     { return __isupper(static_cast<char>(c)) ? 1 : 0; }
+    int isxdigit(int c)    { return __isxdigit(static_cast<char>(c)) ? 1 : 0; }
+    int tolower(int c)     { return static_cast<int>(__tolower(static_cast<char>(c))); }
+    int toupper(int c)     { return static_cast<int>(__toupper(static_cast<char>(c))); }
+    int atoi(const char *str) { char* tmp = NULL; return ston<int>(str, tmp); }
+    double atof(const char *str) { char* tmp = NULL; return strtod(str, &tmp); }
+    long atol(const char *str) { char* tmp = NULL; return ston<long>(str, tmp); }
+    long strtol(const char *str, char **endptr, int base) { return ston<long>(str, *endptr, base); }
+    long long strtoll(const char *str, char **endptr, int base) { return ston<long long>(str, *endptr, base); }
+    unsigned long strtoul(const char *str, char **endptr, int base) { return ston<unsigned long>(str, *endptr, base); }
+    unsigned long long strtoull(const char *str, char **endptr, int base) { return ston<unsigned long long>(str, *endptr, base); } 
 }

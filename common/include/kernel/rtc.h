@@ -19,6 +19,7 @@ struct rtc_time
 } __pack;
 #ifdef __cplusplus
 }
+extern "C" uint64_t syscall_time(uint64_t* tm_target);
 class rtc_driver
 {
     uint8_t __century_register{ 0u };
