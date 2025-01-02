@@ -49,5 +49,25 @@ namespace std
 #pragma region non-standard memory functions
     template<typename T> [[nodiscard]] __force_inline constexpr T* resize(T* array, size_t ncount) { return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
 #pragma endregion
+template<typename T>
+    struct allocator : __base_allocator<T>
+    {
+        typedef T value_type;
+        typedef T* pointer;
+        typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
+        typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
+        typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
+        template<typename U> using rebind =  typename __replace_first_arg<allocator<T>, U>::type;
+        typedef true_type propagate_on_container_move_assignment;
+        typedef decltype(sizeof(T)) size_type;
+        typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
+        constexpr allocator() noexcept = default;
+        constexpr allocator(allocator const&) noexcept = default;
+        template<typename U> constexpr allocator(allocator<U> const&) noexcept {};
+        constexpr ~allocator() noexcept = default;
+        [[nodiscard]] constexpr pointer allocate(size_type count) const { return this->__allocate(count); }
+        constexpr void deallocate(pointer ptr, size_type count) const { this->__deallocate(ptr, count); }
+    };
+    template<typename T, typename U> constexpr bool operator==(allocator<T> const&, allocator<U> const&) noexcept { return true; }
 }
 #endif
