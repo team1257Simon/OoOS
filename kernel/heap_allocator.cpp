@@ -20,23 +20,49 @@ static uintptr_t block_offset(uintptr_t addr, block_idx idx)
 {
     switch(idx)
     {
-        case I7:
-            addr += S04;
-        case I6:
-            addr += S08;
-        case I5:
-            addr += S16;
-        case I4:
-            addr += S32;
-        case I3:
-            addr += S64;
-        case I2:
+        case I0:
             addr += S128;
         case I1:
-            addr += S256;
+            addr += S64;
+        case I2:
+            addr += S32;
+        case I3:
+            addr += S16;
+        case I4:
+            addr += S08;
+        case I5:
+            addr += S04;
+        case I6:
+            addr += S04;
+        case I7:
         default:
             return addr;
     }
+}
+static bool check_multi(block_size sz, status_byte sb)
+{
+    bool result = true;
+    switch(sz)
+    {
+        case S512:
+            result &= sb[I0];
+        case S256:
+            result &= sb[I1];
+        case S128:
+            result &= sb[I2];
+        case S64:
+            result &= sb[I3];
+        case S32:
+            result &= sb[I4];
+        case S16:
+            result &= sb[I5];
+        case S08:
+            result &= sb[I6];
+        default:
+            result &= sb[I7];
+            break;
+    }
+    return result;
 }
 constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (truncate(sz, S512) + nearest(sz % S512)) : nearest(sz); }
 constexpr size_t add_align_size(block_tag* tag, size_t align) { return align > 1 ? (up_to_nearest(std::bit_cast<uintptr_t>(tag) + sizeof(block_tag), align) - (std::bit_cast<uintptr_t>(tag) + sizeof(block_tag))) : 0; }
@@ -49,11 +75,12 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
     uintptr_t result = 0;
     size_t regions = 0;
+    bool multi = (sz > S512);
     for(size_t rem = sz; status_byte::gb_of(addr) < __num_status_bytes && rem > 0; addr += REGION_SIZE)
     {
         block_size bs = nearest(rem);
         status_byte& sb = *__get_sb(addr);
-        if(!sb[bs])
+        if(!(multi ? check_multi(bs, sb) : sb[bs]))
         {
             // If we're looking for a block bigger than one region, we need to start over
             result = 0;
@@ -64,8 +91,8 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
         {
             if(bs == S04)
             {
-                if(sb[I7]) { sb.set_used(I7); if(result == 0) { return block_offset(addr, I7); } }
-                else { sb.set_used(I6); if(result == 0) { return block_offset(addr, I6); } }
+                if(sb[I7]) { sb.set_used(I7); if(!multi) { return block_offset(addr, I7); } }
+                else { sb.set_used(I6); if(!multi) { return block_offset(addr, I6); } }
                 __mark_used(result, regions);
                 return result;
             }
@@ -78,9 +105,30 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
             }
             else 
             {
-                block_idx idx = (bs == S08 ? I5 : (bs == S16 ? I4 : (bs == S32 ? I3 : (bs == S64 ? I2 : (bs == S128 ? I1 : I0)))));
-                sb.set_used(idx);
-                if(result == 0) return block_offset(addr, idx);
+                if(!multi)
+                {
+                    block_idx idx = bs == S08 ? I5 : (bs == S16 ? I4 : (bs == S32 ? I3 : (bs == S64 ? I2 : (bs == S128 ? I1 : I0))));
+                    sb.set_used(idx);
+                    return block_offset(addr, idx);
+                }
+                switch(bs)
+                {
+                    case S256:
+                        sb.set_used(I1);
+                    case S128:
+                        sb.set_used(I2);
+                    case S64:
+                        sb.set_used(I3);
+                    case S32:
+                        sb.set_used(I4);
+                    case S16:
+                        sb.set_used(I5);
+                    case S08:
+                        sb.set_used(I7);
+                        sb.set_used(I6);
+                    default:
+                        break;
+                }
                 __mark_used(result, regions);
                 return result;
             }
@@ -92,12 +140,35 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
 void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
 {
     block_size bs = nearest(sz);
-    for(size_t rem = sz; rem > 0; rem -= (bs > rem ? rem : bs))
+    bool multi = (sz > S512);
+    for(size_t rem = sz; rem > 0; rem -= (bs > rem ? rem : bs), start += S512)
     {
         bs = nearest(rem);
         uint64_t offs = start % REGION_SIZE;
         if(bs == S04) { if(offs > I6 * PAGESIZE) { __status(start).set_free(I7); } else { __status(start).set_free(I6); } }
         else if(bs == S512) __status(start).set_free(ALL);
+        else if(multi)
+        {
+            status_byte sb = __status(start);
+            switch(bs)
+            {
+                case S256:
+                    sb.set_free(I1);
+                case S128:
+                    sb.set_free(I2);
+                case S64:
+                    sb.set_free(I3);
+                case S32:
+                    sb.set_free(I4);
+                case S16:
+                    sb.set_free(I5);
+                case S08:
+                    sb.set_free(I7);
+                    sb.set_free(I6);
+                default:
+                    break;
+            }
+        }
         else __status(start).set_free((bs == S08 ? I5 : (bs == S16 ? I4 : (bs == S32 ? I3 : (bs == S64 ? I2 : (bs == S128 ? I1 : I0))))));
     }
 }
