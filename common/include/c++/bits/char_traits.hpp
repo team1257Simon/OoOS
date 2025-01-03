@@ -65,7 +65,7 @@ namespace std
         fpos(fpos&&) = default;
         fpos& operator=(fpos const&) = default;
         fpos& operator=(fpos&&) = default;
-        operator streamoff() const {return __offs;}
+        operator streamoff() const { return __offs; }
         bool operator==(fpos const& that){ return this->__state == that.__state && this->__offs == that.__offs; }
         bool operator!=(fpos const& that){ return !(*this == that); }
         fpos& operator+=(streamoff off) { __offs += off; return *this; }

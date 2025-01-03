@@ -40,7 +40,7 @@ class keyboard_driver_base
     kb_state __current_state{};
     __isr_registers void __on_interrupt();
 protected:
-   __isr_registers virtual kb_data __get_last(kb_state current_state) = 0;
+    __isr_registers virtual kb_data __get_last(kb_state current_state) = 0;
     virtual void __on_init() = 0;
     virtual byte __get_irq_index() = 0;
     __isr_registers virtual bool __skip_send();

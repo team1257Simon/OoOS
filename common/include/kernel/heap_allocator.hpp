@@ -25,19 +25,22 @@ struct block_tag
     block_tag* right_split { nullptr };
     block_tag* previous { nullptr };
     block_tag* next { nullptr };
+    size_t align_bytes { 0 };
     constexpr block_tag() = default;
-    constexpr block_tag(size_t size, size_t held, int32_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr) noexcept :
+    constexpr block_tag(size_t size, size_t held, int32_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
         block_size      { size },
         held_size       { held },
         index           { idx },
         left_split      { left },
         right_split     { right },
         previous        { prev },
-        next            { nxt }
+        next            { nxt },
+        align_bytes     { align }
                         {}
-    constexpr block_tag(size_t size, size_t held, int32_t idx = -1) noexcept : block_size{ size }, held_size{ held }, index { idx } {}
-    constexpr size_t available_size() const noexcept { return block_size - sizeof(block_tag) - held_size; }
+    constexpr block_tag(size_t size, size_t held, int32_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
     constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
+    constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
+    constexpr vaddr_t actual_start() const noexcept { return vaddr_t { const_cast<block_tag*>(this) } + ptrdiff_t(sizeof(block_tag) + align_bytes); }
     block_tag* split();
 } __pack;
 struct frame_tag
@@ -45,8 +48,8 @@ struct frame_tag
     uint64_t magic { FRAME_MAGIC };
     page_frame* the_frame;
     vaddr_t next_vaddr {};
-    uint16_t complete_pages[MAX_BLOCK_EXP] {};
-    block_tag* available_blocks[MAX_BLOCK_EXP] {};
+    uint16_t complete_pages[MAX_BLOCK_EXP - MIN_BLOCK_EXP] {};
+    block_tag* available_blocks[MAX_BLOCK_EXP - MIN_BLOCK_EXP] {};
     frame_tag* previous { nullptr };
     frame_tag* next { nullptr };
 private:

@@ -6,6 +6,7 @@
 #include "keyboard_driver.hpp"
 #include "stdlib.h"
 #include "bits/stdexcept.h"
+#include "fs/data_buffer.hpp"
 using namespace std;
 bool can_print = false;
 extern psf2_t* __startup_font;
@@ -14,6 +15,12 @@ direct_text_render startup_tty;
 extern uintptr_t translate_vaddr(vaddr_t addr);
 constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' }; 
 static char dbgbuf[19]{'0', 'x'};
+void buffer_test()
+{
+    data_buffer<char> tb{};
+    tb.sputn("Eleventeenology hath been studied", 33);
+    startup_tty.print_line(tb.__str());
+}
 void debug_print_num(uintptr_t num, int lenmax = 16)
 {
     for(size_t i = lenmax + 1; i > 1; i--)
@@ -72,6 +79,7 @@ extern "C"
             startup_tty.print_line(std::to_string(sysinfo));
             startup_tty.print_line(std::to_string(3.14159265358L));
             startup_tty.print_line(std::to_string(rand()));
+            buffer_test();
             while(1);  
         } 
         catch(std::exception& e)

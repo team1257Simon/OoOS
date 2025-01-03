@@ -27,6 +27,8 @@
  * stdexcept.h - provides a stub version of <stdexcept>, which defines enough
  * of the exceptions for the runtime to use.  
  */
+#ifndef __STDEXCEPT_H
+#define __STDEXCEPT_H
 #include "bits/cxxabi.h"
 namespace std
 {
@@ -85,4 +87,4 @@ namespace std
 		virtual const char *what() const noexcept;
 	};
 } // namespace std
-
+#endif
