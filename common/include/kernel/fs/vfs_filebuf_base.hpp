@@ -22,7 +22,7 @@ protected:
     virtual std::streamsize __sect_size() { return base_sector_size; }
     virtual std::streamsize showmanyc() override { return __ddrem(); }
     virtual void __on_modify() override { if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); __dirty = true; } }
-    virtual int sync() override { __on_modify(); if(__dirty) { int result = __ddwrite(); __dirty = !result; return result; } return 0; }
+    virtual int sync() override { __on_modify(); if(__dirty) { int result = __ddwrite(); __dirty = (result != 0); return result; } return 0; }
     virtual int_type underflow() override { std::streamsize n = std::min(__sect_size(), showmanyc()); if(n && __ddread(n)) { return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); }
     vfs_filebuf_base(std::streamsize init_buffer_size = base_sector_size) : __buffer_base{ init_buffer_size } {}
 };

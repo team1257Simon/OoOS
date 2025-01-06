@@ -54,7 +54,7 @@ typename data_buffer<CT, TT, AT>::pos_type data_buffer<CT, TT, AT>::seekpos(pos_
 {
     if(__builtin_expect(which.in || which.out, true))
     {
-        this->__osetc(off_type(pos));
+        this->__bumpc(off_type(pos));
         if(which.in) this->__in_region.__end = this->__cur();
         if(which.out) this->__out_region.__end = this->__cur();
     }

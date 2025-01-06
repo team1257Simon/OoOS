@@ -18,7 +18,7 @@ extern "C" uint64_t syscall_time(uint64_t* tm_target) { uint64_t t = rtc_driver:
 __isr_registers void rtc_driver::rtc_time_update() volatile noexcept
 {
     while(is_cmos_update_in_progress());
-    uint16_t century = (__century_register > 0 ? read_rtc_register_dyn(__century_register) : 20);
+    uint16_t century = (__century_register > 0 ? read_rtc_register_dyn(__century_register) : 20ui8);
     rtc_time nt
     {
         read_rtc_register<0x00>(),

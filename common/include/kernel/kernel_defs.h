@@ -422,8 +422,68 @@ typedef struct __pagefile
     page_frame* frame_entries;
 } __pack pagefile;
 typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(sysinfo_t*, mmap_t*, pagefile*);
+#ifdef __cplusplus
+typedef struct __byte
+{
+	bool b0 : 1;
+	bool b1 : 1;
+	bool b2 : 1;
+	bool b3 : 1;
+	bool b4 : 1;
+	bool b5 : 1;
+	bool b6 : 1;
+	bool b7 : 1;
+	constexpr __byte(uint8_t i) noexcept :
+		b0 	{ (i & 0x01) != 0 }, 
+		b1 	{ (i & 0x02) != 0 }, 
+		b2 	{ (i & 0x04) != 0 }, 
+		b3 	{ (i & 0x08) != 0 }, 
+		b4 	{ (i & 0x10) != 0 }, 
+		b5 	{ (i & 0x20) != 0 }, 
+		b6 	{ (i & 0x40) != 0 }, 
+		b7 	{ (i & 0x80) != 0 }
+			{}
+	constexpr __byte() noexcept = default;
+    constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : b0{ v0 }, b1{ v1 }, b2{ v2 }, b3{ v3 }, b4{ v4 }, b5{ v5 }, b6{ v6 }, b7{ v7 } {}
+	constexpr operator uint8_t() const noexcept { return uint8_t((b0 ? 0x01u : 0) | (b1 ? 0x02u : 0) | (b2 ? 0x04u : 0) | (b3 ? 0x08u : 0) | (b4 ? 0x10u : 0) | (b5 ? 0x20u : 0) | (b6 ? 0x40u : 0) | (b7 ? 0x80u : 0)); }
+	constexpr bool operator[](uint8_t i) const noexcept { return i == 0 ? b0 : (i == 1 ? b1 : (i == 2 ? b2 : (i == 3 ? b3 : (i == 4 ? b4 : (i == 5 ? b5 : (i == 6 ? b6 : (i == 7 ? b7 : false))))))); } 
+} __pack byte;
+typedef struct __word
+{ 
+    byte lo;
+    byte hi;
+    constexpr operator uint16_t() const noexcept { return (uint16_t(hi) << 8) | lo; }
+    constexpr __word() noexcept = default;
+    constexpr __word(byte l, byte h) noexcept : lo{ l }, hi{ h } {}
+    constexpr __word(uint16_t value) noexcept : lo{ byte(value & 0x00FFu) }, hi{ byte((value & 0xFF00) >> 8) } {}
+} __pack word;
+typedef struct __dword
+{
+    word lo;
+    word hi;
+    constexpr operator uint32_t() const noexcept { return uint32_t(uint16_t(lo) | (uint32_t(uint16_t(hi)) << 16)); }
+    constexpr __dword() noexcept = default;
+    constexpr __dword(word l, word h) noexcept : lo{ l }, hi{ h } {}
+    constexpr __dword(uint32_t value) noexcept : lo{ uint16_t(value & 0x0000FFFFu) }, hi{ uint16_t((value & 0xFFFF0000) >> 16) } {}
+}__pack dword;
+typedef struct __qword
+{
+    dword lo;
+    dword hi;
+    constexpr operator uint64_t() const noexcept { return uint64_t(uint32_t(lo) | (uint64_t(uint32_t(hi)) << 32)); }
+    constexpr __qword() noexcept = default;
+    constexpr __qword(dword l, dword h) noexcept : lo{ l }, hi{ h } {}
+    constexpr __qword(uint64_t value) noexcept : lo{ uint32_t(value & 0x00000000FFFFFFFFu) }, hi{ uint32_t((value & 0xFFFFFFFF00000000u) >> 32) } {}
+} __pack qword;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wliteral-suffix"
+constexpr byte operator""ui8(unsigned long long i) noexcept { return byte{ uint8_t(i) }; }
+constexpr word operator""ui16(unsigned long long i) noexcept { return word{ uint16_t(i) }; }
+#pragma GCC diagnostic pop
+#else
 typedef uint8_t byte;
 typedef uint16_t word;
 typedef uint32_t dword;
 typedef uint64_t qword;
+#endif
 #endif

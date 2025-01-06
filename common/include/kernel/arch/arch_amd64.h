@@ -33,47 +33,40 @@ extern "C"
 #endif
 typedef struct __tss_bits
 {
-    dword : 32;
-    union ddw 
-    {
-        struct 
-        {
-            dword lo;
-            dword hi;
-        } __pack;
-        qword full;
-    } __pack __align(4) rsp[3];
-    dword : 32;
-    dword : 32;
-    union ddw ist[7];
-    dword : 32;
-    dword : 32;
+    uint32_t : 32;
+    qword rsp[3];
+    uint32_t : 32;
+    uint32_t : 32;
+    qword ist[7];
+    uint32_t : 32;
+    uint32_t : 32;
     union
     {
         struct 
         {
-            word : 16;
-            word iopb;
+            uint16_t : 16;
+            uint16_t iopb;
         } __pack;
-        dword : 32;
+        uint32_t : 32;
     } __pack;
 } __align(4) __pack tss;
 typedef struct __tss_descriptor
 {
-    word limit_lo;
-    dword base_lo    : 24;
+    uint16_t limit_lo;
+    uint32_t base_lo    : 24;
     byte access;
-    byte limit_hi    : 4;
-    byte flags       : 4;
-    byte base_mid    : 8;
-    qword base_hi;
+    uint8_t limit_hi    : 4;
+    uint8_t flags       : 4;
+    uint8_t base_mid    : 8;
+    uint64_t base_hi;
 } __pack tss_descriptor;
 inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
-template<std::integral I = byte> constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
-template<std::integral I = byte> constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
+template<typename T> concept integral_structure = std::is_integral_v<T> || std::is_same_v<T, byte> || std::is_same_v<T, word> || std::is_same_v<T, dword> || std::is_same_v<T, qword>;
+template<integral_structure I = byte> constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
+template<integral_structure I = byte> constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
 constexpr void outb(word to, byte value) { out(to, value); }
 constexpr byte inb(word from) { return in(from); }
 constexpr void io_wait() { outb(0x80, 0); }
@@ -94,8 +87,8 @@ template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); 
 constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0A>() & 0x80) != 0; }
 constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
 constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
-template<dword R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return static_cast<qword>(static_cast<qword>(lo) | (static_cast<qword>(hi) << 32)); }
-template<dword R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(static_cast<dword>(value & 0xFFFFFFFF)), "d"(static_cast<dword>((value >> 32) & 0xFFFFFFFF)), "c"(R) : "memory"); }
+template<dword R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword{ lo, hi }; }
+template<dword R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
 #endif
 #endif
 #endif

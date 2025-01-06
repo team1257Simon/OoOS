@@ -97,22 +97,22 @@ namespace std::__impl
         constexpr void __setn(__ptr beg, size_t n) noexcept { __setp(beg, beg + n); }
         constexpr void __setc(__ptr pos) noexcept { if(__valid_end_pos(pos)) __my_data.__setc(pos); } 
         constexpr void __setc(size_t pos) noexcept { __setc(__getptr(pos)); }
-        constexpr void __osetc(int64_t off) noexcept { __setc(__cur() + off); }
+        constexpr void __bumpc(int64_t off) noexcept { __setc(__cur() + off); }
         constexpr size_t __max_capacity() const noexcept { return std::numeric_limits<size_t>::max(); }
         inline void __advance(size_t n) { if(__valid_end_pos(__cur() + n)) { __my_data.__adv(n); } else { __setc(__max()); } }
         inline void __backtrack(size_t n) { if(__valid_end_pos(__cur() - n)) { __my_data.__bck(n); } else {__setc(__beg()); } }
         inline size_t __size() const noexcept { return size_t(__cur() - __beg()); }
         inline size_t __capacity() const noexcept { return size_t(__max() - __beg()); }
-        inline size_t __rem() const { return size_t(__max() - __cur()); }
-        inline size_t __ediff(__const_ptr pos) { return size_t(__cur() - pos); }
-        void __trim_buffer() { size_t num_elements = __size(); __setn(resize<T>(__beg(), num_elements), num_elements, num_elements); this->__on_modify(); }
-        void __allocate_storage(size_t n) { __setn(__allocator.allocate(n), n); }
+        inline size_t __rem() const noexcept { return size_t(__max() - __cur()); }
+        inline size_t __ediff(__const_ptr pos) const noexcept { return size_t(__cur() - pos); }
+        void __trim_buffer() throw() { size_t num_elements = __size(); __setn(resize<T>(__beg(), num_elements), num_elements, num_elements); this->__on_modify(); }
+        void __allocate_storage(size_t n) throw() { __setn(__allocator.allocate(n), n); }
         void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
         __ptr __assign_elements(size_t count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__getptr(count), __size() - count); } __setc(count); this->__on_modify(); return __cur(); }
         __ptr __assign_elements(__const_ptr start, __const_ptr end) { size_t count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__getptr(count), __size() - count); } __setc(count); this->__on_modify(); return __cur(); }
         __ptr __replace_elements(__const_ptr start, __const_ptr end, __ptr from, size_t count) { if(!__out_of_range(start, end)) return __replace_elements(start - __beg(), end - start, from, count); else return nullptr; }
         __ptr __assign_elements(std::initializer_list<T> ini) { return __assign_elements(ini.begin(), ini.end()); }
-        __ptr __append_elements(size_t count, T const& t) { if(__max() < __cur() + count) { if(!this->__grow_buffer(size_t(count - __rem()))) return nullptr; } for(size_t i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); this->__on_modify(); return __cur(); }
+        __ptr __append_elements(size_t count, T const& t) { if(__max() <= __cur() + count) { if(!this->__grow_buffer(size_t(count - __rem()))) return nullptr; } for(size_t i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); this->__on_modify(); return __cur(); }
         __ptr __append_element(T const& t) { if(!(__max() > __cur())) { if(!this->__grow_buffer(1)) return nullptr; } construct_at(__cur(), t); __advance(1); this->__on_modify(); return __cur(); }
         void __clear() { size_t cap = __capacity(); __allocator.deallocate(__beg(), cap); __allocate_storage(cap); this->__on_modify(); }
         __ptr __erase_at_end(size_t how_many) { if(how_many >= __size()) __clear(); else { __backtrack(how_many); this->__zero(__cur(), how_many); } __on_modify(); return __cur(); }
@@ -166,7 +166,7 @@ namespace std::__impl
         size_t num_elements = __size();
         size_t target = __capacity() + added;
         try { __setn(resize<T>(__beg(), target), num_elements, target); __zero(__cur(), __rem()); } 
-        catch(std::exception&) { __destroy(); return false; }
+        catch(std::exception&) { return false; }
         return true;
     }
     template<typename T, allocator_object<T> A>
