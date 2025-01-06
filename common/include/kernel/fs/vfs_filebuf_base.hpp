@@ -26,7 +26,4 @@ protected:
     virtual int_type underflow() override { std::streamsize n = std::min(__sect_size(), showmanyc()); if(n && __ddread(n)) { return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); }
     vfs_filebuf_base(std::streamsize init_buffer_size = base_sector_size) : __buffer_base{ init_buffer_size } {}
 };
-
-
-
 #endif
