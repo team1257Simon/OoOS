@@ -169,6 +169,16 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
         else __status(start).set_free((bs == S08 ? I5 : (bs == S16 ? I4 : (bs == S32 ? I3 : (bs == S64 ? I2 : (bs == S128 ? I1 : I0))))));
     }
 }
+vaddr_t heap_allocator::allocate_mmio_block(size_t sz, uint64_t align)
+{
+    __lock();
+    vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(__kernel_frame_tag->next_vaddr, align > PAGESIZE ? align : PAGESIZE)) };
+    uintptr_t phys = __find_claim_avail_region(sz);
+    vaddr_t result = 0uL;
+    if(phys){ result = mmio_mmap(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE)); __kernel_frame_tag->next_vaddr += region_size_for(sz); }
+    __unlock();
+    return result;
+}
 void heap_allocator::init_instance(pagefile *pagefile, mmap_t *mmap)
 {
     gb_status* __the_status_bytes = std::bit_cast<gb_status*>(reinterpret_cast<uintptr_t>(&__end) + sizeof(frame_tag));
@@ -218,10 +228,10 @@ vaddr_t heap_allocator::allocate_block(vaddr_t const &base, size_t sz, uint64_t 
     __unlock();
     return result;
 }
-void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz) {  __lock();  if(uintptr_t phys = translate_vaddr(base)){ __release_claimed_region(sz, phys); } __unlock(); }
+void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz) { __lock(); if(uintptr_t phys = translate_vaddr(base)){ __release_claimed_region(sz, phys); } __unlock(); }
 void frame_tag::__lock() { lock(&__my_mutex); }
 void frame_tag::__unlock() { release(&__my_mutex); }
-void frame_tag::insert_block(block_tag *blk, int idx) { blk->index = idx < 0 ?(get_block_exp(blk->block_size) - MIN_BLOCK_EXP) : idx; if (available_blocks[blk->index] != NULL) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
+void frame_tag::insert_block(block_tag *blk, int idx) { blk->index = idx < 0 ? (get_block_exp(blk->block_size) - MIN_BLOCK_EXP) : idx; if (available_blocks[blk->index] != NULL) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
 void frame_tag::remove_block(block_tag *blk)
 {
     if(available_blocks[blk->index] == blk) available_blocks[blk->index] = blk->next;

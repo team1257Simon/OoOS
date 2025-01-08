@@ -179,6 +179,7 @@ public:
     heap_allocator& operator=(heap_allocator&&) = delete;
     paging_table allocate_pt();
     vaddr_t allocate_block(vaddr_t const& base, size_t sz, uint64_t align);
+    vaddr_t allocate_mmio_block(size_t sz, uint64_t align);
     void deallocate_block(vaddr_t const& base, size_t sz);
 };
 #endif

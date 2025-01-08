@@ -78,9 +78,12 @@ constexpr byte kb_get() { return inb(data_keybd); }
 constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(data_rtc); }
 constexpr void nmi_disable() { outb(command_rtc, inb(command_rtc) | 0x80); inb(data_rtc); }
 template<byte I> constexpr byte irq_mask() { if constexpr(I < 8) return 1 << I; else return (1 << (I - 8)); }
+constexpr byte dyn_irq_mask(uint8_t idx) { return idx < 8 ? 1 << idx : (1 << (idx - 8));  }
 template<byte O1, byte O2> constexpr void pic_remap() { byte a1 = inb(data_pic1), a2 = inb(data_pic2); outbw(command_pic1, icw1_init | icw1_icw4); outbw(command_pic2, icw1_init | icw1_icw4); outbw(data_pic1, O1); outbw(data_pic2, O2); outbw(data_pic1, 4); outbw(data_pic2, 2); outbw(data_pic1, icw4_8086_mode); outbw(data_pic2, icw4_8086_mode); outb(data_pic1, a1); outb(data_pic2, a2); }
 template<byte I> constexpr void irq_set_mask() { outb(data_pic1, inb(data_pic1) | irq_mask<I>()); }
 template<byte I> constexpr void irq_clear_mask() { outb(data_pic1, inb(data_pic1) & ~(irq_mask<I>())); }
+constexpr void irq_set_mask(uint8_t idx) { outb(data_pic1, inb(data_pic1) | dyn_irq_mask(idx)); }
+constexpr void irq_clear_mask(uint8_t idx) { outb(data_pic1, inb(data_pic1) & ~dyn_irq_mask(idx)); }
 template<byte R> constexpr void rtc_select() { uint8_t prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80) | R); }
 template<byte R> constexpr byte read_rtc_register() { rtc_select<R>(); return inb(data_rtc); }
 template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }

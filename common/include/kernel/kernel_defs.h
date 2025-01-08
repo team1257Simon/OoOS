@@ -450,8 +450,21 @@ typedef struct __byte
     constexpr __byte(__byte&&) noexcept = default;
     constexpr __byte& operator=(__byte const&) noexcept = default;
     constexpr __byte& operator=(__byte&&) noexcept = default;
-    constexpr bool operator[](uint8_t i) const noexcept { return i == 0 ? b0 : (i == 1 ? b1 : (i == 2 ? b2 : (i == 3 ? b3 : (i == 4 ? b4 : (i == 5 ? b5 : (i == 6 ? b6 : (i == 7 ? b7 : false))))))); }
+    constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
+    constexpr bool operator[](uint8_t i) const noexcept { return i == 0 ? b0  : (i == 1 ? b1  : (i == 2 ? b2  : (i == 3 ? b3  : (i == 4 ? b4  : (i == 5 ? b5  : (i == 6 ? b6  : (i == 7 ? b7  : false))))))); }
     constexpr operator uint8_t() const noexcept { return uint8_t((b0 ? 0x01u : 0) | (b1 ? 0x02u : 0) | (b2 ? 0x04u : 0) | (b3 ? 0x08u : 0) | (b4 ? 0x10u : 0) | (b5 ? 0x20u : 0) | (b6 ? 0x40u : 0) | (b7 ? 0x80u : 0)); }
+    constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
+    constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
+    constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
+    constexpr __byte& operator-=(__byte const& that) noexcept { return *this = (*this - that); }
+    constexpr __byte& operator*=(__byte const& that) noexcept { return *this = (*this * that); }
+    constexpr __byte& operator/=(__byte const& that) noexcept { return *this = (*this / that); }
+    constexpr __byte& operator>>=(int that) noexcept { return *this = (*this >> that); }
+    constexpr __byte& operator<<=(int that) noexcept { return *this = (*this << that); }
+    constexpr void set(uint8_t i) volatile noexcept { __byte that{ *const_cast<__byte*>(this) }; that |= (1 << i); __atomic_store(this, &that, __ATOMIC_SEQ_CST); }
+    constexpr void clear(uint8_t i) volatile noexcept { __byte that{ *const_cast<__byte*>(this) }; that &= ~(1 << i); __atomic_store(this, &that, __ATOMIC_SEQ_CST); }
+    constexpr bool get(uint8_t i) volatile noexcept { return (__atomic_load_n(std::bit_cast<const uint8_t*>(this), __ATOMIC_SEQ_CST) & (1 << i)) != 0; }
 } __pack byte;
 typedef struct __word
 { 
@@ -465,8 +478,18 @@ typedef struct __word
     constexpr __word(__word&&) noexcept = default;
     constexpr __word& operator=(__word const&) noexcept = default;
     constexpr __word& operator=(__word&&) noexcept = default;
-    constexpr operator uint16_t() const noexcept { return (uint16_t(hi) << 8) | lo; }
-    
+    constexpr volatile __word& operator=(__word const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __word& operator=(__word&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
+    constexpr operator uint16_t() const noexcept { return (uint16_t(hi) << 8) | lo; }    
+    constexpr __word& operator|=(__word const& that) noexcept { return *this = (*this | that); }
+    constexpr __word& operator&=(__word const& that) noexcept { return *this = (*this & that); }
+    constexpr __word& operator+=(__word const& that) noexcept { return *this = (*this + that); }
+    constexpr __word& operator-=(__word const& that) noexcept { return *this = (*this - that); }
+    constexpr __word& operator*=(__word const& that) noexcept { return *this = (*this * that); }
+    constexpr __word& operator/=(__word const& that) noexcept { return *this = (*this / that); }
+    constexpr __word& operator>>=(int that) noexcept { return *this = (*this >> that); }
+    constexpr __word& operator<<=(int that) noexcept { return *this = (*this << that); }
+    constexpr bool operator[](uint8_t i) const noexcept { return (i >= 8 ? hi : lo)[i % 8]; }
 } __pack word;
 typedef struct __dword
 {
@@ -480,7 +503,18 @@ typedef struct __dword
     constexpr __dword(__dword&&) noexcept = default;
     constexpr __dword& operator=(__dword const&) noexcept = default;
     constexpr __dword& operator=(__dword&&) noexcept = default;
+    constexpr volatile __dword& operator=(__dword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __dword& operator=(__dword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
     constexpr operator uint32_t() const noexcept { return uint32_t(uint16_t(lo) | (uint32_t(uint16_t(hi)) << 16)); }
+    constexpr __dword& operator|=(__dword const& that) noexcept { return *this = (*this | that); }
+    constexpr __dword& operator&=(__dword const& that) noexcept { return *this = (*this & that); }
+    constexpr __dword& operator+=(__dword const& that) noexcept { return *this = (*this + that); }
+    constexpr __dword& operator-=(__dword const& that) noexcept { return *this = (*this - that); }
+    constexpr __dword& operator*=(__dword const& that) noexcept { return *this = (*this * that); }
+    constexpr __dword& operator/=(__dword const& that) noexcept { return *this = (*this / that); }
+    constexpr __dword& operator>>=(int that) noexcept { return *this = (*this >> that); }
+    constexpr __dword& operator<<=(int that) noexcept { return *this = (*this << that); }
+    constexpr bool operator[](uint8_t i) const noexcept { return (i >= 16 ? hi : lo)[i % 16]; }
 }__pack dword;
 typedef struct __qword
 {
@@ -494,7 +528,18 @@ typedef struct __qword
     constexpr __qword(__qword&&) noexcept = default;
     constexpr __qword& operator=(__qword const&) noexcept = default;
     constexpr __qword& operator=(__qword&&) noexcept = default;
+    constexpr volatile __qword& operator=(__qword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
     constexpr operator uint64_t() const noexcept { return uint64_t(uint32_t(lo) | (uint64_t(uint32_t(hi)) << 32)); }
+    constexpr __qword& operator|=(__qword const& that) noexcept { return *this = (*this | that); }
+    constexpr __qword& operator&=(__qword const& that) noexcept { return *this = (*this & that); }
+    constexpr __qword& operator+=(__qword const& that) noexcept { return *this = (*this + that); }
+    constexpr __qword& operator-=(__qword const& that) noexcept { return *this = (*this - that); }
+    constexpr __qword& operator*=(__qword const& that) noexcept { return *this = (*this * that); }
+    constexpr __qword& operator/=(__qword const& that) noexcept { return *this = (*this / that); }
+    constexpr __qword& operator>>=(int that) noexcept { return *this = (*this >> that); }
+    constexpr __qword& operator<<=(int that) noexcept { return *this = (*this << that); }
+    constexpr bool operator[](uint8_t i) const noexcept { return (i >= 32 ? hi : lo)[i % 32]; }
 } __pack qword;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"

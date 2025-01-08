@@ -9,6 +9,7 @@
 #include "fs/data_buffer.hpp"
 #include "arch/com_amd64.h"
 #include "generic_binary_buffer.hpp"
+#include "arch/ahci.hpp"
 extern psf2_t* __startup_font;
 extern "C" uint64_t errinst;
 static direct_text_render startup_tty;
@@ -37,9 +38,17 @@ void debug_ecode(byte idx, qword ecode)
         startup_tty.print_text("INT# ");
         debug_print_num(idx, 2);
         startup_tty.print_text(", ECODE ");
-        debug_print_num(ecode);
+        debug_print_num(ecode, 8);
         startup_tty.print_text(", RIP@ ");
-        debug_print_num(errinst);
+        debug_print_num(errinst, 10);
+        if(idx == 0x0E)
+        {
+            uint64_t fault_addr;
+            asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
+            startup_tty.print_text("; fault addr = ");
+            debug_print_num(fault_addr);
+            while(1);
+        }
     }
 }
 void run_tests() throw()
@@ -59,6 +68,7 @@ void run_tests() throw()
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
+    startup_tty.print_line(pci_device_list::init_instance(__sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? "AHCI init success" : "AHCI init failed") : "PCI enum failed");
 }
 extern "C" void _init();
 extern "C"

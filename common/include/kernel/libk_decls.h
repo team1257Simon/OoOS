@@ -25,6 +25,7 @@ void panic(const char* msg);
 paging_table get_cr3() noexcept;
 vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 uintptr_t sys_unmap(vaddr_t start, size_t pages);
+vaddr_t mmio_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 #ifdef __cplusplus
 }
 constexpr inline size_t GIGABYTE = 0x40000000;
