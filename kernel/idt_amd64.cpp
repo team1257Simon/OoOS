@@ -41,7 +41,7 @@ extern "C"
         bool is_err = (idx == 0x08 || (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E);
         if(idx > 0x19 && idx < 0x30) 
         { 
-            byte irq = idx - 0x20;
+            byte irq{ uint8_t(idx - 0x20ui8) };
             for(irq_callback h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }

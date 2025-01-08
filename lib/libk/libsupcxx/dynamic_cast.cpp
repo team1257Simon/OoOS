@@ -28,13 +28,7 @@ using namespace ABI_NAMESPACE;
 /**
  * Vtable header.
  */
-struct vtable_header
-{
-	/** Offset of the leaf object. */
-	ptrdiff_t leaf_offset;
-	/** Type of the object. */
-	const __class_type_info *type;
-};
+struct vtable_header { ptrdiff_t leaf_offset; /** Offset of the leaf object. */ const __class_type_info *type; /** Type of the object. */ };
 /**
  * Simple macro that does pointer arithmetic in bytes but returns a value of
  * the same type as the original.
@@ -43,94 +37,31 @@ struct vtable_header
 bool std::type_info::__do_catch(std::type_info const *ex_type, void **exception_object, unsigned int outer) const
 {
 	const type_info *type = this;
-	if (type == ex_type)
-	{
-		return true;
-	}
-	if (const __class_type_info *cti = dynamic_cast<const __class_type_info *>(type))
-	{
-		return ex_type->__do_upcast(cti, exception_object);
-	}
+	if (type == ex_type) return true;
+	if (const __class_type_info *cti = dynamic_cast<const __class_type_info *>(type)) return ex_type->__do_upcast(cti, exception_object);
 	return false;
 }
 bool __pbase_type_info::__do_catch(std::type_info const *ex_type, void **exception_object, unsigned int outer) const
 {
-	if (ex_type == this)
-	{
-		return true;
-	}
-	if (!ex_type->__is_pointer_p())
-	{
-		// Can't catch a non-pointer type in a pointer catch
-		return false;
-	}
-	if (!(outer & 1))
-	{
-		// If the low bit is cleared on this means that we've gone
-		// through a pointer that is not const qualified.
-		return false;
-	}
+	if (ex_type == this) return true;
+	if (!ex_type->__is_pointer_p()) return false; // Can't catch a non-pointer type in a pointer catch
+	if (!(outer & 1)) return false; // If the low bit is cleared on this means that we've gone through a pointer that is not const qualified.
 	// Clear the low bit on outer if we're not const qualified.
-	if (!(__flags & __const_mask))
-	{
-		outer &= ~1;
-	}
+	if (!(__flags & __const_mask)) outer &= ~1;
 	const __pbase_type_info *ptr_type = static_cast<const __pbase_type_info*>(ex_type);
-	if (ptr_type->__flags & ~__flags)
-	{
-		// Handler pointer is less qualified
-		return false;
-	}
+	if (ptr_type->__flags & ~__flags) return false; // Handler pointer is less qualified
 	// Special case for void* handler.  
-	if(*__pointee == typeid(void))
-	{
-		return true;
-	}
+	if(*__pointee == typeid(void)) return true;
 	return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
-
-void *__class_type_info::cast_to(void *obj, const struct __class_type_info *other) const
-{
-	if (this == other)
-	{
-		return obj;
-	}
-	return 0;
-}
-
-void *__si_class_type_info::cast_to(void *obj, const struct __class_type_info *other) const
-{
-	if (this == other)
-	{
-		return obj;
-	}
-	return __base_type->cast_to(obj, other);
-}
-bool __si_class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const
-{
-	if (this == target)
-	{
-		return true;
-	}
-	return __base_type->__do_upcast(target, thrown_object);
-}
-
-void *__vmi_class_type_info::cast_to(void *obj, const struct __class_type_info *other) const
-{
-	if (__do_upcast(other, &obj))
-	{
-		return obj;
-	}
-	return 0;
-}
-
+void *__class_type_info::cast_to(void *obj, const struct __class_type_info *other) const { if (this == other) return obj; else return 0; }
+void *__si_class_type_info::cast_to(void *obj, const struct __class_type_info *other) const { if (this == other) return obj; else return __base_type->cast_to(obj, other); }
+bool __si_class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const { if (this == target) return true; else return __base_type->__do_upcast(target, thrown_object); }
+void *__vmi_class_type_info::cast_to(void *obj, const struct __class_type_info *other) const { if (__do_upcast(other, &obj)) return obj; else return 0; }
 bool __vmi_class_type_info::__do_upcast(const __class_type_info *target,  void **thrown_object) const
 {
-	if (this == target)
-	{
-		return true;
-	}
-	for (unsigned int i=0 ; i<__base_count ; i++)
+	if (this == target) return true;
+	for (unsigned int i = 0; i < __base_count; i++)
 	{
 		const __base_class_type_info *info = &__base_info[i];
 		ptrdiff_t offset = info->offset();
@@ -151,13 +82,7 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info *target,  void *
 			offset = *off;
 		}
 		void *cast = ADD_TO_PTR(obj, offset);
-
-		if (info->__base_type == target ||
-		    (info->__base_type->__do_upcast(target, &cast)))
-		{
-			*thrown_object = cast;
-			return true;
-		}
+		if (info->__base_type == target || (info->__base_type->__do_upcast(target, &cast))) { *thrown_object = cast; return true; }
 	}
 	return 0;
 }

@@ -1,4 +1,7 @@
 #include "arch/com_amd64.h"
+#include "isr_table.hpp"
+#include "string"
+extern "C" void direct_write(const char* str);
 static serial_driver_amd64 __inst{};
 static void com1_set_baud_divisor(word value)
 {
@@ -26,7 +29,7 @@ static bool com1_loopback_test()
 }
 static bool serial_have_input() { line_status_byte b = inb(port_com1_line_status); return b.data_ready; }
 static bool serial_empty_transmit() { line_status_byte b = inb(port_com1_line_status); return b.transmitter_buffer_empty; }
-serial_driver_amd64::serial_driver_amd64(size_t init_size) :__queue{ init_size }, __base{ init_size } {}
+serial_driver_amd64::serial_driver_amd64(size_t init_size) : __queue{ init_size }, __base{ init_size } {}
 std::streamsize serial_driver_amd64::__sect_size() { return std::streamsize(16uL); }
 std::streamsize serial_driver_amd64::__ddrem() { return this->__qrem(); }
 int serial_driver_amd64::__ddwrite()
@@ -34,7 +37,7 @@ int serial_driver_amd64::__ddwrite()
     char* ptr = this->__beg();
     while(ptr != this->__cur()) 
     {
-        for(size_t i = 0; i < 16; i++, ++ptr) outb(port_com1, byte(*ptr));
+        for(size_t i = 0; i < 16 && ptr != this->__cur(); i++, ++ptr) outb(port_com1, byte(*ptr));
         while(!serial_empty_transmit()) PAUSE;
     }
     return 0;
@@ -45,13 +48,23 @@ std::streamsize serial_driver_amd64::__ddread(std::streamsize cnt)
     for(result = 0; serial_have_input() && result < cnt; result++) { this->__push_elements(char(inb(port_com1))); }
     return result;
 }
-void serial_driver_amd64::__q_on_modify() { if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
+[[gnu::target("general-regs-only")]] void serial_driver_amd64::__q_on_modify() { ptrdiff_t n = this->gptr() - this->eback(); if(n > 0) this->__qsetn(size_t(n)); if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
 bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level, word baud_div)
 {
+    serial_ier init_ier = inb(port_com1_ier);
     outb(port_com1_ier, 0ui8);
     com1_set_baud_divisor(baud_div);
     outb(port_com1_line_ctl, mode);
-    outb(port_com1_fifo_ctl, fifo_ctl_byte{true, true, true, false, trigger_level});
-    if(com1_loopback_test()) { outb(port_com1_modem_ctl, modem_ctl_byte{true, true, true, true, false}); return true; }
+    outb(port_com1_fifo_ctl, fifo_ctl_byte{ true, true, true, false, trigger_level });
+    if(com1_loopback_test()) 
+    { 
+        outb(port_com1_modem_ctl, modem_ctl_byte{ true, true, true, true, false });
+        init_ier.receive_data = true;
+        outb(port_com1_ier, init_ier);
+        interrupt_table::add_irq_handler(4, INTERRUPT_LAMBDA() { while(serial_have_input()) { __inst.__push_elements(char(inb(port_com1))); } });
+        irq_clear_mask<4>();
+        return true; 
+    }
     else return false;
 }
+serial_driver_amd64* serial_driver_amd64::get_instance() { return &__inst; }

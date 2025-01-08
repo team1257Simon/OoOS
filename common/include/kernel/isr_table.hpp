@@ -4,8 +4,7 @@
 #include "functional"
 #include "kernel/libk_decls.h"
 #include "vector"
-#define __isr_registers [[gnu::no_caller_saved_registers]] [[gnu::target("general-regs-only")]]
-#define IRQ_LAMBDA() [&]() -> void __isr_registers 
+#define INTERRUPT_LAMBDA(...) [&](__VA_ARGS__) -> void [[gnu::target("general-regs-only")]]
 using irq_callback = std::function<void()>;
 using interrupt_callback = std::function<void(byte, qword)>;
 namespace interrupt_table

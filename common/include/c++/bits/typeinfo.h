@@ -101,25 +101,15 @@ namespace ABI_NAMESPACE
 	/**
 	 * Primitive type info, for intrinsic types.
 	 */
-	struct __fundamental_type_info : public std::type_info
-	{
-		virtual ~__fundamental_type_info();
-	};
+	struct __fundamental_type_info : public std::type_info { virtual ~__fundamental_type_info(); };
 	/**
 	 * Type info for arrays.  
 	 */
-	struct __array_type_info : public std::type_info
-	{
-		virtual ~__array_type_info();
-	};
+	struct __array_type_info : public std::type_info { virtual ~__array_type_info(); };
 	/**
 	 * Type info for functions.
 	 */
-	struct __function_type_info : public std::type_info
-	{
-		virtual ~__function_type_info();
-		virtual bool __is_function_p() const { return true; }
-	};
+	struct __function_type_info : public std::type_info { virtual ~__function_type_info(); virtual bool __is_function_p() const override { return true; } };
 	/**
 	 * Type info for enums.
 	 */
@@ -138,11 +128,7 @@ namespace ABI_NAMESPACE
 		 * Function implementing dynamic casts.
 		 */
 		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
-		virtual bool __do_upcast(const __class_type_info *target,
-		                       void **thrown_object) const
-		{
-			return this == target;
-		}
+		virtual bool __do_upcast(const __class_type_info *target, void **thrown_object) const override { return this == target; }
 	};
 	/**
 	 * Single-inheritance class type info.  This is used for classes containing
@@ -152,8 +138,8 @@ namespace ABI_NAMESPACE
 	{
 		virtual ~__si_class_type_info();
 		const __class_type_info *__base_type;
-		virtual bool __do_upcast( const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const;
-		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
+		virtual bool __do_upcast( const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const override;
+		virtual void *cast_to(void *obj, const struct __class_type_info *other) const override;
 	};
 	/**
 	 * Type info for base classes.  Classes with multiple bases store an array

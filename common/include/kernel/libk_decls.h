@@ -19,6 +19,9 @@ constexpr void lock(mutex_t m) { while(acquire(m)) PAUSE; }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, &b, __ATOMIC_SEQ_CST); return b; }
 void tlb_flush();
 void set_cr3(void*);
+void direct_write(const char* str);
+void debug_print_num(uintptr_t num, int lenmax = 16);
+void panic(const char* msg);
 paging_table get_cr3() noexcept;
 vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 uintptr_t sys_unmap(vaddr_t start, size_t pages);
@@ -52,4 +55,5 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inl
 template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n) { __builtn_memcpy(dest, src, n * sizeof(T)); }
 #endif
 #endif
+#define __isr_registers [[gnu::target("general-regs-only")]] [[gnu::no_caller_saved_registers]]
 #endif

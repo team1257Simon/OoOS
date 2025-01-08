@@ -11,13 +11,13 @@ namespace std
     public:
         typedef TT traits_type;
         typedef CT value_type;
-        typedef AT allocator_type;
-        typedef decltype(sizeof(CT)) size_type;
-        typedef decltype(declval<CT*>() - declval<CT*>()) difference_type;
-        typedef CT& reference;
-        typedef CT const& const_reference;
-        typedef CT* pointer;
-        typedef CT const* const_pointer;
+        typedef typename __base::__alloc_type allocator_type;
+        typedef typename __base::__size_type size_type;
+        typedef typename __base::__diff_type difference_type;
+        typedef typename __base::__ref reference;
+        typedef typename __base::__const_ref const_reference;
+        typedef typename __base::__ptr pointer;
+        typedef typename __base::__const_ptr const_pointer;
         typedef ::__impl::__iterator<pointer, basic_string> iterator;
         typedef ::__impl::__iterator<const_pointer, basic_string> const_iterator;
         typedef std::reverse_iterator<iterator> reverse_iterator;

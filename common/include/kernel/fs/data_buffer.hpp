@@ -65,6 +65,7 @@ std::streamsize data_buffer<CT, TT, AT>::xsgetn(char_type *s, std::streamsize n)
 {
     std::streamsize l = std::min(n, std::streamsize(this->egptr() - this->gptr()));
     if(l) traits_type::copy(s, this->gptr(), l);
+    this->gbump(l);
     return l;
 }
 template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>

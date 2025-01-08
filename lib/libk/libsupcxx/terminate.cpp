@@ -31,8 +31,5 @@ namespace std
 	 * doesn't provide one.
 	 */
 	__attribute__((weak))
-	void terminate()
-	{
-		abort();
-	}
+	void terminate() { abort(); }
 }

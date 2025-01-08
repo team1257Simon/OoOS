@@ -1,14 +1,11 @@
 #include "kernel/heap_allocator.hpp"
 #include "direct_text_render.hpp"
-#include "heap_allocator.hpp"
 extern "C"
 {
     extern unsigned char __end;
     frame_tag* __kernel_frame_tag = reinterpret_cast<frame_tag*>(&__end);
 }
 static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
-void debug_print_num(uintptr_t num, int lenmax = 16);
-extern "C" void direct_write(const char* str);
 heap_allocator* heap_allocator::__instance;
 constexpr uint32_t get_block_exp(uint64_t size) { if(size < (1ull << MIN_BLOCK_EXP)) return  MIN_BLOCK_EXP; for(size_t j =  MIN_BLOCK_EXP; j < MAX_BLOCK_EXP; j++) if(static_cast<uint64_t>(1ull << j) > size) return j; return MAX_BLOCK_EXP - 1; }
 constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }

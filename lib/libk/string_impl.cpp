@@ -4,8 +4,6 @@
 #include "limits"
 #include "memory"
 #include "gdtoa.h"
-extern "C" void direct_write(const char* str);
-extern void debug_print_num(uintptr_t num, int lenmax = 16);
 // C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility
 extern "C"
 {

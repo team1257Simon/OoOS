@@ -34,10 +34,10 @@ extern "C"
 typedef struct __tss_bits
 {
     uint32_t : 32;
-    qword rsp[3];
+    uint32_t rsp[6];
     uint32_t : 32;
     uint32_t : 32;
-    qword ist[7];
+    uint32_t ist[14];
     uint32_t : 32;
     uint32_t : 32;
     union
@@ -54,7 +54,7 @@ typedef struct __tss_descriptor
 {
     uint16_t limit_lo;
     uint32_t base_lo    : 24;
-    byte access;
+    uint8_t access;
     uint8_t limit_hi    : 4;
     uint8_t flags       : 4;
     uint8_t base_mid    : 8;
@@ -65,13 +65,13 @@ inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
 template<typename T> concept integral_structure = std::is_integral_v<T> || std::is_same_v<T, byte> || std::is_same_v<T, word> || std::is_same_v<T, dword> || std::is_same_v<T, qword>;
-template<integral_structure I = byte> constexpr I in(word from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
-template<integral_structure I = byte> constexpr void out(word to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
-constexpr void outb(word to, byte value) { out(to, value); }
-constexpr byte inb(word from) { return in(from); }
+template<integral_structure I = byte> constexpr I in(uint16_t from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
+template<integral_structure I = byte> constexpr void out(uint16_t to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
+constexpr void outb(uint16_t to, byte value) { out(to, value); }
+constexpr byte inb(uint16_t from) { return in(from); }
 constexpr void io_wait() { outb(0x80, 0); }
-constexpr void outbw(word to, byte value) { outb(to, value); io_wait(); }
-constexpr byte inbw(word from) { byte result = inb(from); io_wait(); return result; }
+constexpr void outbw(uint16_t to, byte value) { outb(to, value); io_wait(); }
+constexpr byte inbw(uint16_t from) { byte result = inb(from); io_wait(); return result; }
 constexpr void kb_wait() { for(uint8_t result ; ; ) { result = inb(0x64); if(!(result & 0x02)) return; } }
 constexpr void kb_put(byte b) { kb_wait(); outb(data_keybd, b); kb_wait(); }
 constexpr byte kb_get() { return inb(data_keybd); }
@@ -81,7 +81,7 @@ template<byte I> constexpr byte irq_mask() { if constexpr(I < 8) return 1 << I; 
 template<byte O1, byte O2> constexpr void pic_remap() { byte a1 = inb(data_pic1), a2 = inb(data_pic2); outbw(command_pic1, icw1_init | icw1_icw4); outbw(command_pic2, icw1_init | icw1_icw4); outbw(data_pic1, O1); outbw(data_pic2, O2); outbw(data_pic1, 4); outbw(data_pic2, 2); outbw(data_pic1, icw4_8086_mode); outbw(data_pic2, icw4_8086_mode); outb(data_pic1, a1); outb(data_pic2, a2); }
 template<byte I> constexpr void irq_set_mask() { outb(data_pic1, inb(data_pic1) | irq_mask<I>()); }
 template<byte I> constexpr void irq_clear_mask() { outb(data_pic1, inb(data_pic1) & ~(irq_mask<I>())); }
-template<byte R> constexpr void rtc_select() { byte prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80) | R); }
+template<byte R> constexpr void rtc_select() { uint8_t prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80) | R); }
 template<byte R> constexpr byte read_rtc_register() { rtc_select<R>(); return inb(data_rtc); }
 template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
 constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0A>() & 0x80) != 0; }

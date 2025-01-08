@@ -169,10 +169,11 @@ protected:
     virtual std::streamsize __ddread(std::streamsize cnt) override;
     virtual std::streamsize __ddrem() override;
     virtual std::streamsize __sect_size() override;
-    virtual void __q_on_modify() override;
+    [[gnu::target("general-regs-only")]] virtual void __q_on_modify() override;
 public:
     serial_driver_amd64(size_t init_size = 64);
     static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12ui16);
+    static serial_driver_amd64* get_instance();
 };
 #endif
 #endif

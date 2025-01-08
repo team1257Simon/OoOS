@@ -24,6 +24,9 @@ protected:
     virtual void __on_modify() override { if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); __dirty = true; } }
     virtual int sync() override { __on_modify(); if(__dirty) { int result = __ddwrite(); __dirty = (result != 0); return result; } return 0; }
     virtual int_type underflow() override { std::streamsize n = std::min(__sect_size(), showmanyc()); if(n && __ddread(n)) { return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); }
+public:
     vfs_filebuf_base(std::streamsize init_buffer_size = base_sector_size) : __buffer_base{ init_buffer_size } {}
+    vfs_filebuf_base(vfs_filebuf_base&& that) : __buffer_base(std::forward<__buffer_base>(that)) {}
+    vfs_filebuf_base& operator=(vfs_filebuf_base&& that) { this->__realloc_move(std::forward<__buffer_base>(that)); return *this; }
 };
 #endif
