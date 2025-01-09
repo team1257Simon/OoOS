@@ -24,10 +24,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "bits/unwind.h"
-namespace std 
-{
-	class type_info;
-}
+namespace std { class type_info; }
 /*
  * The cxxabi.h header provides a set of public definitions for types and
  * functions defined by the Itanium C++ ABI specification.  For reference, see

@@ -270,16 +270,8 @@ namespace std
             if(base > 32) return 0;
             bool neg = false;
             if(str[0] == '+') str++;
-            if(str[0] == '-')
-            {
-                neg = true;
-                str++;
-            }
-            if((base == 0 || base == 16) && (str[0] == '0' && __tolower(str[1]) == 'x'))
-            {
-                base = 16;
-                str += 2;
-            }
+            if(str[0] == '-') { neg = true; str++; }
+            if((base == 0 || base == 16) && (str[0] == '0' && __tolower(str[1]) == 'x')) { base = 16; str += 2; }
             else if(base == 0) base = (str[0] == '0') ? 8 : 10;
             for(eptr = const_cast<char*>(str); *eptr; eptr++)
             {
@@ -358,6 +350,7 @@ namespace std
     }
 }
 using namespace std::__impl;
+// A few things I wrote to avoid having to implement printf just for a few basic string concatenations in libsupcxx, and a few other basic 
 extern "C"
 {
     size_t __strcat_basic(char* buffer, size_t max, const char* str1, const char* str2)

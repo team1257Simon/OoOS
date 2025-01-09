@@ -71,7 +71,7 @@ namespace std
         constexpr __tuple_impl(__tuple_impl const&) = default;
         constexpr __tuple_impl(__tuple_impl&&) = default;
         static constexpr HT& __head(__tuple_impl& t) noexcept { return __base::__head(t);}
-        static constexpr HT const& __head(__tuple_impl const& t) noexcept {return __base::__head(t);}
+        static constexpr HT const& __head(__tuple_impl const& t) noexcept { return __base::__head(t); }
     };
     template<typename ... Ts>
     struct __tuple_constraints

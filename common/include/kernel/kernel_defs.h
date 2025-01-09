@@ -529,7 +529,7 @@ typedef struct __qword
     constexpr __qword& operator=(__qword const&) noexcept = default;
     constexpr __qword& operator=(__qword&&) noexcept = default;
     constexpr volatile __qword& operator=(__qword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
+    constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint64_t() const noexcept { return uint64_t(uint32_t(lo) | (uint64_t(uint32_t(hi)) << 32)); }
     constexpr __qword& operator|=(__qword const& that) noexcept { return *this = (*this | that); }
     constexpr __qword& operator&=(__qword const& that) noexcept { return *this = (*this & that); }

@@ -106,7 +106,7 @@ namespace std::__impl
         constexpr void __bumpc(int64_t off) noexcept { __setc(__cur() + off); }
         constexpr __size_type __max_capacity() const noexcept { return std::numeric_limits<__size_type>::max(); }
         constexpr void __advance(__size_type n) { if(__valid_end_pos(__cur() + n)) { __my_data.__adv(n); } else { __setc(__max()); } }
-        constexpr void __backtrack(__size_type n) { if(__valid_end_pos(__cur() - n)) { __my_data.__bck(n); } else {__setc(__beg()); } }
+        constexpr void __backtrack(__size_type n) { if(__valid_end_pos(__cur() - n)) { __my_data.__bck(n); } else { __setc(__beg()); } }
         constexpr __size_type __size() const noexcept { return __size_type(__cur() - __beg()); }
         constexpr __size_type __capacity() const noexcept { return __size_type(__max() - __beg()); }
         constexpr __size_type __rem() const noexcept { return __size_type(__max() - __cur()); }
@@ -126,7 +126,7 @@ namespace std::__impl
         void __destroy() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); __my_data.__reset(); } }
         void __swap(__dynamic_buffer& that) { __my_data.__swap_ptrs(that.__my_data); this->__on_modify(); that.__on_modify(); }
         void __move(__dynamic_buffer&& that) { __my_data.__move_ptrs(move(that.__my_data)); }
-        void __realloc_move(__dynamic_buffer&& that) {  __destroy(); if(!that.__beg()) return; __allocate_storage(that.__capacity()); arraymove<T>(this->__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); this->__on_modify(); }
+        void __realloc_move(__dynamic_buffer&& that) { __destroy(); if(!that.__beg()) return; __allocate_storage(that.__capacity()); arraymove<T>(this->__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); this->__on_modify(); }
         explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
         template<std::matching_input_iterator<T> IT> __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }

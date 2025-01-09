@@ -5,11 +5,7 @@ namespace std
     {
         if(x->__my_right != NULL) return __node_base::__min(x->__my_right);
         __node_base* y = x->__my_parent;
-        while(x == y->__my_right)
-        {
-            x = y;
-            y = y->__my_parent;
-        }
+        while(x == y->__my_right) { x = y; y = y->__my_parent; }
         if(x->__my_right != y) x = y;
         return x;
     }
@@ -20,11 +16,7 @@ namespace std
         else
         {
             __node_base* y = x->__my_parent;
-            while(x == y->__my_left)
-            {
-                x = y;
-                y = y->__my_parent;
-            }
+            while(x == y->__my_left) { x = y; y = y->__my_parent; }
             x = y;
         }
         return x;
@@ -79,11 +71,7 @@ namespace std
         else
         {
             __node_base* const z = (dir == RIGHT ? x->__my_parent->__my_right : x->__my_parent->__my_left);
-            if(x == z)
-            {
-                x = x->__my_parent;
-                __local_rotate(x, root, __opposite(dir));
-            }
+            if(x == z) { x = x->__my_parent; __local_rotate(x, root, __opposite(dir)); }
             x->__my_parent->__my_color = BLACK;
             grandparent->__my_color = RED;
             __local_rotate(x, root, dir);
@@ -99,26 +87,14 @@ namespace std
         if(dir == LEFT)
         {
             p->__my_left = x;
-            if(p == &trunk)
-            {
-                trunk.__my_parent = x;
-                trunk.__my_right = x;
-            }
+            if(p == &trunk) { trunk.__my_parent = x; trunk.__my_right = x; }
             else if(p == trunk.__my_left) trunk.__my_left = x;
         }
-        else
-        {
-            p->__my_right = x;
-            if(p == trunk.__my_right) trunk.__my_right = x;
-        }
+        else { p->__my_right = x; if(p == trunk.__my_right) trunk.__my_right = x; }
         while(x != root && x->__my_parent->__my_color == RED) __local_rb_1(x, root, (x == x->__my_parent->__my_parent->__my_right ? LEFT : RIGHT));
         root->__my_color = BLACK;
     }
-    static inline bool __local_rb_check_1(__node_base* w, const node_direction dir)
-    {
-        __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left);
-        return (!w1 || w1->__my_color == BLACK);
-    }
+    static inline bool __local_rb_check_1(__node_base* w, const node_direction dir) { __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left); return (!w1 || w1->__my_color == BLACK); }
     static inline bool __local_rb_2(__node_base* &x, __node_base* &x_parent, __node_base* &root, const node_direction dir)
     {
         __node_base* w = __next(x_parent, dir);
@@ -165,11 +141,7 @@ namespace std
         __node_base* x_parent = NULL;
         if(y->__my_left == NULL) x = y->__my_right;
         else if(y->__my_right == NULL) x = y->__my_left;
-        else
-        {
-            y = __node_base::__min(y->__my_right);
-            x = y->__my_right;
-        }
+        else { y = __node_base::__min(y->__my_right); x = y->__my_right; }
         if(y != z)
         {
             z->__my_left->__my_parent = y;
@@ -196,22 +168,10 @@ namespace std
             if(root == z) root = x;
             else if(z == z->__my_parent->__my_left) z->__my_parent->__my_left = x;
             else z->__my_parent->__my_right = x;
-            if(z == leftmost)
-            {
-                if(z->__my_right == NULL) leftmost = z->__my_parent;
-                else leftmost = __node_base::__min(x);
-            }
-            if(z == rightmost)
-            {
-                if(z->__my_left == NULL) rightmost = z->__my_parent;
-                else rightmost = __node_base::__max(z);
-            }
+            if(z == leftmost) { if(z->__my_right == NULL) leftmost = z->__my_parent; else leftmost = __node_base::__min(x); }
+            if(z == rightmost) { if(z->__my_left == NULL) rightmost = z->__my_parent; else rightmost = __node_base::__max(z); }
         }
-        if(y->__my_color != RED)
-        {
-            while(x != root && (x == NULL || x->__my_color == BLACK)) if(__local_rb_2(x, x_parent, root, (x == x_parent->__my_left ? RIGHT : LEFT))) break;
-            if(x) x->__my_color = BLACK;
-        }
+        if(y->__my_color != RED) { while(x != root && (x == NULL || x->__my_color == BLACK)) if(__local_rb_2(x, x_parent, root, (x == x_parent->__my_left ? RIGHT : LEFT))) break; if(x) { x->__my_color = BLACK; } }
         root->__my_color = BLACK;
         return y;
     }

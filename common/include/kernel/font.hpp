@@ -38,10 +38,11 @@ class font_render
 	constexpr bool __glyph_pixel(char c, point const& where) const { return (__glyph_byte(c, where) & (0b10000000 >> (where.x % 8))) != 0; }
 public:
 	constexpr font_render(psf2_t* font_data, uint32_t pitch, uint32_t fg_color, uint32_t bg_color) noexcept : 
-		__my_font{ font_data }, 
-		__foreground{ fg_color }, 
-		__background{ bg_color }, 
-		__pitch{ pitch } {}
+		__my_font		{ font_data }, 
+		__foreground	{ fg_color }, 
+		__background	{ bg_color }, 
+		__pitch			{ pitch } 
+						{}
 	constexpr font_render() noexcept = default;
 	constexpr uint32_t glyph_width() const { return __my_font->width; }
 	constexpr uint32_t glyph_height() const { return __my_font->height; }

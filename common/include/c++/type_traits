@@ -119,11 +119,11 @@ namespace std
 	template <typename T> struct is_reference: public false_type {};
 	template <typename T> struct is_reference<T &>: public true_type {};
 	template <typename T> struct is_reference<T &&>: public true_type {};
-    template <typename T> struct is_null_pointer : public false_type { };
-    template <> struct is_null_pointer<nullptr_t>: public true_type { };
-    template <> struct is_null_pointer<const nullptr_t>: public true_type { };
-    template <> struct is_null_pointer<volatile nullptr_t>: public true_type { };
-    template <> struct is_null_pointer<const volatile nullptr_t>: public true_type { };
+    template <typename T> struct is_null_pointer : public false_type {};
+    template <> struct is_null_pointer<nullptr_t>: public true_type {};
+    template <> struct is_null_pointer<const nullptr_t>: public true_type {};
+    template <> struct is_null_pointer<volatile nullptr_t>: public true_type {};
+    template <> struct is_null_pointer<const volatile nullptr_t>: public true_type {};
 	template <typename T> struct is_arithmetic: public __or_<is_integral <T>, is_floating_point<T>>::type {};
 	template <typename T> struct is_fundamental: public __or_<is_arithmetic <T>, is_void<T>, is_null_pointer<T>>::type {};
 	template <typename T> struct is_object: public __not_<__or_ <is_function <T>, is_reference<T>, is_void<T>>>::type {};

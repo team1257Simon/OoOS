@@ -98,7 +98,7 @@ namespace std
             { __n +  __it } -> same_as<IT>;
             { __it -  __n } -> same_as<IT>;
             { __it -  __it } -> same_as<decltype(__n)>;
-            {  __it[__n]  } -> convertible_to<iter_reference_t<IT>>;
+            { __it[__n] } -> convertible_to<iter_reference_t<IT>>;
         };
         template<typename IT> concept __iter_with_nested_types = requires { typename IT::iterator_category; typename IT::value_type; typename IT::difference_type; typename IT::reference; };
         template<typename IT> concept __iter_without_nested_types = !__iter_with_nested_types<IT>;
@@ -200,7 +200,8 @@ namespace std
     template<typename IT> concept input_iterator = input_or_output_iterator<IT> && indirectly_readable<IT> && requires { typename __detail::__iter_concept<IT>; } && derived_from<__detail::__iter_concept<IT>, input_iterator_tag>;
     template<typename IT, typename T> concept output_iterator = input_or_output_iterator<IT> && indirectly_writable<IT, T> && requires(IT __i, T&& __t) { *__i++ = std::forward<T>(__t); };
     template<typename IT> concept forward_iterator = input_iterator<IT> && derived_from<__detail::__iter_concept<IT>, forward_iterator_tag> && incrementable<IT> && sentinel_for<IT, IT>;
-    template<typename IT> concept bidirectional_iterator = forward_iterator<IT> && derived_from<__detail::__iter_concept<IT>, bidirectional_iterator_tag> && requires(IT __i) { { --__i } -> same_as<IT&>; { __i-- } -> same_as<IT>; };template<typename IT> concept random_access_iterator = bidirectional_iterator<IT> && derived_from<__detail::__iter_concept<IT>, random_access_iterator_tag> && totally_ordered<IT> && sized_sentinel_for<IT, IT> && requires(IT __i, const IT __j, const iter_difference_t<IT> __n)
+    template<typename IT> concept bidirectional_iterator = forward_iterator<IT> && derived_from<__detail::__iter_concept<IT>, bidirectional_iterator_tag> && requires(IT __i) { { --__i } -> same_as<IT&>; { __i-- } -> same_as<IT>; };
+    template<typename IT> concept random_access_iterator = bidirectional_iterator<IT> && derived_from<__detail::__iter_concept<IT>, random_access_iterator_tag> && totally_ordered<IT> && sized_sentinel_for<IT, IT> && requires(IT __i, const IT __j, const iter_difference_t<IT> __n)
     {
         { __i += __n } -> same_as<IT&>;
         { __j +  __n } -> same_as<IT>;

@@ -15,7 +15,7 @@ namespace __impl
     struct __aligned_buffer : std::aligned_storage<sizeof(T), alignof(T)> 
     {
         typename std::aligned_storage<sizeof(T), alignof(T)>::type __my_storage;  
-        __aligned_buffer() = default; 
+        __aligned_buffer() = default;
         __aligned_buffer(std::nullptr_t) {}
         constexpr void* __get_addr() noexcept { return static_cast<void*>(&__my_storage); }
         constexpr const void* __get_addr() const noexcept { return static_cast<const void*>(&__my_storage); }
@@ -275,11 +275,7 @@ namespace std
     {
         __link x = __get_root();
         __b_ptr y = __end();
-        while(x)
-        {
-            y = x;
-            x = !__compare_r(x, u) ? __left_of(x) : __right_of(x);
-        }
+        while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); }
         return __pos_pair{ x, y };
     }
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
@@ -288,31 +284,19 @@ namespace std
     constexpr typename __tree_base<T, CP, A>::__pos_pair __tree_base<T, CP, A>::__insert_unique_hint_pos(__const_link hint, U const& u) 
     {
         __link pos = const_cast<__link>(hint);
-        if(pos == __end())
-        {
-            if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() };
-            else return __pos_for_unique(u);
-        }
+        if(pos == __end()) { if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() }; else return __pos_for_unique(u); }
         else if(__compare_l(u, pos))
         {
             __link before = pos;
             if(pos == __l_begin()) return __pos_pair{ __l_begin(), __l_begin() };
-            else if(__compare_r(static_cast<__link>(__decrement_node(before)), u))
-            {
-                if(!__right_of(before)) return __pos_pair{ NULL, before };
-                else return __pos_pair{pos, pos};
-            }
+            else if(__compare_r(static_cast<__link>(__decrement_node(before)), u)) { if(!__right_of(before)) return __pos_pair{ NULL, before }; else return __pos_pair{ pos, pos }; }
             else return __pos_for_unique(u);
         }
         else if(__compare_r(pos, u))
         {
             __link after = pos;
             if(pos == __l_rightmost()) return __pos_pair{ NULL, __l_rightmost() };
-            else if(__compare_l(u, static_cast<__link>(__increment_node(after))))
-            {
-                if(!__right_of(pos)) return __pos_pair{ NULL, pos };
-                else return __pos_pair{ after, after };
-            }
+            else if(__compare_l(u, static_cast<__link>(__increment_node(after)))) { if(!__right_of(pos)) return __pos_pair{ NULL, pos }; else return __pos_pair{ after, after }; }
             else return __pos_for_unique(u);
         }
         return __pos_pair{ pos, NULL };

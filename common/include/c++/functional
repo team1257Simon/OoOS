@@ -17,7 +17,7 @@ namespace std
         MFT __my_pmf;
     public:
         using result_type = typename __traits::__result_type;
-        explicit constexpr __mem_fn_base(MFT __pmf) noexcept : __my_pmf(__pmf) { }
+        explicit constexpr __mem_fn_base(MFT __pmf) noexcept : __my_pmf(__pmf) {}
         template<typename... Args> constexpr auto operator()(Args&&... __args) const noexcept(noexcept(std::__invoke(__my_pmf, std::forward<Args>(__args)...))) -> decltype(std::__invoke(__my_pmf, std::forward<Args>(__args)...)) { return std::__invoke(__my_pmf, std::forward<Args>(__args)...); }
     };
     template<typename MPT>

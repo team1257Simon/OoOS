@@ -209,7 +209,6 @@ bool ahci_driver::port_soft_reset(uint8_t idx)
     memset(ctbrst, 0, sizeof(hba_cmd_table));
     __sync_synchronize();
     fis_reg_h2d* frst = reinterpret_cast<fis_reg_h2d*>(&(ctbrst->cmd_fis[0]));
-    __sync_synchronize();
     frst->type = reg_h2d;
     frst->control = soft_reset_bit;
     frst->ctype = 0;
@@ -226,7 +225,6 @@ bool ahci_driver::port_soft_reset(uint8_t idx)
     memset(ctbdia, 0, sizeof(hba_cmd_table));
     __sync_synchronize();
     fis_reg_h2d* fdia = reinterpret_cast<fis_reg_h2d*>(&(ctbdia->cmd_fis[0]));
-    __sync_synchronize();
     fdia->type = reg_h2d;
     __sync_synchronize();
     for(spin = 0; __port_data_busy(port) && spin < max_wait; spin++, __sync_synchronize()); 

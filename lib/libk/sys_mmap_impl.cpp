@@ -68,11 +68,7 @@ extern "C"
         for(size_t i = 0; i < pages; i++, curr += PAGESIZE, phys += PAGESIZE)
         {
             paging_table pt = __get_table(curr);
-            if(!pt) 
-            {
-                tlb_flush();
-                return {};
-            }
+            if(!pt) { tlb_flush(); return {}; }
             pt[curr.page_idx].present = true;
             pt[curr.page_idx].write = true;
             pt[curr.page_idx].physical_address = phys >> 12;

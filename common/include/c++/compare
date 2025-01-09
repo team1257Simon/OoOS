@@ -42,7 +42,7 @@ namespace std
     class weak_ordering
     {
         __cmp_cat::type __my_value;
-        constexpr explicit weak_ordering(__cmp_cat::__ord __v) noexcept : __my_value(__cmp_cat::type(__v)) { }
+        constexpr explicit weak_ordering(__cmp_cat::__ord __v) noexcept : __my_value(__cmp_cat::type(__v)) {}
         friend class strong_ordering;
     public:
         static const weak_ordering less;
@@ -68,7 +68,7 @@ namespace std
     class strong_ordering
     {
         __cmp_cat::type __my_value;
-        constexpr explicit strong_ordering(__cmp_cat::__ord __v) noexcept : __my_value(__cmp_cat::type(__v)) { }
+        constexpr explicit strong_ordering(__cmp_cat::__ord __v) noexcept : __my_value(__cmp_cat::type(__v)) {}
         public:
         static const strong_ordering less;
         static const strong_ordering equal;

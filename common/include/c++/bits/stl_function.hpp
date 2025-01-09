@@ -89,15 +89,7 @@ namespace std
     {
         using __base = __function_base::__fn_manager<FT>;
     public:
-        static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op)
-        {
-            if(op == __get_functor_ptr)
-            {
-                dest.__access<FT*>() = __base::__get_pointer(src);
-                return false;
-            }
-            return __base::__manager(dest, src, op);
-        }
+        static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { if(op == __get_functor_ptr) { dest.__access<FT*>() = __base::__get_pointer(src); return false; } return __base::__manager(dest, src, op); }
         static RT __invoke_fn(__data_store const& fn, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r<RT>(*(__base::__get_pointer(fn)), forward<Args>(args)...); }
         template<typename F2> constexpr static bool __is_nothrow_init() noexcept { return __and_<is_nothrow_constructible<F2>, typename __base::__is_locally_storable>::value; }
     };

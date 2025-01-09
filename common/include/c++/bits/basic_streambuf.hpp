@@ -30,7 +30,7 @@ namespace std
         char_type* epptr() const { return __out_region.__max;   }
         void pbump(int n)        { __out_region.__end += n;     }
         void setp(char_type* pbeg, char_type* pend)                         { __out_region.__set_ptrs(pbeg, pbeg, pend); }
-        void __fullsetp(char_type* pbeg, char_type* pcur, char_type* pend)  { __out_region.__set_ptrs(pbeg, pcur, pend);}
+        void __fullsetp(char_type* pbeg, char_type* pcur, char_type* pend)  { __out_region.__set_ptrs(pbeg, pcur, pend); }
         void setg(char_type* gbeg, char_type* gnext, char_type* gend)       { __in_region.__set_ptrs(gbeg, gnext, gend); }
         virtual basic_streambuf<char_type, traits_type>* setbuf(char_type*, streamsize) { return this; }
         virtual pos_type seekoff(off_type, ios_base::seekdir, ios_base::openmode = ios_base::in | ios_base::out) { return pos_type(off_type(-1)); }

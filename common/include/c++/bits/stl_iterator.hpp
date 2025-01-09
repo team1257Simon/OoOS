@@ -64,11 +64,7 @@ namespace std
         template<typename BJT> requires (!same_as<BIT, BJT> && std::convertible_to<BJT const&, BIT>)
         constexpr reverse_iterator(BJT const& __it) : current{ __it } {}
         constexpr reference operator*() const { return *std::prev(current); }
-        constexpr pointer operator->() const requires (std::is_pointer_v<BIT> || requires(const BIT i) { i.operator->(); }) 
-        {
-            if constexpr(std::is_pointer_v<BIT>) return current - 1;
-            else return std::prev(current).operator->(); 
-        }
+        constexpr pointer operator->() const requires (std::is_pointer_v<BIT> || requires(const BIT i) { i.operator->(); }) { if constexpr(std::is_pointer_v<BIT>) return current - 1; else return std::prev(current).operator->(); }
         constexpr iterator_type base() const { return current; }
         constexpr reference operator[](difference_type __n) { return current[ -__n - 1]; }
         constexpr reverse_iterator& operator++() { --current; return *this; }

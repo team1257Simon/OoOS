@@ -4,17 +4,10 @@
 namespace std
 {
     struct __is_transparent; // not defined
-    struct identity
-    {
-        template<typename T>[[nodiscard]] constexpr T&& operator()(T&& __t) const noexcept { return std::forward<T>(__t); }
-        using is_transparent = __is_transparent;
-    };
+    struct identity { template<typename T>[[nodiscard]] constexpr T&& operator()(T&& __t) const noexcept { return std::forward<T>(__t); } using is_transparent = __is_transparent; };
     namespace ranges
     {
-        namespace __detail
-        {
-            template<typename T, typename U> concept __less_builtin_ptr_cmp = requires (T&& __t, U&& __u) { { __t < __u } -> same_as<bool>; } && convertible_to<T, const volatile void*> && convertible_to<U, const volatile void*> && (! requires(T&& __t, U&& __u) { operator<(std::forward<T>(__t), std::forward<U>(__u)); } && ! requires(T&& __t, U&& __u) { std::forward<T>(__t).operator<(std::forward<U>(__u)); });
-        }
+        namespace __detail { template<typename T, typename U> concept __less_builtin_ptr_cmp = requires (T&& __t, U&& __u) { { __t < __u } -> same_as<bool>; } && convertible_to<T, const volatile void*> && convertible_to<U, const volatile void*> && (! requires(T&& __t, U&& __u) { operator<(std::forward<T>(__t), std::forward<U>(__u)); } && ! requires(T&& __t, U&& __u) { std::forward<T>(__t).operator<(std::forward<U>(__u)); }); }
         struct equal_to
         {
             template<typename T, typename U> 

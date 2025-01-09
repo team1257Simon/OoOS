@@ -27,7 +27,7 @@ namespace std::__impl
         constexpr __queue_ptrs(__queue_ptrs const& that) noexcept : __begin{ that.__begin }, __next{ that.__next }, __end{ that.__end }, __qmax{ that.__qmax } {}
         constexpr __queue_ptrs(__queue_ptrs&& that) noexcept : __begin{ that.__begin }, __next{ that.__next }, __end{ that.__end }, __qmax{ that.__qmax } { that.__reset(); }
         constexpr __queue_ptrs(__ptr_type beg, __size_type sz) noexcept : __queue_ptrs{ beg, beg + sz } {}
-        constexpr __ptr_type __qgetptr(__size_type offs) noexcept { return __begin + offs;  }
+        constexpr __ptr_type __qgetptr(__size_type offs) noexcept { return __begin + offs; }
         constexpr void __bumpc(__diff_type n = __diff_type(1L)) noexcept { __end += n; }
         constexpr void __bumpn(__diff_type n = __diff_type(1L)) noexcept { __next += n; }
         constexpr void __setc(__ptr_type where) noexcept { __end = where; }
@@ -117,7 +117,7 @@ namespace std::__impl
         __dynamic_queue(__dynamic_queue&& that) : __qallocator{ that.__qallocator }, __my_queue_data{ move(that.__my_queue_data) } {}
         ~__dynamic_queue() { __qdestroy(); }
         __dynamic_queue& operator=(__dynamic_queue&& that) { __qdestroy(); this->__qmove(std::forward<__dynamic_queue>(that)); return *this; }
-        __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); this->__qpcopy(that); return *this;  }
+        __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); this->__qpcopy(that); return *this; }
     };
     template <typename T, allocator_object<T> A>
     bool __dynamic_queue<T, A>::__q_grow_buffer(typename __dynamic_queue<T, A>::__size_type added)

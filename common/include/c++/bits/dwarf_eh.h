@@ -178,11 +178,7 @@ static int64_t read_sleb128(dw_eh_ptr_t *data)
 	// Read as if it's signed
 	uint64_t uleb = read_leb128(data, &bits);
 	// If the most significant bit read is 1, then we need to sign extend it
-	if ((uleb >> (bits-1)) == 1)
-	{
-		// Sign extend by setting all bits in front of it to 1
-		uleb |= static_cast<int64_t>(-1) << bits;
-	}
+	if ((uleb >> (bits-1)) == 1) { uleb |= static_cast<int64_t>(-1) << bits;/* Sign extend by setting all bits in front of it to 1 */ }
 	return static_cast<int64_t>(uleb);
 }
 /**
