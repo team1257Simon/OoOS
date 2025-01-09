@@ -87,6 +87,7 @@ bool ahci_driver::init_instance(pci_device_list *ls)
     return (__has_init = __instance.init(ls->find(dev_class_ahci, subclass_ahci_controller)));
 }
 ahci_driver *ahci_driver::get_instance() { return &__instance; }
+bool ahci_driver::is_initialized() { return __has_init; }
 bool ahci_driver::init(pci_config_space *ps)
 {
     if(!ps) return false;

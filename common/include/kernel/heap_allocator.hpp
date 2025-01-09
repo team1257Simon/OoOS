@@ -171,7 +171,7 @@ class heap_allocator
     void __unlock();
 public:
     static void init_instance(pagefile* pagefile, mmap_t* mmap);
-    static inline heap_allocator& get() { return *__instance; }
+    static heap_allocator& get();
     inline bool avail() const { return !test_lock(&__heap_mutex); }
     heap_allocator(heap_allocator const&) = delete;
     heap_allocator(heap_allocator&&) = delete;

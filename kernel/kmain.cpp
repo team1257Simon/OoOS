@@ -7,9 +7,8 @@
 #include "stdlib.h"
 #include "bits/stdexcept.h"
 #include "fs/data_buffer.hpp"
+#include "fs/hda_ahci.hpp"
 #include "arch/com_amd64.h"
-#include "generic_binary_buffer.hpp"
-#include "arch/ahci.hpp"
 extern psf2_t* __startup_font;
 extern "C" uint64_t errinst;
 static direct_text_render startup_tty;
@@ -47,8 +46,8 @@ void debug_ecode(byte idx, qword ecode)
             asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
             startup_tty.print_text("; fault addr = ");
             debug_print_num(fault_addr);
-            while(1);
         }
+        while(1);
     }
 }
 void run_tests() throw()
@@ -68,7 +67,7 @@ void run_tests() throw()
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
-    startup_tty.print_line(pci_device_list::init_instance(__sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? "AHCI init success" : "AHCI init failed") : "PCI enum failed");
+    startup_tty.print_line(pci_device_list::init_instance(__sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
 }
 extern "C" void _init();
 extern "C"

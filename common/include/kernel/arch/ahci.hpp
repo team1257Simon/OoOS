@@ -418,6 +418,7 @@ protected:
 public:
 	static ahci_driver* get_instance();
 	static bool init_instance(pci_device_list* ls);
+	static bool is_initialized();
 	bool read_sectors(uint8_t port_idx, qword start, dword count, uint16_t* buffer);
 	bool write_sectors(uint8_t port_idx, qword start, dword count, const uint16_t* buffer);
 	bool is_busy(uint8_t i);
@@ -427,5 +428,4 @@ public:
 	ahci_device get_device_type(uint8_t i);
 	int8_t which_port(ahci_device d);
 };
-
 #endif

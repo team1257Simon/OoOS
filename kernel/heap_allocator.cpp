@@ -6,7 +6,7 @@ extern "C"
     frame_tag* __kernel_frame_tag = reinterpret_cast<frame_tag*>(&__end);
 }
 static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
-heap_allocator* heap_allocator::__instance;
+heap_allocator* heap_allocator::__instance{ reinterpret_cast<heap_allocator*>(__heap_allocator_data_loc) };
 constexpr uint32_t get_block_exp(uint64_t size) { if(size < (1ull << MIN_BLOCK_EXP)) return  MIN_BLOCK_EXP; for(size_t j =  MIN_BLOCK_EXP; j < MAX_BLOCK_EXP; j++) if(static_cast<uint64_t>(1ull << j) > size) return j; return MAX_BLOCK_EXP - 1; }
 constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
 constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
@@ -63,6 +63,7 @@ static bool check_multi(block_size sz, status_byte sb)
 }
 constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (truncate(sz, S512) + nearest(sz % S512)) : nearest(sz); }
 constexpr size_t add_align_size(block_tag* tag, size_t align) { return align > 1 ? (up_to_nearest(std::bit_cast<uintptr_t>(tag) + sizeof(block_tag), align) - (std::bit_cast<uintptr_t>(tag) + sizeof(block_tag))) : 0; }
+heap_allocator &heap_allocator::get() { return *__instance; }
 void heap_allocator::__lock() { lock(&__heap_mutex); }
 void heap_allocator::__unlock() { release(&__heap_mutex); }
 void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
@@ -88,6 +89,7 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
         {
             if(bs == S04)
             {
+                // Special case: there are two blocks of this size per region
                 if(sb[I7]) { sb.set_used(I7); if(!multi) { return block_offset(addr, I7); } }
                 else { sb.set_used(I6); if(!multi) { return block_offset(addr, I6); } }
                 __mark_used(result, regions);
@@ -95,6 +97,7 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
             }
             else if (bs == S512)
             {
+                // Either we're allocating a full region, or more than a full region.
                 if(result == 0) result = addr;
                 regions++;
                 if(rem <= S512) { __mark_used(result, regions); return result; }
@@ -108,6 +111,10 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
                     sb.set_used(idx);
                     return block_offset(addr, idx);
                 }
+                // For multi-region blocks, if the block contains a non-full-region part larger than 4 pages, the indices are computed in reverse.
+                // As a result, the entire block remains contiguous (subregion 7 is at the lowest physical address).
+                // These special sub-blocks span a cumulative set of subregions such that the total capacity equals the required remainder.
+                // For instance, a 16-page remainder sub-block would consist of sub-regions 5 (8 pages), 6 (4 pages), and 7 (4 pages), while the actual 16-page sub-block at index 4 remains open.
                 switch(bs)
                 {
                     case S256:
@@ -121,8 +128,8 @@ uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
                     case S16:
                         sb.set_used(I5);
                     case S08:
-                        sb.set_used(I7);
                         sb.set_used(I6);
+                        sb.set_used(I7);
                     default:
                         break;
                 }
@@ -160,8 +167,8 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
                 case S16:
                     sb.set_free(I5);
                 case S08:
-                    sb.set_free(I7);
                     sb.set_free(I6);
+                    sb.set_free(I7);
                 default:
                     break;
             }
@@ -175,14 +182,13 @@ vaddr_t heap_allocator::allocate_mmio_block(size_t sz, uint64_t align)
     vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(__kernel_frame_tag->next_vaddr, align > PAGESIZE ? align : PAGESIZE)) };
     uintptr_t phys = __find_claim_avail_region(sz);
     vaddr_t result = 0uL;
-    if(phys){ result = mmio_mmap(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE)); __kernel_frame_tag->next_vaddr += region_size_for(sz); }
+    if(phys) { result = mmio_mmap(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE)); __kernel_frame_tag->next_vaddr += region_size_for(sz); }
     __unlock();
     return result;
 }
 void heap_allocator::init_instance(pagefile *pagefile, mmap_t *mmap)
 {
     gb_status* __the_status_bytes = std::bit_cast<gb_status*>(reinterpret_cast<uintptr_t>(&__end) + sizeof(frame_tag));
-    __instance = reinterpret_cast<heap_allocator*>(__heap_allocator_data_loc);
     size_t n = how_many_status_arrays(mmap->total_memory);
     uintptr_t heap = reinterpret_cast<uintptr_t>(&__end) + sizeof(frame_tag)+ n * sizeof(gb_status);
     new (__the_status_bytes) gb_status[n];
@@ -211,17 +217,26 @@ paging_table heap_allocator::allocate_pt()
     {
         vaddr_t allocated = __new_page_table_block();
         if(!allocated) return NULL;
-        tag = new (allocated) block_tag{ REGION_SIZE, 0 };
+        tag = new (allocated) block_tag{ REGION_SIZE - sizeof(block_tag), 0 };
     }
     tag->held_size = pt_size;
     vaddr_t result = tag->actual_start();
     if(tag->available_size() - sizeof(block_tag) >= (1 << MIN_BLOCK_EXP)) __kernel_frame_tag->insert_block(tag->split(), -1);
     return result;
 }
+/**
+ * Finds, and marks as used, the available region with the closest size-tier greater than or equal to the given size and with the lowest physical address.
+ * The region is mapped starting at the given base virtual address, shifted down slightly to accommodate a block tag.
+ * The address this function returns is the address of the block tag that will mark it. 
+ * The calculation ensures the address directly after the first block tag in a region (i.e. the memory that tag marks) is page-aligned unless the required alignment is more, in which case it will have that alignment. 
+ * Because the first block tag in a region appears just before the page boundary, calls to this function from the frame tag will add that structure's size to the total when determining the region size threshold.
+ * Due to the fact that a given region's alignment is virtually always equal to its size, the larger of the two is used when allocating blocks with high align values. The neighboring block tag is already accounted for there.
+ */
 vaddr_t heap_allocator::allocate_block(vaddr_t const &base, size_t sz, uint64_t align)
 {
     __lock();
-    vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(base + (ptrdiff_t)sizeof(block_tag), align > PAGESIZE ? align : PAGESIZE) - sizeof(block_tag)) };
+    vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(base + ptrdiff_t(sizeof(block_tag)), align > PAGESIZE ? align : PAGESIZE) - sizeof(block_tag)) };
+    if(align > sz) sz = align;
     uintptr_t phys = __find_claim_avail_region(sz);
     vaddr_t result = 0uL;
     if(phys) result = sys_mmap(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE));
@@ -241,6 +256,11 @@ void frame_tag::remove_block(block_tag *blk)
     blk->previous = NULL;
     blk->index = -1;
 }
+/**
+ * Basically implements the standard ::operator new(std::size_t, std::align_val) in the frame given by *this.
+ * In the kernel, allocations invoke this on the kernel frame tag, which is located directly after the kernel in memory and will be accessible from the kernel's GS base.
+ * Similarly, in userspace, the current process' frame tag will be accessible from that process' GS base.
+ */
 vaddr_t frame_tag::allocate(size_t size, size_t align)
 {
     if(!size) return nullptr;
@@ -315,9 +335,10 @@ vaddr_t frame_tag::array_allocate(size_t num, size_t size)
 }
 block_tag *frame_tag::__create_tag(size_t size, size_t align)
 {
-    vaddr_t allocated = heap_allocator::get().allocate_block(next_vaddr, size, align);
+    // The initial allocation for a block must account for the neighboring region's first block tag, which will appear immediately before that region's start.
+    vaddr_t allocated = heap_allocator::get().allocate_block(next_vaddr, size + sizeof(block_tag), align);
     if(!allocated) return nullptr;
-    size_t full = region_size_for(size);
+    size_t full = region_size_for(std::max(size + sizeof(block_tag), align));
     next_vaddr += full;
     return new (allocated) block_tag { full, size, -1 };
 }
