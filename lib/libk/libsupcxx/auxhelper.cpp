@@ -31,7 +31,6 @@
  */
 #include <stdlib.h>
 #include "bits/stdexcept.h"
-extern "C" void panic(const char* str);
 /**
  * Called to generate a bad cast exception.  This function is intended to allow
  * compilers to insert code generating this exception without needing to

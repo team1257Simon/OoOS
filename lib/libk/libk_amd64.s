@@ -1,3 +1,6 @@
+#   libk_amd64.s
+#   Contains some extremely basic libc functions for x86-64 using low-level optimizations.
+#   Also implements some low-level functions, such as TLB flushes and hardware random accesses, which do not benefit from being inlined. 
     .code64
     .section    .text
     .altmacro

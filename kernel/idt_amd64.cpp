@@ -35,7 +35,8 @@ extern "C"
         descriptor->isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
         descriptor->reserved       = 0;
     }
-    __isr_registers
+    [[gnu::target("general-regs-only")]]
+    [[gnu::no_caller_saved_registers]]
     bool isr_dispatch(uint8_t idx)
     {
         bool is_err = (idx == 0x08 || (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E);

@@ -4,7 +4,6 @@
 #include "kernel/libk_decls.h"
 #include "fs/generic_binary_buffer.hpp"
 #include "functional"
-#include "bits/stdexcept.h"
 typedef std::function<bool(qword, dword, uint16_t*)> wide_read_fn;
 typedef std::function<bool(qword, dword, uint16_t const*)> wide_write_fn;
 class ahci_hda

@@ -6,7 +6,7 @@
 // Intermediate buffer for abstracting file/disk IO operations. 
 // Features "rebinds" which can be used to handle data IO in sizes wider than 8 bits (e.g. AHCI 16-bit IO) with a char8 buffer.
 template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>, std::allocator_object<CT> AT = std::allocator<CT>>
-class generic_binary_buffer : protected std::__impl::__dynamic_queue<CT, AT>
+class generic_binary_buffer : protected std::__impl::__dynamic_queue<CT, AT>, public virtual std::basic_streambuf<CT, TT>
 {
     typedef typename std::__impl::__dynamic_queue<CT, AT> __base;
     using typename __base::__ptr_container;
@@ -29,8 +29,14 @@ public:
     generic_binary_buffer& operator=(generic_binary_buffer const&) = delete;
     generic_binary_buffer& operator=(generic_binary_buffer&& that) { this->__qdestroy(); this->__qmove(std::forward<__base>(that)); }
     generic_binary_buffer(size_type sz, allocator_type alloc = allocator_type{}) : __base{ sz, alloc } {}
-    size_type sputn(const_pointer src, size_type n) { pointer old_end = this->__end(); return size_type(this->__push_elements(src, src + n) - old_end); }
-    size_type sgetn(pointer dest, size_type n) { return this->__pop_elements(dest, dest + n); }
+protected:
+    virtual std::streamsize xsputn(const_pointer src,  std::streamsize n) override { pointer old_end = this->__end(); return size_type(this->__push_elements(src, src + n) - old_end); }
+    virtual std::streamsize xsgetn(pointer dest, std::streamsize n) override { return this->__pop_elements(dest, dest + n); }
+    virtual pos_type seekpos(pos_type pos, std::ios_base::openmode = std::ios_base::in) noexcept override { this->__qsetn(size_type(pos)); return pos_type(tell()); }
+    virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode = std::ios_base::in) noexcept override { this->__qsetn((way < 0 ? this->__qbeg() : (way > 0 ? this->__end() : this->__qcur())) + off); return pos_type(tell()); }
+    virtual void __q_on_modify() override { this->sync(); }
+    virtual int sync() override { this->setg(this->__qbeg(), this->__qcur(), this->__qmax()); this->__fullsetp(this->__qbeg(), this->__end(), this->__qmax()); return 0; }
+public:
     // Copy-transfer the contents to a "normal" stream buffer.
     std::streamsize xfer(std::basic_streambuf<CT, TT>& that) const { return that.sputn(this->__qbeg(), this->__qsize()); }
     constexpr void clear() { this->__qclear(); }
@@ -47,9 +53,7 @@ public:
     constexpr size_type capacity() const noexcept { return this->__qcapacity(); }
     constexpr off_type tell() const noexcept { return off_type(this->__tell()); }
     constexpr size_type rem() const noexcept { return this->__qrem(); }
-    constexpr size_type avail() const noexcept { return this->__cap_rem(); }
-    constexpr pos_type seekpos(pos_type pos) noexcept { this->__qsetn(size_type(pos)); return pos_type(tell()); }
-    constexpr pos_type seekoff(off_type off, std::ios_base::seekdir way) noexcept { this->__qsetn((way < 0 ? this->__qbeg() : (way > 0 ? this->__end() : this->__qcur())) + off); return pos_type(tell()); }
+    constexpr size_type avail_cap() const noexcept { return this->__cap_rem(); }
     template<std::char_type DT> constexpr rebind_pointer<DT> rebind_beg() noexcept { return std::bit_cast<rebind_pointer<DT>>(beg()); }
     template<std::char_type DT> constexpr const_rebind_pointer<DT> rebind_beg() const noexcept { return std::bit_cast<const_rebind_pointer<DT>>(beg()); }
     template<std::char_type DT> constexpr rebind_pointer<DT> rebind_cur() noexcept { return std::bit_cast<rebind_pointer<DT>>(cur()); }

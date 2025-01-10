@@ -10,7 +10,6 @@
 #include "bits/stl_iterator.hpp"
 #include "kernel/libk_decls.h"
 #include "initializer_list"
-#include "bits/stdexcept.h"
 namespace std::__impl
 {
     /**
@@ -163,7 +162,7 @@ namespace std::__impl
             this->__on_modify();
             return __getptr(pos + count);
         }
-        catch(std::exception&) { return nullptr; }
+        catch(...) { return nullptr; }
     }
     template<typename T, allocator_object<T> A>
     bool __dynamic_buffer<T, A>::__grow_buffer(typename __dynamic_buffer<T, A>::__size_type added)
@@ -172,7 +171,7 @@ namespace std::__impl
         __size_type num_elements = __size();
         __size_type target = __capacity() + added;
         try { __setn(resize<T>(__beg(), target), num_elements, target); __zero(__cur(), __rem()); } 
-        catch(std::exception&) { return false; }
+        catch(...) { return false; }
         return true;
     }
     template<typename T, allocator_object<T> A>
@@ -235,7 +234,7 @@ namespace std::__impl
             __on_modify();
             return __getptr(offs);
         }
-        catch(std::exception&) { return nullptr; }
+        catch(...) { return nullptr; }
     }
     template<typename T, allocator_object<T> A>
     template<matching_input_iterator<T> IT>
@@ -287,7 +286,7 @@ namespace std::__impl
             this->__on_modify();
             return __getptr(offs);
         }
-        catch(std::exception&) { return nullptr; }
+        catch(...) { return nullptr; }
     }
     template<typename T, allocator_object<T> A>
     template<typename ... Args>
@@ -319,7 +318,7 @@ namespace std::__impl
             __allocator.deallocate(temp, rem);
             __setc(start_pos + rem);
         }
-        catch (std::exception&) { return nullptr; }
+        catch (...) { return nullptr; }
         __on_modify();
         return __getptr(start_pos);
     }

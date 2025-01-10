@@ -29,7 +29,7 @@ void buffer_test()
     twide.rgetn<char>(test_sink, 28);
     startup_tty.print_line(test_sink);
 }
-__isr_registers 
+[[gnu::target("general-regs-only")]]
 void debug_ecode(byte idx, qword ecode)
 {
     if(ecode) 
@@ -52,7 +52,27 @@ void debug_ecode(byte idx, qword ecode)
 }
 void run_tests() throw()
 {
-    interrupt_table::add_interrupt_callback(debug_ecode);
+    interrupt_table::add_interrupt_callback(INTERRUPT_LAMBDA(byte idx, qword ecode)
+    {
+        if(ecode) 
+        {
+            startup_tty.print_text("INT# ");
+            debug_print_num(idx, 2);
+            startup_tty.print_text(", ECODE ");
+            debug_print_num(ecode, 8);
+            startup_tty.print_text(", RIP@ ");
+            debug_print_num(errinst, 10);
+            if(idx == 0x0E)
+            {
+                uint64_t fault_addr;
+                asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
+                startup_tty.print_text("; fault addr = ");
+                debug_print_num(fault_addr);
+            }
+            while(1);
+            __builtin_unreachable();
+        }
+    });
     can_print = true;
     srand(syscall_time(0));
     startup_tty.print_line("Hello world!");
@@ -63,7 +83,7 @@ void run_tests() throw()
     buffer_test();
     if(com)
     {
-        interrupt_table::add_irq_handler(4, [&]() -> void __isr_registers { size_t n = com->in_avail(); char buf[n + 1]; com->sgetn(buf, n); buf[n] = 0; startup_tty.print_text(buf); });
+        interrupt_table::add_irq_handler(4, INTERRUPT_LAMBDA() { size_t n = com->in_avail(); char buf[n + 1]; com->sgetn(buf, n); buf[n] = 0; startup_tty.print_text(buf); });
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
@@ -75,7 +95,7 @@ extern "C"
     void direct_write(const char* str) { startup_tty.print_text(str); }
     void debug_print_num(uintptr_t num, int lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; startup_tty.print_text(dbgbuf); }
     [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
-    void panic(const char* msg) { std::string estr{"ERROR: "}; estr.append(msg); startup_tty.print_line(estr); if(com) { com->sputn(estr.c_str(), estr.size()); com->pubsync(); } }
+    void panic(const char* msg) noexcept { std::string estr{ "ERROR: " }; estr.append(msg); startup_tty.print_line(estr); if(com) { com->sputn(estr.c_str(), estr.size()); com->pubsync(); } }
     extern void* isr_table[];
     extern void gdt_setup();
     void kmain(sysinfo_t* sysinfo, mmap_t* mmap, pagefile* pg)
@@ -86,6 +106,8 @@ extern "C"
         heap_allocator::init_instance(pg, mmap); 
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
         _init();
+        // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
+        __register_frame(&__ehframe);
         // The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.
         gdt_setup();
         // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
@@ -104,9 +126,9 @@ extern "C"
         __sysinfo = sysinfo;
         nmi_enable();
         sti();
-        // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
         try
         {
+            // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
             run_tests();
             while(1);  
         } 

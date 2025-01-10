@@ -37,6 +37,7 @@
         "stdint.h": "c",
         "stdint-gcc.h": "c",
         "gdtoaimp.h": "c",
-        "typeinfo" : "cpp"
+        "typeinfo": "cpp",
+        "exception": "cpp"
     }
 }

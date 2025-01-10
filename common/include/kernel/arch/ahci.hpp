@@ -398,7 +398,7 @@ class ahci_driver
     size_t __num_ports{};
     vaddr_t __my_block{};
 	int __last_command_on_port[32]{};
-	bool __issue_command(uint8_t port_idx, int slot);
+	void __issue_command(uint8_t port_idx, int slot);
 	void __build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l);
 	static bool __has_init;
 	static ahci_driver __instance;
@@ -407,22 +407,22 @@ class ahci_driver
     hba_cmd_header* __ctbl_base(uint8_t idx);
 protected:
     ahci_driver() = default;
-    bool init(pci_config_space* ps);
-    bool start_port(uint8_t i);
-    bool stop_port(uint8_t i);
-	bool port_rebase(uint8_t idx);
-	bool port_soft_reset(uint8_t idx);
-	bool port_hard_reset(uint8_t idx);
+    bool init(pci_config_space* ps) noexcept;
+    void start_port(uint8_t i);
+    void stop_port(uint8_t i);
+	void port_rebase(uint8_t idx);
+	void port_soft_reset(uint8_t idx);
+	void port_hard_reset(uint8_t idx);
 	bool has_port(uint8_t i);
     [[gnu::target("general-regs-only")]] void handle_irq();
 public:
 	static ahci_driver* get_instance();
-	static bool init_instance(pci_device_list* ls);
+	static bool init_instance(pci_device_list* ls) noexcept;
 	static bool is_initialized();
-	bool read_sectors(uint8_t port_idx, qword start, dword count, uint16_t* buffer);
-	bool write_sectors(uint8_t port_idx, qword start, dword count, const uint16_t* buffer);
+	void read_sectors(uint8_t port_idx, qword start, dword count, uint16_t* buffer);
+	void write_sectors(uint8_t port_idx, qword start, dword count, const uint16_t* buffer);
 	bool is_busy(uint8_t i);
-	bool p_identify(uint8_t i, identify_data* data);
+	void p_identify(uint8_t i, identify_data* data);
 	bool is_done(uint8_t i);
 	uint32_t last_read_count(uint8_t i);
 	ahci_device get_device_type(uint8_t i);

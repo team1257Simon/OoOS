@@ -151,9 +151,6 @@ struct __cxa_thread_info
 	 */
 	__cxa_eh_globals globals;
 };
-/**
- * Dependent exception.  This 
- */
 struct __cxa_dependent_exception
 {
 	void *reserve;

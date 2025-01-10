@@ -9,13 +9,14 @@ constexpr static uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2
 constexpr static uint16_t day_of_year(uint8_t month, uint16_t day, bool leap) { uint16_t result = day - 1; for(uint8_t i = 1; i < month; i++) result += days_in_month(i, leap); return result; }
 constexpr static uint8_t day_of_week(uint16_t year, uint8_t month, uint16_t day) { uint32_t dy = day_of_year(month, day, (year % 4 == 0)); dy += years_to_days(year, 1800); return ((dy + 3) % 7) + 1; /* 1800 started on a Wednesday */ }
 constexpr static uint64_t to_unix_timestamp(rtc_time const& t) { uint64_t result = t.sec; result += static_cast<uint64_t>(t.min) * 60uL; result += static_cast<uint64_t>(t.hr) * 3600uL; result += static_cast<uint64_t>(day_of_year(t.month, t.day, (t.year % 4 == 0)) + years_to_days(t.year, 1970)) * 86400uL; return result * 1000uL; }
-void rtc_driver::init_instance(uint8_t century_register) noexcept { __instance.__century_register = century_register; __instance.__is_12h = !(read_rtc_register<0x0B>()[1]); __instance.__is_bcd = !(read_rtc_register<0x0B>()[2]); interrupt_table::add_irq_handler(0, INTERRUPT_LAMBDA() { rtc_driver::get_instance().rtc_time_update(); }); irq_clear_mask<0>(); }
+void rtc_driver::init_instance(uint8_t century_register) noexcept { __instance.__century_register = century_register; __instance.__is_12h = !(read_rtc_register<0x0B>()[1]); __instance.__is_bcd = !(read_rtc_register<0x0B>()[2]); interrupt_table::add_irq_handler(0, INTERRUPT_LAMBDA() { __instance.rtc_time_update(); }); irq_clear_mask<0>(); }
 rtc_driver volatile &rtc_driver::get_instance() noexcept { return __instance; }
 rtc_time rtc_driver::get_time() volatile { return __my_time; }
 uint64_t rtc_driver::get_timestamp() volatile { return to_unix_timestamp(get_time()); }
 fadt_t *find_fadt(xsdt_t *xsdt) { return reinterpret_cast<fadt_t*>(find_system_table(xsdt, "FACP")); }
 extern "C" uint64_t syscall_time(uint64_t* tm_target) { uint64_t t = rtc_driver::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; }
-__isr_registers void rtc_driver::rtc_time_update() volatile noexcept
+[[gnu::target("general-regs-only")]]
+void rtc_driver::rtc_time_update() volatile noexcept
 {
     while(is_cmos_update_in_progress());
     uint16_t century = (__century_register > 0 ? read_rtc_register_dyn(__century_register) : 20ui8);

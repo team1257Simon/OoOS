@@ -127,7 +127,7 @@ namespace std::__impl
         __size_type nx_offs = __stell();
         __size_type target_cap = __qcapacity() + added;
         try { __my_queue_data.__set_ptrs(resize<T>(__qbeg(), target_cap), nx_offs, num_elements, target_cap); }
-        catch(std::exception&) { return false; }
+        catch(...) { return false; }
         return true;
     }
     template <typename T, allocator_object<T> A>

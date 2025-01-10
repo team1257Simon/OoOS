@@ -163,5 +163,4 @@ public:
     static pci_device_list* get_instance();
     pci_config_space* find(uint8_t device_class, uint8_t subclass);
 };
-
 #endif

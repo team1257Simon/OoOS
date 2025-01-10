@@ -1,0 +1,6 @@
+#ifndef __STDEXCEPT
+#define __STDEXCEPT
+#include "bits/stdexcept.h"
+#include "exception"
+void xpanic(std::string const& str) noexcept;
+#endif

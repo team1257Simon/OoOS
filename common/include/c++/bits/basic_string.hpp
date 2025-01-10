@@ -5,7 +5,7 @@
 namespace std
 {
     template<char_type CT, char_traits_type<CT> TT = std::char_traits<CT>, allocator_object<CT> AT = std::allocator<CT>>
-    class basic_string : protected std::__impl::__dynamic_buffer<CT, AT>
+    class basic_string : protected __impl::__dynamic_buffer<CT, AT>
     {
         typedef __impl::__dynamic_buffer<CT, AT> __base;
     public:
