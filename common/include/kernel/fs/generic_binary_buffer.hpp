@@ -10,6 +10,7 @@ class generic_binary_buffer : protected std::__impl::__dynamic_queue<CT, AT>, pu
 {
     typedef typename std::__impl::__dynamic_queue<CT, AT> __base;
     using typename __base::__ptr_container;
+    friend class ahci_hda;
 public:
     typedef TT                              traits_type;
     typedef typename __base::__value_type   value_type;
@@ -35,6 +36,8 @@ protected:
     virtual pos_type seekpos(pos_type pos, std::ios_base::openmode = std::ios_base::in) noexcept override { this->__qsetn(size_type(pos)); return pos_type(tell()); }
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode = std::ios_base::in) noexcept override { this->__qsetn((way < 0 ? this->__qbeg() : (way > 0 ? this->__end() : this->__qcur())) + off); return pos_type(tell()); }
     virtual void __q_on_modify() override { this->sync(); }
+    void __update_end(size_t added) { this->__bumpe(added); }
+    bool __ensure_capacity(size_t n) { return this->__qcapacity() >= n || this->__q_grow_buffer(size_type(n - this->__qcapacity())); }
     virtual int sync() override { this->setg(this->__qbeg(), this->__qcur(), this->__qmax()); this->__fullsetp(this->__qbeg(), this->__end(), this->__qmax()); return 0; }
 public:
     // Copy-transfer the contents to a "normal" stream buffer.

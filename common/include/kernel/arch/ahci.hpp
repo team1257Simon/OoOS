@@ -7,6 +7,7 @@ constexpr uint32_t sig_sata = 0x00000101u;
 constexpr uint32_t sig_atapi = 0xEB140101u;
 constexpr uint32_t sig_semb = 0xC33C0101u;
 constexpr uint32_t sig_pmul = 0x96690101u;
+constexpr uint32_t hba_reset = 0b1;
 constexpr uint16_t hba_cmd_start  =  0x0001u;
 constexpr uint16_t hba_command_spin_up_disk = 0x0002u;
 constexpr uint8_t  hba_sud_bit = 1;
@@ -20,7 +21,7 @@ constexpr uint32_t hba_enable_ahci = 0x80000002;
 constexpr unsigned prdt_entries_count = 8u;
 constexpr byte port_active = 0x01ui8;
 constexpr byte port_present = 0x03ui8;
-constexpr uint32_t port_power_on = 0x10000000;
+constexpr uint32_t port_power_on = (1<<28);
 constexpr uint8_t busy_bit = 7u;
 constexpr uint8_t drq_bit = 3u;
 constexpr uint8_t soft_reset_bit = 0b10;
@@ -151,7 +152,7 @@ struct fis_reg_h2d
     uint8_t pmport  : 4;
     uint8_t rsv0    : 3;
     uint8_t ctype   : 1; // 1 = command, 0 = control
-    ata_command command;
+    uint8_t command;
     uint8_t feature_1o;
     // DWORD 1
 	uint8_t  lba0;		// LBA low register, 7:0
@@ -404,7 +405,6 @@ class ahci_driver
 	static ahci_driver __instance;
     bool __handoff_busy();
     void __init_irq();
-    hba_cmd_header* __ctbl_base(uint8_t idx);
 protected:
     ahci_driver() = default;
     bool init(pci_config_space* ps) noexcept;

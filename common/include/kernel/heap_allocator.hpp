@@ -159,7 +159,7 @@ class heap_allocator
         __status_bytes              { status_bytes },
         __num_status_bytes          { num_status_bytes },
         __kernel_heap_begin         { kernel_heap_addr },
-        __physical_open_watermark   { MMAP_MAX_PG * PAGESIZE }
+        __physical_open_watermark   { 0 }
                                     {}
     constexpr status_byte* __get_sb(uintptr_t addr) { return &(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }

@@ -14,7 +14,9 @@
 #define __align(n) __attribute__((aligned(n)))
 #ifndef __cplusplus
 typedef unsigned char bool;
+#define physical_block_size 512uL
 #else
+constexpr size_t physical_block_size = 512;
 #define restrict
 #include "concepts"
 #include "bits/move.h"

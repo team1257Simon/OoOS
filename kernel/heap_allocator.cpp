@@ -67,7 +67,7 @@ heap_allocator &heap_allocator::get() { return *__instance; }
 void heap_allocator::__lock() { lock(&__heap_mutex); }
 void heap_allocator::__unlock() { release(&__heap_mutex); }
 void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
-uintptr_t heap_allocator::__new_page_table_block() { for(uintptr_t addr = __kernel_frame_tag->next_vaddr; addr < MMAP_MAX_PG*PAGESIZE; addr += REGION_SIZE) if(__status(addr).all_free()) { __get_sb(addr)->set_used(ALL); __kernel_frame_tag->next_vaddr = addr + REGION_SIZE; return addr; } return 0; }
+uintptr_t heap_allocator::__new_page_table_block() { for(uintptr_t addr = __kernel_frame_tag->next_vaddr; addr < MMAP_MAX_PG * PAGESIZE; addr += REGION_SIZE) if(__status(addr).all_free()) { __get_sb(addr)->set_used(ALL); __kernel_frame_tag->next_vaddr = addr + REGION_SIZE; return addr; } return 0; }
 uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
 {
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
@@ -179,10 +179,8 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
 vaddr_t heap_allocator::allocate_mmio_block(size_t sz, uint64_t align)
 {
     __lock();
-    vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(__kernel_frame_tag->next_vaddr, align > PAGESIZE ? align : PAGESIZE)) };
-    uintptr_t phys = __find_claim_avail_region(sz);
     vaddr_t result = 0uL;
-    if(phys) { result = mmio_mmap(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE)); __kernel_frame_tag->next_vaddr += region_size_for(sz); __physical_open_watermark = std::max(phys, __physical_open_watermark); }
+    if(uintptr_t phys = __find_claim_avail_region(sz)) { result = mmio_mmap(phys, div_roundup(region_size_for(sz), PAGESIZE)); __physical_open_watermark = std::max(phys, __physical_open_watermark); }
     __unlock();
     return result;
 }
@@ -195,7 +193,8 @@ void heap_allocator::init_instance(pagefile *pagefile, mmap_t *mmap)
     new (__kernel_frame_tag) frame_tag{ pagefile->boot_entry, up_to_nearest(heap, PAGESIZE) };
     new (heap_allocator::__instance) heap_allocator{ pagefile, __the_status_bytes, n, heap };
     heap_allocator::__instance->__mark_used(0, div_roundup(heap, REGION_SIZE));
-    for(size_t i = 0; i < mmap->num_entries; i++) if(mmap->entries[i].type != AVAILABLE) heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN));
+    for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) mmio_mmap(mmap->entries[i].addr,mmap->entries[i].len); } }
+    __instance->__physical_open_watermark = heap;
 }
 paging_table heap_allocator::allocate_pt()
 {
@@ -217,6 +216,7 @@ paging_table heap_allocator::allocate_pt()
     {
         vaddr_t allocated = __new_page_table_block();
         if(!allocated) return NULL;
+        if(!translate_vaddr(allocated)){ sys_mmap(allocated, allocated, REGION_SIZE / PAGESIZE); }
         tag = new (allocated) block_tag{ REGION_SIZE - sizeof(block_tag), 0 };
         __physical_open_watermark = std::max(uintptr_t(allocated), __physical_open_watermark);
     }

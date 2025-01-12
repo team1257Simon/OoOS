@@ -62,7 +62,7 @@ namespace std::__impl
         __container __my_data;
         template<std::matching_input_iterator<T> IT> void __transfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
         virtual void __set(__ptr where, T const& val, __size_type n) { arrayset<T>(where, val, n); }
-        virtual void __zero(__ptr where, __size_type n)  { if constexpr(is_integral_v<T>) arrayset<T>(where, 0, n); else for(__size_type i = 0; i < n; i++, (void)++where) { where->~T(); } }
+        virtual void __zero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
         virtual void __copy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
         /**
          * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.

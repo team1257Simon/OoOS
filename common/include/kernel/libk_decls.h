@@ -27,7 +27,7 @@ extern char __ehframe;
 paging_table get_cr3() noexcept;
 vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 uintptr_t sys_unmap(vaddr_t start, size_t pages);
-vaddr_t mmio_mmap(vaddr_t start, uintptr_t phys, size_t pages);
+vaddr_t mmio_mmap(vaddr_t start, size_t pages);
 #ifdef __cplusplus
 }
 constexpr inline size_t GIGABYTE = 0x40000000;
@@ -44,6 +44,7 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inl
     else if constexpr(sizeof(T) == 8) asm volatile("rep stosq": "+D"(dest) : "a"(value), "c"(n * sizeof(T) / 8) : "memory");
     else asm volatile("rep stosb" : "+D"(dest) : "a"(value), "c"(n * sizeof(T)) : "memory");
 }
+
 template<typename T> concept qword_copy = trivial_copy<T> && (sizeof(T) == 8 || (std::is_integral_v<T> && sizeof(T) % 8 == 0 && alignof(T) % 8 == 0)); 
 template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n)
 {
@@ -54,8 +55,24 @@ template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* d
 }
 uintptr_t translate_vaddr(vaddr_t addr);
 #else
-template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inline]] constexpr void arrayset(void* dest, T value, std::size_t n) { __builtin_memset(dest, value, n); }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inline]] constexpr void arrayset(void* dest, T value, std::size_t n) { __builtin_memset(dest, value, n * sizeof(T)); }
 template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n) { __builtn_memcpy(dest, src, n * sizeof(T)); }
 #endif
+template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inline]] constexpr void array_zero(T* dest, std::size_t n)
+{
+    if constexpr(std::is_default_constructible_v<T>) arrayset(dest, T{}, n);
+    if constexpr(sizeof(T) == 8) arrayset<uint64_t>(dest, 0ul, n);
+    else if constexpr(sizeof(T) == 4) arrayset<uint32_t>(dest, 0u, n);
+    else if constexpr(sizeof(T) == 2) arrayset<uint16_t>(dest, 0u, n);
+    else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
+}
+template<trivial_copy T> requires std::larger<T, uint64_t> [[gnu::always_inline]] constexpr void array_zero(T* dest, std::size_t n)
+{
+    if constexpr(sizeof(T) % 8 == 0) arrayset<uint64_t>(dest, 0ul, n * sizeof(T) / 8);
+    else if constexpr(sizeof(T) % 4 == 0) arrayset<uint32_t>(dest, 0u, n * sizeof(T) / 4);
+    else if constexpr(sizeof(T) % 2 == 0) arrayset<uint16_t>(dest, 0u, n * sizeof(T) / 2);
+    else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
+}
+template<nontrivial_copy T> [[gnu::always_inline]] constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) arrayset(dest, T{}, n); else { for(size_t i = 0; i < n; i++, (void)++dest) { dest->~T(); } } }
 #endif
 #endif

@@ -1,41 +1,44 @@
 #include "kernel/libk_decls.h"
 #include "kernel/heap_allocator.hpp"
-static paging_table build_new_pt(paging_table in, uint16_t idx)
+static paging_table build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
     paging_table result = heap_allocator::get().allocate_pt();
     if(result)
     {
         in[idx].present = true;
         in[idx].write = true;
+        if(write_thru) in[idx].write_thru = true;
         in[idx].physical_address = std::bit_cast<uintptr_t>(result) >> 12;
     }
     return result;
 }
-static paging_table __get_table(vaddr_t const& of_page)
+static paging_table __get_table(vaddr_t const& of_page, bool write_thru)
 {
     paging_table pml4 = get_cr3();
     if (pml4[of_page.pml4_idx].present)
     {
+        if(write_thru) pml4[of_page.pml4_idx].write_thru = true;
         paging_table pdp = vaddr_t{ pml4[of_page.pml4_idx].physical_address << 12 };
         if(pdp[of_page.pdp_idx].present) 
         {
+            if(write_thru) pdp[of_page.pdp_idx].write_thru = true;
             paging_table pd = vaddr_t { pdp[of_page.pdp_idx].physical_address << 12 };
-            if(static_cast<paging_table>(pd)[of_page.pd_idx].present) return vaddr_t { pd[of_page.pd_idx].physical_address << 12 };
-            else return build_new_pt(pd, of_page.pd_idx);
+            if(static_cast<paging_table>(pd)[of_page.pd_idx].present) { if(write_thru) static_cast<paging_table>(pd)[of_page.pd_idx].write_thru = true; return vaddr_t { pd[of_page.pd_idx].physical_address << 12 }; }
+            else return build_new_pt(pd, of_page.pd_idx, write_thru);
         }
         else 
         {
-            paging_table pd = build_new_pt(pdp, of_page.pdp_idx);
-            if(pd) return build_new_pt(pd, of_page.pd_idx);
+            paging_table pd = build_new_pt(pdp, of_page.pdp_idx, write_thru);
+            if(pd) return build_new_pt(pd, of_page.pd_idx, write_thru);
         }
     }
     else
     {
-        paging_table pdp = build_new_pt(pml4, of_page.pml4_idx);
+        paging_table pdp = build_new_pt(pml4, of_page.pml4_idx, write_thru);
         if(pdp)
         {
-            paging_table pd = build_new_pt(pdp, of_page.pdp_idx);
-            if(pd) return build_new_pt(pd, of_page.pd_idx);
+            paging_table pd = build_new_pt(pdp, of_page.pdp_idx, write_thru);
+            if(pd) return build_new_pt(pd, of_page.pd_idx, write_thru);
         }
     }
     return NULL;
@@ -59,16 +62,33 @@ uintptr_t translate_vaddr(vaddr_t addr)
     if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset;
     return 0;
 }
+vaddr_t skip_mmio(vaddr_t start, size_t pages)
+{
+    vaddr_t curr { start };
+    vaddr_t ed = start + ptrdiff_t(pages * PAGESIZE);
+    for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
+    {
+        paging_table pt = __get_table(start, false);
+        if(!pt) { tlb_flush(); return {}; }
+        if (pt[curr.page_idx].present && (pt[curr.page_idx].write_thru || pt[curr.page_idx].cache_disable)) i = 0;
+    }
+    vaddr_t c_ed = curr + ptrdiff_t(pages * PAGESIZE);
+    if(uintptr_t(c_ed) > uintptr_t(ed)) curr = curr + ptrdiff_t(uintptr_t(c_ed) - uintptr_t(ed));
+    return curr;
+}
 extern "C" 
 {
     vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages)
     {
         if(!start) return {};
-        vaddr_t curr { start };
+        vaddr_t curr { skip_mmio(start, pages) };
+        if(!curr) return {};
+        start = curr;
+        paging_table pt = __get_table(curr, false);
+        if(!pt) { return {}; }
         for(size_t i = 0; i < pages; i++, curr += PAGESIZE, phys += PAGESIZE)
         {
-            paging_table pt = __get_table(curr);
-            if(!pt) { tlb_flush(); return {}; }
+            if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, false);
             pt[curr.page_idx].present = true;
             pt[curr.page_idx].write = true;
             pt[curr.page_idx].physical_address = phys >> 12;
@@ -93,22 +113,19 @@ extern "C"
         if(result) tlb_flush();
         return result;
     }
-    vaddr_t mmio_mmap(vaddr_t start, uintptr_t phys, size_t pages)
+    vaddr_t mmio_mmap(vaddr_t start, size_t pages)
     {
         if(!start) return {};
         vaddr_t curr { start };
-        for(size_t i = 0; i < pages; i++, curr += PAGESIZE, phys += PAGESIZE)
+        paging_table pt = __get_table(curr, true);
+        if(!pt) return {};
+        for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
         {
-            paging_table pt = __get_table(curr);
-            if(!pt) 
-            {
-                tlb_flush();
-                return {};
-            }
+            if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, true);
             pt[curr.page_idx].present = true;
             pt[curr.page_idx].write = true;
             pt[curr.page_idx].write_thru = true;
-            pt[curr.page_idx].physical_address = phys >> 12;
+            pt[curr.page_idx].physical_address = uint64_t(curr) >> 12;
         }
         tlb_flush();
         return start;

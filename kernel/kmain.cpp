@@ -11,6 +11,7 @@
 #include "arch/com_amd64.h"
 extern psf2_t* __startup_font;
 extern "C" uint64_t errinst;
+std::atomic<uint64_t> t_ticks;
 static direct_text_render startup_tty;
 static bool can_print = false;
 static serial_driver_amd64* com;
@@ -50,7 +51,7 @@ void debug_ecode(byte idx, qword ecode)
         while(1);
     }
 }
-void run_tests() throw()
+void run_tests()
 {
     interrupt_table::add_interrupt_callback(INTERRUPT_LAMBDA(byte idx, qword ecode)
     {
@@ -73,6 +74,7 @@ void run_tests() throw()
             __builtin_unreachable();
         }
     });
+    interrupt_table::add_irq_handler(0, INTERRUPT_LAMBDA() { t_ticks ++; });
     can_print = true;
     srand(syscall_time(0));
     startup_tty.print_line("Hello world!");
@@ -87,7 +89,22 @@ void run_tests() throw()
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
+    uint64_t tk = t_ticks;
+    while(tk < 10) 
+    {
+        tk = t_ticks;
+        BARRIER;
+    }
     startup_tty.print_line(pci_device_list::init_instance(__sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
+    if(ahci_hda::is_initialized())
+    {
+        char* tmp = new char[2048];
+        bool nz = false;
+        ahci_hda::read(tmp, 2048, 4);
+        for(size_t i = 0; !nz && i < 2048; i++) { if(tmp[i]) { startup_tty.print_line(std::to_string(i)); nz = true; } }
+        if(!nz) startup_tty.print_line(":(");
+        delete[] tmp;
+    }
 }
 extern "C" void _init();
 extern "C"
@@ -95,7 +112,7 @@ extern "C"
     void direct_write(const char* str) { startup_tty.print_text(str); }
     void debug_print_num(uintptr_t num, int lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; startup_tty.print_text(dbgbuf); }
     [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
-    void panic(const char* msg) noexcept { std::string estr{ "ERROR: " }; estr.append(msg); startup_tty.print_line(estr); if(com) { com->sputn(estr.c_str(), estr.size()); com->pubsync(); } }
+    void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); }
     extern void* isr_table[];
     extern void gdt_setup();
     void kmain(sysinfo_t* sysinfo, mmap_t* mmap, pagefile* pg)

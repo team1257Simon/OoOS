@@ -57,7 +57,7 @@ namespace std::__impl
         __ptr_container __my_queue_data;
         template<std::matching_input_iterator<T> IT> void __qtransfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
         virtual void __qset(__ptr where, __value_type const& val, __size_type n) { arrayset<T>(where, val, n); }
-        virtual void __qzero(__ptr where, __size_type n)  { if constexpr(is_integral_v<T>) arrayset<T>(where, 0, n); else for(__size_type i = 0; i < n; i++, (void)++where) { where->~T(); } }
+        virtual void __qzero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
         virtual void __qcopy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
         /**
          * Called whenever elements are pushed to or popped from the queue.
