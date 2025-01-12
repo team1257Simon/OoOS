@@ -65,4 +65,5 @@ namespace std
 		std::string fcvtl(long double ld, int ndigits);
 	}
 }
+void xdirect_write(std::string const& str);
 #endif

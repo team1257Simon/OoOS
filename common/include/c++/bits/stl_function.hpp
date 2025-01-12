@@ -4,8 +4,16 @@
 #include "bits/move.h"
 #include "bits/invoke.hpp"
 #include "bits/typeinfo.h"
+#include "exception"
 namespace std
 {
+    [[noreturn]] void __throw_bad_function_call();
+    class bad_function_call : public std::exception
+    {
+    public:
+        virtual ~bad_function_call() noexcept;
+        const char* what() const noexcept;
+    };
     template<typename FT> class function;
     template<typename T> concept __location_invariant = std::is_trivially_copyable_v<T>;
     class __undefined;
@@ -41,7 +49,7 @@ namespace std
             constexpr static size_t __max_size = sizeof(__no_copy);
             constexpr static size_t __max_align = alignof(__no_copy);
             template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { ::new (dest.__access()) FT { forward<F2>(src) }; }
-            template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { using ftor = remove_reference_t<F2>; dest.__access<F2*>() = new ftor{ src }; }
+            template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { dest.__access<FT*>() = new FT{ forward<F2>(src) }; }
             constexpr static void __delete_wrapper(__data_store& target, true_type) { target.__access<FT>().~FT(); }
             constexpr static void __delete_wrapper(__data_store& target, false_type) { ::operator delete(target.__access<FT*>()); }
         protected:
@@ -97,17 +105,17 @@ namespace std
     template<typename S, typename F> class __target_helper;
     template<typename S, object F> class __target_helper<S, F> : public __function_helper<S, F>{};
     template<typename S, non_object F> class __target_helper<S, F> : public __function_helper<void, void>{};
+    template<typename FT, typename RT, typename ... Args> using __invocable_as = typename __is_invocable_impl<__invoke_result<decay_t<FT>&, Args...>, RT>::type;
+    template<typename FT, typename RT, typename ... Args> concept __alternate_callable = not_self<FT, function<RT(Args...)>> && __invocable_as<FT, RT, Args...>::value;
     template<typename RT, typename ... Args>
     class function<RT(Args...)> : __function_base
     {
-        template<not_self<function<RT(Args...)>> F> using __decay = decay_t<F>;
-        template<typename FT, typename D = __decay<FT>> struct __is_callable : __is_invocable_impl<__invoke_result<D&, Args...>, RT>::type {};
         template<typename FT> using __helper = __function_helper<RT(Args...), __decay_t<FT>>;
         using __invoker_type = RT (*) (__data_store const&, Args&&...);
         __invoker_type __my_invoker = nullptr;
     public:
         typedef RT result_type;
-        template<typename FT> requires (__is_callable<FT>::value)
+        template<__alternate_callable<RT, Args...> FT>
         constexpr function(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) : __function_base{}
         {
             static_assert(is_copy_constructible<__decay_t<FT>>::value, "function target must be copy-constructible");
@@ -120,7 +128,7 @@ namespace std
                 __my_manager = &__my_helper::__manager;
             }
         }
-        constexpr operator bool() const noexcept { return !__function_base::__empty(); }
+        constexpr operator bool() const noexcept { return !this->__empty(); }
         constexpr function(function<RT(Args...)> const& that) : __function_base{} 
         {
             if(that.operator bool())
@@ -159,8 +167,8 @@ namespace std
         constexpr function& operator=(function const& that) noexcept { function{ that }.swap(*this); return *this; }
         constexpr function& operator=(function&& that) noexcept { function{ move(that) }.swap(*this); return *this; }
         constexpr function& operator=(nullptr_t) noexcept { if(__my_manager) { __my_manager(__my_functor, __my_functor, __destroy_functor); __my_manager = nullptr; __my_invoker = nullptr; } return *this; }
-        template<typename FT> requires (__is_callable<FT>::value) constexpr function& operator=(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) { function{ forward<FT>(ft) }.swap(*this); return *this; }
-        RT operator()(Args ... args) const { return __my_invoker(__my_functor, forward<Args>(args)...); }
+        template<__alternate_callable<RT, Args...> FT> constexpr function& operator=(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) { function{ forward<FT>(ft) }.swap(*this); return *this; }
+        RT operator()(Args ... args) const { if(this->__empty()) { __throw_bad_function_call(); } return __my_invoker(__my_functor, forward<Args>(args)...); }
         constexpr type_info const& target_type() const noexcept { if(__my_manager) { __data_store __ti_result; __my_manager(__ti_result, __my_functor, __get_type_info); if(type_info const* result = __ti_result.__access<type_info const*>()) return *result; } return typeid(void); }
     };
     template<typename> struct __function_guide_helper{};

@@ -34,18 +34,18 @@ namespace std
         constexpr __base_allocator(__base_allocator<T> const&) noexcept = default;
         constexpr ~__base_allocator() = default;
         template<class U> constexpr __base_allocator(__base_allocator<U> const&) noexcept {}
-        [[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const throw() { return static_cast<T*>(::operator new(n * __size_val, static_cast<std::align_val_t>(__align_val))); }
-        [[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const throw() { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
+        [[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const { return static_cast<T*>(::operator new(n * __size_val, static_cast<std::align_val_t>(__align_val))); }
+        [[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
     };
     namespace __detail
     {
-        [[nodiscard]] [[gnu::externally_visible]] void* __aligned_reallocate(void* ptr, size_t n, size_t align) throw();
+        [[nodiscard]] [[gnu::externally_visible]] void* __aligned_reallocate(void* ptr, size_t n, size_t align);
         template<typename T> concept __non_array = !std::is_array_v<T>;
         template<typename ... Args> concept __zero_size = sizeof...(Args) == 0;
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
     }
 #pragma region non-standard memory functions
-    template<typename T> [[nodiscard]] [[gnu::always_inline]] constexpr T* resize(T* array, size_t ncount) throw() { return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
+    template<typename T> [[nodiscard]] [[gnu::always_inline]] constexpr T* resize(T* array, size_t ncount) { return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
 #pragma endregion
     template<typename T>
     struct allocator : __base_allocator<T>
@@ -55,7 +55,7 @@ namespace std
         typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
-        template<typename U> using rebind =  std::allocator<U>;
+        template<typename U> using rebind = std::allocator<U>;
         typedef true_type propagate_on_container_move_assignment;
         typedef decltype(sizeof(T)) size_type;
         typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
@@ -63,8 +63,8 @@ namespace std
         constexpr allocator(allocator const&) noexcept = default;
         template<typename U> constexpr allocator(allocator<U> const&) noexcept {};
         constexpr ~allocator() noexcept = default;
-        [[nodiscard]] constexpr pointer allocate(size_type count) const throw() { return this->__allocate(count); }
-        constexpr void deallocate(pointer ptr, size_type count) const throw() { this->__deallocate(ptr, count); }
+        [[nodiscard]] constexpr pointer allocate(size_type count) const { return this->__allocate(count); }
+        constexpr void deallocate(pointer ptr, size_type count) const { this->__deallocate(ptr, count); }
     };
     template<typename T, typename U> constexpr bool operator==(allocator<T> const&, allocator<U> const&) noexcept { return true; }
 }

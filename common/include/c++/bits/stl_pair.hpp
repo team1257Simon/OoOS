@@ -69,6 +69,6 @@ namespace std
     template<typename T1, typename T2> pair(T1, T2) -> pair<T1, T2>;
     template<typename T1, typename T2> constexpr inline bool operator==(pair<T1, T2> const& __this, pair<T1, T2> const& __that) { return __this.first == __that.first && __this.second == __that.second; }
     template<typename T1, typename T2> constexpr common_comparison_category_t<__detail::__synth3way_t<T1>, __detail::__synth3way_t<T2>> operator<=>(pair<T1, T2> const& __this, pair<T1, T2> const& __that) { auto __c = __detail::__synth3way(__this.first, __that.first); if(__c != 0) return __c; return __detail::__synth3way(__this.second, __that.second); }
-    template<typename T1, typename T2> constexpr pair<typename __decay_and_strip<T1>::type, typename __decay_and_strip<T2>::type> make_pair(T1 && t1, T2 && t2) { typedef typename __decay_and_strip<T1>::type d1; typedef typename __decay_and_strip<T2>::type d2; typedef pair<d1, d2> p; return p { forward<T1>(t1), forward<T2>(t2) }; }
+    template<typename T1, typename T2> constexpr pair<typename __decay_and_strip<T1>::__type, typename __decay_and_strip<T2>::__type> make_pair(T1 && t1, T2 && t2) { typedef typename __decay_and_strip<T1>::__type d1; typedef typename __decay_and_strip<T2>::__type d2; typedef pair<d1, d2> p; return p { forward<T1>(t1), forward<T2>(t2) }; }
 }
 #endif

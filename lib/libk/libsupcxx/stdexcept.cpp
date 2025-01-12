@@ -38,7 +38,7 @@ namespace std
 	bad_alloc::~bad_alloc() noexcept {}
 	bad_alloc::bad_alloc(bad_alloc const&) noexcept {}
 	bad_alloc& bad_alloc::operator=(bad_alloc const&) noexcept { return *this; }
-	const char* bad_alloc::what() const noexcept { return "cxxrt::bad_alloc"; }
+	const char* bad_alloc::what() const noexcept { return "std::bad_alloc"; }
 	bad_cast::bad_cast() noexcept {}
 	bad_cast::~bad_cast() noexcept {}
 	bad_cast::bad_cast(const bad_cast&) noexcept {}

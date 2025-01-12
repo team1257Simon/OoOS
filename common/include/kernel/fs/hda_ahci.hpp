@@ -40,13 +40,16 @@ class ahci_hda
     static ahci_hda __instance;
     wide_binary_buffer __read_buffer;
     wide_binary_buffer __write_buffer;
-    ahci_driver* __drv;
-    int8_t __port;
-    constexpr static std::size_t __bytes_per_sector() { return physical_block_size; }
-    constexpr static uint64_t __offset_to_sector(uint64_t offs) { return offs / __bytes_per_sector(); }
+    ahci_driver* __drv{};
+    int8_t __port{};
+    partition_table __my_partitions{};
+    constexpr static std::size_t __bytes_per_sector() noexcept { return physical_block_size; }
+    constexpr static uint64_t __offset_to_sector(uint64_t offs) noexcept(physical_block_size != 0) { return offs / __bytes_per_sector(); }
+    constexpr static std::size_t __count_to_wide_streamsize(std::size_t count) noexcept { return (count * __bytes_per_sector()) / 2; }
     bool __await_disk();
     bool __read_ahci(qword st, dword ct, uint16_t* bf);
     bool __write_ahci(qword st, dword ct, uint16_t const* bf);
+    bool __read_pt();
 protected:
     ahci_hda();
     bool init();
@@ -56,8 +59,8 @@ public:
     static ahci_hda* get_instance();
     static std::streamsize read(char* out, uint64_t start_sector, uint32_t count);
     static std::streamsize write(uint64_t start_sector, const char* in, uint32_t count);
-    static partition_table read_pt();
+    static partition_table& get_partition_table();
 protected:
-    template<trivial_copy T> static size_t obj_read(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, num_objs * sizeof(T) / __bytes_per_sector()); }
+    template<trivial_copy T> static size_t __obj_read(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, (num_objs * sizeof(T)) / __bytes_per_sector()); }
 };
 #endif

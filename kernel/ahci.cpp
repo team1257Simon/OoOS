@@ -35,12 +35,11 @@ void ahci_driver::__issue_command(uint8_t idx, int slot)
 {
     hba_port* port = &__my_abar->ports[idx];
     unsigned spin = 0;
+    BARRIER;
     while(__port_data_busy(port) && spin < max_wait) { BARRIER; spin++; }
+    BARRIER;
     if(__port_data_busy(port)) { throw std::runtime_error("Port number " + std::to_string(idx) + " is hung"); }
     BARRIER;
-    __my_abar->ports[idx].s_active |= (1 << slot);
-    BARRIER;
-    if(!(__my_abar->ports[idx].s_active & (1 << slot))) { direct_write("port unresponsive; reset\n"); port_hard_reset(idx); __my_abar->ports[idx].s_active |= (1 << slot); if(!(__my_abar->ports[idx].s_active & (1 << slot))) { throw std::runtime_error("Port number " + std::to_string(idx) + " is hung"); } }
     __my_abar->ports[idx].cmd_issue |= (1 << slot);
     BARRIER;
     unsigned st;

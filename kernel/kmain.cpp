@@ -18,18 +18,6 @@ static serial_driver_amd64* com;
 static sysinfo_t* __sysinfo;
 static char dbgbuf[19]{'0', 'x'};
 constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-void buffer_test()
-{
-    data_buffer<char> tb{};
-    tb.sputn("Eleventeenology hath been studied", 33);
-    startup_tty.print_line(tb.__str());
-    char test_sink[29];
-    test_sink[28] = 0;
-    generic_binary_buffer<uint16_t> twide{15};
-    twide.rputn<char>("Derpleblerps the merpleyerps", 28);
-    twide.rgetn<char>(test_sink, 28);
-    startup_tty.print_line(test_sink);
-}
 [[gnu::target("general-regs-only")]]
 void debug_ecode(byte idx, qword ecode)
 {
@@ -49,6 +37,17 @@ void debug_ecode(byte idx, qword ecode)
             debug_print_num(fault_addr);
         }
         while(1);
+    }
+}
+void descr_pt(partition_table const& pt)
+{
+    for(partition_entry_t e : pt)
+    {
+        if(e.type_guid.data_full[0] == 0 && e.type_guid.data_full[1] == 0) continue;
+        startup_tty.print_text("Partition at: ");
+        startup_tty.print_text(std::to_string(e.start_lba));
+        startup_tty.print_text(" to ");
+        startup_tty.print_line(std::to_string(e.end_lba));
     }
 }
 void run_tests()
@@ -82,7 +81,6 @@ void run_tests()
     startup_tty.print_line(std::to_string(__sysinfo));
     startup_tty.print_line(std::to_string(3.14159265358L));
     startup_tty.print_line(std::to_string(rand()));
-    buffer_test();
     if(com)
     {
         interrupt_table::add_irq_handler(4, INTERRUPT_LAMBDA() { size_t n = com->in_avail(); char buf[n + 1]; com->sgetn(buf, n); buf[n] = 0; startup_tty.print_text(buf); });
@@ -96,16 +94,9 @@ void run_tests()
         BARRIER;
     }
     startup_tty.print_line(pci_device_list::init_instance(__sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
-    if(ahci_hda::is_initialized())
-    {
-        char* tmp = new char[2048];
-        bool nz = false;
-        ahci_hda::read(tmp, 2048, 4);
-        for(size_t i = 0; !nz && i < 2048; i++) { if(tmp[i]) { startup_tty.print_line(std::to_string(i)); nz = true; } }
-        if(!nz) startup_tty.print_line(":(");
-        delete[] tmp;
-    }
+    if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
 }
+void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 extern "C" void _init();
 extern "C"
 {

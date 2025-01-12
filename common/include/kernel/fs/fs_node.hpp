@@ -13,8 +13,8 @@ struct inode_base
     virtual uint64_t size() const noexcept = 0; // size in bytes (for files) or concrete entries (for folders)
     virtual bool is_file() const noexcept = 0;
     virtual bool is_folder() const noexcept = 0;
-    virtual const char* name() const = 0; // get the concrete (i.e. on-disk) name
-    virtual bool rename(std::string const&) = 0; // change the concrete (i.e. on-disk) name
+    virtual const char* name() const = 0; // get the concrete (i.e. on-disk for persistent fs) name
+    virtual bool rename(std::string const&) = 0; // change the concrete (i.e. on-disk for persistent fs) name
     constexpr inode_base() noexcept = default;
 };
 class file_inode_base : public inode_base

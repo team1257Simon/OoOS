@@ -1,6 +1,6 @@
 #include "kernel/libk_decls.h"
 #include "kernel/heap_allocator.hpp"
-static paging_table build_new_pt(paging_table in, uint16_t idx, bool write_thru)
+static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
     paging_table result = heap_allocator::get().allocate_pt();
     if(result)
@@ -24,21 +24,21 @@ static paging_table __get_table(vaddr_t const& of_page, bool write_thru)
             if(write_thru) pdp[of_page.pdp_idx].write_thru = true;
             paging_table pd = vaddr_t { pdp[of_page.pdp_idx].physical_address << 12 };
             if(static_cast<paging_table>(pd)[of_page.pd_idx].present) { if(write_thru) static_cast<paging_table>(pd)[of_page.pd_idx].write_thru = true; return vaddr_t { pd[of_page.pd_idx].physical_address << 12 }; }
-            else return build_new_pt(pd, of_page.pd_idx, write_thru);
+            else return __build_new_pt(pd, of_page.pd_idx, write_thru);
         }
         else 
         {
-            paging_table pd = build_new_pt(pdp, of_page.pdp_idx, write_thru);
-            if(pd) return build_new_pt(pd, of_page.pd_idx, write_thru);
+            paging_table pd = __build_new_pt(pdp, of_page.pdp_idx, write_thru);
+            if(pd) return __build_new_pt(pd, of_page.pd_idx, write_thru);
         }
     }
     else
     {
-        paging_table pdp = build_new_pt(pml4, of_page.pml4_idx, write_thru);
+        paging_table pdp = __build_new_pt(pml4, of_page.pml4_idx, write_thru);
         if(pdp)
         {
-            paging_table pd = build_new_pt(pdp, of_page.pdp_idx, write_thru);
-            if(pd) return build_new_pt(pd, of_page.pd_idx, write_thru);
+            paging_table pd = __build_new_pt(pdp, of_page.pdp_idx, write_thru);
+            if(pd) return __build_new_pt(pd, of_page.pd_idx, write_thru);
         }
     }
     return NULL;

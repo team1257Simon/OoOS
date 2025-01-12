@@ -44,9 +44,12 @@ typedef struct __pt_entry
     bool accessed                : 1;
     bool dirty                   : 1;
     bool page_size               : 1;
-    uint8_t                      : 4;
+    bool avl0                    : 1;
+    bool avl1                    : 1;
+    bool avl2                    : 1;
+    bool avl3                    : 1;
     uint64_t physical_address    : 36;
-    uint16_t                     : 15;
+    uint16_t avl4                : 15;
     bool execute_disable         : 1;
 } __pack __align(1) pt_entry;
 typedef pt_entry* paging_table;

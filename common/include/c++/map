@@ -60,6 +60,7 @@ namespace std
         template<std::convertible_to<KT> U> requires (is_default_constructible_v<VT>) constexpr VT& operator[](U const& u) { __link_t r = this->__find_node(u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__insert_unique(r, value_type{ u, VT{} }); } return r->__get_ref().second; }
         pair<iterator, bool> insert(value_type && vt) { auto res = this->__insert_unique(vt); return pair{ iterator{res.first}, res.second }; }
         template<std::convertible_to<VT> UT> pair<iterator, bool> insert_or_assign(KT && kt, UT && ut) { iterator i { this->__find_node(kt) }; if(i.__my_node == this->__end()) return pair{ iterator { this->__emplace_unique(forward<KT>(kt), forward<UT>(ut)) }, true}; (*i).second = forward<UT>(ut); return pair{ i, false }; }
+        size_type erase(key_type const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
     };
 }
 #endif

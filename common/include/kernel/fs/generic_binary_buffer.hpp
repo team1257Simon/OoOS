@@ -73,53 +73,11 @@ public:
     template<std::char_type DT> constexpr typename generic_binary_buffer<DT>::off_type tell_as() const noexcept { return typename generic_binary_buffer<DT>::off_type(this->template rebind_cur<DT>() - this->template rebind_beg<DT>()); }
     // Computes the number of remaining elements this buffer would have if they were interpreted as type DT.
     template<std::char_type DT> constexpr typename generic_binary_buffer<DT>::size_type rem_as() const noexcept { return typename generic_binary_buffer<DT>::size_type(this->template rebind_end<DT>() - this->template rebind_cur<DT>()); }
-    /**
-     * Inserts n elements of type DT into the buffer as follows:
-     *  1. Creates a temporary buffer containing the same data as this buffer, with pointers computed to the same byte offsets, but with type DT.
-     *  2. Inserts the elements by invoking sputn on the temporary buffer.
-     *  3. Overwrites the contents of this buffer with the new, modified data.
-     *  4. Updates the pointers in this buffer to match the byte offsets of the modified data pointers, growing the buffer if necessary.
-     *  5. The temporary buffer will be deallocated as it leaves scope.
-     */
-    template<std::char_type DT, std::char_traits_type<DT> UT = std::char_traits<DT>, std::allocator_object<DT> BT = std::allocator<DT>> typename generic_binary_buffer<DT, UT, BT>::size_type rputn(typename generic_binary_buffer<DT, UT, BT>::const_pointer src, typename generic_binary_buffer<DT, UT, BT>::size_type n);
-    /**
-     * Extracts up to n elements of type DT from this buffer's data as follows:
-     *  1. Creates a temporary buffer containing the same data as this buffer, with pointers computed to the same byte offsets, but with type DT.
-     *  2. Extracts the elements by invoking sgetn on the temporary buffer.
-     *  3. Adjusts the current-element pointer to match the new position of the temporary buffer after the extraction.
-     *  4. The temporary buffer will be deallocated as it leaves scope.
-     */
-    template<std::char_type DT, std::char_traits_type<DT> UT = std::char_traits<DT>, std::allocator_object<DT> BT = std::allocator<DT>> typename generic_binary_buffer<DT, UT, BT>::size_type rgetn(typename generic_binary_buffer<DT, UT, BT>::pointer dest, typename generic_binary_buffer<DT, UT, BT>::size_type n);
     // A shortcut to this.sputn(that.rebind_beg<CT>(), that.size_as<CT>()) to alleviate the slightly odd syntax of such a call
     template<std::char_type DT, std::char_traits_type<DT> UT = std::char_traits<DT>, std::allocator_object<DT> BT = std::allocator<DT>> typename generic_binary_buffer<DT, UT, BT>::size_type rcopy(generic_binary_buffer<DT, UT, BT> const& that) { return this->sputn(that.template rebind_beg<CT>(), that.template size_as<CT>()); }
+    // A shortcut to that.sputn(this->rebind_beg<DT>(), this->size_as<DT>()) to alleviate the slightly odd syntax of such a call
     template<std::char_type DT, std::char_traits_type<DT> UT = std::char_traits<DT>> std::streamsize rxfer(std::basic_streambuf<DT, UT>& that) const { return that.sputn(this->template rebind_beg<DT>(), this->template size_as<DT>()); }
 };
-template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
-template <std::char_type DT, std::char_traits_type<DT> UT, std::allocator_object<DT> BT>
-typename generic_binary_buffer<DT, UT, BT>::size_type generic_binary_buffer<CT, TT, AT>::rputn(typename generic_binary_buffer<DT, UT, BT>::const_pointer src, typename generic_binary_buffer<DT, UT, BT>::size_type n)
-{
-    if(!this->template capacity_as<DT>()) return typename generic_binary_buffer<DT, UT, BT>::size_type(0);
-    generic_binary_buffer<DT, UT, BT> that{ this->template rebind_beg<DT>(), this->template rebind_max<DT>(), this->template tell_as<DT>(), this->template size_as<DT>() };
-    typename generic_binary_buffer<DT, UT, BT>::size_type result = that.sputn(src, n);
-    size_type nsz = that.template size_as<CT>();
-    size_type ncap = that.template capacity_as<CT>();
-    off_type np = that.template tell_as<CT>();
-    if(ncap > this->__qcapacity() && !this->__q_grow_buffer(size_type(ncap - this->__qcapacity()))) return typename generic_binary_buffer<DT, UT, BT>::size_type(0);
-    this->__qcopy(this->__qbeg(), that.template rebind_beg<CT>(), nsz);
-    this->__qsetn(size_type(np));
-    this->__qsete(nsz);
-    return result;
-}
-template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
-template <std::char_type DT, std::char_traits_type<DT> UT, std::allocator_object<DT> BT>
-typename generic_binary_buffer<DT, UT, BT>::size_type generic_binary_buffer<CT, TT, AT>::rgetn(typename generic_binary_buffer<DT, UT, BT>::pointer dest, typename generic_binary_buffer<DT, UT, BT>::size_type n)
-{
-    if(!this->template capacity_as<DT>()) return typename generic_binary_buffer<DT, UT, BT>::size_type(0);
-    generic_binary_buffer<DT, UT, BT> that{ this->template rebind_beg<DT>(), this->template rebind_max<DT>(), this->template tell_as<DT>(), this->template size_as<DT>() };
-    typename generic_binary_buffer<DT, UT, BT>::size_type result = that.sgetn(dest, n);
-    this->__qsetn(size_type(that.template tell_as<CT>()));
-    return result;
-}
 typedef generic_binary_buffer<uint8_t> binary_buffer;
 typedef generic_binary_buffer<uint16_t> wide_binary_buffer;
 #endif

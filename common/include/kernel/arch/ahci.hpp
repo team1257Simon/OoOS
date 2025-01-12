@@ -285,6 +285,7 @@ struct hba_prdt_entry
 {
 	uint32_t data_base;	// Data base address, little-endian, low
 	uint32_t data_upper;
+	uint32_t rsv0;		// Reserved
 	// DW3
 	uint32_t byte_count;	
 } __pack;

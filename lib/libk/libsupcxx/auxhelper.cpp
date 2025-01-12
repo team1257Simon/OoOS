@@ -48,7 +48,7 @@ extern "C" void __cxa_bad_cast()
  */
 extern "C" void __cxa_bad_typeid()
 {
-	panic("(DBG) bad_typeid");
+	panic("(DBG) std::bad_typeid");
 	throw std::bad_typeid{};
 }
 /**
