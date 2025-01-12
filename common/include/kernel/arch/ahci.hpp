@@ -24,6 +24,11 @@ constexpr byte port_present = 0x03ui8;
 constexpr uint32_t port_power_on = (1<<28);
 constexpr uint8_t busy_bit = 7u;
 constexpr uint8_t drq_bit = 3u;
+constexpr uint8_t cr_bit = 15u;
+constexpr uint8_t fr_bit = 14u;
+constexpr uint8_t fre_bit = 4u;
+constexpr uint8_t start_bit = 0u;
+constexpr uint8_t descriptor_processed_bit = 5u;
 constexpr uint8_t soft_reset_bit = 0b10;
 constexpr uint8_t nien_bit = 0b1;
 constexpr uint8_t dev_class_ahci = 1;
@@ -414,6 +419,7 @@ protected:
 	void port_rebase(uint8_t idx);
 	void port_soft_reset(uint8_t idx);
 	void port_hard_reset(uint8_t idx);
+	void hard_reset_fallback(uint8_t idx);
 	bool has_port(uint8_t i);
     [[gnu::target("general-regs-only")]] void handle_irq();
 public:
