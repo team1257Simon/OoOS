@@ -15,6 +15,7 @@ struct inode_base
     virtual bool is_folder() const noexcept = 0;
     virtual const char* name() const = 0; // get the concrete (i.e. on-disk for persistent fs) name
     virtual bool rename(std::string const&) = 0; // change the concrete (i.e. on-disk for persistent fs) name
+    virtual bool sync() = 0; // Sync to disc, if applicable
     constexpr inode_base() noexcept = default;
 };
 class file_inode_base : public inode_base
@@ -72,10 +73,6 @@ class tnode_base
 public:
     tnode_base(inode_base*, std::string const&);
     tnode_base(inode_base*, const char*);
-    tnode_base(tnode_base const&) = default;
-    tnode_base(tnode_base&&) = default;
-    tnode_base& operator=(tnode_base const&) = default;
-    tnode_base& operator=(tnode_base&&) = default;
     void rename(std::string const&);
     void rename(const char*);
     const char* name() const;
@@ -91,5 +88,11 @@ public:
     file_inode_base const* as_file() const;
     folder_inode_base* as_folder();
     folder_inode_base const* as_folder() const;
+    friend inline auto operator<=>(tnode_base const& __this, tnode_base const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that.__my_name; }
+    template<std::convertible_to<std::string> ST> friend inline auto operator<=>(tnode_base const& __this, ST const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that; }
+    template<std::convertible_to<std::string> ST> friend inline auto operator<=>(ST const& __this, tnode_base const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this <=> __that.__my_name; }
+    friend constexpr bool operator==(tnode_base const& __this, tnode_base const& __that) noexcept { return __this.__my_name == __that.__my_name; }
+    template<std::convertible_to<std::string> ST> friend constexpr bool operator==(tnode_base const& __this, ST const& __that) noexcept { return __this.__my_name == __that; }
+    template<std::convertible_to<std::string> ST> friend constexpr bool operator==(ST const& __this, ST const& __that) noexcept { return __this == __that.__my_name; }
 };
 #endif

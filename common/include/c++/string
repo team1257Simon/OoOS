@@ -18,6 +18,7 @@ namespace std
 	string to_string(float value);
     string to_string(double value);
     string to_string(long double value);
+	string to_string(bool value);
     wstring to_wstring(int value);
 	wstring to_wstring(long value);
 	wstring to_wstring(long long value);
@@ -28,6 +29,7 @@ namespace std
 	wstring to_wstring(float value);
     wstring to_wstring(double value);
     wstring to_wstring(long double value);
+	wstring to_wstring(bool value);
     u8string to_u8string(int value);
 	u8string to_u8string(long value);
 	u8string to_u8string(long long value);
@@ -38,6 +40,7 @@ namespace std
 	u8string to_u8string(float value);
     u8string to_u8string(double value);
     u8string to_u8string(long double value);
+	u8string to_u8string(bool value);
     u16string to_u16string(int value);
 	u16string to_u16string(long value);
 	u16string to_u16string(long long value);
@@ -48,6 +51,7 @@ namespace std
 	u16string to_u16string(float value);
     u16string to_u16string(double value);
     u16string to_u16string(long double value);
+	u16string to_u16string(bool value);
     u32string to_u32string(int value);
 	u32string to_u32string(long value);
 	u32string to_u32string(long long value);
@@ -58,6 +62,7 @@ namespace std
 	u32string to_u32string(float value);
     u32string to_u32string(double value);
     u32string to_u32string(long double value);
+	u32string to_u32string(bool value);
 	namespace ext
 	{
 		std::string fcvt(float f, int ndigits);

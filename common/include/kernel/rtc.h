@@ -29,7 +29,7 @@ class rtc_driver
     rtc_driver() = default;
     static rtc_driver __instance;
 public:
-    [[gnu::target("general-regs-only")]] void rtc_time_update() volatile noexcept;
+    __isrcall void rtc_time_update() volatile noexcept;
     static void init_instance(uint8_t century_register = 0) noexcept;
     static rtc_driver volatile& get_instance() noexcept;
     rtc_time get_time() volatile;

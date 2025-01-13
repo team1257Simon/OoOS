@@ -59,11 +59,11 @@ enum event_type : uint8_t
 class keyboard_driver_amd64 : public keyboard_driver_base
 {
     bool __skip = false;
-    [[gnu::target("general-regs-only")]] kb_data __get_next(kb_state current_state, bool extd);
+    __isrcall kb_data __get_next(kb_state current_state, bool extd);
 protected:
-	[[gnu::target("general-regs-only")]] virtual kb_data __get_last(kb_state current_state) override;
+	__isrcall virtual kb_data __get_last(kb_state current_state) override;
     virtual void __on_init() override;
     virtual byte __get_irq_index() override;
-    [[gnu::target("general-regs-only")]] virtual bool __skip_send() override;
+    __isrcall virtual bool __skip_send() override;
 };
 #endif

@@ -57,12 +57,7 @@ static paging_table __find_table(vaddr_t const& of_page)
     }
     return NULL;
 }
-uintptr_t translate_vaddr(vaddr_t addr)
-{
-    if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset;
-    return 0;
-}
-vaddr_t skip_mmio(vaddr_t start, size_t pages)
+static vaddr_t __skip_mmio(vaddr_t start, size_t pages)
 {
     vaddr_t curr { start };
     vaddr_t ed = start + ptrdiff_t(pages * PAGESIZE);
@@ -78,10 +73,11 @@ vaddr_t skip_mmio(vaddr_t start, size_t pages)
 }
 extern "C" 
 {
+    uintptr_t translate_vaddr(vaddr_t addr) { if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
     vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages)
     {
         if(!start) return {};
-        vaddr_t curr { skip_mmio(start, pages) };
+        vaddr_t curr { __skip_mmio(start, pages) };
         if(!curr) return {};
         start = curr;
         paging_table pt = __get_table(curr, false);

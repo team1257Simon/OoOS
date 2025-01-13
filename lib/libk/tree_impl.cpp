@@ -3,16 +3,19 @@ namespace std
 {
     static __node_base * __local_increment(__node_base *x) throw()
     {
-        if(x->__my_right != NULL) return __node_base::__min(x->__my_right);
-        __node_base* y = x->__my_parent;
-        while(x == y->__my_right) { x = y; y = y->__my_parent; }
-        if(x->__my_right != y) x = y;
+        if(x->__my_right) { x = x->__my_right; while(x->__my_left) x = x->__my_left; }
+        else
+        {
+            __node_base* y = x->__my_parent;
+            while(x == y->__my_right) { x = y; y = y->__my_parent; }
+            if(x->__my_right != y) x = y;
+        }
         return x;
     }
     static __node_base* __local_decrement(__node_base* x) throw()
     {
-        if(x->__my_color == RED && x->__my_parent->__my_parent == x) return x->__my_right;
-        else if(x->__my_left != NULL) return __node_base::__max(x->__my_left);
+        if(x->__my_color == RED && x->__my_parent->__my_parent == x) x = x->__my_right;
+        else if(x->__my_left) { x = x->__my_left; while(x->__my_right) x = x->__my_right; }
         else
         {
             __node_base* y = x->__my_parent;
@@ -25,7 +28,7 @@ namespace std
     {
         __node_base* const y = x->__my_right;
         x->__my_right = y->__my_left;
-        if(y->__my_left != NULL) y->__my_left->__my_parent = x;
+        if(y->__my_left) y->__my_left->__my_parent = x;
         y->__my_parent = x->__my_parent;
         if(x == root) root = y;
         else if(x == x->__my_parent->__my_left) x->__my_parent->__my_left = y;
@@ -37,7 +40,7 @@ namespace std
     {
         __node_base* const y = x->__my_left;
         x->__my_left = y->__my_right;
-        if(y->__my_right != NULL)  y->__my_right->__my_parent = x;
+        if(y->__my_right)  y->__my_right->__my_parent = x;
         y->__my_parent = x->__my_parent;
         if(x == root) root = y;
         else if(x == x->__my_parent->__my_right) x->__my_parent->__my_right = y;
@@ -46,37 +49,38 @@ namespace std
         x->__my_parent = y;
     }
     static inline __node_base* __next(__node_base* x, const node_direction dir) { return (dir == RIGHT ? x->__my_right : x->__my_left); }
-    __node_base::__ptr __node_base::__min(__ptr x) { while(x->__my_left != NULL) x = x->__my_left; return x; }
-    __node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left != NULL) x = x->__my_left; return x; }
-    __node_base::__ptr __node_base::__max(__ptr x) { while(x->__my_right != NULL) x = x->__my_right; return x; }
-    __node_base::__const_ptr __node_base::__max(__const_ptr x)  { while(x->__my_right != NULL) x = x->__my_right; return x; }
+    __node_base::__ptr __node_base::__min(__ptr x) { while(x->__my_left) x = x->__my_left; return x; }
+    __node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left) x = x->__my_left; return x; }
+    __node_base::__ptr __node_base::__max(__ptr x) { while(x->__my_right) x = x->__my_right; return x; }
+    __node_base::__const_ptr __node_base::__max(__const_ptr x)  { while(x->__my_right) x = x->__my_right; return x; }
     __node_base *__increment_node(__node_base *x) throw() { return __local_increment(x); }
     __node_base *__decrement_node(__node_base *x) throw() { return __local_decrement(x); }
     __node_base const *__increment_node(__node_base const *x) throw() { return __local_increment(const_cast<__node_base*>(x)); }
     __node_base const *__decrement_node(__node_base const *x) throw() { return __local_decrement(const_cast<__node_base*>(x)); }
     static inline node_direction __opposite(const node_direction dir) { return (dir == RIGHT ? LEFT : RIGHT); }
     static inline void __local_rotate(__node_base* const x, __node_base* &root, const node_direction dir) { if(dir == RIGHT) __local_rrotate(x, root); else __local_lrotate(x, root); }
-    static inline void __local_rb_1(__node_base* x, __node_base* &root, const node_direction dir)
+    static inline void __local_rebalance_after_insert(__node_base* &x, __node_base* &root )
     {
-        __node_base* const grandparent = x->__my_parent->__my_parent;
-        __node_base* const y = (dir == RIGHT ? grandparent->__my_right : grandparent->__my_left);
+        __node_base* const w = x->__my_parent->__my_parent;
+        __node_base* const y = (x->__my_parent == w->__my_left ? w->__my_right : w->__my_left);
+        __node_base* const z = (x->__my_parent == w->__my_left ? x->__my_parent->__my_right : x->__my_parent->__my_left);
         if(y && y->__my_color == RED)
         {
-             // double-red clash
             x->__my_parent->__my_color = BLACK;
             y->__my_color = BLACK;
-            grandparent->__my_color = RED;
-            x = grandparent;
+            w->__my_color = RED;
+            x = w;
         }
         else
         {
-            __node_base* const z = (dir == RIGHT ? x->__my_parent->__my_right : x->__my_parent->__my_left);
+            node_direction dir = x->__my_parent == w->__my_left ? RIGHT : LEFT;
             if(x == z) { x = x->__my_parent; __local_rotate(x, root, __opposite(dir)); }
             x->__my_parent->__my_color = BLACK;
-            grandparent->__my_color = RED;
-            __local_rotate(x, root, dir);
+            w->__my_color = RED;
+            __local_rotate(w, root, dir);
         }
     }
+    [[gnu::nonnull]]
     void __insert_and_rebalance(const node_direction dir, __node_base *x, __node_base *p, __node_base &trunk) throw()
     {
         __node_base* &root = trunk.__my_parent;
@@ -91,11 +95,11 @@ namespace std
             else if(p == trunk.__my_left) trunk.__my_left = x;
         }
         else { p->__my_right = x; if(p == trunk.__my_right) trunk.__my_right = x; }
-        while(x != root && x->__my_parent->__my_color == RED) __local_rb_1(x, root, (x == x->__my_parent->__my_parent->__my_right ? LEFT : RIGHT));
+        while(x != root && x->__my_parent->__my_color == RED) { __local_rebalance_after_insert(x, root); }
         root->__my_color = BLACK;
     }
-    static inline bool __local_rb_check_1(__node_base* w, const node_direction dir) { __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left); return (!w1 || w1->__my_color == BLACK); }
-    static inline bool __local_rb_2(__node_base* &x, __node_base* &x_parent, __node_base* &root, const node_direction dir)
+    static inline bool __local_erase_rebalance_check_color(__node_base* w, const node_direction dir) { __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left); return (!w1 || w1->__my_color == BLACK); }
+    static inline bool __local_erase_rebalance_fix_clashes(__node_base* &x, __node_base* &x_parent, __node_base* &root, const node_direction dir)
     {
         __node_base* w = __next(x_parent, dir);
         if(w->__my_color == RED)
@@ -105,7 +109,7 @@ namespace std
             __local_rotate(x, root, __opposite(dir));
             w = __next(x_parent, dir);
         }
-        if(__local_rb_check_1(w, LEFT) && __local_rb_check_1(w, RIGHT))
+        if(__local_erase_rebalance_check_color(w, LEFT) && __local_erase_rebalance_check_color(w, RIGHT))
         {
             w->__my_color = RED;
             x = x_parent;
@@ -113,7 +117,7 @@ namespace std
         }
         else
         {
-            if(__local_rb_check_1(w, dir))
+            if(__local_erase_rebalance_check_color(w, dir))
             {
                 __next(w, __opposite(dir))->__my_color = BLACK;
                 w->__my_color = RED;
@@ -131,6 +135,8 @@ namespace std
         }
         return false;
     }
+    [[gnu::nonnull]]
+    [[gnu::returns_nonnull]]
     __node_base *__rebalance_for_erase(__node_base *const z, __node_base &trunk) throw()
     {
         __node_base* &root = trunk.__my_parent;
@@ -139,8 +145,8 @@ namespace std
         __node_base* y = z;
         __node_base* x = NULL;
         __node_base* x_parent = NULL;
-        if(y->__my_left == NULL) x = y->__my_right;
-        else if(y->__my_right == NULL) x = y->__my_left;
+        if(!y->__my_left) x = y->__my_right;
+        else if(!y->__my_right) x = y->__my_left;
         else { y = __node_base::__min(y->__my_right); x = y->__my_right; }
         if(y != z)
         {
@@ -168,23 +174,11 @@ namespace std
             if(root == z) root = x;
             else if(z == z->__my_parent->__my_left) z->__my_parent->__my_left = x;
             else z->__my_parent->__my_right = x;
-            if(z == leftmost) { if(z->__my_right == NULL) leftmost = z->__my_parent; else leftmost = __node_base::__min(x); }
-            if(z == rightmost) { if(z->__my_left == NULL) rightmost = z->__my_parent; else rightmost = __node_base::__max(z); }
+            if(z == leftmost) { if(!z->__my_right) leftmost = z->__my_parent; else leftmost = __node_base::__min(x); }
+            if(z == rightmost) { if(z->__my_left) rightmost = z->__my_parent; else rightmost = __node_base::__max(z); }
         }
-        if(y->__my_color != RED) { while(x != root && (x == NULL || x->__my_color == BLACK)) if(__local_rb_2(x, x_parent, root, (x == x_parent->__my_left ? RIGHT : LEFT))) break; if(x) { x->__my_color = BLACK; } }
+        if(y->__my_color != RED) { while(x != root && (!x || x->__my_color == BLACK)) if(__local_erase_rebalance_fix_clashes(x, x_parent, root, (x == x_parent->__my_left ? RIGHT : LEFT))) break; if(x) { x->__my_color = BLACK; } }
         root->__my_color = BLACK;
         return y;
-    }
-    unsigned int __black_count(const __node_base *node, const __node_base *root)
-    {
-        if(!node) return 0;
-        unsigned int sum = 0;
-        do
-        {
-            if(node->__my_color == BLACK) sum++;
-            if(node == root) break;
-            node = node->__my_parent;
-        } while(1);
-        return sum;
     }
 }

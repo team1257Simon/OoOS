@@ -17,17 +17,23 @@ constexpr bool acquire(mutex_t m) { return __atomic_test_and_set(m, __ATOMIC_SEQ
 constexpr void release(mutex_t m) { __atomic_clear(m, __ATOMIC_SEQ_CST); }
 constexpr void lock(mutex_t m) { while(acquire(m)) PAUSE; }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, &b, __ATOMIC_SEQ_CST); return b; }
-void tlb_flush();
-void set_cr3(void*);
 void direct_write(const char* str);
 void debug_print_num(uintptr_t num, int lenmax = 16);
 void panic(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
+void tlb_flush();
+void set_cr3(void*);
 paging_table get_cr3() noexcept;
+void set_fs_base(void*);
+void set_gs_base(void*);
+void* get_fs_base();
+void* get_gs_base();
+qword get_flags();
 vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
 uintptr_t sys_unmap(vaddr_t start, size_t pages);
 vaddr_t mmio_mmap(vaddr_t start, size_t pages);
+uintptr_t translate_vaddr(vaddr_t addr);
 #ifdef __cplusplus
 }
 constexpr inline size_t GIGABYTE = 0x40000000;
@@ -44,7 +50,6 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inl
     else if constexpr(sizeof(T) == 8) asm volatile("rep stosq": "+D"(dest) : "a"(value), "c"(n * sizeof(T) / 8) : "memory");
     else asm volatile("rep stosb" : "+D"(dest) : "a"(value), "c"(n * sizeof(T)) : "memory");
 }
-
 template<typename T> concept qword_copy = trivial_copy<T> && (sizeof(T) == 8 || (std::is_integral_v<T> && sizeof(T) % 8 == 0 && alignof(T) % 8 == 0)); 
 template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n)
 {
@@ -53,7 +58,6 @@ template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* d
     else if constexpr(qword_copy<T>) asm volatile("rep movsq" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T) / 8) : "memory"); 
     else asm volatile("rep movsb" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T)): "memory");
 }
-uintptr_t translate_vaddr(vaddr_t addr);
 #else
 template<trivial_copy T> requires std::not_larger<T, uint64_t> [[gnu::always_inline]] constexpr void arrayset(void* dest, T value, std::size_t n) { __builtin_memset(dest, value, n * sizeof(T)); }
 template<trivial_copy T> [[gnu::always_inline]] constexpr void arraycopy(void* dest, const T* src, std::size_t n) { __builtn_memcpy(dest, src, n * sizeof(T)); }

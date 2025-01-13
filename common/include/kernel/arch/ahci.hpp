@@ -353,7 +353,7 @@ typedef volatile struct tmem
 		bool native_q 		: 1;
 		bool s_notif  		: 1;
 		bool mech_pres 		: 1;
-		bool stagger_start 	: 1;
+		bool sud_supported 	: 1;
 		bool agg_link_p		: 1;
 		bool act_led		: 1;
 		bool cl_overrd		: 1;
@@ -405,10 +405,10 @@ class ahci_driver
     size_t __num_ports{};
     vaddr_t __my_block{};
 	int __last_command_on_port[32]{};
-	void __issue_command(uint8_t port_idx, int slot);
-	void __build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l);
 	static bool __has_init;
 	static ahci_driver __instance;
+	void __issue_command(uint8_t port_idx, int slot);
+	void __build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l);
     bool __handoff_busy();
     void __init_irq();
 protected:
@@ -421,8 +421,10 @@ protected:
 	void port_hard_reset(uint8_t idx);
 	void hard_reset_fallback(uint8_t idx);
 	bool has_port(uint8_t i);
-    [[gnu::target("general-regs-only")]] void handle_irq();
+    __isrcall void handle_irq();
 public:
+	ahci_driver(ahci_driver const&) = delete;
+	ahci_driver& operator=(ahci_driver const&) = delete;
 	static ahci_driver* get_instance();
 	static bool init_instance(pci_device_list* ls) noexcept;
 	static bool is_initialized();

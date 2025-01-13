@@ -11,8 +11,8 @@ class direct_text_render
     point __cursor_pos{ 0, 0 };
     constexpr uint32_t __fb_col_cap() const { return __fb_wid / __render.glyph_width(); }
     constexpr uint32_t __fb_row_cap() const { return __fb_ht / __render.glyph_height(); }
-    void __advance() noexcept;
-    void __write_one(char c);
+    __isrcall void __advance() noexcept;
+    __isrcall void __write_one(char c);
 public:
     constexpr direct_text_render() noexcept = default;
     constexpr direct_text_render(sysinfo_t* fb_info, psf2_t* font_data, uint32_t fg_color, uint32_t bg_color) noexcept :
@@ -25,13 +25,13 @@ public:
     constexpr uint32_t get_fg_color() const noexcept { return __render.fg_color(); }
     constexpr void set_bg_color(uint32_t color) noexcept { __render.set_bg_color(color); }
     constexpr uint32_t get_bg_color() const noexcept { return __render.bg_color(); }
-    void cls();
-    void endl();
-    void cr();
-    void up();
-    void print_text(const char* text);
-    void print_text(std::string const& text);
-    void print_line(const char* text);
-    void print_line(std::string const& text);
+    __isrcall void cls();
+    __isrcall void endl();
+    __isrcall void cr();
+    __isrcall void up();
+    __isrcall void print_text(const char* text);
+    __isrcall void print_text(std::string const& text);
+    __isrcall void print_line(const char* text);
+    __isrcall void print_line(std::string const& text);
 };
 #endif

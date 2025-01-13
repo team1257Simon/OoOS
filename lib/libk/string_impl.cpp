@@ -302,6 +302,7 @@ namespace std
     string to_string(float value) { return __impl::__fptocs_conv(value, 6); }
     string to_string(double value) { return __impl::__fptocs_conv(value, 10); }
     string to_string(long double value) { return __impl::__fptocs_conv(value, 256); }
+    string to_string(bool value) { return value ? "true" : "false"; }
     wstring to_wstring(int value) { return __impl::__to_string<int, wchar_t>(value); }
 	wstring to_wstring(long value) { return __impl::__to_string<long, wchar_t>(value); }
 	wstring to_wstring(long long value) { return __impl::__to_string<long long, wchar_t>(value); }
@@ -312,6 +313,7 @@ namespace std
     wstring to_wstring(float value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
     wstring to_wstring(double value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
     wstring to_wstring(long double value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
+    wstring to_wstring(bool value) { return value ? L"true" : L"false"; }
     u8string to_u8string(int value) { return __impl::__to_string<int, char8_t>(value); }
 	u8string to_u8string(long value) { return __impl::__to_string<long, char8_t>(value); }
 	u8string to_u8string(long long value) { return __impl::__to_string<long long, char8_t>(value); }
@@ -322,6 +324,7 @@ namespace std
     u8string to_u8string(float value) { return __impl::__cvt_digits<char8_t>(to_string(value)); }
     u8string to_u8string(double value) { return __impl::__cvt_digits<char8_t>(to_string(value)); }
     u8string to_u8string(long double value) { return __impl::__cvt_digits<char8_t>(to_string(value));; }
+    u8string to_u8string(bool value) { return value ? u8"true" : u8"false"; }
     u16string to_u16string(int value) { return __impl::__to_string<int, char16_t>(value); }
 	u16string to_u16string(long value) { return __impl::__to_string<long, char16_t>(value); }
 	u16string to_u16string(long long value) { return __impl::__to_string<long long, char16_t>(value); }
@@ -332,6 +335,7 @@ namespace std
     u16string to_u16string(float value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
     u16string to_u16string(double value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
     u16string to_u16string(long double value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
+    u16string to_u16string(bool value) { return value ? u"true" : u"false"; }
     u32string to_u32string(int value) { return __impl::__to_string<int, char32_t>(value); }
 	u32string to_u32string(long value) { return __impl::__to_string<long, char32_t>(value); }
 	u32string to_u32string(long long value) { return __impl::__to_string<long long, char32_t>(value); }
@@ -342,6 +346,7 @@ namespace std
     u32string to_u32string(float value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
     u32string to_u32string(double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
     u32string to_u32string(long double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
+    u32string to_u32string(bool value) { return value ? U"true" : U"false"; }
     namespace ext
     {
         std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }

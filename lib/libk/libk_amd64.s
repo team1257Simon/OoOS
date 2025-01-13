@@ -62,6 +62,27 @@
     cmovncq     %rdi,   %rax
     ret
     .size     __rdseed,   .-__rdseed
+    defglobal set_gs_base
+    wrgsbase    %rdi
+    ret
+    .size     set_gs_base, .-set_gs_base
+    defglobal set_fs_base
+    wrfsbase    %rdi
+    ret
+    .size     set_fs_base, .-set_fs_base
+    defglobal get_gs_base
+    rdgsbase    %rax
+    ret
+    .size     get_gs_base, .-get_gs_base
+    defglobal get_fs_base
+    rdfsbase    %rax
+    ret
+    .size     get_fs_base, .-get_fs_base
+    defglobal get_flags
+    pushfq
+    popq        %rax
+    ret
+    .size     get_flags,   .-get_flags
     .section    .data
 	.global		__atexit_guard
     .type       __atexit_guard,     @object

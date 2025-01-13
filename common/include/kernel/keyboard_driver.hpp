@@ -39,10 +39,10 @@ class keyboard_driver_base
     std::vector<kb_listener> __listeners{};
     kb_state __current_state{};
 protected:
-    [[gnu::target("general-regs-only")]] virtual kb_data __get_last(kb_state current_state) = 0;
+    __isrcall virtual kb_data __get_last(kb_state current_state) = 0;
     virtual void __on_init() = 0;
     virtual byte __get_irq_index() = 0;
-    [[gnu::target("general-regs-only")]] virtual bool __skip_send();
+    __isrcall virtual bool __skip_send();
 public:
     virtual void add_listener(kb_listener&& kl) final;
     virtual void clear_listeners() final;

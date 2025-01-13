@@ -48,7 +48,7 @@ std::streamsize serial_driver_amd64::__ddread(std::streamsize cnt)
     for(result = 0; serial_have_input() && result < cnt; result++) { this->__push_elements(char(inb(port_com1))); }
     return result;
 }
-[[gnu::target("general-regs-only")]] void serial_driver_amd64::__q_on_modify() { ptrdiff_t n = this->gptr() - this->eback(); if(n > 0) this->__qsetn(size_t(n)); if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
+__isrcall void serial_driver_amd64::__q_on_modify() { ptrdiff_t n = this->gptr() - this->eback(); if(n > 0) this->__qsetn(size_t(n)); if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
 bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level, word baud_div)
 {
     serial_ier init_ier = inb(port_com1_ier);
@@ -61,7 +61,7 @@ bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trig
         outb(port_com1_modem_ctl, modem_ctl_byte{ true, true, true, true, false });
         init_ier.receive_data = true;
         outb(port_com1_ier, init_ier);
-        interrupt_table::add_irq_handler(4, INTERRUPT_LAMBDA() { while(serial_have_input()) { __inst.__push_elements(char(inb(port_com1))); } });
+        interrupt_table::add_irq_handler(4, LAMBDA_ISR() { while(serial_have_input()) { __inst.__push_elements(char(inb(port_com1))); } });
         irq_clear_mask<4>();
         return true; 
     }

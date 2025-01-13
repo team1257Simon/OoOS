@@ -18,14 +18,14 @@ namespace std
     public:
         using result_type = typename __traits::__result_type;
         explicit constexpr __mem_fn_base(MFT __pmf) noexcept : __my_pmf(__pmf) {}
-        template<typename... Args> constexpr auto operator()(Args&&... __args) const noexcept(noexcept(std::__invoke(__my_pmf, std::forward<Args>(__args)...))) -> decltype(std::__invoke(__my_pmf, std::forward<Args>(__args)...)) { return std::__invoke(__my_pmf, std::forward<Args>(__args)...); }
+        template<typename ... Args> constexpr auto operator()(Args&&... __args) const noexcept(noexcept(std::__invoke(__my_pmf, std::forward<Args>(__args)...))) -> decltype(std::__invoke(__my_pmf, std::forward<Args>(__args)...)) { return std::__invoke(__my_pmf, std::forward<Args>(__args)...); }
     };
     template<typename MPT>
     class __mem_fn_base<MPT, false>
     {
         using __arity = integral_constant<size_t, 0>;
         using __varargs = false_type;
-        template<typename FT, typename... BArgs> friend struct __bind_check_arity;
+        template<typename FT, typename ... BArgs> friend struct __bind_check_arity;
         MPT __my_ptr;
     public:
         explicit constexpr  __mem_fn_base(MPT __pm) noexcept : __my_ptr(__pm) {}

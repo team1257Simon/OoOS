@@ -15,7 +15,6 @@ namespace std
     template<typename CT> concept char_type = __detail::__is_char_type_v<CT>;
     namespace __impl
     {
-        [[gnu::always_inline]] constexpr int __sign_of(int i) { return i == 0 ? 0 : (i < 0 ? -1 : 1); }
         template<std::char_type CT> constexpr const CT* __find_impl(CT const* str, CT const* what) noexcept { if (!what[0]) return str; for (size_t i = 1; str[0]; str++) { if (str[0] == what[0]) { for (i = 1; what[i]; i++) { if (str[i] != what[i]) break; } if (!what[i]) return str; } } return NULL; }
     }
     #if defined(__x86_64__) || defined(_M_X64)
@@ -44,7 +43,7 @@ namespace std
     template<std::char_type CT> constexpr CT* strncpy(CT* dest, const CT* src, size_t n) { arraycopy<CT>(dest, src, std::strnlen(src, n)); return dest; }
     template<std::char_type CT> constexpr CT* stpcpy(CT* dest, const CT* src) { size_t n = std::strlen(src); arraycopy<CT>(dest, src, n); return dest + n; }
     template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); arraycopy<CT>(dest, src, n); return dest + n; }
-    template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && *s2 == *s1 && (*s1 && *s2); ++i, ++s1, ++s2); return std::__impl::__sign_of(int(*s1 - *s2));}
+    template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && (*s2 == *s1) && (*s1 != 0) && (*s2 != 0); ++i, ++s1, ++s2); return (*s1 < *s2) ? -1 : (*s1 > *s2 ? 1 : 0); }
     template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
     template<std::char_type CT> constexpr const CT* find(const CT* ptr, const CT* what) noexcept { return __impl::__find_impl(ptr, what); }
     template<> constexpr bool eq<char>(char a, char b) { return static_cast<unsigned char>(a) == static_cast<unsigned char>(b); }

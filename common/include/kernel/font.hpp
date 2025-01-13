@@ -52,8 +52,8 @@ public:
 	constexpr uint32_t fg_color() const noexcept { return this->__foreground; }
 	constexpr uint32_t bg_color() const noexcept { return this->__background; }
 	constexpr uint32_t fb_pitch() const noexcept { return this->__pitch; }
-	void operator()(char c, uint32_t* fb, point const& pos) const;
-	void fill(uint32_t color, uint32_t* fb, point const& pos) const;
+	__isrcall void operator()(char c, uint32_t* fb, point const& pos) const;
+	[[gnu::target("general-regs-only")]] void fill(uint32_t color, uint32_t* fb, point const& pos) const;
 };
 #endif
 #endif

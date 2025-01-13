@@ -2,6 +2,7 @@
 #define __KERNEL_DEF
 #include "stdint.h"
 #include "stddef.h"
+#define attribute(x) __attribute__(x)
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\sys\\core.elf"
 #endif
@@ -10,8 +11,9 @@
 #define MMAP_MAX_PG 0x100000uL
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
-#define __pack __attribute__((packed))
-#define __align(n) __attribute__((aligned(n)))
+#define __pack attribute((packed))
+#define __align(n) attribute((aligned(n)))
+#define __isrcall [[gnu::target("general-regs-only")]]
 #ifndef __cplusplus
 typedef unsigned char bool;
 #define physical_block_size 512uL
@@ -426,7 +428,7 @@ typedef struct __pagefile
     page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
     page_frame* frame_entries;
 } __pack pagefile;
-typedef void(__attribute__((sysv_abi)) *kernel_entry_fn)(sysinfo_t*, mmap_t*, pagefile*);
+typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*, pagefile*);
 #ifdef __cplusplus
 typedef struct __byte
 {
@@ -557,4 +559,5 @@ typedef uint16_t word;
 typedef uint32_t dword;
 typedef uint64_t qword;
 #endif
+#define BIT(n) (1 << n)
 #endif

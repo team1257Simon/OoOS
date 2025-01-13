@@ -9,6 +9,7 @@
 #include "fs/data_buffer.hpp"
 #include "fs/hda_ahci.hpp"
 #include "arch/com_amd64.h"
+#include "map"
 extern psf2_t* __startup_font;
 extern "C" uint64_t errinst;
 std::atomic<uint64_t> t_ticks;
@@ -50,9 +51,42 @@ void descr_pt(partition_table const& pt)
         startup_tty.print_line(std::to_string(e.end_lba));
     }
 }
+void map_tests()
+{
+    std::map<std::string, int> m{};
+    m.insert(std::make_pair("meep", 21));
+    m["gyeep"] = 63;
+    m.insert_or_assign("bweep", 42);
+    m["fweep"] = 84;
+    m.insert_or_assign("dreep", 105);
+    startup_tty.print_line("initial map values: ");
+    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_line(std::to_string(i->second));
+    }
+    m.erase("gyeep");
+    startup_tty.print_line("map values after erase: ");
+    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_line(std::to_string(i->second));
+    }
+    m["dreep"] = 45;
+    m.insert_or_assign("fweep", 37);
+    startup_tty.print_line("map values after reassign: ");
+    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_line(std::to_string(i->second));
+    }
+}
 void run_tests()
 {
-    interrupt_table::add_interrupt_callback(INTERRUPT_LAMBDA(byte idx, qword ecode)
+    interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword ecode)
     {
         if(ecode) 
         {
@@ -73,7 +107,7 @@ void run_tests()
             __builtin_unreachable();
         }
     });
-    interrupt_table::add_irq_handler(0, INTERRUPT_LAMBDA() { t_ticks ++; });
+    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks ++; });
     can_print = true;
     srand(syscall_time(0));
     startup_tty.print_line("Hello world!");
@@ -83,7 +117,7 @@ void run_tests()
     startup_tty.print_line(std::to_string(rand()));
     if(com)
     {
-        interrupt_table::add_irq_handler(4, INTERRUPT_LAMBDA() { size_t n = com->in_avail(); char buf[n + 1]; com->sgetn(buf, n); buf[n] = 0; startup_tty.print_text(buf); });
+        interrupt_table::add_irq_handler(4, LAMBDA_ISR() { size_t n = com->in_avail(); char buf[n + 1]; com->sgetn(buf, n); buf[n] = 0; startup_tty.print_text(buf); });
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
@@ -95,6 +129,9 @@ void run_tests()
     }
     startup_tty.print_line(pci_device_list::init_instance(__sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
     if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
+    startup_tty.print_line("map test...");
+    map_tests();
+    startup_tty.print_line("complete");
 }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 extern "C" void _init();

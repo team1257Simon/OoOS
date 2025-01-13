@@ -22,6 +22,8 @@ namespace std
         typedef __tree_base<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT> __base;
         typedef __node<pair<const KT, VT>>* __link_t;
         typedef __node<pair<const KT, VT>> const* __clink_t;
+        typedef typename __base::__res_pair __res_t;
+        typedef typename __base::__pos_pair __pos_t;
     public:
         typedef KT key_type;
         typedef VT mapped_type;
@@ -54,13 +56,31 @@ namespace std
         constexpr map() : __base{} {}
         constexpr map(map const& that) : __base{ that } {}
         constexpr map(map&& that) : __base{ move(that) } {}
+        template<std::matching_input_iterator<value_type> IT> constexpr map(IT first, IT last) : __base{ first, last } {}
+        constexpr map(std::initializer_list<value_type> ilist) : __base{ ilist.begin(), ilist.end() } {}
         constexpr void clear() { this->__clear(); }
-        template<typename U> requires (__valid_comparator<CT, value_type, U> || is_convertible_v<U, KT>) constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
-        template<typename U> requires (__valid_comparator<CT, value_type, U> || is_convertible_v<U, KT>) constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
-        template<std::convertible_to<KT> U> requires (is_default_constructible_v<VT>) constexpr VT& operator[](U const& u) { __link_t r = this->__find_node(u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__insert_unique(r, value_type{ u, VT{} }); } return r->__get_ref().second; }
-        pair<iterator, bool> insert(value_type && vt) { auto res = this->__insert_unique(vt); return pair{ iterator{res.first}, res.second }; }
-        template<std::convertible_to<VT> UT> pair<iterator, bool> insert_or_assign(KT && kt, UT && ut) { iterator i { this->__find_node(kt) }; if(i.__my_node == this->__end()) return pair{ iterator { this->__emplace_unique(forward<KT>(kt), forward<UT>(ut)) }, true}; (*i).second = forward<UT>(ut); return pair{ i, false }; }
-        size_type erase(key_type const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
+        template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { __res_t res = this->__emplace_unique(std::forward<Args>(args)...); return pair{ iterator{ res.first }, res.second }; }
+        template<typename ... Args> requires constructible_from<value_type, Args...> iterator emplace_hint(const_iterator hint, Args&& ... args) { return iterator{ this->__hint_emplace_unique(hint.__my_node, std::forward<Args>(args)...) }; }
+        template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
+        template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
+        pair<iterator, bool> insert(value_type && vt) { __res_t res = this->__insert_unique(std::forward<value_type>(vt)); return pair{ iterator{ res.first }, res.second }; }
+        pair<iterator, bool> insert(value_type const& vt) { __res_t res = this->__insert_unique(vt); return pair{ iterator{ res.first }, res.second }; }
+        iterator insert(const_iterator pos, value_type const& value) { return iterator{ this->__hint_insert_unique(pos.__my_node, value) }; }
+        iterator insert(const_iterator pos, value_type && value) { return iterator{ this->__hint_insert_unique(pos.__my_node, forward<value_type>(value)) }; }
+        template<std::matching_input_iterator<value_type> IT> void insert(IT first, IT last) { this->__insert_range_unique(first, last); }
+        void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
+        template<std::convertible_to<key_type> U> size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
+        iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
+        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
+        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.__my_node, end.__my_node) }; }
+        template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U && u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(std::forward<U>(u), mapped_type{})); } return r->__get_ref().second; }
+        template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U const& u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(u, mapped_type{})); } return r->__get_ref().second; }
+        template<std::not_self<value_type> PT> requires constructible_from<value_type, PT&&> pair<iterator, bool> insert(PT && pt) { return emplace(std::forward<PT>(pt)); }
+        template<std::not_self<value_type> PT> requires constructible_from<value_type, PT&&> iterator insert(const_iterator pos, PT && pt) { return emplace_hint(pos, std::forward<PT>(pt)); }
+        template<std::convertible_to<mapped_type> WT> pair<iterator, bool> insert_or_assign(KT && kt, WT && wt) { bool inserted = false; __link_t r = this->__lower_bound(this->__get_root(), this->__end(), kt);  if(r == this->__end() || this->__compare_l(kt, r)) { r = this->__hint_insert_unique(r, value_type(std::forward<KT>(kt), std::forward<WT>(wt))); inserted = true; } else { r->__get_ref().second = std::forward<WT>(wt); } return std::make_pair(iterator(r), inserted); }
+        template<std::convertible_to<mapped_type> WT> pair<iterator, bool> insert_or_assign(KT const& kt, WT && wt) { bool inserted = false; __link_t r = this->__lower_bound(this->__get_root(), this->__end(), kt);  if(r == this->__end() || this->__compare_l(kt, r)) { r = this->__hint_insert_unique(r, value_type(kt, std::forward<WT>(wt))); inserted = true; } else { r->__get_ref().second = std::forward<WT>(wt); } return std::make_pair(iterator(r), inserted); }
+        template<std::convertible_to<mapped_type> WT> iterator insert_or_assign(const_iterator pos, KT && kt, WT && wt) { __pos_t hint = this->__insert_unique_hint_pos(hint, kt); if(hint.second) { return emplace_hint(const_iterator(hint.second), std::make_pair(forward<KT>(kt), forward<WT>(wt))); } iterator i{ hint.first }; (*i).second = std::forward<WT>(wt); return i; }
+        template<std::convertible_to<mapped_type> WT> iterator insert_or_assign(const_iterator pos, KT const& kt, WT && wt) { __pos_t hint = this->__insert_unique_hint_pos(hint, kt); if(hint.second) { return emplace_hint(const_iterator(hint.second), std::make_pair(kt, forward<WT>(wt))); } iterator i{ hint.first }; (*i).second = std::forward<WT>(wt); return i; }
     };
 }
 #endif
