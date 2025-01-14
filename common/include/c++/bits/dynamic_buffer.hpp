@@ -75,6 +75,7 @@ namespace std::__impl
         __ptr __insert_elements(__const_ptr pos, __const_ptr start_ptr, __const_ptr end_ptr);
         template<matching_input_iterator<T> IT> __ptr __insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr);
         template<typename ... Args> requires constructible_from<T, Args...> __ptr __emplace_element(__const_ptr pos, Args&& ... args);
+        template<typename ... Args> requires constructible_from<T, Args...> __ptr __emplace_at_end(Args&& ... args);
         __ptr __replace_elements(__size_type pos, __size_type count, __ptr from, __size_type count2);
         __ptr __erase_range(__const_ptr start, __const_ptr end);
         __ptr __insert_element(__const_ptr pos, T const& t) { return __insert_elements(pos, __builtin_addressof(t), __builtin_addressof(t) + 1); }
@@ -170,7 +171,7 @@ namespace std::__impl
         if(!added) return true; // Zero elements -> vacuously true completion
         __size_type num_elements = __size();
         __size_type target = __capacity() + added;
-        try { __setn(resize<T>(__beg(), target), num_elements, target); __zero(__cur(), __rem()); } 
+        try { __setn(resize<T>(__beg(), target), num_elements, target); } 
         catch(...) { return false; }
         return true;
     }
@@ -299,7 +300,18 @@ namespace std::__impl
             if(!__grow_buffer(1)) return nullptr;
             pos = __max() - 1;
         }
-        return construct_at(pos, forward<Args>(args)...);
+        return construct_at(const_cast<__ptr>(pos), forward<Args>(args)...);
+    }
+    template <typename T, allocator_object<T> A>
+    template <typename ... Args>
+    requires constructible_from<T, Args...>
+    typename __dynamic_buffer<T, A>::__ptr std::__impl::__dynamic_buffer<T, A>::__emplace_at_end(Args && ...args)
+    {
+        if(__size() == __capacity() && !__grow_buffer(1)) return nullptr;
+        __ptr p = construct_at(__cur(), forward<Args>(args)...);
+        __bumpc(1L);
+        this->__on_modify();
+        return p;
     }
     template<typename T, allocator_object<T> A>
     typename __dynamic_buffer<T, A>::__ptr __dynamic_buffer<T, A>::__erase_range(__const_ptr start, __const_ptr end)

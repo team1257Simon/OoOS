@@ -19,7 +19,8 @@ constexpr void lock(mutex_t m) { while(acquire(m)) PAUSE; }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, &b, __ATOMIC_SEQ_CST); return b; }
 void direct_write(const char* str);
 void debug_print_num(uintptr_t num, int lenmax = 16);
-void panic(const char* msg) noexcept;
+void direct_writeln(const char* str);
+__isrcall void panic(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
 void tlb_flush();

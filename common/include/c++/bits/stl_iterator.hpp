@@ -118,7 +118,7 @@ namespace __impl
         constexpr __iterator operator-(difference_type __n) const noexcept { return __iterator{ current - __n }; }
     };
     template<typename IT, typename JT, typename CT> constexpr bool operator==(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() == __that.base(); }
-    template<typename IT, typename JT, typename CT> constexpr std::__detail::__synth3way_t<IT, JT> operator<=>(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept(noexcept(std::__detail::__synth3way(__this.base(), __that.base()))) { std::__detail::__synth3way(__this.base(), __that.base()); }
+    template<typename IT, typename JT, typename CT> constexpr std::__detail::__synth3way_t<IT, JT> operator<=>(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept(noexcept(std::__detail::__synth3way(__this.base(), __that.base()))) { return std::__detail::__synth3way(__this.base(), __that.base()); }
     template<typename IT, typename JT, typename CT> constexpr typename __iterator<IT, CT>::difference_type operator-(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() - __that.base(); }
 }
 #endif

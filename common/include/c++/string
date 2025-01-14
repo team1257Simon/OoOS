@@ -71,4 +71,5 @@ namespace std
 	}
 }
 void xdirect_write(std::string const& str);
+void xdirect_writeln(std::string const& str);
 #endif

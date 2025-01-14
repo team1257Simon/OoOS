@@ -39,6 +39,7 @@
         "gdtoaimp.h": "c",
         "typeinfo": "cpp",
         "exception": "cpp",
-        "stdexcept": "cpp"
+        "stdexcept": "cpp",
+        "algorithm": "cpp"
     }
 }

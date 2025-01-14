@@ -2,7 +2,7 @@
 #include "isr_table.hpp"
 #include "string"
 extern "C" void direct_write(const char* str);
-static serial_driver_amd64 __inst{};
+serial_driver_amd64 serial_driver_amd64::__inst{ 64 };
 static void com1_set_baud_divisor(word value)
 {
     line_ctl_byte cur_ctl = inb(port_com1_line_ctl);

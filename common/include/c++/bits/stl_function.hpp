@@ -5,9 +5,12 @@
 #include "bits/invoke.hpp"
 #include "bits/typeinfo.h"
 #include "exception"
+#ifndef __isrcall
+#define __isrcall
+#endif
 namespace std
 {
-    [[noreturn]] void __throw_bad_function_call();
+    __isrcall [[noreturn]] void __throw_bad_function_call();
     class bad_function_call : public std::exception
     {
     public:
@@ -55,14 +58,14 @@ namespace std
         protected:
             using __is_locally_storable = __and_<is_trivially_copyable<FT>, bool_constant<sizeof(FT) <= __max_size && __alignof__(FT) <= __max_align && __max_align % __alignof__(FT) == 0>>;
             constexpr static bool __is_local_store = __is_locally_storable::value;
-            static FT* __get_pointer(__data_store const& data) { if constexpr(__is_local_store) return addressof(const_cast<FT&>(data.__access<FT>())); else return data.__access<FT*>(); }
+            constexpr static FT* __get_pointer(__data_store const& data) { if constexpr(__is_local_store) return addressof(const_cast<FT&>(data.__access<FT>())); else return data.__access<FT*>(); }
         public:
             template<typename F2> constexpr static void __init_fn(__data_store& dest, F2&& src) noexcept(__and_<__is_locally_storable, is_nothrow_constructible<F2, F2>>::value) { __create_wrapper(dest, forward<F2>(src), __is_locally_storable{}); }
             template<typename F2> constexpr static bool __not_empty(F2* f2) noexcept { return f2 != nullptr; }
             template<typename R, typename C, typename ... Args> constexpr static bool __not_empty(member_fn<R, C, Args...> mf) noexcept { return mf != nullptr; }
             template<typename F2> constexpr static bool __not_empty(function<F2> const& f2) noexcept { return static_cast<bool>(f2); }
             template<typename T> constexpr static bool __not_empty(T const&) noexcept { return true; }
-            static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op)
+            __isrcall static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op)
             {
                 switch (op)
                 {
@@ -97,8 +100,8 @@ namespace std
     {
         using __base = __function_base::__fn_manager<FT>;
     public:
-        static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { if(op == __get_functor_ptr) { dest.__access<FT*>() = __base::__get_pointer(src); return false; } return __base::__manager(dest, src, op); }
-        static RT __invoke_fn(__data_store const& fn, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r<RT>(*(__base::__get_pointer(fn)), forward<Args>(args)...); }
+        __isrcall static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { if(op == __get_functor_ptr) { dest.__access<FT*>() = __base::__get_pointer(src); return false; } return __base::__manager(dest, src, op); }
+        __isrcall static RT __invoke_fn(__data_store const& fn, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r<RT>(*(__base::__get_pointer(fn)), forward<Args>(args)...); }
         template<typename F2> constexpr static bool __is_nothrow_init() noexcept { return __and_<is_nothrow_constructible<F2>, typename __base::__is_locally_storable>::value; }
     };
     template<> class __function_helper<void, void> { public: constexpr static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { return false; } };
@@ -116,10 +119,9 @@ namespace std
     public:
         typedef RT result_type;
         template<__alternate_callable<RT, Args...> FT>
+        requires (is_copy_constructible<__decay_t<FT>>::value && is_constructible<__decay_t<FT>, FT>::value)
         constexpr function(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) : __function_base{}
         {
-            static_assert(is_copy_constructible<__decay_t<FT>>::value, "function target must be copy-constructible");
-	        static_assert(is_constructible<__decay_t<FT>, FT>::value, "function target must be constructible from the constructor argument");
             using __my_helper = __helper<FT>;
             if(__my_helper::__not_empty(ft))
             {
@@ -168,7 +170,7 @@ namespace std
         constexpr function& operator=(function&& that) noexcept { function{ move(that) }.swap(*this); return *this; }
         constexpr function& operator=(nullptr_t) noexcept { if(__my_manager) { __my_manager(__my_functor, __my_functor, __destroy_functor); __my_manager = nullptr; __my_invoker = nullptr; } return *this; }
         template<__alternate_callable<RT, Args...> FT> constexpr function& operator=(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) { function{ forward<FT>(ft) }.swap(*this); return *this; }
-        RT operator()(Args ... args) const { if(this->__empty()) { __throw_bad_function_call(); } return __my_invoker(__my_functor, forward<Args>(args)...); }
+        __isrcall RT operator()(Args ... args) const { if(this->__empty()) { __throw_bad_function_call(); } return __my_invoker(__my_functor, forward<Args>(args)...); }
         constexpr type_info const& target_type() const noexcept { if(__my_manager) { __data_store __ti_result; __my_manager(__ti_result, __my_functor, __get_type_info); if(type_info const* result = __ti_result.__access<type_info const*>()) return *result; } return typeid(void); }
     };
     template<typename> struct __function_guide_helper{};

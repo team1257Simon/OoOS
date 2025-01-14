@@ -1,0 +1,27 @@
+#ifndef __ALGORITHM
+#define __ALGORITHM
+#include "bits/stl_algobase.hpp"
+#include "string"
+#include "vector"
+namespace std
+{
+    namespace ext
+    {
+        template<typename DT, typename CT, typename TT, typename AT> concept __str_delim = char_type<CT> && char_traits_type<TT, CT>  && allocator_object<AT, CT> && (is_same_v<DT, typename std::basic_string<CT, TT, AT>::const_pointer> || is_same_v<DT, typename std::basic_string<CT, TT, AT>::value_type> || std::convertible_to<DT, std::basic_string<CT, TT, AT>>);
+        /**
+         * Split a string around a given delimiter, keeping only the elements between the delimiter(s).
+         * @param str a string
+         * @param delim a character or string to use as a delimiter
+         * @return A vector containing the split string(s), or simply the string itself if the delimiter is not found. If the string is empty, returns an empty vector.
+         */
+        template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT, __str_delim<CT, TT, AT> DT>
+        std::vector<std::basic_string<CT, TT, AT>> split(std::basic_string<CT, TT, AT> const& str, DT delim)
+        {
+            std::vector<std::basic_string<CT, TT, AT>> result{};
+            typename std::basic_string<CT, TT, AT>::const_iterator i = str.begin(), j;
+            do { j = str.find(delim, i); result.emplace_back(i, j); i = ++j; } while(j < str.end());
+            return result;
+        }
+    }
+}
+#endif

@@ -623,8 +623,8 @@ namespace std
 	template<typename T> struct __memcpyable<T*, T*> : __is_nonvolatile_trivially_copyable<T> {};
 	template<typename T> struct __memcpyable<T*, const T*> : __is_nonvolatile_trivially_copyable<T> {};
 	template<typename T> constexpr inline bool __is_nonvolatile_trivially_copyable_v = __is_nonvolatile_trivially_copyable<T>::__value;
-	using ptrdiff_t = decltype(declval<int*>() - declval<int*>());
+	using ::ptrdiff_t;
 	using ::size_t;
-	typedef decltype(nullptr) nullptr_t;
+	using ::nullptr_t;
 }
 #endif

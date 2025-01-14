@@ -170,10 +170,13 @@ protected:
     virtual std::streamsize __ddrem() override;
     virtual std::streamsize __sect_size() override;
     __isrcall virtual void __q_on_modify() override;
+    static serial_driver_amd64 __inst;
+    serial_driver_amd64(size_t init_size);
 public:
-    serial_driver_amd64(size_t init_size = 64);
     static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12ui16);
     static serial_driver_amd64* get_instance();
+    serial_driver_amd64(serial_driver_amd64 const&) = delete;
+    serial_driver_amd64& operator=(serial_driver_amd64 const&) = delete;
 };
 #endif
 #endif

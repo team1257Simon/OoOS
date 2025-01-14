@@ -65,7 +65,7 @@ namespace std
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
         template<std::matching_input_iterator<value_type> IT>constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
-        template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { this->__emplace_element(this->__cur(), forward<Args>(args)...); return back(); }
+        template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { return *(this->__emplace_at_end(std::forward<Args>(args)...)); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
         constexpr void pop_back() { this->__erase_at_end(1); }
         constexpr iterator erase(const_iterator pos) { return iterator { this->__erase(pos.base()) }; }

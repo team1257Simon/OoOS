@@ -69,7 +69,7 @@ namespace std
         iterator insert(const_iterator pos, value_type && value) { return iterator{ this->__hint_insert_unique(pos.__my_node, forward<value_type>(value)) }; }
         template<std::matching_input_iterator<value_type> IT> void insert(IT first, IT last) { this->__insert_range_unique(first, last); }
         void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
-        template<std::convertible_to<key_type> U> size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
+        template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
         iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
         iterator erase(const_iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
         iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.__my_node, end.__my_node) }; }

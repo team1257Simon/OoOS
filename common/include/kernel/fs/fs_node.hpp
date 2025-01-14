@@ -3,20 +3,27 @@
 #include "string"
 #include "functional"
 #include "bits/ios_base.hpp"
-class tnode_base;
+#include "set"
+class tnode;
 struct inode_base
 {
-    virtual int vid() const noexcept = 0; // virtual ID (fd number)
-    virtual uint64_t cid() const noexcept = 0; // concrete id (numeric identifier for the file in the concrete fs)
-    virtual uint64_t created_time() const noexcept = 0; // time created
-    virtual uint64_t modified_time() const noexcept = 0; // time last modified
+    virtual int vid() const noexcept; // virtual ID (fd number)
+    virtual uint64_t cid() const noexcept; // concrete id (numeric identifier for the file in the concrete fs)
+    virtual uint64_t created_time() const noexcept; // time created
+    virtual uint64_t modified_time() const noexcept; // time last modified
+    virtual bool rename(std::string const&); // change the concrete (i.e. on-disk for persistent fs) name
+    virtual const char* name() const; // get the concrete (i.e. on-disk for persistent fs) name
     virtual uint64_t size() const noexcept = 0; // size in bytes (for files) or concrete entries (for folders)
     virtual bool is_file() const noexcept = 0;
     virtual bool is_folder() const noexcept = 0;
-    virtual const char* name() const = 0; // get the concrete (i.e. on-disk for persistent fs) name
-    virtual bool rename(std::string const&) = 0; // change the concrete (i.e. on-disk for persistent fs) name
-    virtual bool sync() = 0; // Sync to disc, if applicable
-    constexpr inode_base() noexcept = default;
+    virtual bool fsync() = 0; // Sync to disc, if applicable
+protected:
+    std::string real_name;
+    int fd;
+    uint64_t real_id;
+    uint64_t create_time;
+    uint64_t modif_time;
+    inode_base(std::string const& name, int vfd, uint64_t cid);
 };
 class file_inode_base : public inode_base
 {
@@ -35,7 +42,7 @@ protected:
     virtual pos_type xseekl(off_type, std::ios_base::seekdir) = 0;
     virtual pos_type xseekp(pos_type) = 0;
 public:
-    constexpr file_inode_base() = default;
+    file_inode_base(std::string const& name, int vfd, uint64_t cid);
     virtual bool is_file() const noexcept final override;
     virtual bool is_folder() const noexcept final override;
     virtual bool chk_lock() const noexcept;
@@ -49,30 +56,30 @@ public:
 class folder_inode_base : public inode_base 
 {
 protected:
-    virtual tnode_base* xfind(std::string const&) = 0;
-    virtual bool xlink(tnode_base*, std::string const&) = 0;
+    virtual tnode* xfind(std::string const&) = 0;
+    virtual bool xlink(tnode*, std::string const&) = 0;
     virtual bool xunlink(std::string const&) = 0;
     virtual uint64_t xgnfiles() const noexcept = 0;
     virtual uint64_t xgnfolders() const noexcept = 0;
 public:
-    constexpr folder_inode_base() = default;
+    folder_inode_base(std::string const& name, uint64_t cid);
     virtual bool is_file() const noexcept final override;
     virtual bool is_folder() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool relink(std::string const& oldn, std::string const& newn);
-    tnode_base* find(std::string const& fname);
-    bool link(tnode_base* ptr, std::string const& name);
+    tnode* find(std::string const& fname);
+    bool link(tnode* ptr, std::string const& name);
     bool unlink(std::string const& name);
     uint64_t num_files() const noexcept;
     uint64_t num_folders() const noexcept;
 };
-class tnode_base
+class tnode
 {
     inode_base* __my_node;
     std::string __my_name;
 public:
-    tnode_base(inode_base*, std::string const&);
-    tnode_base(inode_base*, const char*);
+    tnode(inode_base*, std::string const&);
+    tnode(inode_base*, const char*);
     void rename(std::string const&);
     void rename(const char*);
     const char* name() const;
@@ -84,15 +91,25 @@ public:
     bool if_folder(std::function<bool(folder_inode_base&)> const& action);
     bool if_file(std::function<bool(file_inode_base const&)> const& action) const;
     bool if_folder(std::function<bool(folder_inode_base const&)> const& action) const;
+    bool is_file() const;
+    bool is_folder() const;
     file_inode_base* as_file();
     file_inode_base const* as_file() const;
     folder_inode_base* as_folder();
     folder_inode_base const* as_folder() const;
-    friend inline auto operator<=>(tnode_base const& __this, tnode_base const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that.__my_name; }
-    template<std::convertible_to<std::string> ST> friend inline auto operator<=>(tnode_base const& __this, ST const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that; }
-    template<std::convertible_to<std::string> ST> friend inline auto operator<=>(ST const& __this, tnode_base const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this <=> __that.__my_name; }
-    friend constexpr bool operator==(tnode_base const& __this, tnode_base const& __that) noexcept { return __this.__my_name == __that.__my_name; }
-    template<std::convertible_to<std::string> ST> friend constexpr bool operator==(tnode_base const& __this, ST const& __that) noexcept { return __this.__my_name == __that; }
+    friend constexpr auto operator<=>(tnode const& __this, tnode const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that.__my_name; }
+    template<std::convertible_to<std::string> ST> friend constexpr auto operator<=>(tnode const& __this, ST const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that; }
+    template<std::convertible_to<std::string> ST> friend constexpr auto operator<=>(ST const& __this, tnode const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this <=> __that.__my_name; }
+    friend constexpr bool operator==(tnode const& __this, tnode const& __that) noexcept { return __this.__my_name == __that.__my_name; }
+    template<std::convertible_to<std::string> ST> friend constexpr bool operator==(tnode const& __this, ST const& __that) noexcept { return __this.__my_name == __that; }
     template<std::convertible_to<std::string> ST> friend constexpr bool operator==(ST const& __this, ST const& __that) noexcept { return __this == __that.__my_name; }
+    friend tnode mklink(tnode* original, std::string const& name);
 };
+struct node_cmp
+{
+    constexpr bool operator()(std::string const& a, tnode const& b) const noexcept { return a < b; }
+    constexpr bool operator()(tnode const& a, std::string const& b) const noexcept { return a < b; }
+    constexpr bool operator()(tnode const& a, tnode const& b) const noexcept { return a < b; }
+};
+typedef std::set<tnode, node_cmp> tnode_dir;
 #endif

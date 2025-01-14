@@ -11,6 +11,6 @@ namespace std
     template<typename FT, typename ... Args> using __result_t = typename __invoke_result<FT, Args...>::type;
     template<typename FT, typename ... Args> using __invtype_t = typename __invoke_result<FT, Args...>::__invoke_type;
     template<typename FT, typename ... Args> constexpr __result_t<FT, Args...> __invoke(FT&& ft, Args&& ... args) noexcept(__is_nothrow_invocable<FT, Args...>::value) { return __invoke_impl<FT, __result_t<FT, Args...>>(__invtype_t<FT, Args...>{}, forward<FT>(ft), forward<Args>(args)...); }
-    template<typename RT, typename FT, typename ... Args> RT __invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { if constexpr(is_void_v<RT>) __invoke_impl<FT, RT>(__invtype_t<FT, Args...>{}, forward<FT>(ft), forward<Args>(args)...); else return __invoke_impl<FT, RT>(__invtype_t<FT, Args...>{}, forward<FT>(ft), forward<Args>(args)...); }
+    template<typename RT, typename FT, typename ... Args> constexpr RT __invoke_r(FT&& ft, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { if constexpr(is_void_v<RT>) __invoke_impl<FT, RT>(__invtype_t<FT, Args...>{}, forward<FT>(ft), forward<Args>(args)...); else return __invoke_impl<FT, RT>(__invtype_t<FT, Args...>{}, forward<FT>(ft), forward<Args>(args)...); }
 }
 #endif

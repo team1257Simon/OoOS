@@ -24,7 +24,7 @@ OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.s=%.o)
 REORDER_OBJ_NAMES_START = crti.o crtbegin.o
 REORDER_OBJ_NAMES_END = crtend.o crtn.o
 REORDER_OBJ_NAMES_ALL = $(REORDER_OBJ_NAMES_START) $(REORDER_OBJ_NAMES_END)
-OBJECTS_REORDERED =  $(filter-out $(REORDER_OBJ_NAMES_ALL), $(OBJECT_NAMES))
+OBJECTS_REORDERED = $(filter-out $(REORDER_OBJ_NAMES_ALL), $(OBJECT_NAMES))
 OBJECTS = $(addprefix $(LIB_DIR)/,$(REORDER_OBJ_NAMES_START)) $(addprefix $(OBJDIR)/,$(OBJECTS_REORDERED)) $(addprefix $(LIB_DIR)/,$(REORDER_OBJ_NAMES_END))
 OBJ_SYMS = $(addprefix $(LOG_DIR)/,$(OBJECT_NAMES:%.o=%-syms.txt))
 CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbegin.o)
@@ -34,7 +34,7 @@ ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(A
 SYM_LOG = $(LOG_DIR)/ooos-syms.txt
 .PHONY: all asmtest
 all: $(OUTDIR) $(OSUBDIRS) $(OBJDIR) $(LSUBDIRS) $(OUT_ELF) $(SYM_LOG) $(OBJ_SYMS)
-asmtest: $(ASMT_DIR) $(ASM_TEST)
+asmtest: $(ASMT_DIR) $(ASUBDIRS) $(ASM_TEST)
 $(OUTDIR):
 	@mkdir -p $@
 	@mkdir -p $@/EFI/BOOT
