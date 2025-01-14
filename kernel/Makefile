@@ -13,28 +13,32 @@ CC := $(ARCH)-$(FMT)-gcc
 FC := $(ARCH)-$(FMT)-ld
 COPY := $(ARCH)-$(FMT)-objcopy
 OUT_ELF := $(OUTDIR)/core.elf
-SSRC = $(wildcard *.s)
-CSRC = $(wildcard *.c)
-CPPSRC = $(wildcard *.cpp)
+SUBDIRS = $(sort $(dir $(wildcard */*.* */*/*.*)))
+OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
+ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
+LSUBDIRS = $(addprefix $(LOG_DIR)/,$(SUBDIRS))
+SSRC = $(wildcard *.s */*.s */*/*.s)
+CSRC = $(wildcard *.c */*.c */*/*.c)
+CPPSRC = $(wildcard *.cpp */*.cpp */*/*.cpp)
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.s=%.o) 
 REORDER_OBJ_NAMES_START = crti.o crtbegin.o
 REORDER_OBJ_NAMES_END = crtend.o crtn.o
 REORDER_OBJ_NAMES_ALL = $(REORDER_OBJ_NAMES_START) $(REORDER_OBJ_NAMES_END)
 OBJECTS_REORDERED =  $(filter-out $(REORDER_OBJ_NAMES_ALL), $(OBJECT_NAMES))
 OBJECTS = $(addprefix $(LIB_DIR)/,$(REORDER_OBJ_NAMES_START)) $(addprefix $(OBJDIR)/,$(OBJECTS_REORDERED)) $(addprefix $(LIB_DIR)/,$(REORDER_OBJ_NAMES_END))
-OBJ_SYMS = $(addprefix $(LOG_DIR)/, $(OBJECT_NAMES:%.o=%-syms.txt))
+OBJ_SYMS = $(addprefix $(LOG_DIR)/,$(OBJECT_NAMES:%.o=%-syms.txt))
 CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbegin.o)
 CRTEND := $(shell $(CC) $(CCFLAGS) -print-file-name=crtend.o)
 ASMT_DIR := $(CURDIR)/asm_test
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
 SYM_LOG = $(LOG_DIR)/ooos-syms.txt
 .PHONY: all asmtest
-all: $(OUTDIR) $(OBJDIR) $(OUT_ELF) $(SYM_LOG) $(OBJ_SYMS)
+all: $(OUTDIR) $(OSUBDIRS) $(OBJDIR) $(LSUBDIRS) $(OUT_ELF) $(SYM_LOG) $(OBJ_SYMS)
 asmtest: $(ASMT_DIR) $(ASM_TEST)
 $(OUTDIR):
 	@mkdir -p $@
 	@mkdir -p $@/EFI/BOOT
-$(OBJDIR):
+$(OBJDIR) $(LSUBDIRS) $(OSUBDIRS) $(ASMT_DIR) $(ASUBDIRS):
 	@mkdir -p $@
 $(LIB_DIR)/crtbegin.o:
 	$(COPY) -p $(CRTBEGIN) $@
@@ -52,8 +56,6 @@ $(ASMT_DIR)/%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
 $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
-$(ASMT_DIR):
-	@mkdir -p $@
 $(LOG_DIR)/%-syms.txt: $(OBJDIR)/%.o
 	$(READ) $(READFLAGS) $< > $@
 clean:

@@ -1,5 +1,5 @@
-#include "kernel/libk_decls.h"
-#include "kernel/heap_allocator.hpp"
+#include "libk_decls.h"
+#include "heap_allocator.hpp"
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
     paging_table result = heap_allocator::get().allocate_pt();

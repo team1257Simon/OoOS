@@ -72,8 +72,8 @@ namespace std
             __count = 0;
         }
         constexpr __tree_trunk() noexcept :  __trunk{ RED, NULL, NULL, NULL }, __count{0} { __reset(); }
-        virtual ~__tree_trunk() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
-        constexpr inline void __copy(__tree_trunk const& that) noexcept
+        constexpr ~__tree_trunk() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
+        constexpr void __copy(__tree_trunk const& that) noexcept
         {
             __trunk.__my_color = that.__trunk.__my_color;
             __trunk.__my_parent = that.__trunk.__my_parent;
@@ -82,7 +82,7 @@ namespace std
             if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = &__trunk;
             __count = that.__count;
         }
-        constexpr inline void __move(__tree_trunk&& that) noexcept
+        constexpr void __move(__tree_trunk&& that) noexcept
         {
             __trunk.__my_color = that.__trunk.__my_color;
             __trunk.__my_parent = that.__trunk.__my_parent;
@@ -91,6 +91,13 @@ namespace std
             if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = &__trunk;
             __count = that.__count;
             that.__reset();
+        }
+        constexpr void __swap(__tree_trunk& that) noexcept
+        {
+            __tree_trunk tmp{ *this };
+            this->__copy(that);
+            that.__copy(tmp);
+            tmp.__reset();
         }
         constexpr __tree_trunk(__tree_trunk&& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent != NULL) __move(forward<__tree_trunk>(that)); }
         constexpr __tree_trunk(__tree_trunk const& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent != NULL) __copy(that); }
