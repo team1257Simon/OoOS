@@ -1,6 +1,6 @@
 #ifndef __RAMFS
 #define __RAMFS
-#include "fs/fs_node.hpp"
+#include "fs/fs.hpp"
 #include "fs/generic_binary_buffer.hpp"
 #include "fs/vfs_filebuf_base.hpp"
 class ramfs_folder_inode : public folder_inode_base
@@ -11,6 +11,7 @@ class ramfs_folder_inode : public folder_inode_base
 protected:
     virtual tnode* xfind(std::string const& name) override;
     virtual bool xlink(tnode* original, std::string const& alias) override;
+    virtual tnode* xadd(inode_base*, std::string const&) override;
     virtual bool xunlink(std::string const& what) override;
     virtual uint64_t xgnfiles() const noexcept override;
     virtual uint64_t xgnfolders() const noexcept override;
@@ -56,5 +57,19 @@ public:
     ramfs_device_inode(std::string const& name, int fd, vfs_filebuf_base<char>* dev_buffer);
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
+};
+class ramfs final : public fs_base
+{
+    ramfs_folder_inode __root_dir{""};
+    std::set<ramfs_file_inode, std::less<file_inode_base>> __file_nodes{};
+    std::set<ramfs_folder_inode, std::less<folder_inode_base>> __folder_nodes{};
+protected:
+    virtual folder_inode_base* get_root_directory() override;
+    virtual void dlfilenode(file_inode_base* fd) override;
+    virtual void dldirnode(folder_inode_base* dd) override;
+public:
+    ramfs() = default;
+    virtual file_inode_base* mkfilenode(folder_inode_base* parent, std::string const& name) override;
+    virtual folder_inode_base* mkdirnode(folder_inode_base* parent, std::string const& name) override;
 };
 #endif

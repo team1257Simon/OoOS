@@ -1,5 +1,4 @@
 #include "kernel/font.hpp"
-
 const uint8_t __startup_font_data[] {
 	0x72u, 0xB5u, 0x4Au, 0x86u, 0x00u, 
 	0x00u, 0x00u, 0x00u, 0x20u, 0x00u, 
@@ -419,5 +418,5 @@ const uint8_t __startup_font_data[] {
 	0x00u, 0x00u, 0x00u, 0x00u, 0x00u
 };
 const psf2_t *__startup_font = reinterpret_cast<const psf2_t *>(__startup_font_data);
-[[gnu::target("general-regs-only")]] void font_render::operator()(char c, uint32_t *fb, point const &pos) const { for(point glyph_px {0, 0}; glyph_px.y < __my_font->height; glyph_px.y++) { for(glyph_px.x = 0; glyph_px.x < __my_font->width; glyph_px.x++){ fb[__buffer_offset(pos, glyph_px)] = __glyph_pixel(c, glyph_px) ? __foreground : __background; } fb[__buffer_offset(pos, { __my_font->width, glyph_px.y })] = __background; } }
-[[gnu::target("general-regs-only")]] void font_render::fill(uint32_t color, uint32_t *fb, point const &pos) const { for(point px {0, 0}; px.y < __my_font->height; px.y++)  { for(px.x = 0; px.x < __my_font->width; px.x++) { fb[__buffer_offset(pos, px)] = color; } fb[__buffer_offset(pos, { __my_font->width, px.y })] = color; } }
+__isrcall void font_render::operator()(char c, uint32_t *fb, point const &pos) const { for(point glyph_px {0, 0}; glyph_px.y < __my_font->height; glyph_px.y++) { for(glyph_px.x = 0; glyph_px.x < __my_font->width; glyph_px.x++){ fb[__buffer_offset(pos, glyph_px)] = __glyph_pixel(c, glyph_px) ? __foreground : __background; } fb[__buffer_offset(pos, { __my_font->width, glyph_px.y })] = __background; } }
+__isrcall void font_render::fill(uint32_t color, uint32_t *fb, point const &pos) const { for(point px {0, 0}; px.y < __my_font->height; px.y++)  { for(px.x = 0; px.x < __my_font->width; px.x++) { fb[__buffer_offset(pos, px)] = color; } fb[__buffer_offset(pos, { __my_font->width, px.y })] = color; } }

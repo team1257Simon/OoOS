@@ -1,10 +1,11 @@
 #include "fs/ramfs.hpp"
 #include "rtc.h"
 ramfs_folder_inode::ramfs_folder_inode(std::string const &name) : folder_inode_base{ name, reinterpret_cast<uint64_t>(this) } {}
-bool ramfs_folder_inode::fsync() { return true; }
+bool ramfs_folder_inode::fsync() { for(tnode_dir::iterator first = __my_dir.begin(), last = __my_dir.end(); first != last; ) { if(!(*first)) first = __my_dir.erase(first); else ++first; } return true; }
 uint64_t ramfs_folder_inode::xgnfolders() const noexcept { return __my_subdir_cnt; }
 uint64_t ramfs_folder_inode::xgnfiles() const noexcept { return __my_file_cnt; }
 bool ramfs_folder_inode::xunlink(std::string const &what) { bool result = __my_dir.erase(what) != 0; if(result) syscall_time(&this->modif_time); return result; }
+tnode* ramfs_folder_inode::xadd(inode_base* n, std::string const& name) { tnode_dir::iterator i =  __my_dir.emplace(n, name).first; return i != __my_dir.end() ? std::addressof(*i) : nullptr; }
 bool ramfs_folder_inode::xlink(tnode *original, std::string const &alias) { bool result = (__my_dir.insert(mklink(original, alias))).second; if(result) syscall_time(&this->modif_time); return result; }
 tnode *ramfs_folder_inode::xfind(std::string const &name) { tnode_dir::iterator i = __my_dir.find(name); if(i != __my_dir.end()) return std::addressof(*i); return nullptr; }
 ramfs_file_inode::ramfs_file_inode(std::string const &name, int fd) : file_inode_base{ name, fd, reinterpret_cast<uint64_t>(this) } {}

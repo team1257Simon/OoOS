@@ -17,13 +17,23 @@ struct inode_base
     virtual bool is_file() const noexcept = 0;
     virtual bool is_folder() const noexcept = 0;
     virtual bool fsync() = 0; // Sync to disc, if applicable
+    friend constexpr auto operator<=>(inode_base const& a, inode_base const& b) -> decltype(std::declval<uint64_t>() <=> std::declval<uint64_t>()) { return a.cid() <=> b.cid(); }
+    virtual ~inode_base();
+    void prune_refs();
+    friend class tnode;
 protected:
     std::string real_name;
     int fd;
     uint64_t real_id;
     uint64_t create_time;
     uint64_t modif_time;
+    std::set<tnode*> refs{};
     inode_base(std::string const& name, int vfd, uint64_t cid);
+    // Move-assign and construct only.
+    inode_base(inode_base const&) = delete;
+    inode_base& operator=(inode_base const&) = delete;
+    inode_base(inode_base&&) = default;
+    inode_base& operator=(inode_base&&) = default;
 };
 class file_inode_base : public inode_base
 {
@@ -58,6 +68,7 @@ class folder_inode_base : public inode_base
 protected:
     virtual tnode* xfind(std::string const&) = 0;
     virtual bool xlink(tnode*, std::string const&) = 0;
+    virtual tnode* xadd(inode_base*, std::string const&) = 0;
     virtual bool xunlink(std::string const&) = 0;
     virtual uint64_t xgnfiles() const noexcept = 0;
     virtual uint64_t xgnfolders() const noexcept = 0;
@@ -69,6 +80,7 @@ public:
     virtual bool relink(std::string const& oldn, std::string const& newn);
     tnode* find(std::string const& fname);
     bool link(tnode* ptr, std::string const& name);
+    tnode* add(inode_base* node);
     bool unlink(std::string const& name);
     uint64_t num_files() const noexcept;
     uint64_t num_folders() const noexcept;
@@ -97,6 +109,8 @@ public:
     file_inode_base const* as_file() const;
     folder_inode_base* as_folder();
     folder_inode_base const* as_folder() const;
+    constexpr operator bool() const noexcept { return bool(__my_node); }
+    void invlnode() noexcept;
     friend constexpr auto operator<=>(tnode const& __this, tnode const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that.__my_name; }
     template<std::convertible_to<std::string> ST> friend constexpr auto operator<=>(tnode const& __this, ST const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this.__my_name <=> __that; }
     template<std::convertible_to<std::string> ST> friend constexpr auto operator<=>(ST const& __this, tnode const& __that) noexcept -> decltype(std::__detail::__char_traits_cmp_cat<std::string::traits_type>(0)) { return __this <=> __that.__my_name; }

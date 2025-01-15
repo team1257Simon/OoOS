@@ -233,8 +233,9 @@ namespace std
         template<std::convertible_to<T> U> constexpr __link __construct_node(U const& u) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), u); l->__my_color = RED; return l; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr __link __construct_node(Args&& ... args) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
         constexpr void __destroy_node(__b_ptr n) { if(n) { __alloc.deallocate(static_cast<__link>(n), 1); } }
-        template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U const& u) { bool left = (x || p == __end() || __compare_l(u, p)); __link l = __construct_node(u); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
-        template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U&& u) { bool left = (x || p == __end() || __compare_l(u, p)); __link l = __construct_node(forward<U>(u)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
+        constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { bool left = (x || p == __end() || __compare_l(l->__get_ref(), p)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; } 
+        template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U const& u) { return __insert_node(x, p, __construct_node(u)); }
+        template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U&& u) { return __insert_node(x, p, __construct_node(forward<U>(u)));}
         template<std::convertible_to<T> U> constexpr __link __insert_lower(__b_ptr p, U&& u) { bool left = (p == __end() || __compare_l(u, p));  __link l = __construct_node(forward<U>(u));  __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
         template<std::convertible_to<T> U> constexpr __link __insert_lower_equal(U&& u) { __link x = __get_root(), y = __end(); while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); } return __insert_lower(y, forward<U>(u)); }
         template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U const& u) { __pos_pair p = __insert_unique_hint_pos(this->__end(), u); if(p.second) return __res_pair { __insert(p.first, p.second, u), true }; return __res_pair{ p.first, false }; }
@@ -318,7 +319,7 @@ namespace std
     {
         __link l = __construct_node(forward<Args>(args)...);
         __pos_pair r =  __insert_unique_hint_pos(this->__end(), l->__get_ref());
-        if(r.second) return __res_pair{ __insert(r.first, r.second, l->__get_ref()), true };
+        if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
         __destroy_node(l);
         return __res_pair{ r.first, false};
     }
@@ -329,7 +330,7 @@ namespace std
     { 
         __link l = __construct_node(forward<Args>(args)...);
         __pos_pair r = __insert_unique_hint_pos(hint, l->__get_ref());
-        if(r.second) return __res_pair{ __insert(r.first, r.second, l->__get_ref()), true };
+        if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
         __destroy_node(l);
         return __res_pair{ r.first, false };
     }
