@@ -15,8 +15,8 @@ protected:
 public:
     virtual file_inode_base* mkfilenode(folder_inode_base* parent, std::string const& name) = 0;
     virtual folder_inode_base* mkdirnode(folder_inode_base* parent, std::string const& name) = 0;
-    tnode* get_node(std::string const& path);
-    file_inode_base* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
+    virtual tnode* get_node(std::string const& path);
+    virtual file_inode_base* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     void close_file(file_inode_base* fd);
 };
 #endif
