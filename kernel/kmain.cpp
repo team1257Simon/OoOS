@@ -8,6 +8,7 @@
 #include "bits/stdexcept.h"
 #include "fs/data_buffer.hpp"
 #include "fs/hda_ahci.hpp"
+#include "fs/ramfs.hpp"
 #include "arch/com_amd64.h"
 #include "map"
 #include "algorithm"
@@ -98,6 +99,33 @@ void ahci_tests()
     startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
     if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
 }
+void vfs_tests()
+{
+    ramfs testramfs{};
+    try 
+    {
+        testramfs.get_folder("test/files");
+        file_inode_base* n = testramfs.open_file("test/files/memes.txt");
+        n->write("sweet dreams are made of memes\n", 31);
+        testramfs.close_file(n);
+        folder_inode_base* f = testramfs.get_folder("dev");
+        file_inode_base* comout = new ramfs_device_inode("com", 1, com);
+        f->add(comout);
+        file_inode_base* testout = testramfs.open_file("dev/com");
+        n = testramfs.open_file("test/files/memes.txt");
+        char teststr[32](0);
+        n->read(teststr, 31);
+        testout->write(teststr, 31);
+        testout->fsync();
+        testramfs.close_file(n);
+        testramfs.close_file(testout);
+        delete comout;
+    }
+    catch(std::exception& e)
+    {
+        panic(e.what());
+    }
+}
 void run_tests()
 {
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword ecode)
@@ -133,6 +161,8 @@ void run_tests()
     ahci_tests();
     startup_tty.print_line("map test...");
     map_tests();
+    startup_tty.print_line("vfs tests...");
+    vfs_tests();
     startup_tty.print_line("complete");
 }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }

@@ -2,7 +2,8 @@
 #include "arch/idt_amd64.h"
 #include "kernel/isr_table.hpp"
 #include "isr_table.hpp"
-std::vector<irq_callback> __handler_tables[16]{};
+#include "array"
+std::array<std::vector<irq_callback>, 16> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
 namespace interrupt_table
 {

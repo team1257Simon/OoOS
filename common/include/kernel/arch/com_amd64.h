@@ -170,6 +170,8 @@ protected:
     virtual std::streamsize __ddrem() override;
     virtual std::streamsize __sect_size() override;
     __isrcall virtual void __q_on_modify() override;
+    virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
+    virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     static serial_driver_amd64 __inst;
     serial_driver_amd64(size_t init_size);
 public:

@@ -60,14 +60,27 @@ namespace std::__impl
         typedef A __alloc_type;
         __alloc_type __allocator;
         __container __my_data;
+        /**
+         * Copies data using iterators that might not be contiguous (e.g. tree iterators) or forward-facing (e.g. reverse iterators).
+         */
         template<std::matching_input_iterator<T> IT> void __transfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
+        /**
+         * Selects the proper memset function. Override this if there's some specific copy function that's needed (e.g. char_traits<T>::assign).
+         */
         virtual void __set(__ptr where, T const& val, __size_type n) { arrayset<T>(where, val, n); }
+        /**
+         * Selects the proper function to clear allocated storage of garbage data.
+         * If the data consists of nontrivial objects (classes with virtual members, etc) the default version of this function does nothing.
+         * Otherwise, it will behave similarly to using memset to zero the memory.
+         */
         virtual void __zero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
+        /**
+         * Selects the proper copy function for the members. Override this if there's some specific copy function that's needed (e.g. strcpy).
+         */
         virtual void __copy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
         /**
          * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.
-         * Inheritors can override to add functionality that needs to be invoked whenever these pointers move.
-         * The default implementation does nothing.
+         * Inheritors can override to add functionality that needs to be invoked whenever these pointers move. The default implementation does nothing.
          */
         virtual void __on_modify() {}
         virtual bool __grow_buffer(__size_type added);
@@ -94,8 +107,8 @@ namespace std::__impl
         constexpr __const_ptr __getptr(__size_type __i) const noexcept { return __beg() + __i; }
         constexpr __ref __get(__size_type __i) { return *__getptr(__i); }
         constexpr __const_ref __get(__size_type __i) const { return *__getptr(__i); }
-        constexpr __ref __get_last() noexcept { return *__cur(); }
-        constexpr __const_ref __get_last() const noexcept { return *__cur(); }
+        constexpr __ref __get_last() noexcept { return *(__cur() - 1); }
+        constexpr __const_ref __get_last() const noexcept { return *(__cur() - 1); }
         constexpr void __setp(__buf_ptrs<T> const& ptrs) noexcept { __my_data.__copy_ptrs(ptrs); }
         constexpr void __setp(__ptr beg, __ptr cur, __ptr end) noexcept { __my_data.__set_ptrs(beg, cur, end); }
         constexpr void __setp(__ptr beg, __ptr end) noexcept { __setp(beg, beg, end); }
@@ -171,7 +184,7 @@ namespace std::__impl
         if(!added) return true; // Zero elements -> vacuously true completion
         __size_type num_elements = __size();
         __size_type target = __capacity() + added;
-        try { __setn(resize<T>(__beg(), target), num_elements, target); } 
+        try { __setn(resize<T>(__beg(), target), num_elements, target); this->__zero(__cur(), added); } 
         catch(...) { return false; }
         return true;
     }

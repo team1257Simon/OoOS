@@ -78,6 +78,6 @@ template<trivial_copy T> requires std::larger<T, uint64_t> [[gnu::always_inline]
     else if constexpr(sizeof(T) % 2 == 0) arrayset<uint16_t>(dest, 0u, n * sizeof(T) / 2);
     else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
 }
-template<nontrivial_copy T> [[gnu::always_inline]] constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) arrayset(dest, T{}, n); else { for(size_t i = 0; i < n; i++, (void)++dest) { dest->~T(); } } }
+template<nontrivial_copy T> [[gnu::always_inline]] constexpr void array_zero(T* dest, std::size_t n) { /* don't actually touch nontrivial arrays */ }
 #endif
 #endif

@@ -40,6 +40,7 @@ int serial_driver_amd64::__ddwrite()
         for(size_t i = 0; i < 16 && ptr != this->__cur(); i++, ++ptr) outb(port_com1, byte(*ptr));
         while(!serial_empty_transmit()) PAUSE;
     }
+    this->__setc(this->__beg());
     return 0;
 }
 std::streamsize serial_driver_amd64::__ddread(std::streamsize cnt)
@@ -68,3 +69,5 @@ bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trig
     else return false;
 }
 serial_driver_amd64* serial_driver_amd64::get_instance() { return &__inst; }
+serial_driver_amd64::pos_type serial_driver_amd64::seekpos(pos_type pos, std::ios_base::openmode which) { return pos_type(off_type(-1)); }
+serial_driver_amd64::pos_type serial_driver_amd64::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) { return pos_type(off_type(-1)); }

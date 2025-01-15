@@ -53,7 +53,7 @@ namespace std
         constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator{ cend() }; }
         constexpr const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator{ begin() }; }
         constexpr const_reverse_iterator rend() const noexcept { return const_reverse_iterator{ end() }; }
-        constexpr map() : __base{} {}
+        constexpr explicit map() : __base{} {}
         constexpr map(map const& that) : __base{ that } {}
         constexpr map(map&& that) : __base{ move(that) } {}
         template<std::matching_input_iterator<value_type> IT> constexpr map(IT first, IT last) : __base{ first, last } {}

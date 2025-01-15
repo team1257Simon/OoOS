@@ -27,7 +27,7 @@ namespace std
         virtual void __set(CT* where, CT const& val, size_t n) override { traits_type::assign(where, val, n); }
         virtual void __zero(CT* where, size_t n) override { traits_type::assign(where, 0, n); }
         virtual void __copy(CT* where, CT const* src, size_t n) override { traits_type::copy(where, src, n); }
-        virtual void __on_modify() override { if(this->__size() == this->__capacity()) this->__grow_buffer(1); }
+        virtual void __on_modify() override { if(!(this->__size() < this->__capacity())) this->__grow_buffer(1); }
         constexpr static int __size_compare(size_type lhs, size_type rhs) noexcept
         {
             const difference_type d = difference_type(lhs - rhs);
@@ -49,18 +49,16 @@ namespace std
         constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{count + 1, alloc} {}
         constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { __set(this->__beg(), value, count); this->__advance(count); }
         template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT const& start, IT const& end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); }
-        constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count, alloc } {}
+        constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count } { }
         constexpr basic_string(const_pointer str, allocator_type const& alloc = allocator_type{}) : basic_string{ str, traits_type::length(str), alloc } {}
-        constexpr basic_string(basic_string const& that) : __base{ static_cast<__base const&>(that) } {}
-        constexpr basic_string(basic_string&& that) : __base{ forward<__base>(that) } {}
-        constexpr basic_string(basic_string const& that, allocator_type const& alloc) : __base{ static_cast<__base const&>(that), alloc } {}
-        constexpr basic_string(basic_string&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
-        constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, alloc } {}
-        constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : __base{ static_cast<__base const&>(that), pos, count, alloc } {}
+        constexpr basic_string(basic_string const& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } {}
+        constexpr basic_string(basic_string&& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } { that.clear(); }
+        constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.__cur(), alloc } {}
+        constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.c_str() + pos + count, alloc } {}
         constexpr ~basic_string() { this->__destroy(); }
         constexpr basic_string& operator=(basic_string const& that) { this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); return *this; }
         constexpr basic_string& operator=(basic_string&& that) {  this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__clear(); return *this; }
-        constexpr explicit basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
+        constexpr basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr reference at(size_type i) { return this->__get(i); }
         constexpr const_reference at(size_type i) const { return this->__get(i); }
         constexpr reference operator[](size_type i) { return this->__get(i); }

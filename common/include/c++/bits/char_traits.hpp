@@ -30,8 +30,8 @@ namespace std
     #else
     template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n; i++, ++ptr) { if(*ptr == c) return ptr; } return nullptr; }
     #endif
-    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return size_t(std::find(str, max, CT(0)) - str); }
-    template<std::char_type CT> constexpr size_t strlen(const CT* str) { return strnlen(str, size_t(-1)); }
+    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return size_t((std::find(str, (max == size_t(-1) ? max : max + 1), CT(0)) - 1) - str); }
+    template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, size_t(-1)); }
     template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { arrayset(ptr, val, n); return ptr; }
     template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { arrayset<CT>(ptr, c, n); return ptr; }
     template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }

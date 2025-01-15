@@ -114,7 +114,6 @@ namespace std
         ::__impl::__aligned_buffer<T> __my_data{};
     public:
         constexpr __node() {}
-        virtual ~__node() {}
         constexpr T* __get_ptr() { return __my_data.__get_ptr(); }
         constexpr const T* __get_ptr() const { return __my_data.__get_ptr(); }
         constexpr T& __get_ref() { return *__get_ptr(); }
@@ -133,7 +132,7 @@ namespace std
         __bp_t __my_node;
         constexpr __tree_iterator() noexcept : __my_node{} {}
         constexpr explicit __tree_iterator(__bp_t x) noexcept : __my_node{x} {}
-        constexpr reference operator*() const noexcept { return *(static_cast<__lp_t>(__my_node)->__get_ptr()); }
+        constexpr reference operator*() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ref(); }
         constexpr pointer operator->() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
         constexpr __it_t& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
         constexpr __it_t operator++(int) noexcept { __it_t tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
@@ -159,7 +158,7 @@ namespace std
         constexpr __tree_const_iterator() noexcept : __my_node{} {}
         constexpr explicit __tree_const_iterator(__bp_t x) noexcept : __my_node{x} {}
         constexpr __tree_const_iterator(__it_t const& i) noexcept : __my_node{i.__my_node} {}
-        constexpr reference operator*() const noexcept { return *(static_cast<__lp_t>(__my_node)->__get_ptr()); }
+        constexpr reference operator*() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ref(); }
         constexpr pointer operator->() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
         constexpr __ci_t& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
         constexpr __ci_t operator++(int) noexcept { __ci_t tmp = *this; __my_node = __increment_node(__my_node); return tmp; }

@@ -24,7 +24,7 @@ namespace std
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
         constexpr explicit vector(allocator_type const& alloc) noexcept : __base { alloc } {}
         constexpr vector() noexcept(noexcept(allocator_type())) : __base{} {}
-        constexpr vector(size_type count) noexcept : __base{ count, allocator_type{} } { }
+        constexpr explicit vector(size_type count) noexcept : __base{ count, allocator_type{} } { }
         constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type{}) : __base { count, value, alloc } {}
         template<std::matching_input_iterator<value_type> IT> constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base { start, end, alloc } {}
         constexpr vector(vector const& that) : __base { static_cast<__base const&>(that) } {}

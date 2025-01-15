@@ -194,7 +194,7 @@ namespace std
             constexpr static CT __get_hex_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_hex_digit_v(num, idx)]; }
             constexpr static std::basic_string<CT> __to_string(IT i)
             {
-                if(!i) return basic_string{ __digi_type::digits[0] };
+                if(!i) return basic_string{ __digi_type::digits[0], CT(0) };
                 std::basic_string<CT> str{};
                 str.reserve(__max_dec);
                 IT j;
@@ -206,11 +206,11 @@ namespace std
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
-                if(!i) return basic_string{ __digi_type::digits[0] };
+                if(!i) return basic_string{ __digi_type::digits[0], CT(0) };
                 std::basic_string<CT> hstr{};
                 hstr.reserve(__max_hex);
                 IT j;
-                if constexpr(std::is_signed_v<IT>){ j = (i < 0) ? -i : i; }
+                if constexpr(std::is_signed_v<IT>) { j = (i < 0) ? -i : i; }
                 else j = i;
                 for(size_t n = 0; n < __max_hex && __get_pow16(n) <= j; n++) hstr.append(__get_hex_digit(j, n));
                 hstr.append(__digi_type::hexpref);
