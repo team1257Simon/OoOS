@@ -142,7 +142,7 @@ efi_status_t map_id_pages(size_t num_pages)
     size_t pts_only = num_pages / PT_LEN;
     __boot_pagefile->boot_entry = (page_frame*)malloc(sizeof(page_frame) + pts_only * sizeof(paging_table));
     memset(__boot_pagefile->boot_entry, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
-    __boot_pagefile->boot_entry->num_tables = pts_only;
+    __boot_pagefile->boot_entry->num_saved_tables = pts_only;
     __boot_pagefile->num_entries = 1;
     map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512*sizeof(pt_entry)));
     return EFI_SUCCESS;
@@ -152,10 +152,10 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
     size_t n = required_tables_postinit(num_pages);
     indexed_address sv_start = {};
     sv_start.addr = vaddr_start;
-    if(n < 1 && direct_table_idx(sv_start.idx) > __boot_pagefile->boot_entry->num_tables)
+    if(n < 1 && direct_table_idx(sv_start.idx) > __boot_pagefile->boot_entry->num_saved_tables)
     {
         n = 1;
-        size_t old_num = __boot_pagefile->boot_entry->num_tables;
+        size_t old_num = __boot_pagefile->boot_entry->num_saved_tables;
         size_t new_num = direct_table_idx(sv_start.idx);
         __boot_pagefile->boot_entry = (page_frame*)realloc(__boot_pagefile->boot_entry, sizeof(page_frame) + new_num * sizeof(paging_table));
         size_t delta = (size_t)(new_num - old_num);

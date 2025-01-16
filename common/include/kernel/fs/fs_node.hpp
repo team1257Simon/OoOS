@@ -3,7 +3,7 @@
 #include "string"
 #include "functional"
 #include "bits/ios_base.hpp"
-#include "map"
+#include "vector"
 #include "set"
 class tnode;
 struct inode_base
@@ -34,9 +34,11 @@ public:
     virtual bool fsync() = 0; // Sync to disc, if applicable
     friend constexpr auto operator<=>(inode_base const& a, inode_base const& b) -> decltype(std::declval<uint64_t>() <=> std::declval<uint64_t>()) { return a.cid() <=> b.cid(); }
     virtual ~inode_base();
+    void unregister_reference(tnode* ref);
     void prune_refs();
+    bool has_refs() const noexcept;
+    size_t num_refs() const noexcept;
     friend class tnode;
-
 };
 class file_inode_base : public inode_base
 {
@@ -70,10 +72,12 @@ public:
     virtual bool unlink(std::string const&) = 0;
     virtual uint64_t num_files() const noexcept = 0;
     virtual uint64_t num_folders() const noexcept = 0;
+    virtual std::vector<std::string> lsdir() const = 0;
     folder_inode_base(std::string const& name, uint64_t cid);
     virtual bool is_file() const noexcept final override;
     virtual bool is_folder() const noexcept final override;
     virtual uint64_t size() const noexcept override;
+    virtual bool is_empty() const noexcept;
     virtual bool relink(std::string const& oldn, std::string const& newn);
 };
 class tnode
@@ -88,6 +92,8 @@ public:
     const char* name() const;
     inode_base& operator*() noexcept;
     inode_base const& operator*() const noexcept;
+    inode_base* operator->() noexcept;
+    inode_base const* operator->() const noexcept;
     bool if_file(std::function<bool(file_inode_base&)> const& action);
     bool if_folder(std::function<bool(folder_inode_base&)> const& action);
     bool if_file(std::function<bool(file_inode_base const&)> const& action) const;

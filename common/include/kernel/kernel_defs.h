@@ -419,10 +419,9 @@ typedef struct __mmap
 // Pointers to page frames.
 typedef struct __pageframe_t
 {
-    indexed_address start_idx;
-    size_t num_tables;
-    paging_table cr3;
-    paging_table tables[];
+    paging_table cr3;         // the value in cr3 when the frame is active
+    size_t num_saved_tables;  // size of the following array 
+    paging_table tables[];    // paging table pointers for quick access
 } __pack page_frame;
 typedef struct __pagefile
 {
@@ -430,6 +429,17 @@ typedef struct __pagefile
     page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
     page_frame* frame_entries;
 } __pack pagefile;
+typedef struct __kpinfo
+{
+    uintptr_t self_ptr;
+    paging_table k_cr3;   // 8
+    uintptr_t k_rsp;      // 16
+    uintptr_t k_rbp;      // 24
+    uintptr_t rtn_rsp;    // 32
+    uintptr_t rtn_rbp;    // 40
+    uintptr_t rtn_rip;    // 48
+    paging_table rtn_cr3; // 56
+} __pack kpinfo_t;
 typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*, pagefile*);
 #ifdef __cplusplus
 typedef struct __byte
@@ -444,13 +454,13 @@ typedef struct __byte
 	bool b7 : 1;
     constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : b0{ v0 }, b1{ v1 }, b2{ v2 }, b3{ v3 }, b4{ v4 }, b5{ v5 }, b6{ v6 }, b7{ v7 } {}
 	constexpr __byte(uint8_t i) noexcept :
-		b0 	{ (i & 0x01) != 0 }, 
-		b1 	{ (i & 0x02) != 0 }, 
-		b2 	{ (i & 0x04) != 0 }, 
-		b3 	{ (i & 0x08) != 0 }, 
-		b4 	{ (i & 0x10) != 0 }, 
-		b5 	{ (i & 0x20) != 0 }, 
-		b6 	{ (i & 0x40) != 0 }, 
+		b0 	{ (i & 0x01) != 0 },
+		b1 	{ (i & 0x02) != 0 },
+		b2 	{ (i & 0x04) != 0 },
+		b3 	{ (i & 0x08) != 0 },
+		b4 	{ (i & 0x10) != 0 },
+		b5 	{ (i & 0x20) != 0 },
+		b6 	{ (i & 0x40) != 0 },
 		b7 	{ (i & 0x80) != 0 }
 			{}
     template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte{ uint8_t(it) } {}

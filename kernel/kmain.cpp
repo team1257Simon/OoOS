@@ -105,26 +105,39 @@ void vfs_tests()
     ramfs testramfs{};
     try 
     {
+        // test folder creation
         testramfs.get_folder("test/files");
         file_inode_base* n = testramfs.open_file("test/files/memes.txt");
         n->write("sweet dreams are made of memes\n", 31);
         testramfs.close_file(n);
         folder_inode_base* f = testramfs.get_folder("dev");
         file_inode_base* comout = new ramfs_device_inode("com", 1, com);
-        f->add(comout);
+        f->add(comout); 
         file_inode_base* testout = testramfs.open_file("dev/com");
         n = testramfs.open_file("test/files/memes.txt");
         char teststr[32](0);
+        // test device and file inodes
         n->read(teststr, 31);
         testout->write(teststr, 31);
         testout->fsync();
         testramfs.close_file(n);
         testramfs.close_file(testout);
+        // test linking
+        testramfs.link("test/files/memes.txt", "test/stuff/dreams.txt", true);
+        n = testramfs.open_file("test/stuff/dreams.txt");
+        char test2str[17](0);
+        n->read(test2str, 16);
+        direct_writeln(test2str);
+        testramfs.close_file(n);
+        testramfs.unlink("test/files", true, true);
         delete comout;
+        // test error condition(s)
+        testramfs.open_file("test/files/memes.txt/dreams.txt");
     }
     catch(std::exception& e)
     {
         panic(e.what());
+        startup_tty.print_line("NOTE: made it to the catch block; the above error was intentional!");
     }
 }
 void run_tests()
@@ -177,7 +190,7 @@ extern "C"
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
     [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
-    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->pubsync(); } }
+    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     void kmain(sysinfo_t* si, mmap_t* mmap, pagefile* pg)
     {
         cli();
