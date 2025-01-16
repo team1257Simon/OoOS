@@ -56,7 +56,7 @@ namespace std
         {
             template<typename T, typename U>
             requires totally_ordered_with<T, U>
-            constexpr bool operator()(T&& __t, U&& __u) const noexcept(noexcept(std::declval<U>() < std::declval<T>())) { return !less{}(std::forward<U>(__u), std::forward<T>(__t)); }
+            constexpr bool operator()(T&& __t, U&& __u) const noexcept(noexcept(std::declval<U>() < std::declval<T>())) { return !greater{}(std::forward<U>(__u), std::forward<T>(__t)); }
             using is_transparent = __is_transparent;
         };
     }

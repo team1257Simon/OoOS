@@ -1,7 +1,9 @@
+#ifndef NEED_STDBOOL
+#define NEED_STDBOOL
+#endif // VSCode doesn't seem able to process the fact that we define this in the makefile, so placate it here
 #include "kernel/kernel_defs.h"
 #include "kernel/elf64.h"
 #include "uefi/uefi.h"
-
 #define OK 0
 #define EMALLOC 1
 #define ENOMMAP 2
@@ -10,7 +12,6 @@
 #define ENOGFX 6
 #define ESETGFX 7
 #define K_ADDR 0x2000000
-
 const char *types[] = 
 {
     "EfiReservedMemoryType",        // 0
@@ -28,7 +29,6 @@ const char *types[] =
     "EfiMemoryMappedIOPortSpace",   // 12
     "EfiPalCode"                    // 13
 };
-
 paging_table __boot_pml4 = NULL;
 pagefile* __boot_pagefile = NULL;
 sysinfo_t* sysinfo = NULL;
@@ -41,24 +41,11 @@ inline static bool validate_elf(elf64_ehdr * elf)
         && elf->e_type == ET_EXEC                       /* executable object? */
         && elf->e_machine == EM_MACH                    /* architecture match? */
         && elf->e_phnum > 0)                            /* has program headers? */
-        ? 1 : 0;                            
+        ? true : false;                            
 }
-
-inline static uintptr_t read_pt_entry_ptr(pt_entry ent) 
-{
-    return ent.physical_address << 12;
-}
-
-inline static size_t direct_table_idx(vaddr_t idx) 
-{
-    return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000;
-}
-
-inline static uint64_t div_roundup(uint64_t num, uint64_t denom)
-{
-    if (num % denom == 0) return num / denom;
-    else return 1 + (num / denom);
-}
+inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
+inline static size_t direct_table_idx(vaddr_t idx) { return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000; }
+inline static uint64_t div_roundup(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
 static bool guid_equals(efi_guid_t a, efi_guid_t b)
 {
     if(a.Data1 != b.Data1 || a.Data2 != b.Data2 || a.Data3 != b.Data3) return 0;
@@ -146,18 +133,9 @@ efi_status_t map_id_pages(size_t num_pages)
     if(EFI_ERROR(status)) 
     {
         printf("Unable to get pages for page tables: 0x%X\n", status);
-        if(status == EFI_NOT_FOUND)
-        {
-            printf("EFI_NOT_FOUND\n");
-        }
-        else if(status == EFI_OUT_OF_RESOURCES)
-        {
-            printf("EFI_OUT_OF_RESOURCES\n");
-        }
-        else 
-        {
-            printf("EFI_INVALID_PARAMETER\n");
-        }
+        if(status == EFI_NOT_FOUND) printf("EFI_NOT_FOUND\n");
+        else if(status == EFI_OUT_OF_RESOURCES) printf("EFI_OUT_OF_RESOURCES\n");
+        else printf("EFI_INVALID_PARAMETER\n");
         return status;
     }
     __boot_pml4 = tables_start;
@@ -190,21 +168,13 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
         if(tables_start == NULL)
         {
             efi_status_t status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, (efi_physical_address_t*)&tables_start);
-            if(EFI_ERROR(status)) 
-            {
-                fprintf(stderr, "Unable to get pages for page tables\n");
-                return status;
-            }
+            if(EFI_ERROR(status)) { fprintf(stderr, "Unable to get pages for page tables\n"); return status; }
         }
     }
     else 
     {
         efi_status_t status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, n, (efi_physical_address_t*)&tables_start);
-        if(EFI_ERROR(status)) 
-        {
-            fprintf(stderr, "Unable to get pages for page tables\n");
-            return status;
-        }
+        if(EFI_ERROR(status)) { fprintf(stderr, "Unable to get pages for page tables\n"); return status; }
     }
     map_some_pages(vaddr_start, phys_start, num_pages, tables_start);
     return EFI_SUCCESS;
@@ -223,7 +193,7 @@ int main(int argc, char** argv)
     efi_status_t status;
     efi_memory_descriptor_t *memory_map = NULL, *mement = NULL;
     uintn_t memory_map_size = 0, map_key = 0, desc_size = 0;
-    /* get the memory map */
+    // get the memory map
     status = BS->GetMemoryMap(&memory_map_size, NULL, &map_key, &desc_size, NULL);
     if(status != EFI_BUFFER_TOO_SMALL || !memory_map_size)
     {
@@ -259,10 +229,7 @@ int main(int argc, char** argv)
     for(mement = memory_map; n < memory_map_size; mement = NextMemoryDescriptor(mement, desc_size)) 
     {        
         printf("%016x %8d %02x %s\n", mement->PhysicalStart, mement->NumberOfPages, mement->Type, types[mement->Type]);
-        if (prev != NULL && mement->Type == prev->Type && prev->PhysicalStart + prev->NumberOfPages * 4096 == mement->PhysicalStart)
-        {
-            map->entries[k].len += mement->NumberOfPages;
-        }
+        if (prev != NULL && mement->Type == prev->Type && prev->PhysicalStart + prev->NumberOfPages * 4096 == mement->PhysicalStart) map->entries[k].len += mement->NumberOfPages;
         else 
         {
             if(k >= predicted) map = (mmap_t*)realloc(map, sizeof(mmap_t) + (k + 1) * sizeof(mmap_entry));
@@ -330,7 +297,7 @@ int main(int argc, char** argv)
     elf64_phdr *phdr;
     uintptr_t entry;
     int i;
-    /* load the file */
+    // load the file
     if((f = fopen(KERNEL_FILENAME, "r"))) 
     {
         fseek(f, 0, SEEK_END);
@@ -370,10 +337,10 @@ int main(int argc, char** argv)
     }
     if(!found) sysinfo->xsdt = NULL;
     elf = (elf64_ehdr *)buff;
-    /* is it a valid ELF executable for this architecture? */
+    // is it a valid ELF executable for this architecture?
     if(validate_elf(elf))
     {                         
-        /* load segments */
+        // load segments
         for(phdr = (elf64_phdr *)(buff + elf->e_phoff), i = 0; i < elf->e_phnum; i++, phdr = (elf64_phdr *)((uint8_t *)phdr + elf->e_phentsize)) 
         {
             if(phdr->p_type == PT_LOAD) 
@@ -392,9 +359,9 @@ int main(int argc, char** argv)
     }
     printf("ELF entry point %p\n", entry);
     kernel_entry_fn fn = (kernel_entry_fn)entry;
-     /* free resources */
+    // free resources
     free(buff);
-    /* execute the "kernel" */
+    // execute the kernel
      __boot_pagefile->boot_entry->cr3 = __boot_pml4;
     exit_bs();
     (*fn)(sysinfo, map, __boot_pagefile);

@@ -2,12 +2,11 @@
 #define __INITIALIZER_LIST
 namespace std
 {
-      /// initializer_list
   template<class ET>
   class initializer_list
   {
   public:
-    typedef ET 		    value_type;
+    typedef ET 		      value_type;
     typedef const ET& 	reference;
     typedef const ET& 	const_reference;
     typedef size_t 	    size_type;

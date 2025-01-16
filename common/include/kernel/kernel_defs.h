@@ -15,7 +15,9 @@
 #define __align(n) attribute((aligned(n)))
 #define __isrcall [[gnu::target("general-regs-only")]]
 #ifndef __cplusplus
-typedef unsigned char bool;
+#ifdef NEED_STDBOOL
+#include "stdbool.h"
+#endif
 #define physical_block_size 512uL
 #else
 constexpr size_t physical_block_size = 512;

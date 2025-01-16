@@ -36,7 +36,7 @@ namespace std
 	template<typename IT> constexpr inline typename iterator_traits<IT>::iterator_category __iterator_category(const IT&) { return typename iterator_traits<IT>::iterator_category(); }
 	template<typename IT> using __iterator_category_t = typename iterator_traits<IT>::iterator_category;
 	template<typename IT, typename CT = __iterator_category_t<IT>>
-	struct __is_random_access_iter : is_base_of<random_access_iterator_tag, CT> { typedef is_base_of<random_access_iterator_tag, CT> _Base; enum { __value = _Base::value }; };
+	struct __is_random_access_iter : is_base_of<random_access_iterator_tag, CT> { typedef is_base_of<random_access_iterator_tag, CT> __base; enum { __value = __base::value }; };
 	template<std::input_iterator IIT> constexpr inline typename iterator_traits<IIT>::difference_type __distance(IIT __first, IIT __last, input_iterator_tag) { typename iterator_traits<IIT>::difference_type __n = 0; while (__first != __last) { ++__first; ++__n; } return __n; }
 	template<std::random_access_iterator RIT> constexpr inline typename iterator_traits<RIT>::difference_type __distance(RIT __first, RIT __last, random_access_iterator_tag) { return __last - __first; }
 	template<std::input_iterator IIT> constexpr inline typename iterator_traits<IIT>::difference_type distance(IIT __first, IIT __last) { return std::__distance(__first, __last, std::__iterator_category(__first));}

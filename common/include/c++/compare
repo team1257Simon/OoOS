@@ -184,7 +184,7 @@ namespace std
         template<typename T, typename U> concept __adl_weak = requires(T&& __t, U&& __u) { weak_ordering(weak_order(static_cast<T&&>(__t), static_cast<U&&>(__u))); };
         template<typename T, typename U> concept __adl_partial = requires(T&& __t, U&& __u) { partial_ordering(partial_order(static_cast<T&&>(__t), static_cast<U&&>(__u))); };
         template<typename __ord, typename T, typename U> concept __cmp3way = requires(T&& __t, U&& __u, compare_three_way __c) { __ord(__c(static_cast<T&&>(__t), static_cast<U&&>(__u))); };
-        template<typename T, typename U> concept __strongly_ordered  = __adl_strong<T, U> || __cmp3way<strong_ordering, T, U>;
+        template<typename T, typename U> concept __strongly_ordered = __adl_strong<T, U> || __cmp3way<strong_ordering, T, U>;
         template<typename T, typename U> concept __decayed_same_as = same_as<decay_t<T>, decay_t<U>>;
         class __strong_order
         {

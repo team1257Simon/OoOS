@@ -160,13 +160,16 @@ class serial_driver_amd64 : public vfs_filebuf_base<char>, protected virtual std
     using __queue = typename std::__impl::__dynamic_queue<char, std::allocator<char>>;
     using __queue_container = typename __queue::__ptr_container;
     using typename __base::__ptr_container;
+    bool __mode_echo{ true };
+    std::streamsize __pos_echo { 0 };
+    void __do_echo();
 public:
     using typename __base::traits_type;
     using typename __base::char_type;
     using typename __base::int_type;
 protected:
     virtual int __ddwrite() override;
-    virtual std::streamsize __ddread(std::streamsize cnt) override;
+    __isrcall virtual std::streamsize __ddread(std::streamsize cnt) override;
     virtual std::streamsize __ddrem() override;
     virtual std::streamsize __sect_size() override;
     __isrcall virtual void __q_on_modify() override;
@@ -179,6 +182,7 @@ public:
     static serial_driver_amd64* get_instance();
     serial_driver_amd64(serial_driver_amd64 const&) = delete;
     serial_driver_amd64& operator=(serial_driver_amd64 const&) = delete;
+    void set_echo(bool mode) noexcept;
 };
 #endif
 #endif

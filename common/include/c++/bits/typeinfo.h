@@ -40,7 +40,7 @@ namespace std
 	  */
 	class type_info
 	{
-		public:
+	public:
 		/**
 		 * Virtual destructor.  This class must have one virtual function to
 		 * ensure that it has a vtable.
@@ -66,7 +66,7 @@ namespace std
 		 * libsupc++, so that code linking against this library can subclass
 		 * type_info and correctly fill in the values in the vtables.
 		 */
-		public:
+	public:
 		/**
 		 * Returns true if this is some pointer type, false otherwise.
 		 */

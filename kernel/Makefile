@@ -3,7 +3,7 @@ OBJDIR := $(CURDIR)/build
 KINCLUDES := $(INCLUDES)/kernel
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(KINCLUDES)) -Wno-packed-bitfield-compat
 CXXFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=c++20
-CCFLAGS := $(CFLAGS) -std=gnu17
+CCFLAGS := $(CFLAGS) -std=gnu23
 LDSCRIPT := $(CURDIR)/linker.lds
 LDFLAGS := $(CFLAGS) -L$(LIB_DIR) -nostdlib -lk -lgcc
 AS := $(ARCH)-$(FMT)-as

@@ -176,10 +176,10 @@ namespace std
     {
         constexpr __trunk_impl() : __tree_trunk{} {}
         constexpr __trunk_impl(__trunk_impl&& that) : __tree_trunk{ move(that) } {}
-        constexpr __trunk_impl(__trunk_impl const& that) : __tree_trunk{ that }{}
+        constexpr __trunk_impl(__trunk_impl const& that) : __tree_trunk{ that } {}
         constexpr __trunk_impl& operator=(__trunk_impl const& that) { __trunk = that.__trunk; __count = that.__count; return *this; }
         constexpr __trunk_impl& operator=(__trunk_impl&& that) { __trunk = move(that).__trunk; __count = move(that).__count; return *this; }
-        virtual ~__trunk_impl() {}
+        constexpr ~__trunk_impl() {}
         constexpr void __clear_base() noexcept { new (static_cast<__node_base*>(&__trunk)) __node_base{}; __count = 0; __reset(); }
     };
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
@@ -256,7 +256,7 @@ namespace std
         constexpr void __clear() { __recursive_destroy_base(); this->__clear_base(); }
     public:
         constexpr size_t size() const noexcept { return this->__count; }
-        virtual ~__tree_base() { __recursive_destroy_base(); }
+        constexpr ~__tree_base() { __recursive_destroy_base(); }
         constexpr __tree_base() : __trunk_type{}, __comparator{}, __alloc{} {}
         constexpr __tree_base(__tree_base const& that) : __trunk_type{that}, __comparator{}, __alloc{} {}
         constexpr __tree_base(__tree_base&& that) : __trunk_type{ forward<__trunk_type>(that) }, __comparator{},  __alloc{} {}

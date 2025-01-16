@@ -76,7 +76,7 @@ void serial_tests()
 {
     if(com)
     {
-        interrupt_table::add_irq_handler(4, LAMBDA_ISR() { size_t n = com->in_avail(); char buf[n + 1]; com->sgetn(buf, n); buf[n] = 0; startup_tty.print_text(buf); });
+        interrupt_table::add_irq_handler(4, LAMBDA_ISR() { size_t n = com->in_avail(); char buf[n]; com->sgetn(buf, n); direct_write("[ "); for(size_t i = 0; i < n; i++) { debug_print_num(buf[i], 2); } direct_write("]"); });
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
@@ -90,7 +90,8 @@ void str_tests()
     startup_tty.print_line(std::to_string(rand()));
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     std::vector<std::string> test_vec = std::ext::split(test_str, "/");
-    for(std::string s : test_vec) startup_tty.print_line(s);
+    for(std::string s : test_vec) startup_tty.print_text(s + " ");
+    startup_tty.endl();
 }
 void ahci_tests()
 {
@@ -174,9 +175,9 @@ extern "C"
     extern void gdt_setup();
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
-    void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write("\n"); }
+    void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
     [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
-    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); }
+    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->pubsync(); } }
     void kmain(sysinfo_t* si, mmap_t* mmap, pagefile* pg)
     {
         cli();
