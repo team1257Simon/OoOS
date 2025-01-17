@@ -4,11 +4,13 @@
     .global     gdt_descriptor
     .global     system_tss
     .global     idt_table
+    .extern     idt_descriptor
     .type       gdt_table,          @object
     .type       gdt_descriptor,     @object
     .type       system_tss,         @object
     .type       local_tss_descr,    @object
     .type       idt_table,          @object
+    .type       idt_descriptor,     @object
     .size       gdt_table,          4096
     .size       gdt_descriptor,     10
     .size       system_tss,         104
@@ -35,7 +37,7 @@ idt_table:
     .section    .text
     .global     gdt_setup
     .global     idt_register
-    .global     idt_set_entry
+    .extern     idt_set_entry
     .type       gdt_setup,              @function
     .type       idt_register,           @function
     .type       idt_set_entry,          @function

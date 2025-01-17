@@ -101,7 +101,7 @@ namespace std::__impl
         constexpr __size_type __cap_rem() const noexcept { return __size_type(__qmax() - __end()); }
         constexpr void __qmove(__dynamic_queue&& that) noexcept { __my_queue_data.__move(std::move(that.__my_queue_data)); }
         constexpr void __qpcopy(__dynamic_queue const& that) noexcept { __my_queue_data.__copy_ptrs(that.__my_queue_data); }
-        void __q_trim_buffer() throw() { __size_type sz = __qsize(); this->__my_queue_data.__set_ptrs(resize<T>(this->__qbeg(), sz), sz); this->__q_on_modify(); }
+        constexpr void __q_trim_buffer() throw() { __size_type sz = __qsize(); this->__my_queue_data.__set_ptrs(resize<T>(this->__qbeg(), sz), sz); this->__q_on_modify(); }
         template<typename ... Args> requires std::constructible_from<T, Args...> __ptr __construct_element(__size_type where, Args&& ... args) { if(__q_out_of_range(__qbeg() + where)) return nullptr; else return construct_at(__qbeg() + where, forward<Args>(args)...); }
         virtual bool __q_grow_buffer(__size_type added);
         __ptr __push_elements(T const&, __size_type = 1);
@@ -109,13 +109,13 @@ namespace std::__impl
         __ptr __push_elements(__const_ptr start, __const_ptr end);
         template<std::output_iterator<T> IT> __size_type __pop_elements(IT out_start, IT out_end) requires(!std::is_same_v<IT, __ptr>);
         __size_type __pop_elements(__ptr out_start, __ptr out_end);
-        void __qdestroy() { if(__qbeg()) { __qallocator.deallocate(__qbeg(), __qcapacity()); __my_queue_data.__reset(); } }
-        void __qclear() { __size_type cap = __qcapacity(); __qdestroy(); __my_queue_data.__set_ptrs(__qallocator.allocate(cap), cap); this->__q_on_modify(); }
+        constexpr void __qdestroy() { if(__qbeg()) { __qallocator.deallocate(__qbeg(), __qcapacity()); __my_queue_data.__reset(); } }
+        constexpr void __qclear() { __size_type cap = __qcapacity(); __qdestroy(); __my_queue_data.__set_ptrs(__qallocator.allocate(cap), cap); this->__q_on_modify(); }
         constexpr __dynamic_queue() = default;
-        __dynamic_queue(__size_type sz, __alloc_type alloc = __alloc_type{}) : __qallocator{ alloc }, __my_queue_data{ __qallocator.allocate(sz), sz } {}
-        __dynamic_queue(__dynamic_queue const& that) : __qallocator{ that.__qallocator }, __my_queue_data{ that.__my_queue_data } {}
-        __dynamic_queue(__dynamic_queue&& that) : __qallocator{ that.__qallocator }, __my_queue_data{ move(that.__my_queue_data) } {}
-        ~__dynamic_queue() { __qdestroy(); }
+        constexpr __dynamic_queue(__size_type sz, __alloc_type alloc = __alloc_type{}) : __qallocator{ alloc }, __my_queue_data{ __qallocator.allocate(sz), sz } {}
+        constexpr __dynamic_queue(__dynamic_queue const& that) : __qallocator{ that.__qallocator }, __my_queue_data{ that.__my_queue_data } {}
+        constexpr  __dynamic_queue(__dynamic_queue&& that) : __qallocator{ that.__qallocator }, __my_queue_data{ move(that.__my_queue_data) } {}
+        constexpr ~__dynamic_queue() { __qdestroy(); }
         __dynamic_queue& operator=(__dynamic_queue&& that) { __qdestroy(); this->__qmove(std::forward<__dynamic_queue>(that)); return *this; }
         __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); this->__qpcopy(that); return *this; }
     };

@@ -429,16 +429,17 @@ typedef struct __pagefile
     page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
     page_frame* frame_entries;
 } __pack pagefile;
+// The kernel's side of process-info for use with syscalls. While in ring 0 (i.e. in kernel code) the gs base register will point to this structure.
 typedef struct __kpinfo
 {
-    uintptr_t self_ptr;
-    paging_table k_cr3;   // 8
-    uintptr_t k_rsp;      // 16
-    uintptr_t k_rbp;      // 24
-    uintptr_t rtn_rsp;    // 32
-    uintptr_t rtn_rbp;    // 40
-    uintptr_t rtn_rip;    // 48
-    paging_table rtn_cr3; // 56
+    uintptr_t self_ptr;   // %gs:0x00
+    paging_table k_cr3;   // %gs:0x08
+    uintptr_t k_rsp;      // %gs:0x10
+    uintptr_t k_rbp;      // %gs:0x18
+    uintptr_t rtn_rsp;    // %gs:0x20
+    uintptr_t rtn_rbp;    // %gs:0x28
+    uintptr_t rtn_rip;    // %gs:0x30
+    paging_table rtn_cr3; // %gs:0x38
 } __pack kpinfo_t;
 typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*, pagefile*);
 #ifdef __cplusplus

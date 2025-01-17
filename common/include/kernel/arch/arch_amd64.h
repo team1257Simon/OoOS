@@ -92,6 +92,8 @@ constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
 constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
 template<dword R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword{ lo, hi }; }
 template<dword R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
+constexpr dword kernel_gs_base = 0xC0000102;
+constexpr void set_kernel_gs_base(vaddr_t value) { write_msr<kernel_gs_base>(value); }
 #endif
 #endif
 #endif

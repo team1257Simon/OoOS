@@ -18,7 +18,8 @@ static std::atomic<uint64_t> t_ticks;
 static direct_text_render startup_tty;
 static bool direct_print_enable = false;
 static serial_driver_amd64* com;
-static sysinfo_t* sysinfo;
+static sysinfo_t* sysinfo;    
+ramfs testramfs;
 static char dbgbuf[19]{'0', 'x'};
 constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
@@ -102,18 +103,15 @@ void ahci_tests()
 }
 void vfs_tests()
 {
-    ramfs testramfs{};
+
     try 
     {
         // test folder creation
         testramfs.get_folder("test/files");
-        file_inode_base* n = testramfs.open_file("test/files/memes.txt");
+        file_inode* n = testramfs.open_file("test/files/memes.txt");
         n->write("sweet dreams are made of memes\n", 31);
         testramfs.close_file(n);
-        folder_inode_base* f = testramfs.get_folder("dev");
-        file_inode_base* comout = new ramfs_device_inode("com", 1, com);
-        f->add(comout); 
-        file_inode_base* testout = testramfs.open_file("dev/com");
+        file_inode* testout = testramfs.lndev("dev/com", com, true);
         n = testramfs.open_file("test/files/memes.txt");
         char teststr[32](0);
         // test device and file inodes
@@ -130,7 +128,6 @@ void vfs_tests()
         direct_writeln(test2str);
         testramfs.close_file(n);
         testramfs.unlink("test/files", true, true);
-        delete comout;
         // test error condition(s)
         testramfs.open_file("test/files/memes.txt/dreams.txt");
     }
@@ -179,10 +176,12 @@ void run_tests()
     vfs_tests();
     startup_tty.print_line("complete");
 }
+filesystem* get_fs_instance() { return &testramfs; }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
 {
+    kpinfo_t kproc{};
     extern void _init();
     extern void* isr_table[];
     extern void gdt_setup();
@@ -195,6 +194,10 @@ extern "C"
     {
         cli();
         nmi_disable();
+        kproc.k_cr3 = get_cr3();
+        kproc.self_ptr = reinterpret_cast<uintptr_t>(&kproc);
+        asm volatile("movq %%rsp, %0 " : "=m"(kproc.k_rsp) :: "memory");
+        asm volatile("movq %%rbp, %0 " : "=m"(kproc.k_rbp) :: "memory");
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
         heap_allocator::init_instance(pg, mmap); 
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
@@ -205,6 +208,8 @@ extern "C"
         gdt_setup();
         // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
         idt_init();
+        // The wrgsbase instruction will be enabled before the lidt method returns, so we can do this now.
+        set_kernel_gs_base(&kproc);
         sysinfo = si;
         fadt_t* fadt = nullptr;
         if(sysinfo->xsdt) fadt = find_fadt(sysinfo->xsdt);

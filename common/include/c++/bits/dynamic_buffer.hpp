@@ -143,19 +143,19 @@ namespace std::__impl
         explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
         template<std::matching_input_iterator<T> IT> __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }
-        __dynamic_buffer(__size_type sz) : __allocator{}, __my_data{} { __allocate_storage(sz); this->__zero(__beg(), sz); }
-        __dynamic_buffer(__size_type sz, A const& alloc) : __allocator{ alloc }, __my_data{} { __allocate_storage(sz); __zero(__beg(), sz); }
-        __dynamic_buffer(__size_type sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { __set(__beg(), val, sz); __advance(sz); }
-        __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __dynamic_buffer{ __ils.begin(), __ils.end(), alloc } {}
-        __dynamic_buffer(__dynamic_buffer const& that) : __dynamic_buffer{ that.__beg(), that.__cur(), that.__allocator } {}
-        __dynamic_buffer(__dynamic_buffer const& that, A const& alloc) : __dynamic_buffer{ that.__beg(), that.__cur(), alloc } {}
-        __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer{ that.__getptr(start), that.__cur(), alloc } {}
-        __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer{ that.__getptr(start), that.__beg() + (count < that.__size() - start ? count : that.__size()), alloc } {}
-        __dynamic_buffer(__dynamic_buffer&& that) : __allocator{ move(that.__allocator) }, __my_data{ move(that.__my_data) } {}
-        __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
-        ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
-        __dynamic_buffer& operator=(__dynamic_buffer const& that) { __destroy(); __allocate_storage(that.__capacity()); __copy(this->__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); __on_modify(); return *this; }
-        __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); this->__move(move(that)); return *this; }
+        constexpr __dynamic_buffer(__size_type sz) : __allocator{}, __my_data{} { __allocate_storage(sz); this->__zero(__beg(), sz); }
+        constexpr __dynamic_buffer(__size_type sz, A const& alloc) : __allocator{ alloc }, __my_data{} { __allocate_storage(sz); __zero(__beg(), sz); }
+        constexpr __dynamic_buffer(__size_type sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { __set(__beg(), val, sz); __advance(sz); }
+        constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __dynamic_buffer{ __ils.begin(), __ils.end(), alloc } {}
+        constexpr __dynamic_buffer(__dynamic_buffer const& that) : __dynamic_buffer{ that.__beg(), that.__cur(), that.__allocator } {}
+        constexpr __dynamic_buffer(__dynamic_buffer const& that, A const& alloc) : __dynamic_buffer{ that.__beg(), that.__cur(), alloc } {}
+        constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer{ that.__getptr(start), that.__cur(), alloc } {}
+        constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer{ that.__getptr(start), that.__beg() + (count < that.__size() - start ? count : that.__size()), alloc } {}
+        constexpr __dynamic_buffer(__dynamic_buffer&& that) : __allocator{ move(that.__allocator) }, __my_data{ move(that.__my_data) } {}
+        constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
+        constexpr ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
+        constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { __destroy(); __allocate_storage(that.__capacity()); __copy(this->__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); __on_modify(); return *this; }
+        constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); this->__move(move(that)); return *this; }
     };
     template<typename T, allocator_object<T> A>
     typename __dynamic_buffer<T, A>::__ptr __dynamic_buffer<T, A>::__replace_elements(typename __dynamic_buffer<T, A>::__size_type pos, typename __dynamic_buffer<T, A>::__size_type count, __ptr from, typename __dynamic_buffer<T, A>::__size_type count2)

@@ -36,7 +36,7 @@ extern "C"
         descriptor->isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
         descriptor->reserved       = 0;
     }
-    [[gnu::no_caller_saved_registers]] __isrcall bool isr_dispatch(uint8_t idx)
+    [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
     {
         bool is_err = (idx == 0x08 || (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E);
         if(idx > 0x19 && idx < 0x30) 
@@ -45,9 +45,8 @@ extern "C"
             for(irq_callback h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }
-        else for(interrupt_callback c : __registered_callbacks) { c(idx, is_err ? ecode : 0); }
+        else for(interrupt_callback c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }
         // Other stuff as needed
-        return is_err;
     }
     void idt_init()
     {
