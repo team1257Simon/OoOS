@@ -37,7 +37,7 @@ namespace std::__impl
         void __move_ptrs(__buf_ptrs&& that) { this->__copy_ptrs(that); that.__reset(); }
         void __swap_ptrs(__buf_ptrs& that) { __buf_ptrs tmp; tmp.__copy_ptrs(*this); this->__copy_ptrs(that); that.__copy_ptrs(tmp); }
         void __set_ptrs(__ptr_type begin, __ptr_type end, __ptr_type max) { this->__begin = begin; this->__end = end; this->__max = max; }
-        __ptr_type __getptr(__size_type offs) { return __begin + offs; }
+        __ptr_type __get_ptr(__size_type offs) { return __begin + offs; }
         void __setc(__ptr_type where) { __end = where; }
         void __setc(__size_type offs) { __end = __begin + offs; }
         void __adv(__size_type n) { __end += n; }
@@ -103,10 +103,10 @@ namespace std::__impl
         constexpr bool __valid_end_pos(__const_ptr pos) const noexcept { return pos >= __beg() && pos <= __max(); }
         constexpr bool __out_of_range(__const_ptr pos) const noexcept { return pos < __beg() || pos >= __max(); }
         constexpr bool __out_of_range(__const_ptr start, __const_ptr end) const noexcept { return __out_of_range(start) || __out_of_range(end) || end < start; }
-        constexpr __ptr __getptr(__size_type __i) noexcept { return __beg() + __i; }
-        constexpr __const_ptr __getptr(__size_type __i) const noexcept { return __beg() + __i; }
-        constexpr __ref __get(__size_type __i) { return *__getptr(__i); }
-        constexpr __const_ref __get(__size_type __i) const { return *__getptr(__i); }
+        constexpr __ptr __get_ptr(__size_type __i) noexcept { return __beg() + __i; }
+        constexpr __const_ptr __get_ptr(__size_type __i) const noexcept { return __beg() + __i; }
+        constexpr __ref __get(__size_type __i) { return *__get_ptr(__i); }
+        constexpr __const_ref __get(__size_type __i) const { return *__get_ptr(__i); }
         constexpr __ref __get_last() noexcept { return *(__cur() - 1); }
         constexpr __const_ref __get_last() const noexcept { return *(__cur() - 1); }
         constexpr void __setp(__buf_ptrs<T> const& ptrs) noexcept { __my_data.__copy_ptrs(ptrs); }
@@ -115,7 +115,7 @@ namespace std::__impl
         constexpr void __setn(__ptr beg, __size_type c, __size_type n) noexcept { __setp(beg, beg + c, beg + n); }
         constexpr void __setn(__ptr beg, __size_type n) noexcept { __setp(beg, beg + n); }
         constexpr void __setc(__ptr pos) noexcept { if(__valid_end_pos(pos)) __my_data.__setc(pos); } 
-        constexpr void __setc(__size_type pos) noexcept { __setc(__getptr(pos)); }
+        constexpr void __setc(__size_type pos) noexcept { __setc(__get_ptr(pos)); }
         constexpr void __bumpc(int64_t off) noexcept { __setc(__cur() + off); }
         constexpr __size_type __max_capacity() const noexcept { return std::numeric_limits<__size_type>::max(); }
         constexpr void __advance(__size_type n) { if(__valid_end_pos(__cur() + n)) { __my_data.__adv(n); } else { __setc(__max()); } }
@@ -127,8 +127,8 @@ namespace std::__impl
         void __trim_buffer() throw() { __size_type num_elements = __size(); __setn(resize<T>(__beg(), num_elements), num_elements, num_elements); this->__on_modify(); }
         void __allocate_storage(__size_type n) throw() { __setn(__allocator.allocate(n), n); }
         void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
-        __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__getptr(count), __size() - count); } __setc(count); this->__on_modify(); return __cur(); }
-        __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__getptr(count), __size() - count); } __setc(count); this->__on_modify(); return __cur(); }
+        __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__on_modify(); return __cur(); }
+        __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__on_modify(); return __cur(); }
         __ptr __replace_elements(__const_ptr start, __const_ptr end, __ptr from, __size_type count) { if(!__out_of_range(start, end)) return __replace_elements(start - __beg(), end - start, from, count); else return nullptr; }
         __ptr __assign_elements(std::initializer_list<T> ini) { return __assign_elements(ini.begin(), ini.end()); }
         __ptr __append_elements(__size_type count, T const& t) { if(__max() <= __cur() + count) { if(!this->__grow_buffer(__size_type(count - __rem()))) return nullptr; } for(__size_type i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); this->__on_modify(); return __cur(); }
@@ -149,8 +149,8 @@ namespace std::__impl
         constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __dynamic_buffer{ __ils.begin(), __ils.end(), alloc } {}
         constexpr __dynamic_buffer(__dynamic_buffer const& that) : __dynamic_buffer{ that.__beg(), that.__cur(), that.__allocator } {}
         constexpr __dynamic_buffer(__dynamic_buffer const& that, A const& alloc) : __dynamic_buffer{ that.__beg(), that.__cur(), alloc } {}
-        constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer{ that.__getptr(start), that.__cur(), alloc } {}
-        constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer{ that.__getptr(start), that.__beg() + (count < that.__size() - start ? count : that.__size()), alloc } {}
+        constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer{ that.__get_ptr(start), that.__cur(), alloc } {}
+        constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer{ that.__get_ptr(start), that.__beg() + (count < that.__size() - start ? count : that.__size()), alloc } {}
         constexpr __dynamic_buffer(__dynamic_buffer&& that) : __allocator{ move(that.__allocator) }, __my_data{ move(that.__my_data) } {}
         constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
         constexpr ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
@@ -158,9 +158,9 @@ namespace std::__impl
         constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); this->__move(move(that)); return *this; }
     };
     template<typename T, allocator_object<T> A>
-    typename __dynamic_buffer<T, A>::__ptr __dynamic_buffer<T, A>::__replace_elements(typename __dynamic_buffer<T, A>::__size_type pos, typename __dynamic_buffer<T, A>::__size_type count, __ptr from, typename __dynamic_buffer<T, A>::__size_type count2)
+    typename __dynamic_buffer<T, A>::__ptr __dynamic_buffer<T, A>::__replace_elements(__size_type pos, __size_type count, __ptr from, __size_type count2)
     {
-        if(count2 == count){ __copy(__getptr(pos), from, count); return __getptr(pos + count); }
+        if(count2 == count){ __copy(__get_ptr(pos), from, count); return __get_ptr(pos + count); }
         else try
         {
             long diff = count2 - count;
@@ -168,18 +168,18 @@ namespace std::__impl
             __buf_ptrs nwdat { __allocator.allocate(target_cap), target_cap };
             __size_type rem = __size() - (pos + count);
             __copy(nwdat.__begin, __beg(), pos);
-            __copy(nwdat.__getptr(pos), from, count2);
-            __copy(nwdat.__getptr(pos + count2), __getptr(pos + count), rem);
+            __copy(nwdat.__get_ptr(pos), from, count2);
+            __copy(nwdat.__get_ptr(pos + count2), __get_ptr(pos + count), rem);
             nwdat.__setc(__size() + diff);
             __allocator.deallocate(__beg(), __capacity());
             __my_data.__copy_ptrs(nwdat);
             this->__on_modify();
-            return __getptr(pos + count);
+            return __get_ptr(pos + count);
         }
         catch(...) { return nullptr; }
     }
     template<typename T, allocator_object<T> A>
-    bool __dynamic_buffer<T, A>::__grow_buffer(typename __dynamic_buffer<T, A>::__size_type added)
+    bool __dynamic_buffer<T, A>::__grow_buffer(__size_type added)
     {
         if(!added) return true; // Zero elements -> vacuously true completion
         __size_type num_elements = __size();
@@ -214,14 +214,14 @@ namespace std::__impl
                     __size_type n = __my_data.__end - pos;
                     __ptr temp = __allocator.allocate(n);
                     __copy(temp, pos, n);
-                    __copy(__getptr(offs), start_ptr, range_size);
-                    __copy(__getptr(offs + range_size), temp, n);
+                    __copy(__get_ptr(offs), start_ptr, range_size);
+                    __copy(__get_ptr(offs + range_size), temp, n);
                     __allocator.deallocate(temp, n);
                     __advance(range_size);
                 }
                 else 
                 {
-                    __copy(__getptr(offs), start_ptr, range_size);
+                    __copy(__get_ptr(offs), start_ptr, range_size);
                     __setc(offs + range_size);
                 }
             }
@@ -233,7 +233,7 @@ namespace std::__impl
                 {
                     __size_type rem = __rem();
                     __copy(nwdat.__begin, __beg(), offs);
-                    __copy(nwdat.__getptr(offs + range_size), pos, rem);
+                    __copy(nwdat.__get_ptr(offs + range_size), pos, rem);
                     nwdat.__setc(__size() + range_size);
                 }
                 else
@@ -243,10 +243,10 @@ namespace std::__impl
                 }
                 __allocator.deallocate(__beg(), __size());
                 __my_data.__copy_ptrs(nwdat);
-                __copy(__getptr(offs), start_ptr, range_size);
+                __copy(__get_ptr(offs), start_ptr, range_size);
             }
             __on_modify();
-            return __getptr(offs);
+            return __get_ptr(offs);
         }
         catch(...) { return nullptr; }
     }
@@ -266,14 +266,14 @@ namespace std::__impl
                     __size_type n = __rem();
                     __ptr temp = __allocator.allocate(n);
                     __copy(temp, pos, n);
-                    __transfer(__getptr(offs), start_ptr, end_ptr);
-                    __copy(__getptr(offs + range_size), temp, n);
+                    __transfer(__get_ptr(offs), start_ptr, end_ptr);
+                    __copy(__get_ptr(offs + range_size), temp, n);
                     __allocator.deallocate(temp, n);
                     __advance(range_size);
                 }
                 else 
                 {
-                    __transfer(__getptr(offs), start_ptr, end_ptr);
+                    __transfer(__get_ptr(offs), start_ptr, end_ptr);
                     __setc(offs + range_size);
                 }
             }
@@ -285,7 +285,7 @@ namespace std::__impl
                 {
                     __size_type rem = __rem();
                     __copy(nwdat.__begin, __beg(), offs);
-                    __copy(nwdat.__getptr(offs + range_size), pos, rem);
+                    __copy(nwdat.__get_ptr(offs + range_size), pos, rem);
                     nwdat.__setc(__size() + range_size);
                 }
                 else
@@ -295,10 +295,10 @@ namespace std::__impl
                 }
                 __allocator.deallocate(__beg(), __size());
                 __my_data.__copy_ptrs(nwdat);
-                __transfer(__getptr(offs), start_ptr, end_ptr);
+                __transfer(__get_ptr(offs), start_ptr, end_ptr);
             }
             this->__on_modify();
-            return __getptr(offs);
+            return __get_ptr(offs);
         }
         catch(...) { return nullptr; }
     }
@@ -308,11 +308,7 @@ namespace std::__impl
     typename __dynamic_buffer<T, A>::__ptr __dynamic_buffer<T, A>::__emplace_element(__const_ptr pos, Args&& ... args)
     {
         if(pos < __beg()) return nullptr;
-        if(pos >= __max()) 
-        { 
-            if(!__grow_buffer(1)) return nullptr;
-            pos = __max() - 1;
-        }
+        if(pos >= __max()) { if(!__grow_buffer(1)) return nullptr; pos = __max() - 1; }
         return construct_at(const_cast<__ptr>(pos), forward<Args>(args)...);
     }
     template <typename T, allocator_object<T> A>
@@ -338,14 +334,14 @@ namespace std::__impl
         {
             __ptr temp = __allocator.allocate(rem);
             __copy(temp, end, rem);
-            __zero(__getptr(start_pos), __ediff(start));
-            __copy(__getptr(start_pos), temp, rem);
+            __zero(__get_ptr(start_pos), __ediff(start));
+            __copy(__get_ptr(start_pos), temp, rem);
             __allocator.deallocate(temp, rem);
             __setc(start_pos + rem);
         }
         catch (...) { return nullptr; }
         __on_modify();
-        return __getptr(start_pos);
+        return __get_ptr(start_pos);
     }
 }
 #endif

@@ -440,6 +440,7 @@ typedef struct __kpinfo
     uintptr_t rtn_rbp;    // %gs:0x28
     uintptr_t rtn_rip;    // %gs:0x30
     paging_table rtn_cr3; // %gs:0x38
+    vaddr_t rtn_gs_base;  // %gs:0x40
 } __pack kpinfo_t;
 typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*, pagefile*);
 #ifdef __cplusplus

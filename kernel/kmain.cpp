@@ -103,7 +103,6 @@ void ahci_tests()
 }
 void vfs_tests()
 {
-
     try 
     {
         // test folder creation
@@ -163,7 +162,7 @@ void run_tests()
             __builtin_unreachable();
         }
     });
-    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks ++; });
+    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks++; });
     startup_tty.print_line("string test...");
     str_tests();
     startup_tty.print_line("serial test...");
@@ -184,6 +183,7 @@ extern "C"
     kpinfo_t kproc{};
     extern void _init();
     extern void* isr_table[];
+    extern void* svinst;
     extern void gdt_setup();
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }

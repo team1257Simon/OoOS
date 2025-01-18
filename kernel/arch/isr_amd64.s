@@ -5,14 +5,19 @@
     .section    .data
     .global     ecode
     .global     errinst
+    .global     svinst
     .type       ecode,          @object
     .type       errinst,        @object
+    .type       svinst,         @object
 ecode:
     .quad 0
     .size       ecode,          .-ecode
 errinst:
     .quad 0
     .size       errinst,        .-errinst
+svinst:
+    .quad 0
+    .size       svinst,         .-svinst
     .section    .text
     # The one time exponential growth actually comes in handy...
     # Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
@@ -55,7 +60,7 @@ errinst:
         .global     isr_\i
         .type       isr_\i,     @function
         isr_\i:
-        # First, clear interrupts. Then check if we're in ring 0 (segment selector 8). If not, swap the gs base to ensure we're in 
+        # First, clear interrupts. Then check if we're in ring 0 (segment selector 8). If not, swap the gs base to ensure we're able to access kernel stuff if needed
             cli
             cmpw    $0x08,  8(%rsp)
             je      .LKB\i
@@ -64,13 +69,17 @@ errinst:
             pushq   %rax
             .ifge 32-\i
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
-            addq    $8,         %rsp
-            popq    %rax
+            movq    8(%rsp),    %rax
             movq    %rax,       ecode
-            popq    %rax
+            movq    16(%rsp),   %rax
             movq    %rax,       errinst
-            subq    $0x18,      %rsp
+            .else
+            movq    8(%rsp),    %rax
+            movq    %rax,       svinst
             .endif
+            .else
+            movq    8(%rsp),    %rax
+            movq    %rax,       svinst
             .endif
             pushq   %rdi
             movq    $\i,        %rdi

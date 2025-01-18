@@ -17,7 +17,11 @@ syscall_vec:
     .type   do_syscall,     @function
 do_syscall:
     cli
+    pushq   %rax
+    movq    %gs:0x00,               %rax
     swapgs
+    movq    %rax,                   %gs:0x40
+    popq    %rax
     movq    %rsp,                   %gs:0x20
     movq    %rbp,                   %gs:0x28
     movq    %rcx,                   %gs:0x30
