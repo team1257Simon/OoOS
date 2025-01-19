@@ -17,7 +17,7 @@ device_inode *filesystem::mkdevnode(folder_inode *parent, std::string const &nam
 }
 bool filesystem::xunlink(folder_inode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {
-    tnode* node = parent->find(what);
+    tnode* node{ parent->find(what) };
     if(!node) { if(!ignore_nonexistent) throw std::logic_error{ "cannot unlink " + what + " because it does not exist" }; else return false; }
     if(node->is_folder() && (*node)->num_refs() <= 1) 
     {
@@ -35,7 +35,7 @@ bool filesystem::xunlink(folder_inode* parent, std::string const& what, bool ign
 }
 tnode *filesystem::xlink(target_pair ogparent, target_pair tgparent)
 {
-    tnode* node = ogparent.first->find(ogparent.second);
+    tnode* node{ ogparent.first->find(ogparent.second) };
     if(!node) throw std::runtime_error{ std::string{ "path does not exist: " } + ogparent.first->name() + path_separator() + ogparent.second };
     if(tgparent.first->find(tgparent.second)) throw std::logic_error{ std::string{ "target " } + tgparent.first->name() + path_separator() + tgparent.second + " already exists" };
     if(!tgparent.first->link(node, tgparent.second)) throw std::runtime_error{ std::string{ "failed to create link: " } + tgparent.first->name() + path_separator() + tgparent.second };
@@ -43,9 +43,9 @@ tnode *filesystem::xlink(target_pair ogparent, target_pair tgparent)
 }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create)
 {
-    std::vector<std::string> pathspec = std::ext::split(path, this->path_separator());
+    std::vector<std::string> pathspec{ std::ext::split(path, this->path_separator()) };
     if(pathspec.empty()) throw std::logic_error{ "empty path" };
-    folder_inode* node = this->get_root_directory();
+    folder_inode* node{ this->get_root_directory() };
     for(size_t i = 0; i < pathspec.size() - 1; i++)
     {
         if(pathspec[i].empty()) continue;
@@ -62,13 +62,13 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
 }
 file_inode* filesystem::open_file(std::string const& path, std::ios_base::openmode mode)
 {
-    target_pair parent = this->get_parent(path, false);
-    tnode* node = parent.first->find(parent.second);
+    target_pair parent{ this->get_parent(path, false) };
+    tnode* node{ parent.first->find(parent.second) };
     if(node && node->is_folder()) throw std::logic_error{ "path " + path + " exists and is a folder" };
     if(!node) 
     {
         if(!mode.out) throw std::runtime_error{ "file not found: " + path }; 
-        if(file_inode* created = mkfilenode(parent.first, parent.second)) 
+        if(file_inode* created{ mkfilenode(parent.first, parent.second) }) 
         {
             created->mode.read_group = created->mode.read_owner= created->mode.read_others = mode.in;
             created->mode.write_group = created->mode.write_owner = created->mode.write_others = mode.out;
@@ -85,8 +85,8 @@ file_inode* filesystem::open_file(std::string const& path, std::ios_base::openmo
 folder_inode *filesystem::get_folder(std::string const& path, bool create)
 {
     if(path.empty()) return this->get_root_directory(); // empty path or "/" refers to root directory
-    target_pair parent = this->get_parent(path, create);
-    tnode* node = parent.first->find(parent.second);
+    target_pair parent{ this->get_parent(path, create) };
+    tnode* node{ parent.first->find(parent.second) };
     if(!node)
     {
         if(create) { node = parent.first->add(this->mkdirnode(parent.first, parent.second)); return node->as_folder(); }
@@ -96,43 +96,43 @@ folder_inode *filesystem::get_folder(std::string const& path, bool create)
     else return node->as_folder();
 }
 file_inode* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) return current_open_files[fd]; else return nullptr; }
-device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, bool create_parents) { target_pair parent = this->get_parent(where, create_parents); if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; return this->mkdevnode(parent.first, parent.second, what); }
+device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, bool create_parents) { target_pair parent{ this->get_parent(where, create_parents) }; if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; return this->mkdevnode(parent.first, parent.second, what); }
 tnode *filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
-bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent = this->get_parent(what, false); return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
+bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 extern "C"
 {
     int syscall_open(char *name, int flags, ...)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        uint8_t smallflags = static_cast<uint8_t>(flags);
-        try { if(file_inode* n = fsptr->open_file(name, std::ios_base::openmode(smallflags))) return n->vid(); } catch(std::exception& e) { panic(e.what()); }
+        uint8_t smallflags{ static_cast<uint8_t>(flags) };
+        try { if(file_inode* n{ fsptr->open_file(name, std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); }
         return -1;
     }
     int syscall_close(int fd)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        try { if(file_inode* n = fsptr->get_fd(fd)) { fsptr->close_file(n); return 0; } } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } } catch(std::exception& e) { panic(e.what()); }
         return -1;
     }
     int syscall_write(int fd, char *ptr, int len)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        try { if(file_inode* n = fsptr->get_fd(fd)) { n->write(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
         return -1;
     }
     int syscall_read(int fd, char *ptr, int len)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        try { if(file_inode* n = fsptr->get_fd(fd)) { n->read(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
         return -1;
     }
     int syscall_link(char *old, char *__new)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
         try { return fsptr->link(old, __new) != nullptr; } catch(std::exception& e) { panic(e.what()); }
         return -1;
@@ -146,9 +146,9 @@ extern "C"
     }
     int syscall_isatty(int fd)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return 0;
-        try { if(file_inode* n = fsptr->get_fd(fd)) return n->is_device() ? 1 : 0; } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) return n->is_device() ? 1 : 0; } catch(std::exception& e) { panic(e.what()); }
+        return 0;
     }
 }

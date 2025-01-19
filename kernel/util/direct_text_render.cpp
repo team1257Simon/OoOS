@@ -3,7 +3,7 @@
 #include "string.h"
 __isrcall void direct_text_render::__advance() noexcept { if(__cursor_pos.x < __fb_col_cap()) __cursor_pos.x++; else endl(); }
 __isrcall void direct_text_render::__write_one(char c) { if(c == '\n') endl(); else if(c) { __render(c, __fb_ptr, __cursor_pos); __advance(); } }
-__isrcall void direct_text_render::cls() { if(__fb_ptr) for(point p {0, 0}; p.y < __fb_row_cap(); p.y++) for(p.x = 0; p.x < __fb_col_cap(); p.x++) __render.fill(__render.bg_color(), __fb_ptr, p); }
+__isrcall void direct_text_render::cls() { if(__fb_ptr) for(point p { 0, 0 }; p.y < __fb_row_cap(); p.y++) for(p.x = 0; p.x < __fb_col_cap(); p.x++) __render.fill(__render.bg_color(), __fb_ptr, p); }
 __isrcall void direct_text_render::endl() { __cursor_pos.x = 0; if(__cursor_pos.y < __fb_row_cap())  __cursor_pos.y++; else __cursor_pos.y = 0; }
 __isrcall void direct_text_render::cr() { __cursor_pos.x = 0; }
 __isrcall void direct_text_render::up() { if(__cursor_pos.y) __cursor_pos.y--; }

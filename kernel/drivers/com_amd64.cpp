@@ -72,11 +72,11 @@ __isrcall std::streamsize serial_driver_amd64::__ddread(std::streamsize cnt)
     __pos_echo -=  this->__trim_stale();
     return result;
 }
-__isrcall void serial_driver_amd64::__q_on_modify() { ptrdiff_t n = this->gptr() - this->eback(); if(n > 0) this->__qsetn(size_t(n)); if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
+__isrcall void serial_driver_amd64::__q_on_modify() { ptrdiff_t n{ this->gptr() - this->eback() }; if(n > 0) this->__qsetn(size_t(n)); if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
 bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level, word baud_div)
 {
     __inst.__set_stale_op_threshold(6);
-    serial_ier init_ier = inb(port_com1_ier);
+    serial_ier init_ier{ inb(port_com1_ier) };
     outb(port_com1_ier, 0ui8);
     com1_set_baud_divisor(baud_div);
     outb(port_com1_line_ctl, mode);

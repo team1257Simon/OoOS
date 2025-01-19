@@ -31,9 +31,9 @@ void set_gs_base(void*);
 void* get_fs_base();
 void* get_gs_base();
 qword get_flags();
-vaddr_t sys_mmap(vaddr_t start, uintptr_t phys, size_t pages);
-uintptr_t sys_unmap(vaddr_t start, size_t pages);
-vaddr_t mmio_mmap(vaddr_t start, size_t pages);
+vaddr_t map_pages(vaddr_t start, uintptr_t phys, size_t pages);
+uintptr_t unmap_pages(vaddr_t start, size_t pages);
+vaddr_t map_mmio_pages(vaddr_t start, size_t pages);
 uintptr_t translate_vaddr(vaddr_t addr);
 #ifdef __cplusplus
 }

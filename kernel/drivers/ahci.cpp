@@ -34,8 +34,8 @@ ahci_driver ahci_driver::__instance{};
 bool ahci_driver::__has_init = false;
 void ahci_driver::__issue_command(uint8_t idx, int slot)
 {
-    hba_port* port = &(__my_abar->ports[idx]);
-    unsigned spin = 0;
+    hba_port* port{ &(__my_abar->ports[idx]) };
+    unsigned spin{ 0 };
     BARRIER;
     while(__port_data_busy(port) && spin < max_wait) { BARRIER; spin++; }
     BARRIER;
@@ -57,7 +57,7 @@ void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t *buffer, at
     BARRIER;
     memset(cmdtbl, 0, sizeof(hba_cmd_table));
     BARRIER;
-    qword addr = translate_vaddr(buffer);
+    qword addr{ translate_vaddr(buffer) };
     for(uint16_t i = 0; i <= l; i++, addr += 0x1000)
     {
         BARRIER;
@@ -84,10 +84,9 @@ void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t *buffer, at
 bool ahci_driver::__handoff_busy() { return (dword(__my_abar->bios_os_handoff)[bos_bit] || dword(__my_abar->bios_os_handoff)[bb_bit]); }
 void ahci_driver::__init_irq()
 {
-    uint8_t irq = __my_ahci_controller->header_0x0.interrupt_line;
     for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __my_abar->i_status |= (1 << i); BARRIER; uint32_t s1 = __my_abar->ports[i].i_state; BARRIER; __my_abar->ports[i].i_state = s1; BARRIER; } }
-    interrupt_table::add_irq_handler(irq, LAMBDA_ISR() { this->handle_irq(); });
-    irq_clear_mask(irq);
+    interrupt_table::add_irq_handler(__my_ahci_controller->header_0x0.interrupt_line, LAMBDA_ISR() { this->handle_irq(); });
+    irq_clear_mask(__my_ahci_controller->header_0x0.interrupt_line);
 }
 bool ahci_driver::init_instance(pci_device_list *ls) noexcept
 {
@@ -204,8 +203,8 @@ static int find_cmdslot(hba_port* port)
 }
 void ahci_driver::port_soft_reset(uint8_t idx)
 {
-    hba_port* port = &(__my_abar->ports[idx]);
-    unsigned spin = 0;
+    hba_port* port{ &(__my_abar->ports[idx]) };
+    unsigned spin{ 0 };
     while(__my_abar->ports[idx].cmd_issue != 0 && spin < max_wait) { BARRIER; spin++; }
     BARRIER;
     if(__my_abar->ports[idx].cmd_issue != 0) throw std::runtime_error("Port number " + std::to_string(idx) + " is hung");   
@@ -238,7 +237,7 @@ void ahci_driver::port_soft_reset(uint8_t idx)
     BARRIER;
     memset(ctbrst, 0, sizeof(hba_cmd_table));
     BARRIER;
-    fis_reg_h2d* frst = reinterpret_cast<fis_reg_h2d*>(&(ctbrst->cmd_fis[0]));
+    fis_reg_h2d* frst = vaddr_t{ &(ctbrst->cmd_fis[0]) };
     frst->type = reg_h2d;
     frst->control = soft_reset_bit;
     frst->ctype = 0;   
@@ -284,7 +283,7 @@ void ahci_driver::port_hard_reset(uint8_t idx)
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
     BARRIER;
     stop_port(idx);
-    unsigned spin = 0;
+    unsigned spin{ 0 };
     while(((__my_abar->ports[idx].cmd & hba_command_cr) != 0) && spin < max_wait) { BARRIER; spin++; }
     BARRIER;
     if(!(dword(__my_abar->ports[idx].cmd)[hba_sud_bit]) && __my_abar->sud_supported) { BARRIER; __my_abar->ports[idx].cmd |= hba_command_spin_up_disk; }
@@ -316,7 +315,7 @@ void ahci_driver::read_sectors(uint8_t idx, qword start, dword count, uint16_t *
     __my_abar->ports[idx].command_list[slot].cmd_fis_len = 5;
     __my_abar->ports[idx].command_list[slot].w_direction = 0; // d2h write
     __my_abar->ports[idx].command_list[slot].atapi = 0;
-    uint16_t l = static_cast<uint16_t>(((count.lo - 1) >> 4));
+    uint16_t l{ static_cast<uint16_t>((count.lo - 1) >> 4) };
     __my_abar->ports[idx].command_list[slot].prdt_length = l + 1; // each entry can transfer at most 8kb, or 16 sectors
     BARRIER;
     __build_h2d_fis(start, count, buffer, ata_command::read_dma_ext, __my_abar->ports[idx].command_list[slot].command_table, l);
@@ -333,7 +332,7 @@ void ahci_driver::write_sectors(uint8_t idx, qword start, dword count, const uin
     __my_abar->ports[idx].command_list[slot].cmd_fis_len = 5;
     __my_abar->ports[idx].command_list[slot].w_direction = 1; // h2d write
     __my_abar->ports[idx].command_list[slot].atapi = 0;
-    uint16_t l = static_cast<uint16_t>(((count.lo - 1) >> 4));
+    uint16_t l{ static_cast<uint16_t>((count.lo - 1) >> 4) };
     __my_abar->ports[idx].command_list[slot].prdt_length = l + 1; // each entry can transfer at most 8kb, or 16 sectors
     BARRIER;
     __build_h2d_fis(start, count, const_cast<uint16_t*>(buffer), ata_command::write_dma_ext, __my_abar->ports[idx].command_list[slot].command_table, l);
@@ -361,7 +360,7 @@ bool ahci_driver::is_busy(uint8_t i) { BARRIER; uint32_t c = __my_abar->ports[i]
 void ahci_driver::p_identify(uint8_t idx, identify_data *data)
 {
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " is out of range ");
-    hba_port* port = &__my_abar->ports[idx];
+    hba_port* port{ &(__my_abar->ports[idx]) };
     int slot = find_cmdslot(port);
     if(slot < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
     qword addr = vaddr_t{ data };
@@ -373,7 +372,7 @@ void ahci_driver::p_identify(uint8_t idx, identify_data *data)
     __my_abar->ports[idx].command_list[slot].command_table->prdt_entries[0].data_upper = addr.hi;
     __my_abar->ports[idx].command_list[slot].command_table->prdt_entries[0].byte_count = 511 | 0x80000001;
     BARRIER;
-    fis_reg_h2d* fis = reinterpret_cast<fis_reg_h2d*>(__my_abar->ports[idx].command_list[slot].command_table->cmd_fis);
+    fis_reg_h2d* fis = vaddr_t{ __my_abar->ports[idx].command_list[slot].command_table->cmd_fis };
     memset(fis, 0, sizeof(fis_reg_h2d));
     BARRIER;
     fis->type = reg_h2d;
@@ -382,7 +381,7 @@ void ahci_driver::p_identify(uint8_t idx, identify_data *data)
     fis->device = 0;
     BARRIER;
     try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("error on port identify; attempt soft reset"); port_soft_reset(idx); }
-    unsigned spin = 0;
+    unsigned spin{ 0 };
     while(!is_done(idx) && spin < max_wait) { BARRIER; spin++; }
 }
 int8_t ahci_driver::which_port(ahci_device d) { for(int8_t i = 0; i < 32; i++) if(__my_devices[i] == d) return i; return -1; }

@@ -5,8 +5,8 @@ constexpr static char sc_shift[] = { '\0', '\0', '!', '@', '#', '$', '%', '^', '
 constexpr char case_diff = ('a' - 'A');
 __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool extd)
 {
-    byte scan = kb_get();
-    byte id = scan & ~KEY_UP;
+    byte scan{ kb_get() };
+    byte id{ scan & ~KEY_UP };
     if(scan == KEYDN_SPECIAL) { __skip = true; return __get_next(current_state, true); }
     kb_data result{};
     result.k_code = id;

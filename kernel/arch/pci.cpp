@@ -8,5 +8,5 @@ vaddr_t compute_base_address(uint32_t bar_registers[], uint8_t i) { return vaddr
 vaddr_t compute_base(uint32_t bar) { return vaddr_t{ ((bar & 0x00000001) ? uintptr_t(bar & 0xFFFFFFFC) : uintptr_t(bar & 0xFFFFFFF0)) }; }
 void pci_device_list::add_all(pci_config_table *tb) { for(int i = 0; i < 256; i++) { for(int j = 0; j < 32; j++) { pci_config_space* p = __add(get_device(tb, i, j, 0)); if(p && p->header_type[7]){ for(int k = 1; k < 8; k++) { __add(get_device(tb, i, j, k)); } } } } }
 pci_config_space *pci_device_list::find(uint8_t device_class, uint8_t subclass) { for(pci_config_space* s : *this) if(s && (s->class_code == device_class) && (s->subclass == subclass)) return s; return nullptr; }
-bool pci_device_list::init_instance(xsdt_t *xsdt) { if(pci_config_table* tb = find_pci_config(xsdt)) { __instance.add_all(tb); return true; } return false; }
+bool pci_device_list::init_instance(xsdt_t *xsdt) { if(pci_config_table* tb{ find_pci_config(xsdt) }) { __instance.add_all(tb); return true; } return false; }
 pci_device_list *pci_device_list::get_instance() { return &__instance; }

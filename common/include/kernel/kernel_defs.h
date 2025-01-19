@@ -66,7 +66,7 @@ typedef struct __vaddr
     uint16_t pdp_idx    :  9 {0};
     uint16_t pml4_idx   :  9 {0};
     uint16_t ext        : 16 {0};
-    constexpr __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
+    constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
         offset      { offs },
         page_idx    { idx0 },
         pd_idx      { idx1 },
@@ -74,15 +74,17 @@ typedef struct __vaddr
         pml4_idx    { idx3 },
         ext         { sign } 
                     {}
-    constexpr __vaddr(unsigned long i) noexcept : 
+    constexpr explicit __vaddr(uint64_t i) noexcept :
         offset      { static_cast<uint16_t>(i & 0x0FFF) },
         page_idx    { static_cast<uint16_t>(uint64_t(i >> 12) & 0x1FFuL) }, 
         pd_idx      { static_cast<uint16_t>(uint64_t(i >> 21) & 0x1FFuL) },
         pdp_idx     { static_cast<uint16_t>(uint64_t(i >> 30) & 0x1FFuL) },
         pml4_idx    { static_cast<uint16_t>(uint64_t(i >> 39) & 0x1FFuL) },
-        ext         { static_cast<uint16_t>(pml4_idx & 0x100 ? 0xFFFFu : 0u) } 
+        ext         { static_cast<uint16_t>(pml4_idx & 0x100 ? 0xFFFFu : 0u) }
                     {}
-    constexpr __vaddr(void* ptr) noexcept : __vaddr { std::bit_cast<uintptr_t>(ptr) } {}
+    constexpr __vaddr(nullptr_t) noexcept : __vaddr{ 0ul } {}
+    constexpr __vaddr(void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
+    constexpr __vaddr(const void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
     constexpr __vaddr() = default;
     constexpr ~__vaddr() = default;
     constexpr __vaddr(__vaddr const&) = default;
@@ -101,11 +103,11 @@ typedef struct __vaddr
             (static_cast<uint64_t>(ext)      << 48)
         );
     }
-    constexpr __vaddr operator+(ptrdiff_t value) const { return { uintptr_t(*this) + value }; }
+    constexpr __vaddr operator+(ptrdiff_t value) const { return __vaddr{ uintptr_t(*this) + value }; }
     constexpr __vaddr& operator+=(ptrdiff_t value) { return *this = (*this + value); }
-    constexpr __vaddr operator%(uint64_t unit) const { return { uintptr_t(*this) % unit }; }
+    constexpr __vaddr operator%(uint64_t unit) const { return __vaddr{ uintptr_t(*this) % unit }; }
     constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
-    constexpr __vaddr operator-(ptrdiff_t value) const { return { uintptr_t(*this) - value }; }
+    constexpr __vaddr operator-(ptrdiff_t value) const { return __vaddr{ uintptr_t(*this) - value }; }
     constexpr __vaddr& operator-=(ptrdiff_t value) { return *this = (*this - value); }
     constexpr operator void*() const noexcept { void* ptr = std::bit_cast<void*>(uintptr_t(*this)); return ptr ? ptr : nullptr; }
     constexpr operator const void*() const noexcept { const void* ptr = std::bit_cast<const void*>(uintptr_t(*this)); return ptr ? ptr : nullptr; }

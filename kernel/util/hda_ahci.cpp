@@ -46,13 +46,13 @@ std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
     if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
     if(!__instance.__read_ahci(start_sector, count, __instance.__read_buffer.beg())) { panic("bad read"); return 0; }
     __instance.__read_buffer.__update_end(n);
-    return __instance.__read_buffer.sgetn(std::bit_cast<uint16_t*>(out), n);
+    return __instance.__read_buffer.sgetn(vaddr_t{ out }, n);
 }
 std::streamsize ahci_hda::write(uint64_t start_sector, const char *in, uint32_t count)
 {
     if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return 0; }
     __instance.__write_buffer.clear();
-    std::streamsize result = __instance.__write_buffer.sputn(std::bit_cast<uint16_t const*>(in), __count_to_wide_streamsize(count));
+    std::streamsize result = __instance.__write_buffer.sputn(vaddr_t{ in }, __count_to_wide_streamsize(count));
     if(!__instance.__write_ahci(start_sector, count, __instance.__write_buffer.beg())) { panic("bad write"); return 0; }
     return result;
 }

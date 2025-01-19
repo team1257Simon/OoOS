@@ -32,9 +32,17 @@ do_syscall:
     movq    %gs:0x10,               %rsp
     movq    %gs:0x18,               %rbp
     leaq    syscall_vec(,%rax,8),   %rax
+    pushq   %r11
     sti
     call    *%rax
     cli
+    popq    %r11
+    xorq    %rdi,                   %rdi
+    xorq    %rsi,                   %rsi
+    xorq    %rdx,                   %rdx
+    xorq    %r8,                    %r8
+    xorq    %r9,                    %r9
+    xorq    %r10,                   %r10
     movq    %gs:0x28,               %rbp
     movq    %gs:0x20,               %rsp
     movq    %gs:0x30,               %rdi 

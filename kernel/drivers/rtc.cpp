@@ -13,12 +13,12 @@ void rtc_driver::init_instance(uint8_t century_register) noexcept { __instance._
 rtc_driver volatile &rtc_driver::get_instance() noexcept { return __instance; }
 rtc_time rtc_driver::get_time() volatile { return __my_time; }
 uint64_t rtc_driver::get_timestamp() volatile { return to_unix_timestamp(get_time()); }
-fadt_t *find_fadt(xsdt_t *xsdt) { return reinterpret_cast<fadt_t*>(find_system_table(xsdt, "FACP")); }
+fadt_t *find_fadt(xsdt_t *xsdt) { return vaddr_t{ find_system_table(xsdt, "FACP") }; }
 extern "C" uint64_t syscall_time(uint64_t* tm_target) { uint64_t t = rtc_driver::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; }
 __isrcall void rtc_driver::rtc_time_update() volatile noexcept
 {
     while(is_cmos_update_in_progress());
-    uint16_t century = (__century_register > 0 ? read_rtc_register_dyn(__century_register) : 20ui8);
+    uint16_t century{ (__century_register > 0 ? read_rtc_register_dyn(__century_register) : 20ui8) };
     rtc_time nt
     {
         read_rtc_register<0x00>(),
@@ -31,7 +31,7 @@ __isrcall void rtc_driver::rtc_time_update() volatile noexcept
     };
     if(__is_12h)
     {
-        bool pm = (nt.hr & 0x80) != 0;
+        bool pm{ (nt.hr & 0x80) != 0 };
         nt.hr &= ~(0x80);
         nt.hr %= 12;
         if(pm) nt.hr += 12;

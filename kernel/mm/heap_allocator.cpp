@@ -1,5 +1,7 @@
 #include "kernel/heap_allocator.hpp"
 #include "direct_text_render.hpp"
+typedef block_tag* bt_ptr;
+constexpr ptrdiff_t bt_offset{ sizeof(block_tag) };
 extern "C"
 {
     extern unsigned char __end;
@@ -62,12 +64,12 @@ static bool check_multi(block_size sz, status_byte sb)
     return result;
 }
 constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (truncate(sz, S512) + nearest(sz % S512)) : nearest(sz); }
-constexpr size_t add_align_size(block_tag* tag, size_t align) { return align > 1 ? (up_to_nearest(std::bit_cast<uintptr_t>(tag) + sizeof(block_tag), align) - (std::bit_cast<uintptr_t>(tag) + sizeof(block_tag))) : 0; }
+constexpr size_t add_align_size(vaddr_t tag, size_t align) { return align > 1 ? (up_to_nearest(tag + bt_offset, align) - ptrdiff_t(uintptr_t(tag) + bt_offset)) : 0; }
 heap_allocator &heap_allocator::get() { return *__instance; }
 void heap_allocator::__lock() { lock(&__heap_mutex); }
 void heap_allocator::__unlock() { release(&__heap_mutex); }
 void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
-uintptr_t heap_allocator::__new_page_table_block() { for(uintptr_t addr = __kernel_frame_tag->next_vaddr; addr < MMAP_MAX_PG * PAGESIZE; addr += REGION_SIZE) if(__status(addr).all_free()) { __get_sb(addr)->set_used(ALL); __kernel_frame_tag->next_vaddr = addr + REGION_SIZE; return addr; } return 0; }
+uintptr_t heap_allocator::__new_page_table_block() { for(uintptr_t addr = __kernel_frame_tag->next_vaddr; addr < MMAP_MAX_PG * PAGESIZE; addr += REGION_SIZE) if(__status(addr).all_free()) { __get_sb(addr)->set_used(ALL); __kernel_frame_tag->next_vaddr = vaddr_t{ addr + REGION_SIZE }; return addr; } return 0; }
 uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
 {
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
@@ -179,50 +181,50 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
 vaddr_t heap_allocator::allocate_mmio_block(size_t sz, uint64_t align)
 {
     __lock();
-    vaddr_t result = 0uL;
-    if(uintptr_t phys = __find_claim_avail_region(sz)) { result = mmio_mmap(phys, div_roundup(region_size_for(sz), PAGESIZE)); __physical_open_watermark = std::max(phys, __physical_open_watermark); }
+    vaddr_t result{ nullptr };
+    if(uintptr_t phys = __find_claim_avail_region(sz)) { result = map_mmio_pages(vaddr_t{ phys }, div_roundup(region_size_for(sz), PAGESIZE)); __physical_open_watermark = std::max(phys, __physical_open_watermark); }
     __unlock();
     return result;
 }
 void heap_allocator::init_instance(pagefile *pagefile, mmap_t *mmap)
 {
-    gb_status* __the_status_bytes = std::bit_cast<gb_status*>(reinterpret_cast<uintptr_t>(&__end) + sizeof(frame_tag));
-    size_t n = how_many_status_arrays(mmap->total_memory);
-    uintptr_t heap = reinterpret_cast<uintptr_t>(&__end) + sizeof(frame_tag)+ n * sizeof(gb_status);
-    new (__the_status_bytes) gb_status[n];
+    gb_status* __the_status_bytes{ vaddr_t{ &__end } + ptrdiff_t(sizeof(frame_tag)) };
+    size_t num_status_bytes{ how_many_status_arrays(mmap->total_memory) };
+    uintptr_t heap{ vaddr_t{ &__end } + ptrdiff_t(sizeof(frame_tag) + num_status_bytes * sizeof(gb_status)) };
+    new (__the_status_bytes) gb_status[num_status_bytes];
     new (__kernel_frame_tag) frame_tag{ pagefile->boot_entry, up_to_nearest(heap, PAGESIZE) };
-    new (heap_allocator::__instance) heap_allocator{ pagefile, __the_status_bytes, n, heap };
+    new (heap_allocator::__instance) heap_allocator{ pagefile, __the_status_bytes, num_status_bytes, heap };
     heap_allocator::__instance->__mark_used(0, div_roundup(heap, REGION_SIZE));
-    for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) mmio_mmap(mmap->entries[i].addr,mmap->entries[i].len); } }
+    for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) map_mmio_pages(vaddr_t{ mmap->entries[i].addr }, mmap->entries[i].len); } }
     __instance->__physical_open_watermark = heap;
 }
 paging_table heap_allocator::allocate_pt()
 {
-    const size_t pt_size = sizeof(pt_entry) * PT_LEN;
-    uint32_t exp = get_block_exp(REGION_SIZE) - MIN_BLOCK_EXP;
-    block_tag* tag;
-    for(tag = __kernel_frame_tag->available_blocks[exp]; tag != NULL; tag = tag->next) 
+    const size_t pt_size{ sizeof(pt_entry) * PT_LEN };
+    uint32_t exp{ get_block_exp(REGION_SIZE) - MIN_BLOCK_EXP };
+    block_tag* tag{ nullptr };
+    for(tag = __kernel_frame_tag->available_blocks[exp]; bool(tag); tag = tag->next)
     {
         tag->align_bytes = add_align_size(tag, PAGESIZE);
         if (tag->available_size() >= pt_size)
         {
             __kernel_frame_tag->remove_block(tag);
-            if(tag->left_split == NULL && tag->right_split == NULL) __kernel_frame_tag->complete_pages[exp]--;
+            if(!tag->left_split && !tag->right_split) __kernel_frame_tag->complete_pages[exp]--;
             break;
         }
-        tag->align_bytes = 0;
+        tag->align_bytes = 0ul;
     }
-    if(tag == NULL)
+    if(!tag)
     {
-        vaddr_t allocated = __new_page_table_block();
-        if(!allocated) return NULL;
-        if(!translate_vaddr(allocated)){ sys_mmap(allocated, allocated, REGION_SIZE / PAGESIZE); }
-        tag = new (allocated) block_tag{ REGION_SIZE - sizeof(block_tag), 0 };
+        vaddr_t allocated{ __new_page_table_block() };
+        if(!allocated) return nullptr;
+        if(!translate_vaddr(allocated)){ map_pages(allocated, allocated, REGION_SIZE / PAGESIZE); }
+        tag = new (allocated) block_tag{ REGION_SIZE - bt_offset, 0 };
         __physical_open_watermark = std::max(uintptr_t(allocated), __physical_open_watermark);
     }
     tag->held_size = pt_size;
     vaddr_t result = tag->actual_start();
-    if(tag->available_size() - sizeof(block_tag) >= (1 << MIN_BLOCK_EXP)) __kernel_frame_tag->insert_block(tag->split(), -1);
+    if(tag->available_size() - bt_offset >= (1 << MIN_BLOCK_EXP)) __kernel_frame_tag->insert_block(tag->split(), -1);
     return result;
 }
 /**
@@ -233,28 +235,28 @@ paging_table heap_allocator::allocate_pt()
  * Because the first block tag in a region appears just before the page boundary, calls to this function from the frame tag will add that structure's size to the total when determining the region size threshold.
  * Due to the fact that a given region's alignment is virtually always equal to its size, the larger of the two is used when allocating blocks with high align values. The neighboring block tag is already accounted for there.
  */
-vaddr_t heap_allocator::allocate_block(vaddr_t const &base, size_t sz, uint64_t align)
+vaddr_t heap_allocator::allocate_block(vaddr_t const& base, size_t sz, uint64_t align)
 {
     __lock();
-    vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(base + ptrdiff_t(sizeof(block_tag)), align > PAGESIZE ? align : PAGESIZE) - sizeof(block_tag)) };
+    vaddr_t aligned { static_cast<uintptr_t>(up_to_nearest(base + bt_offset, align > PAGESIZE ? align : PAGESIZE) - bt_offset) };
     if(align > sz) sz = align;
     uintptr_t phys = __find_claim_avail_region(sz);
-    vaddr_t result = 0uL;
-    if(phys) { result = sys_mmap(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE)); __physical_open_watermark = std::max(phys, __physical_open_watermark); }
+    vaddr_t result{ nullptr };
+    if(phys) { result = map_pages(aligned, phys, div_roundup(region_size_for(sz), PAGESIZE)); __physical_open_watermark = std::max(phys, __physical_open_watermark); }
     __unlock();
     return result;
 }
-void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz) { __lock(); if(uintptr_t phys = translate_vaddr(base)){ __release_claimed_region(sz, phys); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
+void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz) { __lock(); if(uintptr_t phys{ translate_vaddr(base) }) { __release_claimed_region(sz, phys); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
 void frame_tag::__lock() { lock(&__my_mutex); }
 void frame_tag::__unlock() { release(&__my_mutex); }
-void frame_tag::insert_block(block_tag *blk, int idx) { blk->index = idx < 0 ? (get_block_exp(blk->block_size) - MIN_BLOCK_EXP) : idx; if (available_blocks[blk->index] != NULL) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
-void frame_tag::remove_block(block_tag *blk)
+void frame_tag::insert_block(block_tag* blk, int idx) { blk->index = idx < 0 ? (get_block_exp(blk->block_size) - MIN_BLOCK_EXP) : idx; if (available_blocks[blk->index]) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
+void frame_tag::remove_block(block_tag* blk)
 {
     if(available_blocks[blk->index] == blk) available_blocks[blk->index] = blk->next;
     if(blk->previous) blk->previous->next = blk->next;
     if(blk->next) blk->next->previous = blk->previous;
-    blk->next = NULL;
-    blk->previous = NULL;
+    blk->next = nullptr;
+    blk->previous = nullptr;
     blk->index = -1;
 }
 /**
@@ -267,15 +269,15 @@ vaddr_t frame_tag::allocate(size_t size, size_t align)
     if(!size) return nullptr;
     __lock();
     uint32_t idx = get_block_exp(size) - MIN_BLOCK_EXP;
-    block_tag* tag = NULL;
-    for(tag = available_blocks[idx]; tag != NULL; tag = tag->next)
+    block_tag* tag{ nullptr };
+    for(tag = available_blocks[idx]; bool(tag); tag = tag->next)
     {
         if(tag->available_size() >= size + add_align_size(tag, align))
         {
             remove_block(tag);
             tag->held_size = size;
             tag->align_bytes = add_align_size(tag, align);
-            if(tag->left_split == NULL && tag->right_split == NULL) complete_pages[idx]--;
+            if(!tag->left_split && !tag->right_split) complete_pages[idx]--;
             break;
         }
     }
@@ -285,7 +287,7 @@ vaddr_t frame_tag::allocate(size_t size, size_t align)
         idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP;
     }
     tag->index = idx;
-    vaddr_t result = tag->actual_start();
+    vaddr_t result{ tag->actual_start() };
     if(tag->available_size() - sizeof(block_tag) >= (1 << MIN_BLOCK_EXP)) insert_block(tag->split(), -1);
     __unlock();
     return result;
@@ -295,8 +297,8 @@ void frame_tag::deallocate(vaddr_t ptr, size_t align)
     if(ptr)
     {
         __lock();
-        block_tag* tag = static_cast<block_tag*>(ptr - ptrdiff_t(sizeof(block_tag)));
-        for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = static_cast<block_tag*>(ptr - ptrdiff_t(sizeof(block_tag) + i));
+        block_tag* tag{ ptr - bt_offset };
+        for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = ptr - ptrdiff_t(bt_offset + i);
         if(tag->magic == BLOCK_MAGIC)
         {
             tag->held_size = 0;
@@ -313,9 +315,9 @@ void frame_tag::deallocate(vaddr_t ptr, size_t align)
 vaddr_t frame_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
 {
     if(!ptr) return allocate(size, align);
-    if(!size) return {};
-    block_tag* tag = static_cast<block_tag*>(ptr - ptrdiff_t(sizeof(block_tag)));
-    for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = static_cast<block_tag*>(ptr - ptrdiff_t(sizeof(block_tag) + i));
+    if(!size) return nullptr;
+    block_tag* tag{ ptr - bt_offset };
+    for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = ptr - ptrdiff_t(bt_offset + i);
     if(tag->magic == BLOCK_MAGIC && tag->allocated_size() >= size + add_align_size(tag, align))
     {
         tag->align_bytes = add_align_size(tag, align);
@@ -323,30 +325,30 @@ vaddr_t frame_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
         tag->held_size += delta;
         return tag->actual_start();
     }
-    vaddr_t result = allocate(size, align);
+    vaddr_t result{ allocate(size, align) };
     if(result) { __builtin_memcpy(result, ptr, tag->held_size > size ? size : tag->held_size); }
     deallocate(ptr);
     return result;
 }
 vaddr_t frame_tag::array_allocate(size_t num, size_t size)
 {
-    vaddr_t result = allocate(num * size, size);
+    vaddr_t result{ allocate(num * size, size) };
     if(result) __builtin_memset(result, 0, num * size);
     return result;
 }
 block_tag *frame_tag::__create_tag(size_t size, size_t align)
 {
     // The initial allocation for a block must account for the neighboring region's first block tag, which will appear immediately before that region's start.
-    vaddr_t allocated = heap_allocator::get().allocate_block(next_vaddr, size + sizeof(block_tag), align);
+    vaddr_t allocated{ heap_allocator::get().allocate_block(next_vaddr, size + bt_offset, align) };
     if(!allocated) return nullptr;
-    size_t full = region_size_for(std::max(size + sizeof(block_tag), align));
+    size_t full{ region_size_for(std::max(size + bt_offset, align)) };
     next_vaddr += full;
     return new (allocated) block_tag { full, size, -1 };
 }
 block_tag *frame_tag::__melt_left(block_tag *tag) noexcept
 {
     if(!tag->left_split) return tag;
-    block_tag* left = tag->left_split;
+    block_tag* left{ tag->left_split };
     left->block_size += tag->block_size;
     left->right_split = tag->right_split;
     if(tag->right_split) tag->right_split->left_split = left;
@@ -355,7 +357,7 @@ block_tag *frame_tag::__melt_left(block_tag *tag) noexcept
 }
 block_tag *frame_tag::__melt_right(block_tag *tag) noexcept
 {
-    block_tag* right = tag->right_split;
+    block_tag* right{ tag->right_split };
     tag->block_size += right->block_size;
     tag->right_split = right->right_split;
     if(right->right_split) right->right_split->left_split = tag;
@@ -364,9 +366,8 @@ block_tag *frame_tag::__melt_right(block_tag *tag) noexcept
 }
 block_tag *block_tag::split()
 {
-    using bt_ptr = block_tag*;
-    block_tag* that = bt_ptr(this->actual_start() + ptrdiff_t(this->held_size));
-    new (that) block_tag { available_size(), 0, -1, this, this->right_split };
+    block_tag* that{ this->actual_start() + ptrdiff_t(this->held_size) };
+    new (that) block_tag{ available_size(), 0, -1, this, this->right_split };
     if(that->right_split) that->right_split->left_split = that;
     this->right_split = that;
     this->block_size -= that->block_size;
