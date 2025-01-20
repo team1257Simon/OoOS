@@ -137,7 +137,7 @@ private:
     constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
     constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
     constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
-    constexpr bool operator[](block_size i) const noexcept { return __has(BS2BI(i)); }
+    constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(BS2BI(i)); }
     constexpr operator bool() const noexcept { return !all_used(); }
     constexpr bool operator!() const noexcept { return all_used(); }
     constexpr static unsigned int gb_of(uintptr_t addr) { return addr / GIGABYTE; }

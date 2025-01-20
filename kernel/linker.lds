@@ -1,5 +1,5 @@
 ENTRY(kmain)
-KERNEL_VMA = 32M;
+KERNEL_VMA = 2M;
 PHDRS
 {
      headers PT_PHDR PHDRS;

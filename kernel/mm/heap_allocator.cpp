@@ -150,8 +150,7 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
     for(size_t rem = sz; rem > 0; rem -= (bs > rem ? rem : bs), start += S512)
     {
         bs = nearest(rem);
-        uint64_t offs = start % REGION_SIZE;
-        if(bs == S04) { if(offs > I6 * PAGESIZE) { __status(start).set_free(I7); } else { __status(start).set_free(I6); } }
+        if(bs == S04) { if(start % REGION_SIZE == 0) __status(start).set_free(I7); else __status(start).set_free(I6); }
         else if(bs == S512) __status(start).set_free(ALL);
         else if(multi)
         {
