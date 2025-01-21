@@ -190,16 +190,15 @@ extern "C"
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
     [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
-    void kmain(sysinfo_t* si, mmap_t* mmap, pagefile* pg)
+    void kmain(sysinfo_t* si, mmap_t* mmap)
     {
         cli();
         nmi_disable();
-        kproc.k_cr3 = get_cr3();
         kproc.self_ptr = reinterpret_cast<uintptr_t>(&kproc);
         asm volatile("movq %%rsp, %0 " : "=m"(kproc.k_rsp) :: "memory");
         asm volatile("movq %%rbp, %0 " : "=m"(kproc.k_rbp) :: "memory");
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
-        heap_allocator::init_instance(pg, mmap); 
+        heap_allocator::init_instance(mmap); 
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
         _init();
         // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.

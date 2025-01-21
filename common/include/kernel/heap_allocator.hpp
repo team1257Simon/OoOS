@@ -1,6 +1,7 @@
 #ifndef __HEAP_ALLOC
 #define __HEAP_ALLOC
 #include "kernel/libk_decls.h"
+#include "vector"
 #ifndef MAX_BLOCK_EXP
 #define MAX_BLOCK_EXP 32u
 #endif
@@ -17,15 +18,15 @@ constexpr uint64_t FRAME_MAGIC = 0xD0BE7AC7FUL;
 constexpr inline uint64_t REGION_SIZE = PAGESIZE * PT_LEN;
 struct block_tag
 {
-    uint64_t magic { BLOCK_MAGIC };
+    uint64_t magic{ BLOCK_MAGIC };
     size_t block_size;
     size_t held_size;
     int32_t index;
-    block_tag* left_split { nullptr };
-    block_tag* right_split { nullptr };
-    block_tag* previous { nullptr };
-    block_tag* next { nullptr };
-    size_t align_bytes { 0 };
+    block_tag* left_split{ nullptr };
+    block_tag* right_split{ nullptr };
+    block_tag* previous{ nullptr };
+    block_tag* next{ nullptr };
+    size_t align_bytes{ 0 };
     constexpr block_tag() = default;
     constexpr block_tag(size_t size, size_t held, int32_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
         block_size      { size },
@@ -43,25 +44,15 @@ struct block_tag
     constexpr vaddr_t actual_start() const noexcept { return vaddr_t { const_cast<block_tag*>(this) } + ptrdiff_t(sizeof(block_tag) + align_bytes); }
     block_tag* split();
 } __pack;
-struct frame_tag
+struct kframe_tag
 {
-    uint64_t magic { FRAME_MAGIC };
-    page_frame* the_frame;
-    vaddr_t next_vaddr {};
-    uint16_t complete_pages[MAX_BLOCK_EXP - MIN_BLOCK_EXP] {};
-    block_tag* available_blocks[MAX_BLOCK_EXP - MIN_BLOCK_EXP] {};
-    frame_tag* previous { nullptr };
-    frame_tag* next { nullptr };
+    uint64_t magic{ FRAME_MAGIC };
+    uint16_t complete_pages[MAX_BLOCK_EXP - MIN_BLOCK_EXP]{};
+    block_tag* available_blocks[MAX_BLOCK_EXP - MIN_BLOCK_EXP]{};
 private:
     spinlock_t __my_mutex{};
 public:
-    constexpr frame_tag() = default;
-    constexpr frame_tag(page_frame* frame, uintptr_t vaddr_next = 0, frame_tag* prev = nullptr, frame_tag* nxt = nullptr) noexcept :
-        the_frame   { frame }, 
-        next_vaddr  { vaddr_next },
-        previous    { prev }, 
-        next        { nxt } 
-                    {}
+    constexpr kframe_tag() = default;
     void insert_block(block_tag* blk, int idx);
     void remove_block(block_tag* blk);
     vaddr_t allocate(size_t size, size_t align = 0);
@@ -75,6 +66,29 @@ private:
     void __lock();
     void __unlock();
 } __pack;
+
+struct uframe_tag
+{
+    struct block_descr
+    {
+        vaddr_t start;
+        size_t size;
+    };
+    uint64_t magic{ FRAME_MAGIC };
+    paging_table pml4;
+    vaddr_t base;
+    vaddr_t extent;
+    std::vector<vaddr_t> pt_blocks{};
+    std::vector<block_descr> usr_blocks{};
+private:
+    spinlock_t __my_mutex{};
+    void __lock();
+    void __unlock();
+public:
+    constexpr uframe_tag(paging_table cr3, vaddr_t st_base, vaddr_t st_extent) noexcept : pml4{ cr3 }, base{ st_base }, extent{ st_extent } {}
+    ~uframe_tag();
+    bool shift_extent(ptrdiff_t amount);
+};
 enum block_idx : uint8_t
 {
     I0  = 0x01,
@@ -145,41 +159,43 @@ private:
 } __align(1) __pack status_byte, gb_status[512];
 class heap_allocator
 {
-    spinlock_t __heap_mutex{};            // Calls to block allocations lock this mutex to prevent comodification
-    pagefile* const __my_pagefile;        // Contains pointers to the various page frames.
-    uint16_t __active_frame_index;        // 0 is kernel; 1+ is anything else
-    gb_status* const __status_bytes;      // Array of 512-byte arrays
-    size_t const __num_status_bytes;      // Length of said array
-    uintptr_t const __kernel_heap_begin;  // Convenience pointer to the end of above array
-    uintptr_t __physical_open_watermark;  // The lowest physical address known to be open.
+    spinlock_t __heap_mutex{};                  // Calls to block allocations lock this mutex to prevent comodification
+    gb_status* const __status_bytes;            // Array of 512-byte arrays
+    size_t const __num_status_bytes;            // Length of said array
+    uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
+    vaddr_t __kernel_cr3;                       // The location of the kernel's top-level paging structure
+    uintptr_t __physical_open_watermark{ 0 };   // The lowest physical address known to be open.
+    vaddr_t __suspended_cr3{ nullptr };         // Saved cr3 value for a frame suspended in order to access kernel paging structures
+    uframe_tag* __active_frame{ nullptr };
     static heap_allocator* __instance;
-    constexpr heap_allocator(pagefile* pagefile, gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
-        __my_pagefile               { pagefile },
-        __active_frame_index        { 0 },
+    constexpr heap_allocator(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, vaddr_t kernel_cr3) noexcept :
         __status_bytes              { status_bytes },
         __num_status_bytes          { num_status_bytes },
         __kernel_heap_begin         { kernel_heap_addr },
-        __physical_open_watermark   { 0 }
+        __kernel_cr3                { kernel_cr3 }
                                     {}
     constexpr status_byte* __get_sb(uintptr_t addr) { return &(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
     void __mark_used(uintptr_t addr_start, size_t num_regions);
     uintptr_t __find_claim_avail_region(size_t sz);
     void __release_claimed_region(size_t sz, uintptr_t start);
-    uintptr_t __new_page_table_block();
     void __lock();
     void __unlock();
+    void __suspend_frame() noexcept;
+    void __resume_frame() noexcept;
 public:
-    static void init_instance(pagefile* pagefile, mmap_t* mmap);
+    static void init_instance(mmap_t* mmap);
     static heap_allocator& get();
     inline bool avail() const { return !test_lock(&__heap_mutex); }
     heap_allocator(heap_allocator const&) = delete;
     heap_allocator(heap_allocator&&) = delete;
     heap_allocator& operator=(heap_allocator const&) = delete;
     heap_allocator& operator=(heap_allocator&&) = delete;
+    void enter_frame(uframe_tag* ft) noexcept;
     paging_table allocate_pt();
-    vaddr_t allocate_block(vaddr_t const& base, size_t sz, uint64_t align);
-    vaddr_t allocate_mmio_block(size_t sz, uint64_t align);
-    void deallocate_block(vaddr_t const& base, size_t sz);
+    vaddr_t allocate_kernel_block(size_t sz);
+    vaddr_t allocate_mmio_block(size_t sz);
+    vaddr_t allocate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
+    void deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap = false);
 };
 #endif

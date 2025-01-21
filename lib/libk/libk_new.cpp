@@ -4,7 +4,7 @@
 #include "atomic"
 extern "C"
 {
-    extern frame_tag* __kernel_frame_tag;
+    extern kframe_tag* __kernel_frame_tag;
     void* malloc(size_t n) { return __kernel_frame_tag->allocate(n); }
     void free(void* ptr) { __kernel_frame_tag->deallocate(ptr); }
     void* calloc(size_t n, size_t s) { return __kernel_frame_tag->array_allocate(n, s); }

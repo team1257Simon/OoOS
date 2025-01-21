@@ -23,6 +23,7 @@
 constexpr size_t physical_block_size = 512;
 #define restrict
 #include "concepts"
+#include "compare"
 #include "bits/move.h"
 template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
 template<class T> concept non_void = !std::is_void_v<T>;
@@ -48,12 +49,13 @@ typedef struct __pt_entry
     bool accessed                : 1;
     bool dirty                   : 1;
     bool page_size               : 1;
+    bool global                  : 1;
     bool avl0                    : 1;
     bool avl1                    : 1;
     bool avl2                    : 1;
-    bool avl3                    : 1;
     uint64_t physical_address    : 36;
-    uint16_t avl4                : 15;
+    uint16_t avl4                : 11;
+    uint8_t pk                   : 4;
     bool execute_disable         : 1;
 } __pack __align(1) pt_entry;
 typedef pt_entry* paging_table;
@@ -119,6 +121,12 @@ typedef struct __vaddr
     template<non_void T> constexpr operator const volatile T*() const volatile noexcept { typedef const volatile void* cvvptr; return std::bit_cast<const volatile std::remove_cv_t<T>*>(cvvptr(*this)); }
     constexpr operator bool() const noexcept { return uintptr_t(*this) != 0; }
     constexpr bool operator!() const noexcept { return uintptr_t(*this) == 0; }
+    friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.operator uintptr_t() == __that.operator uintptr_t(); }
+    friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.operator uintptr_t(); }
+    friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.operator uintptr_t() - __that.operator uintptr_t(); }
+    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.operator uintptr_t() <=> __that.operator uintptr_t(); }
+    friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.operator uintptr_t(); }
+    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.operator uintptr_t() <=> __that; }
 #else
     uint16_t offset     : 12;
     uint16_t page_idx   :  9;
@@ -418,33 +426,18 @@ typedef struct __mmap
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
-// Pointers to page frames.
-typedef struct __pageframe_t
-{
-    paging_table cr3;         // the value in cr3 when the frame is active
-    size_t num_saved_tables;  // size of the following array 
-    paging_table tables[];    // paging table pointers for quick access
-} __pack page_frame;
-typedef struct __pagefile
-{
-    size_t num_entries;
-    page_frame* boot_entry;     // Identity-paged memory mapped by the bootloader
-    page_frame* frame_entries;
-} __pack pagefile;
 // The kernel's side of process-info for use with syscalls. While in ring 0 (i.e. in kernel code) the gs base register will point to this structure.
 typedef struct __kpinfo
 {
     uintptr_t self_ptr;   // %gs:0x00
-    paging_table k_cr3;   // %gs:0x08
-    uintptr_t k_rsp;      // %gs:0x10
-    uintptr_t k_rbp;      // %gs:0x18
-    uintptr_t rtn_rsp;    // %gs:0x20
-    uintptr_t rtn_rbp;    // %gs:0x28
-    uintptr_t rtn_rip;    // %gs:0x30
-    paging_table rtn_cr3; // %gs:0x38
-    vaddr_t rtn_gs_base;  // %gs:0x40
+    uintptr_t k_rsp;      // %gs:0x08
+    uintptr_t k_rbp;      // %gs:0x10
+    uintptr_t rtn_rsp;    // %gs:0x18
+    uintptr_t rtn_rbp;    // %gs:0x20
+    uintptr_t rtn_rip;    // %gs:0x28
+    vaddr_t rtn_gs_base;  // %gs:0x30
 } __pack kpinfo_t;
-typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*, pagefile*);
+typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
 typedef struct __byte
 {

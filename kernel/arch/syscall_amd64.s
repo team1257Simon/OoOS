@@ -20,17 +20,13 @@ do_syscall:
     pushq   %rax
     movq    %gs:0x00,               %rax
     swapgs
-    movq    %rax,                   %gs:0x40
+    movq    %rax,                   %gs:0x30
     popq    %rax
-    movq    %rsp,                   %gs:0x20
-    movq    %rbp,                   %gs:0x28
-    movq    %rcx,                   %gs:0x30
-    movq    %cr3,                   %rcx
-    movq    %rcx,                   %gs:0x38
-    movq    %gs:0x08,               %rcx
-    movq    %rcx,                   %cr3
-    movq    %gs:0x10,               %rsp
-    movq    %gs:0x18,               %rbp
+    movq    %rsp,                   %gs:0x18
+    movq    %rbp,                   %gs:0x20
+    movq    %rcx,                   %gs:0x28
+    movq    %gs:0x08,               %rsp
+    movq    %gs:0x10,               %rbp
     leaq    syscall_vec(,%rax,8),   %rax
     pushq   %r11
     sti
@@ -43,12 +39,9 @@ do_syscall:
     xorq    %r8,                    %r8
     xorq    %r9,                    %r9
     xorq    %r10,                   %r10
-    movq    %gs:0x28,               %rbp
-    movq    %gs:0x20,               %rsp
-    movq    %gs:0x30,               %rdi 
-    movq    %gs:0x38,               %rcx
-    movq    %rcx,                   %cr3
-    movq    %rdi,                   %rcx
+    movq    %gs:0x20,               %rbp
+    movq    %gs:0x18,               %rsp
+    movq    %gs:0x28,               %rcx
     swapgs
     sti
     sysretq

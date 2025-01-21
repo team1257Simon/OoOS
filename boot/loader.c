@@ -29,8 +29,14 @@ const char *types[] =
     "EfiMemoryMappedIOPortSpace",   // 12
     "EfiPalCode"                    // 13
 };
+typedef struct
+{
+    paging_table cr3;         // the value in cr3 when the frame is active
+    size_t num_saved_tables;  // size of the following array 
+    paging_table tables[];    // paging table pointers for quick access
+} __pack page_frame;
 paging_table __boot_pml4 = NULL;
-pagefile* __boot_pagefile = NULL;
+page_frame* boot_page_frame = NULL;
 sysinfo_t* sysinfo = NULL;
 paging_table* pg_addrs;
 inline static bool validate_elf(elf64_ehdr * elf)
@@ -112,7 +118,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
             pd[current_idx.idx.pd_idx].present = 1;
             pd[current_idx.idx.pd_idx].write = 1;
             pd[current_idx.idx.pd_idx].physical_address = (uintptr_t)pt >> 12;
-            __boot_pagefile->boot_entry->tables[pt_num] = pt;
+            boot_page_frame->tables[pt_num] = pt;
             pt_num++;
             current_table_num++;
         }
@@ -140,10 +146,9 @@ efi_status_t map_id_pages(size_t num_pages)
     }
     __boot_pml4 = tables_start;
     size_t pts_only = num_pages / PT_LEN;
-    __boot_pagefile->boot_entry = (page_frame*)malloc(sizeof(page_frame) + pts_only * sizeof(paging_table));
-    memset(__boot_pagefile->boot_entry, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
-    __boot_pagefile->boot_entry->num_saved_tables = pts_only;
-    __boot_pagefile->num_entries = 1;
+    boot_page_frame = (page_frame*)malloc(sizeof(page_frame) + pts_only * sizeof(paging_table));
+    memset(boot_page_frame, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
+    boot_page_frame->num_saved_tables = pts_only;
     map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512*sizeof(pt_entry)));
     return EFI_SUCCESS;
 }
@@ -152,19 +157,19 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
     size_t n = required_tables_postinit(num_pages);
     indexed_address sv_start = {};
     sv_start.addr = vaddr_start;
-    if(n < 1 && direct_table_idx(sv_start.idx) > __boot_pagefile->boot_entry->num_saved_tables)
+    if(n < 1 && direct_table_idx(sv_start.idx) > boot_page_frame->num_saved_tables)
     {
         n = 1;
-        size_t old_num = __boot_pagefile->boot_entry->num_saved_tables;
+        size_t old_num = boot_page_frame->num_saved_tables;
         size_t new_num = direct_table_idx(sv_start.idx);
-        __boot_pagefile->boot_entry = (page_frame*)realloc(__boot_pagefile->boot_entry, sizeof(page_frame) + new_num * sizeof(paging_table));
+        boot_page_frame = (page_frame*)realloc(boot_page_frame, sizeof(page_frame) + new_num * sizeof(paging_table));
         size_t delta = (size_t)(new_num - old_num);
-        memset(__boot_pagefile->boot_entry->tables + old_num, 0, delta * sizeof(paging_table));
+        memset(boot_page_frame->tables + old_num, 0, delta * sizeof(paging_table));
     }
     paging_table tables_start;
     if (n == 0)
     {
-        tables_start = __boot_pagefile->boot_entry->tables[direct_table_idx(sv_start.idx)];
+        tables_start = boot_page_frame->tables[direct_table_idx(sv_start.idx)];
         if(tables_start == NULL)
         {
             efi_status_t status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, (efi_physical_address_t*)&tables_start);
@@ -203,8 +208,6 @@ int main(int argc, char** argv)
     memory_map_size += 4 * desc_size;
     memory_map = (efi_memory_descriptor_t*)malloc(memory_map_size);
     MALLOC_CK(memory_map);
-    __boot_pagefile = (pagefile*)malloc(sizeof(pagefile));
-    MALLOC_CK(__boot_pagefile);
     status = map_id_pages(MMAP_MAX_PG);
     if(EFI_ERROR(status))
     {
@@ -362,9 +365,8 @@ int main(int argc, char** argv)
     // free resources
     free(buff);
     // execute the kernel
-     __boot_pagefile->boot_entry->cr3 = __boot_pml4;
     exit_bs();
-    (*fn)(sysinfo, map, __boot_pagefile);
+    (*fn)(sysinfo, map);
     while (1);
     return OK;
 }

@@ -115,7 +115,7 @@ namespace std::__impl
          */
         constexpr __size_type __trim_stale();
         template<typename ... Args> requires std::constructible_from<T, Args...> __ptr __construct_element(__size_type where, Args&& ... args) { if(__q_out_of_range(__qbeg() + where)) return nullptr; else return construct_at(__qbeg() + where, forward<Args>(args)...); }
-        virtual bool __q_grow_buffer(__size_type added);
+        bool __q_grow_buffer(__size_type added);
         __ptr __push_elements(T const&, __size_type = 1);
         template<std::matching_input_iterator<T> IT> __ptr __push_elements(IT start, IT end) requires(!std::is_same_v<IT, __const_ptr>);
         __ptr __push_elements(__const_ptr start, __const_ptr end);

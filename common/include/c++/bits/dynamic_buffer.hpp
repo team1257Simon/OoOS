@@ -83,7 +83,7 @@ namespace std::__impl
          * Inheritors can override to add functionality that needs to be invoked whenever these pointers move. The default implementation does nothing.
          */
         virtual void __on_modify() {}
-        virtual bool __grow_buffer(__size_type added);
+        bool __grow_buffer(__size_type added);
         template<std::matching_input_iterator<T> IT> __ptr __append_elements(IT start_it, IT end_it);
         __ptr __insert_elements(__const_ptr pos, __const_ptr start_ptr, __const_ptr end_ptr);
         template<matching_input_iterator<T> IT> __ptr __insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr);
