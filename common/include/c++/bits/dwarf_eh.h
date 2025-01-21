@@ -31,6 +31,8 @@
  * language-specific code.  It can be used in any personality function for the
  * Itanium ABI.
  */
+#ifndef __DWARF_EH_H
+#define __DWARF_EH_H
 #include <assert.h>
 // _GNU_SOURCE must be defined for unwind.h to expose some of the functions
 // that we want.  If it isn't, then we define it and undefine it to make sure
@@ -413,3 +415,4 @@ static bool dwarf_eh_find_callsite(struct _Unwind_Context *context, struct dwarf
 	 (static_cast<uint32_t>(f) << 16) +\
 	 (static_cast<uint32_t>(g) << 8) +\
 	 (static_cast<uint32_t>(h))
+#endif

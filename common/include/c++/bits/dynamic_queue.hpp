@@ -21,7 +21,7 @@ namespace std::__impl
         __ptr_type __end{};     // Points to one past the last element INSERTED INTO the queue.
         __ptr_type __qmax{};    // Points to the end of allocated storage.
         void __reset() noexcept { __begin = __next = __end = __qmax = __ptr_type{}; }
-        constexpr __queue_ptrs() = default;
+        constexpr __queue_ptrs() noexcept = default;
         constexpr __queue_ptrs(__ptr_type beg, __ptr_type mx) noexcept : __begin{ beg }, __next{ beg }, __end{ beg }, __qmax{ mx } {}
         constexpr __queue_ptrs(__ptr_type beg, __ptr_type nx, __ptr_type ed, __ptr_type mx) noexcept : __begin{ beg }, __next{ nx }, __end{ ed }, __qmax{ mx } {}
         constexpr __queue_ptrs(__queue_ptrs const& that) noexcept : __begin{ that.__begin }, __next{ that.__next }, __end{ that.__end }, __qmax{ that.__qmax } {}
@@ -55,13 +55,14 @@ namespace std::__impl
         typedef decltype(*(declval<__const_ptr>())) __const_ref;
         __alloc_type __qallocator;
         __ptr_container __my_queue_data;
-        unsigned int __stale_op_thresh{ 3u };
-        __diff_type __stale_size_thresh{ 16 };
-        unsigned int __op_cnt{ 0u };
-        template<std::matching_input_iterator<T> IT> void __qtransfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
-        virtual void __qset(__ptr where, __value_type const& val, __size_type n) { arrayset<T>(where, val, n); }
-        virtual void __qzero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
-        virtual void __qcopy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
+        unsigned int __stale_op_thresh{ 3U };
+        __diff_type __stale_size_thresh{ 16L };
+        unsigned int __op_cnt{ 0U };
+        template<std::matching_input_iterator<T> IT> constexpr void __qtransfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
+        constexpr void __qset(__ptr where, __value_type const& val, __size_type n) { arrayset<T>(where, val, n); }
+        constexpr void __qassign(__ptr where, __value_type&& val) { *where = std::move(val); }
+        constexpr void __qzero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
+        constexpr void __qcopy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
         /**
          * Called whenever elements are pushed to or popped from the queue.
          * As with dynamic_buffer, the setn/sete/bumpn/bumpe functions do not call this function.
@@ -69,6 +70,7 @@ namespace std::__impl
          * The default implementation does nothing. 
          */
         virtual void __q_on_modify() {}
+        constexpr void __qassign(__ptr where, __value_type&& val, __size_type n) { for(__size_type i = 0; i < n; i++, ++where) { __qassign(where, move(val)); } }
         constexpr __ptr __qbeg() noexcept { return __my_queue_data.__begin; }
         constexpr __const_ptr __qbeg() const noexcept { return __my_queue_data.__begin; }
         constexpr __ptr __qcur() noexcept { return __my_queue_data.__next; }
@@ -87,13 +89,14 @@ namespace std::__impl
         constexpr void __qsetn(__size_type n) noexcept { __qsetn(this->__q_get_ptr(n)); }
         constexpr void __qsete(__ptr where) noexcept { if(!__q_out_of_range(where)) this->__my_queue_data.__setc(where); }
         constexpr void __qsete(__size_type n) noexcept { __qsete(this->__q_get_ptr(n)); }
+        constexpr void __qrst() noexcept { __qsetn(this->__qbeg()); /* Not an EKG though */ }
         constexpr __ref __qget(__size_type __i) { return *__q_get_ptr(__i); }
         constexpr __const_ref __qget(__size_type __i) const { return *__q_get_ptr(__i); }
         constexpr __ptr __peek_next() noexcept { return __qcur(); }
         constexpr __const_ptr __peek_next() const noexcept { return __qcur(); }
         constexpr bool __have_next() const noexcept { return __qcur() < __end(); }
         constexpr __ptr __pop_next() noexcept { if(__qcur() < __end()) { __ptr result = __qcur(); this->__bumpn(); return result; } return nullptr; }
-        constexpr __ptr __unpop() noexcept { if(__qcur() > __qbeg()) this->__bumpn(-1); this->__op_cnt = 0; return __qcur(); }
+        constexpr __ptr __unpop() noexcept { if(__qcur() > __qbeg()) { this->__bumpn(-1); this->__op_cnt = 0; return __qcur(); } return nullptr; }
         constexpr void __qsetp(__ptr_container const& ptrs) noexcept { this->__my_queue_data.__copy_ptrs(ptrs); }
         constexpr __size_type __q_max_capacity() const noexcept { return std::numeric_limits<__size_type>::max(); }
         constexpr __size_type __qsize() const noexcept { return __size_type(__end() - __qbeg()); }
@@ -114,22 +117,24 @@ namespace std::__impl
          * Otherwise, does nothing and returns zero.
          */
         constexpr __size_type __trim_stale();
-        template<typename ... Args> requires std::constructible_from<T, Args...> __ptr __construct_element(__size_type where, Args&& ... args) { if(__q_out_of_range(__qbeg() + where)) return nullptr; else return construct_at(__qbeg() + where, forward<Args>(args)...); }
-        bool __q_grow_buffer(__size_type added);
-        __ptr __push_elements(T const&, __size_type = 1);
-        template<std::matching_input_iterator<T> IT> __ptr __push_elements(IT start, IT end) requires(!std::is_same_v<IT, __const_ptr>);
-        __ptr __push_elements(__const_ptr start, __const_ptr end);
-        template<std::output_iterator<T> IT> __size_type __pop_elements(IT out_start, IT out_end) requires(!std::is_same_v<IT, __ptr>);
-        __size_type __pop_elements(__ptr out_start, __ptr out_end);
+        constexpr bool __q_grow_buffer(__size_type added);
+        constexpr __ptr __push_elements(T const&, __size_type = __size_type(1UL));
+        constexpr __ptr __push_elements(T&&, __size_type = __size_type(1UL));
+        template<std::matching_input_iterator<T> IT> constexpr __ptr __push_elements(IT start, IT end) requires(!std::is_same_v<IT, __const_ptr>);
+        constexpr __ptr __push_elements(__const_ptr start, __const_ptr end);
+        template<std::output_iterator<T> IT> constexpr __size_type __pop_elements(IT out_start, IT out_end) requires(!std::is_same_v<IT, __ptr>);
+        constexpr __size_type __pop_elements(__ptr out_start, __ptr out_end);
+        template<typename ... Args> requires std::constructible_from<T, Args...> constexpr __ptr __emplace_element(Args&& ... args) { if(__qmax() <= __end() && !this->__q_grow_buffer(1UL)) return nullptr; else { __ptr result = construct_at(__end(), forward<Args>(args)...); this->__bumpe(1L); return result; } }
         constexpr void __qdestroy() { if(__qbeg()) { __qallocator.deallocate(__qbeg(), __qcapacity()); __my_queue_data.__reset(); }  this->__op_cnt = 0; }
         constexpr void __qclear() { __size_type cap = __qcapacity(); __qdestroy(); __my_queue_data.__set_ptrs(__qallocator.allocate(cap), cap); this->__q_on_modify(); }
-        constexpr __dynamic_queue() = default;
+        constexpr void __qswap(__dynamic_queue& that) noexcept { this->__my_queue_data.__swap(that.__my_queue_data); }
+        constexpr __dynamic_queue() noexcept = default;
         constexpr __dynamic_queue(__size_type sz, __alloc_type alloc = __alloc_type{}) : __qallocator{ alloc }, __my_queue_data{ __qallocator.allocate(sz), sz } {}
         constexpr __dynamic_queue(__dynamic_queue const& that) : __qallocator{ that.__qallocator }, __my_queue_data{ that.__my_queue_data } {}
         constexpr  __dynamic_queue(__dynamic_queue&& that) : __qallocator{ that.__qallocator }, __my_queue_data{ move(that.__my_queue_data) } {}
         constexpr ~__dynamic_queue() { __qdestroy(); }
-        __dynamic_queue& operator=(__dynamic_queue&& that) { __qdestroy(); this->__qmove(std::forward<__dynamic_queue>(that)); return *this; }
-        __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); this->__qpcopy(that); return *this; }
+        constexpr __dynamic_queue& operator=(__dynamic_queue&& that) { __qdestroy(); this->__qmove(std::forward<__dynamic_queue>(that)); return *this; }
+        constexpr __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); this->__qpcopy(that); return *this; }
     };
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__trim_stale() 
@@ -147,7 +152,7 @@ namespace std::__impl
         else return 0;
     }
     template <typename T, allocator_object<T> A>
-    bool __dynamic_queue<T, A>::__q_grow_buffer(typename __dynamic_queue<T, A>::__size_type added)
+    constexpr bool __dynamic_queue<T, A>::__q_grow_buffer(typename __dynamic_queue<T, A>::__size_type added)
     {
         if(!added) return true; // Vacuously true success value
         __size_type num_elements = __qsize();
@@ -158,7 +163,7 @@ namespace std::__impl
         return true;
     }
     template <typename T, allocator_object<T> A>
-    typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(T const &t, typename __dynamic_queue<T, A>::__size_type count)
+    constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(T const& t, typename __dynamic_queue<T, A>::__size_type count)
     {
         if(__qmax() <= __end() + count && !this->__q_grow_buffer(__size_type(count - this->__cap_rem()))) return nullptr;
         this->__qset(this->__end(), t, count);
@@ -168,7 +173,17 @@ namespace std::__impl
         return this->__end();
     }
     template <typename T, allocator_object<T> A>
-    typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(__const_ptr start, __const_ptr end)
+    constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(T && t, typename __dynamic_queue<T, A>::__size_type count)
+    {
+        if(__qmax() <= __end() + count && !this->__q_grow_buffer(__size_type(count - this->__cap_rem()))) return nullptr;
+        this->__qassign(this->__end(), move(t), count);
+        this->__bumpe(count);
+        this->__op_cnt++;
+        this->__q_on_modify();
+        return this->__end();
+    }
+    template <typename T, allocator_object<T> A>
+    constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(__const_ptr start, __const_ptr end)
     {
         if(end < start) return nullptr;
         if(end == start) return __end();
@@ -181,7 +196,7 @@ namespace std::__impl
         return this->__end();
     }
     template <typename T, allocator_object<T> A>
-    inline typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(__ptr out_start, __ptr out_end)
+    constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(__ptr out_start, __ptr out_end)
     {
         if(out_end <= out_start) return 0uL;
         __size_type count = std::min(this->__qrem(), __size_type(out_end - out_start));
@@ -193,7 +208,7 @@ namespace std::__impl
     }
     template <typename T, allocator_object<T> A>
     template <std::matching_input_iterator<T> IT>
-    typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(IT start, IT end)
+    constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(IT start, IT end)
     requires(!std::is_same_v<IT, typename __dynamic_queue<T, A>::__const_ptr>)
     {
         if(end < start) return nullptr;
@@ -208,7 +223,7 @@ namespace std::__impl
     }
     template <typename T, allocator_object<T> A>
     template <std::output_iterator<T> IT>
-    inline typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(IT out_start, IT out_end)
+    constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(IT out_start, IT out_end)
     requires(!std::is_same_v<IT, typename __dynamic_queue<T, A>::__ptr>)
     {
         if(out_end <= out_start) return 0uL;

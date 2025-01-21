@@ -131,7 +131,7 @@ namespace std
             }
         }
         constexpr operator bool() const noexcept { return !this->__empty(); }
-        constexpr function(function<RT(Args...)> const& that) : __function_base{} 
+        constexpr function(function const& that) : __function_base{} 
         {
             if(that.operator bool())
             {
@@ -140,7 +140,7 @@ namespace std
                 __my_manager = that.__my_manager;
             }
         }
-        constexpr function(function<RT(Args...)>&& that) : __function_base{}, __my_invoker{ that.__my_invoker }
+        constexpr function(function&& that) : __function_base{}, __my_invoker{ that.__my_invoker }
         {
             if(that.operator bool())
             {
@@ -155,7 +155,8 @@ namespace std
         {
             if constexpr(is_object_v<FT>)
             {
-                if(__my_manager == &__target_helper<RT(Args...), FT>::__manager || typeid(FT) == target_type())
+                using __handler = __target_helper<RT(Args...), FT>;
+                if(__my_manager == &__handler::__manager || ( __my_manager && typeid(FT) == target_type()))
                 {
                     __data_store ptr;
                     __my_manager(ptr, __my_functor, __get_functor_ptr);
@@ -164,7 +165,7 @@ namespace std
             }
             return nullptr;
         }
-        template<typename FT> FT* target() noexcept { const function* __const_this = *this; const FT* __const_ft = __const_this->template target<FT>(); return *const_cast<FT**>(&__const_ft); }
+        template<typename FT> FT* target() noexcept { const function* __const_this = this; const FT* __const_ft = __const_this->template target<FT>(); return *const_cast<FT**>(&__const_ft); }
         constexpr void swap(function& that) noexcept { std::swap(__my_functor, that.__my_functor); std::swap(__my_invoker, that.__my_invoker); std::swap(__my_manager, that.__my_manager); }
         constexpr function& operator=(function const& that) noexcept { function{ that }.swap(*this); return *this; }
         constexpr function& operator=(function&& that) noexcept { function{ move(that) }.swap(*this); return *this; }

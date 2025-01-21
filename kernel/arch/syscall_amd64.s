@@ -17,32 +17,28 @@ syscall_vec:
     .type   do_syscall,     @function
 do_syscall:
     cli
-    pushq   %rax
-    movq    %gs:0x00,               %rax
+    movq    %rsp,                   %gs:0x88
+    movq    %rbp,                   %gs:0x80
+    movq    %rcx,                   %gs:0x90
     swapgs
-    movq    %rax,                   %gs:0x30
-    popq    %rax
-    movq    %rsp,                   %gs:0x18
-    movq    %rbp,                   %gs:0x20
-    movq    %rcx,                   %gs:0x28
-    movq    %gs:0x08,               %rsp
-    movq    %gs:0x10,               %rbp
+    movq    %gs:0x88,               %rsp
+    movq    %gs:0x80,               %rbp
     leaq    syscall_vec(,%rax,8),   %rax
-    pushq   %r11
+    movq    %r11,                   %gs:0x98
     sti
     call    *%rax
     cli
-    popq    %r11
+    movq    %gs:0x98,               %r11
     xorq    %rdi,                   %rdi
     xorq    %rsi,                   %rsi
     xorq    %rdx,                   %rdx
     xorq    %r8,                    %r8
     xorq    %r9,                    %r9
     xorq    %r10,                   %r10
-    movq    %gs:0x20,               %rbp
-    movq    %gs:0x18,               %rsp
-    movq    %gs:0x28,               %rcx
     swapgs
+    movq    %gs:0x80,               %rbp
+    movq    %gs:0x88,               %rsp
+    movq    %gs:0x90,               %rcx
     sti
     sysretq
     .size do_syscall, .-do_syscall

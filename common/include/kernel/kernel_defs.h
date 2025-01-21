@@ -426,17 +426,6 @@ typedef struct __mmap
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
-// The kernel's side of process-info for use with syscalls. While in ring 0 (i.e. in kernel code) the gs base register will point to this structure.
-typedef struct __kpinfo
-{
-    uintptr_t self_ptr;   // %gs:0x00
-    uintptr_t k_rsp;      // %gs:0x08
-    uintptr_t k_rbp;      // %gs:0x10
-    uintptr_t rtn_rsp;    // %gs:0x18
-    uintptr_t rtn_rbp;    // %gs:0x20
-    uintptr_t rtn_rip;    // %gs:0x28
-    vaddr_t rtn_gs_base;  // %gs:0x30
-} __pack kpinfo_t;
 typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
 typedef struct __byte

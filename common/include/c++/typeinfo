@@ -2,4 +2,11 @@
 #define __TYPE_INFO
 #include "bits/typeinfo.h"
 #include "bits/stdexcept.h"
+namespace std
+{
+    namespace ext
+    {
+        string demangle(type_info const&);
+    }
+}
 #endif

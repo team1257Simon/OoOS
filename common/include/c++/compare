@@ -123,8 +123,7 @@ namespace std
     template<> struct common_comparison_category<> { using type = strong_ordering; };
     template<typename... Ts> using common_comparison_category_t = typename common_comparison_category<Ts...>::type;
     namespace __detail { template<typename T, typename CT> concept __compares_as = same_as<common_comparison_category_t<T, CT>, CT>; }
-    template<typename T, typename CT = partial_ordering>
-    concept three_way_comparable = __detail::__weakly_eq_cmp_with<T, T> && __detail::__partially_ordered_with<T, T> && requires(const remove_reference_t<T>& __a, const remove_reference_t<T>& __b) { { __a <=> __b } -> __detail::__compares_as<CT>; };
+    template<typename T, typename CT = partial_ordering> concept three_way_comparable = __detail::__weakly_eq_cmp_with<T, T> && __detail::__partially_ordered_with<T, T> && requires(const remove_reference_t<T>& __a, const remove_reference_t<T>& __b) { { __a <=> __b } -> __detail::__compares_as<CT>; };
     template<typename T, typename U, typename CT = partial_ordering> concept three_way_comparable_with = three_way_comparable<T, CT> && three_way_comparable<U, CT> && common_reference_with<const remove_reference_t<T>&, const remove_reference_t<U>&> && three_way_comparable<common_reference_t<const remove_reference_t<T>&, const remove_reference_t<U>&>, CT> && __detail::__weakly_eq_cmp_with<T, U> && __detail::__partially_ordered_with<T, U> && requires(const remove_reference_t<T>& __t, const remove_reference_t<U>& __u)  { { __t <=> __u } -> __detail::__compares_as<CT>; { __u <=> __t } -> __detail::__compares_as<CT>; };
     namespace __detail
     {

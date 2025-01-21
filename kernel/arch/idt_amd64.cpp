@@ -3,6 +3,7 @@
 #include "kernel/isr_table.hpp"
 #include "isr_table.hpp"
 #include "array"
+#include "string"
 std::array<std::vector<irq_callback>, 16> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
 namespace interrupt_table

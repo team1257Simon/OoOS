@@ -41,8 +41,8 @@ namespace std
     template<std::char_type CT> constexpr bool eq(CT a, CT b) { return a == b; }
     template<std::char_type CT> constexpr CT* strcpy(CT* dest, const CT* src) { arraycopy<CT>(dest, src, std::strlen(src)); return dest; }
     template<std::char_type CT> constexpr CT* strncpy(CT* dest, const CT* src, size_t n) { arraycopy<CT>(dest, src, std::strnlen(src, n)); return dest; }
-    template<std::char_type CT> constexpr CT* stpcpy(CT* dest, const CT* src) { size_t n = std::strlen(src); arraycopy<CT>(dest, src, n); return dest + n; }
-    template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); arraycopy<CT>(dest, src, n); return dest + n; }
+    template<std::char_type CT> constexpr CT* stpcpy(CT* dest, const CT* src) { size_t n = std::strlen(src); arraycopy<CT>(dest, src, n + 1); return dest + n; }
+    template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); arraycopy<CT>(dest, src, n + 1); return dest + n; }
     template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && (*s2 == *s1) && (*s1 != 0) && (*s2 != 0); ++i, ++s1, ++s2); return (*s1 < *s2) ? -1 : (*s1 > *s2 ? 1 : 0); }
     template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
     template<std::char_type CT> constexpr const CT* find(const CT* ptr, const CT* what) noexcept { return __impl::__find_impl(ptr, what); }

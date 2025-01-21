@@ -6,6 +6,8 @@
     .global     ecode
     .global     errinst
     .global     svinst
+    .global     taskchg_flag
+    .type       taskchg_flag,   @object
     .type       ecode,          @object
     .type       errinst,        @object
     .type       svinst,         @object
@@ -18,6 +20,9 @@ errinst:
 svinst:
     .quad 0
     .size       svinst,         .-svinst
+taskchg_flag:
+    .byte 0
+    .size       taskchg_flag,   .-taskchg_flag
     .section    .text
     # The one time exponential growth actually comes in handy...
     # Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
@@ -89,13 +94,27 @@ svinst:
         .L\i:
             cmpw    $0x08, 8(%rsp)
             je      .LKN\i
-            swapgs  
+            swapgs
+            .ifge 32-\i
+            .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
+            addq    $8,         %rsp
+            .endif
+            .endif
+            cmpb    $0,         taskchg_flag
+            jz      .LKF\i
+            movb    $0,         taskchg_flag
+            jmp     task_change
         .LKN\i:
             .ifge 32-\i
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
             .endif
+            cmpb    $0,         taskchg_flag
+            jz      .LKF\i
+            movb    $0,         taskchg_flag
+            jmp     ktask_change
+        .LKF\i:
             sti
             iretq
         .size       isr_\i,     .-isr_\i

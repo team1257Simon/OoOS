@@ -24,9 +24,6 @@ namespace std
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
         constexpr static size_type npos = size_type(-1);
     protected:
-        virtual void __set(CT* where, CT const& val, size_t n) override { traits_type::assign(where, val, n); }
-        virtual void __zero(CT* where, size_t n) override { traits_type::assign(where, 0, n); }
-        virtual void __copy(CT* where, CT const* src, size_t n) override { traits_type::copy(where, src, n); }
         virtual void __on_modify() override { if(!(this->__size() < this->__capacity())) this->__grow_buffer(1); }
         constexpr static int __size_compare(size_type lhs, size_type rhs) noexcept
         {

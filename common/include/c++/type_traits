@@ -125,7 +125,6 @@ namespace std
     template <> struct is_null_pointer<const volatile nullptr_t> : public true_type {};
 	template <typename T> struct is_arithmetic : public __or_<is_integral<T>, is_floating_point<T>>::type {};
 	template <typename T> struct is_fundamental : public __or_<is_arithmetic<T>, is_void<T>, is_null_pointer<T>>::type {};
-	template <typename T> struct is_object : public __not_<__or_<is_function<T>, is_reference<T>, is_void<T>>>::type {};
 	template <typename> struct is_member_pointer;
 	template <typename T> struct is_scalar: public __or_<is_arithmetic<T>, is_enum<T>, is_pointer<T>, is_member_pointer<T>, is_null_pointer<T>>::type {};
 	template <typename T> struct is_compound : public __bool_constant<!is_fundamental <T>::value> {};
@@ -137,6 +136,7 @@ namespace std
 	__extension__ template <typename T> using __is_signed_integer = __is_one_of<__remove_cv_t<T>, signed char, signed short, signed int, signed long, signed long long>;
 	__extension__ template <typename T> using __is_unsigned_integer = __is_one_of<__remove_cv_t<T>, unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long>;
 	template <typename T> using __is_standard_integer = __or_<__is_signed_integer<T>, __is_unsigned_integer<T>>;
+	template <typename T> struct is_object : public __or_<is_scalar<T>, is_array<T>, is_union<T>, is_class<T>>::type {};
 	template <typename...> using __void_t = void;
 	template <typename> struct is_const : public false_type {};
 	template <typename T> struct is_const<T const> : public true_type {};

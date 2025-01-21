@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "bits/typeinfo.h"
+#include "typeinfo"
 #include <string.h>
 #include <stdlib.h>
 using std::type_info;
@@ -66,7 +66,17 @@ extern "C" char *__cxa_demangle(const char* mangled_name, char* buf, size_t* n, 
 	else
 	{
 		if (status) *status = -2;
-		return NULL;
+		return nullptr;
 	}
 	return buf;
+}
+std::string std::ext::demangle(std::type_info const& ti)
+{
+	if(char* buf = __cxa_demangle_gnu3(ti.name()))
+	{
+		std::string result{ buf };
+		free(buf);
+		return result;
+	}
+	return "DEMANGLE ERROR";
 }

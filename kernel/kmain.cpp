@@ -1,15 +1,16 @@
 #include "direct_text_render.hpp"
 #include "arch/idt_amd64.h"
+#include "arch/com_amd64.h"
 #include "heap_allocator.hpp"
 #include "rtc.h"
-#include "bits/icxxabi.h"
 #include "keyboard_driver.hpp"
-#include "stdlib.h"
-#include "bits/stdexcept.h"
+#include "sched/task.h"
 #include "fs/data_buffer.hpp"
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
-#include "arch/com_amd64.h"
+#include "bits/icxxabi.h"
+#include "stdlib.h"
+#include "bits/stdexcept.h"
 #include "map"
 #include "algorithm"
 extern psf2_t* __startup_font;
@@ -180,7 +181,7 @@ void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
 {
-    kpinfo_t kproc{};
+    task_t kproc{};
     extern void _init();
     extern void* isr_table[];
     extern void* svinst;
@@ -194,9 +195,7 @@ extern "C"
     {
         cli();
         nmi_disable();
-        kproc.self_ptr = reinterpret_cast<uintptr_t>(&kproc);
-        asm volatile("movq %%rsp, %0 " : "=m"(kproc.k_rsp) :: "memory");
-        asm volatile("movq %%rbp, %0 " : "=m"(kproc.k_rbp) :: "memory");
+        kproc.self = &kproc;
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
         heap_allocator::init_instance(mmap); 
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
