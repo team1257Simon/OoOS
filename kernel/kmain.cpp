@@ -11,6 +11,7 @@
 #include "bits/icxxabi.h"
 #include "stdlib.h"
 #include "bits/stdexcept.h"
+#include "bits/stl_queue.hpp"
 #include "map"
 #include "algorithm"
 extern psf2_t* __startup_font;
@@ -137,6 +138,31 @@ void vfs_tests()
         startup_tty.print_line("NOTE: made it to the catch block; the above error was intentional!");
     }
 }
+void queue_tests()
+{
+    using namespace std;
+    using namespace std::ext;
+    try 
+    {
+        resettable_queue<string> q1{};
+        resettable_queue<string> q2{};
+        q1.emplace("blerple");
+        q1.emplace("derple");
+        q1.emplace("merple");
+        q2.emplace("yerple");
+        q2.emplace("zerple");
+        q2.emplace("herple");
+        startup_tty.print_line(q1.pop());
+        startup_tty.print_line(q1.pop());
+        string* ptr = q1.unpop();
+        if(ptr) startup_tty.print_line(*ptr);
+        else startup_tty.print_line("( :( )");
+        q1.transfer(q2, 2);
+        for(resettable_queue<string>::iterator i = q2.begin(); i != q2.end(); i++) startup_tty.print_line(*i);
+        for(resettable_queue<string>::iterator i = q1.begin(); i != q1.end(); i++) startup_tty.print_line(*i);  
+    }
+    catch(std::exception& e) { panic(e.what()); }
+}
 void run_tests()
 {
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword ecode)
@@ -174,6 +200,8 @@ void run_tests()
     map_tests();
     startup_tty.print_line("vfs tests...");
     vfs_tests();
+    startup_tty.print_line("queue tests...");
+    queue_tests();
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { return &testramfs; }
@@ -189,7 +217,7 @@ extern "C"
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
-    [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
+    [[noreturn]] void abort() { uint64_t *sp; asm volatile("movq %%rsp, %0" : "=r"(sp) :: "memory"); debug_print_num(*sp); startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     void kmain(sysinfo_t* si, mmap_t* mmap)
     {

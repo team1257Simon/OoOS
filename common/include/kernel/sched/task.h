@@ -6,6 +6,21 @@ extern "C"
 {
 #endif
 struct uframe_tag;
+typedef enum
+#ifdef __cplusplus
+class
+#endif
+__task_prio
+#ifdef __cplusplus
+: int8_t
+#endif
+{
+    PVSYS = -1,
+    PVLOW = 0,
+    PVNORM = 1,
+    PVHIGH = 2,
+    PVEXTRA = 3
+} priority_val;
 typedef struct __fx_state
 {
     uint16_t fcw;               // BASE+0x000
@@ -63,8 +78,8 @@ typedef struct __task_control
         bool                : 4; // Look at me, I get to be the one reserving bits this time!
     } __align(1) __pack;
     uint8_t sigcode;            // BASE+0x01; the code associated with a signal if applicable
-    int8_t prio_base;           // BASE+0x02; the base priority of the thread/process; for nonnegative priorities higher numbers mean higher priority. Any negative number indicates system-level (to implement later)
-    uint8_t skips;              // BASE+0x03; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips
+    priority_val prio_base;     // BASE+0x02; the base priority of the thread/process
+    uint8_t skips;               // BASE+0x03; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
     uint32_t wait_ticks_delta;  // BASE+0x04; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
     int64_t parent_pid;         // BASE+0x08; a negative number indicates no parent
     uint64_t task_id;           // BASE+0x10; pid or thread-id; kernel itself is zero

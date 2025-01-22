@@ -24,7 +24,7 @@ namespace std
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
         constexpr static size_type npos = size_type(-1);
     protected:
-        virtual void __on_modify() override { if(!(this->__size() < this->__capacity())) this->__grow_buffer(1); }
+        extension virtual void __on_modify() override { if(!(this->__size() < this->__capacity())) this->__grow_buffer(1); }
         constexpr static int __size_compare(size_type lhs, size_type rhs) noexcept
         {
             const difference_type d = difference_type(lhs - rhs);
@@ -53,8 +53,8 @@ namespace std
         constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.__cur(), alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.c_str() + pos + count, alloc } {}
         constexpr ~basic_string() { this->__destroy(); }
-        constexpr basic_string& operator=(basic_string const& that) { this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); return *this; }
-        constexpr basic_string& operator=(basic_string&& that) {  this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__clear(); return *this; }
+        constexpr basic_string& operator=(basic_string const& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); return *this; }
+        constexpr basic_string& operator=(basic_string&& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__destroy(); return *this; }
         constexpr basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr reference at(size_type i) { return this->__get(i); }
         constexpr const_reference at(size_type i) const { return this->__get(i); }
@@ -112,9 +112,9 @@ namespace std
         constexpr size_type find(basic_string const& that, size_type pos = 0) const noexcept { return find(that.data(), pos); }
         constexpr size_type find(const_pointer str, size_type pos, size_type count) const noexcept { return find(basic_string{ str, count }, pos); }
         constexpr size_type find(value_type value, size_type pos = 0) const noexcept { if(this->__out_of_range(this->__get_ptr(pos))) { return npos; } const_pointer result = traits_type::find(data() + pos, size() - pos, value); if(result)  { return size_type(result - data()); } return npos; }
-        constexpr const_iterator find(const_pointer str, const_iterator pos) const noexcept { size_type result = find(str, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
-        constexpr const_iterator find(basic_string const& that, const_iterator pos) const noexcept { size_type result = find(that, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
-        constexpr const_iterator find(value_type val, const_iterator pos) const noexcept { size_type result = find(val, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
+        extension constexpr const_iterator find(const_pointer str, const_iterator pos) const noexcept { size_type result = find(str, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
+        extension constexpr const_iterator find(basic_string const& that, const_iterator pos) const noexcept { size_type result = find(that, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
+        extension constexpr const_iterator find(value_type val, const_iterator pos) const noexcept { size_type result = find(val, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
         constexpr int compare(basic_string const& that) const { const size_type __my_size = this->size(); const size_type __your_size = that.size(); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that.data(), __len); return (result != 0) ? result : __size_compare(__my_size, __your_size); }
         constexpr int compare(const_pointer that) const { const size_type __my_size = this->size(); const size_type __your_size = traits_type::length(that); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that, __len); return (result != 0) ? result : __size_compare(__my_size, __your_size); }
     };

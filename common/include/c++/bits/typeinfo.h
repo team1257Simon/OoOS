@@ -27,10 +27,7 @@
 #define __TYPEINFO_H
 #include <stddef.h>
 #include "bits/abi_namespace.h"
-namespace ABI_NAMESPACE
-{
-	struct __class_type_info;
-}
+namespace ABI_NAMESPACE { struct __class_type_info; }
 namespace std
 {
 	/**
@@ -115,10 +112,7 @@ namespace ABI_NAMESPACE
 	/**
 	 * Type info for enums.
 	 */
-	struct __enum_type_info : public std::type_info
-	{
-		virtual ~__enum_type_info();
-	};
+	struct __enum_type_info : public std::type_info { virtual ~__enum_type_info(); };
 
 	/**
 	 * Base class for class type info.  Used only for tentative definitions.
@@ -198,8 +192,7 @@ namespace ABI_NAMESPACE
 		/** The number of base classes. */
 		unsigned int __base_count;
 		/** 
-		 * Array of base classes - this actually has __base_count elements, not
-		 * 1.
+		 * Array of base classes - this actually has __base_count elements, not 1.
 		 */
 		__base_class_type_info __base_info[1];
 		/**

@@ -5,7 +5,7 @@
 extern "C" const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line);
 namespace __cxxabiv1 
 {
-    __extension__ typedef spinlock_t __guard;
+    extension typedef spinlock_t __guard;
     extern "C" int __cxa_guard_acquire (__guard *g)  { lock(g); return 0; }
     extern "C" void __cxa_guard_release (__guard *g) { release(g); }
     extern "C" void __cxa_guard_abort (__guard*) {}

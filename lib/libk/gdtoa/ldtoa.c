@@ -33,7 +33,7 @@ char* __ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sign, cha
     kind = STRTOG_NaN;
     break;
   default:
-    panic("Unrecognized classification");
+    panic("ldtoa: classify error");
     abort();
   }
   ret = __gdtoa(&fpi, be, vbits, &kind, mode, ndigits, decpt, rve);

@@ -1,4 +1,5 @@
 #include "gdtoa.h"
+extern void panic(const char*);
 static int roundup(char* s0, int ndigits)
 {
   char* s;
@@ -45,6 +46,7 @@ char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, c
     *decpt = 0x7fffffff;
     return (__nrv_alloc_D2A("NaN", rve, sizeof("NaN") - 1));
   default:
+    panic("hdtoa: classify error");
     abort();
   }
   if (ndigits == 0)
@@ -104,6 +106,7 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
     *decpt = 0x7fffffff;
     return (__nrv_alloc_D2A("NaN", rve, sizeof("NaN") - 1));
   default:
+    panic("hldtoa: classify error");
     abort();
   }
   if (ndigits == 0)

@@ -65,20 +65,20 @@ namespace std
     template<typename RT, typename T, typename U> concept equivalence_relation = relation<RT, T, U>;
     template<typename RT, typename T, typename U> concept strict_weak_order = relation<RT, T, U>;
 #pragma region non-standard useful concepts
-    template<typename LT, typename RT> concept not_self = !std::is_same_v<__remove_cvref_t<LT>, RT>;
-    template<typename LT, typename RT> concept same_size = sizeof(LT) == sizeof(RT);
-    template<typename LT, typename RT> concept smaller = sizeof(LT) < sizeof(RT);
-    template<typename LT, typename RT> concept larger = sizeof(LT) > sizeof(RT);
-    template<typename LT, typename RT> concept not_smaller = same_size<LT, RT> || larger<LT, RT>;
-    template<typename LT, typename RT> concept not_larger = same_size<LT, RT> || smaller<LT, RT>;
-    template<typename FT, typename TT> concept bit_castable = is_trivially_copyable_v<TT> && is_trivially_copyable_v<FT> && same_size<FT, TT>;
-    template<typename FT, typename RT, typename ST, typename ... Args> concept member_function = requires(FT&& __ft, ST&& __st, Args&& ... args) { { (static_cast<ST&&>(__st).*__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
-    template<typename FT, typename RT, typename ST, typename ... Args> concept deref_to_member_function = requires(FT&& __ft, ST&& __st, Args&& ... args) { { (*static_cast<ST&&>(__st).*__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
-    template<typename FT, typename RT, typename ... Args> concept functor = requires(FT&& __ft, Args&& ... args) { { static_cast<FT&&>(__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
-    template<typename T> concept non_object = !is_object_v<T>;
-    template<typename T> concept object = is_object_v<T>;
-    template<typename A, typename T> concept allocator_object = is_default_constructible_v<A> && requires(A a, T* ptr, size_t n) { { a.allocate(n) } -> same_as<T*>; a.deallocate(ptr, n); };
-    template<template<typename> class PT, typename T> concept recursive_template_derived = std::derived_from<T, PT<T>>;
+    extension template<typename LT, typename RT> concept not_self = !std::is_same_v<__remove_cvref_t<LT>, RT>;
+    extension template<typename LT, typename RT> concept same_size = sizeof(LT) == sizeof(RT);
+    extension template<typename LT, typename RT> concept smaller = sizeof(LT) < sizeof(RT);
+    extension template<typename LT, typename RT> concept larger = sizeof(LT) > sizeof(RT);
+    extension template<typename LT, typename RT> concept not_smaller = same_size<LT, RT> || larger<LT, RT>;
+    extension template<typename LT, typename RT> concept not_larger = same_size<LT, RT> || smaller<LT, RT>;
+    extension template<typename FT, typename TT> concept bit_castable = is_trivially_copyable_v<TT> && is_trivially_copyable_v<FT> && same_size<FT, TT>;
+    extension template<typename FT, typename RT, typename ST, typename ... Args> concept member_function = requires(FT&& __ft, ST&& __st, Args&& ... args) { { (static_cast<ST&&>(__st).*__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
+    extension template<typename FT, typename RT, typename ST, typename ... Args> concept deref_to_member_function = requires(FT&& __ft, ST&& __st, Args&& ... args) { { (*static_cast<ST&&>(__st).*__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
+    extension template<typename FT, typename RT, typename ... Args> concept functor = requires(FT&& __ft, Args&& ... args) { { static_cast<FT&&>(__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
+    extension template<typename T> concept non_object = !is_object_v<T>;
+    extension template<typename T> concept object = is_object_v<T>;
+    extension template<typename A, typename T> concept allocator_object = is_default_constructible_v<A> && requires(A a, T* ptr, size_t n) { { a.allocate(n) } -> same_as<T*>; a.deallocate(ptr, n); };
+    extension template<template<typename> class PT, typename T> concept recursive_template_derived = std::derived_from<T, PT<T>>;
 #pragma endregion
 }
 #endif 

@@ -70,7 +70,7 @@ extern "C" char *__cxa_demangle(const char* mangled_name, char* buf, size_t* n, 
 	}
 	return buf;
 }
-std::string std::ext::demangle(std::type_info const& ti)
+extension std::string std::ext::demangle(std::type_info const& ti)
 {
 	if(char* buf = __cxa_demangle_gnu3(ti.name()))
 	{

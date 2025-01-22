@@ -2,7 +2,7 @@
 #define __STL_TREE
 /*
  * The most important thing eco-activists and programmers have in common is that we both love trees.
- * -- Someone, somewhere, at some time, probably 
+ * — Someone, somewhere, at some time, probably 
  */
 #include "bits/move.h"
 #include "memory"

@@ -617,7 +617,7 @@ static void pushCleanupException(_Unwind_Exception *exceptionObject, __cxa_excep
  * containing catch or cleanup code.
  */
 extern "C"
-BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
+_Unwind_Reason_Code __gxx_personality_v0(int version, _Unwind_Action actions, uint64_t exceptionClass, struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context) {
 	// This personality function is for version 1 of the ABI.  If you use it
 	// with a future version of the ABI, it won't know what to do, so it
 	// reports a fatal error and give up before it breaks anything.
@@ -880,7 +880,7 @@ extern "C" void __cxa_call_unexpected(void* exception)
  *
  * This function does not return.
  */
-extern "C" void __cxa_call_terminate(void* exception) noexcept { std::terminate(); __builtin_unreachable(); }
+extern "C" void __cxa_call_terminate(void* exception) noexcept { panic("unhandled exception"); std::terminate(); __builtin_unreachable(); }
 /**
  * ABI function, returns the adjusted pointer to the exception object.
  */

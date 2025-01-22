@@ -24,13 +24,13 @@ namespace std
         else if constexpr(sizeof(CT) == 2) asm volatile("repne scasw" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
         else if constexpr(sizeof(CT) == 4) asm volatile("repne scasl" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
         else if constexpr(sizeof(CT) == 8) asm volatile("repne scasq" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
-        else for(size_t i = 0; i < n && *ptr != c; i++, ++ptr);
-        return const_cast<CT*>(ptr);
+        else { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return ptr; }
+        return const_cast<CT*>(--ptr);
     }
     #else
     template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n; i++, ++ptr) { if(*ptr == c) return ptr; } return nullptr; }
     #endif
-    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return size_t((std::find(str, (max == size_t(-1) ? max : max + 1), CT(0)) - 1) - str); }
+    template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
     template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, size_t(-1)); }
     template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { arrayset(ptr, val, n); return ptr; }
     template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { arrayset<CT>(ptr, c, n); return ptr; }

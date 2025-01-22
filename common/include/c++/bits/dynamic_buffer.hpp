@@ -64,7 +64,6 @@ namespace std::__impl
          * Copies data using iterators that might not be contiguous (e.g. tree iterators) or forward-facing (e.g. reverse iterators).
          */
         template<std::matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
-        
         constexpr void __set(__ptr where, T const& val, __size_type n) { arrayset<T>(where, val, n); }
         /**
          * Selects the proper function to clear allocated storage of garbage data.
@@ -77,7 +76,7 @@ namespace std::__impl
          * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.
          * Inheritors can override to add functionality that needs to be invoked whenever these pointers move. The default implementation does nothing.
          */
-        virtual void __on_modify() {}
+        extension virtual void __on_modify() {}
         constexpr bool __grow_buffer(__size_type added);
         template<std::matching_input_iterator<T> IT> constexpr __ptr __append_elements(IT start_it, IT end_it);
         constexpr __ptr __insert_elements(__const_ptr pos, __const_ptr start_ptr, __const_ptr end_ptr);
@@ -134,7 +133,8 @@ namespace std::__impl
         constexpr void __destroy() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); __my_data.__reset(); } }
         constexpr void __swap(__dynamic_buffer& that) { __my_data.__swap_ptrs(that.__my_data); this->__on_modify(); that.__on_modify(); }
         constexpr void __move(__dynamic_buffer&& that) { __my_data.__move_ptrs(move(that.__my_data)); }
-        constexpr void __realloc_move(__dynamic_buffer&& that) { __destroy(); if(!that.__beg()) return; __allocate_storage(that.__capacity()); arraymove<T>(this->__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); this->__on_modify(); }
+        constexpr void __copy_assign(__dynamic_buffer const& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); __copy(this->__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
+        constexpr void __realloc_move(__dynamic_buffer&& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); arraymove<T>(this->__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); }
         constexpr explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
         template<std::matching_input_iterator<T> IT> constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }
@@ -149,7 +149,7 @@ namespace std::__impl
         constexpr __dynamic_buffer(__dynamic_buffer&& that) : __allocator{ move(that.__allocator) }, __my_data{ move(that.__my_data) } {}
         constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
         constexpr ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
-        constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { __destroy(); __allocate_storage(that.__capacity()); __copy(this->__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); __on_modify(); return *this; }
+        constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { __copy_assign(that); return *this; }
         constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); this->__move(move(that)); return *this; }
     };
     template<typename T, allocator_object<T> A>

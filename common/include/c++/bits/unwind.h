@@ -22,12 +22,13 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
-#ifndef _UNWIND_H
-#define _UNWIND_H
+#ifndef __UNWIND_H
+#define __UNWIND_H
 /* For uint64_t */
 #include <stdint.h>
 #ifdef __cplusplus
-extern "C" {
+extern "C" 
+{
 #endif
 /* Minimal interface as per C++ ABI draft standard:
 	http://www.codesourcery.com/cxx-abi/abi-eh.html */
@@ -84,16 +85,12 @@ extern unsigned long _Unwind_GetIPInfo (struct _Unwind_Context *, int *);
 extern void _Unwind_SetIP (struct _Unwind_Context *, unsigned long);
 extern unsigned long _Unwind_GetLanguageSpecificData (struct _Unwind_Context*);
 extern unsigned long _Unwind_GetRegionStart (struct _Unwind_Context *);
-#ifdef _GNU_SOURCE
-/* Callback for _Unwind_Backtrace().  The backtrace stops immediately
-   if the callback returns any value other than _URC_NO_REASON. */
+/* Callback for _Unwind_Backtrace().  The backtrace stops immediately if the callback returns any value other than _URC_NO_REASON. */
 typedef _Unwind_Reason_Code (*_Unwind_Trace_Fn) (struct _Unwind_Context *, void *);
-/* See http://gcc.gnu.org/ml/gcc-patches/2001-09/msg00082.html for why
-   _UA_END_OF_STACK exists.  */
+/* See http://gcc.gnu.org/ml/gcc-patches/2001-09/msg00082.html for why _UA_END_OF_STACK exists.  */
 #define _UA_END_OF_STACK	16
 /* If the unwind was initiated due to a forced unwind, resume that
-   operation, else re-raise the exception.  This is used by
-   __cxa_rethrow().  */
+   operation, else re-raise the exception.  This is used by __cxa_rethrow().  */
 extern _Unwind_Reason_Code _Unwind_Resume_or_Rethrow (struct _Unwind_Exception *);
 /* See http://gcc.gnu.org/ml/gcc-patches/2003-09/msg00154.html for why
    _Unwind_GetBSP() exists.  */
@@ -121,20 +118,12 @@ extern _Unwind_Reason_Code _Unwind_Backtrace (_Unwind_Trace_Fn, void *);
 extern void *_Unwind_FindEnclosingFunction (void *);
 /* See also Linux Standard Base Spec:
     http://www.linuxbase.org/spec/refspecs/LSB_1.3.0/gLSB/gLSB/libgcc-s.html */
-#endif /* _GNU_SOURCE */
 #define DECLARE_PERSONALITY_FUNCTION(name) \
 _Unwind_Reason_Code name(int version,\
                          _Unwind_Action actions,\
                          uint64_t exceptionClass,\
                          struct _Unwind_Exception *exceptionObject,\
                          struct _Unwind_Context *context);
-#define BEGIN_PERSONALITY_FUNCTION(name) \
-_Unwind_Reason_Code name(int version,\
-                         _Unwind_Action actions,\
-                         uint64_t exceptionClass,\
-                         struct _Unwind_Exception *exceptionObject,\
-                         struct _Unwind_Context *context)\
-{
 #define CALL_PERSONALITY_FUNCTION(name) name(version, actions, exceptionClass, exceptionObject, context)
 #ifdef __cplusplus
 }

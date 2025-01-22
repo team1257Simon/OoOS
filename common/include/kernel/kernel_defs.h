@@ -3,6 +3,7 @@
 #include "stdint.h"
 #include "stddef.h"
 #define attribute(x) __attribute__(x)
+#define extension __extension__
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\sys\\core.elf"
 #endif
