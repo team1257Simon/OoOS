@@ -252,6 +252,7 @@ namespace std::__impl
             if(__qcur() > start + n) { tmp.__bumpc(__tell() - n); }
             else if(__qcur() > start) tmp.__bumpc(start - __qbeg());
             else { tmp.__bumpc(__tell()); }
+            if(tmp.__next > tmp.__end) tmp.__next = tmp.__end;
             __size_type pstart{ static_cast<__size_type>(start - __qbeg()) };
             __size_type srem{ static_cast<__size_type>(__qmax() - (start + n)) };
             __qcopy(tmp.__begin, __qbeg(), pstart);

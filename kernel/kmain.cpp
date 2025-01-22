@@ -159,7 +159,8 @@ void queue_tests()
         else startup_tty.print_line("( :( )");
         q1.transfer(q2, 2);
         for(resettable_queue<string>::iterator i = q2.begin(); i != q2.end(); i++) startup_tty.print_line(*i);
-        for(resettable_queue<string>::iterator i = q1.begin(); i != q1.end(); i++) startup_tty.print_line(*i);  
+        q1.restart();
+        for(resettable_queue<string>::iterator i = q1.current(); i != q1.end(); i++) startup_tty.print_line(*i);  
     }
     catch(std::exception& e) { panic(e.what()); }
 }
