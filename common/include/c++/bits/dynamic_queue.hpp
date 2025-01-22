@@ -109,6 +109,8 @@ namespace std::__impl
         constexpr void __set_stale_size_threshold(__diff_type value) noexcept { this->__stale_size_thresh = value; }
         constexpr void __qmove(__dynamic_queue&& that) noexcept { __my_queue_data.__move(std::move(that.__my_queue_data)); }
         constexpr void __qpcopy(__dynamic_queue const& that) noexcept { __my_queue_data.__copy_ptrs(that.__my_queue_data); }
+        constexpr __size_type __erase_before_next();
+        constexpr bool __is_stale() const noexcept { return __op_cnt > __stale_op_thresh && (__my_queue_data.__next - __my_queue_data.__begin) > __stale_size_thresh; }
         /**
          * If there have been a number of push operations exceeding the configured operation threshold since the most recent pop or trim,
          * and the number of elements between the base and current pointers exceeds the configured size threshold (defaults are 3 and 16 respectively),
@@ -116,7 +118,7 @@ namespace std::__impl
          * sets the position of that pointer to the new start, and returns the number of elements removed. 
          * Otherwise, does nothing and returns zero.
          */
-        constexpr __size_type __trim_stale();
+        constexpr __size_type __trim_stale() { return __is_stale() ? __erase_before_next() : __size_type(0UL); }
         constexpr bool __q_grow_buffer(__size_type added);
         constexpr __ptr __push_elements(T const&, __size_type = __size_type(1UL));
         constexpr __ptr __push_elements(T&&, __size_type = __size_type(1UL));
@@ -125,7 +127,7 @@ namespace std::__impl
         template<std::output_iterator<T> IT> constexpr __size_type __pop_elements(IT out_start, IT out_end) requires(!std::is_same_v<IT, __ptr>);
         constexpr __size_type __pop_elements(__ptr out_start, __ptr out_end);
         constexpr __size_type __erase_elements(__const_ptr start, __size_type n = 1UL);
-        constexpr __size_type __force_trim() { return __erase_elements(__qbeg(), __tell()); }
+        constexpr __size_type __force_trim() { return __erase_before_next(); }
         template<typename ... Args> requires std::constructible_from<T, Args...> constexpr __ptr __emplace_element(Args&& ... args) { if(__qmax() <= __end() && !this->__q_grow_buffer(1UL)) return nullptr; else { __ptr result = construct_at(__end(), forward<Args>(args)...); this->__bumpe(1L); return result; } }
         constexpr void __qdestroy() { if(__qbeg()) { __qallocator.deallocate(__qbeg(), __qcapacity()); __my_queue_data.__reset(); }  this->__op_cnt = 0; }
         constexpr void __qclear() { __size_type cap = __qcapacity(); __qdestroy(); __my_queue_data.__set_ptrs(__qallocator.allocate(cap), cap); this->__q_on_modify(); }
@@ -139,19 +141,15 @@ namespace std::__impl
         constexpr __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); this->__qpcopy(that); return *this; }
     };
     template <typename T, allocator_object<T> A>
-    constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__trim_stale() 
-    { 
-        if(__op_cnt > __stale_op_thresh && (__my_queue_data.__next - __my_queue_data.__begin) > __stale_size_thresh) 
-        { 
-            size_t result = this->__tell();
-            __ptr_container tmp{ this->__qallocator.allocate(this->__qcapacity()), this->__qcapacity() };
-            this->__qcopy(tmp.__begin, this->__qcur(), this->__qrem());
-            tmp.__bumpc(this->__qrem());
-            this->__qdestroy();
-            __my_queue_data.__copy_ptrs(tmp);
-            return result;
-        }
-        else return 0;
+    constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__erase_before_next()
+    {
+        size_t result = this->__tell();
+        __ptr_container tmp{ this->__qallocator.allocate(this->__qcapacity()), this->__qcapacity() };
+        this->__qcopy(tmp.__begin, this->__qcur(), this->__qrem());
+        tmp.__bumpn(this->__qrem());
+        this->__qdestroy();
+        __my_queue_data.__copy_ptrs(tmp);
+        return result;
     }
     template <typename T, allocator_object<T> A>
     constexpr bool __dynamic_queue<T, A>::__q_grow_buffer(typename __dynamic_queue<T, A>::__size_type added)

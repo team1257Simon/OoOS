@@ -40,31 +40,31 @@ typedef struct __fx_state
 } __align(1) __pack fx_state;
 typedef struct __reg_state
 {
-    register_t rax;     // BASE+0x00
-    register_t rbx;     // BASE+0x08
-    register_t rcx;     // BASE+0x10
-    register_t rdx;     // BASE+0x18
-    register_t rdi;     // BASE+0x20
-    register_t rsi;     // BASE+0x28
-    register_t r8;      // BASE+0x30
-    register_t r9;      // BASE+0x38
-    register_t r10;     // BASE+0x40
-    register_t r11;     // BASE+0x48
-    register_t r12;     // BASE+0x50
-    register_t r13;     // BASE+0x58
-    register_t r14;     // BASE+0x60
-    register_t r15;     // BASE+0x68
-    register_t rbp;     // BASE+0x70
-    vaddr_t rsp;        // BASE+0x78
-    vaddr_t rip;        // BASE+0x80
-    register_t rflags;  // BASE+0x88
-    uint16_t   ds;      // BASE+0x90
-    uint16_t   es;      // BASE+0x92
-    uint16_t   ss;      // BASE+0x94
-    uint16_t   fs;      // BASE+0x96
-    uint16_t   gs;      // BASE+0x98
-    uint16_t   cs;      // BASE+0x9A
-    vaddr_t cr3;        // BASE+0x9C
+    register_t  rax;    // BASE+0x00
+    register_t  rbx;    // BASE+0x08
+    register_t  rcx;    // BASE+0x10
+    register_t  rdx;    // BASE+0x18
+    register_t  rdi;    // BASE+0x20
+    register_t  rsi;    // BASE+0x28
+    register_t  r8;     // BASE+0x30
+    register_t  r9;     // BASE+0x38
+    register_t  r10;    // BASE+0x40
+    register_t  r11;    // BASE+0x48
+    register_t  r12;    // BASE+0x50
+    register_t  r13;    // BASE+0x58
+    register_t  r14;    // BASE+0x60
+    register_t  r15;    // BASE+0x68
+    register_t  rbp;    // BASE+0x70
+    vaddr_t     rsp;    // BASE+0x78
+    vaddr_t     rip;    // BASE+0x80
+    register_t  rflags; // BASE+0x88
+    uint16_t    ds;     // BASE+0x90
+    uint16_t    es;     // BASE+0x92
+    uint16_t    ss;     // BASE+0x94
+    uint16_t    fs;     // BASE+0x96
+    uint16_t    gs;     // BASE+0x98
+    uint16_t    cs;     // BASE+0x9A
+    vaddr_t     cr3;    // BASE+0x9C
                         // BASE+0xA4
 } __pack __align(1) regstate_t;
 typedef struct __task_control
@@ -109,9 +109,18 @@ typedef struct __task_info
     size_t num_threads;                 // %gs:0x2E8
     struct __task_info* child_procs;    // %gs:0x2F0
     tls_t* threads;                     // %gs:0x2F8
-    struct __task_info* next;           // %gs:0x300; null if this is the only task in the queue. If this is the last task in a queue containing two or more tasks, it will point to the process at the front.
+    struct __task_info* next;           // %gs:0x300; updated when scheduling event fires.
 } __pack task_t;
+task_t* current_active_task();
+extern bool task_change_flag;
+void init_pit();
 #ifdef __cplusplus
 }
+constexpr unsigned int ticks_per_millis{ 596591 };
+constexpr unsigned char early_trunc_thresh{ 6 };
+constexpr word pit_divisor{ 2ui8 };
+constexpr byte pit_mode{ 0x34ui8 };
+constexpr word port_pit_data{ 0x40ui16 };
+constexpr word port_pit_cmd{ 0x43ui16 };
 #endif
 #endif

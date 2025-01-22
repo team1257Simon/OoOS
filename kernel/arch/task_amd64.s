@@ -2,9 +2,10 @@
     .section    .text
     .global     task_change
     .global     ktask_change
-    .global     get_task_info
-    .type       task_change,    @function
-    .type       ktask_change,   @function
+    .global     current_active_task
+    .type       task_change,            @function
+    .type       ktask_change,           @function
+    .type       current_active_task,    @function
 task_change:
     movq        %rax,           %gs:0x010
     movw        32(%rsp),       %ax
@@ -151,4 +152,8 @@ ktask_change:
     movq        %gs:0x010,      %rax
     sti
     iretq
-    .size       ktask_change,   .-ktask_change
+    .size       ktask_change,           .-ktask_change
+current_active_task:
+    movq        %gs:0x000,      %rax
+    ret
+    .size       current_active_task,    .-current_active_task

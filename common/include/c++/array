@@ -62,7 +62,7 @@ namespace std
         constexpr void fill(value_type const& val) { std::fill_n(data(), size(), val); }
         constexpr void swap(array& that) { std::swap_ranges(this->begin(), this->end(), that.begin()); }
         constexpr reference operator[](size_type n) noexcept { return __trait_type::__ref(__my_array, n); }
-        constexpr const_reference operator[](size_t n) const noexcept { return __trait_type::__ref(__my_array, n); }
+        constexpr const_reference operator[](size_type n) const noexcept { return __trait_type::__ref(__my_array, n); }
         constexpr reference front() noexcept { return *begin(); }
         constexpr const_reference front() const noexcept { return *cbegin(); }
         constexpr reference back() noexcept { return __trait_type::__ref(__my_array, N ? N - 1 : 0); }

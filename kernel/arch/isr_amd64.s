@@ -1,13 +1,13 @@
     .code64
     .altmacro
-    .extern isr_dispatch
-    .type   isr_dispatch,   @function
+    .extern     isr_dispatch
+    .type       isr_dispatch,   @function
     .section    .data
     .global     ecode
     .global     errinst
     .global     svinst
-    .global     taskchg_flag
-    .type       taskchg_flag,   @object
+    .global     task_change_flag
+    .type       task_change_flag,   @object
     .type       ecode,          @object
     .type       errinst,        @object
     .type       svinst,         @object
@@ -20,9 +20,9 @@ errinst:
 svinst:
     .quad 0
     .size       svinst,         .-svinst
-taskchg_flag:
+task_change_flag:
     .byte 0
-    .size       taskchg_flag,   .-taskchg_flag
+    .size       task_change_flag,   .-task_change_flag
     .section    .text
     # The one time exponential growth actually comes in handy...
     # Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
@@ -65,14 +65,7 @@ taskchg_flag:
         .global     isr_\i
         .type       isr_\i,     @function
         isr_\i:
-        # First, clear interrupts. Then check if we're in ring 0 (segment selector 8). If not, swap the gs base to ensure we're able to access kernel stuff if needed
-            cli
-            cmpw    $0x08,  8(%rsp)
-            je      .LKB\i
-            swapgs
-        .LKB\i:
             pushq   %rax
-            .ifge 32-\i
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             movq    8(%rsp),    %rax
             movq    %rax,       ecode
@@ -82,39 +75,29 @@ taskchg_flag:
             movq    8(%rsp),    %rax
             movq    %rax,       svinst
             .endif
-            .else
-            movq    8(%rsp),    %rax
-            movq    %rax,       svinst
-            .endif
             pushq   %rdi
             movq    $\i,        %rdi
             call    isr_dispatch
             popq    %rdi
             popq    %rax
-        .L\i:
             cmpw    $0x08, 8(%rsp)
-            je      .LKN\i
-            swapgs
-            .ifge 32-\i
+            je      1f
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
-            .endif
-            cmpb    $0,         taskchg_flag
-            jz      .LKF\i
-            movb    $0,         taskchg_flag
+            cmpb    $0,         task_change_flag
+            jz      2f
+            movb    $0,         task_change_flag
             jmp     task_change
-        .LKN\i:
-            .ifge 32-\i
+        1:
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
-            .endif
-            cmpb    $0,         taskchg_flag
-            jz      .LKF\i
-            movb    $0,         taskchg_flag
+            cmpb    $0,         task_change_flag
+            jz      2f
+            movb    $0,         task_change_flag
             jmp     ktask_change
-        .LKF\i:
+        2:
             sti
             iretq
         .size       isr_\i,     .-isr_\i
