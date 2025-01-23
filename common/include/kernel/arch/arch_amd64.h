@@ -65,8 +65,8 @@ inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus
 }
 template<typename T> concept integral_structure = std::is_integral_v<T> || std::is_same_v<T, byte> || std::is_same_v<T, word> || std::is_same_v<T, dword> || std::is_same_v<T, qword>;
-template<integral_structure I = byte> constexpr I in(uint16_t from) { I result; asm volatile(" in %1, %0 " : "=a"(result) : "Nd"(from) : "memory"); return result; }
-template<integral_structure I = byte> constexpr void out(uint16_t to, I value) { asm volatile(" out %0, %1 " :: "a"(value), "Nd"(to) : "memory"); }
+template<integral_structure I = byte> constexpr I in(uint16_t from) { I result; asm volatile("in %1, %0" : "=a"(result) : "Nd"(from) : "memory"); return result; }
+template<integral_structure I = byte> constexpr void out(uint16_t to, I value) { asm volatile("out %0, %1" :: "a"(value), "Nd"(to) : "memory"); }
 constexpr void outb(uint16_t to, byte value) { out(to, value); }
 constexpr byte inb(uint16_t from) { return in(from); }
 constexpr void io_wait() { outb(0x80, 0); }
@@ -93,7 +93,13 @@ constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_pi
 template<dword R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword{ lo, hi }; }
 template<dword R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
 constexpr dword kernel_gs_base = 0xC0000102;
+constexpr dword ia32_efer      = 0xC0000080;
+constexpr dword ia32_star      = 0xC0000081;
+constexpr dword lstar          = 0xC0000082;
+constexpr dword cstar          = 0xC0000083;
+constexpr dword sfmask         = 0xC0000084;
 constexpr void set_kernel_gs_base(vaddr_t value) { write_msr<kernel_gs_base>(value); }
+constexpr void init_syscall_msrs(vaddr_t syscall_target, qword flag_mask, word pl0_segbase, word pl3_segbase) { qword star = syscall_target; star.hi.lo = pl0_segbase; star.hi.hi = pl3_segbase; qword stbase =syscall_target; write_msr<ia32_star>(star); write_msr<cstar>(stbase); write_msr<lstar>(stbase); write_msr<sfmask>(flag_mask); qword efer = read_msr<ia32_efer>(); efer |= 1; write_msr<ia32_efer>(efer); }
 #endif
 #endif
 #endif

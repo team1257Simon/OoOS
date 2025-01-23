@@ -2,8 +2,15 @@
 #define __TASK
 #include "sys/types.h"
 #ifdef __cplusplus
+#include "functional"
+typedef int (attribute(sysv_abi) task_closure)(int, char**);
+typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
+typedef std::function<task_closure>* task_func_pointer;
 extern "C" 
 {
+#else
+typedef int (attribute(sysv_abi) *task_functor)(int argc, char** argv);
+typedef void* task_func_pointer;
 #endif
 struct uframe_tag;
 typedef enum
@@ -54,7 +61,7 @@ typedef struct __reg_state
     register_t  r13;    // BASE+0x58
     register_t  r14;    // BASE+0x60
     register_t  r15;    // BASE+0x68
-    register_t  rbp;    // BASE+0x70
+    vaddr_t     rbp;    // BASE+0x70
     vaddr_t     rsp;    // BASE+0x78
     vaddr_t     rip;    // BASE+0x80
     register_t  rflags; // BASE+0x88
@@ -77,43 +84,42 @@ typedef struct __task_control
         bool sysrq          : 1; // signal flag from process (only one for now)
         bool                : 4; // Look at me, I get to be the one reserving bits this time!
     } __align(1) __pack;
-    uint8_t sigcode;            // BASE+0x01; the code associated with a signal if applicable
+    uint8_t sigcode;            // BASE+0x01; the error code associated with a signal if applicable
     priority_val prio_base;     // BASE+0x02; the base priority of the thread/process
-    uint8_t skips;               // BASE+0x03; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
+    uint8_t skips;              // BASE+0x03; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
     uint32_t wait_ticks_delta;  // BASE+0x04; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
     int64_t parent_pid;         // BASE+0x08; a negative number indicates no parent
-    uint64_t task_id;           // BASE+0x10; pid or thread-id; kernel itself is zero
+    uint64_t task_id;           // BASE+0x10; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
     uint64_t run_split;         // BASE+0x18; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
     uint64_t run_time;          // BASE+0x20
                                 // BASE+0x28
 } __pack tcb_t;
 typedef struct __tls_store_t
 {
-    uintptr_t fs_baseptr;       // %fs:0x000; this will be a self-pointer
-    regstate_t saved_regs;      // %fs:0x008 - %fs:0x0A4
-    tcb_t tcb;                  // %fs:0x0A4 - %fs:0x0CC
-    fx_state fxsv;              // %fs:0x0CC - %fs:0x02CC; saved floating-point state
-    size_t data_size;           // %fs:0x02CC; the size of the following array
-    uint8_t tl_data[];          // %fs:0x02D4 - ???; will include thread-local variables like errno (eventually)
+    vaddr_t fs_baseptr;       // %fs:0x000; this will be a self-pointer
+    vaddr_t gs_baseptr;       // %fs:0x008; pointer back to gs base
+    size_t tl_data_size;      // %fs:0x010; size of the array following
+    char tl_data[];           // %fs:0x018 - ???; will include thread-local variables like errno (eventually)
 } __pack tls_t;
 typedef struct __task_info
 {
-    struct __task_info* self;           // %gs:0x000
-    vaddr_t frame_ptr;                  // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. For kernel tasks this will be null (kernel frame is a symbol and only accessible inside the kernel)
+    vaddr_t self;                       // %gs:0x000; self-pointer
+    vaddr_t frame_ptr;                  // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
     regstate_t saved_regs;              // %gs:0x010 - %gs:0x0B4
     uint16_t quantum_val;               // %gs:0x0B4; base amount of time allocated per timeslice
     uint16_t quantum_rem;               // %gs:0x0B6; amount of time remaining in the current timeslice
     tcb_t task_ctl;                     // %gs:0x0B8
     fx_state fxsv;                      // %gs:0x0E0 - %gs:0x2E0
     size_t num_child_procs;             // %gs:0x2E0
-    size_t num_threads;                 // %gs:0x2E8
-    struct __task_info* child_procs;    // %gs:0x2F0
-    tls_t* threads;                     // %gs:0x2F8
-    struct __task_info* next;           // %gs:0x300; updated when scheduling event fires.
+    vaddr_t* child_procs;               // %gs:0x2E8; array of pointers to child process info structures (for things like process-tree termination)
+    vaddr_t tls_block;                  // %gs:0x2F0; location for TLS 
+    vaddr_t next;                       // %gs:0x2F8; updated when scheduling event fires.
+    task_func_pointer exec_fn;          // %gs:0x300; called by wrapper entry function used if we can't get a direct C-style function pointer
 } __pack task_t;
 task_t* current_active_task();
-extern bool task_change_flag;
+[[noreturn]] void user_entry();
 void init_pit();
+int attribute(sysv_abi) task_wrapper_exec(int argc, char** argv);
 #ifdef __cplusplus
 }
 constexpr unsigned int ticks_per_millis{ 596591 };

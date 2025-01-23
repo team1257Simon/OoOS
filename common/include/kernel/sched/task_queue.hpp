@@ -58,14 +58,15 @@ public:
     constexpr task_wait_queue(size_type start_cap) : __base{ start_cap } { this->set_trim_stale(true); }
     void tick_wait() noexcept;
     unsigned int next_remaining_wait_ticks() const noexcept;
+    unsigned int cumulative_remaining_ticks() const noexcept;
     bool interrupt_wait(const_iterator where);
 };
-class user_level_task_queues : public std::array<task_pl_queue, 5>
+constexpr static priority_val escalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVEXTRA) return pv; return priority_val(int8_t(pv) + 1); }
+constexpr static priority_val deescalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVLOW) return pv; return priority_val(int8_t(pv) - 1); }
+class prio_level_task_queues : public std::array<task_pl_queue, 5>
 {
     typedef std::array<task_pl_queue, 5> __base;
     constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(int8_t(pv) + 1); }
-    constexpr static priority_val __escalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVEXTRA) return pv; return priority_val(int8_t(pv) + 1); }
-    constexpr static priority_val __deescalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVLOW) return pv; return priority_val(int8_t(pv) - 1); }
 public:
     task_pl_queue& operator[](priority_val pv) noexcept;
     task_pl_queue const& operator[](priority_val pv) const noexcept;

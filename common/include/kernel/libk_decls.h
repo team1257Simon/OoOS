@@ -23,17 +23,18 @@ void direct_writeln(const char* str);
 __isrcall void panic(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
-void tlb_flush();
-void set_cr3(void*);
-paging_table get_cr3() noexcept;
 void set_fs_base(void*);
 void set_gs_base(void*);
 void* get_fs_base();
 void* get_gs_base();
 qword get_flags();
 uintptr_t translate_vaddr(vaddr_t addr);
+uint64_t syscall_time(uint64_t* tm_target);
 #ifdef __cplusplus
 }
+inline void set_cr3(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
+inline paging_table get_cr3() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
+inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 constexpr inline size_t GIGABYTE = 0x40000000;
 template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;

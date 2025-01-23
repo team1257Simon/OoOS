@@ -3,9 +3,11 @@
     .global     task_change
     .global     ktask_change
     .global     current_active_task
+    .global     user_entry
     .type       task_change,            @function
     .type       ktask_change,           @function
     .type       current_active_task,    @function
+    .type       user_entry,             @function    
 task_change:
     movq        %rax,           %gs:0x010
     movw        32(%rsp),       %ax
@@ -38,12 +40,18 @@ task_change:
     movq        %r14,           %gs:0x070
     movq        %r15,           %gs:0x078
     movq        %rbp,           %gs:0x080
+    pushfq
+    popq        %rax
+    movq        %rax,           %gs:0x098
     movq        %gs:0x000,      %rax
     fxsave      0x0E0(%rax)
     movq        0x300(%rax),    %rax
     wrgsbase    %rax
     movq        %gs:0x000,      %rax
     fxrstor     0x0E0(%rax)
+    movq        %gs:0x098,      %rax
+    pushq       %rax
+    popfq
     movq        %gs:0x018,      %rbx
     movq        %gs:0x020,      %rcx
     movq        %gs:0x028,      %rdx
@@ -114,10 +122,12 @@ ktask_change:
     movq        %rbp,           %gs:0x080
     movq        %gs:0x000,      %rax
     fxsave      0x0E0(%rax)
-    movq        0x300(%rax),    %rax
+    movq        0x2F8(%rax),    %rax
     wrgsbase    %rax
     movq        %gs:0x000,      %rax
     fxrstor     0x0E0(%rax)
+    movq        %gs:0x2F0,      %rax
+    wrfsbase    %rax
     movq        %gs:0x018,      %rbx
     movq        %gs:0x020,      %rcx
     movq        %gs:0x028,      %rdx
@@ -157,3 +167,23 @@ current_active_task:
     movq        %gs:0x000,      %rax
     ret
     .size       current_active_task,    .-current_active_task
+user_entry:
+    cli
+    movq    %gs:0xAC,           %rax
+    movq    %rax,               %cr3
+    movq    %gs:0x010,          %rax    
+    movq    %gs:0x018,          %rbx
+    movq    %gs:0x090,          %rcx    # instruction pointer goes in the C register for a sysret
+    movq    %gs:0x028,          %rdx
+    movq    %gs:0x030,          %rdi
+    movq    %gs:0x038,          %rsi    
+    movq    %gs:0x098,          %r11    # flags must be in r11
+    movq    %gs:0x060,          %r12
+    movq    %gs:0x068,          %r13
+    movq    %gs:0x070,          %r14
+    movq    %gs:0x078,          %r15
+    movq    %gs:0x080,          %rbp
+    movq    %gs:0x088,          %rsp
+    sti
+    sysretq
+    .size       user_entry,             .-user_entry

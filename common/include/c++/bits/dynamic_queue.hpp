@@ -128,6 +128,7 @@ namespace std::__impl
         constexpr __size_type __pop_elements(__ptr out_start, __ptr out_end);
         constexpr __size_type __erase_elements(__const_ptr start, __size_type n = 1UL);
         constexpr __size_type __force_trim() { return __erase_before_next(); }
+        constexpr __ptr __insert(__const_ptr where, __const_ref what, __size_type how_many = 1UL);
         template<typename ... Args> requires std::constructible_from<T, Args...> constexpr __ptr __emplace_element(Args&& ... args) { if(__qmax() <= __end() && !this->__q_grow_buffer(1UL)) return nullptr; else { __ptr result = construct_at(__end(), forward<Args>(args)...); this->__bumpe(1L); return result; } }
         constexpr void __qdestroy() { if(__qbeg()) { __qallocator.deallocate(__qbeg(), __qcapacity()); __my_queue_data.__reset(); }  this->__op_cnt = 0; }
         constexpr void __qclear() { __size_type cap = __qcapacity(); __qdestroy(); __my_queue_data.__set_ptrs(__qallocator.allocate(cap), cap); this->__q_on_modify(); }
@@ -254,12 +255,35 @@ namespace std::__impl
             __size_type pstart{ static_cast<__size_type>(start - __qbeg()) };
             __size_type srem{ static_cast<__size_type>(__qmax() - (start + n)) };
             __qcopy(tmp.__begin, __qbeg(), pstart);
-            if(srem) __qcopy(tmp.__begin + pstart, start + n, srem);
+            if(srem) __qcopy(tmp.__q_get_ptr(pstart), start + n, srem);
             __qdestroy();
             __my_queue_data.__copy_ptrs(tmp);
             return n;
         }
         catch(...) { return __size_type(0); }
+    }
+    template <typename T, allocator_object<T> A>
+    constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__insert(__const_ptr where, __const_ref what, __size_type how_many)
+    {
+        if(__q_out_of_range(where)) return nullptr;
+        if(!how_many) return nullptr;
+        try
+        {
+            __ptr_container tmp{ __qallocator.allocate(__qcapacity() + how_many), __qcapacity() + how_many };
+            if(where < __qcur()) tmp.__bumpc(__tell() + how_many);
+            else tmp.__bumpc(__tell());
+            if(where < __end()) tmp.__bumpn(__qsize() + how_many);
+            else tmp.__bumpn(where - __qbeg());
+            __size_type preface_elems = where - __qbeg();
+            if(preface_elems) __qcopy(tmp.__begin, __qbeg(), preface_elems);
+            if(how_many == 1) *(tmp.__q_get_ptr(preface_elems)) = what;
+            else __qset(tmp.__q_get_ptr(preface_elems), what, how_many);
+            __qcopy(tmp.__q_get_ptr(preface_elems + how_many), __q_get_ptr(preface_elems), static_cast<__size_type>(__end() - where));
+            __qdestroy();
+            __my_queue_data.__copy_ptrs(tmp);
+            return __q_get_ptr(preface_elems + how_many - 1);
+        }
+        catch(...) { return nullptr; }
     }
 }
 #endif

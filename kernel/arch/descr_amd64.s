@@ -23,8 +23,8 @@ gdt_table:
     .quad       0                     # Null Descriptor
     .quad       0x00AF9A000000FFFF    # Code Segment for Ring 0; offset 0x8
     .quad       0x00CF92000000FFFF    # Data Segment for Ring 0; offset 0x10
-    .quad       0x00AFFA000000FFFF    # Code Segment for Ring 3; offset 0x18
-    .quad       0x00CFF2000000FFFF    # Data Segment for Ring 3; offset 0x20
+    .quad       0x00CFF2000000FFFF    # Data Segment for Ring 3; offset 0x18
+    .quad       0x00AFFA000000FFFF    # Code Segment for Ring 3; offset 0x20
 local_tss_descr:
     .zero       16
     .zero       4040

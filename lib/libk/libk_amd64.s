@@ -1,6 +1,6 @@
 #   libk_amd64.s
 #   Contains some extremely basic libc functions for x86-64 using low-level optimizations.
-#   Also implements some low-level functions, such as TLB flushes and hardware random accesses, which do not benefit from being inlined. 
+#   Also implements some low-level functions, such as hardware random accesses, which do not benefit from being inlined. 
     .code64
     .section    .text
     .altmacro
@@ -39,20 +39,6 @@
 .L2:
 	ret
 	.size	memchr,		.-memchr
-    defglobal tlb_flush
-    movq    %cr3,   %rax
-    movq    %rax,   %cr3
-    ret
-    .size   tlb_flush,    .-tlb_flush
-    defglobal set_cr3
-    movq    %rdi,   %rax
-    movq    %rax,   %cr3
-    ret
-    .size     set_cr3,     .-set_cr3
-    defglobal get_cr3
-    movq    %cr3,   %rax
-    ret
-    .size     get_cr3,     .-get_cr3
     defglobal __errno
     movq	$errno,		%rax
 	ret

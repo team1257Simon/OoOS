@@ -215,12 +215,13 @@ extern "C"
     extern void* isr_table[];
     extern void* svinst;
     extern void gdt_setup();
+    extern void do_syscall();
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
     [[noreturn]] void abort() { uint64_t *sp; asm volatile("movq %%rsp, %0" : "=r"(sp) :: "memory"); debug_print_num(*sp); startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
-    void kmain(sysinfo_t* si, mmap_t* mmap)
+    void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         cli();
         nmi_disable();
@@ -237,6 +238,7 @@ extern "C"
         idt_init();
         // The wrgsbase instruction will be enabled before the lidt method returns, so we can do this now.
         set_kernel_gs_base(&kproc);
+        init_syscall_msrs(vaddr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);
         sysinfo = si;
         fadt_t* fadt = nullptr;
         if(sysinfo->xsdt) fadt = find_fadt(sysinfo->xsdt);

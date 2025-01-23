@@ -34,6 +34,7 @@ namespace std
             typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
             constexpr resettable_queue() noexcept : __base{} {}
             constexpr resettable_queue(size_type st_cap, allocator_type const& alloc = allocator_type{}) : __base{ st_cap, alloc } {}
+            constexpr void reserve(size_type ncap) { if(this->__qcapacity() < ncap && ! this->__q_grow_buffer(static_cast<size_type>(ncap - this->__qcapacity()))) throw std::runtime_error{ "failed to allocate buffer" }; }
             constexpr size_type size() const noexcept { return this->__qrem(); }
             constexpr bool empty() const noexcept { return !this->__qsize(); }
             constexpr bool at_end() const noexcept { return !this->__qrem(); }
@@ -69,6 +70,9 @@ namespace std
             constexpr reference pop() { pointer result = this->__pop_next(); if(result) return *result; throw std::out_of_range{ "nothing to pop" }; }
             constexpr size_type erase(const_iterator start, const_iterator end) { return this->__erase_elements(start.base(), std::distance(start, end)); }
             constexpr size_type erase(const_iterator where) { return this->__erase_elements(where.base()); }
+            constexpr iterator insert(const_iterator where, const_reference what, size_type how_many = 1UL) { pointer result = this->__insert(where.base(), what, how_many); if(result) return iterator{ result }; return end(); }
+            extension constexpr iterator find(const_reference what, bool include_stale = false) noexcept { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+            extension constexpr const_iterator find(const_reference what, bool include_stale = false) const noexcept { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
             extension constexpr pointer unpop() noexcept { return this->__unpop(); }
             extension constexpr size_type trim() { return this->__force_trim(); }
             extension constexpr void set_trim_stale(bool enable = true) noexcept { __enable_trim_stale = enable; }

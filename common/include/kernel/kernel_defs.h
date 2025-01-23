@@ -2,7 +2,7 @@
 #define __KERNEL_DEF
 #include "stdint.h"
 #include "stddef.h"
-#define attribute(x) __attribute__(x)
+#define attribute(x) __attribute__((x))
 #define extension __extension__
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\sys\\core.elf"
@@ -12,8 +12,8 @@
 #define MMAP_MAX_PG 0x100000uL
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
-#define __pack attribute((packed))
-#define __align(n) attribute((aligned(n)))
+#define __pack attribute(packed)
+#define __align(n) attribute(aligned(n))
 #define __isrcall [[gnu::target("general-regs-only")]]
 #ifndef __cplusplus
 #ifdef NEED_STDBOOL
@@ -88,6 +88,13 @@ typedef struct __vaddr
     constexpr __vaddr(nullptr_t) noexcept : __vaddr{ 0ul } {}
     constexpr __vaddr(void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
     constexpr __vaddr(const void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
+    constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
+    constexpr explicit __vaddr(const volatile void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
+    template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(T* ptr) noexcept : __vaddr{ static_cast<void*>(ptr) } {}
+    template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(const T* ptr) noexcept : __vaddr{ static_cast<const void*>(ptr) } {}
+    template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(volatile T* ptr) noexcept : __vaddr{ static_cast<volatile void*>(ptr) } {}
+    template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(const volatile T* ptr) noexcept : __vaddr{ static_cast<const volatile void*>(ptr) } {}
+    template<typename RT, typename ... Args> constexpr explicit __vaddr(RT (*funcptr)(Args...)) noexcept : __vaddr{ std::bit_cast<void*>(funcptr) } {}
     constexpr __vaddr() = default;
     constexpr ~__vaddr() = default;
     constexpr __vaddr(__vaddr const&) = default;
@@ -122,12 +129,12 @@ typedef struct __vaddr
     template<non_void T> constexpr operator const volatile T*() const volatile noexcept { typedef const volatile void* cvvptr; return std::bit_cast<const volatile std::remove_cv_t<T>*>(cvvptr(*this)); }
     constexpr operator bool() const noexcept { return uintptr_t(*this) != 0; }
     constexpr bool operator!() const noexcept { return uintptr_t(*this) == 0; }
-    friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.operator uintptr_t() == __that.operator uintptr_t(); }
-    friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.operator uintptr_t(); }
-    friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.operator uintptr_t() - __that.operator uintptr_t(); }
-    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.operator uintptr_t() <=> __that.operator uintptr_t(); }
-    friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.operator uintptr_t(); }
-    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.operator uintptr_t() <=> __that; }
+    friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return uintptr_t(__this) == uintptr_t(__that); }
+    friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - uintptr_t(__that); }
+    friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return uintptr_t(__this) - uintptr_t(__that); }
+    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return uintptr_t(__this) <=> uintptr_t(__that); }
+    friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> uintptr_t(__that); }
+    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return uintptr_t(__this) <=> __that; }
 #else
     uint16_t offset     : 12;
     uint16_t page_idx   :  9;
@@ -427,7 +434,7 @@ typedef struct __mmap
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
-typedef void (attribute((sysv_abi)) *kernel_entry_fn) (sysinfo_t*, mmap_t*);
+typedef void (attribute(sysv_abi) *kernel_entry_fn) (sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
 typedef struct __byte
 {

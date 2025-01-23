@@ -14,7 +14,9 @@
 // 64 bits means new levels of l33tpuns! Now featuring Pokemon frustrations using literal suffixes.
 constexpr uint64_t BLOCK_MAGIC = 0xB1600FBA615FULL;
 // Of course, we wouldn't want to offend anyone, so... (the 7s are T's...don't judge me >.<)
-constexpr uint64_t FRAME_MAGIC = 0xD0BE7AC7FUL;
+constexpr uint64_t KFRAME_MAGIC = 0xD0BE7AC7FUL;
+// Oh yea we did...
+constexpr uint64_t UFRAME_MAGIC = 0xACED17C001B012;
 constexpr inline uint64_t REGION_SIZE = PAGESIZE * PT_LEN;
 struct block_tag
 {
@@ -46,7 +48,7 @@ struct block_tag
 } __pack;
 struct kframe_tag
 {
-    uint64_t magic{ FRAME_MAGIC };
+    uint64_t magic{ KFRAME_MAGIC };
     uint16_t complete_pages[MAX_BLOCK_EXP - MIN_BLOCK_EXP]{};
     block_tag* available_blocks[MAX_BLOCK_EXP - MIN_BLOCK_EXP]{};
 private:
@@ -74,7 +76,7 @@ struct uframe_tag
         vaddr_t start;
         size_t size;
     };
-    uint64_t magic{ FRAME_MAGIC };
+    uint64_t magic{ UFRAME_MAGIC };
     paging_table pml4;
     vaddr_t base;
     vaddr_t extent;

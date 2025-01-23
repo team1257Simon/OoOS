@@ -85,12 +85,12 @@ namespace std
         atomic_flag(atomic_flag const&) = delete;
         atomic_flag& operator=(atomic_flag const&) = delete;
         constexpr atomic_flag(bool __x) : __atomic_flag_base{ FLG(__x) } {}
-        INL bool test_and_set(memory_order __m = memory_order_seq_cst) noexcept { return __atomic_test_and_set(&__my_val, static_cast<int>(__m)); }
-        INL bool test_and_set(memory_order __m = memory_order_seq_cst) volatile noexcept { return __atomic_test_and_set(&__my_val, static_cast<int>(__m)); }
-        INL void clear(memory_order __m = memory_order_seq_cst) noexcept { __atomic_clear(&__my_val, static_cast<int>(__m)); }
-        INL void clear(memory_order __m = memory_order_seq_cst) volatile noexcept { __atomic_clear(&__my_val, static_cast<int>(__m)); }
-        INL bool test(memory_order __m = memory_order_seq_cst) const noexcept { __atomic_flag_data_type __v; __atomic_load(&__my_val, &__v, static_cast<int>(__m)); return __v == TRUEVAL; }
-        INL bool test(memory_order __m = memory_order_seq_cst) const volatile noexcept { __atomic_flag_data_type __v; __atomic_load(&__my_val, &__v, static_cast<int>(__m)); return __v == TRUEVAL; }
+        bool test_and_set(memory_order __m = memory_order_seq_cst) noexcept { return __atomic_test_and_set(&__my_val, static_cast<int>(__m)); }
+        bool test_and_set(memory_order __m = memory_order_seq_cst) volatile noexcept { return __atomic_test_and_set(&__my_val, static_cast<int>(__m)); }
+        void clear(memory_order __m = memory_order_seq_cst) noexcept { __atomic_clear(&__my_val, static_cast<int>(__m)); }
+        void clear(memory_order __m = memory_order_seq_cst) volatile noexcept { __atomic_clear(&__my_val, static_cast<int>(__m)); }
+        bool test(memory_order __m = memory_order_seq_cst) const noexcept { __atomic_flag_data_type __v; __atomic_load(&__my_val, &__v, static_cast<int>(__m)); return __v == TRUEVAL; }
+        bool test(memory_order __m = memory_order_seq_cst) const volatile noexcept { __atomic_flag_data_type __v; __atomic_load(&__my_val, &__v, static_cast<int>(__m)); return __v == TRUEVAL; }
     };
     template<__detail::__can_atomic T> 
     struct atomic
