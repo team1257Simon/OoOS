@@ -1,6 +1,6 @@
 #include "sched/scheduler.hpp"
 #include "isr_table.hpp"
-extern "C" std::atomic_flag task_change_flag;
+extern "C" std::atomic<bool> task_change_flag;
 scheduler scheduler::__instance{};
 bool scheduler::__has_init{ false };
 bool scheduler::__set_wait_time(task_t *task, unsigned int time, bool can_interrupt)
@@ -30,9 +30,16 @@ bool scheduler::__set_untimed_wait(task_t *task) { try { __non_timed_sleepers.pu
 void scheduler::register_task(task_t *task) { __my_queues[task->task_ctl.prio_base].push(task); }
 bool scheduler::unregister_task(task_t *task) 
 {
-    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task); i != __my_queues[priority_val::PVSYS].end()) { return __my_queues[priority_val::PVSYS].erase(i) != 0; } }
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end()) { return __my_queues[pv].erase(i) != 0; } }
+    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task, true); i != __my_queues[priority_val::PVSYS].end()) { return __my_queues[priority_val::PVSYS].erase(i) != 0; } }
+    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task, true); i != __my_queues[pv].end()) { return __my_queues[pv].erase(i) != 0; } }
     return false;
+}
+bool scheduler::unregister_task_tree(task_t *task)
+{
+    if(!task->num_child_procs || !task->child_procs) return unregister_task(task);
+    bool result = true;
+    for(size_t i = 0; i < task->num_child_procs; i++) result &= unregister_task(task->child_procs[i]);
+    return result && unregister_task(task);
 }
 __isrcall task_t *scheduler::select_next()
 {
@@ -77,20 +84,20 @@ __isrcall void scheduler::on_tick()
 {
     __my_sleepers.tick_wait();
     task_t* front_sleeper = __my_sleepers.next();
-    while(front_sleeper->task_ctl.wait_ticks_delta == 0)
+    while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta == 0)
     {
         __my_queues[front_sleeper->task_ctl.prio_base].push(__my_sleepers.pop());
         front_sleeper = __my_sleepers.next();
     }
     task_t* cur = current_active_task();
-    cur->quantum_rem--;
+    if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0)
     {
         if(task_t* next = select_next())
         {
             next->quantum_rem = next->quantum_val;
             cur->next = next;
-            task_change_flag.test_and_set();
+            task_change_flag.store(true);
             uint64_t ts = syscall_time(0);
             next->task_ctl.run_split = ts;
             cur->task_ctl.run_time += (ts - cur->task_ctl.run_split);
@@ -111,19 +118,23 @@ bool scheduler::init()
         panic(e.what());
         return false;
     }
+    task_change_flag.store(0);
     init_pit();
-    interrupt_table::add_irq_handler(0, LAMBDA_ISR() 
+    interrupt_table::add_irq_handler(0, LAMBDA_ISR()
     {
-        this->__my_subticks++;
-        if(this->__my_subticks >= ticks_per_millis)
+        if(this->__running)
         {
-            this->on_tick();
-            this->__my_subticks = 0;
-            this->__my_tick_cycles++;
-            if(this->__my_tick_cycles >= early_trunc_thresh)
+            this->__my_subticks++;
+            if(this->__my_subticks >= sub_tick_ratio)
             {
-                this->__my_subticks++;
-                this->__my_tick_cycles = 0;
+                this->on_tick();
+                this->__my_subticks = 0;
+                this->__my_tick_cycles++;
+                if(this->__my_tick_cycles >= early_trunc_thresh)
+                {
+                    this->__my_subticks++;
+                    if(this->__my_tick_cycles >= cycle_max) this->__my_tick_cycles = 0;
+                }
             }
         }
     });

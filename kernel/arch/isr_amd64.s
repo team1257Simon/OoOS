@@ -80,8 +80,6 @@ task_change_flag:
             call    isr_dispatch
             popq    %rdi
             popq    %rax
-            cmpw    $0x08, 8(%rsp)
-            je      1f
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
@@ -89,14 +87,6 @@ task_change_flag:
             jz      2f
             movb    $0,         task_change_flag
             jmp     task_change
-        1:
-            .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
-            addq    $8,         %rsp
-            .endif
-            cmpb    $0,         task_change_flag
-            jz      2f
-            movb    $0,         task_change_flag
-            jmp     ktask_change
         2:
             sti
             iretq

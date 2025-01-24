@@ -44,7 +44,7 @@ typedef struct __fx_state
     int128_t rsv1[3];           // BASE+0x1A0
     int128_t avail[3];          // BASE+0x1D0
                                 // BASE+0x200
-} __align(1) __pack fx_state;
+} __align(16) __pack fx_state;
 typedef struct __reg_state
 {
     register_t  rax;    // BASE+0x00
@@ -114,17 +114,17 @@ typedef struct __task_info
     vaddr_t* child_procs;               // %gs:0x2E8; array of pointers to child process info structures (for things like process-tree termination)
     vaddr_t tls_block;                  // %gs:0x2F0; location for TLS 
     vaddr_t next;                       // %gs:0x2F8; updated when scheduling event fires.
-    task_func_pointer exec_fn;          // %gs:0x300; called by wrapper entry function used if we can't get a direct C-style function pointer
-} __pack task_t;
+} __pack __align(16) task_t;
 task_t* current_active_task();
 [[noreturn]] void user_entry();
 void init_pit();
-int attribute(sysv_abi) task_wrapper_exec(int argc, char** argv);
+void init_tss(vaddr_t k_rsp);
 #ifdef __cplusplus
 }
-constexpr unsigned int ticks_per_millis{ 596591 };
-constexpr unsigned char early_trunc_thresh{ 6 };
-constexpr word pit_divisor{ 2ui8 };
+constexpr unsigned int sub_tick_ratio{ 157 };
+constexpr unsigned int early_trunc_thresh{ 5 };
+constexpr unsigned int cycle_max { 2280 };
+constexpr word pit_divisor{ 760ui16 };
 constexpr byte pit_mode{ 0x34ui8 };
 constexpr word port_pit_data{ 0x40ui16 };
 constexpr word port_pit_cmd{ 0x43ui16 };

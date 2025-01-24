@@ -20,7 +20,9 @@ do_syscall:
     movq    %rsp,                   %gs:0x88
     movq    %rbp,                   %gs:0x80
     movq    %rcx,                   %gs:0x90
+    movq    %gs:0x00,               %rcx
     swapgs
+    movq    %rcx,                   %gs:0x2F8
     movq    %gs:0x88,               %rsp
     movq    %gs:0x80,               %rbp
     leaq    syscall_vec(,%rax,8),   %rax

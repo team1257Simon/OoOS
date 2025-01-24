@@ -17,7 +17,7 @@ typedef std::ext::resettable_queue<task_t*, std::allocator<task_t*>> task_ptr_qu
 class task_pl_queue : public task_ptr_queue_base
 {
     typedef task_ptr_queue_base __base;
-    uint8_t __skips_threshold{ 50u };
+    uint8_t __skips_threshold{ 5u };
 public:
     using __base::value_type;
     using __base::allocator_type;

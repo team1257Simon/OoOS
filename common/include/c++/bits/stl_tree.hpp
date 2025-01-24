@@ -214,8 +214,8 @@ namespace std
         __compare_type __comparator{};
         __alloc_type __alloc{};
         constexpr bool __compare(__b_ptr p, __b_ptr q) { return __comparator(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
-        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_r(__b_ptr p, U const& u) { return __comparator(static_cast<__link>(p)->__get_ref(), u); }
-        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_l(U const& u, __b_ptr p) { return __comparator(u, static_cast<__link>(p)->__get_ref()); }
+        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_r(__cb_ptr p, U const& u) const { return __comparator(static_cast<__const_link>(p)->__get_ref(), u); }
+        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_l(U const& u, __cb_ptr p) const { return __comparator(u, static_cast<__const_link>(p)->__get_ref()); }
         constexpr __link __get_root() noexcept { return static_cast<__link>(this->__trunk.__my_parent); }
         constexpr __link __end() noexcept { return static_cast<__link>(&this->__trunk); }
         constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(this->__trunk.__my_parent); }

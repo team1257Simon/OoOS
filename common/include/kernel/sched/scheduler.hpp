@@ -9,7 +9,8 @@ class scheduler
     task_wait_queue __my_sleepers{};
     std::vector<task_t*> __non_timed_sleepers{};
     std::atomic<unsigned> __my_subticks{};
-    std::atomic<unsigned char> __my_tick_cycles{};
+    std::atomic<unsigned> __my_tick_cycles{};
+    bool __running{ false };
     static scheduler __instance;
     static bool __has_init;
     bool __set_wait_time(task_t* task, unsigned int time, bool can_interrupt);
@@ -22,8 +23,12 @@ protected:
 public:
     scheduler(scheduler const&) = delete;
     scheduler& operator=(scheduler const&) = delete;
+    constexpr bool is_running() const noexcept { return __running; }
+    constexpr void start() noexcept { __running = true; }
+    constexpr void stop() noexcept { __running = false; }
     void register_task(task_t* task);
     bool unregister_task(task_t* task);
+    bool unregister_task_tree(task_t* task);
     bool set_wait_untimed(task_t* task);
     bool set_wait_timed(task_t* task, unsigned int time, bool can_interrupt = true);
     static bool init_instance();

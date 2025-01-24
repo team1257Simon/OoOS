@@ -167,8 +167,7 @@ namespace std::__impl
     constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(T const& t, typename __dynamic_queue<T, A>::__size_type count)
     {
         if(__qmax() <= __end() + count && !this->__q_grow_buffer(__size_type(count - this->__cap_rem()))) return nullptr;
-        if(count == 1UL) *(this->__end()) = t;
-        else this->__qset(this->__end(), t, count);
+        this->__qset(this->__end(), t, count);
         this->__bumpe(count);
         this->__op_cnt++;
         this->__q_on_modify();
@@ -191,8 +190,7 @@ namespace std::__impl
         if(end == start) return __end();
         __size_type n = end - start;
         if(this->__qmax() <= this->__end() + n && !this->__q_grow_buffer(__size_type(n - this->__cap_rem()))) return nullptr;
-        if(n == 1) *(this->__end()) = *start;
-        else this->__qcopy(this->__end(), start, n);
+        this->__qcopy(this->__end(), start, n);
         this->__bumpe(n);
         this->__op_cnt++;
         this->__q_on_modify();
@@ -203,8 +201,7 @@ namespace std::__impl
     {
         if(out_end <= out_start) return 0uL;
         __size_type count = std::min(this->__qrem(), __size_type(out_end - out_start));
-        if(count == 1) *out_start = *(this->__qcur());
-        else this->__qcopy(out_start, this->__qcur(), count);
+        this->__qcopy(out_start, this->__qcur(), count);
         this->__bumpn(count);
         this->__op_cnt = 0;
         this->__q_on_modify();

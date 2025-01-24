@@ -71,8 +71,8 @@ namespace std
             constexpr size_type erase(const_iterator start, const_iterator end) { return this->__erase_elements(start.base(), std::distance(start, end)); }
             constexpr size_type erase(const_iterator where) { return this->__erase_elements(where.base()); }
             constexpr iterator insert(const_iterator where, const_reference what, size_type how_many = 1UL) { pointer result = this->__insert(where.base(), what, how_many); if(result) return iterator{ result }; return end(); }
-            extension constexpr iterator find(const_reference what, bool include_stale = false) noexcept { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
-            extension constexpr const_iterator find(const_reference what, bool include_stale = false) const noexcept { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+            extension constexpr iterator find(const_reference what, bool include_stale = false) noexcept requires equality_comparable<value_type> { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+            extension constexpr const_iterator find(const_reference what, bool include_stale = false) const noexcept requires equality_comparable<value_type> { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
             extension constexpr pointer unpop() noexcept { return this->__unpop(); }
             extension constexpr size_type trim() { return this->__force_trim(); }
             extension constexpr void set_trim_stale(bool enable = true) noexcept { __enable_trim_stale = enable; }

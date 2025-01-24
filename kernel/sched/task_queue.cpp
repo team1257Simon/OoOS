@@ -1,7 +1,9 @@
 #include "sched/task_queue.hpp"
 #include "kernel/libk_decls.h"
 #include "arch/arch_amd64.h"
-void init_pit() { outb(port_pit_cmd, pit_mode); outb(port_pit_data, pit_divisor.lo); outb(port_pit_data, pit_divisor.hi); }
+extern "C" tss system_tss;
+extern "C" void init_pit() { outb(port_pit_cmd, pit_mode); outb(port_pit_data, pit_divisor.lo); outb(port_pit_data, pit_divisor.hi); }
+extern "C" void init_tss(vaddr_t k_rsp) { system_tss.rsp[0] = k_rsp; system_tss.rsp[1] = k_rsp; system_tss.rsp[2] = k_rsp; }
 void task_pl_queue::on_skipped() noexcept { if(!this->empty() && !this->at_end()) { this->next()->task_ctl.skips++; } }
 bool task_pl_queue::skip_flag() noexcept { return !this->empty() && !this->at_end() && this->next()->task_ctl.skips > __skips_threshold; }
 bool task_pl_queue::transfer_next(task_ptr_queue_base &to_whom) { return !this->empty() && !this->at_end() && this->transfer(to_whom) != 0; }

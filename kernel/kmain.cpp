@@ -4,7 +4,9 @@
 #include "heap_allocator.hpp"
 #include "rtc.h"
 #include "keyboard_driver.hpp"
-#include "sched/task.h"
+#include "sched/task_ctx.hpp"
+#include "sched/scheduler.hpp"
+#include "sched/task_list.hpp"
 #include "fs/data_buffer.hpp"
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
@@ -15,17 +17,26 @@
 #include "map"
 #include "algorithm"
 extern psf2_t* __startup_font;
-extern "C" uint64_t errinst;
 static std::atomic<uint64_t> t_ticks;
 static direct_text_render startup_tty;
-static bool direct_print_enable = false;
 static serial_driver_amd64* com;
-static sysinfo_t* sysinfo;    
-ramfs testramfs;
-static char dbgbuf[19]{'0', 'x'};
-constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+static sysinfo_t* sysinfo;
+static task_list test_task_list;
+static ramfs testramfs;
+static bool direct_print_enable{ false };
+static char dbgbuf[19]{ '0', 'x' };
+const char* test_argv{ "Hello task world " };
+static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+extern "C"
+{
+    extern uint64_t errinst;
+    extern kframe_tag* __kernel_frame_tag;
+    extern void* isr_table[];
+    extern void* svinst;
+    task_t kproc{};
+}
 static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
-void descr_pt(partition_table const& pt)
+static void descr_pt(partition_table const& pt)
 {
     for(partition_entry_t e : pt)
     {
@@ -79,7 +90,6 @@ void serial_tests()
 {
     if(com)
     {
-        interrupt_table::add_irq_handler(4, LAMBDA_ISR() { size_t n = com->in_avail(); char buf[n]; com->sgetn(buf, n); direct_write("[ "); for(size_t i = 0; i < n; i++) { debug_print_num(buf[i], 2); } direct_write("]"); });
         com->sputn("Hello Serial!\n", 14);
         com->pubsync();
     }
@@ -92,8 +102,7 @@ void str_tests()
     startup_tty.print_line(std::to_string(3.14159265358L));
     startup_tty.print_line(std::to_string(rand()));
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
-    std::vector<std::string> test_vec = std::ext::split(test_str, "/");
-    for(std::string s : test_vec) startup_tty.print_text(s + " ");
+    for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
 }
 void ahci_tests()
@@ -138,34 +147,46 @@ void vfs_tests()
         startup_tty.print_line("NOTE: made it to the catch block; the above error was intentional!");
     }
 }
-void queue_tests()
+int test_task_1(int argc, char** argv)
 {
-    using namespace std;
-    using namespace std::ext;
-    try 
-    {
-        resettable_queue<string> q1{};
-        resettable_queue<string> q2{};
-        q1.emplace("blerple");
-        q1.emplace("derple");
-        q1.emplace("merple");
-        q2.emplace("yerple");
-        q2.emplace("zerple");
-        q2.emplace("herple");
-        startup_tty.print_line(q1.pop());
-        startup_tty.print_line(q1.pop());
-        string* ptr = q1.unpop();
-        if(ptr) startup_tty.print_line(*ptr);
-        else startup_tty.print_line("( :( )");
-        q1.transfer(q2, 2);
-        for(resettable_queue<string>::iterator i = q2.begin(); i != q2.end(); i++) startup_tty.print_line(*i);
-        q1.restart();
-        for(resettable_queue<string>::iterator i = q1.current(); i != q1.end(); i++) startup_tty.print_line(*i);  
-    }
-    catch(std::exception& e) { panic(e.what()); }
+    direct_write(argv[0]);
+    direct_writeln("in task 1");
+    return 1;
+}
+int test_task_2(int argc, char** argv)
+{
+    direct_write(argv[0]);
+    direct_writeln("in task 2");
+    return 2;
+}
+void test_landing_pad()
+{
+    long retv;
+    asm volatile("movq %%rax, %0" : "=r"(retv) :: "memory");
+    direct_writeln("Landed!");
+    cli();
+    task_ctx* ctx = current_active_task()->self;
+    heap_allocator::get().deallocate_block(ctx->allocated_stack, ctx->stack_allocated_size);
+    heap_allocator::get().deallocate_block(ctx->tls, ctx->tls_size);
+    scheduler::get().unregister_task(current_active_task());
+    test_task_list.erase(ctx->get_pid());
+    set_gs_base(&kproc);
+    sti();
+    startup_tty.print_line("returned " + std::to_string(retv));
+    while(1);
+}
+void task_tests()
+{
+    vaddr_t exit_test_fn{ &test_landing_pad };
+    task_list::iterator tt1 = test_task_list.create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVNORM);
+    task_list::iterator tt2 = test_task_list.create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
+    tt1->start_task(exit_test_fn);
+    tt2->start_task(exit_test_fn);
+    scheduler::get().start();
 }
 void run_tests()
 {
+    // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword ecode)
     {
         if(idx < 0x20) 
@@ -190,19 +211,22 @@ void run_tests()
             __builtin_unreachable();
         }
     });
-    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks++; });
+    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks++; }); // There will be three callbacks on IRQ zero: the RTC, the scheduler, and this lil boi
+    // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
     startup_tty.print_line("string test...");
     str_tests();
+    startup_tty.print_line("map test...");
+    map_tests();
+    // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
     serial_tests();
     startup_tty.print_line("disk test...");
     ahci_tests();
-    startup_tty.print_line("map test...");
-    map_tests();
+    // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();
-    startup_tty.print_line("queue tests...");
-    queue_tests();
+    startup_tty.print_line("task tests...");
+    task_tests();
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { return &testramfs; }
@@ -210,19 +234,18 @@ void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
 {
-    task_t kproc{};
     extern void _init();
-    extern void* isr_table[];
-    extern void* svinst;
     extern void gdt_setup();
     extern void do_syscall();
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
-    [[noreturn]] void abort() { uint64_t *sp; asm volatile("movq %%rsp, %0" : "=r"(sp) :: "memory"); debug_print_num(*sp); startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1) { asm volatile("hlt" ::: "memory"); } }
+    [[noreturn]] void abort() { uint64_t *sp; asm volatile("movq %%rsp, %0" : "=r"(sp) :: "memory"); debug_print_num(*sp); startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1); }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
+        // Most of the current kmain is tests...because ya know.
+        // Don't want to get interrupted during early initialization...
         cli();
         nmi_disable();
         kproc.self = &kproc;
@@ -238,9 +261,11 @@ extern "C"
         idt_init();
         // The wrgsbase instruction will be enabled before the lidt method returns, so we can do this now.
         set_kernel_gs_base(&kproc);
+        // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
         init_syscall_msrs(vaddr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);
         sysinfo = si;
         fadt_t* fadt = nullptr;
+        // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
         if(sysinfo->xsdt) fadt = find_fadt(sysinfo->xsdt);
         if(fadt) rtc_driver::init_instance(fadt->century_register);
         else rtc_driver::init_instance();
@@ -253,11 +278,18 @@ extern "C"
         if(serial_driver_amd64::init_instance()) com = serial_driver_amd64::get_instance();
         nmi_enable();
         sti();
+        // There needs to be a separate stack allocated for ISRs in the TSS for usermode to work
+        vaddr_t k_isr_stack = heap_allocator::get().allocate_kernel_block(S04);
+        init_tss(k_isr_stack);
+        // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running
+        set_gs_base(&kproc);
+        scheduler::init_instance();
         direct_print_enable = true;
         try
         {
             // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
             run_tests();
+            // The test tasks might trip after this point, so add a backstop to avoid any shenanigans
             while(1);  
         } 
         catch(std::exception& e)

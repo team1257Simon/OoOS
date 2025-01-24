@@ -34,10 +34,10 @@ extern "C"
 typedef struct __tss_bits
 {
     uint32_t : 32;
-    uint32_t rsp[6];
+    vaddr_t rsp[3];
     uint32_t : 32;
     uint32_t : 32;
-    uint32_t ist[14];
+    vaddr_t ist[7];
     uint32_t : 32;
     uint32_t : 32;
     union
