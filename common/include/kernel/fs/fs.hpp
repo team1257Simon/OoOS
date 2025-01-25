@@ -11,6 +11,7 @@
 #include "vector"
 #include "set"
 #include "fs/vfs_filebuf_base.hpp"
+#include "sys/stat.h"
 struct file_mode
 {
     bool exec_others  : 1;
@@ -206,7 +207,8 @@ protected:
     virtual void dldirnode(folder_inode*) = 0;
     virtual file_inode* mkfilenode(folder_inode*, std::string const&) = 0;
     virtual folder_inode* mkdirnode(folder_inode*, std::string const&) = 0;
-    virtual void syncdirs() = 0;    
+    virtual void syncdirs() = 0;
+    virtual dev_t xgdevid() const noexcept = 0;
     virtual void dldevnode(device_inode*);
     virtual device_inode* mkdevnode(folder_inode*, std::string const&, vfs_filebuf_base<char>*);
     virtual const char* path_separator() const noexcept;
@@ -217,8 +219,10 @@ protected:
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
 public:
     file_inode* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
+    file_inode* get_file(std::string const& path);
     folder_inode* get_folder(std::string const& path, bool create = true);
     file_inode* get_fd(int fd);
+    dev_t get_dev_id() const noexcept;
     device_inode* lndev(std::string const& where, vfs_filebuf_base<char>* what, bool create_parents = true);
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     void close_file(file_inode* fd);
@@ -234,5 +238,9 @@ extern "C"
     int syscall_link(char* old, char* __new);
     int syscall_unlink(char* name);
     int syscall_isatty(int fd);
+    int syscall_fstat(int fd, struct stat* st);
+    int syscall_stat(const char* restrict name, struct stat* restrict st);
+    int fchmod(int fd, mode_t m);
+    int chmod(const char* name, mode_t m);
 }
 #endif

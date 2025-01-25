@@ -11,20 +11,15 @@ task_change:
     popq        %rax    
     movq        %rax,           %gs:0x090
     popq        %rax
-    movw        %ax,            %gs:0x0AA
+    movw        %ax,            %gs:0x0A4
     popq        %rax
     movq        %rax,           %gs:0x098
     popq        %rax
     movq        %rax,           %gs:0x088
     popq        %rax
-    movw        %ax,            %gs:0x0A4
+    movw        %ax,            %gs:0x0A2
     movw        %ds,            %ax
     movw        %ax,            %gs:0x0A0
-    movw        %ax,            %gs:0x0A2
-    movw        %fs,            %ax
-    movw        %ax,            %gs:0x0A6
-    movw        %gs,            %ax
-    movw        %ax,            %gs:0x0A8
     movq        %rbx,           %gs:0x018
     movq        %rcx,           %gs:0x020
     movq        %rdx,           %gs:0x028
@@ -39,12 +34,14 @@ task_change:
     movq        %r14,           %gs:0x070
     movq        %r15,           %gs:0x078
     movq        %rbp,           %gs:0x080
+    movq        %cr3,           %rax
+    movq        %rax,           %gs:0x0A6
     movq        %gs:0x000,      %rax
-    fxsave      0x0E0(%rax)
-    movq        0x2F8(%rax),    %rax
+    fxsave      0x0D0(%rax)
+    movq        0x300(%rax),    %rax
     wrgsbase    %rax
-    fxrstor     0x0E0(%rax)
-    movq        %gs:0x2F0,      %rax
+    fxrstor     0x0D0(%rax)
+    movq        %gs:0x2E8,      %rax
     wrfsbase    %rax
     movq        %gs:0x018,      %rbx
     movq        %gs:0x020,      %rcx
@@ -60,19 +57,19 @@ task_change:
     movq        %gs:0x070,      %r14
     movq        %gs:0x078,      %r15
     movq        %gs:0x080,      %rbp
-    movw        %gs:0x0A4,      %ax
+    movw        %gs:0x0A2,      %ax
     pushq       %rax
     movq        %gs:0x088,      %rax
     pushq       %rax
     movq        %gs:0x098,      %rax
     pushq       %rax
-    movw        %gs:0x0AA,      %ax
+    movw        %gs:0x0A4,      %ax
     pushq       %rax
     movq        %gs:0x090,      %rax
     pushq       %rax
     movw        %gs:0x0A0,      %ax
     movw        %ax,            %ds
-    movq        %gs:0x0AC,      %rax
+    movq        %gs:0x0A6,      %rax
     movq        %rax,           %cr3
     movq        %gs:0x010,      %rax
     sti
@@ -84,7 +81,7 @@ current_active_task:
     .size       current_active_task,    .-current_active_task
 user_entry:
     cli
-    movq    %gs:0xAC,           %rax
+    movq    %gs:0x0AC,          %rax
     movq    %rax,               %cr3
     movq    %gs:0x010,          %rax    
     movq    %gs:0x018,          %rbx

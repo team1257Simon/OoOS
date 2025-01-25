@@ -16,3 +16,4 @@ void ramfs::dldirnode(folder_inode *dd)
 file_inode *ramfs::mkfilenode(folder_inode *parent, std::string const &name) { return std::addressof(*(__file_nodes.emplace(name, this->next_fd++).first)); }
 folder_inode *ramfs::mkdirnode(folder_inode *parent, std::string const &name) { return std::addressof(*(__folder_nodes.emplace(name).first)); }
 void ramfs::syncdirs() { for(ramfs_folder_inode& folder : __folder_nodes) folder.fsync(); }
+dev_t ramfs::xgdevid() const noexcept { return ramfs_magic; }

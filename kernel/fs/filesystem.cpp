@@ -2,6 +2,7 @@
 #include "algorithm"
 #include "stdexcept"
 #include "errno.h"
+static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
 void filesystem::__put_fd(file_inode *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files[fd->vid()] = fd; for(std::vector<file_inode*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
 const char *filesystem::path_separator() const noexcept { return "/"; }
 void filesystem::close_file(file_inode* fd) { this->close_fd(fd); fd->rel_lock(); }
@@ -53,7 +54,7 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
         if(!cur)
         {
             if(create) { cur = node->add(this->mkdirnode(node, pathspec[i])); node = cur->as_folder(); }
-            else{ throw std::runtime_error{ "folder " + pathspec[i] + " does not exist (use get_folder(\".../" + pathspec[i] + "\", true) to create it)" };}
+            else{ throw std::logic_error{ "folder " + pathspec[i] + " does not exist (use get_folder(\".../" + pathspec[i] + "\", true) to create it)" };}
         }
         else if(cur->is_folder()) node = cur->as_folder();
         else throw std::logic_error{ "path is invalid because entry " + pathspec[i] + " is a file" };
@@ -82,6 +83,12 @@ file_inode* filesystem::open_file(std::string const& path, std::ios_base::openmo
     this->__put_fd(result);
     return result;
 }
+file_inode *filesystem::get_file(std::string const &path)
+{
+    target_pair parent{ this->get_parent(path, false) };
+    if(tnode* node{ parent.first->find(parent.second) }) { return node->as_file(); }
+    else throw std::runtime_error{ "file not found: " + path };
+}
 folder_inode *filesystem::get_folder(std::string const& path, bool create)
 {
     if(path.empty()) return this->get_root_directory(); // empty path or "/" refers to root directory
@@ -90,7 +97,7 @@ folder_inode *filesystem::get_folder(std::string const& path, bool create)
     if(!node)
     {
         if(create) { node = parent.first->add(this->mkdirnode(parent.first, parent.second)); return node->as_folder(); }
-        else throw std::runtime_error{ "path " + path + " does not exist (use get_folder(\"" + path + "\", true) to create it)" };
+        else throw std::logic_error{ "path " + path + " does not exist (use get_folder(\"" + path + "\", true) to create it)" };
     }
     else if (node->is_file()) throw std::logic_error{ "path " + path + " exists and is a file" };
     else return node->as_folder();
@@ -99,56 +106,86 @@ file_inode* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_op
 device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, bool create_parents) { target_pair parent{ this->get_parent(where, create_parents) }; if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; return this->mkdevnode(parent.first, parent.second, what); }
 tnode *filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
+dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
+static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) { new (st) stat{ fsptr->get_dev_id(), n->cid(), n->mode, n->num_refs(), 0, 0, n->is_device() ? 1U : 0, static_cast<long>(n->size()), timestamp_to_timespec(n->create_time), timestamp_to_timespec(n->modif_time), timestamp_to_timespec(n->modif_time), 512, n->size() / 512 };  }
 extern "C"
 {
     int syscall_open(char *name, int flags, ...)
     {
         filesystem* fsptr{ get_fs_instance() };
-        if(!fsptr) return ENOSYS;
+        if(!fsptr) return -ENOSYS;
         uint8_t smallflags{ static_cast<uint8_t>(flags) };
-        try { if(file_inode* n{ fsptr->open_file(name, std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); }
-        return EINVAL;
+        try { if(file_inode* n{ fsptr->open_file(name, std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        return -EINVAL;
     }
     int syscall_close(int fd)
     {
         filesystem* fsptr{ get_fs_instance() };
-        if(!fsptr) return ENOSYS;
+        if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
         return EINVAL;
     }
     int syscall_write(int fd, char *ptr, int len)
     {
         filesystem* fsptr{ get_fs_instance() };
-        if(!fsptr) return ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+        if(!fsptr) return -ENOSYS;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return EINVAL;
     }
     int syscall_read(int fd, char *ptr, int len)
     {
         filesystem* fsptr{ get_fs_instance() };
-        if(!fsptr) return ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
-        return EINVAL;
+        if(!fsptr) return -ENOSYS;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(ptr, len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
     }
     int syscall_link(char *old, char *__new)
     {
         filesystem* fsptr{ get_fs_instance() };
-        if(!fsptr) return ENOSYS;
-        try { return fsptr->link(old, __new) != nullptr ? 0 : ENOENT; } catch(std::exception& e) { panic(e.what()); }
-        return EINVAL;
+        if(!fsptr) return -ENOSYS;
+        try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
     }
     int syscall_unlink(char *name)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return ENOSYS;
-        try { return fsptr->unlink(name) ? 0 : ENOENT; } catch(std::exception& e) { panic(e.what()); }
-        return EINVAL;
+        try { return fsptr->unlink(name) ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
     }
     int syscall_isatty(int fd)
     {
         filesystem* fsptr{ get_fs_instance() };
-        if(!fsptr) return 0;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) return n->is_device() ? 1 : 0; } catch(std::exception& e) { panic(e.what()); }
-        return 0;
+        if(!fsptr) return -ENOSYS;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
+    }
+    int syscall_fstat(int fd, stat *st)
+    {
+        filesystem* fsptr{ get_fs_instance() };
+        if(!fsptr) return -ENOSYS;
+        try{ if(file_inode* n{ fsptr->get_fd(fd) }) { __st_intl(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
+    }
+    int syscall_stat(const char *restrict name, stat *restrict st)
+    {
+        filesystem* fsptr{ get_fs_instance() };
+        if(!fsptr) return -ENOSYS;
+        try{ if(file_inode* n{ fsptr->get_file(name) }) { __st_intl(n, fsptr, st); return 0; } else if(folder_inode* n{ fsptr->get_folder(name, false) }) { __st_intl(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
+        return -EINVAL;
+    }
+    int fchmod(int fd, mode_t m)
+    {
+        filesystem* fsptr{ get_fs_instance() };
+        if(!fsptr) return -ENOSYS;
+        try{ if(file_inode* n{ fsptr->get_fd(fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
+    }
+    int chmod(const char *name, mode_t m)
+    {
+        filesystem* fsptr{ get_fs_instance() };
+        if(!fsptr) return -ENOSYS;
+        try { if(file_inode* n{ fsptr->get_file(name) }) { n->mode = m; return 0; } else return -EISDIR; } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        return -EINVAL;
     }
 }

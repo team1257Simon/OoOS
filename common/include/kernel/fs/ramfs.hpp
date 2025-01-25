@@ -2,6 +2,7 @@
 #define __RAMFS
 #include "fs/fs.hpp"
 #include "fs/generic_binary_buffer.hpp"
+constexpr dev_t ramfs_magic = 0xC001B015BEDAB;
 class ramfs_folder_inode : public folder_inode
 {
     tnode_dir __my_dir{};
@@ -48,6 +49,7 @@ protected:
     virtual void syncdirs() override;
     virtual file_inode* mkfilenode(folder_inode* parent, std::string const& name) override;
     virtual folder_inode* mkdirnode(folder_inode* parent, std::string const& name) override;
+    virtual dev_t xgdevid() const noexcept override;
 public:
     ramfs() = default;
 };

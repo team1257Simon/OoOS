@@ -191,8 +191,6 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
 }
 int main(int argc, char** argv)
 {
-    // In order to be able to map pages in the kernel, we need to disable the WP bit so that ring 0 can write to the paging tables
-    asm volatile("movq %%cr0, %%rax\n" "andq %0, %%rax\n" "movq %%rax, %%cr0" :: "i"(0xFFFEFFFF) : "%rax");
     (void)argc;
     (void)argv;
     efi_status_t status;

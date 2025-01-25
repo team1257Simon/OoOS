@@ -198,6 +198,7 @@ public:
     vaddr_t allocate_kernel_block(size_t sz);
     vaddr_t allocate_mmio_block(size_t sz);
     vaddr_t allocate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
+    vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
     void deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap = false);
 };
 extern "C" vaddr_t syscall_sbrk(ptrdiff_t incr);

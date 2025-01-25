@@ -19,7 +19,7 @@ export AR
 export CXX
 export CC
 export ASMT_DIR
-SUBDIRS = libk libc
+SUBDIRS = libk
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
 $(SUBDIRS):
@@ -30,4 +30,3 @@ clean:
 	rm -rf $(OUTDIR)/*.a $(OUTDIR)/*.o || true
 asmtest:
 	cd libk && $(MAKE) asmtest
-	cd libc && $(MAKE) asmtest

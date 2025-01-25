@@ -1,6 +1,6 @@
 #include "fs/fs.hpp"
 #include "rtc.h"
-inode::inode(std::string const &name, int vfd, uint64_t cid) : fd{ vfd }, real_id{ cid }, create_time{ syscall_time(0) }, modif_time{ create_time }, concrete_name{ name } {}
+inode::inode(std::string const &name, int vfd, uint64_t cid) : fd{ vfd }, real_id{ cid }, create_time{ syscall_time(nullptr) }, modif_time{ create_time }, concrete_name{ name } {}
 int inode::vid() const noexcept { return fd; }
 void inode::vid(int id) noexcept { this->fd = id; }
 uint64_t inode::cid() const noexcept { return real_id; }

@@ -1,6 +1,6 @@
 #ifndef __REALTIME_CLOCK
 #define __REALTIME_CLOCK
-#include "kernel/kernel_defs.h"
+#include "sys/time.h"
 #include "kernel/isr_table.hpp"
 #include "atomic"
 constexpr uint16_t UNIX_YEAR_BASE = 1970u;
@@ -17,6 +17,7 @@ struct rtc_time
     uint8_t month;
     uint16_t year;
 } __pack;
+int syscall_gettimeofday(struct timeval* restrict tm, void* restrict tz);
 #ifdef __cplusplus
 }
 class rtc_driver
@@ -34,6 +35,7 @@ public:
     rtc_time get_time() volatile;
     uint64_t get_timestamp() volatile;
 };
+constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts / 1000U, (ts % 1000U) * 1000U }; }
 #endif
 struct fadt_t* find_fadt(struct xsdt_t* xsdt);
 #endif

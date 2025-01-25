@@ -4,6 +4,7 @@
 #include "compare"
 #include "vector"
 #include "heap_allocator.hpp"
+#include "sys/times.h"
 struct task_ctx
 {
     task_t task_struct;                     //  The c-style struct from task.h; gs base will point here when the task is active
@@ -17,6 +18,7 @@ struct task_ctx
     constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
     constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == KFRAME_MAGIC; }
+    constexpr bool is_user() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == UFRAME_MAGIC; }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.get_pid() <=> __that.get_pid(); }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
@@ -24,7 +26,13 @@ struct task_ctx
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
     void start_task(vaddr_t exit_fn);
+    tms get_times() const noexcept;
 private:
     void __init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr);
 } __align(16);
+extern "C"
+{
+    clock_t syscall_times(struct tms* out);
+    long syscall_getpid();
+}
 #endif

@@ -145,7 +145,7 @@ static void __set_kernel_global(uintptr_t max)
         if(pt) pt[addr.page_idx].global = true;
     }
 }
-static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages)
+static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
 {
     if(!start) return nullptr; 
     vaddr_t curr{ __skip_mmio(start, pages) };
@@ -159,7 +159,7 @@ static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages)
         if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, false);
         if(pt[curr.page_idx].present && pt[curr.page_idx].global) continue;
         pt[curr.page_idx].present = true;
-        pt[curr.page_idx].global = true;
+        pt[curr.page_idx].global = global;
         pt[curr.page_idx].write = true;
         pt[curr.page_idx].physical_address = phys >> 12;
     }
@@ -208,7 +208,7 @@ static vaddr_t __map_user_pages(vaddr_t start_vaddr, uintptr_t start_paddr, size
     }
     else return nullptr;
 }
-static void __unmap_user_pages(vaddr_t start, size_t pages)
+static void __unmap_pages(vaddr_t start, size_t pages)
 {
     if(start && pages)
     {
@@ -217,7 +217,7 @@ static void __unmap_user_pages(vaddr_t start, size_t pages)
         for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
         {
             if(!pt || curr.page_idx == 0) pt = __find_table(curr);
-            if(pt && pt[curr.page_idx].user_access)
+            if(pt && !pt[curr.page_idx].global)
             {
                 pt[curr.page_idx].present = false;
                 pt[curr.page_idx].user_access = false;
@@ -392,7 +392,7 @@ paging_table heap_allocator::allocate_pt()
     {
         vaddr_t allocated{ __find_claim_avail_region(S512) };
         if(!allocated) return nullptr;
-        if(!translate_vaddr(allocated)) { __map_kernel_pages(allocated, REGION_SIZE / PAGESIZE); }
+        if(!translate_vaddr(allocated)) { __map_kernel_pages(allocated, REGION_SIZE / PAGESIZE, true); }
         tag = new (allocated) block_tag{ REGION_SIZE - bt_offset, 0 };
         __physical_open_watermark = std::max(uintptr_t(allocated), __physical_open_watermark);
     }
@@ -407,11 +407,25 @@ vaddr_t heap_allocator::allocate_kernel_block(size_t sz)
     __lock();
     vaddr_t phys{ __find_claim_avail_region(sz) };
     vaddr_t result{ nullptr };
-    if(phys) { result = __map_kernel_pages(phys, div_roundup(region_size_for(sz), PAGESIZE)); __physical_open_watermark = std::max(uintptr_t(phys), __physical_open_watermark); }
+    if(phys) { result = __map_kernel_pages(phys, div_roundup(region_size_for(sz), PAGESIZE), true); __physical_open_watermark = std::max(uintptr_t(phys), __physical_open_watermark); }
     __unlock();
     return result;
 }
-void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap) { __lock(); if(uintptr_t phys{ translate_vaddr(base) }) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_user_pages(base, div_roundup(sz, PAGESIZE)); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
+vaddr_t heap_allocator::duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute)
+{
+    uintptr_t phys = translate_vaddr(start);
+    if(!phys) return nullptr;
+    vaddr_t pml4{ get_cr3() };
+    size_t npg = div_roundup(sz, PAGESIZE);
+    __lock();
+    vaddr_t result{ nullptr };
+    vaddr_t tmp_map = __map_kernel_pages(vaddr_t{ phys }, npg, false);
+    if(uintptr_t result_phys = __find_claim_avail_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); __builtin_memcpy(result, tmp_map, sz); }
+    __unmap_pages(tmp_map, npg);
+    __unlock();
+    return result;
+}
+void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap) { __lock(); if(uintptr_t phys{ translate_vaddr(base) }) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE)); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
 void kframe_tag::__lock() { lock(&__my_mutex); }
 void kframe_tag::__unlock() { release(&__my_mutex); }
 void heap_allocator::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
@@ -581,6 +595,6 @@ extern "C"
         heap_allocator::get().enter_frame(ctask_frame);
         vaddr_t result = ctask_frame->extent;
         if(ctask_frame->shift_extent(incr)) return result;
-        else return vaddr_t{ uintptr_t(-1) };
+        else return vaddr_t{ uintptr_t(-ENOMEM) };
     }
 }

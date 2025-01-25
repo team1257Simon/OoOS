@@ -17,20 +17,20 @@ syscall_vec:
     .type   do_syscall,     @function
 do_syscall:
     cli
-    movq    %rsp,                   %gs:0x88
-    movq    %rbp,                   %gs:0x80
-    movq    %rcx,                   %gs:0x90
-    movq    %gs:0x00,               %rcx
+    movq    %rsp,                   %gs:0x088
+    movq    %rbp,                   %gs:0x080
+    movq    %rcx,                   %gs:0x090
     swapgs
-    movq    %rcx,                   %gs:0x2F8
-    movq    %gs:0x88,               %rsp
-    movq    %gs:0x80,               %rbp
+    movq    %gs:0x088,              %rsp
+    movq    %gs:0x080,              %rbp
     leaq    syscall_vec(,%rax,8),   %rax
-    movq    %r11,                   %gs:0x98
+    movq    %r11,                   %gs:0x098
+    # subject to change, but for now just count all syscalls as 1
+    incq    %gs:0x2E0    
     sti
     call    *%rax
     cli
-    movq    %gs:0x98,               %r11
+    movq    %gs:0x098,              %r11
     xorq    %rdi,                   %rdi
     xorq    %rsi,                   %rsi
     xorq    %rdx,                   %rdx
@@ -38,9 +38,9 @@ do_syscall:
     xorq    %r9,                    %r9
     xorq    %r10,                   %r10
     swapgs
-    movq    %gs:0x80,               %rbp
-    movq    %gs:0x88,               %rsp
-    movq    %gs:0x90,               %rcx
+    movq    %gs:0x080,              %rbp
+    movq    %gs:0x088,              %rsp
+    movq    %gs:0x090,              %rcx
     sti
     sysretq
     .size do_syscall, .-do_syscall

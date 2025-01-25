@@ -98,9 +98,9 @@ __isrcall void scheduler::on_tick()
             next->quantum_rem = next->quantum_val;
             cur->next = next;
             task_change_flag.store(true);
-            uint64_t ts = syscall_time(0);
-            next->task_ctl.run_split = ts;
-            cur->task_ctl.run_time += (ts - cur->task_ctl.run_split);
+            uint64_t ts = syscall_time(nullptr);
+            next->run_split = ts;
+            cur->run_time += (ts - cur->run_split);
         }
         else { cur->quantum_rem = cur->quantum_val; }
     }

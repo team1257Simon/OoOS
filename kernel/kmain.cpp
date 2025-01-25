@@ -96,7 +96,7 @@ void serial_tests()
 }
 void str_tests()
 {
-    srand(syscall_time(0));
+    srand(syscall_time(nullptr));
     startup_tty.print_line(std::to_string(42));
     startup_tty.print_line(std::to_string(sysinfo));
     startup_tty.print_line(std::to_string(3.14159265358L));
