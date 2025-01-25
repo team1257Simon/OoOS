@@ -1,7 +1,7 @@
 #include "fs/fs.hpp"
 #include "algorithm"
 #include "stdexcept"
-#define ENOSYS -2
+#include "errno.h"
 void filesystem::__put_fd(file_inode *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files[fd->vid()] = fd; for(std::vector<file_inode*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
 const char *filesystem::path_separator() const noexcept { return "/"; }
 void filesystem::close_file(file_inode* fd) { this->close_fd(fd); fd->rel_lock(); }
@@ -107,42 +107,42 @@ extern "C"
         if(!fsptr) return ENOSYS;
         uint8_t smallflags{ static_cast<uint8_t>(flags) };
         try { if(file_inode* n{ fsptr->open_file(name, std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        return EINVAL;
     }
     int syscall_close(int fd)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return EINVAL;
     }
     int syscall_write(int fd, char *ptr, int len)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return EINVAL;
     }
     int syscall_read(int fd, char *ptr, int len)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(ptr, len); return 0; } } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        return EINVAL;
     }
     int syscall_link(char *old, char *__new)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return ENOSYS;
-        try { return fsptr->link(old, __new) != nullptr; } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        try { return fsptr->link(old, __new) != nullptr ? 0 : ENOENT; } catch(std::exception& e) { panic(e.what()); }
+        return EINVAL;
     }
     int syscall_unlink(char *name)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return ENOSYS;
-        try { return fsptr->unlink(name) ? 0 : -1; } catch(std::exception& e) { panic(e.what()); }
-        return -1;
+        try { return fsptr->unlink(name) ? 0 : ENOENT; } catch(std::exception& e) { panic(e.what()); }
+        return EINVAL;
     }
     int syscall_isatty(int fd)
     {
