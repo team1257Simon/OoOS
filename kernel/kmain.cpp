@@ -21,7 +21,6 @@ static std::atomic<uint64_t> t_ticks;
 static direct_text_render startup_tty;
 static serial_driver_amd64* com;
 static sysinfo_t* sysinfo;
-static task_list test_task_list;
 static ramfs testramfs;
 static bool direct_print_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
@@ -168,8 +167,7 @@ void test_landing_pad()
     task_ctx* ctx = current_active_task()->self;
     heap_allocator::get().deallocate_block(ctx->allocated_stack, ctx->stack_allocated_size);
     heap_allocator::get().deallocate_block(ctx->tls, ctx->tls_size);
-    scheduler::get().unregister_task(current_active_task());
-    test_task_list.erase(ctx->get_pid());
+    task_list::get().destroy_task(ctx->get_pid());
     set_gs_base(&kproc);
     sti();
     startup_tty.print_line("returned " + std::to_string(retv));
@@ -178,8 +176,8 @@ void test_landing_pad()
 void task_tests()
 {
     vaddr_t exit_test_fn{ &test_landing_pad };
-    task_list::iterator tt1 = test_task_list.create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVNORM);
-    task_list::iterator tt2 = test_task_list.create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
+    task_list::iterator tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVNORM);
+    task_list::iterator tt2 = task_list::get().create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
     tt1->start_task(exit_test_fn);
     tt2->start_task(exit_test_fn);
     scheduler::get().start();

@@ -5,15 +5,26 @@
 #include "vector"
 #include "heap_allocator.hpp"
 #include "sys/times.h"
+enum class execution_state
+{
+    STOPPED     = 0,
+    RUNNING     = 1,
+    TERMINATED  = 2  
+};
 struct task_ctx
 {
     task_t task_struct;                     //  The c-style struct from task.h; gs base will point here when the task is active
     std::vector<task_ctx*> child_tasks{};   //  The array in task_struct will be redirected here.
-    std::vector<const char*> arg_vec;
+    std::vector<const char*> arg_vec;       //  Argv will be this vector's data() member; argc is its size()
     vaddr_t allocated_stack;
     size_t stack_allocated_size;
     vaddr_t tls;
     size_t tls_size;
+    execution_state current_state{ execution_state::STOPPED };
+    int exit_code{ 0 };
+    vaddr_t exit_target{ nullptr };
+    vaddr_t notif_target{ nullptr };
+    pid_t last_notified{ 0 };
     task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio = priority_val::PVNORM, uint16_t quantum = 3);
     constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
@@ -26,13 +37,18 @@ struct task_ctx
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
     void start_task(vaddr_t exit_fn);
+    void do_exit(int n);
     tms get_times() const noexcept;
+    task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places
 private:
-    void __init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr);
+    void __init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr);   
 } __align(16);
 extern "C"
 {
     clock_t syscall_times(struct tms* out);
     long syscall_getpid();
+    long syscall_fork();
+    void syscall_exit(int n);
+    int syscall_kill(unsigned long pid, unsigned long sig);
 }
 #endif

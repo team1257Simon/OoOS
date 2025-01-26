@@ -352,7 +352,7 @@ vaddr_t heap_allocator::allocate_mmio_block(size_t sz)
 }
 vaddr_t heap_allocator::allocate_user_block(size_t sz, vaddr_t start, bool write, bool execute)
 {
-    vaddr_t pml4{ get_cr3() };
+    vaddr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
     __lock();
     vaddr_t result{ nullptr };
     if(uintptr_t phys = __find_claim_avail_region(sz)) { result = __map_user_pages(start, phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); }
@@ -415,7 +415,7 @@ vaddr_t heap_allocator::duplicate_user_block(size_t sz, vaddr_t start, bool writ
 {
     uintptr_t phys = translate_vaddr(start);
     if(!phys) return nullptr;
-    vaddr_t pml4{ get_cr3() };
+    vaddr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
     size_t npg = div_roundup(sz, PAGESIZE);
     __lock();
     vaddr_t result{ nullptr };
@@ -429,6 +429,7 @@ void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz, bool shoul
 void kframe_tag::__lock() { lock(&__my_mutex); }
 void kframe_tag::__unlock() { release(&__my_mutex); }
 void heap_allocator::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
+void heap_allocator::exit_frame() noexcept { this->__active_frame = nullptr; }
 void kframe_tag::insert_block(block_tag* blk, int idx) { blk->index = idx < 0 ? (get_block_exp(blk->block_size) - MIN_BLOCK_EXP) : idx; if (available_blocks[blk->index]) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
 void kframe_tag::remove_block(block_tag* blk)
 {
@@ -591,10 +592,12 @@ extern "C"
     vaddr_t syscall_sbrk(ptrdiff_t incr)
     {
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
-        if(ctask_frame->magic != UFRAME_MAGIC) return nullptr;
+        if(ctask_frame->magic != UFRAME_MAGIC) return vaddr_t{ uintptr_t(-EINVAL) };
         heap_allocator::get().enter_frame(ctask_frame);
         vaddr_t result = ctask_frame->extent;
-        if(ctask_frame->shift_extent(incr)) return result;
+        bool success = ctask_frame->shift_extent(incr);
+        heap_allocator::get().exit_frame();
+        if(success) {  return result; }
         else return vaddr_t{ uintptr_t(-ENOMEM) };
     }
 }

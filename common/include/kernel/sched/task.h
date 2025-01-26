@@ -22,11 +22,11 @@ __task_prio
 : int8_t
 #endif
 {
-    PVSYS = -1,
     PVLOW = 0,
     PVNORM = 1,
     PVHIGH = 2,
-    PVEXTRA = 3
+    PVEXTRA = 3,
+    PVSYS = 4
 } priority_val;
 typedef struct __fx_state
 {
@@ -77,12 +77,12 @@ typedef struct __task_control
     {
         bool block              : 1; // sleep or wait
         bool can_interrupt      : 1; // true if the wait can be interrupted
-        bool sigxx              : 1; // signal flag to process (only one of these for now)
-        bool sysrq              : 1; // signal flag from process (only one for now)
+        bool notify_cterm       : 1; // true if the wait should be interrupted on a child process termination
+        bool sigkill            : 1; // true if the process has stopped due to an abnormal termination (e.g. kill signal)
         priority_val prio_base  : 4; // the base priority of the thread/process
     } __pack __align(1);
     uint8_t skips;              // BASE+0x01; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
-    uintptr_t signal_num; // BASE+0x02; the sigval union (WIP)
+    uintptr_t signal_num;       // BASE+0x02; the sigval union (WIP)
     uint32_t wait_ticks_delta;  // BASE+0x0A; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
     int64_t parent_pid;         // BASE+0x0E; a negative number indicates no parent
     uint64_t task_id;           // BASE+0x16; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)

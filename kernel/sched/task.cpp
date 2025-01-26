@@ -1,5 +1,6 @@
 #include "sched/scheduler.hpp"
-#include "sched/task_ctx.hpp"
+#include "sched/task_list.hpp"
+#include "frame_manager.hpp"
 #include "errno.h"
 static fx_state __init_fx_state{};
 static bool __fx_initialized{ false };
@@ -31,14 +32,18 @@ void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_
         task_struct.saved_regs.ds = 0x18;
     }
 }
+task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } {}
 task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : task_struct { &task_struct, frame_ptr, regstate_t{}, quantum, 0U, tcb_t { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid}, fx_state{},  0UL, 0UL, 0UL, nullptr, 0UL, tls_base, nullptr }, arg_vec{ std::move(args) }, allocated_stack{ stack_base }, stack_allocated_size{ static_cast<size_t>(stack_size) }, tls{ tls_base }, tls_size{ tls_len } { __init_task_state(task, stack_base, stack_size, tls_base, frame_ptr); }
 void task_ctx::add_child(task_ctx *that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<vaddr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx *that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
 void task_ctx::start_task(vaddr_t exit_fn)
 {
     *static_cast<uintptr_t*>(task_struct.saved_regs.rsp) = exit_fn; // put the return address onto the stack
+    this->exit_target = exit_fn;
     scheduler::get().register_task(this->task_struct.self);
+    this->current_state = execution_state::RUNNING;
 }
+void task_ctx::do_exit(int n) { if(this->exit_target) { this->task_struct.saved_regs.rip = this->exit_target; this->exit_code = n; } }
 tms task_ctx::get_times() const noexcept
 {
     tms result{ task_struct.run_time, task_struct.sys_time, 0UL, 0UL };
@@ -50,8 +55,13 @@ tms task_ctx::get_times() const noexcept
     }
     return result;
 }
+static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller->is_system() || target->get_parent_pid() == caller->get_pid()) return true; for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } return false; }
+task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->start_task(t.exit_target); return result; }
 extern "C"
 {
     clock_t syscall_times(tms *out) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user() && out) { new (out) tms{ static_cast<task_ctx*>(current_active_task()->self)->get_times() }; return syscall_time(nullptr); } else return -EINVAL; }
     long syscall_getpid() { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; }
+    long syscall_fork() { try { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
+    void syscall_exit(int n) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) { task->do_exit(n); } }
+    int syscall_kill(unsigned long pid, unsigned long sig) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator target = task_list::get().find(pid); !target->is_system()) { if(!check_kill(task, target)) return -EPERM; target->task_struct.task_ctl.sigkill = true; target->task_struct.task_ctl.signal_num = sig; target->do_exit(static_cast<int>(sig)); return 0; } return -EINVAL; } }
 }

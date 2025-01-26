@@ -68,14 +68,15 @@ private:
     void __lock();
     void __unlock();
 } __pack;
-
+struct block_descr
+{
+    vaddr_t start;
+    size_t size;
+    bool write{ true };
+    bool execute{ true };
+};
 struct uframe_tag
 {
-    struct block_descr
-    {
-        vaddr_t start;
-        size_t size;
-    };
     uint64_t magic{ UFRAME_MAGIC };
     paging_table pml4;
     vaddr_t base;
@@ -194,11 +195,12 @@ public:
     heap_allocator& operator=(heap_allocator const&) = delete;
     heap_allocator& operator=(heap_allocator&&) = delete;
     void enter_frame(uframe_tag* ft) noexcept;
+    void exit_frame() noexcept;
     paging_table allocate_pt();
     vaddr_t allocate_kernel_block(size_t sz);
     vaddr_t allocate_mmio_block(size_t sz);
     vaddr_t allocate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
-    vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
+    vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute);
     void deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap = false);
 };
 extern "C" vaddr_t syscall_sbrk(ptrdiff_t incr);

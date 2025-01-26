@@ -72,7 +72,7 @@ namespace std
         void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
         iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
-        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
+        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__node_base*>(pos.__my_node)) }; }
         iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.__my_node, end.__my_node) }; }
         constexpr void swap(map& that) noexcept { this->__swap(that); }
         template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U && u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(std::forward<U>(u), mapped_type{})); } return r->__get_ref().second; }
