@@ -5,6 +5,7 @@
 #include "vector"
 #include "heap_allocator.hpp"
 #include "sys/times.h"
+extern "C" [[noreturn]] void handle_exit();
 enum class execution_state
 {
     STOPPED     = 0,
@@ -16,6 +17,7 @@ struct task_ctx
     task_t task_struct;                     //  The c-style struct from task.h; gs base will point here when the task is active
     std::vector<task_ctx*> child_tasks{};   //  The array in task_struct will be redirected here.
     std::vector<const char*> arg_vec;       //  Argv will be this vector's data() member; argc is its size()
+    std::vector<const char*> env_vec{};     //  Environment variables will go here
     vaddr_t allocated_stack;
     size_t stack_allocated_size;
     vaddr_t tls;
@@ -24,8 +26,8 @@ struct task_ctx
     int exit_code{ 0 };
     vaddr_t exit_target{ nullptr };
     vaddr_t notif_target{ nullptr };
-    pid_t last_notified{ 0 };
-    task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio = priority_val::PVNORM, uint16_t quantum = 3);
+    task_ctx* last_notified{ nullptr };
+    task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
     constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == KFRAME_MAGIC; }
@@ -36,8 +38,9 @@ struct task_ctx
     friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
-    void start_task(vaddr_t exit_fn);
-    void do_exit(int n);
+    void start_task(vaddr_t exit_fn = vaddr_t{ &handle_exit });
+    void set_exit(int n);
+    void terminate();
     tms get_times() const noexcept;
     task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places
 private:
@@ -50,5 +53,8 @@ extern "C"
     long syscall_fork();
     void syscall_exit(int n);
     int syscall_kill(unsigned long pid, unsigned long sig);
+    pid_t syscall_wait(int* sc_out);
+    int syscall_sleep(unsigned long seconds);
+    int syscall_execve(char *name, char **argv, char **env);
 }
 #endif

@@ -130,7 +130,7 @@ extern "C"
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
-        return EINVAL;
+        return -EINVAL;
     }
     int syscall_read(int fd, char *ptr, int len)
     {
@@ -146,10 +146,17 @@ extern "C"
         try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
+    int syscall_lseek(int fd, long offs, int way) 
+    {
+        filesystem* fsptr = get_fs_instance();
+        if(!fsptr) return -ENOSYS;
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        return -EINVAL;
+    }
     int syscall_unlink(char *name)
     {
         filesystem* fsptr = get_fs_instance();
-        if(!fsptr) return ENOSYS;
+        if(!fsptr) return -ENOSYS;
         try { return fsptr->unlink(name) ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
@@ -174,14 +181,14 @@ extern "C"
         try{ if(file_inode* n{ fsptr->get_file(name) }) { __st_intl(n, fsptr, st); return 0; } else if(folder_inode* n{ fsptr->get_folder(name, false) }) { __st_intl(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }
-    int fchmod(int fd, mode_t m)
+    int syscall_fchmod(int fd, mode_t m)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try{ if(file_inode* n{ fsptr->get_fd(fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
-    int chmod(const char *name, mode_t m)
+    int syscall_chmod(const char *name, mode_t m)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;

@@ -67,7 +67,7 @@ namespace std
         constexpr iterator find(const_reference what) requires equality_comparable<value_type> { for(iterator i = begin(); i != end(); i++) { if(*i == what) return i; } return end(); }
         constexpr const_iterator find(const_reference what) const requires equality_comparable<value_type> { for(const_iterator i = begin(); i != end(); i++) { if(*i == what) return i; } return end(); }
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
-        template<std::matching_input_iterator<value_type> IT>constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
+        template<std::matching_input_iterator<value_type> IT> constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { return *(this->__emplace_at_end(std::forward<Args>(args)...)); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }

@@ -108,9 +108,8 @@ static paging_table __get_table(vaddr_t const& of_page, bool write_thru, paging_
     return nullptr;
 }
 static paging_table __get_table(vaddr_t const& of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
-static paging_table __find_table(vaddr_t const& of_page)
+static paging_table __find_table(vaddr_t const& of_page, paging_table pml4)
 {
-    paging_table pml4 = get_cr3();
     if (pml4[of_page.pml4_idx].present)
     {
         paging_table pdp = vaddr_t{ pml4[of_page.pml4_idx].physical_address << 12 };
@@ -122,6 +121,7 @@ static paging_table __find_table(vaddr_t const& of_page)
     }
     return nullptr;
 }
+static paging_table __find_table(vaddr_t const& of_page) { return __find_table(of_page, get_cr3()); }
 static vaddr_t __skip_mmio(vaddr_t start, size_t pages)
 {
     vaddr_t curr { start };
@@ -129,7 +129,7 @@ static vaddr_t __skip_mmio(vaddr_t start, size_t pages)
     for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
     {
         paging_table pt = __get_table(start, false);
-        if(!pt) { tlb_flush(); return nullptr; }
+        if(!pt) { return nullptr; }
         if (pt[curr.page_idx].present && (pt[curr.page_idx].write_thru || pt[curr.page_idx].cache_disable)) i = 0;
     }
     vaddr_t c_ed = curr + ptrdiff_t(pages * PAGESIZE);
@@ -154,16 +154,18 @@ static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
     uintptr_t phys = curr;
     paging_table pt = __get_table(curr, false);
     if(!pt) { return nullptr; }
+    bool modified = false;
     for(size_t i = 0; i < pages; i++, curr += PAGESIZE, phys += PAGESIZE)
     {
         if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, false);
-        if(pt[curr.page_idx].present && pt[curr.page_idx].global) continue;
+        if(pt[curr.page_idx].present && (pt[curr.page_idx].global || pt[curr.page_idx].physical_address == phys >> 12)) continue;
         pt[curr.page_idx].present = true;
         pt[curr.page_idx].global = global;
         pt[curr.page_idx].write = true;
         pt[curr.page_idx].physical_address = phys >> 12;
+        modified = true;
     }
-    tlb_flush();
+    if(modified) tlb_flush();
     return start;
 }
 static vaddr_t __map_mmio_pages(vaddr_t start, size_t pages)
@@ -208,7 +210,7 @@ static vaddr_t __map_user_pages(vaddr_t start_vaddr, uintptr_t start_paddr, size
     }
     else return nullptr;
 }
-static void __unmap_pages(vaddr_t start, size_t pages)
+static void __unmap_pages(vaddr_t start, size_t pages, vaddr_t pml4 = get_cr3())
 {
     if(start && pages)
     {
@@ -216,7 +218,7 @@ static void __unmap_pages(vaddr_t start, size_t pages)
         paging_table pt = nullptr;
         for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
         {
-            if(!pt || curr.page_idx == 0) pt = __find_table(curr);
+            if(!pt || curr.page_idx == 0) pt = __find_table(curr, pml4);
             if(pt && !pt[curr.page_idx].global)
             {
                 pt[curr.page_idx].present = false;
@@ -402,6 +404,7 @@ paging_table heap_allocator::allocate_pt()
     if(result && __active_frame) __active_frame->pt_blocks.push_back(result);
     return result;
 }
+uintptr_t heap_allocator::translate_vaddr_in_current_frame(vaddr_t addr) { if(paging_table pt = __find_table(addr, __active_frame ? __active_frame->pml4 : paging_table(__kernel_cr3))) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
 vaddr_t heap_allocator::allocate_kernel_block(size_t sz)
 {
     __lock();
@@ -413,19 +416,29 @@ vaddr_t heap_allocator::allocate_kernel_block(size_t sz)
 }
 vaddr_t heap_allocator::duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute)
 {
-    uintptr_t phys = translate_vaddr(start);
-    if(!phys) return nullptr;
+    vaddr_t id_map = identity_map_to_kernel(start, sz);
+    if(!id_map) return nullptr;
     vaddr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
-    size_t npg = div_roundup(sz, PAGESIZE);
     __lock();
     vaddr_t result{ nullptr };
-    vaddr_t tmp_map = __map_kernel_pages(vaddr_t{ phys }, npg, false);
-    if(uintptr_t result_phys = __find_claim_avail_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); __builtin_memcpy(result, tmp_map, sz); }
-    __unmap_pages(tmp_map, npg);
+    if(uintptr_t result_phys = __find_claim_avail_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); __builtin_memcpy(result, id_map, sz); }
     __unlock();
     return result;
 }
-void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap) { __lock(); if(uintptr_t phys{ translate_vaddr(base) }) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE)); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
+vaddr_t heap_allocator::identity_map_to_kernel(vaddr_t start, size_t sz)
+{
+    uintptr_t phys = translate_vaddr_in_current_frame(start);
+    if(!phys) return nullptr;
+    // Identity-mapping of pages in kernel space is on an as-needed basis; these mappings are never removed, but are not pinned globally as the kernel's space is
+    __lock();
+    uframe_tag* fr = __active_frame;
+    if(fr) exit_frame();
+    vaddr_t result{ __map_kernel_pages(vaddr_t{ phys }, div_roundup(sz, PAGESIZE), false) };
+    if(fr) enter_frame(fr);
+    __unlock();
+    return result;
+}
+void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap) { uintptr_t phys{ translate_vaddr_in_current_frame(base) }; vaddr_t pml4 =  __active_frame ? vaddr_t{ __active_frame->pml4 } : __kernel_cr3; __lock(); if(phys) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE), pml4); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
 void kframe_tag::__lock() { lock(&__my_mutex); }
 void kframe_tag::__unlock() { release(&__my_mutex); }
 void heap_allocator::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
@@ -597,7 +610,7 @@ extern "C"
         vaddr_t result = ctask_frame->extent;
         bool success = ctask_frame->shift_extent(incr);
         heap_allocator::get().exit_frame();
-        if(success) {  return result; }
+        if(success) { return result; }
         else return vaddr_t{ uintptr_t(-ENOMEM) };
     }
 }

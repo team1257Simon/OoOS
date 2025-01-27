@@ -235,12 +235,13 @@ extern "C"
     int syscall_close(int fd);
     int syscall_write(int fd, char* ptr, int len);
     int syscall_read(int fd, char* ptr, int len);
+    int syscall_lseek(int fd, long offs, int way);
     int syscall_link(char* old, char* __new);
     int syscall_unlink(char* name);
     int syscall_isatty(int fd);
     int syscall_fstat(int fd, struct stat* st);
     int syscall_stat(const char* restrict name, struct stat* restrict st);
-    int fchmod(int fd, mode_t m);
-    int chmod(const char* name, mode_t m);
+    int syscall_fchmod(int fd, mode_t m);
+    int syscall_chmod(const char* name, mode_t m);
 }
 #endif

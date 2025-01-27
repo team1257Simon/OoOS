@@ -27,6 +27,15 @@ bool scheduler::__set_wait_time(task_t *task, unsigned int time, bool can_interr
     return true;
 }
 bool scheduler::__set_untimed_wait(task_t *task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
+__isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
+{
+    next->quantum_rem = next->quantum_val;
+    cur->next = next;
+    task_change_flag.store(true);
+    uint64_t ts = syscall_time(nullptr);
+    next->run_split = ts;
+    cur->run_time += (ts - cur->run_split);
+}
 void scheduler::register_task(task_t *task) { __my_queues[task->task_ctl.prio_base].push(task); }
 bool scheduler::unregister_task(task_t *task) 
 {
@@ -80,6 +89,7 @@ bool scheduler::set_wait_timed(task_t *task, unsigned int time, bool can_interru
     for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0) { return __set_wait_time(task, time, can_interrupt); } }
     return false;
 }
+bool scheduler::interrupt_wait(task_t *waiting) { if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } else return false; }
 __isrcall void scheduler::on_tick()
 {
     __my_sleepers.tick_wait();
@@ -91,17 +101,9 @@ __isrcall void scheduler::on_tick()
     }
     task_t* cur = current_active_task();
     if(cur->quantum_rem) { cur->quantum_rem--; }
-    if(cur->quantum_rem == 0)
+    if(cur->quantum_rem == 0 || cur->task_ctl.block)
     {
-        if(task_t* next = select_next())
-        {
-            next->quantum_rem = next->quantum_val;
-            cur->next = next;
-            task_change_flag.store(true);
-            uint64_t ts = syscall_time(nullptr);
-            next->run_split = ts;
-            cur->run_time += (ts - cur->run_split);
-        }
+        if(task_t* next = select_next()) __exec_chg(cur, next);
         else { cur->quantum_rem = cur->quantum_val; }
     }
 }

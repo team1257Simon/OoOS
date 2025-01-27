@@ -1,0 +1,90 @@
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/times.h>
+#include <sys/time.h>
+#include <sys/errno.h>
+#define SYSCVEC_N_exit           0
+#define SYSCVEC_N_sleep          1
+#define SYSCVEC_N_wait           2
+#define SYSCVEC_N_fork           3
+#define SYSCVEC_N_times          4
+#define SYSCVEC_N_gettimeofday   5
+#define SYSCVEC_N_sbrk           6
+#define SYSCVEC_N_open           7
+#define SYSCVEC_N_close          8
+#define SYSCVEC_N_read           9
+#define SYSCVEC_N_write          10
+#define SYSCVEC_N_link           11
+#define SYSCVEC_N_lseek          12
+#define SYSCVEC_N_unlink         13
+#define SYSCVEC_N_getpid         14
+#define SYSCVEC_N_fstat          15
+#define SYSCVEC_N_stat           16
+#define SYSCVEC_N_fchmod         17
+#define SYSCVEC_N_chmod          18
+#define SYSCVEC_N_isatty         19
+#define SYSCVEC_N_execve         20
+#define SYSCVEC_N_kill           21
+#ifdef __cplusplus
+#ifndef restrict
+#define restrict
+#endif
+extern "C" 
+{
+#endif
+void _exit(int code);
+int close(int file);
+int execve(char *name, char **argv, char **env);
+int fork();
+int fstat(int file, struct stat *st);
+int stat(const char* restrict name, struct stat* restrict st);
+int getpid();
+int isatty(int file);
+int kill(int pid, int sig);
+int link(char* restrict old, char* restrict new);
+int lseek(int file, int ptr, int dir);
+int open(const char *name, int flags, ...);
+int read(int file, char *ptr, int len);
+void* sbrk(int incr);
+clock_t times(struct tms *buf);
+int unlink(char *name);
+int wait(int *status);
+int write(int file, char *ptr, int len);
+int gettimeofday(struct timeval* restrict p, void* restrict z);
+#define SYSCVEC_ARG(name) "0"(SYSCVEC_N_##name)
+#define XSYSCALL0(name, ret) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name) : "memory")
+#define XSYSCALL1(name, ret, arg0) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0) : "memory")
+#define XSYSCALL2(name, ret, arg0, arg1) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1) : "memory")
+#define XSYSCALL3(name, ret, arg0, arg1, arg2) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1), "d"(arg2) : "memory")
+#define SYSCALL_RETVAL(type, ret) do \
+{ \
+   if((signed long)(ret) < 0L) { errno = -(int)(ret); return (type)(-1); } \
+   else return (type)(ret); \
+} while(0)
+#define DEF_SYSCALL0(rt, name) rt name##() \
+{ \
+   rt ret; \
+   XSYSCALL0(name, ret); \
+   SYSCALL_RETVAL(rt, ret); \
+}
+#define DEF_SYSCALL1(rt, name, t1, n1) rt name##(t1 n1) \
+{ \
+   rt ret; \
+   XSYSCALL1(name, ret, n1); \
+   SYSCALL_RETVAL(rt, ret); \
+}
+#define DEF_SYSCALL2(rt, name, t1, n1, t2, n2) rt name##(t1 n1, t2 n2) \
+{ \
+   rt ret; \
+   XSYSCALL2(name, ret, n1, n2); \
+   SYSCALL_RETVAL(rt, ret); \
+}
+#define DEF_SYSCALL3(rt, name, t1, n1, t2, n2, t3, n3) rt name##(t1 n1, t2 n2, t3 n3) \
+{ \
+   rt ret; \
+   XSYSCALL3(name, ret, n1, n2, n3); \
+   SYSCALL_RETVAL(rt, ret); \
+}
+#ifdef __cplusplus
+}
+#endif

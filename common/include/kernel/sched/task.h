@@ -73,7 +73,7 @@ typedef struct __reg_state
 } __pack __align(2) regstate_t;
 typedef struct __task_control
 {
-    struct                      // BASE+0x00
+    volatile struct             // BASE+0x00
     {
         bool block              : 1; // sleep or wait
         bool can_interrupt      : 1; // true if the wait can be interrupted

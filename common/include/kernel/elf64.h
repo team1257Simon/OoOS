@@ -46,4 +46,14 @@ typedef struct
     uint64_t p_memsz;       /* Segment size in memory */
     uint64_t p_align;       /* Segment alignment */
 } elf64_phdr;
+// Contains the important details for loading an elf executable as a task.
+typedef struct __elf64_program_desc
+{
+    void* frame_ptr;
+    void* prg_stack;
+    size_t stack_size;
+    void* prg_tls;
+    size_t tls_size;
+    void* entry;
+} elf64_desc;
 #endif

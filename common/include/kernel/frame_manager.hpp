@@ -12,6 +12,7 @@ public:
     using __base::const_iterator;
     uframe_tag& create_frame(vaddr_t start_base, vaddr_t start_extent);
     uframe_tag& duplicate_frame(uframe_tag const& t);
+    void destroy_frame(uframe_tag& ft);
     static frame_manager& get();
 };
 #endif

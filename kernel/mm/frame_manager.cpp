@@ -20,4 +20,5 @@ uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)
     heap_allocator::get().exit_frame();
     return result;
 }
+void frame_manager::destroy_frame(uframe_tag &ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }
 frame_manager& frame_manager::get() { return __inst; }

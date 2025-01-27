@@ -1,6 +1,13 @@
 #ifndef __TYPES
 #define __TYPES
+#ifdef __KERNEL__
 #include "kernel/kernel_defs.h"
+typedef vaddr_t caddr_t;
+#else
+#include "stdint.h"
+#include "stddef.h"
+typedef void* caddr_t;
+#endif
 typedef long ssize_t;
 typedef	unsigned short	ushort;		/* System V compatibility */
 typedef	unsigned int	uint;		/* System V compatibility */
