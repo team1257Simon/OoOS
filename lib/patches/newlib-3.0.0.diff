@@ -1,0 +1,296 @@
+diff --git a/config.sub b/config.sub
+index a35b24ba7..e1d021e76 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1376,7 +1376,7 @@ case $os in
+ 	     | powermax* | dnix* | nx6 | nx7 | sei* | dragonfly* \
+ 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
+ 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
+-	     | midnightbsd* | switch*)
++	     | midnightbsd* | switch* | ooos*)
+ 	# Remember, each alternative MUST END IN *, to match a version number.
+ 		;;
+ 	qnx*)
+diff --git a/newlib/configure.host b/newlib/configure.host
+index 5005d38c6..2dfda5e6a 100644
+--- a/newlib/configure.host
++++ b/newlib/configure.host
+@@ -460,6 +460,9 @@ case "${host}" in
+   d30v*)
+ 	sys_dir=
+ 	;;
++  *-*-ooos*)
++    sys_dir=ooos
++    ;;
+   epiphany-*-*)
+ 	sys_dir=epiphany
+ 	# crt0 is provided by libgloss.
+diff --git a/newlib/libc/sys/configure.in b/newlib/libc/sys/configure.in
+index 9530d107e..5d93770e7 100644
+--- a/newlib/libc/sys/configure.in
++++ b/newlib/libc/sys/configure.in
+@@ -34,6 +34,7 @@ if test -n "${sys_dir}"; then
+ 	mmixware) AC_CONFIG_SUBDIRS(mmixware) ;;
+ 	netware) AC_CONFIG_SUBDIRS(netware) ;;
+ 	or1k) AC_CONFIG_SUBDIRS(or1k) ;;
++	ooos) AC_CONFIG_SUBDIRS(ooos) ;;
+ 	phoenix) AC_CONFIG_SUBDIRS(phoenix) ;;
+ 	rdos) AC_CONFIG_SUBDIRS(rdos) ;;
+ 	rtems) AC_CONFIG_SUBDIRS(rtems) ;;
+diff --git a/newlib/libm/complex/cargl.c b/newlib/libm/complex/cargl.c
+index 790cffe8f..53c344832 100644
+--- a/newlib/libm/complex/cargl.c
++++ b/newlib/libm/complex/cargl.c
+@@ -13,6 +13,6 @@ cargl(long double complex z)
+        #ifdef _LDBL_EQ_DBL
+          return carg (z);
+        #else
+-         return atan2l (cimagl (z), creall (z));
++         return __builtin_atan2l (cimagl (z), creall (z));
+        #endif
+ }
+diff --git a/newlib/libm/complex/catanl.c b/newlib/libm/complex/catanl.c
+index ee2a25930..84ce86d0e 100644
+--- a/newlib/libm/complex/catanl.c
++++ b/newlib/libm/complex/catanl.c
+@@ -54,7 +54,7 @@ catanl(long double complex z)
+ 	if (a == 0.0)
+ 		goto ovrf;
+ 
+-	t = 0.5L * atan2l(2.0L * x, a);
++	t = 0.5L * __builtin_atan2l(2.0L * x, a);
+ 	w = _redupil(t);
+ 
+ 	t = y - 1.0L;
+@@ -64,7 +64,7 @@ catanl(long double complex z)
+ 
+ 	t = y + 1.0L;
+ 	a = (x2 + (t * t))/a;
+-	w = w + (0.25L * logl(a)) * I;
++	w = w + (0.25L * __builtin_logl(a)) * I;
+ 	return w;
+ 
+ ovrf:
+diff --git a/newlib/libm/complex/ccoshl.c b/newlib/libm/complex/ccoshl.c
+index f59fadf7a..6b062514d 100644
+--- a/newlib/libm/complex/ccoshl.c
++++ b/newlib/libm/complex/ccoshl.c
+@@ -40,6 +40,6 @@ ccoshl(long double complex z)
+ 
+ 	x = creall(z);
+ 	y = cimagl(z);
+-	w = coshl(x) * cosl(y) + (sinhl(x) * sinl(y)) * I;
++	w = __builtin_coshl(x) * __builtin_cosl(y) + (__builtin_sinhl(x) * __builtin_sinl(y)) * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/ccosl.c b/newlib/libm/complex/ccosl.c
+index c310f4024..6e21d087a 100644
+--- a/newlib/libm/complex/ccosl.c
++++ b/newlib/libm/complex/ccosl.c
+@@ -40,6 +40,6 @@ ccosl(long double complex z)
+ 	long double ch, sh;
+ 
+ 	_cchshl(cimagl(z), &ch, &sh);
+-	w = cosl(creall(z)) * ch - (sinl(creall(z)) * sh) * I;
++	w = __builtin_cosl(creall(z)) * ch - (__builtin_sinl(creall(z)) * sh) * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/cephes_subrl.c b/newlib/libm/complex/cephes_subrl.c
+index 8af11df76..8926b3752 100644
+--- a/newlib/libm/complex/cephes_subrl.c
++++ b/newlib/libm/complex/cephes_subrl.c
+@@ -40,11 +40,11 @@ _cchshl(long double x, long double *c, long double *s)
+ {
+ 	long double e, ei;
+ 
+-	if (fabsl(x) <= 0.5L) {
+-		*c = coshl(x);
+-		*s = sinhl(x);
++	if (__builtin_fabsl(x) <= 0.5L) {
++		*c = __builtin_coshl(x);
++		*s = __builtin_sinhl(x);
+ 	} else {
+-		e = expl(x);
++		e = __builtin_expl(x);
+ 		ei = 0.5L / e;
+ 		e = 0.5L * e;
+ 		*s = e - ei;
+@@ -91,8 +91,8 @@ _ctansl(long double complex z)
+ 	long double f, x, x2, y, y2, rn, t;
+ 	long double d;
+ 
+-	x = fabsl(2.0L * creall(z));
+-	y = fabsl(2.0L * cimagl(z));
++	x = __builtin_fabsl(2.0L * creall(z));
++	y = __builtin_fabsl(2.0L * cimagl(z));
+ 
+ 	x = _redupil(x);
+ 
+@@ -123,6 +123,6 @@ _ctansl(long double complex z)
+ 		t = y2 - x2;
+ 		t /= f;
+ 		d += t;
+-	} while (fabsl(t/d) > MACHEPL);
++	} while (__builtin_fabsl(t/d) > MACHEPL);
+ 	return d;
+ }
+diff --git a/newlib/libm/complex/cexpl.c b/newlib/libm/complex/cexpl.c
+index 8b56634ba..940f132d6 100644
+--- a/newlib/libm/complex/cexpl.c
++++ b/newlib/libm/complex/cexpl.c
+@@ -40,7 +40,7 @@ cexpl(long double complex z)
+ 
+ 	x = creall(z);
+ 	y = cimagl(z);
+-	r = expl(x);
+-	w = r * cosl(y) + r * sinl(y) * I;
++	r = __builtin_expl(x);
++	w = r * __builtin_cosl(y) + r * __builtin_sinl(y) * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/clogl.c b/newlib/libm/complex/clogl.c
+index 3644a44fc..39193a4a5 100644
+--- a/newlib/libm/complex/clogl.c
++++ b/newlib/libm/complex/clogl.c
+@@ -39,8 +39,8 @@ clogl(long double complex z)
+ 	long double p, rr;
+ 
+ 	rr = cabsl(z);
+-	p = logl(rr);
+-	rr = atan2l(cimagl(z), creall(z));
++	p = __builtin_logl(rr);
++	rr = __builtin_atan2l(cimagl(z), creall(z));
+ 	w = p + rr * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/cpowl.c b/newlib/libm/complex/cpowl.c
+index 85c2c20f2..a8987e8bd 100644
+--- a/newlib/libm/complex/cpowl.c
++++ b/newlib/libm/complex/cpowl.c
+@@ -45,12 +45,12 @@ cpowl(long double complex a, long double complex z)
+ 		return (0.0L + 0.0L * I);
+ 	}
+ 	arga = cargl(a);
+-	r = powl(absa, x);
++	r = __builtin_powl(absa, x);
+ 	theta = x * arga;
+ 	if (y != 0.0L) {
+-		r = r * expl(-y * arga);
+-		theta = theta + y * logl(absa);
++		r = r * __builtin_expl(-y * arga);
++		theta = theta + y * __builtin_logl(absa);
+ 	}
+-	w = r * cosl(theta) + (r * sinl(theta)) * I;
++	w = r * __builtin_cosl(theta) + (r * __builtin_sinl(theta)) * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/cprojl.c b/newlib/libm/complex/cprojl.c
+index e71c77353..b5f56b9e3 100644
+--- a/newlib/libm/complex/cprojl.c
++++ b/newlib/libm/complex/cprojl.c
+@@ -57,7 +57,7 @@ cprojl(long double complex z)
+ #else
+ 		REAL_PART(w) = INFINITY;
+ #endif
+-		IMAG_PART(w) = copysignl(0.0L, cimagl(z));
++		IMAG_PART(w) = __builtin_copysignl(0.0L, cimagl(z));
+ 	}
+ 
+ 	return (w.z);
+diff --git a/newlib/libm/complex/csinhl.c b/newlib/libm/complex/csinhl.c
+index 44ed05037..d95123e70 100644
+--- a/newlib/libm/complex/csinhl.c
++++ b/newlib/libm/complex/csinhl.c
+@@ -40,6 +40,6 @@ csinhl(long double complex z)
+ 
+ 	x = creall(z);
+ 	y = cimagl(z);
+-	w = sinhl(x) * cosl(y) + (coshl(x) * sinl(y)) * I;
++	w = __builtin_sinhl(x) * __builtin_cosl(y) + (__builtin_coshl(x) * __builtin_sinl(y)) * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/csinl.c b/newlib/libm/complex/csinl.c
+index 2b96c7225..e7fc9bef3 100644
+--- a/newlib/libm/complex/csinl.c
++++ b/newlib/libm/complex/csinl.c
+@@ -40,6 +40,6 @@ csinl(long double complex z)
+ 	long double ch, sh;
+ 
+ 	_cchshl(cimagl(z), &ch, &sh);
+-	w = sinl(creall(z)) * ch + (cosl(creall(z)) * sh) * I;
++	w = __builtin_sinl(creall(z)) * ch + (__builtin_cosl(creall(z)) * sh) * I;
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/csqrtl.c b/newlib/libm/complex/csqrtl.c
+index c10a1264a..e936f1a3c 100644
+--- a/newlib/libm/complex/csqrtl.c
++++ b/newlib/libm/complex/csqrtl.c
+@@ -77,9 +77,9 @@ csqrtl(long double complex z)
+ 		 * csqrt(-inf + y i)   = 0   +  inf i
+ 		 */
+ 		if (signbit(a))
+-			return (cpackl(fabsl(b - b), copysignl(a, b)));
++			return (cpackl(__builtin_fabsl(b - b), __builtin_copysignl(a, b)));
+ 		else
+-			return (cpackl(a, copysignl(b - b, b)));
++			return (cpackl(a, __builtin_copysignl(b - b, b)));
+ 	}
+ 	/*
+ 	 * The remaining special case (b is NaN) is handled just fine by
+@@ -87,7 +87,7 @@ csqrtl(long double complex z)
+ 	 */
+ 
+ 	/* Scale to avoid overflow. */
+-	if (fabsl(a) >= THRESH || fabsl(b) >= THRESH) {
++	if (__builtin_fabsl(a) >= THRESH || __builtin_fabsl(b) >= THRESH) {
+ 		a *= 0.25L;
+ 		b *= 0.25L;
+ 		scale = true;
+@@ -101,7 +101,7 @@ csqrtl(long double complex z)
+ 		result = cpackl(t, b / (2.0L * t));
+ 	} else {
+ 		t = sqrtl((-a + hypotl(a, b)) * 0.5L);
+-		result = cpackl(fabsl(b) / (2.0L * t), copysignl(t, b));
++		result = cpackl(__builtin_fabsl(b) / (2.0L * t), __builtin_copysignl(t, b));
+ 	}
+ 
+ 	/* Rescale. */
+diff --git a/newlib/libm/complex/ctanhl.c b/newlib/libm/complex/ctanhl.c
+index 1db886f63..7f93ac65f 100644
+--- a/newlib/libm/complex/ctanhl.c
++++ b/newlib/libm/complex/ctanhl.c
+@@ -40,8 +40,8 @@ ctanhl(long double complex z)
+ 
+ 	x = creall(z);
+ 	y = cimagl(z);
+-	d = coshl(2.0L * x) + cosl(2.0L * y);
+-	w = sinhl(2.0L * x) / d  +  (sinl(2.0L * y) / d) * I;
++	d = __builtin_coshl(2.0L * x) + __builtin_cosl(2.0L * y);
++	w = __builtin_sinhl(2.0L * x) / d  +  (__builtin_sinl(2.0L * y) / d) * I;
+ 
+ 	return w;
+ }
+diff --git a/newlib/libm/complex/ctanl.c b/newlib/libm/complex/ctanl.c
+index c5c887c74..6f62b9733 100644
+--- a/newlib/libm/complex/ctanl.c
++++ b/newlib/libm/complex/ctanl.c
+@@ -40,9 +40,9 @@ ctanl(long double complex z)
+ 	long double complex w;
+ 	long double d;
+ 
+-	d = cosl(2.0L * creall(z)) + coshl(2.0L * cimagl(z));
++	d = __builtin_cosl(2.0L * creall(z)) + __builtin_coshl(2.0L * cimagl(z));
+ 
+-	if (fabsl(d) < 0.25L)
++	if (__builtin_fabsl(d) < 0.25L)
+ 		d = _ctansl(z);
+ 
+ 	if (d == 0.0L) {
+@@ -51,6 +51,6 @@ ctanl(long double complex z)
+ 		return w;
+ 	}
+ 
+-	w = sinl(2.0L * creall(z)) / d + (sinhl(2.0L * cimagl(z)) / d) * I;
++	w = __builtin_sinl(2.0L * creall(z)) / d + (__builtin_sinhl(2.0L * cimagl(z)) / d) * I;
+ 	return w;
+ }

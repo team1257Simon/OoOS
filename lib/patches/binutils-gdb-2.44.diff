@@ -1,0 +1,108 @@
+diff --git a/bfd/config.bfd b/bfd/config.bfd
+index 0d790117503..490d2b8037b 100644
+--- a/bfd/config.bfd
++++ b/bfd/config.bfd
+@@ -655,6 +655,11 @@ case "${targ}" in
+     targ_defvec=i386_elf32_vec
+     targ_selvecs="iamcu_elf32_vec"
+     ;;
++  i[3-7]86-*-ooos*)
++    targ_defvec=i386_elf32_vec
++    targ_selvecs=
++    targ64_selvecs=x86_64_elf64_vec
++    ;;
+   i[3-7]86-*-linux-*)
+     targ_defvec=i386_elf32_vec
+     targ_selvecs="iamcu_elf32_vec i386_pei_vec"
+@@ -685,7 +690,7 @@ case "${targ}" in
+     targ_defvec=x86_64_elf64_vec
+     targ_selvecs="i386_elf32_vec iamcu_elf32_vec x86_64_elf32_vec"
+     case "${targ}" in
+-      x86_64-*-rtems*)
++  x86_64-*-rtems*)
+     targ_selvecs="${targ_selvecs} x86_64_pe_vec x86_64_pei_vec"
+     esac
+     want64=true
+@@ -720,6 +725,11 @@ case "${targ}" in
+     targ_selvecs="x86_64_pe_vec x86_64_pei_vec x86_64_pe_big_vec x86_64_elf64_vec i386_pe_vec i386_pei_vec i386_elf32_vec iamcu_elf32_vec pdb_vec"
+     want64=true
+     targ_underscore=no
++    ;;	
++  x86_64-*-ooos*)
++    targ_defvec=x86_64_elf64_vec
++    targ_selvecs=i386_elf32_vec
++    want64=true
+     ;;
+   x86_64-*-rdos*)
+     targ_defvec=x86_64_elf64_vec
+diff --git a/config.sub b/config.sub
+index 4aaae46f6f7..09e0ae86d99 100755
+--- a/config.sub
++++ b/config.sub
+@@ -2069,6 +2069,7 @@ case $os in
+ 	| oabi* \
+ 	| ohos* \
+ 	| onefs* \
++	| ooos*	\
+ 	| openbsd* \
+ 	| openedition* \
+ 	| openstep* \
+diff --git a/gas/configure.tgt b/gas/configure.tgt
+index 7c81bffa16b..f4e7942e5d9 100644
+--- a/gas/configure.tgt
++++ b/gas/configure.tgt
+@@ -251,6 +251,7 @@ case ${generic_target} in
+   i386-*-gnu*)				fmt=elf em=gnu ;;
+   i386-*-msdos*)			fmt=aout ;;
+   i386-*-moss*)				fmt=elf ;;
++  i386-*-ooos*)    			fmt=elf ;;
+   i386-*-pe)				fmt=coff em=pe ;;
+   i386-*-cygwin*)
+    case ${cpu} in
+diff --git a/ld/Makefile.am b/ld/Makefile.am
+index ccff9289924..c67ed3cf98c 100644
+--- a/ld/Makefile.am
++++ b/ld/Makefile.am
+@@ -281,6 +281,7 @@ ALL_EMULATION_SOURCES = \
+ 	eelf_i386_fbsd.c \
+ 	eelf_i386_haiku.c \
+ 	eelf_i386_ldso.c \
++	eelf_i386_ooos.c \
+ 	eelf_i386_sol2.c \
+ 	eelf_i386_vxworks.c \
+ 	eelf_iamcu.c \
+@@ -462,6 +463,7 @@ ALL_64_EMULATION_SOURCES = \
+ 	eelf_x86_64_cloudabi.c \
+ 	eelf_x86_64_fbsd.c \
+ 	eelf_x86_64_haiku.c \
++	eelf_x86_64_ooos.c \
+ 	eelf_x86_64_sol2.c \
+ 	ehppa64linux.c \
+ 	ei386pep.c \
+diff --git a/ld/configure.tgt b/ld/configure.tgt
+index ea01ccf9a1b..7e8fd3d5c5a 100644
+--- a/ld/configure.tgt
++++ b/ld/configure.tgt
+@@ -450,6 +450,11 @@ i[3-7]86-*-vxworks*)	targ_emul=elf_i386_vxworks
+ 			;;
+ i[3-7]86-*-chaos)	targ_emul=elf_i386_chaos
+ 			;;
++i[3-7]86-*-ooos*)
++			targ_emul=elf_i386_ooos
++			targ_extra_emuls=elf_i386
++			targ64_extra_emuls="elf_x86_64_ooos elf_x86_64"
++			;;
+ ia16-*-elf*)		targ_emul=elf_i386
+ 			targ_extra_emuls=i386msdos
+ 			;;
+@@ -1065,6 +1070,10 @@ x86_64-*-mingw*)	targ_emul=i386pep ;
+ 			targ_extra_emuls=i386pe
+ 			targ_extra_ofiles="deffilep.o pdb.o pep-dll.o pe-dll.o"
+ 			;;
++x86_64-*-ooos*)
++			targ_emul=elf_x86_64_ooos
++			targ_extra_emuls="elf_i386_ooos elf_x86_64 elf_i386"
++			;;
+ x86_64-*-gnu*)		targ_emul=elf_x86_64
+ 			targ_extra_emuls="elf32_x86_64 elf_iamcu elf_i386"
+ 			targ_extra_libpath="elf_i386 elf32_x86_64"

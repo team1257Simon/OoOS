@@ -39,4 +39,3 @@ make all-gcc
 make all-target-libgcc
 sudo make install-gcc install-target-libgcc
 cd ~
-

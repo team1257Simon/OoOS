@@ -5,6 +5,7 @@
 #include "vector"
 #include "heap_allocator.hpp"
 #include "sys/times.h"
+#include "fs/fs.hpp"
 extern "C" [[noreturn]] void handle_exit();
 enum class execution_state
 {
@@ -22,6 +23,7 @@ struct task_ctx
     size_t stack_allocated_size;
     vaddr_t tls;
     size_t tls_size;
+    fs_ptr ctx_filesystem{};
     execution_state current_state{ execution_state::STOPPED };
     int exit_code{ 0 };
     vaddr_t exit_target{ nullptr };
@@ -45,6 +47,7 @@ struct task_ctx
     task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places
 private:
     void __init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr);   
+    void __init_vfs();
 } __align(16);
 extern "C"
 {

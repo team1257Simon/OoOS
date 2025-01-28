@@ -201,7 +201,7 @@ protected:
     typedef std::pair<folder_inode*, std::string> target_pair;
     std::set<device_inode> device_nodes{};
     std::vector<file_inode*> current_open_files{};
-    int next_fd{ 0 };
+    int next_fd{ 3 };
     virtual folder_inode* get_root_directory() = 0;
     virtual void dlfilenode(file_inode*) = 0;
     virtual void dldirnode(folder_inode*) = 0;
@@ -210,7 +210,7 @@ protected:
     virtual void syncdirs() = 0;
     virtual dev_t xgdevid() const noexcept = 0;
     virtual void dldevnode(device_inode*);
-    virtual device_inode* mkdevnode(folder_inode*, std::string const&, vfs_filebuf_base<char>*);
+    virtual device_inode* mkdevnode(folder_inode*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
     virtual const char* path_separator() const noexcept;
     virtual file_inode* open_fd(tnode*);
     virtual target_pair get_parent(std::string const& path, bool create);
@@ -223,10 +223,49 @@ public:
     folder_inode* get_folder(std::string const& path, bool create = true);
     file_inode* get_fd(int fd);
     dev_t get_dev_id() const noexcept;
-    device_inode* lndev(std::string const& where, vfs_filebuf_base<char>* what, bool create_parents = true);
+    device_inode* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     void close_file(file_inode* fd);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
+};
+template<typename T> concept fs_type = std::derived_from<T, filesystem>;
+template<fs_type FT> struct fs_container_alloc_helper
+{
+    typedef std::allocator<FT> allocator_type;
+    [[nodiscard]] static filesystem* allocate() { return allocator_type{}.allocate(1); }
+    static void deallocate(filesystem* ptr) noexcept { allocator_type{}.deallocate(ptr, 1); }
+};
+class fs_ptr
+{
+    typedef filesystem* (*fs_alloc_func)();
+    typedef void (*fs_dealloc_func)(filesystem*);
+    filesystem* __my_ptr{};
+    fs_alloc_func __alloc_fn{};
+    fs_dealloc_func __dealloc_fn{};
+public:
+    typedef filesystem* pointer;
+    typedef filesystem const* const_pointer;
+    typedef filesystem& reference;
+    typedef filesystem const& const_reference;
+    constexpr fs_ptr() noexcept = default;
+    constexpr fs_ptr(fs_ptr&&) = default;
+    constexpr fs_ptr& operator=(fs_ptr&&) = default;
+    ~fs_ptr() { if(this->__my_ptr && this->__dealloc_fn) this->__dealloc_fn(this->__my_ptr); }
+    template<fs_type FT> void create()
+    {
+        using helper = fs_container_alloc_helper<FT>;
+        if(this->__my_ptr && this->__dealloc_fn) this->__dealloc_fn(this->__my_ptr);
+        this->__alloc_fn = &helper::allocate;
+        this->__dealloc_fn = &helper::deallocate;
+        this->__my_ptr = this->__alloc_fn();
+    }
+    constexpr operator pointer() noexcept { return __my_ptr; }
+    constexpr operator const_pointer() const noexcept { return __my_ptr; }
+    constexpr reference operator*() noexcept { return *__my_ptr; }
+    constexpr const_reference operator*() const noexcept { return *__my_ptr; }
+    constexpr pointer operator->() noexcept { return __my_ptr; }
+    constexpr const_pointer operator->() const noexcept { return __my_ptr; }
+    constexpr operator bool() const noexcept { return bool(__my_ptr); }
 };
 filesystem* get_fs_instance();
 extern "C"

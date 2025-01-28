@@ -61,25 +61,25 @@ int gettimeofday(struct timeval* restrict p, void* restrict z);
    if((signed long)(ret) < 0L) { errno = -(int)(ret); return (type)(-1); } \
    else return (type)(ret); \
 } while(0)
-#define DEF_SYSCALL0(rt, name) rt name##() \
+#define DEF_SYSCALL0(rt, name) rt name() \
 { \
    rt ret; \
    XSYSCALL0(name, ret); \
    SYSCALL_RETVAL(rt, ret); \
 }
-#define DEF_SYSCALL1(rt, name, t1, n1) rt name##(t1 n1) \
+#define DEF_SYSCALL1(rt, name, t1, n1) rt name(t1 n1) \
 { \
    rt ret; \
    XSYSCALL1(name, ret, n1); \
    SYSCALL_RETVAL(rt, ret); \
 }
-#define DEF_SYSCALL2(rt, name, t1, n1, t2, n2) rt name##(t1 n1, t2 n2) \
+#define DEF_SYSCALL2(rt, name, t1, n1, t2, n2) rt name(t1 n1, t2 n2) \
 { \
    rt ret; \
    XSYSCALL2(name, ret, n1, n2); \
    SYSCALL_RETVAL(rt, ret); \
 }
-#define DEF_SYSCALL3(rt, name, t1, n1, t2, n2, t3, n3) rt name##(t1 n1, t2 n2, t3 n3) \
+#define DEF_SYSCALL3(rt, name, t1, n1, t2, n2, t3, n3) rt name(t1 n1, t2 n2, t3 n3) \
 { \
    rt ret; \
    XSYSCALL3(name, ret, n1, n2, n3); \

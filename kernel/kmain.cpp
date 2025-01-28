@@ -120,7 +120,7 @@ void vfs_tests()
         file_inode* n = testramfs.open_file("test/files/memes.txt");
         n->write("sweet dreams are made of memes\n", 31);
         testramfs.close_file(n);
-        file_inode* testout = testramfs.lndev("dev/com", com, true);
+        file_inode* testout = testramfs.lndev("dev/com", com, 0, true);
         n = testramfs.open_file("test/files/memes.txt");
         char teststr[32](0);
         // test device and file inodes
@@ -227,7 +227,7 @@ void run_tests()
     task_tests();
     startup_tty.print_line("complete");
 }
-filesystem* get_fs_instance() { return &testramfs; }
+filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
