@@ -1,6 +1,7 @@
 #include "kernel/heap_allocator.hpp"
 #include "direct_text_render.hpp"
 #include "errno.h"
+#include "sched/task.h"
 extern "C"
 {
     extern unsigned char __start;
@@ -598,7 +599,6 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; return true; }
     return false;
 }
-#include "sched/task.h"
 extern "C"
 { 
     uintptr_t translate_vaddr(vaddr_t addr) { if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
