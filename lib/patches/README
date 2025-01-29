@@ -1,3 +1,3 @@
 newlib 3.0.0 from https://github.com/reswitched/newlib.git
-binutils from https://sourceware.org/git/binutils-gdb.git
-gcc from https://gcc.gnu.org/git/gcc.git
+binutils from https://sourceware.org/git/binutils-gdb.git (checkout binutils-2_43_1)
+gcc from https://gcc.gnu.org/git/gcc.git (checkout releases/gcc-14.2.0)

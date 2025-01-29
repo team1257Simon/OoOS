@@ -27,7 +27,7 @@ bool elf64_executable::validate() noexcept
 void elf64_executable::xload()
 {
     if(!this->validate()) throw std::runtime_error{ "invalid executable" };
-    if(this->__process_frame_tag = std::addressof(frame_manager::get().create_frame(this->__process_frame_base, this->__process_frame_extent)))
+    if((this->__process_frame_tag = std::addressof(frame_manager::get().create_frame(this->__process_frame_base, this->__process_frame_extent))))
     {
         elf64_phdr* h = this->__image_start + ptrdiff_t(this->__get_ehdr().e_phoff);
         for(size_t n = 0; n < this->__get_ehdr().e_phnum; n++, h = (vaddr_t{ h } + ptrdiff_t(this->__get_ehdr().e_phentsize)))

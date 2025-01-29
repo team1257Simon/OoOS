@@ -24,8 +24,8 @@ extern "C"
         if(!__local_seed) __local_seed = __rdseed(0x123456787);
         long k = __local_seed / 127773;
         long result = 16807 * (__local_seed - 127773 * k) - 2836 * k;
-        if(result < 0) result += 2147483647;
+        result &= 0x7FFFFFFF;
         __local_seed = result;
-        return static_cast<int>(result & 32767);
+        return static_cast<int>(result);
     }
 }

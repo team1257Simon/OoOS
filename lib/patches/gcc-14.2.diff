@@ -25,7 +25,7 @@ index df90720b716..1390a907d96 100755
      i?86-*-mingw32* | \
      x86_64-*-mingw32* | \
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 95c91ee02be..05d934a6ed5 100644
+index 95c91ee02be..e2452c14007 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -722,6 +722,13 @@ x86_cpus="generic intel"
@@ -42,38 +42,40 @@ index 95c91ee02be..05d934a6ed5 100644
  *-*-darwin*)
    tmake_file="t-darwin "
    tm_file="${tm_file} darwin.h"
-@@ -1189,6 +1196,12 @@ case ${target} in
+@@ -1189,6 +1196,14 @@ case ${target} in
  esac
  
  case ${target} in
 +i[34567]86-*-ooos*)
-+    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h glibc-stdint.h i386/i386elf.h ooos.h"
++	tmake_file="${tmake_file} i386/t-ooos"
++    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h ooos.h"
 +    ;;
 +x86_64-*-ooos*)
-+    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h glibc-stdint.h i386/i386elf.h i386/x86-64.h ooos.h"
++	tmake_file="${tmake_file} i386/t-ooos"
++    tm_file="${tm_file} i386/unix.h i386/att.h elfos.h newlib-stdint.h i386/i386elf.h i386/x86-64.h ooos.h"
 +    ;;
  aarch64*-*-elf | aarch64*-*-fuchsia* | aarch64*-*-rtems*)
  	tm_file="${tm_file} elfos.h newlib-stdint.h"
  	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-elf-raw.h"
 diff --git a/libgcc/config.host b/libgcc/config.host
-index e75a7af647f..5c5915994a0 100644
+index e75a7af647f..3b9067d6b88 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
-@@ -321,6 +321,14 @@ case ${host} in
-   tmake_file="$tmake_file t-slibgcc-libgcc"
-   extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o"
-   ;;
+@@ -409,6 +409,14 @@ i[34567]86-*-cygwin* | x86_64-*-cygwin*)
+ esac
+ 
+ case ${host} in
 +i[34567]86-*-ooos*)
-+	extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
-+	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
-+	;;
++  extra_parts="${extra_parts} crti.o crtbegin.o crtend.o crtn.o"
++  tmake_file="${tmake_file} i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++  ;;
 +x86_64-*-ooos*)
-+	extra_parts="$extra_parts crti.o crtbegin.o crtend.o crtn.o"
-+	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
-+	;;
- *-*-openbsd*)
-   tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip"
-   case ${target_thread_file} in
++  extra_parts="${extra_parts} crti.o crtbegin.o crtend.o crtn.o"
++  tmake_file="${tmake_file} i386/t-crtstuff t-crtstuff-pic t-libgcc-pic"
++  ;;
+ aarch64*-*-elf | aarch64*-*-rtems*)
+ 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
+ 	extra_parts="$extra_parts crtfastmath.o"
 diff --git a/libstdc++-v3/crossconfig.m4 b/libstdc++-v3/crossconfig.m4
 index b3269cb88e0..1308f731350 100644
 --- a/libstdc++-v3/crossconfig.m4

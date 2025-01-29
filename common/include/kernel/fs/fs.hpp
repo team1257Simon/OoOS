@@ -233,7 +233,7 @@ template<fs_type FT> struct fs_container_alloc_helper
 {
     typedef std::allocator<FT> allocator_type;
     [[nodiscard]] static filesystem* allocate() { return allocator_type{}.allocate(1); }
-    static void deallocate(filesystem* ptr) noexcept { allocator_type{}.deallocate(ptr, 1); }
+    static void deallocate(filesystem* ptr) noexcept { if(FT* ptr2 = dynamic_cast<FT*>(ptr)) allocator_type{}.deallocate(ptr2, 1); }
 };
 class fs_ptr
 {

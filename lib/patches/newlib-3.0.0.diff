@@ -1,5 +1,5 @@
 diff --git a/config.sub b/config.sub
-index a35b24ba7..e1d021e76 100755
+index a35b24ba7..516291a46 100755
 --- a/config.sub
 +++ b/config.sub
 @@ -1376,7 +1376,7 @@ case $os in
@@ -7,7 +7,7 @@ index a35b24ba7..e1d021e76 100755
  	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
  	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
 -	     | midnightbsd* | switch*)
-+	     | midnightbsd* | switch* | ooos*)
++	     | midnightbsd* | switch* | ooos* )
  	# Remember, each alternative MUST END IN *, to match a version number.
  		;;
  	qnx*)
@@ -25,6 +25,19 @@ index 5005d38c6..2dfda5e6a 100644
    epiphany-*-*)
  	sys_dir=epiphany
  	# crt0 is provided by libgloss.
+diff --git a/newlib/libc/stdlib/strtorx.c b/newlib/libc/stdlib/strtorx.c
+index a35dabefe..4faed8542 100644
+--- a/newlib/libc/stdlib/strtorx.c
++++ b/newlib/libc/stdlib/strtorx.c
+@@ -89,7 +89,7 @@ ULtox(__UShort *L, __ULong *bits, Long exp, int k)
+ 		break;
+ 
+ 	  case STRTOG_NaN:
+-		*((long double*)L) = nanl ("");
++		*((long double*)L) = __builtin_nanl ("");
+ 	  }
+ 	if (k & STRTOG_Neg)
+ 		L[_0] |= 0x8000;
 diff --git a/newlib/libc/sys/configure.in b/newlib/libc/sys/configure.in
 index 9530d107e..5d93770e7 100644
 --- a/newlib/libc/sys/configure.in
