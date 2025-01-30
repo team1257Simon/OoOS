@@ -77,5 +77,8 @@ template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_
     else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
 }
 template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { /* don't actually touch nontrivial arrays */ }
+constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
+constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
+constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : truncate(n + unit, unit); }
 #endif
 #endif

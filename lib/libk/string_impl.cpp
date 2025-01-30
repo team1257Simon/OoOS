@@ -173,13 +173,14 @@ namespace std
         template<std::integral IT> struct __pow_10 { constexpr static IT values[] = {}; };
         template<> struct __pow_10<uint8_t> { constexpr static uint8_t values[] = {1u, uint8_t(1E1), uint8_t(1E2)}; };
         template<> struct __pow_10<uint16_t> { constexpr static uint16_t values[] = {1u, uint16_t(1E1), uint16_t(1E2), uint16_t(1E3), uint16_t(1E4)}; };
-        template<> struct __pow_10<uint32_t> { constexpr static uint32_t values[] = {1u, uint32_t(1E1), uint32_t(1E2), uint32_t(1E3), uint32_t(1E4),  uint32_t(1E5),  uint32_t(1E6),  uint32_t(1E7),  uint32_t(1E8),  uint32_t(1E9)}; };
+        template<> struct __pow_10<uint32_t> { constexpr static uint32_t values[] = {1u, uint32_t(1E1), uint32_t(1E2), uint32_t(1E3), uint32_t(1E4), uint32_t(1E5), uint32_t(1E6), uint32_t(1E7), uint32_t(1E8),  uint32_t(1E9)}; };
         template<> struct __pow_10<uint64_t> { constexpr static uint64_t values[] = {1, uint64_t(1E1), uint64_t(1E2), uint64_t(1E3), uint64_t(1E4), uint64_t(1E5), uint64_t(1E6), uint64_t(1E7), uint64_t(1E8), uint64_t(1E9), uint64_t(1E10), uint64_t(1E11), uint64_t(1E12), uint64_t(1E13), uint64_t(1E14), uint64_t(1E15), uint64_t(1E16), uint64_t(1E17), uint64_t(1E18), uint64_t(1E19) }; };
-        template<> struct __pow_10<int8_t> { constexpr static int8_t values[] = {1u, int8_t(1E1), int8_t(1E2)}; };
-        template<> struct __pow_10<int16_t> { constexpr static int16_t values[] = {1u, int16_t(1E1), int16_t(1E2), int16_t(1E3), int16_t(1E4)}; };
-        template<> struct __pow_10<int32_t> { constexpr static int32_t values[] = {1u, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4),  int32_t(1E5),  int32_t(1E6),  int32_t(1E7),  int32_t(1E8),  int32_t(1E9)}; };
+        template<> struct __pow_10<int8_t> { constexpr static int8_t values[] = {1, int8_t(1E1), int8_t(1E2)}; };
+        template<> struct __pow_10<int16_t> { constexpr static int16_t values[] = {1, int16_t(1E1), int16_t(1E2), int16_t(1E3), int16_t(1E4)}; };
+        template<> struct __pow_10<int32_t> { constexpr static int32_t values[] = {1, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4), int32_t(1E5),  int32_t(1E6),  int32_t(1E7),  int32_t(1E8),  int32_t(1E9)}; };
         template<> struct __pow_10<int64_t> { constexpr static int64_t values[] = {1, int64_t(1E1), int64_t(1E2), int64_t(1E3), int64_t(1E4), int64_t(1E5), int64_t(1E6), int64_t(1E7), int64_t(1E8), int64_t(1E9), int64_t(1E10), int64_t(1E11), int64_t(1E12), int64_t(1E13), int64_t(1E14), int64_t(1E15), int64_t(1E16), int64_t(1E17), int64_t(1E18) }; };
         template<std::integral IT> constexpr static size_t __max_dec_digits() noexcept { return sizeof(__pow_10<IT>::values) / sizeof(IT); }
+
         template<std::integral IT, std::char_type CT> struct __ntos_conv
         {
             using __digi_type = __char_encode<CT>;
@@ -188,15 +189,15 @@ namespace std
             constexpr static size_t __max_hex = 2 * sizeof(IT);
             constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
             constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
-            constexpr static IT __get_dec_digit_v(IT num, size_t idx) noexcept { return (num % __get_pow10(idx + 1)) / __get_pow10(idx); }
+            constexpr static IT __get_dec_digit_v(IT num, size_t idx) noexcept { if(idx < __max_dec - 1) return (num % __get_pow10(idx + 1)) / __get_pow10(idx); else return num / __get_pow10(idx); }
             constexpr static IT __get_hex_digit_v(IT num, size_t idx) noexcept { return (num & (IT(0xF) << (idx * 4))) >> (idx * 4); }
             constexpr static CT __get_dec_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_dec_digit_v(num, idx)]; }
             constexpr static CT __get_hex_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_hex_digit_v(num, idx)]; }
             constexpr static std::basic_string<CT> __to_string(IT i)
             {
-                if(!i) return basic_string{ __digi_type::digits[0], CT(0) };
+                if(!i) return basic_string(1U, __digi_type::digits[0]);
                 std::basic_string<CT> str{};
-                str.reserve(__max_dec);
+                str.reserve(__max_dec + 1);
                 IT j;
                 if constexpr(std::is_signed_v<IT>) { j = (i < 0) ? -i : i; }
                 else j = i;
@@ -206,9 +207,9 @@ namespace std
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
-                if(!i) return basic_string{ __digi_type::digits[0], CT(0) };
+                if(!i) return basic_string(1U, __digi_type::digits[0]);
                 std::basic_string<CT> hstr{};
-                hstr.reserve(__max_hex);
+                hstr.reserve(__max_hex + 1);
                 IT j;
                 if constexpr(std::is_signed_v<IT>) { j = (i < 0) ? -i : i; }
                 else j = i;

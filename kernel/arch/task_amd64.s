@@ -75,10 +75,6 @@ task_change:
     sti
     iretq
     .size       task_change,    .-task_change
-current_active_task:
-    rdgsbase    %rax
-    ret
-    .size       current_active_task,    .-current_active_task
 user_entry:
     cli
     movq    %gs:0x0AC,          %rax

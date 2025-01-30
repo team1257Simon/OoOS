@@ -105,7 +105,7 @@ typedef struct __task_info
     vaddr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
     vaddr_t next;                       // %gs:0x300; updated when scheduling event fires.
 } __align(16) __pack task_t;
-task_t* current_active_task();
+inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 [[noreturn]] void user_entry();
 void init_pit();
 void init_tss(vaddr_t k_rsp);

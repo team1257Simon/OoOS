@@ -99,7 +99,7 @@ __isrcall void scheduler::on_tick()
         __my_queues[front_sleeper->task_ctl.prio_base].push(__my_sleepers.pop());
         front_sleeper = __my_sleepers.next();
     }
-    task_t* cur = current_active_task();
+    task_t* cur = reinterpret_cast<task_t*>(get_gs_base());
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block)
     {

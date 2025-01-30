@@ -13,9 +13,13 @@
                 "__STDC_HOSTED__=0"
             ],
             "compilerPath": "/usr/local/bin/x86_64-elf-gcc",
-            "intelliSenseMode": "${default}",
+            "intelliSenseMode": "linux-gcc-x64",
             "cppStandard": "c++20",
-            "cStandard": "c17"
+            "cStandard": "c17",
+            "compilerArgs": [
+                "-std=c++20",
+                "-D__KERNEL__"
+            ]
         }
     ],
     "version": 4

@@ -102,8 +102,8 @@ namespace __impl
 		typedef __traits::reference             reference;
         using iterator_concept = std::__detail::__iter_concept<IT>;
         constexpr IT const& base() const noexcept { return current; }
-        constexpr __iterator() noexcept : current{IT{}} {}
-        constexpr explicit __iterator(IT const& __i) noexcept : current{__i} {}
+        constexpr __iterator() noexcept : current{ IT{} } {}
+        constexpr explicit __iterator(IT const& __i) noexcept : current{ __i } {}
         template<std::same_as<typename CT::pointer> JT> constexpr __iterator(__iterator<JT, CT> const& that) : current{ that.base() } {}
         constexpr reference operator*() const noexcept { return *current; }
         constexpr pointer operator->() const noexcept { return current; }
@@ -120,5 +120,42 @@ namespace __impl
     template<typename IT, typename JT, typename CT> constexpr bool operator==(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() == __that.base(); }
     template<typename IT, typename JT, typename CT> constexpr std::__detail::__synth3way_t<IT, JT> operator<=>(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept(noexcept(std::__detail::__synth3way(__this.base(), __that.base()))) { return std::__detail::__synth3way(__this.base(), __that.base()); }
     template<typename IT, typename JT, typename CT> constexpr typename __iterator<IT, CT>::difference_type operator-(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() - __that.base(); }
+    template<typename IT> using __deref_type = decltype(*std::declval<IT>());
+    template<typename IT> concept __dereference_to_advance_capable = requires { { std::declval<IT>() + std::declval<__deref_type<IT>>() } -> std::convertible_to<IT>; } /* && requires { static_cast<__deref_type<IT>>(std::declval<IT>() - std::declval<IT>()); } */;
+    template<typename FT, typename IT> concept __deref_advance_transfer = std::is_default_constructible_v<FT> && requires(FT ft) { { ft(std::declval<IT>(), *std::declval<IT>(), std::declval<IT>()) } -> std::convertible_to<IT>; };
+    template<__dereference_to_advance_capable IT> struct identity_deref { typedef decltype(*std::declval<IT>()) deref_type; constexpr IT operator()(IT start, deref_type what, IT end) noexcept { return(start + what < end) ? start + what : end; } };
+    extension template<__dereference_to_advance_capable IT, typename CT, __deref_advance_transfer<IT> AT = identity_deref<IT>>
+    struct __dereference_to_advance_iterator
+    {
+    protected:
+        typedef std::iterator_traits<IT> __traits;
+        IT begin;
+        IT current;
+        IT end;
+        AT __adv;
+    public:
+        typedef IT                                                          iterator_type;
+        typedef typename std::remove_reference<decltype(*current)>::type    deref_type;
+        typedef __traits::iterator_category                                 iterator_category;
+		typedef __traits::value_type                                        value_type;
+		typedef decltype(std::declval<IT>() - std::declval<IT>())           difference_type;
+		typedef __traits::pointer                                           pointer;
+		typedef __traits::reference                                         reference;
+        using iterator_concept = std::forward_iterator_tag;
+        constexpr IT const& base() const noexcept { return current; }
+        constexpr __dereference_to_advance_iterator() noexcept(noexcept(AT{})) : begin{ IT{} }, current{ IT{} }, end{ IT{} }, __adv{} {}
+        constexpr explicit __dereference_to_advance_iterator(IT b, IT c, IT e, AT a = AT{}) noexcept : begin{ b }, current{ c }, end{ e }, __adv{ a } {}
+        template<std::same_as<typename CT::pointer> JT> constexpr explicit __dereference_to_advance_iterator(__dereference_to_advance_iterator<JT, CT, AT> const& that) noexcept : begin{ that.begin }, current{ that.current }, end{ that.end }, __adv{ that.__adv } {}
+        constexpr reference operator*() const noexcept { return *current; }
+        constexpr pointer operator->() const noexcept { return current; }
+        constexpr __dereference_to_advance_iterator& operator++() noexcept { current = __adv(begin, *current, end); return *this; }
+        constexpr __dereference_to_advance_iterator operator++(int) noexcept { pointer old = current; current = __adv(begin, *current, end); return __dereference_to_advance_iterator{ begin, old, end }; }
+        constexpr bool __is_equal(__dereference_to_advance_iterator const& that) const noexcept { return this->begin == that.begin && this->current == that.current && this->end == that.end; }
+        constexpr deref_type offs() const noexcept requires requires{ static_cast<deref_type>(std::declval<difference_type>()); } { return static_cast<deref_type>(current - begin); }
+    };
+    extension template<__dereference_to_advance_capable IT, __dereference_to_advance_capable JT, typename CT, __deref_advance_transfer<IT> AT, __deref_advance_transfer<JT> BT>
+    constexpr std::__detail::__synth3way_t<IT, JT> operator<=>(__dereference_to_advance_iterator<IT, CT, AT> const& __this, __dereference_to_advance_iterator<JT, CT, BT> const& __that) noexcept(noexcept(std::__detail::__synth3way(__this.base(), __that.base()))) { return std::__detail::__synth3way(__this.base(), __that.base()); }
+    extension template<__dereference_to_advance_capable IT, __dereference_to_advance_capable JT, typename CT, __deref_advance_transfer<IT> AT, __deref_advance_transfer<JT> BT>
+    constexpr bool operator==(__dereference_to_advance_iterator<IT, CT, AT> const& __this, __dereference_to_advance_iterator<JT, CT, BT> const& __that) noexcept { return __this.__is_equal(__that); }
 }
 #endif

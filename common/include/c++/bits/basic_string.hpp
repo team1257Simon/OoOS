@@ -44,7 +44,7 @@ namespace std
         constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { 1, alloc } {}
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
         constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{count + 1, alloc} {}
-        constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { __set(this->__beg(), value, count); this->__advance(count); }
+        constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { this->__set(this->__beg(), value, count); this->__advance(count); }
         template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT const& start, IT const& end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); }
         constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count } { }
         constexpr basic_string(const_pointer str, allocator_type const& alloc = allocator_type{}) : basic_string{ str, traits_type::length(str), alloc } {}
@@ -99,7 +99,7 @@ namespace std
         constexpr basic_string& append(size_type count, value_type val) { this->__append_elements(count, val); return *this; }
         constexpr basic_string& append(const_pointer str, size_type count) { this->__append_elements(str, str + count); return *this; }
         constexpr basic_string& append(const_pointer str) { return append(str, traits_type::length(str)); }
-        constexpr basic_string& append(value_type val) { this->__append_element(val); return *this; }
+        constexpr basic_string& append(value_type val) { return append(size_type(1), val); }
         constexpr basic_string& append(basic_string const& that) { return append(that.data(), that.size()); }
         template<std::matching_input_iterator<value_type> IT> constexpr basic_string& append(IT start, IT end) { this->template __append_elements<IT>(start, end); return *this; }
         constexpr basic_string& append(initializer_list<value_type> init) { return append(init.begin(), init.end()); }

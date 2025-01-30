@@ -99,9 +99,9 @@ extern "C"
     int syscall_sleep(unsigned long seconds) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); scheduler::get().set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { PAUSE; } return 0; } return -ENOSYS; }
     int syscall_execve(char *name, char **argv, char **env) 
     { 
-        filesystem* fs_ptr = get_fs_instance(); 
+        filesystem* fs_ptr = get_fs_instance();
         if(!fs_ptr) return -ENOSYS;
-        task_ctx* task = current_active_task()->self;
+        task_ctx* task = reinterpret_cast<task_t*>(get_gs_base())->self;
         std::allocator<char> fballoc{};
         char* buf{ nullptr };
         file_inode* n{ nullptr };

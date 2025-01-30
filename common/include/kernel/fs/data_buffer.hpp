@@ -5,7 +5,6 @@
 template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>, std::allocator_object<CT> AT = std::allocator<CT>>
 class data_buffer : public std::basic_streambuf<CT, TT>, protected std::__impl::__dynamic_buffer<CT, AT>
 {
-    friend void buffer_test();
     using __dynamic_base = typename std::__impl::__dynamic_buffer<CT, AT>;
 public:
     using typename std::basic_streambuf<CT, TT>::char_type;

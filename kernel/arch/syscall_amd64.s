@@ -34,7 +34,9 @@ do_syscall:
     movq    %rsp,                   %gs:0x088
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
+    movq    %gs:0x000,              %rcx
     swapgs
+    movq    %rcx,                   %gs:0x300
     movq    %gs:0x088,              %rsp
     movq    %gs:0x080,              %rbp
     movq    %r8,                    %rcx

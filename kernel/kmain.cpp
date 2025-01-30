@@ -164,7 +164,7 @@ void test_landing_pad()
     asm volatile("movq %%rax, %0" : "=r"(retv) :: "memory");
     direct_writeln("Landed!");
     cli();
-    task_ctx* ctx = current_active_task()->self;
+    task_ctx* ctx = reinterpret_cast<task_t*>(get_gs_base())->self;
     heap_allocator::get().deallocate_block(ctx->allocated_stack, ctx->stack_allocated_size);
     heap_allocator::get().deallocate_block(ctx->tls, ctx->tls_size);
     task_list::get().destroy_task(ctx->get_pid());
@@ -227,7 +227,7 @@ void run_tests()
     task_tests();
     startup_tty.print_line("complete");
 }
-filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
+filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) task = task->task_struct.next; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
