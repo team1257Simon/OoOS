@@ -3,7 +3,6 @@
 #include "sys/time.h"
 #include "kernel/isr_table.hpp"
 #include "atomic"
-constexpr uint16_t UNIX_YEAR_BASE = 1970u;
 #ifdef __cplusplus
 extern "C" {
 #endif

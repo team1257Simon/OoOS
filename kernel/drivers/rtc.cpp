@@ -2,11 +2,8 @@
 #include "arch/arch_amd64.h"
 #include "isr_table.hpp"
 rtc_driver rtc_driver::__instance{}; 
-constexpr static uint32_t years_to_days(uint16_t yr, uint16_t from) { return ((yr - from) * 365U + (yr - from) / 4U + (((yr % 4U == 0U) || (from % 4U == 0U)) ? 1U : 0U)) - 1U; }
 constexpr static uint16_t bcd_conv(uint16_t bcd) { return ((bcd & 0xF0U) >> 1) + ((bcd & 0xF0U) >> 3) + (bcd & 0x0FU); }
 constexpr static byte read_rtc_register_dyn(byte r) { byte prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80ui8) | r); return inb(data_rtc); }
-constexpr static uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
-constexpr static uint16_t day_of_year(uint8_t month, uint16_t day, bool leap) { uint16_t result = day - 1U; for(uint8_t i = 1U; i < month; i++) result += days_in_month(i, leap); return result; }
 constexpr static uint8_t day_of_week(uint16_t year, uint8_t month, uint16_t day) { uint32_t dy = day_of_year(month, day, (year % 4U == 0U)); dy += years_to_days(year, 1800U); return ((dy + 3U) % 7U) + 1U; /* 1800 started on a Wednesday */ }
 constexpr static uint64_t to_unix_timestamp(rtc_time const& t) { return static_cast<uint64_t>(t.sec + static_cast<uint64_t>(t.min) * 60UL + static_cast<uint64_t>(t.hr) * 3600UL + static_cast<uint64_t>(day_of_year(t.month, t.day, (t.year % 4U == 0U)) + years_to_days(t.year, 1970U)) * 86400UL) * 1000UL; }
 void rtc_driver::init_instance(uint8_t century_register) noexcept { __instance.__century_register = century_register; __instance.__is_12h = !(read_rtc_register<0x0Bui8>()[1]); __instance.__is_bcd = !(read_rtc_register<0x0Bui8>()[2U]); interrupt_table::add_irq_handler(0ui8, LAMBDA_ISR() { __instance.rtc_time_update(); }); irq_clear_mask<0ui8>(); }

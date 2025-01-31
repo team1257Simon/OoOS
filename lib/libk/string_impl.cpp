@@ -34,7 +34,7 @@ extern "C"
     const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
     {
         static std::string estr;
-        estr = {"Assertion failed in function "};
+        estr = { "Assertion failed in function " };
         estr.append(fname ? fname : "");
         estr.append(", file ");
         estr.append(filename ? filename : "");
@@ -180,7 +180,6 @@ namespace std
         template<> struct __pow_10<int32_t> { constexpr static int32_t values[] = {1, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4), int32_t(1E5),  int32_t(1E6),  int32_t(1E7),  int32_t(1E8),  int32_t(1E9)}; };
         template<> struct __pow_10<int64_t> { constexpr static int64_t values[] = {1, int64_t(1E1), int64_t(1E2), int64_t(1E3), int64_t(1E4), int64_t(1E5), int64_t(1E6), int64_t(1E7), int64_t(1E8), int64_t(1E9), int64_t(1E10), int64_t(1E11), int64_t(1E12), int64_t(1E13), int64_t(1E14), int64_t(1E15), int64_t(1E16), int64_t(1E17), int64_t(1E18) }; };
         template<std::integral IT> constexpr static size_t __max_dec_digits() noexcept { return sizeof(__pow_10<IT>::values) / sizeof(IT); }
-
         template<std::integral IT, std::char_type CT> struct __ntos_conv
         {
             using __digi_type = __char_encode<CT>;
@@ -223,7 +222,7 @@ namespace std
         {
             int dp = 0, sign = 0;
             char *rve = NULL, *result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
-            if(!result) { return {"E"}; }
+            if(!result) { return { "ERROR" }; }
             std::string str { result, rve };
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -233,7 +232,7 @@ namespace std
         {
             int dp = 0, sign = 0;
             char *rve = NULL, *result = __dtoa(d, 0, digits, &dp, &sign, &rve);
-            if(!result) { return {"E"}; }
+            if(!result) { return { "ERROR" }; }
             std::string str { result, rve };
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -243,7 +242,7 @@ namespace std
         {
             int dp = 0, sign = 0;
             char *rve = NULL, *result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
-            if(!result) { return {"E"}; }
+            if(!result) { return { "ERROR" }; }
             std::string str { result, rve };
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
@@ -265,6 +264,10 @@ namespace std
         bool __isxdigit(char c) { return __isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
         char __tolower(char c) { return __char_encode<char>::__to_lower(c); }
         char __toupper(char c) { return __char_encode<char>::__to_upper(c); }
+        struct __upper_transf
+        {
+            constexpr char operator()(char c) const noexcept { return __toupper(c); }
+        };
         template<std::integral IT>
         IT ston(const char* str, char* &eptr, int base = 10)
         {
@@ -353,6 +356,8 @@ namespace std
         std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }
         std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
         std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
+        std::string to_upper(std::string const& str) { std::string result(str.size(), str.get_allocator()); std::string::iterator i = result.begin(); for(std::string::const_iterator j = str.begin(); j != str.end(); ++i, ++j) { *i = __toupper(*j); } return result; }
+        std::string to_lower(std::string const& str) { std::string result(str.size(), str.get_allocator()); std::string::iterator i = result.begin(); for(std::string::const_iterator j = str.begin(); j != str.end(); ++i, ++j) { *i = __tolower(*j); } return result; }
     }
 }
 using namespace std::__impl;

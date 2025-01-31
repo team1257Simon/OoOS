@@ -88,7 +88,7 @@ file_inode* filesystem::open_file(std::string const& path, std::ios_base::openmo
 file_inode *filesystem::get_file(std::string const &path)
 {
     target_pair parent{ this->get_parent(path, false) };
-    if(tnode* node{ parent.first->find(parent.second) }) { return node->as_file(); }
+    if(tnode* node{ parent.first->find(parent.second) }) { return open_fd(node); }
     else throw std::runtime_error{ "file not found: " + path };
 }
 folder_inode *filesystem::get_folder(std::string const& path, bool create)

@@ -1,7 +1,7 @@
 #include "fs/ramfs.hpp"
 #include "rtc.h"
 ramfs_folder_inode::ramfs_folder_inode(std::string const& name) : folder_inode{ name, vaddr_t{ this } } {}
-bool ramfs_folder_inode::fsync() { for(tnode_dir::iterator first = __my_dir.begin(), last = __my_dir.end(); first != last; ) { if(first->operator bool()) first = __my_dir.erase(first); else ++first; } return true; }
+bool ramfs_folder_inode::fsync() { for(tnode_dir::iterator first = __my_dir.begin(), last = __my_dir.end(); first != last; ) { if(!first->operator bool()) first = __my_dir.erase(first); else ++first; } return true; }
 std::vector<std::string> ramfs_folder_inode::lsdir() const { std::vector<std::string> result{}; for(tnode_dir::const_iterator i = __my_dir.begin(); i != __my_dir.end(); ++i) result.push_back(i->name()); return result; }
 uint64_t ramfs_folder_inode::num_folders() const noexcept { return __my_subdir_cnt; }
 uint64_t ramfs_folder_inode::num_files() const noexcept { return __my_file_cnt; }

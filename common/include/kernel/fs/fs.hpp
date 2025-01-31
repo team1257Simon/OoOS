@@ -164,6 +164,7 @@ class tnode
 public:
     tnode(inode*, std::string const&);
     tnode(inode*, const char*);
+    tnode(std::string const&);
     void rename(std::string const&);
     void rename(const char*);
     const char* name() const;
@@ -188,6 +189,7 @@ public:
     device_inode const* as_device() const;
     constexpr operator bool() const noexcept { return bool(__my_node); }
     void invlnode() noexcept;
+    bool assign(inode* n) noexcept;
     friend tnode mklink(tnode* original, std::string const& name);
     friend constexpr std::strong_ordering operator<=>(tnode const& __this, tnode const& __that) noexcept { return __this.__my_name <=> __that.__my_name; }
     friend constexpr std::strong_ordering operator<=>(tnode const& __this, std::string const& __that) noexcept { return __this.__my_name <=> __that; }

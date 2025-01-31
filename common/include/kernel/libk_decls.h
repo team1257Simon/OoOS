@@ -32,6 +32,10 @@ uintptr_t translate_vaddr(vaddr_t addr);
 uint64_t syscall_time(uint64_t* tm_target);
 #ifdef __cplusplus
 }
+constexpr uint16_t unix_year_base = 1970u;
+constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
+constexpr uint32_t years_to_days(uint16_t yr, uint16_t from){ return ((yr - from) * 365U + (yr - from) / 4U + (((yr % 4U == 0U) || (from % 4U == 0U)) ? 1U : 0U)) - 1U; }
+constexpr uint16_t day_of_year(uint8_t month, uint16_t day, bool leap) { uint16_t result = day - 1U; for(uint8_t i = 1U; i < month; i++) result += days_in_month(i, leap); return result; }
 inline void set_cr3(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
 inline paging_table get_cr3() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
 inline void tlb_flush() noexcept { set_cr3(get_cr3()); }

@@ -59,7 +59,7 @@ namespace std
         constexpr reference at(size_type i) { return this->__get(i); }
         constexpr const_reference at(size_type i) const { return this->__get(i); }
         constexpr reference operator[](size_type i) { return this->__get(i); }
-        constexpr const_reference operator[](size_type i ) const { return this->__get(i); }
+        constexpr const_reference operator[](size_type i) const { return this->__get(i); }
         constexpr reference front() { return this->__get(0); }
         constexpr const_reference front() const { return this->__get(0); }
         constexpr reference back() { return this->__get_last(); }
@@ -115,8 +115,13 @@ namespace std
         extension constexpr const_iterator find(const_pointer str, const_iterator pos) const noexcept { size_type result = find(str, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
         extension constexpr const_iterator find(basic_string const& that, const_iterator pos) const noexcept { size_type result = find(that, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
         extension constexpr const_iterator find(value_type val, const_iterator pos) const noexcept { size_type result = find(val, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
+        constexpr bool contains(value_type val) const noexcept { return find(val) != npos; }
         constexpr int compare(basic_string const& that) const { const size_type __my_size = this->size(); const size_type __your_size = that.size(); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that.data(), __len); return (result != 0) ? result : __size_compare(__my_size, __your_size); }
         constexpr int compare(const_pointer that) const { const size_type __my_size = this->size(); const size_type __your_size = traits_type::length(that); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that, __len); return (result != 0) ? result : __size_compare(__my_size, __your_size); }
+        extension constexpr size_type count(value_type val) const { size_type result{ 0UL }; for(const_iterator i = begin(); i != end(); i++) { if(*i == val) result++; } return result; }
+        extension constexpr basic_string without(value_type val) const { basic_string result(size() - count(val), get_allocator()); for(const_iterator i = begin(); i != end(); i++) { if(*i != val) result.append(*i); } return result; }
+        extension constexpr size_type count_of(basic_string const& that) const { size_type result{ 0UL }; for(const_iterator i = that.begin(); i != that.end(); i++) result += count(*i); return result; }
+        extension constexpr basic_string without_any_of(basic_string const& that) const { basic_string result(size() - count_of(that), get_allocator()); for(const_iterator i = begin(); i != end(); i++) { if(!that.contains(*i)) result.append(*i); } return result; }
     };
     template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr int __lexical_cmp(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) noexcept { return __lex_compare(__this.data(), __this.data() + __this.size(), __that.data(), __that.data() + __that.size()); }
     template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> constexpr basic_string<CT, TT, AT> operator+(basic_string<CT, TT, AT> const& __this, basic_string<CT, TT, AT> const& __that) { basic_string<CT, TT, AT> result{ __this }; result.append(__that); return result; }

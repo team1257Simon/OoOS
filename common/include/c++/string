@@ -63,11 +63,13 @@ namespace std
     u32string to_u32string(double value);
     u32string to_u32string(long double value);
 	u32string to_u32string(bool value);
-	namespace ext
+	extension namespace ext
 	{
 		std::string fcvt(float f, int ndigits);
 		std::string fcvtd(double d, int ndigits);
 		std::string fcvtl(long double ld, int ndigits);
+		std::string to_upper(std::string const& str);
+		std::string to_lower(std::string const& str);
 	}
 }
 extension void xdirect_write(std::string const& str);

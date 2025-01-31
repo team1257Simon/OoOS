@@ -35,6 +35,7 @@ device_inode::pos_type device_inode::seek(off_type off, std::ios_base::seekdir w
 device_inode::pos_type device_inode::seek(pos_type pos) { return __my_device->pubseekpos(pos); }
 tnode::tnode(inode* node, std::string const& name) : __my_node{ node }, __my_name{ name } { __my_node->refs.insert(this); }
 tnode::tnode(inode* node, const char *name) : __my_node{ node }, __my_name{ name } { __my_node->refs.insert(this); }
+tnode::tnode(std::string const& name) : __my_node { nullptr }, __my_name{ name } {}
 void tnode::rename(std::string const& n) { __my_name = n; }
 void tnode::rename(const char* n) { __my_name = n; }
 const char *tnode::name() const { return __my_name.c_str(); }
@@ -59,4 +60,5 @@ bool tnode::is_file() const { return __my_node && __my_node->is_file(); }
 bool tnode::is_folder() const { return __my_node && __my_node->is_folder(); }
 bool tnode::is_device() const { return __my_node && __my_node->is_device(); }
 void tnode::invlnode() noexcept { __my_node = nullptr; }
+bool tnode::assign(inode *n) noexcept { if(!__my_node) { __my_node = n; return true; } else return false; }
 tnode mklink(tnode *original, std::string const &name) { return tnode(original->__my_node, name); }
