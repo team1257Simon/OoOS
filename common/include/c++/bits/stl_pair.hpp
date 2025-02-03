@@ -21,16 +21,8 @@ namespace std
         template <typename U1, typename U2> constexpr static bool __move_constructible_pair() { return false; }
         template <typename U1, typename U2> constexpr static bool __implicitly_move_convertible_pair() { return false; }
     };
-    template<typename U1, typename U2> class __pair_base
-    {
-        template<typename T1, typename T2> friend struct pair;
-        __pair_base() = default;
-        ~__pair_base() = default;
-        __pair_base(const __pair_base&) = default;
-        __pair_base& operator=(const __pair_base&) = delete;
-    };
     template<typename T1, typename T2>
-    struct pair : private __pair_base<T1, T2>
+    struct pair
     {
         typedef T1 first_type;
         typedef T2 second_type;

@@ -76,6 +76,7 @@ namespace std
         constexpr iterator erase(const_iterator start, const_iterator end) { return iterator { this->__erase_range(start.base(), end.base()) }; }
         constexpr void swap(vector& that) { this->__swap(that); }
         extension constexpr vector reverse() const { return vector{ this->crend(), this->crbegin(), this->__allocator }; }
+        extension constexpr void expand_to_size() noexcept { this->__setc(this->__max()); }
     };
 }
 #endif

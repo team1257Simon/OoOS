@@ -82,17 +82,7 @@ struct fat32_bootsect
 struct fat32_regular_entry
 {
     char filename[11];
-    struct
-    {
-        bool read_only : 1;
-        bool hidden    : 1;
-        bool system    : 1;
-        bool volume_id : 1;
-        bool directory : 1;
-        bool archive   : 1;
-        bool           : 1;
-        bool           : 1;
-    } __pack __align(1) attributes;
+    uint8_t attributes;
     uint8_t winnt_reserved;
     uint8_t created_time_millis;    // in hundredths of a second, so this times 10 is the milliseconds field
     fat_filetime created_time;
@@ -121,13 +111,16 @@ struct fat32_longname_entry
     uint16_t reserved;
     char16_t text_3[2];
 } __pack __align(1);
+constexpr bool is_last_longname(fat32_longname_entry const& e) noexcept { return (e.ordinal & 0x40) != 0; }
 union [[gnu::may_alias]] fat32_directory_entry
 {
     fat32_regular_entry regular_entry;
     fat32_longname_entry longname_entry;
+    constexpr fat32_directory_entry& operator=(fat32_directory_entry const& that) noexcept { __builtin_memcpy(std::bit_cast<uint8_t*>(this), &that, sizeof(fat32_directory_entry)); return *this; }
 } __pack __align(1);
-constexpr bool is_unused(fat32_directory_entry const& e) { return e.longname_entry.ordinal == 0xE5; }
-constexpr bool is_longname(fat32_directory_entry const& e) { return e.regular_entry.attributes.system && e.regular_entry.attributes.hidden && e.regular_entry.attributes.read_only && e.regular_entry.attributes.volume_id; }
+constexpr bool is_unused(fat32_directory_entry const& e) { return e.longname_entry.ordinal == 0xE5 || e.longname_entry.ordinal == 0; }
+constexpr bool is_longname(fat32_directory_entry const& e) { return (e.longname_entry.attributes & 0x0F) == 0x0F; }
+constexpr dword start_of(fat32_regular_entry const& e) { return dword{ e.first_cluster_lo, e.first_cluster_hi }; }
 constexpr std::strong_ordering operator<=>(fat32_longname_entry const& a, fat32_longname_entry const& b) noexcept { return a.ordinal <=> b.ordinal; }
 template<std::unsigned_integral IT> constexpr auto operator<=>(IT a, fat32_longname_entry const& b) noexcept -> decltype(std::declval<IT>() <=> b.ordinal) { return a <=> b.ordinal; }
 template<std::unsigned_integral IT> constexpr auto operator<=>(fat32_longname_entry const& a, IT b) noexcept -> decltype(a.ordinal <=> std::declval<IT>()) { return a.ordinal <=> b; }
@@ -144,11 +137,11 @@ public:
     typedef typename __base::__const_ref const_reference;
     typedef uint32_t* pointer;
     typedef uint32_t const* const_pointer;
-    struct pointer_advance { constexpr pointer operator()(pointer begin, uint32_t val, pointer end) const noexcept { return (val < fat32_cluster_eof && begin + val < end) ? (begin + (val & fat32_cluster_mask)) : end; } };
-    struct const_pointer_advance { constexpr const_pointer operator()(const_pointer begin, uint32_t val, const_pointer end) const noexcept { return (val < fat32_cluster_eof && begin + val < end) ? (begin + (val & fat32_cluster_mask)) : end; } };
+    struct pointer_advance { constexpr pointer operator()(pointer begin, uint32_t val, pointer end) const noexcept { val &= fat32_cluster_mask; return (val < fat32_cluster_eof && begin + val < end) ? (begin + val) : end; } };
+    struct const_pointer_advance { constexpr const_pointer operator()(const_pointer begin, uint32_t val, const_pointer end) const noexcept { val &= fat32_cluster_mask; return (val < fat32_cluster_eof && begin + val < end) ? (begin + val) : end; } };
     typedef __impl::__dereference_to_advance_iterator<const_pointer, fat32_allocation_table, const_pointer_advance> const_iterator;
     typedef __impl::__dereference_to_advance_iterator<pointer, fat32_allocation_table, pointer_advance> iterator;
-    fat32_allocation_table(size_t num_sectors, uint64_t start_sector);
+    fat32_allocation_table(size_t num_sectors, size_t bytes_per_sector, uint64_t start_sector);
     bool sync_to_disk() const;
     bool get_from_disk();
     constexpr size_type size() const noexcept { return this->__size(); }
@@ -158,8 +151,8 @@ public:
     constexpr iterator begin() noexcept { return iterator{ this->__beg(), this->__beg(), this->__cur() }; }
     constexpr const_iterator cbegin() const noexcept { return const_iterator{ this->__beg(), this->__beg(), this->__cur() }; }
     constexpr const_iterator begin() const noexcept { return cbegin(); }
-    constexpr iterator from(uint32_t value) noexcept { return iterator{ this->__beg(), pointer_advance{}(this->__beg(), value, this->__cur()), this->__cur() }; }
-    constexpr const_iterator cfrom(uint32_t value) const noexcept { return const_iterator{ this->__beg(), const_pointer_advance{}(this->__beg(), value, this->__cur()), this->__cur() }; }
+    constexpr iterator from(uint32_t val) noexcept { return iterator{ this->__beg(), val < fat32_cluster_eof && this->__beg() + val < this->__cur() ? this->__beg() + val : this->__cur(), this->__cur() }; }
+    constexpr const_iterator cfrom(uint32_t val) const noexcept { val &= fat32_cluster_mask; return const_iterator{ this->__beg(), val < fat32_cluster_eof && this->__beg() + val < this->__cur() ? this->__beg() + val : this->__cur(), this->__cur() }; }
     constexpr const_iterator from(uint32_t value) const noexcept { return cfrom(value); }
     constexpr iterator end() noexcept { return iterator{ this->__beg(), this->__cur(), this->__cur() }; }
     constexpr const_iterator cend() const noexcept { return const_iterator{ this->__beg(), this->__cur(), this->__cur() }; }
@@ -169,6 +162,7 @@ public:
     constexpr iterator next_available() noexcept { for(size_t i = 3; i < this->size(); i++) { if(((*this)[i] & fat32_cluster_mask )== 0) return from(static_cast<uint32_t>(i)); } return end(); }
     constexpr const_iterator next_available() const noexcept { for(size_t i = 3; i < this->size(); i++) { if(((*this)[i] & fat32_cluster_mask) == 0) return from(static_cast<uint32_t>(i)); } return end(); }
 };
+uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect = 0U);
 class fat32_filebuf : public vfs_filebuf_base<char>
 {
     using __base = vfs_filebuf_base<char>;
@@ -193,7 +187,14 @@ protected:
 public:
     fat32_filebuf(std::vector<uint32_t>&& covered_clusters, __cl_conv_fn_t const& cluster_convert_fn, __cl_get_fn_t const& add_cluster_fn);
 };
-class fat32_file_inode : public file_inode
+struct fat32_node 
+{
+    fat32_regular_entry* disk_entry;
+    constexpr fat32_node(fat32_regular_entry* e) noexcept : disk_entry{ e } {}
+    constexpr uint32_t start_cluster() const noexcept { return disk_entry ? uint32_t(start_of(*disk_entry)) : 0; }
+};
+class fat32;
+class fat32_file_inode : public file_inode, public fat32_node
 {
     fat32_filebuf __my_filebuf;
     size_t __on_disk_size;
@@ -211,11 +212,10 @@ public:
     virtual pos_type seek(pos_type pos) override;
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
-    fat32_file_inode(int fd, std::string const& real_name, uint32_t cluster_start, fat32_allocation_table& tb, fat32_filebuf::__cl_conv_fn_t const& cluster_to_sector);
-    fat32_file_inode(int fd, std::string const& real_name, fat32_regular_entry const& e, fat32_allocation_table& tb, fat32_filebuf::__cl_conv_fn_t const& cluster_to_sector);
+    void on_open();
+    fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
 };
-class fat32;
-class fat32_folder_inode : public folder_inode
+class fat32_folder_inode : public folder_inode, public fat32_node
 {
     fat32* __my_parent_fs;
     std::vector<fat32_directory_entry> __my_dir_data;
@@ -226,12 +226,15 @@ class fat32_folder_inode : public folder_inode
     size_t __n_folders;
     bool __has_init{ false };
     void __expand_dir();
-    std::vector<fat32_directory_entry>::iterator __first_open_entry();
+    bool __dir_ent_erase(std::string const& what);
+    std::vector<fat32_directory_entry>::iterator __whereis(fat32_regular_entry* e);
+    std::vector<fat32_directory_entry>::iterator __get_longname_start(fat32_regular_entry* e);
 public:
+    std::vector<fat32_directory_entry>::iterator first_unused_entry();
     virtual tnode* find(std::string const&) override;
-    virtual bool link(tnode*, std::string const&) override;
+    virtual bool link(tnode* original, std::string const& target) override;
     virtual tnode* add(inode* n) override;
-    virtual bool unlink(std::string const&) override;
+    virtual bool unlink(std::string const& name) override;
     virtual uint64_t num_files() const noexcept override;
     virtual uint64_t num_folders() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
@@ -239,29 +242,41 @@ public:
     std::string get_short_name(std::string const& full);
     fat32_regular_entry* find_dirent(std::string const&);
     bool parse_dir_data();
-    fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry const& e);
+    fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
+    fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cluster);
 };
 class fat32 : public filesystem
 {
     friend class fat32_folder_inode;
-    fat32_folder_inode __root_directory;
-    std::set<fat32_file_inode> __opened_files;
-    std::set<fat32_folder_inode> __opened_folders;
-    fat32_allocation_table __the_table;
+    friend class fat32_file_inode;
+    std::set<fat32_file_inode> __opened_files{};
+    std::set<fat32_folder_inode> __opened_folders{};    
+    std::map<uint64_t, size_t> __st_cluster_ref_counts{};
     uint8_t __sectors_per_cluster;
     uint64_t __sector_base;
     dev_t __dev_serial;
-    uint64_t __cluster_to_sector(uint32_t cl) const noexcept;
+    fat32_allocation_table __the_table;
+    fat32_folder_inode __root_directory;
+    void __release_clusters_from(uint32_t start);
+    friend void fat32_tests();
 protected:
+    void add_start_cluster_ref(uint64_t cl);
+    void rm_start_cluster_ref(uint64_t cl);
+    uint64_t cluster_to_sector(uint32_t cl) const noexcept;    
     virtual folder_inode* get_root_directory() override;
     virtual void dlfilenode(file_inode* fd) override;
     virtual void dldirnode(folder_inode* dd) override;
     virtual void syncdirs() override;
     virtual file_inode* mkfilenode(folder_inode* parent, std::string const& name) override;
     virtual folder_inode* mkdirnode(folder_inode* parent, std::string const& name) override;
-    virtual dev_t xgdevid() const noexcept override;    
+    virtual dev_t xgdevid() const noexcept override;
     virtual file_inode* open_fd(tnode*) override;
+    fat32(fat32_bootsect const& bootsect, uint64_t start_sector);
+    fat32(uint64_t start_sector);
+    constexpr int& get_next_fd() noexcept { return next_fd; }
+    std::function<uint64_t (uint32_t)> cl_to_sect_fn{ [&](uint32_t cl) -> uint64_t { return cluster_to_sector(cl); } };
 public:
     fat32();
+    bool init();
 };
 #endif

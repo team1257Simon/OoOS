@@ -45,7 +45,7 @@ void ahci_driver::__issue_command(uint8_t idx, int slot)
     BARRIER;
     unsigned st;
     spin = 0;
-    while(__port_cmd_busy(port, slot) && spin < max_ext_wait) { BARRIER; st = port->i_state; BARRIER; if(dword(st).hi.hi & i_state_hi_byte_error) { throw std::runtime_error("Port number " + std::to_string(idx) + " hardware error"); } spin++; BARRIER;}
+    while(__port_cmd_busy(port, slot) && spin < max_ext_wait) { BARRIER; st = port->i_state; BARRIER; if(dword(st).hi.hi & i_state_hi_byte_error) { throw std::runtime_error("Port number " + std::to_string(idx) + " i/o error"); } spin++; BARRIER; }
     BARRIER;
     st = port->i_state;
     if(dword(st).hi.hi & i_state_hi_byte_error) { throw std::runtime_error("Port number " + std::to_string(idx) + " hardware error"); }
@@ -58,7 +58,7 @@ void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t *buffer, at
     memset(cmdtbl, 0, sizeof(hba_cmd_table));
     BARRIER;
     qword addr{ translate_vaddr(buffer) };
-    for(uint16_t i = 0; i <= l; i++, addr += 0x1000)
+    for(uint16_t i = 0; i <= l; i++, addr += 0x2000)
     {
         BARRIER;
         cmdtbl->prdt_entries[i].data_base = addr.lo;

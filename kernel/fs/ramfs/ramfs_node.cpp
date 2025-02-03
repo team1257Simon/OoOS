@@ -7,7 +7,7 @@ uint64_t ramfs_folder_inode::num_folders() const noexcept { return __my_subdir_c
 uint64_t ramfs_folder_inode::num_files() const noexcept { return __my_file_cnt; }
 bool ramfs_folder_inode::unlink(std::string const &what) { bool result = __my_dir.erase(what) != 0; if(result) syscall_time(&this->modif_time); return result; }
 tnode* ramfs_folder_inode::add(inode* n) { std::pair<tnode_dir::iterator, bool> result = __my_dir.emplace(n, n->name()); if(result.second) syscall_time(&this->modif_time); return std::addressof(*(result.first)); }
-bool ramfs_folder_inode::link(tnode *original, std::string const &alias) { bool result = (__my_dir.emplace(mklink(original, alias))).second; if(result) syscall_time(&this->modif_time); return result; }
+bool ramfs_folder_inode::link(tnode* original, std::string const &alias) { bool result = (__my_dir.emplace(mklink(original, alias))).second; if(result) syscall_time(&this->modif_time); return result; }
 tnode *ramfs_folder_inode::find(std::string const& name) { tnode_dir::iterator i = __my_dir.find(name); if(i != __my_dir.end()) { return std::addressof(*i); } return nullptr; }
 ramfs_file_inode::ramfs_file_inode(std::string const& name, int fd) : file_inode{ name, fd, vaddr_t{ this } } {}
 ramfs_file_inode::size_type ramfs_file_inode::write(const_pointer src, size_type n) { size_t result = this->sputn(src, n); if(result) syscall_time(&this->modif_time); return result; }

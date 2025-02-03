@@ -5,11 +5,11 @@
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
 void filesystem::__put_fd(file_inode *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files[fd->vid()] = fd; for(std::vector<file_inode*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
 const char *filesystem::path_separator() const noexcept { return "/"; }
-void filesystem::close_file(file_inode* fd) { this->close_fd(fd); fd->rel_lock(); }
+void filesystem::close_file(file_inode* fd) { this->close_fd(fd); fd->rel_lock(); this->syncdirs(); }
 void filesystem::close_fd(file_inode* fd) { fd->seek(0); int id = fd->vid(); if(static_cast<size_t>(id) < current_open_files.size()) { current_open_files[id] = nullptr; next_fd = id; } }
 file_inode* filesystem::open_fd(tnode* node) { return node->as_file(); }
 void filesystem::dldevnode(device_inode* n) { n->prune_refs(); device_nodes.erase(*n); this->syncdirs(); }
-device_inode *filesystem::mkdevnode(folder_inode *parent, std::string const &name, vfs_filebuf_base<char> *dev, int fd_hint) 
+device_inode* filesystem::mkdevnode(folder_inode *parent, std::string const &name, vfs_filebuf_base<char> *dev, int fd_hint) 
 {
     device_inode* result = std::addressof(*(device_nodes.emplace(name, next_fd++, dev).first));
     parent->add(result);
@@ -31,12 +31,12 @@ bool filesystem::xunlink(folder_inode* parent, std::string const& what, bool ign
     (*node)->unregister_reference(node);
     if(!(*node)->has_refs())
     {
-        if(node->is_file()){ if(node->as_file()->is_device()) { this->dldevnode(dynamic_cast<device_inode*>(node->as_file())); } else this->dlfilenode(node->as_file());  }
+        if(node->is_file()){ if(node->as_file()->is_device()) { this->dldevnode(dynamic_cast<device_inode*>(node->as_file())); } else this->dlfilenode(node->as_file()); }
         if(node->is_folder()) this->dldirnode(node->as_folder());
     }
     return true;
 }
-tnode *filesystem::xlink(target_pair ogparent, target_pair tgparent)
+tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
 {
     tnode* node{ ogparent.first->find(ogparent.second) };
     if(!node) throw std::runtime_error{ std::string{ "path does not exist: " } + ogparent.first->name() + path_separator() + ogparent.second };
@@ -85,13 +85,13 @@ file_inode* filesystem::open_file(std::string const& path, std::ios_base::openmo
     this->__put_fd(result);
     return result;
 }
-file_inode *filesystem::get_file(std::string const &path)
+file_inode* filesystem::get_file(std::string const &path)
 {
     target_pair parent{ this->get_parent(path, false) };
     if(tnode* node{ parent.first->find(parent.second) }) { return open_fd(node); }
     else throw std::runtime_error{ "file not found: " + path };
 }
-folder_inode *filesystem::get_folder(std::string const& path, bool create)
+folder_inode* filesystem::get_folder(std::string const& path, bool create)
 {
     if(path.empty()) return this->get_root_directory(); // empty path or "/" refers to root directory
     target_pair parent{ this->get_parent(path, create) };
@@ -106,7 +106,7 @@ folder_inode *filesystem::get_folder(std::string const& path, bool create)
 }
 file_inode* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) return current_open_files[fd]; else return nullptr; }
 device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_hint, bool create_parents) { target_pair parent{ this->get_parent(where, create_parents) }; if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; return this->mkdevnode(parent.first, parent.second, what, fd_hint); }
-tnode *filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
+tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
 static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) { new (st) stat{ fsptr->get_dev_id(), n->cid(), n->mode, n->num_refs(), 0, 0, n->is_device() ? 1U : 0, static_cast<long>(n->size()), timestamp_to_timespec(n->create_time), timestamp_to_timespec(n->modif_time), timestamp_to_timespec(n->modif_time), 512, n->size() / 512 };  }

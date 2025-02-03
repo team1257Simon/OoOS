@@ -9,6 +9,7 @@
 #include "sched/task_list.hpp"
 #include "fs/data_buffer.hpp"
 #include "fs/hda_ahci.hpp"
+#include "fs/fat32.hpp"
 #include "fs/ramfs.hpp"
 #include "bits/icxxabi.h"
 #include "stdlib.h"
@@ -22,6 +23,8 @@ static direct_text_render startup_tty;
 static serial_driver_amd64* com;
 static sysinfo_t* sysinfo;
 static ramfs testramfs;
+static uint8_t fatfs_loc[sizeof(fat32)];
+static fat32* fat32_testfs = reinterpret_cast<fat32*>(fatfs_loc);
 static bool direct_print_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
@@ -34,7 +37,7 @@ extern "C"
     extern void* svinst;
     task_t kproc{};
 }
-static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
+static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); direct_write(" "); }
 static void descr_pt(partition_table const& pt)
 {
     for(partition_entry_t e : pt)
@@ -84,6 +87,20 @@ void map_tests()
         startup_tty.print_text("; ");
     }
     startup_tty.endl();
+    m.clear();
+    m.insert(std::make_pair("meep", 21));
+    m["gyeep"] = 63;
+    m.insert_or_assign("bweep", 42);
+    m["fweep"] = 84;
+    m.insert_or_assign("dreep", 105);
+    startup_tty.print_line("map values after reset: ");
+    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_text(std::to_string(i->second));
+        startup_tty.print_text("; ");
+    }
 }
 void serial_tests()
 {
@@ -182,6 +199,20 @@ void task_tests()
     tt2->start_task(exit_test_fn);
     scheduler::get().start();
 }
+void fat32_tests()
+{
+    new (fat32_testfs) fat32{};
+    fat32_testfs->init();
+    try
+    {
+        file_inode* f = fat32_testfs->open_file("FILES/A.TXT");
+        f->write("eleventeenology!", 16);
+        f->fsync();
+        fat32_testfs->close_file(f);
+        fat32_testfs->syncdirs();
+    }
+    catch(std::exception& e) { panic(e.what()); }
+}
 void run_tests()
 {
     // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
@@ -198,6 +229,14 @@ void run_tests()
             }
             startup_tty.print_text(", RIP@ ");
             __dbg_num(errinst, 10);
+            if(errinst)
+            {
+                vaddr_t ip_addr{ errinst };
+                uint8_t* ip_bytes = ip_addr;
+                startup_tty.endl();
+                for(int i = 0; i < 20; i++) __dbg_num(ip_bytes[i], 2);
+                startup_tty.endl();
+            }
             if(idx == 0x0E)
             {
                 uint64_t fault_addr;
@@ -223,6 +262,8 @@ void run_tests()
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();
+    startup_tty.print_line("fat32 tests...");
+    fat32_tests();
     startup_tty.print_line("task tests...");
     task_tests();
     startup_tty.print_line("complete");

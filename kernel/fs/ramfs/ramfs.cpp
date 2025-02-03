@@ -1,12 +1,12 @@
 #include "fs/ramfs.hpp"
 folder_inode *ramfs::get_root_directory() { return &__root_dir; }
-void ramfs::dlfilenode(file_inode *fd)
+void ramfs::dlfilenode(file_inode* fd)
 {
     fd->prune_refs();
     __file_nodes.erase(*fd);
     this->syncdirs();
 }
-void ramfs::dldirnode(folder_inode *dd)
+void ramfs::dldirnode(folder_inode* dd)
 {
     if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete folder " } + dd->name() + " because it is not empty" }; }
     dd->prune_refs();

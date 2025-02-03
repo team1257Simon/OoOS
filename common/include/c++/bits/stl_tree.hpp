@@ -61,7 +61,7 @@ namespace std
     struct __tree_trunk
     {
         // This node's parent is the root node; its left is the min node; its right is the max node
-        __node_base __trunk; 
+        __node_base __trunk;
         size_t __count;
         constexpr inline void __reset() noexcept
         {
@@ -71,7 +71,7 @@ namespace std
             __trunk.__my_right = &__trunk;
             __count = 0;
         }
-        constexpr __tree_trunk() noexcept :  __trunk{ RED, NULL, NULL, NULL }, __count{0} { __reset(); }
+        constexpr __tree_trunk() noexcept :  __trunk{ RED, NULL, NULL, NULL }, __count{ 0 } { __reset(); }
         constexpr ~__tree_trunk() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
         constexpr void __copy(__tree_trunk const& that) noexcept
         {
@@ -111,9 +111,9 @@ namespace std
     {
         typedef __node<T>* __link_ptr;
     private:
-        ::__impl::__aligned_buffer<T> __my_data{};
+        ::__impl::__aligned_buffer<T> __my_data;
     public:
-        constexpr __node() {}
+        constexpr __node() : __my_data{} {}
         constexpr T* __get_ptr() { return __my_data.__get_ptr(); }
         constexpr const T* __get_ptr() const { return __my_data.__get_ptr(); }
         constexpr T& __get_ref() { return *__get_ptr(); }
@@ -228,8 +228,6 @@ namespace std
         constexpr __const_link __l_begin() const noexcept { return static_cast<__const_link>(this->__trunk.__my_left); }
         constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(this->__trunk.__my_right); }
         constexpr __const_iterator __begin() const noexcept { return __const_iterator { __l_begin() }; }
-        template<std::convertible_to<T> U> constexpr __link __construct_node(U && u) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), forward<U>(u)); l->__my_color = RED; return l; }
-        template<std::convertible_to<T> U> constexpr __link __construct_node(U const& u) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), u); l->__my_color = RED; return l; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr __link __construct_node(Args&& ... args) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
         constexpr void __destroy_node(__b_ptr n) { if(n) { __alloc.deallocate(static_cast<__link>(n), 1); } }
         constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { bool left = (x || p == __end() || __compare_l(l->__get_ref(), p)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; } 
@@ -246,7 +244,7 @@ namespace std
         template<typename U> requires __valid_comparator<CP, T, U> __link __upper_bound(__link x, __link y, U const& u) noexcept { while(x) if(__compare_l(u, x)) y = x, x = __left_of(x);  else x = __right_of(x); return y; }
         template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U const& u) { __pos_pair r = __insert_unique_hint_pos(hint, u); if(r.second) return __insert(r.first, r.second, u); return r.first; }
         template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U && u) { __pos_pair r = __insert_unique_hint_pos(hint, u); if(r.second) return __insert(r.first, r.second, forward<U>(u)); return r.first; }
-        template<matching_input_iterator<T> IT> constexpr void __insert_range_unique(IT st, IT ed) { for(; st != ed; st++) __hint_insert_unique(*st); }
+        template<matching_input_iterator<T> IT> constexpr void __insert_range_unique(IT st, IT ed) { for(; st != ed; st++) __insert_unique(*st); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __link __find_node(U const& u) noexcept { __link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __const_link __find_node(U const& u) const noexcept { __const_link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __contains(U const& u) const noexcept { return (this->__find_node(u) != this->__end()); }
@@ -257,6 +255,7 @@ namespace std
         constexpr void __clear() { __recursive_destroy_base(); this->__clear_base(); }
     public:
         constexpr size_t size() const noexcept { return this->__count; }
+        constexpr bool empty() const noexcept { return !this->size(); }
         constexpr ~__tree_base() { __recursive_destroy_base(); }
         constexpr __tree_base() : __trunk_type{}, __comparator{}, __alloc{} {}
         constexpr __tree_base(__tree_base const& that) : __trunk_type{that}, __comparator{}, __alloc{} {}

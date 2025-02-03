@@ -164,7 +164,8 @@ class tnode
 public:
     tnode(inode*, std::string const&);
     tnode(inode*, const char*);
-    tnode(std::string const&);
+    tnode(std::string);
+    tnode(const char*);
     void rename(std::string const&);
     void rename(const char*);
     const char* name() const;

@@ -1,5 +1,5 @@
 diff --git a/bfd/config.bfd b/bfd/config.bfd
-index 6553aac1e99..0ade336d26b 100644
+index 6553aac1e99..89defa674cb 100644
 --- a/bfd/config.bfd
 +++ b/bfd/config.bfd
 @@ -655,6 +655,11 @@ case "${targ}" in
@@ -23,18 +23,18 @@ index 6553aac1e99..0ade336d26b 100644
      targ_selvecs="${targ_selvecs} x86_64_pe_vec x86_64_pei_vec"
      esac
      want64=true
-@@ -720,6 +725,11 @@ case "${targ}" in
-     targ_selvecs="x86_64_pe_vec x86_64_pei_vec x86_64_pe_big_vec x86_64_elf64_vec i386_pe_vec i386_pei_vec i386_elf32_vec iamcu_elf32_vec pdb_vec"
+@@ -721,6 +726,11 @@ case "${targ}" in
      want64=true
      targ_underscore=no
-+    ;;	
+     ;;
 +  x86_64-*-ooos*)
 +    targ_defvec=x86_64_elf64_vec
 +    targ_selvecs=i386_elf32_vec
 +    want64=true
-     ;;
++    ;;
    x86_64-*-rdos*)
      targ_defvec=x86_64_elf64_vec
+     want64=true
 diff --git a/config.sub b/config.sub
 index 2c6a07ab3c3..2579b50dc4a 100755
 --- a/config.sub

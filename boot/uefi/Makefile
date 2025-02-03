@@ -47,7 +47,7 @@ OBJCOPY ?= $(ARCH)-elf-objcopy
 else
 CC = gcc
 LD = ld
-OBJCOPY ?= objcopy
+OBJCOPY ?= /usr/bin/objcopy
 endif
 ifeq ($(ARCH),aarch64)
 EFIARCH = pei-aarch64-little

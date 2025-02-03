@@ -458,7 +458,7 @@ void kframe_tag::remove_block(block_tag* blk)
  */
 vaddr_t kframe_tag::allocate(size_t size, size_t align)
 {
-    if(!size) return nullptr;
+    if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     __lock();
     uint32_t idx = get_block_exp(size) - MIN_BLOCK_EXP;
     block_tag* tag{ nullptr };
@@ -475,7 +475,7 @@ vaddr_t kframe_tag::allocate(size_t size, size_t align)
     }
     if(!tag)
     {
-        if(!(tag = __create_tag(size, align))) { __unlock(); return nullptr; }
+        if(!(tag = __create_tag(size, align))) { __unlock(); panic("out of memory"); debug_print_num(heap_allocator::get().open_wm()); debug_print_num(size); return nullptr; }
         idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP;
     }
     tag->index = idx;
@@ -507,7 +507,7 @@ void kframe_tag::deallocate(vaddr_t ptr, size_t align)
 vaddr_t kframe_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
 {
     if(!ptr) return allocate(size, align);
-    if(!size) return nullptr;
+    if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     block_tag* tag{ ptr - bt_offset };
     for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = ptr - ptrdiff_t(bt_offset + i);
     if(tag->magic == BLOCK_MAGIC && tag->allocated_size() >= size + add_align_size(tag, align))

@@ -62,5 +62,7 @@ public:
     static partition_table& get_partition_table();
 protected:
     template<trivial_copy T> static size_t __obj_read(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, (num_objs * sizeof(T)) / __bytes_per_sector()); }
+public:
+    template<trivial_copy T> static bool read_object(T& out, uint64_t from) { return __obj_read(std::addressof(out), from, 1U); }
 };
 #endif

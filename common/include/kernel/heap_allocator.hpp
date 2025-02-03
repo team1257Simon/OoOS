@@ -190,6 +190,7 @@ public:
     static void init_instance(mmap_t* mmap);
     static heap_allocator& get();
     inline bool avail() const { return !test_lock(&__heap_mutex); }
+    constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
     heap_allocator(heap_allocator const&) = delete;
     heap_allocator(heap_allocator&&) = delete;
     heap_allocator& operator=(heap_allocator const&) = delete;

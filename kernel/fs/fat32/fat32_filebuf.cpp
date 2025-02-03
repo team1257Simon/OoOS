@@ -6,7 +6,7 @@ fat32_filebuf::fat32_filebuf(std::vector<uint32_t> &&covered_clusters, __cl_conv
     __next_cluster_idx      { 0UL },
     __cluster_to_sector_fn  { cluster_convert_fn },
     __add_cluster_fn        { add_cluster_fn }
-                            { if(ahci_hda::is_initialized() && !__my_clusters.empty() && bool(__cluster_to_sector_fn)) { size_t n = ahci_hda::read(this->__beg(), __cluster_to_sector_fn(__my_clusters.front()), 1); if(n) { this->__bumpc(int64_t(n)); this->__next_cluster_idx++; } } }
+                            {}
 std::streamsize fat32_filebuf::__ddrem() { if(this->__next_cluster_idx < this->__my_clusters.size()) { return (static_cast<size_t>(__my_clusters.size() - (__next_cluster_idx + 1)) * physical_block_size) + 1UL; /* The minimum nuber of bytes remaining, if there are any unread clusters, is 1 (for a cluster with only 1 written byte) */ } else return 0UL; }
 std::streamsize fat32_filebuf::__ddread(std::streamsize n)
 {

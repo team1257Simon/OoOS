@@ -35,7 +35,8 @@ device_inode::pos_type device_inode::seek(off_type off, std::ios_base::seekdir w
 device_inode::pos_type device_inode::seek(pos_type pos) { return __my_device->pubseekpos(pos); }
 tnode::tnode(inode* node, std::string const& name) : __my_node{ node }, __my_name{ name } { __my_node->refs.insert(this); }
 tnode::tnode(inode* node, const char *name) : __my_node{ node }, __my_name{ name } { __my_node->refs.insert(this); }
-tnode::tnode(std::string const& name) : __my_node { nullptr }, __my_name{ name } {}
+tnode::tnode(std::string name) : __my_node { nullptr }, __my_name{ name } {}
+tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
 void tnode::rename(std::string const& n) { __my_name = n; }
 void tnode::rename(const char* n) { __my_name = n; }
 const char *tnode::name() const { return __my_name.c_str(); }
