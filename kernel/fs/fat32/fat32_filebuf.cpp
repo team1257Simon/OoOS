@@ -19,7 +19,7 @@ std::streamsize fat32_filebuf::__ddread(std::streamsize n)
 int fat32_filebuf::__ddwrite()
 {
     size_t n = 0;
-    for(uint32_t cl : __my_clusters) { if(!ahci_hda::write(__cluster_to_sector_fn(cl), this->__get_ptr(n), 1)) { return -1; } n += physical_block_size; }
+    for(size_t i = 0; i < __my_clusters.size() && n < this->__size(); i++, n += physical_block_size) { if(!ahci_hda::write(__cluster_to_sector_fn(__my_clusters[i]), this->__get_ptr(n), 1)) { return -1; } }
     return 0;
 }
 std::streamsize fat32_filebuf::__overflow(std::streamsize n)

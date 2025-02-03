@@ -45,8 +45,8 @@ CC = $(ARCH)-elf-gcc
 LD = $(ARCH)-elf-ld
 OBJCOPY ?= $(ARCH)-elf-objcopy
 else
-CC = gcc
-LD = ld
+CC = /usr/bin/gcc
+LD = /usr/bin/ld
 OBJCOPY ?= /usr/bin/objcopy
 endif
 ifeq ($(ARCH),aarch64)

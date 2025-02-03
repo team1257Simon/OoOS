@@ -66,12 +66,12 @@ namespace std
         constexpr inline void __reset() noexcept
         {
             __trunk.__my_color = RED;
-            __trunk.__my_parent = NULL;
+            __trunk.__my_parent = nullptr;
             __trunk.__my_left = &__trunk;
             __trunk.__my_right = &__trunk;
             __count = 0;
         }
-        constexpr __tree_trunk() noexcept :  __trunk{ RED, NULL, NULL, NULL }, __count{ 0 } { __reset(); }
+        constexpr __tree_trunk() noexcept :  __trunk{ RED, nullptr, &__trunk, &__trunk }, __count{ 0 } {}
         constexpr ~__tree_trunk() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
         constexpr void __copy(__tree_trunk const& that) noexcept
         {
@@ -99,12 +99,12 @@ namespace std
             that.__copy(tmp);
             tmp.__reset();
         }
-        constexpr __tree_trunk(__tree_trunk&& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent != NULL) __move(forward<__tree_trunk>(that)); }
-        constexpr __tree_trunk(__tree_trunk const& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent != NULL) __copy(that); }
-        constexpr __tree_trunk& operator=(__tree_trunk const& that) noexcept { if(that.__trunk.__my_parent != NULL) __copy(that); return *this; }
-        constexpr __tree_trunk& operator=(__tree_trunk&& that) noexcept { if(that.__trunk.__my_parent != NULL) __move(forward<__tree_trunk>(that)); return *this; }
-        constexpr bool __have_left() const noexcept { return (&__trunk != __trunk.__my_left)&& __trunk.__my_left != NULL; }
-        constexpr bool __have_right() const noexcept { return (&__trunk != __trunk.__my_right) && __trunk.__my_right != NULL; }
+        constexpr __tree_trunk(__tree_trunk&& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent) __move(forward<__tree_trunk>(that)); }
+        constexpr __tree_trunk(__tree_trunk const& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent) __copy(that); }
+        constexpr __tree_trunk& operator=(__tree_trunk const& that) noexcept { if(that.__trunk.__my_parent) __copy(that); return *this; }
+        constexpr __tree_trunk& operator=(__tree_trunk&& that) noexcept { if(that.__trunk.__my_parent) __move(forward<__tree_trunk>(that)); return *this; }
+        constexpr bool __have_left() const noexcept { return (&__trunk != __trunk.__my_left)&& __trunk.__my_left; }
+        constexpr bool __have_right() const noexcept { return (&__trunk != __trunk.__my_right) && __trunk.__my_right; }
     };
     template<typename T>
     struct __node : public __node_base
@@ -131,9 +131,10 @@ namespace std
         typedef __node<T>* __lp_t;
         __bp_t __my_node;
         constexpr __tree_iterator() noexcept : __my_node{} {}
-        constexpr explicit __tree_iterator(__bp_t x) noexcept : __my_node{x} {}
+        constexpr explicit __tree_iterator(__bp_t x) noexcept : __my_node{ x } {}
         constexpr reference operator*() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ref(); }
         constexpr pointer operator->() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
+        constexpr pointer base() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
         constexpr __it_t& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
         constexpr __it_t operator++(int) noexcept { __it_t tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
         constexpr __it_t& operator--() noexcept { __my_node = __decrement_node(__my_node); return *this; }
@@ -156,10 +157,11 @@ namespace std
         typedef __node<T> const* __lp_t;
         __bp_t __my_node;
         constexpr __tree_const_iterator() noexcept : __my_node{} {}
-        constexpr explicit __tree_const_iterator(__bp_t x) noexcept : __my_node{x} {}
-        constexpr __tree_const_iterator(__it_t const& i) noexcept : __my_node{i.__my_node} {}
+        constexpr explicit __tree_const_iterator(__bp_t x) noexcept : __my_node{ x } {}
+        constexpr __tree_const_iterator(__it_t const& i) noexcept : __my_node{ i.__my_node } {}
         constexpr reference operator*() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ref(); }
         constexpr pointer operator->() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
+        constexpr pointer base() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
         constexpr __ci_t& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
         constexpr __ci_t operator++(int) noexcept { __ci_t tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
         constexpr __ci_t& operator--() noexcept { __my_node = __decrement_node(__my_node); return *this; }

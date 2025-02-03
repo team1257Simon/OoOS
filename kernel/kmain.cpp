@@ -201,7 +201,7 @@ void task_tests()
 }
 void fat32_tests()
 {
-    new (fat32_testfs) fat32{};
+    new (fat32_testfs) fat32();
     fat32_testfs->init();
     try
     {

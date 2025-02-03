@@ -5,9 +5,9 @@
 namespace std
 {
     template<char_type CT, char_traits_type<CT> TT = std::char_traits<CT>, allocator_object<CT> AT = std::allocator<CT>>
-    class basic_string : protected __impl::__dynamic_buffer<CT, AT>
+    class basic_string : protected __impl::__dynamic_buffer<CT, AT, true>
     {
-        typedef __impl::__dynamic_buffer<CT, AT> __base;
+        typedef __impl::__dynamic_buffer<CT, AT, true> __base;
     public:
         typedef TT traits_type;
         typedef CT value_type;
@@ -24,7 +24,6 @@ namespace std
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
         constexpr static size_type npos = size_type(-1);
     protected:
-        extension virtual void __on_modify() override { if(!(this->__size() < this->__capacity())) this->__grow_buffer(1); }
         constexpr static int __size_compare(size_type lhs, size_type rhs) noexcept
         {
             const difference_type d = difference_type(lhs - rhs);
@@ -44,17 +43,17 @@ namespace std
         constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { 1, alloc } {}
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
         constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { array_zero(this->__beg(), count + 1); }
-        constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { this->__set(this->__beg(), value, count); this->__advance(count);__on_modify(); }
-        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT const& start, IT const& end, allocator_type const& alloc = allocator_type{}) : __base{ size_type(end - start + 1), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); __on_modify(); }
-        constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count } {}
+        constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : basic_string{ count, alloc } { this->__set(this->__beg(), value, count); this->__setc(count); }
+        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : basic_string{ size_type(end - start), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); }
+        constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count, alloc } {}
         constexpr basic_string(const_pointer str, allocator_type const& alloc = allocator_type{}) : basic_string{ str, traits_type::length(str), alloc } {}
         constexpr basic_string(basic_string const& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } {}
         constexpr basic_string(basic_string&& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } { that.clear(); }
         constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.__cur(), alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.c_str() + pos + count, alloc } {}
         constexpr ~basic_string() { this->__destroy(); }
-        constexpr basic_string& operator=(basic_string const& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); return *this; }
-        constexpr basic_string& operator=(basic_string&& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__destroy(); return *this; }
+        constexpr basic_string& operator=(basic_string const& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); this->__post_modify_check_nt(); return *this; }
+        constexpr basic_string& operator=(basic_string&& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__destroy(); this->__post_modify_check_nt(); return *this; }
         constexpr basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr reference at(size_type i) { return this->__get(i); }
         constexpr const_reference at(size_type i) const { return this->__get(i); }

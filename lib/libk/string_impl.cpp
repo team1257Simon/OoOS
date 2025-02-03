@@ -203,7 +203,7 @@ namespace std
                 for(size_t n = 0; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) str.append(__digi_type::minus); }
                 str.shrink_to_fit();
-                return std::basic_string<CT>{ str.rend(), str.rbegin() };
+                return std::basic_string<CT>{ str.rend(), str.rbegin(), std::allocator<CT>() };
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
@@ -217,7 +217,7 @@ namespace std
                 hstr.append(__digi_type::hexpref);
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
                 hstr.shrink_to_fit();
-                return std::basic_string<CT>{ hstr.rend(), hstr.rbegin() };
+                return std::basic_string<CT>{ hstr.rend(), hstr.rbegin(), std::allocator<CT>() };
             }
         };
         inline std::string __fptocs_conv(float f, int digits)
@@ -264,8 +264,8 @@ namespace std
         bool __ispunct(char c)  { return !__isalnum(c)&& !__isspace(c) && __isprint(c); }
         bool __isupper(char c)  { return c >= 'A' && c <= 'Z'; }
         bool __isxdigit(char c) { return __isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
-        char __tolower(char c) { return __char_encode<char>::__to_lower(c); }
-        char __toupper(char c) { return __char_encode<char>::__to_upper(c); }
+        char __tolower(char c) { return __isupper(c) ? (c + ('a' - 'A')) : c; }
+        char __toupper(char c) { return __islower(c) ? (c - ('a' - 'A')) : c; }
         template<std::integral IT>
         IT ston(const char* str, char* &eptr, int base = 10)
         {
@@ -354,8 +354,8 @@ namespace std
         std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }
         std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
         std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
-        std::string to_upper(std::string const& str) { std::string result(str.size(), str.get_allocator()); std::string::iterator i = result.begin(); for(std::string::const_iterator j = str.begin(); j != str.end(); ++i, ++j) { *i = std::__impl::__toupper(*j); } return result; }
-        std::string to_lower(std::string const& str) { std::string result(str.size(), str.get_allocator()); std::string::iterator i = result.begin(); for(std::string::const_iterator j = str.begin(); j != str.end(); ++i, ++j) { *i = std::__impl::__tolower(*j); } return result; }
+        std::string to_upper(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__toupper(str[i])); } return result; }
+        std::string to_lower(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__tolower(str[i])); } return result; }
     }
 }
 using namespace std::__impl;

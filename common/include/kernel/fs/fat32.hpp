@@ -118,7 +118,7 @@ union [[gnu::may_alias]] fat32_directory_entry
     fat32_longname_entry longname_entry;
     constexpr fat32_directory_entry& operator=(fat32_directory_entry const& that) noexcept { __builtin_memcpy(std::bit_cast<uint8_t*>(this), &that, sizeof(fat32_directory_entry)); return *this; }
 } __pack __align(1);
-constexpr bool is_unused(fat32_directory_entry const& e) { return e.longname_entry.ordinal == 0xE5 || e.longname_entry.ordinal == 0; }
+constexpr bool is_unused(fat32_directory_entry const& e) { return e.longname_entry.ordinal == 0xE8 || e.longname_entry.ordinal == 0; }
 constexpr bool is_longname(fat32_directory_entry const& e) { return (e.longname_entry.attributes & 0x0F) == 0x0F; }
 constexpr dword start_of(fat32_regular_entry const& e) { return dword{ e.first_cluster_lo, e.first_cluster_hi }; }
 constexpr std::strong_ordering operator<=>(fat32_longname_entry const& a, fat32_longname_entry const& b) noexcept { return a.ordinal <=> b.ordinal; }
@@ -192,9 +192,11 @@ struct fat32_node
     fat32_regular_entry* disk_entry;
     constexpr fat32_node(fat32_regular_entry* e) noexcept : disk_entry{ e } {}
     constexpr uint32_t start_cluster() const noexcept { return disk_entry ? uint32_t(start_of(*disk_entry)) : 0; }
+    friend constexpr std::strong_ordering operator<=>(fat32_node const& __this, fat32_node const& __that) noexcept { return vaddr_t(__this.disk_entry) <=> vaddr_t(__that.disk_entry); }
+
 };
 class fat32;
-class fat32_file_inode : public file_inode, public fat32_node
+class fat32_file_inode : public virtual file_inode, public fat32_node
 {
     fat32_filebuf __my_filebuf;
     size_t __on_disk_size;
@@ -214,19 +216,22 @@ public:
     virtual uint64_t size() const noexcept override;
     void on_open();
     fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
+    friend constexpr std::strong_ordering operator<=>(fat32_file_inode const& __this, fat32_file_inode const& __that) noexcept { return __this.disk_entry <=> __that.disk_entry; }
 };
-class fat32_folder_inode : public folder_inode, public fat32_node
+class fat32_folder_inode : public virtual folder_inode, public fat32_node
 {
+    tnode_dir __my_directory;
+    std::map<std::string, fat32_regular_entry*> __my_names;    
     fat32* __my_parent_fs;
     std::vector<fat32_directory_entry> __my_dir_data;
     std::vector<uint32_t> __my_covered_clusters;
-    tnode_dir __my_directory;
-    std::map<std::string, fat32_regular_entry*> __my_names;
     size_t __n_files;
     size_t __n_folders;
     bool __has_init{ false };
+    void __update_name_ptrs();
     void __expand_dir();
     bool __dir_ent_erase(std::string const& what);
+    std::vector<fat32_directory_entry>::iterator __reclaim_stray(fat32_regular_entry* e);
     std::vector<fat32_directory_entry>::iterator __whereis(fat32_regular_entry* e);
     std::vector<fat32_directory_entry>::iterator __get_longname_start(fat32_regular_entry* e);
 public:
@@ -244,14 +249,15 @@ public:
     bool parse_dir_data();
     fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
     fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cluster);
+    friend constexpr std::strong_ordering operator<=>(fat32_folder_inode const& __this, fat32_folder_inode const& __that) noexcept { return __this.disk_entry <=> __that.disk_entry; }
 };
 class fat32 : public filesystem
 {
     friend class fat32_folder_inode;
     friend class fat32_file_inode;
-    std::set<fat32_file_inode> __opened_files{};
-    std::set<fat32_folder_inode> __opened_folders{};    
-    std::map<uint64_t, size_t> __st_cluster_ref_counts{};
+    std::set<fat32_file_inode> __file_nodes;
+    std::set<fat32_folder_inode> __folder_nodes;    
+    std::map<uint64_t, size_t> __st_cluster_ref_counts;
     uint8_t __sectors_per_cluster;
     uint64_t __sector_base;
     dev_t __dev_serial;
@@ -275,6 +281,8 @@ protected:
     fat32(uint64_t start_sector);
     constexpr int& get_next_fd() noexcept { return next_fd; }
     std::function<uint64_t (uint32_t)> cl_to_sect_fn{ [&](uint32_t cl) -> uint64_t { return cluster_to_sector(cl); } };
+    fat32_file_inode* put_file_node(std::string const& name, fat32_regular_entry* e);
+    fat32_folder_inode* put_folder_node(std::string const& name, fat32_regular_entry* e);
 public:
     fat32();
     bool init();

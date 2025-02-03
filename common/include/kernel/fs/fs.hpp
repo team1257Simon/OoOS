@@ -192,9 +192,10 @@ public:
     void invlnode() noexcept;
     bool assign(inode* n) noexcept;
     friend tnode mklink(tnode* original, std::string const& name);
-    friend constexpr std::strong_ordering operator<=>(tnode const& __this, tnode const& __that) noexcept { return __this.__my_name <=> __that.__my_name; }
-    friend constexpr std::strong_ordering operator<=>(tnode const& __this, std::string const& __that) noexcept { return __this.__my_name <=> __that; }
-    friend constexpr std::strong_ordering operator<=>(std::string const& __this, tnode const&  __that) noexcept { return __this <=> __that.__my_name; }
+    friend bool operator==(tnode const& __this, tnode const& __that) { return __this.__my_name == __that.__my_name && __this.__my_node == __that.__my_node; }
+    friend constexpr std::strong_ordering operator<=>(tnode const& __this, tnode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that.__my_name)); }
+    friend constexpr std::strong_ordering operator<=>(tnode const& __this, std::string const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that)); }
+    friend constexpr std::strong_ordering operator<=>(std::string const& __this, tnode const&  __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.compare(__that.__my_name)); }
 };
 typedef std::set<tnode> tnode_dir;
 class filesystem
