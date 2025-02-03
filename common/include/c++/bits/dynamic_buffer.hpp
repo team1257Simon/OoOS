@@ -7,6 +7,7 @@
 #define __DYN_BUFFER
 #include "memory"
 #include "limits"
+#include "bits/stl_algobase.hpp"
 #include "bits/stl_iterator.hpp"
 #include "kernel/libk_decls.h"
 #include "initializer_list"
@@ -118,6 +119,7 @@ namespace std::__impl
         constexpr __size_type __rem() const noexcept { return __size_type(__max() - __cur()); }
         constexpr __size_type __ediff(__const_ptr pos) const noexcept { return __size_type(__cur() - pos); }
         constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize<T>(__beg(), num_elements), num_elements, num_elements); this->__post_modify_check_nt(); }
+        constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize<T>(__beg(), n), std::min(n, num_elements), n); this->__post_modify_check_nt(); }
         constexpr void __allocate_storage(__size_type n) { __setn(__allocator.allocate(n), n); }
         constexpr void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
         constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__post_modify_check_nt(); return __cur(); }

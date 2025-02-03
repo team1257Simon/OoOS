@@ -1,14 +1,14 @@
 #include "elf64_exec.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"
-constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_memcmp(elf.e_ident, ELFMAG, SELFMAG) && elf.e_ident[EI_CLASS] == ELFCLASS64 && elf.e_ident[EI_DATA] == ELFDATA2LSB && elf.e_type == ET_EXEC && elf.e_machine == EM_MACH  && elf.e_phnum > 0; }
+constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_memcmp(elf.e_ident, ELFMAG, SELFMAG) && elf.e_ident[EI_CLASS] == ELFCLASS64 && elf.e_ident[EI_DATA] == ELFDATA2LSB && elf.e_type == ET_EXEC && elf.e_machine == EM_MACH && elf.e_phnum > 0; }
 constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & 0x02; }
 constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & 0x04; }
 constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
 bool elf64_executable::validate() noexcept
 {
     if(this->__validated) return true;
-    if(!validate_elf(this->__get_ehdr())) return false;
+    if(!validate_elf(this->__get_ehdr())) { direct_writeln("invalid header"); return false; }
     this->__process_entry_ptr = vaddr_t{ this->__get_ehdr().e_entry };
     elf64_phdr* h = this->__image_start + ptrdiff_t(this->__get_ehdr().e_phoff);
     for(size_t n = 0; n < this->__get_ehdr().e_phnum; n++, h = (vaddr_t{ h } + ptrdiff_t(this->__get_ehdr().e_phentsize)))

@@ -3,19 +3,17 @@
 #include "arch/com_amd64.h"
 #include "heap_allocator.hpp"
 #include "rtc.h"
+#include "elf64_exec.hpp"
 #include "keyboard_driver.hpp"
 #include "sched/task_ctx.hpp"
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
-#include "fs/data_buffer.hpp"
 #include "fs/hda_ahci.hpp"
 #include "fs/fat32.hpp"
 #include "fs/ramfs.hpp"
 #include "bits/icxxabi.h"
 #include "stdlib.h"
-#include "bits/stdexcept.h"
 #include "bits/stl_queue.hpp"
-#include "map"
 #include "algorithm"
 extern psf2_t* __startup_font;
 static std::atomic<uint64_t> t_ticks;
@@ -213,6 +211,26 @@ void fat32_tests()
     }
     catch(std::exception& e) { panic(e.what()); }
 }
+void elf64_tests()
+{
+    try
+    {
+        file_inode* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
+        std::allocator<char> dalloc{};
+        char* exec_buf = dalloc.allocate(f->size());
+        size_t s = f->read(exec_buf, f->size());
+        elf64_executable exec(exec_buf, s);
+        if(exec.validate() && exec.load())
+        {
+            elf64_desc desc = exec.describe();
+            startup_tty.print_line("Page frame allocated at " + std::to_string(desc.frame_ptr));
+            startup_tty.print_line("Stack allocated at " + std::to_string(desc.prg_stack) + " and is size " + std::to_string(desc.stack_size));
+            startup_tty.print_line("Elf entry: " + std::to_string(desc.entry));
+        }
+        else startup_tty.print_line("Executable failed to validate");
+    }
+    catch(std::exception& e) { panic(e.what()); }
+}
 void run_tests()
 {
     // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
@@ -264,6 +282,8 @@ void run_tests()
     vfs_tests();
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
+    startup_tty.print_line("elf tests...");
+    elf64_tests();
     startup_tty.print_line("task tests...");
     task_tests();
     startup_tty.print_line("complete");

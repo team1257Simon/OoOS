@@ -2,9 +2,9 @@
 #include "stdexcept"
 bool ahci_hda::__has_init = false;
 ahci_hda ahci_hda::__instance{};
-bool ahci_hda::__await_disk() { for(size_t i = 0; i < max_wait && !__drv->is_done(__port); __sync_synchronize()) { BARRIER; i++; } return __drv->is_done(__port); }
-bool ahci_hda::__read_ahci(qword st, dword ct, uint16_t *bf) { try { __drv->read_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
-bool ahci_hda::__write_ahci(qword st, dword ct, uint16_t const *bf) { try { __drv->write_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
+bool ahci_hda::__await_disk() { for(size_t i = 0; !__drv->is_done(__port); __sync_synchronize()) { BARRIER; i++; } return __drv->is_done(__port); }
+bool ahci_hda::__read_ahci(qword st, dword ct, uint16_t* bf) { try { __drv->read_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
+bool ahci_hda::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __drv->write_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
 bool ahci_hda::__read_pt()
 {
     std::allocator<pt_header_t> alloc_hdr{};
@@ -46,13 +46,14 @@ std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
     if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
     if(!__instance.__read_ahci(start_sector, count, __instance.__read_buffer.beg())) { panic("bad read"); return 0; }
     __instance.__read_buffer.__update_end(n);
-    return __instance.__read_buffer.sgetn(vaddr_t{ out }, n);
+    __builtin_memcpy(out, __instance.__read_buffer.beg(), n * 2);
+    return n * 2;
 }
 std::streamsize ahci_hda::write(uint64_t start_sector, const char *in, uint32_t count)
 {
     if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return 0; }
     __instance.__write_buffer.clear();
-    std::streamsize result = __instance.__write_buffer.sputn(vaddr_t{ in }, __count_to_wide_streamsize(count));
+    std::streamsize result = __instance.__write_buffer.sputn(vaddr_t{ in }, __count_to_wide_streamsize(count)) * 2;
     if(!__instance.__write_ahci(start_sector, count, __instance.__write_buffer.beg())) { panic("bad write"); return 0; }
     return result;
 }

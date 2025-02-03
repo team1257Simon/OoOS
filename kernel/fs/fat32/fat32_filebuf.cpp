@@ -1,7 +1,7 @@
 #include "fs/fat32.hpp"
 #include "fs/hda_ahci.hpp"
 fat32_filebuf::fat32_filebuf(std::vector<uint32_t> &&covered_clusters, __cl_conv_fn_t const& cluster_convert_fn, __cl_get_fn_t const& add_cluster_fn) : 
-    __base                  { physical_block_size * 2 }, 
+    __base                  {}, 
     __my_clusters           { std::move(covered_clusters) }, 
     __next_cluster_idx      { 0UL },
     __cluster_to_sector_fn  { cluster_convert_fn },
@@ -13,8 +13,10 @@ std::streamsize fat32_filebuf::__ddread(std::streamsize n)
     size_t s = div_roundup(n, physical_block_size);
     size_t k = 0;
     if(!this->__grow_buffer(s * physical_block_size)) return 0;
-    for(size_t i = 0; i < s && __next_cluster_idx < __my_clusters.size(); i++, ++__next_cluster_idx) { if(size_t r = ahci_hda::read(this->gptr() + k, this->__cluster_to_sector_fn(__my_clusters[__next_cluster_idx]), 1)) { k += r; } else break; }
-    return k;
+    if(!gptr()) { this->setg(this->__beg(), this->__cur(), this->__max()); }
+    for(size_t i = 0; i < s && __next_cluster_idx < __my_clusters.size(); i++, ++__next_cluster_idx) { if(size_t r = ahci_hda::read(this->__beg() + k, this->__cluster_to_sector_fn(__my_clusters[__next_cluster_idx]), 1)) { k += r; } else break; }
+    this->setg(this->__beg(), this->gptr(), this->__max());
+    return std::min(k, n);
 }
 int fat32_filebuf::__ddwrite()
 {

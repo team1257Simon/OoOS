@@ -6,6 +6,7 @@
 #include "functional"
 #include "vector"
 constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (should be 1)
+constexpr size_t max_op_sectors = prdt_entries_count * 16;
 typedef struct __pt_header
 {
     char sig[8];

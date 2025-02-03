@@ -1,4 +1,4 @@
-OUTDIR := $(BUILD_DIR)/sys
+OUTDIR := $(BUILD_DIR)/SYS
 OBJDIR := $(CURDIR)/build
 KINCLUDES := $(INCLUDES)/kernel
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(KINCLUDES)) -Wno-packed-bitfield-compat -D__KERNEL__ 
@@ -6,13 +6,12 @@ CXXFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=c++20
 CCFLAGS := $(CFLAGS) -std=gnu23
 LDSCRIPT := $(CURDIR)/linker.lds
 LDFLAGS := $(CFLAGS) -L$(LIB_DIR) -nostdlib -lk -lgcc
-AS := $(ARCH)-$(FMT)-as
-CXX := $(ARCH)-$(FMT)-g++
-LD := $(ARCH)-$(FMT)-gcc
-CC := $(ARCH)-$(FMT)-gcc
-FC := $(ARCH)-$(FMT)-ld
-COPY := $(ARCH)-$(FMT)-objcopy
-OUT_ELF := $(OUTDIR)/core.elf
+AS := $(TARGET_BARE)-as
+CXX := $(TARGET_BARE)-g++
+LD := $(TARGET_BARE)-gcc
+CC := $(TARGET_BARE)-gcc
+COPY := $(TARGET_BARE)-objcopy
+OUT_ELF := $(OUTDIR)/CORE.ELF
 SUBDIRS = $(sort $(dir $(wildcard */*.* */*/*.*)))
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
 ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))

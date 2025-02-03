@@ -23,11 +23,12 @@ protected:
     virtual std::streamsize showmanyc() override { return __ddrem(); }
     virtual void __on_modify() override { if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); __dirty = true; } }
     virtual int sync() override { __on_modify(); if(__dirty) { int result = __ddwrite(); __dirty = (result != 0); return result; } return 0; }
-    virtual int_type underflow() override { std::streamsize n = std::min(__sect_size(), showmanyc()); if(n && __ddread(n)) { return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); }
+    virtual int_type underflow() override { std::streamsize n = std::min(__sect_size(), showmanyc()); if(n && __ddread(n)) { this->__on_modify(); return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); }
     virtual std::streamsize xsgetn(char_type *s, std::streamsize n) override;
     virtual std::streamsize xsputn(char_type const* s, std::streamsize n) override;
 public:
-    vfs_filebuf_base(std::streamsize init_buffer_size = physical_block_size) : __buffer_base{ init_buffer_size } {}
+    vfs_filebuf_base() : __buffer_base{} {}
+    vfs_filebuf_base(std::streamsize init_buffer_size) : __buffer_base{ init_buffer_size } {}
     vfs_filebuf_base(vfs_filebuf_base&& that) : __buffer_base(std::forward<__buffer_base>(that)) {}
     vfs_filebuf_base& operator=(vfs_filebuf_base&& that) { this->__realloc_move(std::forward<__buffer_base>(that)); return *this; }
 };
@@ -35,8 +36,8 @@ template <std::char_type CT, std::char_traits_type<CT> TT>
 std::streamsize vfs_filebuf_base<CT, TT>::xsgetn(char_type *s, std::streamsize n)
 {
     std::streamsize l = std::min(n, std::streamsize(this->egptr() - this->gptr()));
-    if(l < n) l += this->__ddread(this->__ddrem());
-    if(l) traits_type::copy(s, this->gptr(), l);
+    if(l < n) { l += this->__ddread(std::min(std::streamsize(l - n), this->__ddrem())); }
+    if(l) arraycopy(s, this->gptr(), l);
     this->gbump(l);
     if(l) this->__on_modify();
     return l;

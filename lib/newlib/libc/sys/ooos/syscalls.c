@@ -2,7 +2,6 @@
 #ifdef __KERNEL__
 #undef __KERNEL__
 #endif
-char** environ;
 void _exit(int code) { asm volatile("syscall" :: "a"(0) : "memory"); __builtin_unreachable(); }
 DEF_SYSCALL1(int, close, int, fd)
 DEF_SYSCALL3(int, execve, char*, name, char**, argv, char**, env)

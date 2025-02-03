@@ -5,19 +5,13 @@ CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wn
 CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS)$(addprefix -I,$(INCLUDES_CXX)) -std=c++20
 CCFLAGS := $(CFLAGS) -std=gnu23
 ARFLAGS := -rcs
-AS := $(ARCH)-elf-as
-CXX := $(ARCH)-elf-g++
-AR := $(ARCH)-elf-ar
-CC := $(ARCH)-elf-gcc
 export OUTDIR
 export OBJ_BASE_DIR
 export CCFLAGS
 export CXXFLAGS
 export ARFLAGS
-export AS
-export AR
-export CXX
-export CC
+export TARGET_BARE
+export TARGET_HOSTED
 export ASMT_DIR
 SUBDIRS = libk
 .PHONY: all $(SUBDIRS)

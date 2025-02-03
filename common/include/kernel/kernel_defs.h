@@ -373,7 +373,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define attribute(x) __attribute__((x))
 #define extension __extension__
 #ifndef KERNEL_FILENAME
-#define KERNEL_FILENAME "\\sys\\core.elf"
+#define KERNEL_FILENAME "\\SYS\\CORE.ELF"
 #endif
 #define PAGESIZE 0x1000
 #define PT_LEN 0x200
@@ -453,7 +453,7 @@ typedef struct __vaddr
         pml4_idx    { static_cast<uint16_t>(uint64_t(i >> 39) & 0x1FFuL) },
         ext         { static_cast<uint16_t>(pml4_idx & 0x100 ? 0xFFFFu : 0u) }
                     {}
-    constexpr __vaddr(nullptr_t) noexcept : __vaddr{ 0ul } {}
+    constexpr __vaddr(nullptr_t) noexcept : __vaddr{ 0UL } {}
     constexpr __vaddr(void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
     constexpr __vaddr(const void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
     constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
@@ -487,14 +487,20 @@ typedef struct __vaddr
     constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
     constexpr __vaddr operator-(ptrdiff_t value) const { return __vaddr{ uintptr_t(*this) - value }; }
     constexpr __vaddr& operator-=(ptrdiff_t value) { return *this = (*this - value); }
+    typedef const void* cvptr;
+    typedef volatile void* vvptr;
+    typedef const volatile void* cvvptr;
+    template<non_void T> using ctptr = const T*;
+    template<non_void T> using vtptr = volatile T*;
+    template<non_void T> using cvtptr = const volatile T*;
     constexpr operator void*() const noexcept { void* ptr = std::bit_cast<void*>(uintptr_t(*this)); return ptr ? ptr : nullptr; }
-    constexpr operator const void*() const noexcept { const void* ptr = std::bit_cast<const void*>(uintptr_t(*this)); return ptr ? ptr : nullptr; }
-    constexpr operator volatile void*() const volatile noexcept { volatile void* ptr = std::bit_cast<volatile void*>(uintptr_t(const_cast<__vaddr*>(this))); return ptr ? ptr : nullptr; }
-    constexpr operator const volatile void*() const volatile noexcept { const volatile void* ptr = std::bit_cast<const volatile void*>(uintptr_t(const_cast<__vaddr*>(this))); return ptr ? ptr : nullptr;  }
+    constexpr operator cvptr() const noexcept { const void* ptr = std::bit_cast<const void*>(uintptr_t(*this)); return ptr ? ptr : nullptr; }
+    constexpr operator vvptr() const volatile noexcept { volatile void* ptr = std::bit_cast<volatile void*>(uintptr_t(const_cast<__vaddr*>(this))); return ptr ? ptr : nullptr; }
+    constexpr operator cvvptr() const volatile noexcept { const volatile void* ptr = std::bit_cast<const volatile void*>(uintptr_t(const_cast<__vaddr*>(this))); return ptr ? ptr : nullptr;  }
     template<non_void T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(uintptr_t(*this)); }
-    template<non_void T> constexpr operator const T*() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(uintptr_t(*this)); }
-    template<non_void T> constexpr operator volatile T*() const volatile noexcept { typedef volatile void* vvptr; return std::bit_cast<volatile std::remove_cv_t<T>*>(vvptr(*this)); }
-    template<non_void T> constexpr operator const volatile T*() const volatile noexcept { typedef const volatile void* cvvptr; return std::bit_cast<const volatile std::remove_cv_t<T>*>(cvvptr(*this)); }
+    template<non_void T> constexpr operator ctptr<T>() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(uintptr_t(*this)); }
+    template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(vvptr(*this)); }
+    template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return std::bit_cast<const volatile std::remove_cv_t<T>*>(cvvptr(*this)); }
     constexpr operator bool() const noexcept { return bool(this->operator void*()); }
     constexpr bool operator!() const noexcept { return !(this->operator void*()); }
     friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return uintptr_t(__this) == uintptr_t(__that); }
@@ -834,8 +840,8 @@ typedef struct __byte
     constexpr __byte& operator=(__byte&&) noexcept = default;
     constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
-    constexpr bool operator[](uint8_t i) const noexcept { return i == 0 ? b0  : (i == 1 ? b1  : (i == 2 ? b2  : (i == 3 ? b3  : (i == 4 ? b4  : (i == 5 ? b5  : (i == 6 ? b6  : (i == 7 ? b7  : false))))))); }
     constexpr operator uint8_t() const noexcept { return uint8_t((b0 ? 0x01u : 0) | (b1 ? 0x02u : 0) | (b2 ? 0x04u : 0) | (b3 ? 0x08u : 0) | (b4 ? 0x10u : 0) | (b5 ? 0x20u : 0) | (b6 ? 0x40u : 0) | (b7 ? 0x80u : 0)); }
+    constexpr bool operator[](uint8_t i) const noexcept { return i == 0 ? b0  : (i == 1 ? b1  : (i == 2 ? b2  : (i == 3 ? b3  : (i == 4 ? b4  : (i == 5 ? b5  : (i == 6 ? b6  : (i == 7 ? b7  : false))))))); }
     constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
     constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
     constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
@@ -927,6 +933,7 @@ typedef struct __qword
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
 constexpr byte operator""ui8(unsigned long long i) noexcept { return byte{ uint8_t(i) }; }
 constexpr word operator""ui16(unsigned long long i) noexcept { return word{ uint16_t(i) }; }
+constexpr dword operator""ui32(unsigned long long i) noexcept { return dword{ uint32_t(i)}; }
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;
