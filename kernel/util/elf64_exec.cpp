@@ -5,6 +5,7 @@ constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_me
 constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & 0x02; }
 constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & 0x04; }
 constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
+elf64_executable::elf64_executable(vaddr_t image, size_t sz, size_t stack_sz, size_t tls_sz) noexcept : __image_start{ image }, __image_total_size{ sz }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
 bool elf64_executable::validate() noexcept
 {
     if(this->__validated) return true;
@@ -42,6 +43,11 @@ void elf64_executable::xload()
             arraycopy<uint64_t>(idmap, img_dat, h->p_filesz / 8);
             if(h->p_memsz > h->p_filesz) { size_t diff = static_cast<size_t>(h->p_memsz - h->p_filesz); arrayset(img_dat + ptrdiff_t(h->p_filesz), uint8_t(0), diff); }
         }
+        vaddr_t stkblk = heap_allocator::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, true, false);
+        vaddr_t tlsblk = heap_allocator::get().allocate_user_block(this->__tgt_tls_size, this->__process_tls_base, true, false);
+        if(!stkblk || !tlsblk) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); throw std::bad_alloc{}; }
+        this->__process_frame_tag->usr_blocks.emplace_back(stkblk, this->__tgt_stack_size);
+        this->__process_frame_tag->usr_blocks.emplace_back(tlsblk, this->__tgt_tls_size);
         heap_allocator::get().exit_frame();
         __descr = { __process_frame_tag, __process_stack_base, __tgt_stack_size, __process_tls_base, __tgt_tls_size, __process_entry_ptr };
     }

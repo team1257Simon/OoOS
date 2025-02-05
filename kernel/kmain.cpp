@@ -35,6 +35,8 @@ extern "C"
     extern void* svinst;
     extern bool task_change_flag;
     extern unsigned char kern_stack;
+    extern unsigned char kern_stack_base;
+    extern unsigned char kernel_isr_stack;
     task_t kproc{};
 }
 static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); direct_write(" "); }
@@ -231,8 +233,7 @@ void elf64_tests()
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
             it->start_task();
-            kproc.next = it->task_struct.self;
-//            scheduler::get().start();
+            user_entry(it->task_struct.self);
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -290,7 +291,7 @@ void run_tests()
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
     startup_tty.print_line("task tests...");
-    elf64_tests();
+    task_tests();
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) task = task->task_struct.next; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
@@ -309,7 +310,8 @@ extern "C"
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
-        asm volatile("movq %0, %%rsp":: "a"(&kern_stack) : "memory");  
+        asm volatile("movq %0, %%rsp" :: "r"(&kern_stack_base) : "memory");  
+        asm volatile("movq %0, %%rbp" :: "r"(&kern_stack) : "memory");
         // Don't want to get interrupted during early initialization...            
         cli();
         nmi_disable();
@@ -320,6 +322,7 @@ extern "C"
         _init();
         // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
         __register_frame(&__ehframe);
+        init_tss(&kernel_isr_stack);
         // The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.
         gdt_setup();
         // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
@@ -343,9 +346,6 @@ extern "C"
         if(serial_driver_amd64::init_instance()) com = serial_driver_amd64::get_instance();
         nmi_enable();
         sti();
-        // There needs to be a separate stack allocated for ISRs in the TSS for usermode to work
-        vaddr_t k_isr_stack = heap_allocator::get().allocate_kernel_block(S04);
-        init_tss(k_isr_stack);
         // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running
         set_gs_base(&kproc);
         scheduler::init_instance();

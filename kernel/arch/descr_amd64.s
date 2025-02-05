@@ -1,30 +1,43 @@
     .code64
     .section    .data
+    .global     kern_stack
+    .global     kern_stack_base
+    .type       kern_stack,         @object
+    .type       kern_stack_base,    @object
+kern_stack:
+    .zero 65536
+kern_stack_base:
+    .size   kern_stack,         .-kern_stack
+    .size   kern_stack_base,    .-kern_stack_base
     .global     gdt_table
     .global     gdt_descriptor
     .global     system_tss
     .global     idt_table
     .extern     idt_descriptor
+    .extern     kernel_isr_stack
     .type       gdt_table,          @object
     .type       gdt_descriptor,     @object
     .type       system_tss,         @object
     .type       local_tss_descr,    @object
     .type       idt_table,          @object
     .type       idt_descriptor,     @object
+    .type       kernel_isr_stack,   @object
     .size       gdt_table,          4096
     .size       gdt_descriptor,     10
     .size       system_tss,         104
     .size       local_tss_descr,    16
     .size       idt_table,          4096
+    .align      4
 system_tss:
-    .zero       104
+    .zero       102
+    .word       104
     # The actual GDT
 gdt_table:
     .quad       0                     # Null Descriptor
-    .quad       0x00AF9A000000FFFF    # Code Segment for Ring 0; offset 0x8
-    .quad       0x00CF92000000FFFF    # Data Segment for Ring 0; offset 0x10
-    .quad       0x00CFF2000000FFFF    # Data Segment for Ring 3; offset 0x18
-    .quad       0x00AFFA000000FFFF    # Code Segment for Ring 3; offset 0x20
+    .quad       0x00AF9B000000FFFF    # Code Segment for Ring 0; offset 0x8
+    .quad       0x00CF93000000FFFF    # Data Segment for Ring 0; offset 0x10
+    .quad       0x00CFF3000000FFFF    # Data Segment for Ring 3; offset 0x18
+    .quad       0x00AFFB000000FFFF    # Code Segment for Ring 3; offset 0x20
 local_tss_descr:
     .zero       16
     .zero       4040
@@ -68,10 +81,8 @@ fill_tss_descriptor:
 gdt_setup:
     leaq    local_tss_descr,        %rdi
     leaq    system_tss,             %rsi
-    movq    %rsp,                   4(%rsi)
     call    fill_tss_descriptor
-    leaq    gdt_descriptor,         %rax
-    lgdt    (%rax)
+    lgdt    gdt_descriptor
     push    $0x8
     leaq    local_reload_segments,  %rax
     pushq   %rax
@@ -88,8 +99,7 @@ local_reload_segments:
     ret
     .size       gdt_setup,    .-gdt_setup
 idt_register:
-    leaq        idt_descriptor, %rax
-    lidt        (%rax)
+    lidt        idt_descriptor
     movq        %cr4,       %rax
     orq         $0x10000,   %rax
     movq        %rax,       %cr4

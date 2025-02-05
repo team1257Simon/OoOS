@@ -33,8 +33,8 @@ void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_
     }
     else
     {
-        task_struct.saved_regs.cs = 0x20;
-        task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x18;
+        task_struct.saved_regs.cs = 0x23;
+        task_struct.saved_regs.ds = task_struct.saved_regs.ss = (0x1B);
         __init_vfs();
         heap_allocator::get().enter_frame(frame_ptr);
         heap_allocator::get().identity_map_to_user(this, sizeof(task_ctx));
@@ -70,7 +70,8 @@ void task_ctx::set_exit(int n)
             p->last_notified = this;
             c = p;
         }
-    } 
+        static_cast<void(*)()>(exit_target)();
+    }
 }
 void task_ctx::terminate()
 {
@@ -129,5 +130,5 @@ extern "C"
         catch(std::exception& e) { panic(e.what()); if(buf) fballoc.deallocate(buf, n ? n->size() : 0); if(n) { fs_ptr->close_file(n); return -EPIPE; } else if(buf) return -EAGAIN; else return -ENOENT; } 
         return -EINVAL;
     }
-    [[noreturn]] void handle_exit() { int ecode; asm volatile("movl %%eax, %0" : "=r"(ecode) :: "memory"); task_ctx* task = current_active_task()->self; task->exit_code = ecode; task->terminate(); while(1) { PAUSE; } __builtin_unreachable(); }
+    [[noreturn]] void handle_exit() { task_ctx* task = current_active_task()->self; if(task) task->terminate(); while(1) { PAUSE; } __builtin_unreachable(); }
 }

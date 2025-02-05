@@ -40,9 +40,10 @@ task_change:
     fxsave      0x0F0(%rax)
     movq        0x300(%rax),    %rax
     wrgsbase    %rax
-    fxrstor     0x0F0(%rax)
-    movq        %gs:0x2E8,      %rax
+    movq        0x2F8(%rax),    %rax
     wrfsbase    %rax
+    movq        %gs:0x000,      %rax    
+    fxrstor     0x0E0(%rax)
     movq        %gs:0x018,      %rbx
     movq        %gs:0x020,      %rcx
     movq        %gs:0x028,      %rdx
@@ -69,6 +70,7 @@ task_change:
     pushq       %rax
     movw        %gs:0x0A0,      %ax       
     movw        %ax,            %ds
+    movw        %ax,            %es
     movq        %gs:0x0A6,      %rax
     movq        %rax,           %cr3
     movq        %gs:0x010,      %rax
@@ -77,11 +79,17 @@ task_change:
 user_entry:
     cli
     wrgsbase    %rdi
+    movq        0x2F8(%rdi),    %rax
+    wrfsbase    %rax
+    fxrstor     0x0E0(%rdi)
     movq    %gs:0x018,          %rbx
     movq    %gs:0x090,          %rcx    # instruction pointer goes in the C register for a sysret
     movq    %gs:0x028,          %rdx
     movq    %gs:0x030,          %rdi
-    movq    %gs:0x038,          %rsi    
+    movq    %gs:0x038,          %rsi
+    movq    %gs:0x040,          %r8
+    movq    %gs:0x048,          %r9
+    movq    %gs:0x050,          %r10  
     movq    %gs:0x098,          %r11    # flags must be in r11
     movq    %gs:0x060,          %r12
     movq    %gs:0x068,          %r13

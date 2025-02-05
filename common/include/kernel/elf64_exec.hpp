@@ -25,7 +25,7 @@ protected:
     void xload();
     elf64_desc __descr{};
 public:
-    constexpr elf64_executable(vaddr_t image, size_t sz, size_t stack_sz = S04, size_t tls_sz = S04) noexcept : __image_start{ image }, __image_total_size{ sz }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
+    elf64_executable(vaddr_t image, size_t sz, size_t stack_sz = S04, size_t tls_sz = S04) noexcept;
     elf64_desc const& describe() const noexcept;
     bool validate() noexcept;
     bool load() noexcept;

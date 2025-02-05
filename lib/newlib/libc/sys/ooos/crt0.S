@@ -19,5 +19,6 @@ _start:
     popq        %rdi
     movq        %rbp,       %rsp
     popq        %rbp
-    jmp         main
+    call        main
+    jmp         _exit
     .size       _start,     .-_start

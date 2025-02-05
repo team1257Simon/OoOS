@@ -31,7 +31,7 @@ extern "C"
         idt_entry_t* descriptor    = &idt_table[vector];
         descriptor->isr_low        = reinterpret_cast<uint64_t>(isr) & 0xFFFF;
         descriptor->kernel_cs      = 0x8;
-        descriptor->ist            = 0;
+        descriptor->ist            = (vector > 0 && vector < 0x20) ? 2 : 0;
         descriptor->attributes     = 0x8E;
         descriptor->isr_mid        = (reinterpret_cast<uint64_t>(isr) >> 16) & 0xFFFF;
         descriptor->isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
@@ -51,12 +51,11 @@ extern "C"
     }
     void idt_init()
     {
-        cli();
         pic_remap<0x20, 0x28>();
         for(int i = 0; i < 256; i++) idt_set_descriptor(i, isr_table[i]);
         idt_descriptor.size = 4095;
         idt_descriptor.idt_ptr = &idt_table[0];
         idt_register();
-        sti();
+        asm volatile("lidt %0" :: "m"(idt_descriptor) : "memory");
     }
 }

@@ -20,7 +20,7 @@ SYM_LOG := $(LOG_DIR)/test_elf.txt
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(TARGET): $(OBJECTS) 
-	$(LD) /usr/local/ooos/sysroot/usr/lib/crt0.o $(OBJECTS) -o $@ $(LDFLAGS)
+	$(LD) /usr/local/ooos_sysroot/usr/lib/crt0.o $(OBJECTS) -o $@ $(LDFLAGS)
 	$(TARGET_HOSTED)-readelf $(READFLAGS) $@ > $(SYM_LOG)
 all: $(OBJECTS) $(OUTDIR) $(TARGET)
 clean:
