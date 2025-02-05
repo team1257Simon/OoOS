@@ -37,9 +37,10 @@ extern "C"
     extern unsigned char kern_stack;
     extern unsigned char kern_stack_base;
     extern unsigned char kernel_isr_stack;
+    extern void test_fault();
     task_t kproc{};
 }
-static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); direct_write(" "); }
+static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
 static void descr_pt(partition_table const& pt)
 {
     for(partition_entry_t e : pt)
@@ -231,7 +232,7 @@ void elf64_tests()
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
-            std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
+            std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });            
             it->start_task();
             user_entry(it->task_struct.self);
         }
@@ -239,6 +240,42 @@ void elf64_tests()
     }
     catch(std::exception& e) { panic(e.what()); }
 }
+static const char* codes[] = 
+{
+    "#DE [Division by Zero]",
+    "#DB [Debug Trap]",
+    "NMI [Non-Maskable Interrupt]",
+    "#BP [Breakpoint Trap]",
+    "#OF [Overflow Error]",
+    "#BR [Bounds Check Error]",
+    "#UD [Invalid Opcode]",
+    "#NM [No Device Available Error]",
+    "#DF [Double Fault]",
+    "Coprocessor Overrun (Deprecated)",
+    "#TS [TSS Invalid]",
+    "#NP [Non-Present Segment]",
+    "#SS [Stack Segment Fault]",
+    "#GP [General Protection Fault]",
+    "#PF [Page Fault]",
+    "",
+    "#MF [x87 Floating-Point Error]",
+    "#AC [Alignment check]",
+    "#MC [Machine Check Exception]",
+    "#XM [SIMD Floating-Point Error]",
+    "#VE [Virtualization Exception]",
+    "#CP [Control Protection Exception]",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "#HV [Hypervisor Injection Exception]",
+    "#VC [VMM Communication Exception]",
+    "#SX [Security Exception]",
+    ""
+};
+constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 void run_tests()
 {
     // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
@@ -246,28 +283,14 @@ void run_tests()
     {
         if(idx < 0x20) 
         {
-            startup_tty.print_text("INT# ");
-            __dbg_num(idx, 2);
-            if(ecode)
-            {
-                startup_tty.print_text(", ECODE ");
-                __dbg_num(ecode, 8);
-            }
-            startup_tty.print_text(", RIP@ ");
-            __dbg_num(errinst, 10);
-            if(errinst)
-            {
-                vaddr_t ip_addr{ errinst };
-                uint8_t* ip_bytes = ip_addr;
-                startup_tty.endl();
-                for(int i = 0; i < 20; i++) __dbg_num(ip_bytes[i], 2);
-                startup_tty.endl();
-            }
-            if(idx == 0x0E)
+            startup_tty.print_text(codes[idx]);
+            if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, 16); startup_tty.print_text(")"); }
+            if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, 16); }
+            if(idx == 0x0E) 
             {
                 uint64_t fault_addr;
                 asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
-                startup_tty.print_text("; fault addr = ");
+                startup_tty.print_text("; page fault address = ");
                 __dbg_num(fault_addr, 16);
             }
             while(1);
@@ -302,6 +325,7 @@ extern "C"
     extern void _init();
     extern void gdt_setup();
     extern void do_syscall();
+    extern void enable_fs_gs_insns();
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
@@ -312,9 +336,13 @@ extern "C"
         // Most of the current kmain is tests...because ya know.
         asm volatile("movq %0, %%rsp" :: "r"(&kern_stack_base) : "memory");  
         asm volatile("movq %0, %%rbp" :: "r"(&kern_stack) : "memory");
-        // Don't want to get interrupted during early initialization...            
+        // Don't want to get interrupted during early initialization...
         cli();
-        nmi_disable();
+        // The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.
+        gdt_setup();
+        // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
+        idt_init();
+        nmi_disable();         
         kproc.self = &kproc;
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
         heap_allocator::init_instance(mmap); 
@@ -323,14 +351,10 @@ extern "C"
         // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
         __register_frame(&__ehframe);
         init_tss(&kernel_isr_stack);
-        // The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.
-        gdt_setup();
-        // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
-        idt_init();
-        // The wrgsbase instruction will be enabled before the lidt method returns, so we can do this now.
+        enable_fs_gs_insns();
         set_kernel_gs_base(&kproc);
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(vaddr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);
+        init_syscall_msrs(vaddr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);     
         sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing

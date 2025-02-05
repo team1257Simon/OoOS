@@ -100,6 +100,15 @@ task_change_flag:
         .quad isr_\i
     .endm
     xm256 wrapper
+    .global test_fault
+    .type test_fault,   @function
+test_fault:
+    # Classic "divide by zero" fault to test the handler established in kmain
+    xorq    %rcx,   %rcx
+    movq    $1,     %rax
+    divq    %rcx
+    ret
+    .size   test_fault, .-test_fault
     .section    .data
     .global     isr_table
     .type       isr_table,      @object    

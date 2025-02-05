@@ -3,9 +3,11 @@
     .global     task_change
     .global     current_active_task
     .global     user_entry
+    .global     enable_fs_gs_insns
     .type       task_change,            @function
     .type       current_active_task,    @function
     .type       user_entry,             @function
+    .type       enable_fs_gs_insns,     @function
 task_change:
     movq        %rax,           %gs:0x010
     popq        %rax    
@@ -82,6 +84,9 @@ user_entry:
     movq        0x2F8(%rdi),    %rax
     wrfsbase    %rax
     fxrstor     0x0E0(%rdi)
+    movq    %gs:0x0A6,          %rax    
+    movq    %rax,               %cr3
+    movq    %gs:0x010,          %rax    
     movq    %gs:0x018,          %rbx
     movq    %gs:0x090,          %rcx    # instruction pointer goes in the C register for a sysret
     movq    %gs:0x028,          %rdx
@@ -97,8 +102,11 @@ user_entry:
     movq    %gs:0x078,          %r15
     movq    %gs:0x080,          %rbp
     movq    %gs:0x088,          %rsp
-    movq    %gs:0x0A6,          %rax
-    movq    %rax,               %cr3
-    movq    %gs:0x010,          %rax
     sysretq
     .size       user_entry,             .-user_entry
+enable_fs_gs_insns:
+    movq        %cr4,       %rax
+    orq         $0x10000,   %rax
+    movq        %rax,       %cr4
+    ret
+    .size   enable_fs_gs_insns,         .-enable_fs_gs_insns

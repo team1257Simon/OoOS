@@ -28,14 +28,13 @@ extern "C"
     extern void idt_register();
     static void idt_set_descriptor(uint8_t vector, void* isr)
     {
-        idt_entry_t* descriptor    = &idt_table[vector];
-        descriptor->isr_low        = reinterpret_cast<uint64_t>(isr) & 0xFFFF;
-        descriptor->kernel_cs      = 0x8;
-        descriptor->ist            = (vector > 0 && vector < 0x20) ? 2 : 0;
-        descriptor->attributes     = 0x8E;
-        descriptor->isr_mid        = (reinterpret_cast<uint64_t>(isr) >> 16) & 0xFFFF;
-        descriptor->isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
-        descriptor->reserved       = 0;
+        idt_table[vector].isr_low        = reinterpret_cast<uint64_t>(isr) & 0xFFFF;
+        idt_table[vector].kernel_cs      = 0x8;
+        idt_table[vector].ist            = (vector < 0x30) ? 1 : 0;
+        idt_table[vector].attributes     = 0xEE;
+        idt_table[vector].isr_mid        = (reinterpret_cast<uint64_t>(isr) >> 16) & 0xFFFF;
+        idt_table[vector].isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
+        idt_table[vector].reserved       = 0;
     }
     [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
     {
@@ -56,6 +55,5 @@ extern "C"
         idt_descriptor.size = 4095;
         idt_descriptor.idt_ptr = &idt_table[0];
         idt_register();
-        asm volatile("lidt %0" :: "m"(idt_descriptor) : "memory");
     }
 }

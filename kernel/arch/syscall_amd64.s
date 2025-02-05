@@ -30,7 +30,7 @@ syscall_vec:
     .global do_syscall
     .type   do_syscall,     @function
 do_syscall:
-    cli 
+    cli
     movq    %rsp,                   %gs:0x088
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090

@@ -101,6 +101,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
             pdpt = tables_start + current_table_num*512;
             __boot_pml4[current_idx.idx.pml4_idx].present = 1;
             __boot_pml4[current_idx.idx.pml4_idx].write = 1;
+            __boot_pml4[current_idx.idx.pml4_idx].user_access = 1;
             __boot_pml4[current_idx.idx.pml4_idx].physical_address = (uintptr_t)pdpt >> 12;
             current_table_num++;
         }
@@ -109,6 +110,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
             pd = tables_start + current_table_num*512;
             pdpt[current_idx.idx.pdp_idx].present = 1;
             pdpt[current_idx.idx.pdp_idx].write = 1;
+            pdpt[current_idx.idx.pdp_idx].user_access = 1;
             pdpt[current_idx.idx.pdp_idx].physical_address = (uintptr_t)pd >> 12;
             current_table_num++;
         }
@@ -117,6 +119,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
             pt = tables_start + current_table_num*512;
             pd[current_idx.idx.pd_idx].present = 1;
             pd[current_idx.idx.pd_idx].write = 1;
+            pd[current_idx.idx.pd_idx].user_access = 1;
             pd[current_idx.idx.pd_idx].physical_address = (uintptr_t)pt >> 12;
             boot_page_frame->tables[pt_num] = pt;
             pt_num++;
@@ -124,6 +127,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
         }
         pt[current_idx.idx.page_idx].present = 1;
         pt[current_idx.idx.page_idx].write = 1;
+        pt[current_idx.idx.page_idx].user_access = 1;
         pt[current_idx.idx.page_idx].physical_address = current_phys >> 12;
         current_phys += PAGESIZE;
         current_idx.addr += PAGESIZE;

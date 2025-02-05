@@ -34,10 +34,10 @@ system_tss:
     # The actual GDT
 gdt_table:
     .quad       0                     # Null Descriptor
-    .quad       0x00AF9B000000FFFF    # Code Segment for Ring 0; offset 0x8
+    .quad       0x00AF9A000000FFFF    # Code Segment for Ring 0; offset 0x8
     .quad       0x00CF93000000FFFF    # Data Segment for Ring 0; offset 0x10
     .quad       0x00CFF3000000FFFF    # Data Segment for Ring 3; offset 0x18
-    .quad       0x00AFFB000000FFFF    # Code Segment for Ring 3; offset 0x20
+    .quad       0x00AFFA000000FFFF    # Code Segment for Ring 3; offset 0x20
 local_tss_descr:
     .zero       16
     .zero       4040
@@ -99,7 +99,7 @@ local_reload_segments:
     ret
     .size       gdt_setup,    .-gdt_setup
 idt_register:
-    lidt        idt_descriptor
+    lidtq       idt_descriptor
     movq        %cr4,       %rax
     orq         $0x10000,   %rax
     movq        %rax,       %cr4

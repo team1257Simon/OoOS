@@ -72,6 +72,7 @@ static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thr
     {
         in[idx].present = true;
         in[idx].write = true;
+        in[idx].user_access = true;
         if(write_thru) in[idx].write_thru = true;
         in[idx].physical_address = std::bit_cast<uintptr_t>(result) >> 12;
     }
@@ -82,12 +83,14 @@ static paging_table __get_table(vaddr_t const& of_page, bool write_thru, paging_
     if (pml4[of_page.pml4_idx].present)
     {
         if(write_thru) pml4[of_page.pml4_idx].write_thru = true;
+        pml4[of_page.pml4_idx].user_access = true;
         paging_table pdp = vaddr_t{ pml4[of_page.pml4_idx].physical_address << 12 };
         if(pdp[of_page.pdp_idx].present) 
         {
             if(write_thru) pdp[of_page.pdp_idx].write_thru = true;
+            pdp[of_page.pdp_idx].user_access = true; // this bit is controlled at the page-level only
             paging_table pd = vaddr_t { pdp[of_page.pdp_idx].physical_address << 12 };
-            if(pd[of_page.pd_idx].present) { if(write_thru) pd[of_page.pd_idx].write_thru = true; return vaddr_t{ pd[of_page.pd_idx].physical_address << 12 }; }
+            if(pd[of_page.pd_idx].present) { if(write_thru) pd[of_page.pd_idx].write_thru = true; pd[of_page.pd_idx].user_access = true; return vaddr_t{ pd[of_page.pd_idx].physical_address << 12 }; }
             else return __build_new_pt(pd, of_page.pd_idx, write_thru);
         }
         else 
@@ -136,13 +139,13 @@ static vaddr_t __skip_mmio(vaddr_t start, size_t pages)
     if(uintptr_t(c_ed) > uintptr_t(ed)) curr = curr + ptrdiff_t(uintptr_t(c_ed) - uintptr_t(ed));
     return curr;
 }
-static void __set_kernel_global(uintptr_t max)
+static void __set_kernel_page_settings(uintptr_t max)
 {
     paging_table pt = nullptr;
     for(vaddr_t addr{ &__start }; uintptr_t(addr) < max; addr += PAGESIZE)
     {
         if(!pt || !addr.page_idx) pt = __find_table(addr);
-        if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = !is_ro_kernel(addr); }
+        if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = !is_ro_kernel(addr); pt[addr.page_idx].user_access = true; }
     }
 }
 static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
@@ -162,6 +165,7 @@ static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
         pt[curr.page_idx].present = true;
         pt[curr.page_idx].global = global;
         pt[curr.page_idx].write = true;
+        pt[curr.page_idx].user_access = true;
         pt[curr.page_idx].physical_address = phys >> 12;
         modified = true;
     }
@@ -179,6 +183,8 @@ static vaddr_t __copy_kernel_page_mapping(vaddr_t start, size_t pages, paging_ta
     {
         if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
         __builtin_memcpy(&upt[curr.page_idx], &pt[curr.page_idx], sizeof(pt_entry));
+        upt[curr.page_idx].write = false;
+        upt[curr.page_idx].user_access = true;
     }
     return start;
 }
@@ -195,6 +201,7 @@ static vaddr_t __map_mmio_pages(vaddr_t start, size_t pages)
         pt[curr.page_idx].global = true;
         pt[curr.page_idx].write = true;
         pt[curr.page_idx].write_thru = true;
+        pt[curr.page_idx].user_access = true;
         pt[curr.page_idx].physical_address = uint64_t(curr) >> 12;
     }
     tlb_flush();
@@ -384,7 +391,7 @@ void heap_allocator::init_instance(mmap_t *mmap)
     heap_allocator::__instance->__mark_used(0, div_roundup(heap, REGION_SIZE));
     for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) __map_mmio_pages(vaddr_t{ mmap->entries[i].addr }, mmap->entries[i].len); } }
     __instance->__physical_open_watermark = heap;
-    __set_kernel_global(vaddr_t{ &__end } + ptrdiff_t(sizeof(kframe_tag)));
+    __set_kernel_page_settings(vaddr_t{ &__end } + ptrdiff_t(sizeof(kframe_tag)));
 }
 paging_table heap_allocator::allocate_pt()
 {

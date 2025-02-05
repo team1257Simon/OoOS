@@ -6,7 +6,10 @@ uframe_tag &frame_manager::create_frame(vaddr_t start_base, vaddr_t start_extent
     paging_table pt = heap_allocator::get().allocate_pt();
     if(!pt) throw std::runtime_error{ "could not initialize paging tables" };
     else if(!heap_allocator::get().copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
-    return this->emplace_back(pt, start_base, start_extent);
+    uframe_tag* result = &this->emplace_back(pt, start_base, start_extent);
+    heap_allocator::get().enter_frame(result);
+    if(!heap_allocator::get().identity_map_to_user(pt, PT_LEN)) { destroy_frame(*result);  throw std::runtime_error{ "could not initialize page mappings" }; }
+    return *result;
 }
 uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)
 {
