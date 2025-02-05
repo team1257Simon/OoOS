@@ -37,10 +37,10 @@ task_change:
     movq        %cr3,           %rax
     movq        %rax,           %gs:0x0A6
     movq        %gs:0x000,      %rax
-    fxsave      0x0D0(%rax)
+    fxsave      0x0F0(%rax)
     movq        0x300(%rax),    %rax
     wrgsbase    %rax
-    fxrstor     0x0D0(%rax)
+    fxrstor     0x0F0(%rax)
     movq        %gs:0x2E8,      %rax
     wrfsbase    %rax
     movq        %gs:0x018,      %rbx
@@ -67,19 +67,16 @@ task_change:
     pushq       %rax
     movq        %gs:0x090,      %rax
     pushq       %rax
-    movw        %gs:0x0A0,      %ax
+    movw        %gs:0x0A0,      %ax       
     movw        %ax,            %ds
     movq        %gs:0x0A6,      %rax
     movq        %rax,           %cr3
     movq        %gs:0x010,      %rax
-    sti
     iretq
     .size       task_change,    .-task_change
 user_entry:
     cli
-    movq    %gs:0x0AC,          %rax
-    movq    %rax,               %cr3
-    movq    %gs:0x010,          %rax    
+    wrgsbase    %rdi
     movq    %gs:0x018,          %rbx
     movq    %gs:0x090,          %rcx    # instruction pointer goes in the C register for a sysret
     movq    %gs:0x028,          %rdx
@@ -92,6 +89,8 @@ user_entry:
     movq    %gs:0x078,          %r15
     movq    %gs:0x080,          %rbp
     movq    %gs:0x088,          %rsp
-    sti
+    movq    %gs:0x0A6,          %rax
+    movq    %rax,               %cr3
+    movq    %gs:0x010,          %rax
     sysretq
     .size       user_entry,             .-user_entry

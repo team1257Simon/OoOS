@@ -33,6 +33,8 @@ extern "C"
     extern kframe_tag* __kernel_frame_tag;
     extern void* isr_table[];
     extern void* svinst;
+    extern bool task_change_flag;
+    extern unsigned char kern_stack;
     task_t kproc{};
 }
 static void __dbg_num(uintptr_t num, size_t lenmax) { for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); direct_write(" "); }
@@ -220,12 +222,17 @@ void elf64_tests()
         char* exec_buf = dalloc.allocate(f->size());
         size_t s = f->read(exec_buf, f->size());
         elf64_executable exec(exec_buf, s);
-        if(exec.validate() && exec.load())
+        if(exec.load())
         {
-            elf64_desc desc = exec.describe();
-            startup_tty.print_line("Page frame allocated at " + std::to_string(desc.frame_ptr));
-            startup_tty.print_line("Stack allocated at " + std::to_string(desc.prg_stack) + " and is size " + std::to_string(desc.stack_size));
-            startup_tty.print_line("Elf entry: " + std::to_string(desc.entry));
+            startup_tty.print_line("Validated.");
+            elf64_desc const* desc = &(exec.describe());
+            startup_tty.print_line("Entry at " + std::to_string(desc->entry));
+            startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
+            startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
+            std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
+            it->start_task();
+            kproc.next = it->task_struct.self;
+//            scheduler::get().start();
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -282,10 +289,8 @@ void run_tests()
     vfs_tests();
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
-    startup_tty.print_line("elf tests...");
-    elf64_tests();
     startup_tty.print_line("task tests...");
-    task_tests();
+    elf64_tests();
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) task = task->task_struct.next; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
@@ -304,7 +309,8 @@ extern "C"
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
-        // Don't want to get interrupted during early initialization...
+        asm volatile("movq %0, %%rsp":: "a"(&kern_stack) : "memory");  
+        // Don't want to get interrupted during early initialization...            
         cli();
         nmi_disable();
         kproc.self = &kproc;

@@ -262,6 +262,7 @@ public:
         this->__alloc_fn = &helper::allocate;
         this->__dealloc_fn = &helper::deallocate;
         this->__my_ptr = this->__alloc_fn();
+        new (this->__my_ptr) FT();
     }
     constexpr operator pointer() noexcept { return __my_ptr; }
     constexpr operator const_pointer() const noexcept { return __my_ptr; }

@@ -7,10 +7,14 @@
     .global     errinst
     .global     svinst
     .global     task_change_flag
+    .global     kern_stack
+    .type       kern_stack,         @object
     .type       task_change_flag,   @object
     .type       ecode,          @object
     .type       errinst,        @object
     .type       svinst,         @object
+kern_stack:
+    .zero 16384
 ecode:
     .quad 0
     .size       ecode,          .-ecode

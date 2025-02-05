@@ -23,9 +23,10 @@ class elf64_executable
     constexpr bool __is_loaded() const noexcept { return __validated && __process_frame_tag; }
 protected:
     void xload();
+    elf64_desc __descr{};
 public:
     constexpr elf64_executable(vaddr_t image, size_t sz, size_t stack_sz = S04, size_t tls_sz = S04) noexcept : __image_start{ image }, __image_total_size{ sz }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
-    constexpr elf64_desc describe() const noexcept { return { __process_frame_tag, __process_stack_base, __tgt_stack_size, __process_tls_base, __tgt_tls_size, __process_entry_ptr }; }
+    elf64_desc const& describe() const noexcept;
     bool validate() noexcept;
     bool load() noexcept;
 };

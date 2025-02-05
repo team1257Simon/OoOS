@@ -1,6 +1,7 @@
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
 #include "frame_manager.hpp"
+#include "heap_allocator.hpp"
 #include "errno.h"
 #include "fs/ramfs.hpp"
 #include "elf64_exec.hpp"
@@ -8,7 +9,7 @@
 typedef ramfs fs_to_use; // during testing we use ramfs; eventually, there will be more configuration here
 static fx_state __init_fx_state{};
 static bool __fx_initialized{ false };
-static inline vaddr_t get_applicable_cr3(vaddr_t frame_ptr) { return (*static_cast<uint64_t*>(frame_ptr) == UFRAME_MAGIC) ? *static_cast<paging_table*>(frame_ptr + ptrdiff_t(8L)) : get_cr3(); }
+static inline vaddr_t get_applicable_cr3(vaddr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
 void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr)
 {
     task_struct.saved_regs.rip = vaddr_t{ task };
@@ -28,16 +29,19 @@ void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_
     if(is_system())
     {
         task_struct.saved_regs.cs = 0x08;
-        task_struct.saved_regs.ds = 0x10;
+        task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x10;
     }
     else
     {
         task_struct.saved_regs.cs = 0x20;
-        task_struct.saved_regs.ds = 0x18;
+        task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x18;
         __init_vfs();
+        heap_allocator::get().enter_frame(frame_ptr);
+        heap_allocator::get().identity_map_to_user(this, sizeof(task_ctx));
+        heap_allocator::get().exit_frame();
     }
 }
-void task_ctx::__init_vfs() { this->ctx_filesystem.create<fs_to_use>(); this->ctx_filesystem->lndev("/sys/stdin", serial_driver_amd64::get_instance(), 0, true); this->ctx_filesystem->lndev("/sys/stdout", serial_driver_amd64::get_instance(), 1, true); this->ctx_filesystem->lndev("/sys/stderr", serial_driver_amd64::get_instance(), 2, true); }
+void task_ctx::__init_vfs() { this->ctx_filesystem.create<fs_to_use>(); this->ctx_filesystem->lndev("sys/stdin", serial_driver_amd64::get_instance(), 0, true); this->ctx_filesystem->lndev("sys/stdout", serial_driver_amd64::get_instance(), 1, true); this->ctx_filesystem->lndev("sys/stderr", serial_driver_amd64::get_instance(), 2, true); }
 task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } {}
 task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : task_struct { &task_struct, frame_ptr, regstate_t{}, quantum, 0U, tcb_t { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid}, fx_state{},  0UL, 0UL, 0UL, nullptr, 0UL, tls_base, nullptr }, arg_vec{ std::move(args) }, allocated_stack{ stack_base }, stack_allocated_size{ static_cast<size_t>(stack_size) }, tls{ tls_base }, tls_size{ tls_len } { __init_task_state(task, stack_base, stack_size, tls_base, frame_ptr); }
 void task_ctx::add_child(task_ctx *that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<vaddr_t*>(child_tasks.data()); }
@@ -125,5 +129,5 @@ extern "C"
         catch(std::exception& e) { panic(e.what()); if(buf) fballoc.deallocate(buf, n ? n->size() : 0); if(n) { fs_ptr->close_file(n); return -EPIPE; } else if(buf) return -EAGAIN; else return -ENOENT; } 
         return -EINVAL;
     }
-    [[noreturn]] void handle_exit() { int ecode; asm volatile("movl %%eax, %0" : "=r"(ecode) :: "memory"); task_ctx* task = current_active_task()->self; task->exit_code = ecode; task->terminate(); while(1){ PAUSE; } __builtin_unreachable(); }
+    [[noreturn]] void handle_exit() { int ecode; asm volatile("movl %%eax, %0" : "=r"(ecode) :: "memory"); task_ctx* task = current_active_task()->self; task->exit_code = ecode; task->terminate(); while(1) { PAUSE; } __builtin_unreachable(); }
 }

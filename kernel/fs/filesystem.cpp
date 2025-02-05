@@ -131,7 +131,7 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_read(int fd, char *ptr, int len)

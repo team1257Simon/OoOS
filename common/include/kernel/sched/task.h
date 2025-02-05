@@ -95,7 +95,7 @@ typedef struct __task_info
     regstate_t saved_regs;              // %gs:0x010 - %gs:0x0AE
     uint16_t quantum_val;               // %gs:0x0AE; base amount of time allocated per timeslice
     uint16_t quantum_rem;               // %gs:0x0B0; amount of time remaining in the current timeslice
-    tcb_t task_ctl;                     // %gs:0x0B2 - %gs:0x0D0
+    tcb_t task_ctl;                     // %gs:0x0B8 - %gs:0x0D0
     fx_state fxsv;                      // %gs:0x0D0 - %gs:0x2D0    
     uint64_t run_split;                 // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
     uint64_t run_time;                  // %gs:0x2D8; total runtime
@@ -106,7 +106,7 @@ typedef struct __task_info
     vaddr_t next;                       // %gs:0x300; updated when scheduling event fires.
 } __align(16) __pack task_t;
 inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
-[[noreturn]] void user_entry();
+[[noreturn]] void user_entry(vaddr_t);
 void init_pit();
 void init_tss(vaddr_t k_rsp);
 #ifdef __cplusplus

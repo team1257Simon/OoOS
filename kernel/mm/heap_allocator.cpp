@@ -6,10 +6,12 @@ extern "C"
 {
     extern unsigned char __start;
     extern unsigned char __end;
+    extern unsigned char __code;
     kframe_tag* __kernel_frame_tag = reinterpret_cast<kframe_tag*>(&__end);
 }
 constexpr ptrdiff_t bt_offset{ sizeof(block_tag) };
 static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
+constexpr bool is_ro_kernel(vaddr_t where) { return where < vaddr_t(&__ehframe) && where > vaddr_t(&__code); }
 constexpr uint32_t get_block_exp(uint64_t size) { if(size < (1ull << MIN_BLOCK_EXP)) return  MIN_BLOCK_EXP; for(size_t j =  MIN_BLOCK_EXP; j < MAX_BLOCK_EXP; j++) if(static_cast<uint64_t>(1ull << j) > size) return j; return MAX_BLOCK_EXP - 1; }
 constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t how_many_status_arrays(size_t mem_size) { return div_roundup(mem_size, GIGABYTE); }
@@ -140,7 +142,7 @@ static void __set_kernel_global(uintptr_t max)
     for(vaddr_t addr{ &__start }; uintptr_t(addr) < max; addr += PAGESIZE)
     {
         if(!pt || !addr.page_idx) pt = __find_table(addr);
-        if(pt) pt[addr.page_idx].global = true;
+        if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = !is_ro_kernel(addr); }
     }
 }
 static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
@@ -166,6 +168,20 @@ static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
     if(modified) tlb_flush();
     return start;
 }
+static vaddr_t __copy_kernel_page_mapping(vaddr_t start, size_t pages, paging_table pml4)
+{
+    vaddr_t curr{ start };
+    paging_table pt = __get_table(curr, false);
+    if(!pt) return nullptr;
+    paging_table upt = __get_table(curr, false, pml4);
+    if(!upt) return nullptr;
+    for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
+    {
+        if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
+        __builtin_memcpy(&upt[curr.page_idx], &pt[curr.page_idx], sizeof(pt_entry));
+    }
+    return start;
+}
 static vaddr_t __map_mmio_pages(vaddr_t start, size_t pages)
 {
     if(!start) return nullptr;
@@ -188,9 +204,7 @@ static vaddr_t __map_user_pages(vaddr_t start_vaddr, uintptr_t start_paddr, size
 {
     if(start_vaddr && start_paddr && pages && pml4)
     {
-        vaddr_t curr{ __skip_mmio(start_vaddr, pages) };
-        if(!curr) return nullptr;
-        start_vaddr = curr;
+        vaddr_t curr = start_vaddr;
         uintptr_t phys = start_paddr;
         paging_table pt = __get_table(curr, false, pml4);
         if(!pt) return nullptr;
@@ -375,7 +389,9 @@ void heap_allocator::init_instance(mmap_t *mmap)
 paging_table heap_allocator::allocate_pt()
 {
     const size_t pt_size{ sizeof(pt_entry) * PT_LEN };
-    uint32_t exp{ get_block_exp(REGION_SIZE) - MIN_BLOCK_EXP };
+    const size_t total_sz = up_to_nearest(pt_size + bt_offset, PAGESIZE);
+    const size_t rsz = region_size_for(total_sz * 8);
+    uint32_t exp{ get_block_exp(pt_size + bt_offset) - MIN_BLOCK_EXP };
     block_tag* tag{ nullptr };
     for(tag = __kernel_frame_tag->available_blocks[exp]; bool(tag); tag = tag->next)
     {
@@ -390,16 +406,18 @@ paging_table heap_allocator::allocate_pt()
     }
     if(!tag)
     {
-        vaddr_t allocated{ __find_claim_avail_region(S512) };
+        vaddr_t allocated{ __find_claim_avail_region(rsz) };
         if(!allocated) return nullptr;
-        if(!translate_vaddr(allocated)) { __map_kernel_pages(allocated, REGION_SIZE / PAGESIZE, true); }
-        tag = new (allocated) block_tag{ REGION_SIZE - bt_offset, 0 };
+        if(!translate_vaddr(allocated)) { __map_kernel_pages(allocated, rsz / PAGESIZE, true); }
+        tag = new (allocated) block_tag{ rsz, 0 };
         __physical_open_watermark = std::max(uintptr_t(allocated), __physical_open_watermark);
     }
     tag->held_size = pt_size;
+    tag->align_bytes = add_align_size(tag, PAGESIZE);
     vaddr_t result = tag->actual_start();
+    __builtin_memset(result, 0, PAGESIZE);
     if(tag->available_size() - bt_offset >= (1 << MIN_BLOCK_EXP)) __kernel_frame_tag->insert_block(tag->split(), -1);
-    if(result && __active_frame) __active_frame->pt_blocks.push_back(result);
+    if(result && __active_frame) { bool lk = test_lock(&__heap_mutex); if(lk) __unlock(); __active_frame->pt_blocks.push_back(result); if(lk) __lock(); }
     return result;
 }
 uintptr_t heap_allocator::translate_vaddr_in_current_frame(vaddr_t addr) { if(paging_table pt = __find_table(addr, __active_frame ? __active_frame->pml4 : paging_table(__kernel_cr3))) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
@@ -434,6 +452,15 @@ vaddr_t heap_allocator::identity_map_to_kernel(vaddr_t start, size_t sz)
     vaddr_t result{ __map_kernel_pages(vaddr_t{ phys }, div_roundup(sz, PAGESIZE), false) };
     if(fr) enter_frame(fr);
     __unlock();
+    if(result) return vaddr_t(phys);
+    return nullptr;
+}
+vaddr_t heap_allocator::identity_map_to_user(vaddr_t what, size_t sz)
+{
+    if(!__active_frame) return nullptr;
+    __lock();
+    vaddr_t result = __map_user_pages(what, what, div_roundup(sz, PAGESIZE), __active_frame->pml4, false, false);
+    __unlock();
     return result;
 }
 void heap_allocator::deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap) { uintptr_t phys{ translate_vaddr_in_current_frame(base) }; vaddr_t pml4 =  __active_frame ? vaddr_t{ __active_frame->pml4 } : __kernel_cr3; __lock(); if(phys) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE), pml4); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
@@ -451,6 +478,7 @@ void kframe_tag::remove_block(block_tag* blk)
     blk->previous = nullptr;
     blk->index = -1;
 }
+vaddr_t heap_allocator::copy_kernel_mappings(paging_table target) { return __copy_kernel_page_mapping(vaddr_t(&__start), div_roundup(static_cast<size_t>(&__end - &__start), PAGESIZE), target); }
 /**
  * Basically implements the standard ::operator new(std::size_t, std::align_val) in the frame given by *this.
  * In the kernel, allocations invoke this on the kernel frame tag, which is located directly after the kernel in memory and will be accessible from the kernel's GS base.

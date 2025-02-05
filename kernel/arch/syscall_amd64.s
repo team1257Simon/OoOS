@@ -30,7 +30,7 @@ syscall_vec:
     .global do_syscall
     .type   do_syscall,     @function
 do_syscall:
-    cli
+    cli 
     movq    %rsp,                   %gs:0x088
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
@@ -45,7 +45,7 @@ do_syscall:
     leaq    syscall_vec(,%rax,8),   %rax
     movq    %r11,                   %gs:0x098
     # subject to change, but for now just count all syscalls as 1
-    incq    %gs:0x2E0    
+    incq    %gs:0x2F0    
     sti
     call    *%rax
     cli

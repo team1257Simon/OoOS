@@ -9,7 +9,7 @@ bool elf64_executable::validate() noexcept
 {
     if(this->__validated) return true;
     if(!validate_elf(this->__get_ehdr())) { direct_writeln("invalid header"); return false; }
-    this->__process_entry_ptr = vaddr_t{ this->__get_ehdr().e_entry };
+    this->__process_entry_ptr = vaddr_t(this->__get_ehdr().e_entry);
     elf64_phdr* h = this->__image_start + ptrdiff_t(this->__get_ehdr().e_phoff);
     for(size_t n = 0; n < this->__get_ehdr().e_phnum; n++, h = (vaddr_t{ h } + ptrdiff_t(this->__get_ehdr().e_phentsize)))
     {
@@ -29,18 +29,21 @@ void elf64_executable::xload()
     if(!this->validate()) throw std::runtime_error{ "invalid executable" };
     if((this->__process_frame_tag = std::addressof(frame_manager::get().create_frame(this->__process_frame_base, this->__process_frame_extent))))
     {
+        heap_allocator::get().enter_frame(this->__process_frame_tag);
         elf64_phdr* h = this->__image_start + ptrdiff_t(this->__get_ehdr().e_phoff);
         for(size_t n = 0; n < this->__get_ehdr().e_phnum; n++, h = (vaddr_t{ h } + ptrdiff_t(this->__get_ehdr().e_phentsize)))
         {
             if(!is_load(*h) || !h->p_memsz) continue;
             vaddr_t blk = heap_allocator::get().allocate_user_block(h->p_memsz, vaddr_t{ h->p_vaddr }, is_write(*h), is_exec(*h));
-            if(!blk) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; throw std::bad_alloc{}; }
+            if(!blk) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); throw std::bad_alloc{}; }
             this->__process_frame_tag->usr_blocks.emplace_back(blk, h->p_memsz);
             vaddr_t idmap = heap_allocator::get().identity_map_to_kernel(blk, h->p_memsz);
             vaddr_t img_dat = this->__image_start + ptrdiff_t(h->p_offset);
-            __builtin_memcpy(idmap, img_dat, h->p_filesz);
+            arraycopy<uint64_t>(idmap, img_dat, h->p_filesz / 8);
             if(h->p_memsz > h->p_filesz) { size_t diff = static_cast<size_t>(h->p_memsz - h->p_filesz); arrayset(img_dat + ptrdiff_t(h->p_filesz), uint8_t(0), diff); }
         }
+        heap_allocator::get().exit_frame();
+        __descr = { __process_frame_tag, __process_stack_base, __tgt_stack_size, __process_tls_base, __tgt_tls_size, __process_entry_ptr };
     }
     else throw std::bad_alloc{};
 }
@@ -52,3 +55,4 @@ bool elf64_executable::load() noexcept
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
+elf64_desc const &elf64_executable::describe() const noexcept { return __descr; }

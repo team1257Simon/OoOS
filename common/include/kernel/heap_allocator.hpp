@@ -204,7 +204,9 @@ public:
     vaddr_t allocate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
     vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute);
     vaddr_t identity_map_to_kernel(vaddr_t start, size_t sz);
+    vaddr_t identity_map_to_user(vaddr_t what, size_t sz);
     void deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap = false);
+    vaddr_t copy_kernel_mappings(paging_table target);
 };
 extern "C" vaddr_t syscall_sbrk(ptrdiff_t incr);
 #endif
