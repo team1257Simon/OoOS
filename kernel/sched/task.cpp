@@ -6,19 +6,13 @@
 #include "fs/ramfs.hpp"
 #include "elf64_exec.hpp"
 #include "arch/com_amd64.h"
-typedef ramfs fs_to_use; // during testing we use ramfs; eventually, there will be more configuration here
 static fx_state __init_fx_state{};
 static bool __fx_initialized{ false };
 static inline vaddr_t get_applicable_cr3(vaddr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
-void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr)
+void task_ctx::init_task_state()
 {
-    task_struct.saved_regs.rip = vaddr_t{ task };
-    task_struct.saved_regs.rbp = stack_base;
-    task_struct.saved_regs.rsp = stack_base + stack_size;
-    task_struct.saved_regs.rdi = arg_vec.size();
-    task_struct.saved_regs.rsi = std::bit_cast<register_t>(arg_vec.data());
-    task_struct.saved_regs.cr3 = get_applicable_cr3(frame_ptr);
-    task_struct.saved_regs.rflags = 0x202UL; // bit 1 is reserved (always 1); bit 9 is interrupt-enable
+    task_struct.saved_regs.rsi = arg_vec.size();
+    task_struct.saved_regs.rdi = std::bit_cast<register_t>(arg_vec.data());
     if(!__fx_initialized)
     {
         asm volatile("fxsave (%0)" :: "r"(&__init_fx_state) : "memory");
@@ -34,16 +28,60 @@ void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_
     else
     {
         task_struct.saved_regs.cs = 0x23;
-        task_struct.saved_regs.ds = task_struct.saved_regs.ss = (0x1B);
-        __init_vfs();
-        heap_allocator::get().enter_frame(frame_ptr);
+        task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x1B;
+        heap_allocator::get().enter_frame(task_struct.frame_ptr);
         heap_allocator::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
         heap_allocator::get().exit_frame();
     }
 }
-void task_ctx::__init_vfs() { this->ctx_filesystem.create<fs_to_use>(); this->ctx_filesystem->lndev("sys/stdin", serial_driver_amd64::get_instance(), 0, true); this->ctx_filesystem->lndev("sys/stdout", serial_driver_amd64::get_instance(), 1, true); this->ctx_filesystem->lndev("sys/stderr", serial_driver_amd64::get_instance(), 2, true); }
+filesystem *task_ctx::get_fs() { return &ctx_filesystem; }
 task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } {}
-task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : task_struct { &task_struct, frame_ptr, regstate_t{}, quantum, 0U, tcb_t { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid}, fx_state{},  0UL, 0UL, 0UL, nullptr, 0UL, tls_base, nullptr }, arg_vec{ std::move(args) }, allocated_stack{ stack_base }, stack_allocated_size{ static_cast<size_t>(stack_size) }, tls{ tls_base }, tls_size{ tls_len } { __init_task_state(task, stack_base, stack_size, tls_base, frame_ptr); }
+task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
+    task_struct 
+    { 
+        &task_struct, 
+        frame_ptr, 
+        regstate_t
+        {
+            .rbp = stack_base, 
+            .rsp = stack_base + stack_size, 
+            .rip = vaddr_t{ task },
+            .rflags = 0x202UL,
+            .cr3 = get_applicable_cr3(frame_ptr)
+        }, 
+        quantum, 
+        0U, 
+        tcb_t 
+        { 
+            { 
+                false, 
+                false, 
+                false, 
+                false, 
+                prio 
+            },
+            0U, 
+            0U, 
+            0U, 
+            parent_pid, 
+            pid
+        }, 
+        fx_state{}, 
+        0UL,
+        0UL, 
+        0UL, 
+        nullptr, 
+        0UL, 
+        tls_base, 
+        nullptr 
+    },
+    arg_vec{ std::move(args) }, 
+    allocated_stack{ stack_base }, 
+    stack_allocated_size{ static_cast<size_t>(stack_size) }, 
+    tls{ tls_base }, 
+    tls_size{ tls_len }, 
+    ctx_filesystem{} 
+    {}
 void task_ctx::add_child(task_ctx *that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<vaddr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx *that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
 void task_ctx::start_task(vaddr_t exit_fn)
@@ -104,9 +142,9 @@ extern "C"
     int syscall_sleep(unsigned long seconds) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); scheduler::get().set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { PAUSE; } return 0; } return -ENOSYS; }
     int syscall_execve(char *name, char **argv, char **env) 
     { 
-        filesystem* fs_ptr = get_fs_instance();
+        task_ctx* task = reinterpret_cast<task_t*>(get_gs_base())->self;        
+        filesystem* fs_ptr = task->get_fs();
         if(!fs_ptr) return -ENOSYS;
-        task_ctx* task = reinterpret_cast<task_t*>(get_gs_base())->self;
         std::allocator<char> fballoc{};
         char* buf{ nullptr };
         file_inode* n{ nullptr };
@@ -118,7 +156,7 @@ extern "C"
             if(!n->read(buf, n->size())) { fballoc.deallocate(buf, n->size()); fs_ptr->close_file(n); return -EPIPE; }
             elf64_executable exec{ buf, n->size() };
             if(!exec.load()) { fballoc.deallocate(buf, n->size()); fs_ptr->close_file(n); return -ENOEXEC; }
-            task_list::iterator i = task_list::get().create_user_task(exec.describe(), std::vector<const char*>{}, task->get_pid(), task->task_struct.task_ctl.prio_base, task->task_struct.quantum_val);
+            task_ctx* i = task_list::get().create_user_task(exec.describe(), std::vector<const char*>{}, task->get_pid(), task->task_struct.task_ctl.prio_base, task->task_struct.quantum_val);
             for(char** c = env; *c; c++) i->env_vec.push_back(*c);
             for(char** c = argv; *c; c++) i->arg_vec.push_back(*c);
             i->env_vec.push_back(nullptr);

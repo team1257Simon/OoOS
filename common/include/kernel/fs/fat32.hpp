@@ -193,10 +193,9 @@ struct fat32_node
     constexpr fat32_node(fat32_regular_entry* e) noexcept : disk_entry{ e } {}
     constexpr uint32_t start_cluster() const noexcept { return disk_entry ? uint32_t(start_of(*disk_entry)) : 0; }
     friend constexpr std::strong_ordering operator<=>(fat32_node const& __this, fat32_node const& __that) noexcept { return vaddr_t(__this.disk_entry) <=> vaddr_t(__that.disk_entry); }
-
 };
 class fat32;
-class fat32_file_inode : public virtual file_inode, public fat32_node
+class fat32_file_inode final : public file_inode, public fat32_node
 {
     fat32_filebuf __my_filebuf;
     size_t __on_disk_size;
@@ -218,7 +217,7 @@ public:
     fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
     friend constexpr std::strong_ordering operator<=>(fat32_file_inode const& __this, fat32_file_inode const& __that) noexcept { return __this.disk_entry <=> __that.disk_entry; }
 };
-class fat32_folder_inode : public virtual folder_inode, public fat32_node
+class fat32_folder_inode final : public folder_inode, public fat32_node
 {
     tnode_dir __my_directory;
     std::map<std::string, fat32_regular_entry*> __my_names;    
@@ -262,6 +261,7 @@ class fat32 : public filesystem
     uint64_t __sector_base;
     dev_t __dev_serial;
     fat32_allocation_table __the_table;
+    std::function<uint64_t (uint32_t)> __cl_to_sect_fn;   
     fat32_folder_inode __root_directory;
     void __release_clusters_from(uint32_t start);
     friend void fat32_tests();
@@ -279,8 +279,7 @@ protected:
     virtual file_inode* open_fd(tnode*) override;
     fat32(fat32_bootsect const& bootsect, uint64_t start_sector);
     fat32(uint64_t start_sector);
-    constexpr int& get_next_fd() noexcept { return next_fd; }
-    std::function<uint64_t (uint32_t)> cl_to_sect_fn{ [&](uint32_t cl) -> uint64_t { return cluster_to_sector(cl); } };
+    int& get_next_fd() noexcept;
     fat32_file_inode* put_file_node(std::string const& name, fat32_regular_entry* e);
     fat32_folder_inode* put_folder_node(std::string const& name, fat32_regular_entry* e);
 public:

@@ -39,9 +39,9 @@ public:
 };
 class ramfs final : public filesystem
 {
-    ramfs_folder_inode __root_dir{ "" };
-    std::set<ramfs_file_inode> __file_nodes{};
-    std::set<ramfs_folder_inode> __folder_nodes{};
+    ramfs_folder_inode __root_dir;
+    std::set<ramfs_file_inode> __file_nodes;
+    std::set<ramfs_folder_inode> __folder_nodes;
 protected:
     virtual folder_inode* get_root_directory() override;
     virtual void dlfilenode(file_inode* fd) override;
@@ -51,6 +51,7 @@ protected:
     virtual folder_inode* mkdirnode(folder_inode* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
 public:
-    ramfs() = default;
+    virtual void link_stdio(vfs_filebuf_base<char>* target);
+    ramfs();
 };
 #endif

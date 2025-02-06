@@ -3,19 +3,19 @@
 #include "stdexcept"
 #include "errno.h"
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
-void filesystem::__put_fd(file_inode *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files[fd->vid()] = fd; for(std::vector<file_inode*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
+filesystem::filesystem() : next_fd{ 3 }, device_nodes{}, current_open_files{} {}
+void filesystem::__put_fd(file_inode *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files.set_at(fd->vid(), fd); for(std::vector<file_inode*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
 const char *filesystem::path_separator() const noexcept { return "/"; }
 void filesystem::close_file(file_inode* fd) { this->close_fd(fd); fd->rel_lock(); this->syncdirs(); }
-void filesystem::close_fd(file_inode* fd) { fd->seek(0); int id = fd->vid(); if(static_cast<size_t>(id) < current_open_files.size()) { current_open_files[id] = nullptr; next_fd = id; } }
+void filesystem::close_fd(file_inode* fd) { if(fd->is_device()) return; fd->seek(0); int id = fd->vid(); if(static_cast<size_t>(id) < current_open_files.size()) { current_open_files[id] = nullptr; next_fd = id; } }
 file_inode* filesystem::open_fd(tnode* node) { return node->as_file(); }
-void filesystem::dldevnode(device_inode* n) { n->prune_refs(); device_nodes.erase(*n); this->syncdirs(); }
+void filesystem::dldevnode(device_inode* n) { n->prune_refs(); current_open_files[n->vid()] = nullptr; device_nodes.erase(*n); this->syncdirs(); }
 device_inode* filesystem::mkdevnode(folder_inode *parent, std::string const &name, vfs_filebuf_base<char> *dev, int fd_hint) 
 {
-    device_inode* result = std::addressof(*(device_nodes.emplace(name, next_fd++, dev).first));
+    device_inode* result =device_nodes.emplace(name, fd_hint, dev).first.base();
     parent->add(result);
-    while(current_open_files.size() <= static_cast<size_t>(fd_hint) && current_open_files[fd_hint]) fd_hint++;
+    while(current_open_files.size() > static_cast<size_t>(fd_hint) && current_open_files[fd_hint]) fd_hint++;
     result->fd = fd_hint;
-    this->__put_fd(result);
     return result;
 }
 bool filesystem::xunlink(folder_inode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
@@ -104,8 +104,8 @@ folder_inode* filesystem::get_folder(std::string const& path, bool create)
     else if (node->is_file()) throw std::logic_error{ "path " + path + " exists and is a file" };
     else return node->as_folder();
 }
-file_inode* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) return current_open_files[fd]; else return nullptr; }
-device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_hint, bool create_parents) { target_pair parent{ this->get_parent(where, create_parents) }; if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; return this->mkdevnode(parent.first, parent.second, what, fd_hint); }
+file_inode* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) { return current_open_files[fd]; } else return nullptr; }
+device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_hint, bool create_parents) { target_pair parent{ this->get_parent(where, create_parents) }; if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; device_inode* result = this->mkdevnode(parent.first, parent.second, what, fd_hint); this->__put_fd(result); return result; }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }

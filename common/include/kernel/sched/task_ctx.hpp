@@ -5,7 +5,7 @@
 #include "vector"
 #include "heap_allocator.hpp"
 #include "sys/times.h"
-#include "fs/fs.hpp"
+#include "fs/ramfs.hpp"
 extern "C" [[noreturn]] void handle_exit();
 enum class execution_state
 {
@@ -23,7 +23,7 @@ struct task_ctx
     size_t stack_allocated_size;
     vaddr_t tls;
     size_t tls_size;
-    fs_ptr ctx_filesystem{};
+    ramfs ctx_filesystem;
     execution_state current_state{ execution_state::STOPPED };
     int exit_code{ 0 };
     vaddr_t exit_target{ nullptr };
@@ -38,6 +38,7 @@ struct task_ctx
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
     friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
+    filesystem* get_fs();
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
     void start_task(vaddr_t exit_fn = vaddr_t{ &handle_exit });
@@ -45,9 +46,7 @@ struct task_ctx
     void terminate();
     tms get_times() const noexcept;
     task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places
-private:
-    void __init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, vaddr_t frame_ptr);   
-    void __init_vfs();
+    void init_task_state();
 } __align(16);
 extern "C"
 {

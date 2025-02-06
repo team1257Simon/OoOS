@@ -49,8 +49,6 @@ do_syscall:
     leaq    syscall_vec,            %r10
     movq    (%r10, %rax, 8),        %rax
     movq    %r11,                   %gs:0x098
-// 1:
-//     jmp 1b
     # subject to change, but for now just count all syscalls as 1
     sti
     call    *%rax

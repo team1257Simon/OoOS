@@ -196,8 +196,8 @@ void test_landing_pad()
 void task_tests()
 {
     vaddr_t exit_test_fn{ &test_landing_pad };
-    task_list::iterator tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVNORM);
-    task_list::iterator tt2 = task_list::get().create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
+    task_ctx* tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVNORM);
+    task_ctx* tt2 = task_list::get().create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
     tt1->start_task(exit_test_fn);
     tt2->start_task(exit_test_fn);
     scheduler::get().start();
@@ -206,6 +206,7 @@ void fat32_tests()
 {
     new (fat32_testfs) fat32();
     fat32_testfs->init();
+    startup_tty.print_line("initialized...");
     try
     {
         file_inode* f = fat32_testfs->open_file("FILES/A.TXT");
@@ -232,15 +233,15 @@ void elf64_tests()
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
-            std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
-            // heap_allocator::get().enter_frame(it->task_struct.frame_ptr);
-            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));
-            // for(int i = 0; i < 25; i++)
-            // {
-            //     tgt_bytes[i] = 0x90;
-            // }
-            it->start_task();
-//            user_entry(it->task_struct.self);
+            task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
+            filesystem* fs = task->get_fs();
+            dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
+            heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
+            uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));
+            tgt_bytes[0] = 0xEB;
+            tgt_bytes[1] = 0xFE;
+            task->start_task();
+            user_entry(task->task_struct.self);
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -323,7 +324,7 @@ void run_tests()
     elf64_tests();
     startup_tty.print_line("complete");
 }
-filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) task = task->task_struct.next; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
+filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_fs(); }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
