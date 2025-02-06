@@ -34,8 +34,8 @@ extern "C"
     extern void* isr_table[];
     extern void* svinst;
     extern bool task_change_flag;
-    extern unsigned char kern_stack;
-    extern unsigned char kern_stack_base;
+    extern unsigned char kernel_stack_base;
+    extern unsigned char kernel_stack_top;
     extern unsigned char kernel_isr_stack;
     extern void test_fault();
     task_t kproc{};
@@ -232,9 +232,15 @@ void elf64_tests()
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
-            std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });            
+            std::set<task_ctx>::iterator it = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
+            // heap_allocator::get().enter_frame(it->task_struct.frame_ptr);
+            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));
+            // for(int i = 0; i < 25; i++)
+            // {
+            //     tgt_bytes[i] = 0x90;
+            // }
             it->start_task();
-            user_entry(it->task_struct.self);
+//            user_entry(it->task_struct.self);
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -314,7 +320,7 @@ void run_tests()
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
     startup_tty.print_line("task tests...");
-    task_tests();
+    elf64_tests();
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; if(task->is_system()) task = task->task_struct.next; if(task->is_system()) return &testramfs; else return task->ctx_filesystem; }
@@ -334,8 +340,8 @@ extern "C"
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
-        asm volatile("movq %0, %%rsp" :: "r"(&kern_stack_base) : "memory");  
-        asm volatile("movq %0, %%rbp" :: "r"(&kern_stack) : "memory");
+        asm volatile("movq %0, %%rsp" :: "r"(&kernel_stack_top) : "memory");  
+        asm volatile("movq %0, %%rbp" :: "r"(&kernel_stack_base) : "memory");
         // Don't want to get interrupted during early initialization...
         cli();
         // The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.
@@ -353,6 +359,9 @@ extern "C"
         init_tss(&kernel_isr_stack);
         enable_fs_gs_insns();
         set_kernel_gs_base(&kproc);
+        kproc.saved_regs.cr3 = get_cr3();
+        kproc.saved_regs.rsp = &kernel_stack_top;
+        kproc.saved_regs.rbp = &kernel_stack_base;
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
         init_syscall_msrs(vaddr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);     
         sysinfo = si;

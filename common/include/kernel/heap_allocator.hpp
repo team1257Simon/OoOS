@@ -2,6 +2,7 @@
 #define __HEAP_ALLOC
 #include "kernel/libk_decls.h"
 #include "vector"
+#include "sched/task.h"
 #ifndef MAX_BLOCK_EXP
 #define MAX_BLOCK_EXP 32u
 #endif
@@ -204,7 +205,7 @@ public:
     vaddr_t allocate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
     vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute);
     vaddr_t identity_map_to_kernel(vaddr_t start, size_t sz);
-    vaddr_t identity_map_to_user(vaddr_t what, size_t sz);
+    vaddr_t identity_map_to_user(vaddr_t what, size_t sz, bool write = true, bool execute = true);
     void deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap = false);
     vaddr_t copy_kernel_mappings(paging_table target);
 };

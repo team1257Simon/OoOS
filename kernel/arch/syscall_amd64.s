@@ -34,18 +34,24 @@ do_syscall:
     movq    %rsp,                   %gs:0x088
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
+    movq    %rbx,                   %gs:0x018
+    incq    %gs:0x2F0     
     movq    %gs:0x000,              %rcx
     swapgs
+    movq    %gs:0x0A6,              %rbx
+    movq    %rbx,                   %cr3
     movq    %rcx,                   %gs:0x300
     movq    %gs:0x088,              %rsp
     movq    %gs:0x080,              %rbp
     movq    %r8,                    %rcx
     movq    %r9,                    %r8
     movq    %r10,                   %r9
-    leaq    syscall_vec(,%rax,8),   %rax
+    leaq    syscall_vec,            %r10
+    movq    (%r10, %rax, 8),        %rax
     movq    %r11,                   %gs:0x098
+// 1:
+//     jmp 1b
     # subject to change, but for now just count all syscalls as 1
-    incq    %gs:0x2F0    
     sti
     call    *%rax
     cli
@@ -59,7 +65,9 @@ do_syscall:
     swapgs
     movq    %gs:0x080,              %rbp
     movq    %gs:0x088,              %rsp
+    movq    %gs:0x018,              %rbx
+    movq    %gs:0x0A6,              %rcx
+    movq    %rcx,                   %cr3    
     movq    %gs:0x090,              %rcx
-    sti
     sysretq
     .size do_syscall, .-do_syscall

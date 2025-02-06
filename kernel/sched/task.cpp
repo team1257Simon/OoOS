@@ -37,7 +37,7 @@ void task_ctx::__init_task_state(task_functor task, vaddr_t stack_base, ptrdiff_
         task_struct.saved_regs.ds = task_struct.saved_regs.ss = (0x1B);
         __init_vfs();
         heap_allocator::get().enter_frame(frame_ptr);
-        heap_allocator::get().identity_map_to_user(this, sizeof(task_ctx));
+        heap_allocator::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
         heap_allocator::get().exit_frame();
     }
 }

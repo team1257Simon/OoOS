@@ -11,7 +11,6 @@ extern "C"
 }
 constexpr ptrdiff_t bt_offset{ sizeof(block_tag) };
 static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
-constexpr bool is_ro_kernel(vaddr_t where) { return where < vaddr_t(&__ehframe) && where > vaddr_t(&__code); }
 constexpr uint32_t get_block_exp(uint64_t size) { if(size < (1ull << MIN_BLOCK_EXP)) return  MIN_BLOCK_EXP; for(size_t j =  MIN_BLOCK_EXP; j < MAX_BLOCK_EXP; j++) if(static_cast<uint64_t>(1ull << j) > size) return j; return MAX_BLOCK_EXP - 1; }
 constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t how_many_status_arrays(size_t mem_size) { return div_roundup(mem_size, GIGABYTE); }
@@ -145,7 +144,7 @@ static void __set_kernel_page_settings(uintptr_t max)
     for(vaddr_t addr{ &__start }; uintptr_t(addr) < max; addr += PAGESIZE)
     {
         if(!pt || !addr.page_idx) pt = __find_table(addr);
-        if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = !is_ro_kernel(addr); pt[addr.page_idx].user_access = true; }
+        if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = true; pt[addr.page_idx].user_access = true; }
     }
 }
 static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
@@ -462,11 +461,11 @@ vaddr_t heap_allocator::identity_map_to_kernel(vaddr_t start, size_t sz)
     if(result) return vaddr_t(phys);
     return nullptr;
 }
-vaddr_t heap_allocator::identity_map_to_user(vaddr_t what, size_t sz)
+vaddr_t heap_allocator::identity_map_to_user(vaddr_t what, size_t sz, bool write, bool execute)
 {
     if(!__active_frame) return nullptr;
     __lock();
-    vaddr_t result = __map_user_pages(what, what, div_roundup(sz, PAGESIZE), __active_frame->pml4, false, false);
+    vaddr_t result = __map_user_pages(what, what, div_roundup(sz, PAGESIZE), __active_frame->pml4, write, execute);
     __unlock();
     return result;
 }
@@ -514,10 +513,9 @@ vaddr_t kframe_tag::allocate(size_t size, size_t align)
         idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP;
     }
     tag->index = idx;
-    vaddr_t result{ tag->actual_start() };
     if(tag->available_size() - sizeof(block_tag) >= (1 << MIN_BLOCK_EXP)) insert_block(tag->split(), -1);
     __unlock();
-    return result;
+    return tag->actual_start();
 }
 void kframe_tag::deallocate(vaddr_t ptr, size_t align)
 {

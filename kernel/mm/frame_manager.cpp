@@ -8,7 +8,8 @@ uframe_tag &frame_manager::create_frame(vaddr_t start_base, vaddr_t start_extent
     else if(!heap_allocator::get().copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
     uframe_tag* result = &this->emplace_back(pt, start_base, start_extent);
     heap_allocator::get().enter_frame(result);
-    if(!heap_allocator::get().identity_map_to_user(pt, PT_LEN)) { destroy_frame(*result);  throw std::runtime_error{ "could not initialize page mappings" }; }
+    if(!heap_allocator::get().identity_map_to_user(pt, PT_LEN, true, false)) { destroy_frame(*result);  throw std::runtime_error{ "could not initialize page mappings" }; }
+    heap_allocator::get().exit_frame();
     return *result;
 }
 uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)

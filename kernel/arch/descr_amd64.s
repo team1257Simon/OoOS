@@ -1,14 +1,14 @@
     .code64
     .section    .data
-    .global     kern_stack
-    .global     kern_stack_base
-    .type       kern_stack,         @object
-    .type       kern_stack_base,    @object
-kern_stack:
+    .global     kernel_stack_base
+    .global     kernel_stack_top
+    .type       kernel_stack_base,   @object
+    .type       kernel_stack_top,    @object
+kernel_stack_base:
     .zero 65536
-kern_stack_base:
-    .size   kern_stack,         .-kern_stack
-    .size   kern_stack_base,    .-kern_stack_base
+kernel_stack_top:
+    .size   kernel_stack_base,   .-kernel_stack_base
+    .size   kernel_stack_top,    .-kernel_stack_top
     .global     gdt_table
     .global     gdt_descriptor
     .global     system_tss

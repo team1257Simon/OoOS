@@ -78,15 +78,15 @@ task_change:
     movq        %gs:0x010,      %rax
     iretq
     .size       task_change,    .-task_change
+test_user_fn:
+1:
+    jmp 1b
 user_entry:
     cli
-    wrgsbase    %rdi
-    movq        0x2F8(%rdi),    %rax
-    wrfsbase    %rax
-    fxrstor     0x0E0(%rdi)
-    movq    %gs:0x0A6,          %rax    
-    movq    %rax,               %cr3
-    movq    %gs:0x010,          %rax    
+    wrgsbase                    %rdi
+    fxrstor                     0x0E0(%rdi)
+    pushfq
+    popq                        %r11
     movq    %gs:0x018,          %rbx
     movq    %gs:0x090,          %rcx    # instruction pointer goes in the C register for a sysret
     movq    %gs:0x028,          %rdx
@@ -94,14 +94,25 @@ user_entry:
     movq    %gs:0x038,          %rsi
     movq    %gs:0x040,          %r8
     movq    %gs:0x048,          %r9
-    movq    %gs:0x050,          %r10  
-    movq    %gs:0x098,          %r11    # flags must be in r11
+    movq    %gs:0x050,          %r10
     movq    %gs:0x060,          %r12
     movq    %gs:0x068,          %r13
-    movq    %gs:0x070,          %r14
-    movq    %gs:0x078,          %r15
     movq    %gs:0x080,          %rbp
     movq    %gs:0x088,          %rsp
+    movq    %gs:0x0A6,          %rax
+    movq    %rax,               %cr3
+    movq    %gs:0x000,          %r14
+    movq    %gs:0x2F8,          %r15
+    movw    $0x001B,            %ax
+    movw    %ax,                %ds
+    movw    %ax,                %es
+    movw    %ax,                %fs
+    movw    %ax,                %gs
+    wrgsbase                    %r14
+    wrfsbase                    %r15
+    movq    %gs:0x070,          %r14
+    movq    %gs:0x078,          %r15
+    movq    %gs:0x010,          %rax
     sysretq
     .size       user_entry,             .-user_entry
 enable_fs_gs_insns:
