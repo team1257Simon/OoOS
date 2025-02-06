@@ -19,7 +19,7 @@ extern "C"
 {
     extern uint64_t ecode;
     extern void* isr_table[];
-    extern idt_entry_t* idt_table;
+    extern idt_entry_t idt_table[];
     struct 
     {
         uint16_t size;
