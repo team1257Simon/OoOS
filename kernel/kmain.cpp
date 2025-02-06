@@ -238,7 +238,9 @@ void elf64_tests()
             dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
             heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
             uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));
-            tgt_bytes[0] = 0xEB;
+            // comment out one or both of the following lines depending on the test we're going for...more robust configurations for tests will come once we get some cooperation .-.
+            for(int i = 0; i < 25; i++){ tgt_bytes[i] = 0x90; } // overwrite the init_signal call with nops for now because it's being dumb
+            tgt_bytes[0] = 0xEB;    // alternatively, insert a hang-loop right at the entry point if we just need to see the machine state immediately after sysret happens
             tgt_bytes[1] = 0xFE;
             task->start_task();
             user_entry(task->task_struct.self);

@@ -52,6 +52,7 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void ar
     else if constexpr(sizeof(T) == 4) asm volatile("rep stosl": "+D"(dest) : "a"(value), "c"(n) : "memory");
     else if constexpr(sizeof(T) == 8) asm volatile("rep stosq": "+D"(dest) : "a"(value), "c"(n * sizeof(T) / 8) : "memory");
     else asm volatile("rep stosb" : "+D"(dest) : "a"(value), "c"(n * sizeof(T)) : "memory");
+    asm volatile("mfence" ::: "memory");
 }
 template<typename T> concept qword_copy = trivial_copy<T> && (sizeof(T) == 8 || (sizeof(T) % 8 == 0 && alignof(T) % 8 == 0)); 
 template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n)
@@ -60,6 +61,7 @@ template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std:
     else if constexpr(sizeof(T) == 4) asm volatile("rep movsl" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory");
     else if constexpr(qword_copy<T>) asm volatile("rep movsq" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T) / 8) : "memory"); 
     else asm volatile("rep movsb" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T)): "memory");
+    asm volatile("mfence" ::: "memory");
 }
 #else
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { __builtin_memset(dest, value, n * sizeof(T)); }
@@ -72,6 +74,7 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void ar
     else if constexpr(sizeof(T) == 4) arrayset<uint32_t>(dest, 0u, n);
     else if constexpr(sizeof(T) == 2) arrayset<uint16_t>(dest, 0u, n);
     else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
+    asm volatile("mfence" ::: "memory");
 }
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
@@ -79,6 +82,7 @@ template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_
     else if constexpr(sizeof(T) % 4 == 0) arrayset<uint32_t>(dest, 0u, n * sizeof(T) / 4);
     else if constexpr(sizeof(T) % 2 == 0) arrayset<uint16_t>(dest, 0u, n * sizeof(T) / 2);
     else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
+    asm volatile("mfence" ::: "memory");
 }
 template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { /* don't actually touch nontrivial arrays */ }
 constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }

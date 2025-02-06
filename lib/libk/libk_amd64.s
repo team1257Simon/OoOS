@@ -1,6 +1,6 @@
 #   libk_amd64.s
 #   Contains some extremely basic libc functions for x86-64 using low-level optimizations.
-#   Also implements some low-level functions, such as hardware random accesses, which do not benefit from being inlined. 
+#   Also implements some low-level functions, such as hardware rng reads, which can't be constexpr.
     .code64
     .section    .text
     .altmacro
@@ -10,23 +10,24 @@
 \name:
     .endm
     defglobal   memcmp
-    xorl    %eax,   %eax
-    movq    %rdx,   %rcx
+    xorl    %eax,       %eax
+    movq    %rdx,       %rcx
     jrcxz   .L0
-    movl    $-1,    %edx
+    movl    $-1,        %edx
     repz    cmpsb
-    cmovll  %edx,   %eax
+    cmovll  %edx,       %eax
     setg    %al
 .L0:
     ret
-    .size   memcmp, .-memcmp
+    .size       memcmp, .-memcmp
     defglobal   memcpy
-    movq    %rdi,   %rax
-    movq    %rdx,   %rcx
+    movq    %rdi,       %rax
+    movq    %rdx,       %rcx
     jrcxz   .L0
     rep     movsb
+    mfence
     ret
-    .size   memcpy, .-memcpy
+    .size       memcpy, .-memcpy
     defglobal   memchr
 	movq	%rdx, 		%rcx
 	movq	%rsi, 		%rax
@@ -35,15 +36,15 @@
 	leaq	-1(%rdi),	%rax
 	jmp		.L2
 .L1:
-	xorq	%rax,	%rax
+	xorq	%rax,	    %rax
 .L2:
 	ret
-	.size	memchr,		.-memchr
-    defglobal __errno
+	.size	    memchr,		.-memchr
+    defglobal   __errno
     movq	$errno,		%rax
 	ret
-    .size     __errno,    .-__errno
-    defglobal __rdseed
+    .size       __errno,    .-__errno
+    defglobal   __rdseed
     rdseed      %rax
     cmovncq     %rdi,   %rax
     ret
