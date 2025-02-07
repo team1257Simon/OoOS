@@ -181,6 +181,7 @@ class heap_allocator
     constexpr status_byte* __get_sb(uintptr_t addr) { return &(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
     void __mark_used(uintptr_t addr_start, size_t num_regions);
+    uintptr_t __claim_region(uintptr_t addr, block_idx idx);
     uintptr_t __find_claim_avail_region(size_t sz);
     void __release_claimed_region(size_t sz, uintptr_t start);
     void __lock();

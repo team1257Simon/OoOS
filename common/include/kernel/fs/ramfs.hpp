@@ -51,7 +51,6 @@ protected:
     virtual folder_inode* mkdirnode(folder_inode* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
 public:
-    virtual void link_stdio(vfs_filebuf_base<char>* target);
     ramfs();
 };
 #endif

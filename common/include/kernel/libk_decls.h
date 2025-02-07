@@ -29,7 +29,9 @@ void* get_fs_base();
 void* get_gs_base();
 qword get_flags();
 uintptr_t translate_vaddr(vaddr_t addr);
+vaddr_t translate_user_pointer(vaddr_t ptr);
 uint64_t syscall_time(uint64_t* tm_target);
+#define dhang() direct_write(__builtin_FUNCTION()); while(1);
 #ifdef __cplusplus
 }
 constexpr uint16_t unix_year_base = 1970u;

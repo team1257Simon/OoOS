@@ -106,22 +106,25 @@ folder_inode* filesystem::get_folder(std::string const& path, bool create)
 }
 file_inode* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) { return current_open_files[fd]; } else return nullptr; }
 device_inode* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_hint, bool create_parents) { target_pair parent{ this->get_parent(where, create_parents) }; if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; device_inode* result = this->mkdevnode(parent.first, parent.second, what, fd_hint); this->__put_fd(result); return result; }
+void filesystem::link_stdio(vfs_filebuf_base<char> *target) { current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdin", target, 0)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdout", target, 1)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stderr", target, 2)); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
-static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) { new (st) stat{ fsptr->get_dev_id(), n->cid(), n->mode, n->num_refs(), 0, 0, n->is_device() ? 1U : 0, static_cast<long>(n->size()), timestamp_to_timespec(n->create_time), timestamp_to_timespec(n->modif_time), timestamp_to_timespec(n->modif_time), 512, n->size() / 512 };  }
+static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) { new (translate_user_pointer(st)) stat{ fsptr->get_dev_id(), n->cid(), n->mode, n->num_refs(), 0, 0, n->is_device() ? 1U : 0, static_cast<long>(n->size()), timestamp_to_timespec(n->create_time), timestamp_to_timespec(n->modif_time), timestamp_to_timespec(n->modif_time), 512, n->size() / 512 };  }
 extern "C"
 {
     int syscall_open(char *name, int flags, ...)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         uint8_t smallflags{ static_cast<uint8_t>(flags) };
-        try { if(file_inode* n{ fsptr->open_file(name, std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        try { if(file_inode* n{ fsptr->open_file(static_cast<const char*>(translate_user_pointer(name)), std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }
     int syscall_close(int fd)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -129,20 +132,23 @@ extern "C"
     }
     int syscall_write(int fd, char *ptr, int len)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(ptr, len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(translate_user_pointer(ptr), len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_read(int fd, char *ptr, int len)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(ptr, len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(translate_user_pointer(ptr), len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_link(char *old, char *__new)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
@@ -150,6 +156,7 @@ extern "C"
     }
     int syscall_lseek(int fd, long offs, int way) 
     {
+        dhang();
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -157,13 +164,15 @@ extern "C"
     }
     int syscall_unlink(char *name)
     {
+        dhang();
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { return fsptr->unlink(name) ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
+        try { return fsptr->unlink(static_cast<const char*>(translate_user_pointer(name))) ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_isatty(int fd)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -173,18 +182,22 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
+//        dhang();
         try{ if(file_inode* n{ fsptr->get_fd(fd) }) { __st_intl(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_stat(const char *restrict name, stat *restrict st)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
+        name = translate_user_pointer(name);
         try{ if(file_inode* n{ fsptr->get_file(name) }) { __st_intl(n, fsptr, st); return 0; } else if(folder_inode* n{ fsptr->get_folder(name, false) }) { __st_intl(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }
     int syscall_fchmod(int fd, mode_t m)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try{ if(file_inode* n{ fsptr->get_fd(fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -192,8 +205,10 @@ extern "C"
     }
     int syscall_chmod(const char *name, mode_t m)
     {
+        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
+        name = translate_user_pointer(name);
         try { if(file_inode* n{ fsptr->get_file(name) }) { n->mode = m; return 0; } else return -EISDIR; } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }

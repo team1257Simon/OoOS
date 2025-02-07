@@ -220,8 +220,9 @@ protected:
     virtual bool xunlink(folder_inode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
     void dldevnode(device_inode*);
-    device_inode* mkdevnode(folder_inode*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);    
+    device_inode* mkdevnode(folder_inode*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
 public:
+    void link_stdio(vfs_filebuf_base<char>* target);
     device_inode* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);
     file_inode* get_fd(int fd);      
     file_inode* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);

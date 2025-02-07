@@ -35,6 +35,10 @@ do_syscall:
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
     movq    %rbx,                   %gs:0x018
+    movq    %r12,                   %gs:0x060
+    movq    %r13,                   %gs:0x068
+    movq    %r14,                   %gs:0x070
+    movq    %r15,                   %gs:0x078
     incq    %gs:0x2F0     
     movq    %gs:0x000,              %rcx
     swapgs
@@ -61,6 +65,10 @@ do_syscall:
     xorq    %r9,                    %r9
     xorq    %r10,                   %r10
     swapgs
+    movq    %gs:0x060,              %r12
+    movq    %gs:0x068,              %r13
+    movq    %gs:0x070,              %r14
+    movq    %gs:0x078,              %r15
     movq    %gs:0x080,              %rbp
     movq    %gs:0x088,              %rsp
     movq    %gs:0x018,              %rbx
@@ -69,3 +77,5 @@ do_syscall:
     movq    %gs:0x090,              %rcx
     sysretq
     .size do_syscall, .-do_syscall
+hang:
+    jmp hang

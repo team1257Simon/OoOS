@@ -18,4 +18,3 @@ file_inode *ramfs::mkfilenode(folder_inode *parent, std::string const &name) { r
 folder_inode *ramfs::mkdirnode(folder_inode *parent, std::string const &name) { return __folder_nodes.emplace(name).first.base(); }
 void ramfs::syncdirs() { for(ramfs_folder_inode& folder : __folder_nodes) folder.fsync(); }
 dev_t ramfs::xgdevid() const noexcept { return ramfs_magic; }
-void ramfs::link_stdio(vfs_filebuf_base<char> *target) { current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdin", target, 0)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdout", target, 1)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stderr", target, 2)); }

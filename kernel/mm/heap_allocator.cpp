@@ -14,7 +14,7 @@ static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
 constexpr uint32_t get_block_exp(uint64_t size) { if(size < (1ull << MIN_BLOCK_EXP)) return  MIN_BLOCK_EXP; for(size_t j =  MIN_BLOCK_EXP; j < MAX_BLOCK_EXP; j++) if(static_cast<uint64_t>(1ull << j) > size) return j; return MAX_BLOCK_EXP - 1; }
 constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t how_many_status_arrays(size_t mem_size) { return div_roundup(mem_size, GIGABYTE); }
-constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (truncate(sz, S512) + nearest(sz % S512)) : nearest(sz); }
+constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, S512)) : nearest(sz); }
 constexpr size_t add_align_size(vaddr_t tag, size_t align) { return align > 1 ? (up_to_nearest(tag + bt_offset, align) - ptrdiff_t(uintptr_t(tag) + bt_offset)) : 0; }
 static uintptr_t block_offset(uintptr_t addr, block_idx idx) 
 {
@@ -38,31 +38,6 @@ static uintptr_t block_offset(uintptr_t addr, block_idx idx)
         default:
             return addr;
     }
-}
-static bool check_multi(block_size sz, status_byte sb)
-{
-    bool result = true;
-    switch(sz)
-    {
-        case S512:
-            result &= sb[I0];
-        case S256:
-            result &= sb[I1];
-        case S128:
-            result &= sb[I2];
-        case S64:
-            result &= sb[I3];
-        case S32:
-            result &= sb[I4];
-        case S16:
-            result &= sb[I5];
-        case S08:
-            result &= sb[I6];
-        default:
-            result &= sb[I7];
-            break;
-    }
-    return result;
 }
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
@@ -250,6 +225,7 @@ static void __unmap_pages(vaddr_t start, size_t pages, vaddr_t pml4 = get_cr3())
 }
 heap_allocator* heap_allocator::__instance{ reinterpret_cast<heap_allocator*>(__heap_allocator_data_loc) };
 heap_allocator &heap_allocator::get() { return *__instance; }
+uintptr_t heap_allocator::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
 void heap_allocator::__lock() { lock(&__heap_mutex); __suspend_frame(); }
 void heap_allocator::__unlock() { release(&__heap_mutex); __resume_frame(); }
 void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
@@ -258,108 +234,90 @@ void heap_allocator::__resume_frame() noexcept { if(__suspended_cr3) { set_cr3(_
 uintptr_t heap_allocator::__find_claim_avail_region(size_t sz)
 {
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
-    uintptr_t result = 0;
-    size_t regions = 0;
-    bool multi = (sz > S512);
-    for(size_t rem = sz; status_byte::gb_of(addr) < __num_status_bytes && rem > 0; addr += REGION_SIZE)
+    if(sz > S256)
     {
-        block_size bs = nearest(rem);
-        status_byte& sb = *__get_sb(addr);
-        if(!(multi ? check_multi(bs, sb) : sb[bs]))
+        size_t num_regions = div_roundup(sz, S512);
+        uintptr_t result = addr;
+        for(size_t n = num_regions; status_byte::gb_of(addr) < __num_status_bytes && n > 0; addr += S512)
         {
-            // If we're looking for a block bigger than one region, we need to start over
-            result = 0;
-            rem = sz;
-            regions = 0;
-        }
-        else 
-        {
-            if(bs == S04)
+            if(__status(addr)[S512])
             {
-                // Special case: there are two blocks of this size per region
-                if(sb[I7]) { sb.set_used(I7); if(!multi) { return block_offset(addr, I7); } }
-                else { sb.set_used(I6); if(!multi) { return block_offset(addr, I6); } }
-                __mark_used(result, regions);
-                return result;
-            }
-            else if (bs == S512)
-            {
-                // Either we're allocating a full region, or more than a full region.
-                if(result == 0) result = addr;
-                regions++;
-                if(rem <= S512) { __mark_used(result, regions); return result; }
-                rem -= S512;
+                n--;
+                if(!n)
+                {
+                    for(uintptr_t i = result; i < addr; i += S512) __status(i).set_used(ALL);
+                    return result;
+                }
             }
             else 
             {
-                if(!multi)
-                {
-                    block_idx idx = bs == S08 ? I5 : (bs == S16 ? I4 : (bs == S32 ? I3 : (bs == S64 ? I2 : (bs == S128 ? I1 : I0))));
-                    sb.set_used(idx);
-                    return block_offset(addr, idx);
-                }
-                // For multi-region blocks, if the block contains a non-full-region part larger than 4 pages, the indices are computed in reverse.
-                // As a result, the entire block remains contiguous (subregion 7 is at the lowest physical address).
-                // These special sub-blocks span a cumulative set of subregions such that the total capacity equals the required remainder.
-                // For instance, a 16-page remainder sub-block would consist of sub-regions 5 (8 pages), 6 (4 pages), and 7 (4 pages), while the actual 16-page sub-block at index 4 remains open.
-                switch(bs)
-                {
-                    case S256:
-                        sb.set_used(I1);
-                    case S128:
-                        sb.set_used(I2);
-                    case S64:
-                        sb.set_used(I3);
-                    case S32:
-                        sb.set_used(I4);
-                    case S16:
-                        sb.set_used(I5);
-                    case S08:
-                        sb.set_used(I6);
-                        sb.set_used(I7);
-                    default:
-                        break;
-                }
-                __mark_used(result, regions);
-                return result;
+                n = num_regions;
+                result = addr + S512;
             }
         }
     }
-    if(status_byte::gb_of(addr) < __num_status_bytes) return result;
+    else 
+    {
+        for(block_size bs = nearest(sz); status_byte::gb_of(addr) < __num_status_bytes; addr += S512)
+        {
+            if(__status(addr)[bs])
+            {
+                switch(bs)
+                {
+                case S04:
+                    return __claim_region(addr, __status(addr)[I7] ? I7 : I6);
+                case S08:
+                    return __claim_region(addr, I5);
+                case S16:
+                    return __claim_region(addr, I4);
+                case S32:
+                    return __claim_region(addr, I3);
+                case S64:
+                    return __claim_region(addr, I2);
+                case S128:
+                    return __claim_region(addr, I1);
+                default:
+                    return __claim_region(addr, I0);
+                }
+            }
+        }
+    }
     return 0;
 }
 void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
 {
     block_size bs = nearest(sz);
-    bool multi = (sz > S512);
-    for(size_t rem = sz; rem > 0; rem -= (bs > rem ? rem : bs), start += S512)
+    if(sz > S256)
     {
-        bs = nearest(rem);
-        if(bs == S04) { if(start % REGION_SIZE == 0) __status(start).set_free(I7); else __status(start).set_free(I6); }
-        else if(bs == S512) __status(start).set_free(ALL);
-        else if(multi)
+        size_t n = div_roundup(sz, S512);
+        for(size_t i = 0; i < n; i++, start += S512) { __status(start).set_free(ALL); }
+    }
+    else
+    {
+        switch(bs)
         {
-            status_byte sb = __status(start);
-            switch(bs)
-            {
-                case S256:
-                    sb.set_free(I1);
-                case S128:
-                    sb.set_free(I2);
-                case S64:
-                    sb.set_free(I3);
-                case S32:
-                    sb.set_free(I4);
-                case S16:
-                    sb.set_free(I5);
-                case S08:
-                    sb.set_free(I6);
-                    sb.set_free(I7);
-                default:
-                    break;
-            }
+            case S256:
+                __status(start).set_free(I0);
+                break;
+            case S128:
+                __status(start).set_free(I1);
+                break;
+            case S64:
+                __status(start).set_free(I2);
+                break;
+            case S32:
+                __status(start).set_free(I3);
+                break;
+            case S16:
+                __status(start).set_free(I4);
+                break;
+            case S08:
+                __status(start).set_free(I5);
+                break;
+            default:
+                __status(start).set_free((start % REGION_SIZE == 0) ? I7 : I6);
+                break;
         }
-        else __status(start).set_free((bs == S08 ? I5 : (bs == S16 ? I4 : (bs == S32 ? I3 : (bs == S64 ? I2 : (bs == S128 ? I1 : I0))))));
     }
 }
 vaddr_t heap_allocator::allocate_mmio_block(size_t sz)
@@ -629,11 +587,14 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; return true; }
     return false;
 }
+
 extern "C"
 { 
     uintptr_t translate_vaddr(vaddr_t addr) { if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
+    vaddr_t translate_user_pointer(vaddr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != UFRAME_MAGIC) return nullptr; heap_allocator::get().enter_frame(ctask_frame); vaddr_t result{ heap_allocator::get().translate_vaddr_in_current_frame(ptr) }; heap_allocator::get().exit_frame(); return result; }
     vaddr_t syscall_sbrk(ptrdiff_t incr)
     {
+        dhang();
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != UFRAME_MAGIC) return vaddr_t{ uintptr_t(-EINVAL) };
         heap_allocator::get().enter_frame(ctask_frame);

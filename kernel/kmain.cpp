@@ -222,7 +222,7 @@ void elf64_tests()
     try
     {
         file_inode* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
-        std::allocator<char> dalloc{};
+        std::aligned_allocator<char, elf64_ehdr> dalloc{};
         char* exec_buf = dalloc.allocate(f->size());
         size_t s = f->read(exec_buf, f->size());
         elf64_executable exec(exec_buf, s);
@@ -236,14 +236,20 @@ void elf64_tests()
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
             filesystem* fs = task->get_fs();
             dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
-            heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
-            uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));
-            // comment out one or both of the following lines depending on the test we're going for...more robust configurations for tests will come once we get some cooperation .-.
-            for(int i = 0; i < 25; i++){ tgt_bytes[i] = 0x90; } // overwrite the init_signal call with nops for now because it's being dumb
-            tgt_bytes[0] = 0xEB;    // alternatively, insert a hang-loop right at the entry point if we just need to see the machine state immediately after sysret happens
-            tgt_bytes[1] = 0xFE;
-            task->start_task();
-            user_entry(task->task_struct.self);
+            // heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
+            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(0x4018d4UL)));   // specific address to debug (messily)
+            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));           // or just use the entry point at _start
+            // overwrite the init_signal call with nops for now because it's being dumb
+            // tgt_bytes[14] = 0x90;     
+            // tgt_bytes[15] = 0x90;
+            // tgt_bytes[16] = 0x90;
+            // tgt_bytes[17] = 0x90;
+            // tgt_bytes[18] = 0x90;
+            // alternatively, insert a hang-loop (aka breakpoint at home, aka "feeb", and no I am not ashamed of this name) right at the target point if we just need to see the machine state at a given instruction
+            // tgt_bytes[0] = 0xEB;
+            // tgt_bytes[1] = 0xFE;
+            // task->start_task();
+            // user_entry(task->task_struct.self);
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -305,8 +311,16 @@ void run_tests()
             while(1);
             __builtin_unreachable();
         }
+        else
+        {
+            startup_tty.print_text("(Received interrupt ");
+            __dbg_num(idx, 2);
+            startup_tty.print_line(")");
+        }
     });
     interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks++; }); // There will be three callbacks on IRQ zero: the RTC, the scheduler, and this lil boi
+    // Test generic, non-error interrupts
+    asm volatile("int $0x40" ::: "memory");
     // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
     startup_tty.print_line("string test...");
     str_tests();

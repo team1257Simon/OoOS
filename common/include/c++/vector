@@ -33,7 +33,7 @@ namespace std
         constexpr vector(vector&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
         constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type{}) : __base { init, alloc } {}
         constexpr vector& operator=(vector const& that) { this->__copy_assign(that); return *this; }
-        constexpr vector& operator=(vector&& that) { this->__realloc_move(that); return *this; }
+        constexpr vector& operator=(vector&& that) { this->__realloc_move(move(that)); return *this; }
         constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
         constexpr pointer data() noexcept { return this->__beg(); }
         constexpr const_pointer data() const noexcept { return this->__beg(); }

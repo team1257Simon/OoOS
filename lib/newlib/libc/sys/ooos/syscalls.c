@@ -2,7 +2,8 @@
 #ifdef __KERNEL__
 #undef __KERNEL__
 #endif
-void _exit(int code) { asm volatile("syscall" :: "a"(0) : "memory"); __builtin_unreachable(); }
+extern void _fini();
+void _exit(int code) { _fini(); asm volatile("syscall" :: "a"(0) : "memory"); __builtin_unreachable(); }
 DEF_SYSCALL1(int, close, int, fd)
 DEF_SYSCALL3(int, execve, char*, name, char**, argv, char**, env)
 DEF_SYSCALL0(int, fork)

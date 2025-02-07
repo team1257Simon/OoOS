@@ -133,18 +133,22 @@ static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller
 task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->start_task(t.exit_target); return result; }
 extern "C"
 {
-    clock_t syscall_times(tms *out) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user() && out) { new (out) tms{ static_cast<task_ctx*>(current_active_task()->self)->get_times() }; return syscall_time(nullptr); } else return -EINVAL; }
-    long syscall_getpid() { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
-    long syscall_fork() { try { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
-    void syscall_exit(int n) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) { task->set_exit(n); } }
-    int syscall_kill(unsigned long pid, unsigned long sig) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator target = task_list::get().find(pid); !target->is_system()) { if(!check_kill(task, target)) return -EPERM; target->task_struct.task_ctl.sigkill = true; target->task_struct.task_ctl.signal_num = sig; target->set_exit(static_cast<int>(sig)); return 0; } } return -EINVAL; }
-    pid_t syscall_wait(int *sc_out) { task_ctx* task = current_active_task()->self; if(task->last_notified) { *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } else if(scheduler::get().set_wait_untimed(task->task_struct.self)) { task->notif_target = sc_out; task->task_struct.task_ctl.notify_cterm = true; while(task->task_struct.task_ctl.block) { PAUSE; } return task->last_notified ? task->last_notified->get_pid() : -EINTR; } return -EINVAL; }
-    int syscall_sleep(unsigned long seconds) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); scheduler::get().set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { PAUSE; } return 0; } return -ENOSYS; }
+    clock_t syscall_times(tms *out) { dhang(); out = translate_user_pointer(out); if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user() && out) { new (out) tms{ static_cast<task_ctx*>(current_active_task()->self)->get_times() }; return syscall_time(nullptr); } else return -EINVAL; }
+    long syscall_getpid() { dhang(); if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
+    long syscall_fork() { dhang(); try { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { result->ctx_filesystem.link_stdio(serial_driver_amd64::get_instance()); return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
+    void syscall_exit(int n) { dhang(); if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) { task->set_exit(n); } }
+    int syscall_kill(unsigned long pid, unsigned long sig) { dhang(); if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator target = task_list::get().find(pid); !target->is_system()) { if(!check_kill(task, target)) return -EPERM; target->task_struct.task_ctl.sigkill = true; target->task_struct.task_ctl.signal_num = sig; target->set_exit(static_cast<int>(sig)); return 0; } } return -EINVAL; }
+    pid_t syscall_wait(int *sc_out) { dhang(); task_ctx* task = current_active_task()->self; sc_out = translate_user_pointer(sc_out); if(task->last_notified) { *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } else if(scheduler::get().set_wait_untimed(task->task_struct.self)) { task->notif_target = sc_out; task->task_struct.task_ctl.notify_cterm = true; while(task->task_struct.task_ctl.block) { PAUSE; } return task->last_notified ? task->last_notified->get_pid() : -EINTR; } return -EINVAL; }
+    int syscall_sleep(unsigned long seconds) { dhang(); if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); scheduler::get().set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { PAUSE; } return 0; } return -ENOSYS; }
     int syscall_execve(char *name, char **argv, char **env) 
     { 
-        task_ctx* task = reinterpret_cast<task_t*>(get_gs_base())->self;        
+        dhang();
+        task_ctx* task = reinterpret_cast<task_t*>(get_gs_base())->self;   
         filesystem* fs_ptr = task->get_fs();
         if(!fs_ptr) return -ENOSYS;
+        name = translate_user_pointer(name);
+        argv = translate_user_pointer(argv);
+        env = translate_user_pointer(env);
         std::allocator<char> fballoc{};
         char* buf{ nullptr };
         file_inode* n{ nullptr };
@@ -160,6 +164,7 @@ extern "C"
             for(char** c = env; *c; c++) i->env_vec.push_back(*c);
             for(char** c = argv; *c; c++) i->arg_vec.push_back(*c);
             i->env_vec.push_back(nullptr);
+            i->ctx_filesystem.link_stdio(serial_driver_amd64::get_instance());
             i->start_task(task->exit_target);
             fballoc.deallocate(buf, n->size());
             fs_ptr->close_file(n);

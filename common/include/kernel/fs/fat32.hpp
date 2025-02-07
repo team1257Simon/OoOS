@@ -190,13 +190,14 @@ public:
 struct fat32_node 
 {
     fat32_regular_entry* disk_entry;
-    constexpr fat32_node(fat32_regular_entry* e) noexcept : disk_entry{ e } {}
-    constexpr uint32_t start_cluster() const noexcept { return disk_entry ? uint32_t(start_of(*disk_entry)) : 0; }
-    friend constexpr std::strong_ordering operator<=>(fat32_node const& __this, fat32_node const& __that) noexcept { return vaddr_t(__this.disk_entry) <=> vaddr_t(__that.disk_entry); }
+    virtual void check_sectors() = 0;
+    fat32_node(fat32_regular_entry* e) noexcept;
+    uint32_t start_cluster() const noexcept;
 };
 class fat32;
 class fat32_file_inode final : public file_inode, public fat32_node
 {
+    fat32* __my_parent_fs;
     fat32_filebuf __my_filebuf;
     size_t __on_disk_size;
 public:
@@ -213,9 +214,10 @@ public:
     virtual pos_type seek(pos_type pos) override;
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
+    virtual void check_sectors() override;
     void on_open();
     fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
-    friend constexpr std::strong_ordering operator<=>(fat32_file_inode const& __this, fat32_file_inode const& __that) noexcept { return __this.disk_entry <=> __that.disk_entry; }
+    friend inline std::strong_ordering operator<=>(fat32_file_inode const& __this, fat32_file_inode const& __that) noexcept { return std::string(__this.name()) <=> __that.name(); }
 };
 class fat32_folder_inode final : public folder_inode, public fat32_node
 {
@@ -243,12 +245,13 @@ public:
     virtual uint64_t num_folders() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
     virtual bool fsync() override;
+    virtual void check_sectors() override;
     std::string get_short_name(std::string const& full);
     fat32_regular_entry* find_dirent(std::string const&);
     bool parse_dir_data();
     fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
     fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cluster);
-    friend constexpr std::strong_ordering operator<=>(fat32_folder_inode const& __this, fat32_folder_inode const& __that) noexcept { return __this.disk_entry <=> __that.disk_entry; }
+    friend inline std::strong_ordering operator<=>(fat32_folder_inode const& __this, fat32_folder_inode const& __that) noexcept { return std::string(__this.name()) <=> __that.name(); }
 };
 class fat32 : public filesystem
 {

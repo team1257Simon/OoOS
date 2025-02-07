@@ -38,10 +38,12 @@ void elf64_executable::xload()
             vaddr_t blk = heap_allocator::get().allocate_user_block(h->p_memsz, vaddr_t{ h->p_vaddr }, is_write(*h), is_exec(*h));
             if(!blk) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); throw std::bad_alloc{}; }
             this->__process_frame_tag->usr_blocks.emplace_back(blk, h->p_memsz);
-            vaddr_t idmap = heap_allocator::get().identity_map_to_kernel(blk, h->p_memsz);
+            heap_allocator::get().identity_map_to_kernel(blk, h->p_memsz);
+            vaddr_t addr(h->p_vaddr);
+            vaddr_t idmap(heap_allocator::get().translate_vaddr_in_current_frame(addr));
             vaddr_t img_dat = this->__image_start + ptrdiff_t(h->p_offset);
-            arraycopy<uint64_t>(idmap, img_dat, h->p_filesz / 8);
-            if(h->p_memsz > h->p_filesz) { size_t diff = static_cast<size_t>(h->p_memsz - h->p_filesz); arrayset(img_dat + ptrdiff_t(h->p_filesz), uint8_t(0), diff); }
+            for(size_t i = 0; i < h->p_filesz; addr += PAGESIZE, img_dat += PAGESIZE, i += PAGESIZE, idmap = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(addr))) { arraycopy<uint8_t>(idmap, img_dat, std::min(size_t(PAGESIZE), size_t(h->p_filesz - i))); }
+            if(h->p_memsz > h->p_filesz) { size_t diff = static_cast<size_t>(h->p_memsz - h->p_filesz); array_zero<uint8_t>(vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(h->p_vaddr + h->p_filesz))), diff); }
         }
         vaddr_t stkblk = heap_allocator::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, true, false);
         vaddr_t tlsblk = heap_allocator::get().allocate_user_block(this->__tgt_tls_size, this->__process_tls_base, true, false);

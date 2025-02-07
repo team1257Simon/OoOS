@@ -12,6 +12,9 @@ CORES = 2
 INCLUDES := $(CURDIR)/common/include
 INCLUDES_CXX := $(CURDIR)/common/include/c++
 OVMF = /usr/share/OVMF
+SYSROOT = /usr/local/ooos_sysroot
+SYS_LIB = $(SYSROOT)/usr/lib
+LIB_GCC = $(SYS_LIB)/gcc/x86_64-ooos/14.2.0
 export ARCH
 export OSNAME
 export TARGET_BARE
@@ -24,6 +27,9 @@ export INCLUDES_CXX
 export BUILD_DIR
 export LIB_DIR
 export LOG_DIR
+export SYSROOT
+export SYS_LIB
+export LIB_GCC
 SUBDIRS = lib boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)

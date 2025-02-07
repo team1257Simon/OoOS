@@ -14,11 +14,13 @@ _start:
     movq        %rsp,       %rbp
     pushq       %rdi
     pushq       %rsi
+    call        _init
     call        _init_signal
     popq        %rsi
     popq        %rdi
     movq        %rbp,       %rsp
     popq        %rbp
     call        main
+    movq        %rax,       %rdi
     jmp         _exit
     .size       _start,     .-_start

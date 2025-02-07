@@ -14,7 +14,7 @@ fadt_t *find_fadt(xsdt_t *xsdt) { return vaddr_t{ find_system_table(xsdt, "FACP"
 extern "C"
 { 
     uint64_t syscall_time(uint64_t* tm_target) { uint64_t t = rtc_driver::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; }
-    int syscall_gettimeofday(timeval *restrict tm, void *restrict tz) { new (tm) timeval { timestamp_to_timeval(rtc_driver::get_instance().get_timestamp()) }; return 0; }
+    int syscall_gettimeofday(timeval *restrict tm, void *restrict tz) { dhang(); new (tm) timeval { timestamp_to_timeval(rtc_driver::get_instance().get_timestamp()) }; return 0; }
 }
 __isrcall void rtc_driver::rtc_time_update() volatile noexcept
 {
