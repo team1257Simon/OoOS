@@ -180,23 +180,20 @@ int test_task_2(int argc, char** argv)
 }
 void test_landing_pad()
 {
-    long retv;
-    asm volatile("movq %%rax, %0" : "=r"(retv) :: "memory");
     direct_writeln("Landed!");
     cli();
     task_ctx* ctx = reinterpret_cast<task_t*>(get_gs_base())->self;
-    heap_allocator::get().deallocate_block(ctx->allocated_stack, ctx->stack_allocated_size);
-    heap_allocator::get().deallocate_block(ctx->tls, ctx->tls_size);
+    long retv = ctx->exit_code;
+    ctx->terminate();
     task_list::get().destroy_task(ctx->get_pid());
-    set_gs_base(&kproc);
-    sti();
     startup_tty.print_line("returned " + std::to_string(retv));
+    sti();
     while(1);
 }
 void task_tests()
 {
     vaddr_t exit_test_fn{ &test_landing_pad };
-    task_ctx* tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVNORM);
+    task_ctx* tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVHIGH);
     task_ctx* tt2 = task_list::get().create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
     tt1->start_task(exit_test_fn);
     tt2->start_task(exit_test_fn);
@@ -337,7 +334,9 @@ void run_tests()
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
     startup_tty.print_line("task tests...");
-    elf64_tests();
+    task_tests();
+    startup_tty.print_line("userland tests...");
+    elf64_tests();    
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }

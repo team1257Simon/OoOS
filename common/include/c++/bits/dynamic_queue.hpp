@@ -241,6 +241,14 @@ namespace std::__impl
         if(start + n > __qmax()) { n = __size_type(__qmax() - start); }
         try 
         {
+            if(start == __qbeg() && start + n >= __end()) 
+            {
+                size_t n = __qcapacity();
+                size_t r = this->__qsize();
+                this->__qdestroy();
+                __my_queue_data.__set_ptrs(__qallocator.allocate(n), n);
+                return r;
+            }
             __ptr_container tmp{ __qallocator.allocate(__qcapacity() - n), __qcapacity() - n }; 
             if(__end() > start + n) { tmp.__bumpn(__qsize() - n); }
             else if(__end() > start) { tmp.__bumpn(start - __qbeg()); }
