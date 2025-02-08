@@ -35,6 +35,7 @@ do_syscall:
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
     movq    %rbx,                   %gs:0x018
+    movq    %r11,                   %gs:0x098    
     movq    %r12,                   %gs:0x060
     movq    %r13,                   %gs:0x068
     movq    %r14,                   %gs:0x070
@@ -53,14 +54,14 @@ do_syscall:
     movq    %r10,                   %r9
     leaq    syscall_vec,            %r10
     movq    (%r10, %rax, 8),        %rax
-    movq    %r11,                   %gs:0x098
     fxrstor %gs:0x0D0
+    pushq   %rbp
+    movq    %rsp,                   %rbp   
     # subject to change, but for now just count all syscalls as 1
     sti
     call    *%rax
     cli
     fxsave  %gs:0x0D0
-    movq    %gs:0x098,              %r11
     xorq    %rdi,                   %rdi
     xorq    %rsi,                   %rsi
     xorq    %rdx,                   %rdx
@@ -69,6 +70,7 @@ do_syscall:
     xorq    %r10,                   %r10
     swapgs
     fxrstor %gs:0x0D0
+    movq    %gs:0x098,              %r11    
     movq    %gs:0x060,              %r12
     movq    %gs:0x068,              %r13
     movq    %gs:0x070,              %r14

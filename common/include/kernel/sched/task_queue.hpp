@@ -34,9 +34,9 @@ public:
     constexpr task_pl_queue() noexcept : __base{} {}
     constexpr task_pl_queue(size_type start_cap) : __base{ start_cap } {}
     constexpr void set_skips_threshold(uint8_t value) noexcept { this->__skips_threshold = value; }
-    void on_skipped() noexcept;
-    bool skip_flag() noexcept;
-    bool transfer_next(task_ptr_queue_base& to_whom);
+    __isrcall void on_skipped() noexcept;
+    __isrcall bool skip_flag() noexcept;
+    __isrcall bool transfer_next(task_ptr_queue_base& to_whom);
 };
 class task_wait_queue : public task_ptr_queue_base
 {
@@ -56,9 +56,9 @@ public:
     using __base::const_reverse_iterator;
     constexpr task_wait_queue() noexcept : __base{} { this->set_trim_stale(true); }
     constexpr task_wait_queue(size_type start_cap) : __base{ start_cap } { this->set_trim_stale(true); }
-    void tick_wait() noexcept;
-    unsigned int next_remaining_wait_ticks() const noexcept;
-    unsigned int cumulative_remaining_ticks() const noexcept;
+    __isrcall void tick_wait() noexcept;
+    __isrcall unsigned int next_remaining_wait_ticks() const noexcept;
+    __isrcall unsigned int cumulative_remaining_ticks() const noexcept;
     bool interrupt_wait(const_iterator where);
 };
 constexpr static priority_val escalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVEXTRA) return pv; return priority_val(int8_t(pv) + 1); }
@@ -68,7 +68,7 @@ class prio_level_task_queues : public std::array<task_pl_queue, 5>
     typedef std::array<task_pl_queue, 5> __base;
     constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(int8_t(pv) + 1); }
 public:
-    task_pl_queue& operator[](priority_val pv) noexcept;
-    task_pl_queue const& operator[](priority_val pv) const noexcept;
+    __isrcall task_pl_queue& operator[](priority_val pv) noexcept;
+    __isrcall task_pl_queue const& operator[](priority_val pv) const noexcept;
 };
 #endif

@@ -20,7 +20,7 @@ protected:
     __isrcall task_t* select_next();
     __isrcall void on_tick();
     bool init();
-    constexpr scheduler() = default;
+    scheduler();
 public:
     scheduler(scheduler const&) = delete;
     scheduler& operator=(scheduler const&) = delete;

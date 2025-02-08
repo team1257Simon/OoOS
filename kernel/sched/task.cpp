@@ -8,9 +8,16 @@
 #include "arch/com_amd64.h"
 #include "isr_table.hpp"
 static inline vaddr_t get_applicable_cr3(vaddr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
+void sys_task_exit()
+{
+    task_ctx* ctx;
+    int retv;
+    asm volatile("movl %%eax, %0" : "=r"(retv) :: "memory");
+    asm volatile("movq %%gs:000, %0" : "=r" (ctx) :: "memory");
+    ctx->set_exit(retv);
+}
 void task_ctx::init_task_state()
 {
-
     task_struct.saved_regs.rsi = std::bit_cast<register_t>(arg_vec.data());   
     task_struct.saved_regs.rdi = arg_vec.size();
     asm volatile("fxsave %0" : "=m"(task_struct.fxsv) :: "memory");
@@ -86,12 +93,16 @@ void task_ctx::start_task(vaddr_t exit_fn)
 {
     if(env_vec.empty() || env_vec.back()) { env_vec.push_back(nullptr); }
     task_struct.saved_regs.rdx = uintptr_t(vaddr_t{ env_vec.data() });
-    heap_allocator::get().enter_frame(task_struct.frame_ptr);
-    heap_allocator::get().identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
-    for(const char* str : env_vec) { if(str) heap_allocator::get().identity_map_to_user(str, std::strlen(str), true, false); }
-    heap_allocator::get().exit_frame();
-    this->exit_target = exit_fn;
-    interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
+    this->exit_target = exit_fn;  
+    if(is_user())
+    {
+        heap_allocator::get().enter_frame(task_struct.frame_ptr);
+        heap_allocator::get().identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
+        for(const char* str : env_vec) { if(str) heap_allocator::get().identity_map_to_user(str, std::strlen(str), true, false); }
+        heap_allocator::get().exit_frame();
+        interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
+    }
+    else *static_cast<uintptr_t*>(task_struct.saved_regs.rsp) = vaddr_t(&sys_task_exit);
     scheduler::get().register_task(this->task_struct.self);
     this->current_state = execution_state::RUNNING;
 }
@@ -118,7 +129,7 @@ void task_ctx::terminate()
     this->current_state = execution_state::TERMINATED;
     scheduler::get().unregister_task(task_struct.self);
     for(task_ctx* c : this->child_tasks) { if(c->current_state == execution_state::RUNNING) { if(exit_code) c->exit_code = exit_code; c->terminate(); } }
-    frame_manager::get().destroy_frame(*static_cast<uframe_tag*>(this->task_struct.frame_ptr));
+    if(is_user()) frame_manager::get().destroy_frame(*static_cast<uframe_tag*>(this->task_struct.frame_ptr));
 }
 tms task_ctx::get_times() const noexcept
 {
@@ -175,5 +186,5 @@ extern "C"
         catch(std::exception& e) { panic(e.what()); if(buf) fballoc.deallocate(buf, n ? n->size() : 0); if(n) { fs_ptr->close_file(n); return -EPIPE; } else if(buf) return -EAGAIN; else return -ENOENT; } 
         return -EINVAL;
     }
-    [[noreturn]] void handle_exit() { task_ctx* task = current_active_task()->self; if(task) task->terminate(); while(1) { PAUSE; } __builtin_unreachable(); }
+    [[noreturn]] void handle_exit() { cli(); task_ctx* task = current_active_task()->self; if(task){ task->terminate(); task_list::get().destroy_task(task->get_pid()); } sti(); kernel_reentry(); __builtin_unreachable(); }
 }

@@ -36,12 +36,15 @@ __isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
     next->run_split = ts;
     cur->run_time += (ts - cur->run_split);
 }
+scheduler::scheduler() = default;
 void scheduler::register_task(task_t *task) { __my_queues[task->task_ctl.prio_base].push(task); }
 bool scheduler::unregister_task(task_t *task) 
 {
-    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task, true); i != __my_queues[priority_val::PVSYS].end()) { return __my_queues[priority_val::PVSYS].erase(i) != 0; } }
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task, true); i != __my_queues[pv].end()) { return __my_queues[pv].erase(i) != 0; } }
-    return false;
+    bool result = false;
+    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task, true); i != __my_queues[priority_val::PVSYS].end()) { result = __my_queues[priority_val::PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
+    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task, true); i != __my_queues[pv].end()) { result = __my_queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
+    __sync_synchronize();
+    return result;
 }
 bool scheduler::unregister_task_tree(task_t *task)
 {
@@ -60,17 +63,19 @@ __isrcall task_t *scheduler::select_next()
     }
     for(priority_val pv = priority_val::PVEXTRA; pv >= priority_val::PVLOW; pv = priority_val(int8_t(pv) - 1))
     {
-        if(!__my_queues[pv].empty())
+        task_pl_queue& queue = __my_queues[pv];
+        if(!queue.empty())
         {
             for(priority_val qv = priority_val(int8_t(pv) - 1); qv >= priority_val::PVLOW; qv = priority_val(int8_t(qv) - 1))
             {
-                __my_queues[qv].on_skipped();
-                if(__my_queues[qv].skip_flag()) { __my_queues[qv].transfer_next(__my_queues[escalate(qv)]); __my_queues[escalate(qv)].back()->task_ctl.skips = 0; }
+                queue.on_skipped();
+                if(queue.skip_flag()) { queue.transfer_next(__my_queues[escalate(qv)]); __my_queues[escalate(qv)].back()->task_ctl.skips = 0; }
             }
-            if(__my_queues[pv].at_end()) __my_queues[pv].restart();
-            task_t* result = __my_queues[pv].pop();
+            if(queue.at_end()) queue.restart();
+            asm volatile("mfence" ::: "memory"); 
+            task_t* result = queue.pop();
             result->task_ctl.skips = 0;
-            if(result->task_ctl.prio_base != pv) { __my_queues[pv].unpop(); __my_queues[pv].transfer_next(__my_queues[deescalate(pv)]); }
+            if(result->task_ctl.prio_base != pv) { __my_queues[pv].unpop(); __my_queues[pv].transfer_next(__my_queues[deescalate(pv)]); asm volatile("mfence" ::: "memory"); }
             return result;
         }
     }
