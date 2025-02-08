@@ -110,12 +110,30 @@ void filesystem::link_stdio(vfs_filebuf_base<char> *target) { current_open_files
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink( this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
-static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) { new (translate_user_pointer(st)) stat{ fsptr->get_dev_id(), n->cid(), n->mode, n->num_refs(), 0, 0, n->is_device() ? 1U : 0, static_cast<long>(n->size()), timestamp_to_timespec(n->create_time), timestamp_to_timespec(n->modif_time), timestamp_to_timespec(n->modif_time), 512, n->size() / 512 };  }
+static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) 
+{ 
+    new (translate_user_pointer(st)) 
+    stat
+    { 
+        .st_dev = fsptr->get_dev_id(), 
+        .st_ino = n->cid(), 
+        .st_mode = n->mode, 
+        .st_nlink = n->num_refs(), 
+        .st_uid = 0,
+        .st_gid = 0, 
+        .st_rdev = n->is_device() ? 1U : 0, 
+        .st_size = static_cast<long>(n->size()),
+        .st_atim = timestamp_to_timespec(n->create_time),
+        .st_mtim = timestamp_to_timespec(n->modif_time), 
+        .st_ctim = timestamp_to_timespec(n->modif_time), 
+        .st_blksize = 512,
+        .st_blocks = div_roundup(n->size(), 512) 
+    };  
+}
 extern "C"
 {
     int syscall_open(char *name, int flags, ...)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         uint8_t smallflags{ static_cast<uint8_t>(flags) };
@@ -124,7 +142,6 @@ extern "C"
     }
     int syscall_close(int fd)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -132,7 +149,6 @@ extern "C"
     }
     int syscall_write(int fd, char *ptr, int len)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(translate_user_pointer(ptr), len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -140,7 +156,6 @@ extern "C"
     }
     int syscall_read(int fd, char *ptr, int len)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(translate_user_pointer(ptr), len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -148,7 +163,6 @@ extern "C"
     }
     int syscall_link(char *old, char *__new)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
@@ -156,7 +170,6 @@ extern "C"
     }
     int syscall_lseek(int fd, long offs, int way) 
     {
-        dhang();
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -164,7 +177,6 @@ extern "C"
     }
     int syscall_unlink(char *name)
     {
-        dhang();
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         try { return fsptr->unlink(static_cast<const char*>(translate_user_pointer(name))) ? 0 : -ENOENT; } catch(std::exception& e) { panic(e.what()); }
@@ -172,7 +184,6 @@ extern "C"
     }
     int syscall_isatty(int fd)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try { if(file_inode* n{ fsptr->get_fd(fd) }) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -182,13 +193,11 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-//        dhang();
         try{ if(file_inode* n{ fsptr->get_fd(fd) }) { __st_intl(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_stat(const char *restrict name, stat *restrict st)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
@@ -197,7 +206,6 @@ extern "C"
     }
     int syscall_fchmod(int fd, mode_t m)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         try{ if(file_inode* n{ fsptr->get_fd(fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
@@ -205,7 +213,6 @@ extern "C"
     }
     int syscall_chmod(const char *name, mode_t m)
     {
-        dhang();
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);

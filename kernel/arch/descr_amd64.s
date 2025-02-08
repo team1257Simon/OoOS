@@ -73,9 +73,6 @@ fill_tss_descriptor:
 	movl	$104,       %esi
 	shrq	$32,        %rdx
 	movq	%rdx,       8(%rdi)
-	movq	4(%rax),    %rdx
-	movw	%si,        102(%rax)
-	movq	%rdx,       44(%rax)
 	ret
     .size   fill_tss_descriptor,  .-fill_tss_descriptor
 gdt_setup:

@@ -163,7 +163,8 @@ private:
 } __align(1) __pack status_byte, gb_status[512];
 class heap_allocator
 {
-    spinlock_t __heap_mutex{};                  // Calls to block allocations lock this mutex to prevent comodification
+    spinlock_t __heap_mutex{};                  // Calls to kernel allocations lock this mutex to prevent comodification
+    spinlock_t __user_mutex{};                  // Separate mutex for userspace calls because userspace memory will be delegated from kernel blocks
     gb_status* const __status_bytes;            // Array of 512-byte arrays
     size_t const __num_status_bytes;            // Length of said array
     uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
@@ -186,11 +187,14 @@ class heap_allocator
     void __release_claimed_region(size_t sz, uintptr_t start);
     void __lock();
     void __unlock();
+    void __userlock();
+    void __userunlock();
     void __suspend_frame() noexcept;
     void __resume_frame() noexcept;
 public:
     static void init_instance(mmap_t* mmap);
     static heap_allocator& get();
+    static size_t page_aligned_region_size(vaddr_t start, size_t requested);
     inline bool avail() const { return !test_lock(&__heap_mutex); }
     constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
     heap_allocator(heap_allocator const&) = delete;
@@ -203,7 +207,7 @@ public:
     uintptr_t translate_vaddr_in_current_frame(vaddr_t addr);
     vaddr_t allocate_kernel_block(size_t sz);
     vaddr_t allocate_mmio_block(size_t sz);
-    vaddr_t allocate_user_block(size_t sz, vaddr_t start, bool write = true, bool execute = true);
+    vaddr_t allocate_user_block(size_t sz, vaddr_t start, size_t align = 0UL, bool write = true, bool execute = true);
     vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute);
     vaddr_t identity_map_to_kernel(vaddr_t start, size_t sz);
     vaddr_t identity_map_to_user(vaddr_t what, size_t sz, bool write = true, bool execute = true);

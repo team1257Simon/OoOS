@@ -39,7 +39,7 @@ typedef struct __fx_state
     uint64_t fdp;               // BASE+0x010
     uint32_t mxcsr;             // BASE+0x018
     uint32_t mxcsr_mask;        // BASE+0x01B
-    int128_t stmm[8];           // BASE+0x020
+    long double stmm[8];        // BASE+0x020
     int128_t xmm[16];           // BASE+0x0A0
     int128_t rsv1[3];           // BASE+0x1A0
     int128_t avail[3];          // BASE+0x1D0

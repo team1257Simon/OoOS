@@ -18,7 +18,8 @@ bool elf64_executable::validate() noexcept
         if(!this->__process_frame_base || this->__process_frame_base > h->p_vaddr) this->__process_frame_base = vaddr_t{ h->p_vaddr };
         if(!this->__process_frame_extent || h->p_vaddr + h->p_memsz > this->__process_frame_extent) this->__process_frame_extent = vaddr_t{ h->p_vaddr + h->p_memsz };
     }
-    this->__process_frame_base %= PAGESIZE;
+    this->__process_frame_base = this->__process_frame_base.page_aligned();
+    this->__process_frame_extent = (this->__process_frame_extent + ptrdiff_t(PAGESIZE)).page_aligned();
     this->__process_stack_base = this->__process_frame_extent;
     this->__process_frame_extent += this->__tgt_stack_size;
     this->__process_tls_base = this->__process_frame_extent;
@@ -28,38 +29,37 @@ bool elf64_executable::validate() noexcept
 void elf64_executable::xload()
 {
     if(!this->validate()) throw std::runtime_error{ "invalid executable" };
-    if((this->__process_frame_tag = std::addressof(frame_manager::get().create_frame(this->__process_frame_base, this->__process_frame_extent))))
+    if((this->__process_frame_tag = std::addressof(frame_manager::get().create_frame(this->__process_frame_base, this->__process_frame_extent)))) try
     {
         heap_allocator::get().enter_frame(this->__process_frame_tag);
         elf64_phdr* h = this->__image_start + ptrdiff_t(this->__get_ehdr().e_phoff);
         for(size_t n = 0; n < this->__get_ehdr().e_phnum; n++, h = (vaddr_t{ h } + ptrdiff_t(this->__get_ehdr().e_phentsize)))
         {
             if(!is_load(*h) || !h->p_memsz) continue;
-            vaddr_t blk = heap_allocator::get().allocate_user_block(h->p_memsz, vaddr_t{ h->p_vaddr }, is_write(*h), is_exec(*h));
-            if(!blk) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); throw std::bad_alloc{}; }
-            this->__process_frame_tag->usr_blocks.emplace_back(blk, h->p_memsz);
-            heap_allocator::get().identity_map_to_kernel(blk, h->p_memsz);
-            vaddr_t addr(h->p_vaddr);
-            vaddr_t idmap(heap_allocator::get().translate_vaddr_in_current_frame(addr));
+            vaddr_t blk = heap_allocator::get().allocate_user_block(h->p_memsz, vaddr_t{ h->p_vaddr }, h->p_align, is_write(*h), is_exec(*h));
+            if(!blk) { throw std::bad_alloc{}; }
+            this->__process_frame_tag->usr_blocks.emplace_back(blk, heap_allocator::page_aligned_region_size(vaddr_t{ h->p_vaddr }, h->p_memsz));
+            vaddr_t addr{ h->p_vaddr };
+            vaddr_t idmap{ heap_allocator::get().translate_vaddr_in_current_frame(addr) };
             vaddr_t img_dat = this->__image_start + ptrdiff_t(h->p_offset);
-            for(size_t i = 0; i < h->p_filesz; addr += PAGESIZE, img_dat += PAGESIZE, i += PAGESIZE, idmap = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(addr))) { arraycopy<uint8_t>(idmap, img_dat, std::min(size_t(PAGESIZE), size_t(h->p_filesz - i))); }
+            arraycopy<uint8_t>(idmap, img_dat, h->p_filesz);
             if(h->p_memsz > h->p_filesz) { size_t diff = static_cast<size_t>(h->p_memsz - h->p_filesz); array_zero<uint8_t>(vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(h->p_vaddr + h->p_filesz))), diff); }
         }
-        vaddr_t stkblk = heap_allocator::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, true, false);
-        vaddr_t tlsblk = heap_allocator::get().allocate_user_block(this->__tgt_tls_size, this->__process_tls_base, true, false);
-        if(!stkblk || !tlsblk) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); throw std::bad_alloc{}; }
+        vaddr_t stkblk = heap_allocator::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, PAGESIZE, true, false);
+        vaddr_t tlsblk = heap_allocator::get().allocate_user_block(this->__tgt_tls_size, this->__process_tls_base, PAGESIZE, true, false);
+        if(!stkblk || !tlsblk) { throw std::bad_alloc{}; }
         this->__process_frame_tag->usr_blocks.emplace_back(stkblk, this->__tgt_stack_size);
         this->__process_frame_tag->usr_blocks.emplace_back(tlsblk, this->__tgt_tls_size);
         heap_allocator::get().exit_frame();
         __descr = { __process_frame_tag, __process_stack_base, __tgt_stack_size, __process_tls_base, __tgt_tls_size, __process_entry_ptr };
     }
-    else throw std::bad_alloc{};
+    catch (...) {  frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); throw std::runtime_error{ "could not allocate blocks for executable" }; }
+    else throw std::runtime_error{ "could not allocate frame" };
 }
 bool elf64_executable::load() noexcept
 {
     if(__is_loaded()) return true;
     try { this->xload(); return true; }
-    catch(std::bad_alloc&) { panic("executable could not be loaded due to lack of memory"); }
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }

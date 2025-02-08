@@ -31,6 +31,7 @@ qword get_flags();
 uintptr_t translate_vaddr(vaddr_t addr);
 vaddr_t translate_user_pointer(vaddr_t ptr);
 uint64_t syscall_time(uint64_t* tm_target);
+paging_table kernel_cr3();
 #define dhang() direct_write(__builtin_FUNCTION()); while(1);
 #ifdef __cplusplus
 }
@@ -72,21 +73,21 @@ template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std:
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
     if constexpr(std::is_default_constructible_v<T>) arrayset(dest, T{}, n);
-    if constexpr(sizeof(T) == 8) arrayset<uint64_t>(dest, 0ul, n);
-    else if constexpr(sizeof(T) == 4) arrayset<uint32_t>(dest, 0u, n);
-    else if constexpr(sizeof(T) == 2) arrayset<uint16_t>(dest, 0u, n);
-    else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
-    asm volatile("mfence" ::: "memory");
+    else if constexpr(sizeof(T) == 8) arrayset<uint64_t>(dest, 0UL, n);
+    else if constexpr(sizeof(T) == 4) arrayset<uint32_t>(dest, 0U, n);
+    else if constexpr(sizeof(T) == 2) arrayset<uint16_t>(dest, 0U, n);
+    else arrayset<uint8_t>(dest, 0U, n * sizeof(T));
 }
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
-    if constexpr(sizeof(T) % 8 == 0) arrayset<uint64_t>(dest, 0ul, n * sizeof(T) / 8);
-    else if constexpr(sizeof(T) % 4 == 0) arrayset<uint32_t>(dest, 0u, n * sizeof(T) / 4);
-    else if constexpr(sizeof(T) % 2 == 0) arrayset<uint16_t>(dest, 0u, n * sizeof(T) / 2);
-    else arrayset<uint8_t>(dest, 0u, n * sizeof(T));
-    asm volatile("mfence" ::: "memory");
+    if constexpr(std::is_default_constructible_v<T>) arrayset(dest, T{}, n);
+    else if constexpr(sizeof(T) % 8 == 0) arrayset<uint64_t>(dest, 0UL, n * sizeof(T) / 8);
+    else if constexpr(sizeof(T) % 4 == 0) arrayset<uint32_t>(dest, 0U, n * sizeof(T) / 4);
+    else if constexpr(sizeof(T) % 2 == 0) arrayset<uint16_t>(dest, 0U, n * sizeof(T) / 2);
+    else arrayset<uint8_t>(dest, 0U, n * sizeof(T));
 }
-template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { /* don't actually touch nontrivial arrays */ }
+// If a nontrivial type is default-constructible, "zeroing" an array really means resetting it to the default value for that type. Otherwise we leave it alone.
+template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++, dest++) { new (dest + i) T{}; } } }
 constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
 constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
 constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : truncate(n + unit, unit); }

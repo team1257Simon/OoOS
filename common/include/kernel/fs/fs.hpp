@@ -30,36 +30,50 @@ struct file_mode
     bool is_gid       : 1;
     bool is_uid       : 1;
     bool              : 1;
+    bool is_fifo      : 1;
+    bool is_chardev   : 1;
+    bool is_dir       : 1;
+    bool              : 1;
+    bool reg          : 1;
+    bool              : 3;
     constexpr file_mode(uint32_t i) noexcept : 
-        exec_others     { NZ(i & 0x0001) }, 
-        write_others    { NZ(i & 0x0002) }, 
-        read_others     { NZ(i & 0x0004) },
-        exec_group      { NZ(i & 0x0010) }, 
-        write_group     { NZ(i & 0x0020) },
-        read_group      { NZ(i & 0x0040) },
-        exec_owner      { NZ(i & 0x0100) },
-        write_owner     { NZ(i & 0x0200) },
-        read_owner      { NZ(i & 0x0400) },
-        is_sticky       { NZ(i & 0x1000) },
-        is_gid          { NZ(i & 0x2000) },
-        is_uid          { NZ(i & 0x4000) }
+        exec_others     { NZ(i & 0x000001) }, 
+        write_others    { NZ(i & 0x000002) }, 
+        read_others     { NZ(i & 0x000004) },
+        exec_group      { NZ(i & 0x000010) }, 
+        write_group     { NZ(i & 0x000020) },
+        read_group      { NZ(i & 0x000040) },
+        exec_owner      { NZ(i & 0x000100) },
+        write_owner     { NZ(i & 0x000200) },
+        read_owner      { NZ(i & 0x000400) },
+        is_sticky       { NZ(i & 0x001000) },
+        is_gid          { NZ(i & 0x002000) },
+        is_uid          { NZ(i & 0x004000) },
+        is_fifo         { NZ(i & 0x010000) },
+        is_chardev      { NZ(i & 0x020000) },
+        is_dir          { NZ(i & 0x040000) },
+        reg             { NZ(i & 0x100000) }
                         {}
     constexpr operator uint32_t() const noexcept 
     {
         return uint32_t
         (
-            (exec_others    ? 0x0001u : 0) |
-            (write_others   ? 0x0002u : 0) |
-            (read_others    ? 0x0004u : 0) |
-            (exec_group     ? 0x0010u : 0) |
-            (write_group    ? 0x0020u : 0) |
-            (read_group     ? 0x0040u : 0) |
-            (exec_owner     ? 0x0100u : 0) |
-            (write_owner    ? 0x0200u : 0) |
-            (read_owner     ? 0x0400u : 0) |
-            (is_sticky      ? 0x1000u : 0) |
-            (is_gid         ? 0x2000u : 0) |
-            (is_uid         ? 0x4000u : 0)
+            (exec_others    ? 0x000001U : 0) |
+            (write_others   ? 0x000002U : 0) |
+            (read_others    ? 0x000004U : 0) |
+            (exec_group     ? 0x000010U : 0) |
+            (write_group    ? 0x000020U : 0) |
+            (read_group     ? 0x000040U : 0) |
+            (exec_owner     ? 0x000100U : 0) |
+            (write_owner    ? 0x000200U : 0) |
+            (read_owner     ? 0x000400U : 0) |
+            (is_sticky      ? 0x001000U : 0) |
+            (is_gid         ? 0x002000U : 0) |
+            (is_uid         ? 0x004000U : 0) |
+            (is_fifo        ? 0x010000U : 0) |
+            (is_chardev     ? 0x020000U : 0) |
+            (is_dir         ? 0x040000U : 0) |
+            (reg            ? 0x100000U : 0)
         );
     }
 };

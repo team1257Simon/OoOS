@@ -38,14 +38,12 @@ task_change:
     movq        %rbp,           %gs:0x080
     movq        %cr3,           %rax
     movq        %rax,           %gs:0x0A6
-    movq        %gs:0x000,      %rax
-    fxsave      0x0F0(%rax)
-    movq        0x300(%rax),    %rax
+    fxsave      %gs:0x0D0
+    movq        %gs:0x300,      %rax
     wrgsbase    %rax
-    movq        0x2F8(%rax),    %rax
+    movq        %gs:0x2F8,      %rax
     wrfsbase    %rax
-    movq        %gs:0x000,      %rax    
-    fxrstor     0x0E0(%rax)
+    fxrstor     %gs:0x0D0
     movq        %gs:0x018,      %rbx
     movq        %gs:0x020,      %rcx
     movq        %gs:0x028,      %rdx
@@ -78,46 +76,43 @@ task_change:
     movq        %gs:0x010,      %rax
     iretq
     .size       task_change,    .-task_change
-test_user_fn:
-1:
-    jmp 1b
 user_entry:
     cli
-    wrgsbase                    %rdi
-    fxrstor                     0x0E0(%rdi)
+    wrgsbase    %rdi
+    fxrstor     %gs:0x0D0
     pushfq
-    popq                        %r11
-    movq    %gs:0x018,          %rbx
-    movq    %gs:0x090,          %rcx    # instruction pointer goes in the C register for a sysret
-    movq    %gs:0x028,          %rdx
-    movq    %gs:0x030,          %rdi
-    movq    %gs:0x038,          %rsi
-    movq    %gs:0x040,          %r8
-    movq    %gs:0x048,          %r9
-    movq    %gs:0x050,          %r10
-    movq    %gs:0x060,          %r12
-    movq    %gs:0x068,          %r13
-    movq    %gs:0x080,          %rbp
-    movq    %gs:0x088,          %rsp
-    movq    %gs:0x0A6,          %rax
-    movq    %rax,               %cr3
-    movq    %gs:0x000,          %r14
-    movq    %gs:0x2F8,          %r15
-    movw    $0x001B,            %ax
-    movw    %ax,                %ds
-    movw    %ax,                %es
-    movw    %ax,                %fs
-    movw    %ax,                %gs
-    wrgsbase                    %r14
-    wrfsbase                    %r15
-    movq    %gs:0x070,          %r14
-    movq    %gs:0x078,          %r15
-    movq    %gs:0x010,          %rax
+    popq        %r11
+    movq        %gs:0x018,      %rbx
+    movq        %gs:0x090,      %rcx    # instruction pointer goes in the C register for a sysret
+    movq        %gs:0x028,      %rdx
+    movq        %gs:0x030,      %rdi
+    movq        %gs:0x038,      %rsi
+    movq        %gs:0x040,      %r8
+    movq        %gs:0x048,      %r9
+    movq        %gs:0x050,      %r10
+    movq        %gs:0x060,      %r12
+    movq        %gs:0x068,      %r13
+    movq        %gs:0x080,      %rbp
+    movq        %gs:0x088,      %rsp
+    movq        %gs:0x0A6,      %rax
+    movq        %rax,           %cr3
+    movq        %gs:0x000,      %r14
+    movq        %gs:0x2F8,      %r15
+    movw        %gs:0x0A0,      %ax
+    movw        %ax,            %ds
+    movw        %ax,            %es
+    movw        %ax,            %fs
+    movw        %ax,            %gs
+    wrgsbase    %r14
+    wrfsbase    %r15
+    movq        %gs:0x070,      %r14
+    movq        %gs:0x078,      %r15
+    movq        %gs:0x010,      %rax
     sysretq
-    .size       user_entry,             .-user_entry
+    .size       user_entry,     .-user_entry
 enable_fs_gs_insns:
     movq        %cr4,       %rax
-    orq         $0x10000,   %rax
+    orl         $0x10000,   %eax
     movq        %rax,       %cr4
     ret
-    .size   enable_fs_gs_insns,         .-enable_fs_gs_insns
+    .size   enable_fs_gs_insns, .-enable_fs_gs_insns

@@ -36,7 +36,7 @@ extern "C"
     extern bool task_change_flag;
     extern unsigned char kernel_stack_base;
     extern unsigned char kernel_stack_top;
-    extern unsigned char kernel_isr_stack;
+    extern unsigned char kernel_isr_stack_top;
     extern void test_fault();
     task_t kproc{};
 }
@@ -234,10 +234,10 @@ void elf64_tests()
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
-            filesystem* fs = task->get_fs();
+            filesystem* fs = task->get_vfs_ptr();
             dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
             // heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
-            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(0x4018d4UL)));   // specific address to debug (messily)
+            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(0x403b5bUL)));   // specific address to debug (messily)
             // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));           // or just use the entry point at _start
             // overwrite the init_signal call with nops for now because it's being dumb
             // tgt_bytes[14] = 0x90;     
@@ -248,8 +248,8 @@ void elf64_tests()
             // alternatively, insert a hang-loop (aka breakpoint at home, aka "feeb", and no I am not ashamed of this name) right at the target point if we just need to see the machine state at a given instruction
             // tgt_bytes[0] = 0xEB;
             // tgt_bytes[1] = 0xFE;
-            // task->start_task();
-            // user_entry(task->task_struct.self);
+            task->start_task();
+            user_entry(task->task_struct.self);
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -340,7 +340,7 @@ void run_tests()
     elf64_tests();
     startup_tty.print_line("complete");
 }
-filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_fs(); }
+filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
@@ -349,6 +349,7 @@ extern "C"
     extern void gdt_setup();
     extern void do_syscall();
     extern void enable_fs_gs_insns();
+    paging_table kernel_cr3() { return kproc.saved_regs.cr3; }
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
@@ -373,7 +374,7 @@ extern "C"
         _init();
         // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
         __register_frame(&__ehframe);
-        init_tss(&kernel_isr_stack);
+        init_tss(&kernel_isr_stack_top);
         enable_fs_gs_insns();
         set_kernel_gs_base(&kproc);
         kproc.saved_regs.cr3 = get_cr3();
@@ -398,6 +399,9 @@ extern "C"
         sti();
         // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running
         set_gs_base(&kproc);
+        asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
+        __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));
+        for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         scheduler::init_instance();
         direct_print_enable = true;
         try

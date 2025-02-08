@@ -25,7 +25,7 @@ syscall_vec:
     .quad syscall_isatty        # 19
     .quad syscall_execve        # 20
     .quad syscall_kill          # 21
-    .size   syscall_vec,    .-syscall_vec
+    .size syscall_vec,      .-syscall_vec
     .section .text
     .global do_syscall
     .type   do_syscall,     @function
@@ -41,6 +41,7 @@ do_syscall:
     movq    %r15,                   %gs:0x078
     incq    %gs:0x2F0     
     movq    %gs:0x000,              %rcx
+    fxsave  %gs:0x0D0    
     swapgs
     movq    %gs:0x0A6,              %rbx
     movq    %rbx,                   %cr3
@@ -53,10 +54,12 @@ do_syscall:
     leaq    syscall_vec,            %r10
     movq    (%r10, %rax, 8),        %rax
     movq    %r11,                   %gs:0x098
+    fxrstor %gs:0x0D0
     # subject to change, but for now just count all syscalls as 1
     sti
     call    *%rax
     cli
+    fxsave  %gs:0x0D0
     movq    %gs:0x098,              %r11
     xorq    %rdi,                   %rdi
     xorq    %rsi,                   %rsi
@@ -65,6 +68,7 @@ do_syscall:
     xorq    %r9,                    %r9
     xorq    %r10,                   %r10
     swapgs
+    fxrstor %gs:0x0D0
     movq    %gs:0x060,              %r12
     movq    %gs:0x068,              %r13
     movq    %gs:0x070,              %r14
@@ -77,5 +81,3 @@ do_syscall:
     movq    %gs:0x090,              %rcx
     sysretq
     .size do_syscall, .-do_syscall
-hang:
-    jmp hang

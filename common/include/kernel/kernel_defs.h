@@ -375,9 +375,9 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\SYS\\CORE.ELF"
 #endif
-#define PAGESIZE 0x1000
-#define PT_LEN 0x200
-#define MMAP_MAX_PG 0x100000uL
+#define PAGESIZE 0x1000UL
+#define PT_LEN 0x200UL
+#define MMAP_MAX_PG 0x100000UL
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #define __pack attribute(packed)
@@ -487,6 +487,7 @@ typedef struct __vaddr
     constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
     constexpr __vaddr operator-(ptrdiff_t value) const { return __vaddr{ uintptr_t(*this) - value }; }
     constexpr __vaddr& operator-=(ptrdiff_t value) { return *this = (*this - value); }
+    constexpr __vaddr page_aligned() const noexcept { return *this - ptrdiff_t(uintptr_t(*this % PAGESIZE)); }
     typedef const void* cvptr;
     typedef volatile void* vvptr;
     typedef const volatile void* cvvptr;

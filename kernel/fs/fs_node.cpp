@@ -25,7 +25,7 @@ bool folder_inode::is_folder() const noexcept { return true; }
 uint64_t folder_inode::size() const noexcept { return this->num_files() + this->num_folders(); }
 bool folder_inode::is_empty() const noexcept { return this->size() == 0; }
 bool folder_inode::relink(std::string const &oldn, std::string const &newn) { if(tnode* ptr = this->find(oldn)) { return this->unlink(oldn) && this->link(ptr, newn); } else return false; } 
-device_inode::device_inode(std::string const &name, int fd, vfs_filebuf_base<char> *dev_buffer) : file_inode{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __my_device{ dev_buffer } {}
+device_inode::device_inode(std::string const &name, int fd, vfs_filebuf_base<char> *dev_buffer) : file_inode{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __my_device{ dev_buffer } { mode = 0x02666; }
 bool device_inode::fsync() { return __my_device->pubsync() == 0; }
 bool device_inode::is_device() const noexcept { return true; }
 uint64_t device_inode::size() const noexcept { return __my_device->in_avail(); }

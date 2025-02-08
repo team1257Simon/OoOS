@@ -38,7 +38,7 @@ struct task_ctx
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
     friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
-    filesystem* get_fs();
+    filesystem* get_vfs_ptr();
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
     void start_task(vaddr_t exit_fn = vaddr_t{ &handle_exit });

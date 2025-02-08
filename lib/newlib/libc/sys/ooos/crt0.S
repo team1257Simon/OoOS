@@ -9,7 +9,7 @@
     .global     _start
     .type       _start,     @function
 _start:
-    movq        %rbx,       environ
+    movq        %rdx,       environ
     pushq       %rbp
     movq        %rsp,       %rbp
     pushq       %rdi
@@ -18,8 +18,6 @@ _start:
     call        _init_signal
     popq        %rsi
     popq        %rdi
-    movq        %rbp,       %rsp
-    popq        %rbp
     call        main
     movq        %rax,       %rdi
     jmp         _exit

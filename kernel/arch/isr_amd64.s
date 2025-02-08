@@ -1,20 +1,25 @@
     .code64
     .altmacro
     .extern     isr_dispatch
-    .type       isr_dispatch,   @function
+    .type       isr_dispatch,           @function
     .section    .data
     .global     ecode
     .global     errinst
     .global     svinst
     .global     task_change_flag
-    .global     kernel_isr_stack
-    .type       kernel_isr_stack,   @object
-    .type       task_change_flag,   @object
-    .type       ecode,              @object
-    .type       errinst,            @object
-    .type       svinst,             @object
-kernel_isr_stack:
+    .global     kernel_isr_stack_top
+    .global     kernel_isr_stack_base
+    .type       kernel_isr_stack_base,  @object
+    .type       kernel_isr_stack_top,   @object
+    .type       task_change_flag,       @object
+    .type       ecode,                  @object
+    .type       errinst,                @object
+    .type       svinst,                 @object
+kernel_isr_stack_base:
     .zero 16384
+kernel_isr_stack_top:
+    .size       kernel_isr_stack_base,  .-kernel_isr_stack_base
+    .size       kernel_isr_stack_top,   .-kernel_isr_stack_base
 ecode:
     .quad 0
     .size       ecode,          .-ecode

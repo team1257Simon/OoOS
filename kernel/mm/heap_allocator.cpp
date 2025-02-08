@@ -139,7 +139,7 @@ static vaddr_t __map_kernel_pages(vaddr_t start, size_t pages, bool global)
         pt[curr.page_idx].present = true;
         pt[curr.page_idx].global = global;
         pt[curr.page_idx].write = true;
-        pt[curr.page_idx].user_access = true;
+        pt[curr.page_idx].user_access = true; // userland access to pages will be controlled by having only the necessary pages mapped into the userland page frame
         pt[curr.page_idx].physical_address = phys >> 12;
         modified = true;
     }
@@ -228,6 +228,8 @@ heap_allocator &heap_allocator::get() { return *__instance; }
 uintptr_t heap_allocator::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
 void heap_allocator::__lock() { lock(&__heap_mutex); __suspend_frame(); }
 void heap_allocator::__unlock() { release(&__heap_mutex); __resume_frame(); }
+void heap_allocator::__userlock() { lock(&__user_mutex); }
+void heap_allocator::__userunlock() { release(&__user_mutex); }
 void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
 void heap_allocator::__suspend_frame() noexcept { vaddr_t cur_cr3{ get_cr3() }; if(cur_cr3 != __kernel_cr3) { __suspended_cr3 = cur_cr3; set_cr3(__kernel_cr3); } }
 void heap_allocator::__resume_frame() noexcept { if(__suspended_cr3) { set_cr3(__suspended_cr3); __suspended_cr3 = nullptr; } }
@@ -320,6 +322,7 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
         }
     }
 }
+size_t heap_allocator::page_aligned_region_size(vaddr_t start, size_t requested) { return size_t((start + ptrdiff_t(requested + PAGESIZE)).page_aligned() - start.page_aligned()); }
 vaddr_t heap_allocator::allocate_mmio_block(size_t sz)
 {
     __lock();
@@ -328,13 +331,14 @@ vaddr_t heap_allocator::allocate_mmio_block(size_t sz)
     __unlock();
     return result;
 }
-vaddr_t heap_allocator::allocate_user_block(size_t sz, vaddr_t start, bool write, bool execute)
+vaddr_t heap_allocator::allocate_user_block(size_t sz, vaddr_t start, size_t align, bool write, bool execute)
 {
     vaddr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
-    __lock();
-    vaddr_t result{ nullptr };
-    if(uintptr_t phys = __find_claim_avail_region(sz)) { result = __map_user_pages(start, phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); }
-    __unlock();
+    __userlock();
+    size_t rsz = page_aligned_region_size(start, sz); // allocate to the end of page so the userspace doesn't see kernel data structures
+    vaddr_t result = __kernel_frame_tag->allocate(rsz, align);
+    if(result && !__map_user_pages(start.page_aligned(), result, div_roundup(rsz, PAGESIZE), pml4, write, execute)) { __kernel_frame_tag->deallocate(result, align); result = nullptr; }
+    __userunlock();
     return result;
 }
 void heap_allocator::init_instance(mmap_t *mmap)
@@ -594,7 +598,7 @@ extern "C"
     vaddr_t translate_user_pointer(vaddr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != UFRAME_MAGIC) return nullptr; heap_allocator::get().enter_frame(ctask_frame); vaddr_t result{ heap_allocator::get().translate_vaddr_in_current_frame(ptr) }; heap_allocator::get().exit_frame(); return result; }
     vaddr_t syscall_sbrk(ptrdiff_t incr)
     {
-        dhang();
+        
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != UFRAME_MAGIC) return vaddr_t{ uintptr_t(-EINVAL) };
         heap_allocator::get().enter_frame(ctask_frame);
