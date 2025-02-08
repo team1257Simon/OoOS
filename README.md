@@ -6,7 +6,7 @@ Feel free to contribute to my project, though be advised that it's still in rela
 
 # Building
 The script `build-cross.sh` will setup the bare development environment. `./build-cross.sh -p ~/your/prefix/here` will let you decide where the script installs the cross-compiler. 
-To build the OS, you will need to install the libc and targeted toolchain as well; I haven't created a script to run that process from start to finish, but it goes something like this:
+To build the OS, you will need to install the libc and targeted toolchain as well; I created a script(currently untested) to build that toolchain, but the procedure goes like this:
  1. You'll need multiple different versions of the autotools programs because they're finnicky and will not work correctly if you so much as think about using a different minor version than the one the developer used originally. Specifically, it's autoconf2.65/automake1.11 for newlib and autoconf2.69/automake1.15 for binutils and GCC.
  2. You'll also need to build newlib the first time using the bare-platform compiler, but with the OS-specific binutils build. This will mean temporarily linking the bare-platform compiler a-la `ln /your/bin/dir/x86_64-elf-gcc /your/bin/dir/x86_64-ooos-gcc` and deleting those links after newlib is installed.
  3. The patches in the `lib` directory apply only to those exact releaases (see the README in that directory). You'll also need to `cp -lRf lib/newlib ../newlib`, `cp -lRf lib/binutils-gdb/* ../binutils-gdb`, and `cp -rf lib/gcc ../gcc` (no that isn't a typo, the binutils one is different).
