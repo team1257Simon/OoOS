@@ -197,6 +197,7 @@ int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
+    asm volatile("movq %%cr0, %%rax\n" "andq %0, %%rax\n" "movq %%rax, %%cr0" :: "i"(0xFFFEFFFF) : "%rax");
     efi_status_t status;
     efi_memory_descriptor_t *memory_map = NULL, *mement = NULL;
     uintn_t memory_map_size = 0, map_key = 0, desc_size = 0;

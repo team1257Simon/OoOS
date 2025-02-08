@@ -6,6 +6,7 @@
 #include "fs/ramfs.hpp"
 #include "elf64_exec.hpp"
 #include "arch/com_amd64.h"
+#include "isr_table.hpp"
 static inline vaddr_t get_applicable_cr3(vaddr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
 void task_ctx::init_task_state()
 {
@@ -88,7 +89,9 @@ void task_ctx::start_task(vaddr_t exit_fn)
     heap_allocator::get().enter_frame(task_struct.frame_ptr);
     heap_allocator::get().identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
     for(const char* str : env_vec) { if(str) heap_allocator::get().identity_map_to_user(str, std::strlen(str), true, false); }
+    heap_allocator::get().exit_frame();
     this->exit_target = exit_fn;
+    interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
     scheduler::get().register_task(this->task_struct.self);
     this->current_state = execution_state::RUNNING;
 }

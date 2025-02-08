@@ -80,8 +80,6 @@ user_entry:
     cli
     wrgsbase    %rdi
     fxrstor     %gs:0x0D0
-    pushfq
-    popq        %r11
     movq        %gs:0x018,      %rbx
     movq        %gs:0x090,      %rcx    # instruction pointer goes in the C register for a sysret
     movq        %gs:0x028,      %rdx
@@ -90,6 +88,7 @@ user_entry:
     movq        %gs:0x040,      %r8
     movq        %gs:0x048,      %r9
     movq        %gs:0x050,      %r10
+    movq        %gs:0x098,      %r11
     movq        %gs:0x060,      %r12
     movq        %gs:0x068,      %r13
     movq        %gs:0x080,      %rbp
