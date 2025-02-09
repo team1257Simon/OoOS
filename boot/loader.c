@@ -11,7 +11,17 @@
 #define ENOELF 4
 #define ENOGFX 6
 #define ESETGFX 7
-#define K_ADDR 0x2000000
+#define ELFMAG      "\177ELF"
+#define SELFMAG     4
+#define EI_CLASS    4       /* File class byte index */
+#define EI_DATA     5       /* Data encoding byte index */
+#define ELFCLASS64  2       /* 64-bit objects */
+#define ELFDATA2LSB 1       /* 2's complement, little endian */
+#define ET_NONE     0
+#define ET_REL      1
+#define ET_EXEC     2       /* Executable file */
+#define PT_LOAD     1       /* Loadable program segment */
+#define EM_MACH     62      /* AMD x86-64 architecture */
 const char *types[] = 
 {
     "EfiReservedMemoryType",        // 0
@@ -41,7 +51,7 @@ sysinfo_t* sysinfo = NULL;
 paging_table* pg_addrs;
 inline static bool validate_elf(elf64_ehdr * elf)
 {
-    return (memcmp(elf->e_ident, ELFMAG, SELFMAG) == 0  /* magic match? */
+    return (memcmp(elf->e_ident, "\177ELF",  SELFMAG) == 0  /* magic match? */
         && elf->e_ident[EI_CLASS] == ELFCLASS64         /* 64 bit? */
         && elf->e_ident[EI_DATA] == ELFDATA2LSB         /* LSB? */
         && elf->e_type == ET_EXEC                       /* executable object? */

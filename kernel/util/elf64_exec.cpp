@@ -1,15 +1,15 @@
 #include "elf64_exec.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"
-constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_memcmp(elf.e_ident, ELFMAG, SELFMAG) && elf.e_ident[EI_CLASS] == ELFCLASS64 && elf.e_ident[EI_DATA] == ELFDATA2LSB && elf.e_type == ET_EXEC && elf.e_machine == EM_MACH && elf.e_phnum > 0; }
-constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & 0x02; }
-constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & 0x04; }
-constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
+constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_memcmp(elf.e_ident, elf_magic, sizeof(elf_magic)) && elf.e_ident[elf_ident_class_idx] == EC_64 && elf.e_ident[elf_ident_encoding_idx] == ED_LSB && elf.e_type == ET_EXEC && elf.e_machine == EM_AMD64 && elf.e_phnum > 0; }
+constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
+constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
+constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == 1; }
 elf64_executable::elf64_executable(vaddr_t image, size_t sz, size_t stack_sz, size_t tls_sz) noexcept : __image_start{ image }, __image_total_size{ sz }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
 bool elf64_executable::validate() noexcept
 {
     if(this->__validated) return true;
-    if(!validate_elf(this->__get_ehdr())) { direct_writeln("invalid header"); return false; }
+    if(!validate_elf(this->__get_ehdr())) { direct_writeln("header validation failed"); return false; }
     this->__process_entry_ptr = vaddr_t(this->__get_ehdr().e_entry);
     elf64_phdr* h = this->__image_start + ptrdiff_t(this->__get_ehdr().e_phoff);
     for(size_t n = 0; n < this->__get_ehdr().e_phnum; n++, h = (vaddr_t{ h } + ptrdiff_t(this->__get_ehdr().e_phentsize)))
