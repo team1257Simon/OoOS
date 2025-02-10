@@ -16,7 +16,6 @@
 #include "bits/stl_queue.hpp"
 #include "algorithm"
 extern psf2_t* __startup_font;
-static std::atomic<uint64_t> t_ticks;
 static direct_text_render startup_tty;
 static serial_driver_amd64* com;
 static sysinfo_t* sysinfo;
@@ -105,14 +104,6 @@ void map_tests()
         startup_tty.print_text("; ");
     }
 }
-void serial_tests()
-{
-    if(com)
-    {
-        com->sputn("Hello Serial!\n", 14);
-        com->pubsync();
-    }
-}
 void str_tests()
 {
     srand(syscall_time(nullptr));
@@ -123,13 +114,6 @@ void str_tests()
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
-}
-void ahci_tests()
-{
-    uint64_t tk = t_ticks;
-    while(tk < 10) { tk = t_ticks; BARRIER; }
-    startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
-    if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
 }
 void vfs_tests()
 {
@@ -315,7 +299,6 @@ void run_tests()
             startup_tty.print_line(")");
         }
     });
-    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks++; }); // There will be three callbacks on IRQ zero: the RTC, the scheduler, and this lil boi
     // Test generic, non-error interrupts
     asm volatile("int $0x40" ::: "memory");
     // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
@@ -325,9 +308,13 @@ void run_tests()
     map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
-    serial_tests();
-    startup_tty.print_line("disk test...");
-    ahci_tests();
+    if(com)
+    {
+        com->sputn("Hello Serial!\n", 14);
+        com->pubsync();
+    }
+    startup_tty.print_line("ahci test...");
+    if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();
@@ -402,6 +389,7 @@ extern "C"
         __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         scheduler::init_instance();
+        startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
         direct_print_enable = true;
         try
         {

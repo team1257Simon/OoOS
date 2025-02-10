@@ -47,7 +47,7 @@ extern "C"
             for(irq_callback const& h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }
-        else for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }
+        else { heap_allocator::suspend_user_frame(); for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }  heap_allocator::resume_user_frame(); }
         // Other stuff as needed
     }
     void idt_init()

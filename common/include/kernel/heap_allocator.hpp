@@ -195,6 +195,8 @@ public:
     static void init_instance(mmap_t* mmap);
     static heap_allocator& get();
     static size_t page_aligned_region_size(vaddr_t start, size_t requested);
+    static void suspend_user_frame();
+    static void resume_user_frame();
     inline bool avail() const { return !test_lock(&__heap_mutex); }
     constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
     heap_allocator(heap_allocator const&) = delete;

@@ -322,6 +322,8 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
         }
     }
 }
+void heap_allocator::suspend_user_frame() { __instance->__suspend_frame(); }
+void heap_allocator::resume_user_frame() { __instance->__resume_frame(); }
 size_t heap_allocator::page_aligned_region_size(vaddr_t start, size_t requested) { return size_t((start + ptrdiff_t(requested + PAGESIZE)).page_aligned() - start.page_aligned()); }
 vaddr_t heap_allocator::allocate_mmio_block(size_t sz)
 {
