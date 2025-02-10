@@ -217,18 +217,6 @@ void elf64_tests()
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
             filesystem* fs = task->get_vfs_ptr();
             dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
-            // heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
-            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(0x403b5bUL)));   // specific address to debug (messily)
-            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));           // or just use the entry point at _start
-            // overwrite the init_signal call with nops for now because it's being dumb
-            // tgt_bytes[14] = 0x90;     
-            // tgt_bytes[15] = 0x90;
-            // tgt_bytes[16] = 0x90;
-            // tgt_bytes[17] = 0x90;
-            // tgt_bytes[18] = 0x90;
-            // alternatively, insert a hang-loop (aka breakpoint at home, aka "feeb", and no I am not ashamed of this name) right at the target point if we just need to see the machine state at a given instruction
-            // tgt_bytes[0] = 0xEB;
-            // tgt_bytes[1] = 0xFE;
             task->start_task();
             user_entry(task->task_struct.self);
         }
@@ -253,23 +241,23 @@ static const char* codes[] =
     "#SS [Stack Segment Fault]",
     "#GP [General Protection Fault]",
     "#PF [Page Fault]",
-    "",
+    "[RESERVED INTERRUPT 0x0E]",
     "#MF [x87 Floating-Point Error]",
     "#AC [Alignment check]",
     "#MC [Machine Check Exception]",
     "#XM [SIMD Floating-Point Error]",
     "#VE [Virtualization Exception]",
     "#CP [Control Protection Exception]",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
+    "[RESERVED INTERRUPT 0x16]",
+    "[RESERVED INTERRUPT 0x17]",
+    "[RESERVED INTERRUPT 0x18]",
+    "[RESERVED INTERRUPT 0x19]",
+    "[RESERVED INTERRUPT 0x1A]",
+    "[RESERVED INTERRUPT 0x1B (ELEVENTEEN)]",
     "#HV [Hypervisor Injection Exception]",
     "#VC [VMM Communication Exception]",
     "#SX [Security Exception]",
-    ""
+    "[RESERVED INTERRUPT 0x1F]"
 };
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 void run_tests()
@@ -294,11 +282,12 @@ void run_tests()
         }
         else
         {
-            startup_tty.print_text("(Received interrupt ");
+            startup_tty.print_text("Received interrupt ");
             __dbg_num(idx, 2);
-            startup_tty.print_line(")");
+            startup_tty.print_line(" from software.");
         }
     });
+    startup_tty.print_line("interrupt test...");
     // Test generic, non-error interrupts
     asm volatile("int $0x40" ::: "memory");
     // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
