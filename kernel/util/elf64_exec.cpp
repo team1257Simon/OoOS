@@ -1,10 +1,10 @@
 #include "elf64_exec.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"
-constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_memcmp(elf.e_ident, elf_magic, sizeof(elf_magic)) && elf.e_ident[elf_ident_class_idx] == EC_64 && elf.e_ident[elf_ident_encoding_idx] == ED_LSB && elf.e_type == ET_EXEC && elf.e_machine == EM_AMD64 && elf.e_phnum > 0; }
+constexpr static bool validate_elf(elf64_ehdr const& elf) { return !__builtin_memcmp(elf.e_ident, "\177ELF", 4) && elf.e_ident[elf_ident_class_idx] == EC_64 && elf.e_ident[elf_ident_encoding_idx] == ED_LSB && elf.e_type == ET_EXEC && elf.e_machine == EM_AMD64 && elf.e_phnum > 0; }
 constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
 constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
-constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == 1; }
+constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
 elf64_executable::elf64_executable(vaddr_t image, size_t sz, size_t stack_sz, size_t tls_sz) noexcept : __image_start{ image }, __image_total_size{ sz }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
 bool elf64_executable::validate() noexcept
 {
