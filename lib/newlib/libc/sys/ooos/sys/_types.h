@@ -18,7 +18,9 @@ typedef _off_t __off_t;
 typedef _off64_t __loff_t;
 typedef long __key_t;
 typedef long _fpos_t;
+#ifndef __cplusplus
 typedef unsigned long __size_t;
+#endif
 typedef signed long _ssize_t;
 struct __lock;
 typedef struct __lock *_flock_t;
