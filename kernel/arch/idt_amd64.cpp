@@ -33,11 +33,11 @@ extern "C"
         new (std::addressof(idt_table[vector])) idt_entry_t
         {
             .isr_low        = static_cast<uint16_t>(isr.val() & 0xFFFF),
-            .kernel_cs      = 0x8U,
-            .ist            = (vector < 0x30) ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0),
-            .attributes     = 0xEEU,
+            .kernel_cs      = 0x8,
+            .ist            = static_cast<uint8_t>((vector < 0x30) ? 1 : 0),
+            .attributes     = 0xEE,
             .isr_mid        = static_cast<uint16_t>((isr.val() >> 16) & 0xFFFF),
-            .isr_high       = static_cast<uint32_t>(isr.val()  >> 32) & 0xFFFFFFFF
+            .isr_high       = static_cast<uint32_t>((isr.val()  >> 32) & 0xFFFFFFFF)
         };
     }
     [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
