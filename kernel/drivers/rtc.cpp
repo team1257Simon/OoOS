@@ -22,13 +22,13 @@ __isrcall void rtc_driver::rtc_time_update() volatile noexcept
     uint16_t century{ (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20ui8) };
     rtc_time nt
     {
-        read_rtc_register<0x00ui8>(),
-        read_rtc_register<0x02ui8>(),
-        read_rtc_register<0x04ui8>(),
-        0,
-        read_rtc_register<0x07ui8>(),
-        read_rtc_register<0x08ui8>(),
-        read_rtc_register<0x09ui8>()
+        .sec = read_rtc_register<0x00ui8>(),
+        .min = read_rtc_register<0x02ui8>(),
+        .hr = read_rtc_register<0x04ui8>(),
+        .wkday = 0U,
+        .day = read_rtc_register<0x07ui8>(),
+        .month = read_rtc_register<0x08ui8>(),
+        .year = read_rtc_register<0x09ui8>()
     };
     if(__is_12h)
     {

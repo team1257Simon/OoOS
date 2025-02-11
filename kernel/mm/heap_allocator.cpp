@@ -102,21 +102,21 @@ static paging_table __find_table(vaddr_t const& of_page) { return __find_table(o
 static vaddr_t __skip_mmio(vaddr_t start, size_t pages)
 {
     vaddr_t curr { start };
-    vaddr_t ed = start + ptrdiff_t(pages * PAGESIZE);
+    vaddr_t ed = start.plus(pages * PAGESIZE);
     for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
     {
         paging_table pt = __get_table(start, false);
         if(!pt) { return nullptr; }
         if (pt[curr.page_idx].present && (pt[curr.page_idx].write_thru || pt[curr.page_idx].cache_disable)) i = 0;
     }
-    vaddr_t c_ed = curr + ptrdiff_t(pages * PAGESIZE);
-    if(uintptr_t(c_ed) > uintptr_t(ed)) curr = curr + ptrdiff_t(uintptr_t(c_ed) - uintptr_t(ed));
+    vaddr_t c_ed = curr.plus(pages * PAGESIZE);
+    if(c_ed > ed) curr = curr.plus(c_ed - ed);
     return curr;
 }
 static void __set_kernel_page_settings(uintptr_t max)
 {
     paging_table pt = nullptr;
-    for(vaddr_t addr{ &__start }; uintptr_t(addr) < max; addr += PAGESIZE)
+    for(vaddr_t addr{ &__start }; addr < max; addr += PAGESIZE)
     {
         if(!pt || !addr.page_idx) pt = __find_table(addr);
         if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = true; pt[addr.page_idx].user_access = true; }
@@ -218,7 +218,7 @@ static void __unmap_pages(vaddr_t start, size_t pages, vaddr_t pml4 = get_cr3())
                 pt[curr.page_idx].user_access = false;
                 pt[curr.page_idx].execute_disable = false;
                 pt[curr.page_idx].physical_address = 0u;
-                asm volatile("invlpg (%0)" :: "r"(uintptr_t(curr)) : "memory");
+                asm volatile("invlpg (%0)" :: "r"(curr.val()) : "memory");
             }
         }
     }
@@ -345,16 +345,16 @@ vaddr_t heap_allocator::allocate_user_block(size_t sz, vaddr_t start, size_t ali
 }
 void heap_allocator::init_instance(mmap_t *mmap)
 {
-    gb_status* __the_status_bytes{ vaddr_t{ &__end } + ptrdiff_t(sizeof(kframe_tag)) };
+    gb_status* __the_status_bytes{ vaddr_t{ &__end }.plus(sizeof(kframe_tag)) };
     size_t num_status_bytes{ how_many_status_arrays(mmap->total_memory) };
-    uintptr_t heap{ vaddr_t{ &__end } + ptrdiff_t(sizeof(kframe_tag) + num_status_bytes * sizeof(gb_status)) };
+    uintptr_t heap{ vaddr_t{ &__end }.plus(sizeof(kframe_tag) + num_status_bytes * sizeof(gb_status)) };
     new (__the_status_bytes) gb_status[num_status_bytes];
     new (__kernel_frame_tag) kframe_tag{};
     new (heap_allocator::__instance) heap_allocator{ __the_status_bytes, num_status_bytes, heap, get_cr3() };
     heap_allocator::__instance->__mark_used(0, div_roundup(heap, REGION_SIZE));
     for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) __map_mmio_pages(vaddr_t{ mmap->entries[i].addr }, mmap->entries[i].len); } }
     __instance->__physical_open_watermark = heap;
-    __set_kernel_page_settings(vaddr_t{ &__end } + ptrdiff_t(sizeof(kframe_tag)));
+    __set_kernel_page_settings(vaddr_t{ &__end }.plus(sizeof(kframe_tag)));
 }
 paging_table heap_allocator::allocate_pt()
 {
@@ -506,7 +506,7 @@ vaddr_t kframe_tag::reallocate(vaddr_t ptr, size_t size, size_t align)
     if(!ptr) return allocate(size, align);
     if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     block_tag* tag{ ptr - bt_offset };
-    for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = ptr - ptrdiff_t(bt_offset + i);
+    for(size_t i = 0; tag->magic != BLOCK_MAGIC; i++) tag = ptr.minus(bt_offset + i);
     if(tag->magic == BLOCK_MAGIC && tag->allocated_size() >= size + add_align_size(tag, align))
     {
         tag->align_bytes = add_align_size(tag, align);
@@ -553,7 +553,7 @@ block_tag *kframe_tag::__melt_right(block_tag *tag) noexcept
 }
 block_tag *block_tag::split()
 {
-    block_tag* that{ this->actual_start() + ptrdiff_t(this->held_size) };
+    block_tag* that{ this->actual_start().plus(this->held_size) };
     new (that) block_tag{ available_size(), 0, -1, this, this->right_split };
     if(that->right_split) that->right_split->left_split = that;
     this->right_split = that;
@@ -576,8 +576,8 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
             while(i != usr_blocks.rbegin() && target < i->start) { heap_allocator::get().deallocate_block(i->start, i->size, true); i++; }
             bool nrem = (i != usr_blocks.rbegin());
             usr_blocks.erase(i.base(), usr_blocks.end());
-            if(!nrem) { size_t nsz = region_size_for(uint64_t(target)); extent = base + ptrdiff_t(nsz); vaddr_t allocated = heap_allocator::get().allocate_user_block(nsz, base); if(!allocated) { extent = nullptr; return false; } usr_blocks.emplace_back(allocated, nsz); return true; }
-            vaddr_t nst = usr_blocks.back().start + ptrdiff_t(usr_blocks.back().size);
+            if(!nrem) { size_t nsz = region_size_for(uint64_t(target)); extent = base.plus(nsz); vaddr_t allocated = heap_allocator::get().allocate_user_block(nsz, base); if(!allocated) { extent = nullptr; return false; } usr_blocks.emplace_back(allocated, nsz); return true; }
+            vaddr_t nst = usr_blocks.back().start.plus(usr_blocks.back().size);
             size_t nsz = region_size_for(target - nst);
             extent = nst;
             vaddr_t allocated = heap_allocator::get().allocate_user_block(nsz, nst);

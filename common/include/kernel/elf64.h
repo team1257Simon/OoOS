@@ -96,12 +96,8 @@ constexpr unsigned shdr_flag_execute = 0x4U;
 constexpr unsigned elf_ident_class_idx = 4U;
 constexpr unsigned elf_ident_encoding_idx = 5U;
 #else
-typedef unsigned short elf_machine_type;
-typedef unsigned short elf_object_type;
-typedef unsigned int elf_segment_type;
-typedef unsigned int elf_section_type;
-typedef unsigned char elf_sym_type;
 typedef unsigned char elf_sym_bind;
+typedef unsigned char elf_sym_type;
 #endif
 typedef struct __elf64_ehdr
 {
@@ -166,5 +162,5 @@ typedef struct __elf64_program_desc
     void* prg_tls;
     size_t tls_size;
     void* entry;
-} elf64_desc;
+} elf64_program_descriptor;
 #endif

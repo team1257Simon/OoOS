@@ -210,7 +210,7 @@ void elf64_tests()
         if(exec.load())
         {
             startup_tty.print_line("Validated.");
-            elf64_desc const* desc = &(exec.describe());
+            elf64_program_descriptor const* desc = &(exec.describe());
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));

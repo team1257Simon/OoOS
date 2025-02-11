@@ -28,15 +28,17 @@ extern "C"
         void* idt_ptr;
     } __pack idt_descriptor{};
     extern void idt_register();
-    static void idt_set_descriptor(uint8_t vector, void* isr)
+    constexpr static void idt_set_descriptor(uint8_t vector, vaddr_t isr)
     {
-        idt_table[vector].isr_low        = reinterpret_cast<uint64_t>(isr) & 0xFFFF;
-        idt_table[vector].kernel_cs      = 0x8;
-        idt_table[vector].ist            = (vector < 0x30) ? 1 : 0;
-        idt_table[vector].attributes     = 0xEE;
-        idt_table[vector].isr_mid        = (reinterpret_cast<uint64_t>(isr) >> 16) & 0xFFFF;
-        idt_table[vector].isr_high       = (reinterpret_cast<uint64_t>(isr) >> 32) & 0xFFFFFFFF;
-        idt_table[vector].reserved       = 0;
+        new (std::addressof(idt_table[vector])) idt_entry_t
+        {
+            .isr_low        = static_cast<uint16_t>(isr.val() & 0xFFFF),
+            .kernel_cs      = 0x8U,
+            .ist            = (vector < 0x30) ? static_cast<uint8_t>(1) : static_cast<uint8_t>(0),
+            .attributes     = 0xEEU,
+            .isr_mid        = static_cast<uint16_t>((isr.val() >> 16) & 0xFFFF),
+            .isr_high       = static_cast<uint32_t>(isr.val()  >> 32) & 0xFFFFFFFF
+        };
     }
     [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
     {
