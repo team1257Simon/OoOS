@@ -305,10 +305,10 @@ void run_tests()
     vfs_tests();
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
-    startup_tty.print_line("task tests...");
-    task_tests();
     startup_tty.print_line("userland tests...");
-    elf64_tests();    
+    elf64_tests();   
+    startup_tty.print_line("task tests...");
+    task_tests(); 
     startup_tty.print_line("complete");
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
