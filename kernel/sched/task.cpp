@@ -16,6 +16,12 @@ void sys_task_exit()
     asm volatile("movq %%gs:000, %0" : "=r" (ctx) :: "memory");
     ctx->set_exit(retv);
 }
+void task_ctx::set_stdio_ptrs(file_inode *stdin, file_inode *stdout, file_inode *stderr)
+{
+    stdio_ptrs[0] = stdin;
+    stdio_ptrs[1] = stdout;
+    stdio_ptrs[2] = stderr;
+}
 void task_ctx::init_task_state()
 {
     task_struct.saved_regs.rsi = std::bit_cast<register_t>(arg_vec.data());   
@@ -53,7 +59,7 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t s
         quantum, 
         0U, 
         tcb_t 
-        { 
+        {
             { 
                 false, 
                 false, 
@@ -144,7 +150,7 @@ extern "C"
 {
     clock_t syscall_times(tms *out) { out = translate_user_pointer(out); if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user() && out) { new (out) tms{ static_cast<task_ctx*>(current_active_task()->self)->get_times() }; return syscall_time(nullptr); } else return -EINVAL; }
     long syscall_getpid() { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
-    long syscall_fork() { try { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { result->ctx_filesystem.link_stdio(serial_driver_amd64::get_instance()); return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
+    long syscall_fork() { try { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
     void syscall_exit(int n) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self); task->is_user()) { task->set_exit(n); } }
     int syscall_kill(unsigned long pid, unsigned long sig) { if(task_ctx* task = static_cast<task_ctx*>(current_active_task()->self)) { if(task_list::iterator target = task_list::get().find(pid); !target->is_system()) { if(!check_kill(task, target)) return -EPERM; target->task_struct.task_ctl.sigkill = true; target->task_struct.task_ctl.signal_num = sig; target->set_exit(static_cast<int>(sig)); return 0; } } return -EINVAL; }
     pid_t syscall_wait(int *sc_out) { task_ctx* task = current_active_task()->self; sc_out = translate_user_pointer(sc_out); if(task->last_notified) { *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } else if(scheduler::get().set_wait_untimed(task->task_struct.self)) { task->notif_target = sc_out; task->task_struct.task_ctl.notify_cterm = true; while(task->task_struct.task_ctl.block) { PAUSE; } return task->last_notified ? task->last_notified->get_pid() : -EINTR; } return -EINVAL; }
@@ -173,7 +179,6 @@ extern "C"
             for(char** c = argv; *c; c++) i->arg_vec.push_back(*c);
             i->init_task_state();
             i->env_vec.push_back(nullptr);
-            i->ctx_filesystem.link_stdio(serial_driver_amd64::get_instance());
             i->start_task(task->exit_target);
             fballoc.deallocate(buf, n->size());
             fs_ptr->close_file(n);

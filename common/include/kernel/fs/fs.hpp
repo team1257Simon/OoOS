@@ -36,6 +36,7 @@ struct file_mode
     bool              : 1;
     bool reg          : 1;
     bool              : 3;
+    uint8_t           : 8;
     constexpr file_mode(uint32_t i) noexcept : 
         exec_others     { NZ(i & 0x000001) }, 
         write_others    { NZ(i & 0x000002) }, 
@@ -94,12 +95,12 @@ struct inode
     virtual bool fsync() = 0; // Sync to disc, if applicable
     virtual ~inode();
     int fd;
+    file_mode mode{ 0x0774U };   
     uint64_t real_id;
     uint64_t create_time;
     uint64_t modif_time;
     std::string concrete_name;
     std::set<tnode*> refs{};
-    file_mode mode{ 0x0774u };
     inode(std::string const& name, int vfd, uint64_t cid);
     // Move-assign and move-construct only; no copying allowed
     inode(inode const&) = delete;
@@ -218,12 +219,11 @@ public:
 typedef std::set<tnode> tnode_dir;
 class filesystem
 {
-    void __put_fd(file_inode* result);
 protected:
     typedef std::pair<folder_inode*, std::string> target_pair;
+    std::set<device_inode> device_nodes{};
+    std::vector<file_inode*> current_open_files{};
     int next_fd;
-    std::set<device_inode> device_nodes;
-    std::vector<file_inode*> current_open_files;    
     virtual folder_inode* get_root_directory() = 0;
     virtual void dlfilenode(file_inode*) = 0;
     virtual void dldirnode(folder_inode*) = 0;
@@ -233,10 +233,10 @@ protected:
     virtual dev_t xgdevid() const noexcept = 0;
     virtual const char* path_separator() const noexcept;
     virtual file_inode* open_fd(tnode*);
-    virtual target_pair get_parent(std::string const& path, bool create);
     virtual void close_fd(file_inode*);
     virtual bool xunlink(folder_inode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
+    virtual target_pair get_parent(std::string const& path, bool create);    
     void dldevnode(device_inode*);
     device_inode* mkdevnode(folder_inode*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
 public:
@@ -250,52 +250,9 @@ public:
     dev_t get_dev_id() const noexcept;
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
-    filesystem();    
-};
-template<typename T> concept fs_type = std::derived_from<T, filesystem>;
-template<fs_type FT> struct fs_container_alloc_helper
-{
-    typedef std::allocator<FT> allocator_type;
-    [[nodiscard]] static filesystem* allocate() { return allocator_type{}.allocate(1); }
-    static void deallocate(filesystem* ptr) noexcept { if(FT* ptr2 = dynamic_cast<FT*>(ptr)) allocator_type{}.deallocate(ptr2, 1); }
-};
-class fs_ptr
-{
-    typedef filesystem* (*fs_alloc_func)();
-    typedef void (*fs_dealloc_func)(filesystem*);
-    filesystem* __my_ptr{};
-    fs_alloc_func __alloc_fn{};
-    fs_dealloc_func __dealloc_fn{};
-public:
-    typedef filesystem* pointer;
-    typedef filesystem const* const_pointer;
-    typedef filesystem& reference;
-    typedef filesystem const& const_reference;
-    constexpr fs_ptr() noexcept = default;
-    constexpr fs_ptr(fs_ptr&&) = default;
-    constexpr fs_ptr& operator=(fs_ptr&&) = default;
-    ~fs_ptr() { if(this->__my_ptr && this->__dealloc_fn) this->__dealloc_fn(this->__my_ptr); }
-    template<fs_type FT> constexpr void create()
-    {
-        using helper = fs_container_alloc_helper<FT>;
-        if(this->__my_ptr && this->__dealloc_fn) this->__dealloc_fn(this->__my_ptr);
-        this->__alloc_fn = &helper::allocate;
-        this->__dealloc_fn = &helper::deallocate;
-        this->__my_ptr = this->__alloc_fn();
-        new (this->__my_ptr) FT();
-    }
-        template<fs_type FT, typename ... Args> requires std::constructible_from<FT, Args...> 
-    constexpr fs_ptr(std::allocator<FT> const& alloc, Args&& ... args) : 
-        __my_ptr{ std::construct_at(alloc.allocate(1), std::forward<Args>(args)...) }, 
-        __dealloc_fn{ &fs_container_alloc_helper<FT>::deallocate } 
-        {}
-    constexpr operator pointer() noexcept { return __my_ptr; }
-    constexpr operator const_pointer() const noexcept { return __my_ptr; }
-    constexpr reference operator*() noexcept { return *__my_ptr; }
-    constexpr const_reference operator*() const noexcept { return *__my_ptr; }
-    constexpr pointer operator->() noexcept { return __my_ptr; }
-    constexpr const_pointer operator->() const noexcept { return __my_ptr; }
-    constexpr operator bool() const noexcept { return bool(__my_ptr); }
+    filesystem();
+private:
+    void __put_fd(file_inode* result);
 };
 filesystem* get_fs_instance();
 extern "C"

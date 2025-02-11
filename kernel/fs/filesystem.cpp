@@ -1,9 +1,10 @@
 #include "fs/fs.hpp"
+#include "sched/task_ctx.hpp"
 #include "algorithm"
 #include "stdexcept"
 #include "errno.h"
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
-filesystem::filesystem() : next_fd{ 3 }, device_nodes{}, current_open_files{} {}
+filesystem::filesystem() : device_nodes{}, current_open_files{}, next_fd{ 3 } {}
 void filesystem::__put_fd(file_inode *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files.set_at(fd->vid(), fd); for(std::vector<file_inode*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
 const char *filesystem::path_separator() const noexcept { return "/"; }
 void filesystem::close_file(file_inode* fd) { this->close_fd(fd); fd->rel_lock(); this->syncdirs(); }
@@ -12,7 +13,7 @@ file_inode* filesystem::open_fd(tnode* node) { return node->as_file(); }
 void filesystem::dldevnode(device_inode* n) { n->prune_refs(); current_open_files[n->vid()] = nullptr; device_nodes.erase(*n); this->syncdirs(); }
 device_inode* filesystem::mkdevnode(folder_inode *parent, std::string const &name, vfs_filebuf_base<char> *dev, int fd_hint) 
 {
-    device_inode* result =device_nodes.emplace(name, fd_hint, dev).first.base();
+    device_inode* result = device_nodes.emplace(name, fd_hint, dev).first.base();
     parent->add(result);
     while(current_open_files.size() > static_cast<size_t>(fd_hint) && current_open_files[fd_hint]) fd_hint++;
     result->fd = fd_hint;
@@ -53,15 +54,15 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
 }
 file_inode* filesystem::open_file(std::string const& path, std::ios_base::openmode mode)
 {
-    target_pair parent{ this->get_parent(path, false) };
-    tnode* node{ parent.first->find(parent.second) };
+    target_pair parent = get_parent(path, false);
+    tnode* node = parent.first->find(parent.second);
     if(node && node->is_folder()) throw std::logic_error{ "path " + path + " exists and is a folder" };
     if(!node) 
     {
         if(!mode.out) throw std::runtime_error{ "file not found: " + path }; 
-        if(file_inode* created{ mkfilenode(parent.first, parent.second) }) 
+        if(file_inode* created = mkfilenode(parent.first, parent.second)) 
         {
-            created->mode.read_group = created->mode.read_owner= created->mode.read_others = mode.in;
+            created->mode.read_group = created->mode.read_owner = created->mode.read_others = mode.in;
             created->mode.write_group = created->mode.write_owner = created->mode.write_others = mode.out;
             node = parent.first->add(created);
         }
@@ -95,7 +96,7 @@ tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bo
 bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent{ this->get_parent(what, false) }; return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
 static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) 
-{ 
+{
     new (translate_user_pointer(st)) stat
     { 
         .st_dev = fsptr->get_dev_id(), 
@@ -113,6 +114,7 @@ static inline void __st_intl(inode* n, filesystem* fsptr, stat* st)
         .st_blocks = div_roundup(n->size(), 512) 
     };  
 }
+file_inode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_fd(fd); }
 extern "C"
 {
     int syscall_open(char *name, int flags, ...)
@@ -127,21 +129,21 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
         return EINVAL;
     }
     int syscall_write(int fd, char *ptr, int len)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->write(translate_user_pointer(ptr), len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { n->write(translate_user_pointer(ptr), len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_read(int fd, char *ptr, int len)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { n->read(translate_user_pointer(ptr), len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { n->read(translate_user_pointer(ptr), len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_link(char *old, char *__new)
@@ -155,7 +157,7 @@ extern "C"
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_unlink(char *name)
@@ -169,14 +171,14 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try { if(file_inode* n{ fsptr->get_fd(fd) }) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_fstat(int fd, stat *st)
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try{ if(file_inode* n{ fsptr->get_fd(fd) }) { __st_intl(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try{ if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { __st_intl(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_stat(const char *restrict name, stat *restrict st)
@@ -191,7 +193,7 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try{ if(file_inode* n{ fsptr->get_fd(fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try{ if(file_inode* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_chmod(const char *name, mode_t m)

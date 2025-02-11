@@ -24,7 +24,7 @@ struct block_tag
     uint64_t magic{ BLOCK_MAGIC };
     size_t block_size;
     size_t held_size;
-    int32_t index;
+    int64_t index;
     block_tag* left_split{ nullptr };
     block_tag* right_split{ nullptr };
     block_tag* previous{ nullptr };

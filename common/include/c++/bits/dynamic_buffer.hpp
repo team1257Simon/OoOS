@@ -99,8 +99,8 @@ namespace std::__impl
         constexpr __const_ptr __get_ptr(__size_type __i) const noexcept { return __beg() + __i; }
         constexpr __ref __get(__size_type __i) { return *__get_ptr(__i); }
         constexpr __const_ref __get(__size_type __i) const { return *__get_ptr(__i); }
-        constexpr __ref __get_last() noexcept { return *(__cur() - 1); }
-        constexpr __const_ref __get_last() const noexcept { return *(__cur() - 1); }
+        constexpr __ref __get_last() noexcept { return *__get_ptr(__size() - 1); }
+        constexpr __const_ref __get_last() const noexcept { return *__get_ptr(__size() - 1); }
         constexpr void __setp(__buf_ptrs<T> const& ptrs) noexcept { __my_data.__copy_ptrs(ptrs); }
         constexpr void __setp(__ptr beg, __ptr cur, __ptr end) noexcept { __my_data.__set_ptrs(beg, cur, end); }
         constexpr void __setp(__ptr beg, __ptr end) noexcept { __setp(beg, beg, end); }

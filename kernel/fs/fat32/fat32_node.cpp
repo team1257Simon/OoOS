@@ -1,7 +1,7 @@
 #include "fs/fat32.hpp"
 #include "fs/hda_ahci.hpp"
 #include "rtc.h"
-fat32_node::fat32_node(fat32_regular_entry *e) noexcept : disk_entry{ e } {}
+fat32_node::fat32_node(fat32_regular_entry *e, fat32* parent) noexcept : disk_entry{ e }, parent_fs{ parent } {}
 uint32_t fat32_node::start_cluster() const noexcept { return disk_entry ? uint32_t(start_of(*disk_entry)) : 0; }
 constexpr size_t dirent_size = sizeof(fat32_directory_entry);
 constexpr static char16_t get_longentry_char(std::string const& str, size_t i) { return i < str.size() ? str.at(i) : (i > str.size() ? 0xFFFF : 0); }
@@ -54,12 +54,11 @@ static std::vector<fat32_longname_entry> gen_longname_entries(std::string const&
     {
         if(j > name.end()) j = name.end();
         result.push_back(from_string(std::string(i, j, std::allocator<char>())));
-        result.back().ordinal = static_cast<uint8_t>(result.size());
+        uint8_t o = static_cast<uint8_t>(result.size());
+        if(j == name.end()) o |= 0x40;
+        result.back().ordinal = o;
     }
-    uint8_t o = result.back().ordinal;
-    o |= 0x40;
-    result.back().ordinal = o;
-    return result.reverse();
+    return std::vector<fat32_longname_entry>(result.rend(), result.rbegin());
 }
 static void parse_filename(fat32_regular_entry const& e, std::string& result) 
 { 
@@ -89,10 +88,12 @@ static void set_filename(fat32_regular_entry& e, std::string const& sname)
     for(size_t j = 0; j < 8; j++) { if(j < l) { e.filename[j] = *i; i++; } else { e.filename[j] = ' '; } }
     for(size_t j = 8; j < 11; j++, i++) { e.filename[j] = (i < clipped.end()) ? *i : ' '; }
 }
-void fat32_file_inode::check_sectors() { if(this->start_cluster() != this->__my_filebuf.__my_clusters.front()) { this->__my_filebuf.__my_clusters = get_clusters_from(__my_parent_fs->__the_table, start_cluster()); } }
+uint32_t fat32_file_inode::claim_next(uint32_t cl) { return claim_cluster(parent_fs->__the_table, cl); }
+uint64_t fat32_file_inode::cl_to_s(uint32_t cl) { return parent_fs->cluster_to_sector(cl); }
 void fat32_file_inode::on_open() { if(ahci_hda::is_initialized() && __on_disk_size) { __my_filebuf.__ddread(__on_disk_size); } if(!__on_disk_size) { __my_filebuf.__grow_buffer(physical_block_size); } }
-fat32_file_inode::fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e) : file_inode{ real_name, parent->get_next_fd()++, uint64_t(start_of(*e)) }, fat32_node{ e }, __my_parent_fs{ parent }, __my_filebuf{ std::move(get_clusters_from(parent->__the_table, start_of(*e))), parent->__cl_to_sect_fn, [&](uint32_t cl) -> uint32_t { return claim_cluster(parent->__the_table, cl); } }, __on_disk_size{ e->size_bytes } { create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; }
+fat32_file_inode::fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e) : file_inode{ real_name, 0, uint64_t(start_of(*e)) }, fat32_node{ e, parent }, __my_filebuf{ std::vector(get_clusters_from(parent->__the_table, start_of(*e))), this }, __on_disk_size{ e->size_bytes } { create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; }
 uint64_t fat32_file_inode::size() const noexcept { return __on_disk_size; }
+void fat32_file_inode::set_fd(int i) { this->fd = i; }
 bool fat32_file_inode::fsync() { update_times(*disk_entry); disk_entry->size_bytes = size(); return __my_filebuf.sync() == 0; }
 fat32_file_inode::pos_type fat32_file_inode::seek(pos_type pos) { return __my_filebuf.seekpos(pos); }
 fat32_file_inode::pos_type fat32_file_inode::seek(off_type off, std::ios_base::seekdir way) { return __my_filebuf.seekoff(off, way); }
@@ -102,11 +103,11 @@ fat32_regular_entry *fat32_folder_inode::find_dirent(std::string const& name) { 
 uint64_t fat32_folder_inode::num_files() const noexcept { return __n_files; }
 uint64_t fat32_folder_inode::num_folders() const noexcept { return __n_folders; }
 std::vector<std::string> fat32_folder_inode::lsdir() const { std::vector<std::string> result{ __my_names.size() }; for(std::map<std::string, fat32_regular_entry*>::const_iterator i = __my_names.begin(); i != __my_names.end(); i++) { result.push_back(i->first); } return result; }
-fat32_folder_inode::fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e) : folder_inode{ real_name, start_of(*e) }, fat32_node{ e }, __my_directory{}, __my_names{}, __my_parent_fs{ parent }, __my_dir_data{}, __my_covered_clusters{ std::move(get_clusters_from(parent->__the_table, start_of(*e))) }, __n_files{ 0UL }, __n_folders{ 0UL } { create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; }
-fat32_folder_inode::fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cl) : folder_inode{ real_name, root_cl }, fat32_node{ nullptr }, __my_directory{}, __my_names{}, __my_parent_fs{ parent }, __my_dir_data{}, __my_covered_clusters{ std::move(get_clusters_from(parent->__the_table, root_cl)) }, __n_files{ 0UL }, __n_folders{ 0UL } {}
+fat32_folder_inode::fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e) : folder_inode{ real_name, start_of(*e) }, fat32_node{ e, parent }, __my_directory{}, __my_names{}, __my_dir_data{}, __my_covered_clusters{ get_clusters_from(parent->__the_table, start_of(*e)) }, __n_files{ 0UL }, __n_folders{ 0UL } { create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; }
+fat32_folder_inode::fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cl) : folder_inode{ real_name, root_cl }, fat32_node{ nullptr, parent }, __my_directory{}, __my_names{}, __my_dir_data{}, __my_covered_clusters{ get_clusters_from(parent->__the_table, root_cl) }, __n_files{ 0UL }, __n_folders{ 0UL } {}
 std::vector<fat32_directory_entry>::iterator fat32_folder_inode::__reclaim_stray(fat32_regular_entry *e) { for(std::vector<fat32_directory_entry>::iterator i = this->__my_dir_data.begin(); i != this->__my_dir_data.end(); i++) { if(!is_longname(*i) && !std::memcmp(i->regular_entry.filename, e->filename, 11)) return i; } return this->__my_dir_data.end(); }
 std::vector<fat32_directory_entry>::iterator fat32_folder_inode::__whereis(fat32_regular_entry* e) { std::vector<fat32_directory_entry>::iterator i = this->__my_dir_data.begin() + (reinterpret_cast<fat32_directory_entry*>(e) - this->__my_dir_data.data()); if (i >= this->__my_dir_data.begin() && i < this->__my_dir_data.end()) { return i; } else return __reclaim_stray(e); }
-void fat32_folder_inode::__expand_dir() { size_t n =  __my_parent_fs->__sectors_per_cluster * (physical_block_size / dirent_size); if(uint32_t i = claim_cluster(__my_parent_fs->__the_table, __my_covered_clusters.back())) { __my_covered_clusters.push_back(i); __my_dir_data.reserve(__my_dir_data.size() + n); __update_name_ptrs(); } else throw std::runtime_error{ "out of space" }; }
+void fat32_folder_inode::__expand_dir() { size_t n =  parent_fs->__sectors_per_cluster * (physical_block_size / dirent_size); if(uint32_t i = claim_cluster(parent_fs->__the_table, __my_covered_clusters.back())) { __my_covered_clusters.push_back(i); __my_dir_data.reserve(__my_dir_data.size() + n); __update_name_ptrs(); } else throw std::runtime_error{ "out of space" }; }
 std::vector<fat32_directory_entry>::iterator fat32_folder_inode::first_unused_entry() { for(std::vector<fat32_directory_entry>::iterator i = __my_dir_data.begin(); i != __my_dir_data.end(); i++) { if(i->regular_entry.filename[0] == 0xE5 || i->regular_entry.filename[0] == 0) return i; } this->__expand_dir(); return first_unused_entry(); }
 std::vector<fat32_directory_entry>::iterator fat32_folder_inode::__get_longname_start(fat32_regular_entry* e) { std::vector<fat32_directory_entry>::iterator i = __whereis(e), j = i - 1; if(!is_longname(*j)) { return __my_dir_data.end(); } while(!is_last_longname(j->longname_entry) && j > this->__my_dir_data.begin()) { j--; } return is_longname(*j) && is_last_longname(j->longname_entry) ? j : __my_dir_data.end(); }
 void fat32_folder_inode::__update_name_ptrs() { for(std::map<std::string, fat32_regular_entry*>::iterator name_it = __my_names.begin(); name_it != __my_names.end(); name_it++) { std::vector<fat32_directory_entry>::iterator newpos = __reclaim_stray(name_it->second); if(newpos != __my_dir_data.end()) name_it->second = std::addressof(newpos->regular_entry); else name_it = __my_names.erase(name_it); } }
@@ -119,7 +120,7 @@ bool fat32_folder_inode::__dir_ent_erase(std::string const& what)
         __my_names.erase(what);
         try 
         { 
-            __my_parent_fs->rm_start_cluster_ref(start_of(*e));
+            parent_fs->rm_start_cluster_ref(start_of(*e));
             size_t sz = __my_dir_data.capacity();
             __my_dir_data.erase(j, i + 1); 
             __my_dir_data.reserve(sz);
@@ -135,9 +136,9 @@ bool fat32_folder_inode::parse_dir_data()
     if(__has_init) return true;
     try
     {
-        size_t n = __my_covered_clusters.size() * __my_parent_fs->__sectors_per_cluster * physical_block_size;
+        size_t n = __my_covered_clusters.size() * parent_fs->__sectors_per_cluster * physical_block_size;
         __my_dir_data.reserve(n / dirent_size);
-        if(ahci_hda::is_initialized() && ahci_hda::read(reinterpret_cast<char*>(__my_dir_data.data()), __my_parent_fs->cluster_to_sector(__my_covered_clusters.front()), n))
+        if(ahci_hda::is_initialized() && ahci_hda::read(reinterpret_cast<char*>(__my_dir_data.data()), parent_fs->cluster_to_sector(__my_covered_clusters.front()), n))
         {
             __my_dir_data.expand_to_size();
             std::set<fat32_longname_entry> name_entries{};
@@ -157,8 +158,8 @@ bool fat32_folder_inode::parse_dir_data()
                         name_entries.clear();
                     }
                     else { std::string sn(12, std::allocator<char>()); parse_filename(i->regular_entry, sn); name_iterator = __my_names.emplace(sn, std::addressof(i->regular_entry)).first; }
-                    if(i->regular_entry.attributes & 0x10) { fat32_folder_inode* n = __my_parent_fs->put_folder_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n || !n->parse_dir_data()) return false; __my_directory.emplace(n, n->name()); }
-                    else { fat32_file_inode* n = __my_parent_fs->put_file_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n) return false; __my_directory.emplace(n, n->name()); }
+                    if(i->regular_entry.attributes & 0x10) { fat32_folder_inode* n = parent_fs->put_folder_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n || !n->parse_dir_data()) return false; __my_directory.emplace(n, n->name()); }
+                    else { fat32_file_inode* n = parent_fs->put_file_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n) return false; __my_directory.emplace(n, n->name()); }
                 }
             }
             __has_init = true;
@@ -194,7 +195,7 @@ std::string fat32_folder_inode::get_short_name(std::string const &full)
 }
 tnode* fat32_folder_inode::add(inode* n)
 {
-    if(!n->is_device()) try // device nodes are always volatile and exist per-process
+    if(!n->is_device())
     {
         dword cluster = dynamic_cast<fat32_node&>(*n).start_cluster();
         if(!cluster) return nullptr;
@@ -220,7 +221,6 @@ tnode* fat32_folder_inode::add(inode* n)
         if(!this->fsync()) return nullptr;
         this->__my_names.insert_or_assign(n->name(), e);
     }
-    catch(...) { return nullptr; } // std::bad_cast if someone hands us an inode for the wrong fs
     return __my_directory.emplace(n, n->name()).first.base();
 }
 bool fat32_folder_inode::fsync()
@@ -230,14 +230,13 @@ bool fat32_folder_inode::fsync()
     try
     {
         std::vector<fat32_directory_entry>::iterator i = this->__my_dir_data.begin();
-        for(tnode_dir::iterator first = __my_directory.begin(), last = __my_directory.end(); first != last;) { if(!first->operator bool()) first = __my_directory.erase(first); else { dynamic_cast<fat32_node&>(first->ref()).check_sectors(); if(!first->ptr()->fsync()) return false; else ++first; } }    
-        for(std::vector<uint32_t>::iterator j = this->__my_covered_clusters.begin(); j != this->__my_covered_clusters.end() && i < this->__my_dir_data.end(); ++j, i += (physical_block_size / dirent_size)) { if(!ahci_hda::write(__my_parent_fs->cluster_to_sector(*j), reinterpret_cast<char*>(i.base()), 1)) return false; /* TODO better error handling */ }
+        for(tnode_dir::iterator t = __my_directory.begin(); t != __my_directory.end(); t++) { if(!t->ptr()->fsync()) return false; }    
+        for(std::vector<uint32_t>::iterator j = this->__my_covered_clusters.begin(); j != this->__my_covered_clusters.end() && i < this->__my_dir_data.end(); ++j, i += (physical_block_size / dirent_size)) { if(!ahci_hda::write(parent_fs->cluster_to_sector(*j), reinterpret_cast<char*>(i.base()), 1)) return false; /* TODO better error handling */ }
         return true;
     }
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
-void fat32_folder_inode::check_sectors() { if(this->start_cluster() != this->__my_covered_clusters.front()) this->__my_covered_clusters = get_clusters_from(__my_parent_fs->__the_table, start_cluster()); }
 bool fat32_folder_inode::unlink(std::string const& name)
 {
     if(fat32_regular_entry* e = find_dirent(name))
@@ -275,7 +274,7 @@ bool fat32_folder_inode::link(tnode* original, std::string const& target)
             __my_dir_data.insert(first_unused_entry(), clone);
             if(!this->fsync()) return false;
             __my_directory.emplace(original->ptr(), target);
-            __my_parent_fs->add_start_cluster_ref(start_of(clone.regular_entry));
+            parent_fs->add_start_cluster_ref(start_of(clone.regular_entry));
             return true;
         } 
         catch(std::exception& ex) { panic(ex.what()); }

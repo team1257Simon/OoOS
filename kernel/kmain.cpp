@@ -20,8 +20,7 @@ static direct_text_render startup_tty;
 static serial_driver_amd64* com;
 static sysinfo_t* sysinfo;
 static ramfs testramfs;
-static uint8_t fatfs_loc[sizeof(fat32)];
-static fat32* fat32_testfs = reinterpret_cast<fat32*>(fatfs_loc);
+static fat32* fat32_testfs;
 static bool direct_print_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
@@ -185,23 +184,20 @@ void task_tests()
 }
 void fat32_tests()
 {
-    new (fat32_testfs) fat32();
-    fat32_testfs->init();
-    startup_tty.print_line("initialized...");
-    try
+    if(fat32::init_instance())
     {
+        fat32_testfs = fat32::get_instance();
+        startup_tty.print_line("initialized...");
         file_inode* f = fat32_testfs->open_file("FILES/A.TXT");
         f->write("eleventeenology!", 16);
-        f->fsync();
         fat32_testfs->close_file(f);
-        fat32_testfs->syncdirs();
     }
-    catch(std::exception& e) { panic(e.what()); }
 }
 void elf64_tests()
 {
-    try
+    if(fat32::init_instance()) try
     {
+        fat32_testfs = fat32::get_instance();
         file_inode* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
         std::aligned_allocator<char, elf64_ehdr> dalloc{};
         char* exec_buf = dalloc.allocate(f->size());
@@ -215,8 +211,8 @@ void elf64_tests()
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
-            filesystem* fs = task->get_vfs_ptr();
-            dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
+            file_inode* c = task->ctx_filesystem.lndev("com", com, 0);
+            task->set_stdio_ptrs(c, c, c);
             task->start_task();
             user_entry(task->task_struct.self);
         }
@@ -287,9 +283,6 @@ void run_tests()
             startup_tty.print_line(" from software.");
         }
     });
-    startup_tty.print_line("interrupt test...");
-    // Test generic, non-error interrupts
-    asm volatile("int $0x40" ::: "memory");
     // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
     startup_tty.print_line("string test...");
     str_tests();

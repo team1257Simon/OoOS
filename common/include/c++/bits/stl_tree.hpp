@@ -296,7 +296,7 @@ namespace std
     constexpr typename __tree_base<T, CP, A>::__pos_pair __tree_base<T, CP, A>::__insert_unique_hint_pos(__const_link hint, U const& u) 
     {
         __link pos = const_cast<__link>(hint);
-        if(pos == __end()) { if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() }; else return __pos_for_unique(u); }
+        if(pos == __end() || !pos) { if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() }; else return __pos_for_unique(u); }
         else if(__compare_l(u, pos))
         {
             __link before =static_cast<__link>(__decrement_node(pos)); 
@@ -319,7 +319,7 @@ namespace std
     constexpr typename __tree_base<T, CP, A>::__res_pair __tree_base<T, CP, A>::__emplace_unique(Args &&...args)
     {
         __link l = __construct_node(forward<Args>(args)...);
-        __pos_pair r =  __insert_unique_hint_pos(this->__end(), l->__get_ref());
+        __pos_pair r = __insert_unique_hint_pos(this->__end(), l->__get_ref());
         if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
         __destroy_node(l);
         return __res_pair{ r.first, false};
