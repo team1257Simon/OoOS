@@ -36,7 +36,7 @@ EMULATE := qemu-system-$(ARCH)
 EMUFLAGS := -rtc base=localtime -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=$(OVMF)/OVMF_VARS.fd,readonly=on\
 	-cpu max -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -device intel-iommu,intremap=on -net none -monitor vc -smp cores=$(CORES) -serial stdio
 .PHONY: all $(SUBDIRS) asmtest
-all: $(LOG_DIR) $(OUT_IMG) $(BUILD_DIR)
+all: $(LOG_DIR) $(OUT_IMG) 
 run: $(LOG_DIR) $(OUT_IMG)
 	$(EMULATE) $(EMUFLAGS) -drive file=$(OUT_IMG),if=ide,format=raw
 $(BUILD_DIR): 
@@ -52,8 +52,8 @@ clean:
 		make clean ; \
 		cd .. ;\
 	done
-$(OUT_IMG): create_image.sh $(SUBDIRS)
-	sh $< $@ $(BUILD_DIR)
+$(OUT_IMG): $(BUILD_DIR) create_image.sh $(SUBDIRS)
+	sh create_image.sh $@ $(BUILD_DIR)
 asmtest: 
 	cd kernel && $(MAKE) asmtest
 	cd lib && $(MAKE) asmtest

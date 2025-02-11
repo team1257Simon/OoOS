@@ -4,7 +4,6 @@
 #include "kernel/libk_decls.h"
 #include "functional"
 #include "vector"
-
 #define LAMBDA_ISR(...) [&] __isrcall (__VA_ARGS__) -> void
 typedef std::function<void()> irq_callback;
 typedef std::function<void(byte, qword)> interrupt_callback;

@@ -59,16 +59,16 @@ enum ata_command : uint8_t
 	data_set_management_xl = 0x07,
 	request_sense_data_ext = 0x0B,
 	get_physical_status = 0x12,
-	read_sectors_pio = 0x20, // 8-bit
-	read_sectors_pio_ext = 0x24, // 16-bit
+	read_sectors_pio = 0x20, 		// 8-bit
+	read_sectors_pio_ext = 0x24, 	// 16-bit
 	read_dma_ext = 0x25,
 	read_atapi = 0xA8,
 	write_atapi = 0xAA,
 	read_stream_dma_ext = 0x2A,
 	read_stream_ext = 0x2B,
 	read_log_ext = 0x2F,
-	write_sectors_pio = 0x30, // 8-bit
-	write_sectors_pio_ext = 0x34, //16-bit 
+	write_sectors_pio = 0x30, 		// 8-bit
+	write_sectors_pio_ext = 0x34, 	// 16-bit 
 	write_dma_ext = 0x35,
 	cfa_write_headers_no_erase = 0x38,
 	write_stream_dma_ext = 0x3A,
@@ -106,8 +106,8 @@ enum ata_command : uint8_t
 	smart = 0xB0,
 	set_sector_config_ext = 0xB2,
 	samotoze = 0xB4,
-	read_dma = 0xC8, // 8-bit
-	write_dma = 0xCA, // 8-bit
+	read_dma = 0xC8, 			// 8-bit
+	write_dma = 0xCA, 			// 8-bit
 	cfa_write_multiple_no_erase = 0xCD,
 	standby_immediate = 0xE0,
 	idle_immediate = 0xE1,
@@ -156,25 +156,25 @@ struct fis_reg_h2d
     fis_type type;
     uint8_t pmport  : 4;
     uint8_t rsv0    : 3;
-    uint8_t ctype   : 1; // 1 = command, 0 = control
+    uint8_t ctype   : 1; 	// 1 = command, 0 = control
     uint8_t command;
     uint8_t feature_1o;
     // DWORD 1
-	uint8_t  lba0;		// LBA low register, 7:0
-	uint8_t  lba1;		// LBA mid register, 15:8
-	uint8_t  lba2;		// LBA high register, 23:16
-	uint8_t  device;	// Device register
+	uint8_t  lba0;			// LBA low register, 7:0
+	uint8_t  lba1;			// LBA mid register, 15:8
+	uint8_t  lba2;			// LBA high register, 23:16
+	uint8_t  device;		// Device register
 	// DWORD 2
-	uint8_t  lba3;		// LBA register, 31:24
-	uint8_t  lba4;		// LBA register, 39:32
-	uint8_t  lba5;		// LBA register, 47:40
+	uint8_t  lba3;			// LBA register, 31:24
+	uint8_t  lba4;			// LBA register, 39:32
+	uint8_t  lba5;			// LBA register, 47:40
 	uint8_t  feature_hi;	// Feature register, 15:8
 	// DWORD 3
 	uint16_t count;
 	uint8_t  icc;		    // Isochronous command completion
 	uint8_t  control;	    // Control register
 	// DWORD 4
-	uint8_t  rsv1[4];	// Reserved
+	uint8_t  rsv1[4];		// Reserved
 } __pack;
 struct fis_reg_d2h
 {
@@ -247,18 +247,18 @@ struct fis_dma_setup
 	uint8_t  direction      : 1;    // Data transfer direction, 1 - device to host
 	uint8_t  interrupt      : 1;    // Interrupt bit
 	uint8_t  auto_activate  : 1;    // Auto-activate. Specifies if DMA Activate FIS is needed
-    uint8_t  rsv1[2];   // Reserved
+    uint8_t  rsv1[2];   			// Reserved
 	//DWORD 1&2
-    uint64_t dma_buffer_id;   // DMA Buffer Identifier. Used to Identify DMA buffer in host memory.
+    uint64_t dma_buffer_id;   		// DMA Buffer Identifier. Used to Identify DMA buffer in host memory.
     // SATA Spec says host specific and not in Spec. Trying AHCI spec might work.
     //DWORD 3
-    uint32_t rsv2;          // More reserved
+    uint32_t rsv2;          		// More reserved
     //DWORD 4
-    uint32_t dma_buffer_offset;  // Byte offset into buffer. First 2 bits must be 0
+    uint32_t dma_buffer_offset;  	// Byte offset into buffer. First 2 bits must be 0
     //DWORD 5
-    uint32_t transfer_count; // Number of bytes to transfer. Bit 0 must be 0
+    uint32_t transfer_count; 		// Number of bytes to transfer. Bit 0 must be 0
     //DWORD 6
-    uint32_t rsv3;          // So many reserved bytes smh
+    uint32_t rsv3;          		// So many reserved bytes smh
 } __pack;
 struct fis_set_bits
 {
@@ -301,7 +301,7 @@ struct hba_cmd_table
 	// 0x40
 	uint8_t  atapi_cmd[16];	// ATAPI command, 12 or 16 bytes
 	// 0x50
-	uint8_t  rsv[48];	// Reserved
+	uint8_t  rsv[48];		// Reserved
     hba_prdt_entry prdt_entries[prdt_entries_count];
 } __pack;
 struct hba_cmd_header
@@ -322,7 +322,7 @@ struct hba_cmd_header
 	// DW2, 3
 	hba_cmd_table* command_table;	
 	// DW4 - 7
-	uint32_t rsv1[4];	// Reserved
+	uint32_t rsv1[4];					// Reserved
 } __pack;
 typedef volatile struct tport
 {
@@ -388,14 +388,15 @@ typedef volatile struct tmem
 		bool auto_part_slumber		: 1;
 		bool nvmhci_present			: 1;
 		bool bios_os_handoff_sup	: 1;
-	};  // 0x24, Host capabilities extended
+	};
+	// 0x24, Host capabilities extended
 	uint32_t bios_os_handoff;	// 0x28, BIOS/OS handoff control and status
 	// 0x2C - 0x9F, Reserved
 	uint8_t rsv[116];
 	// 0xA0 - 0xFF, Vendor specific registers
 	uint8_t vendor[96];
 	// 0x100 - 0x10FF, Port control registers
-	hba_port ports[32];	// 1 ~ 32
+	hba_port ports[32];			// 1 ~ 32
 } __pack hba_mem;
 class ahci_driver
 {

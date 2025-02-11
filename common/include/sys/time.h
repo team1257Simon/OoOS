@@ -1,16 +1,8 @@
 #ifndef __TIME
 #define __TIME
 #include "sys/types.h"
-struct timeval
-{
-    time_t      tv_sec;
-    suseconds_t tv_usec;
-};
-struct timespec
-{
-    time_t      tv_sec;
-    long        tv_nsec;
-};
+struct timeval { time_t tv_sec; suseconds_t tv_usec; };
+struct timespec { time_t tv_sec; long tv_nsec; };
 struct tm
 {
     int tm_sec;

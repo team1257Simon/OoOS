@@ -173,10 +173,10 @@ kernel_reentry:
     movq        %gs:0x010,      %rax
     sti
     ret
-    .size       kernel_reentry, .-kernel_reentry
+    .size       kernel_reentry,         .-kernel_reentry
 enable_fs_gs_insns:
     movq        %cr4,       %rax
     orl         $0x10000,   %eax
     movq        %rax,       %cr4
     ret
-    .size   enable_fs_gs_insns, .-enable_fs_gs_insns
+    .size       enable_fs_gs_insns,     .-enable_fs_gs_insns

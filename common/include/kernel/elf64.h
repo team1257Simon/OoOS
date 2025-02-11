@@ -95,20 +95,15 @@ constexpr unsigned shdr_flag_alloc = 0x2U;
 constexpr unsigned shdr_flag_execute = 0x4U;
 constexpr unsigned elf_ident_class_idx = 4U;
 constexpr unsigned elf_ident_encoding_idx = 5U;
-constexpr const char elf_magic[] = { '\177', 'E', 'L', 'F' };
 #else
-typedef unsigned short elf_machine_type;
-typedef unsigned short elf_object_type;
-typedef unsigned int elf_segment_type;
-typedef unsigned int elf_section_type;
-typedef unsigned char elf_sym_type;
 typedef unsigned char elf_sym_bind;
+typedef unsigned char elf_sym_type;
 #endif
 typedef struct __elf64_ehdr
 {
     uint8_t             e_ident[16];           /* Magic number and other info */
-    elf_object_type     e_type;                /* Object file type */
-    elf_machine_type    e_machine;             /* Architecture */
+    uint16_t            e_type;                /* Object file type */
+    uint16_t            e_machine;             /* Architecture */
     uint32_t            e_version;             /* Object file version */
     uint64_t            e_entry;               /* Entry point virtual address */
     uint64_t            e_phoff;               /* Program header table file offset */
@@ -123,7 +118,7 @@ typedef struct __elf64_ehdr
 } elf64_ehdr;
 typedef struct __elf64_phdr
 {
-    elf_segment_type    p_type;                /* Segment type */
+    uint32_t            p_type;                /* Segment type */
     uint32_t            p_flags;               /* Segment flags */
     uint64_t            p_offset;              /* Segment file offset */
     uint64_t            p_vaddr;               /* Segment virtual address */
@@ -167,5 +162,5 @@ typedef struct __elf64_program_desc
     void* prg_tls;
     size_t tls_size;
     void* entry;
-} elf64_desc;
+} elf64_program_descriptor;
 #endif

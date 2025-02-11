@@ -19,11 +19,11 @@ uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)
     for(std::vector<block_descr>::const_iterator i = t.usr_blocks.begin(); i != t.usr_blocks.end(); i++)
     {
         vaddr_t nblk = heap_allocator::get().duplicate_user_block(i->size, i->start, i->write, i->execute);
-        if(!nblk) throw std::runtime_error{ "out of memory" };
+        if(!nblk) throw std::runtime_error{ "failed to allocate new block" };
         result.usr_blocks.emplace_back(nblk, i->size, i->write, i->execute);
     }
     heap_allocator::get().exit_frame();
     return result;
 }
-void frame_manager::destroy_frame(uframe_tag &ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }
+void frame_manager::destroy_frame(uframe_tag& ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }
 frame_manager& frame_manager::get() { return __inst; }

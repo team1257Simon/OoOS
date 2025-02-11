@@ -16,11 +16,11 @@ class direct_text_render
 public:
     constexpr direct_text_render() noexcept = default;
     constexpr direct_text_render(sysinfo_t* fb_info, psf2_t* font_data, uint32_t fg_color, uint32_t bg_color) noexcept :
-        __fb_ptr{ fb_info->fb_ptr },
-        __render{ font_data, fb_info->fb_pitch, fg_color, bg_color },
-        __fb_wid{ fb_info->fb_width },
-        __fb_ht{ fb_info->fb_height }
-    {}
+        __fb_ptr    { fb_info->fb_ptr },
+        __render    { font_data, fb_info->fb_pitch, fg_color, bg_color },
+        __fb_wid    { fb_info->fb_width },
+        __fb_ht     { fb_info->fb_height }
+                    {}
     constexpr void set_fg_color(uint32_t color) noexcept { __render.set_fg_color(color); }
     constexpr uint32_t get_fg_color() const noexcept { return __render.fg_color(); }
     constexpr void set_bg_color(uint32_t color) noexcept { __render.set_bg_color(color); }

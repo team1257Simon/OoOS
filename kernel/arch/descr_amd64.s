@@ -7,8 +7,8 @@
 kernel_stack_base:
     .zero 65536
 kernel_stack_top:
-    .size   kernel_stack_base,   .-kernel_stack_base
-    .size   kernel_stack_top,    .-kernel_stack_top
+    .size   kernel_stack_base,      .-kernel_stack_base
+    .size   kernel_stack_top,       .-kernel_stack_top
     .global     gdt_table
     .global     gdt_descriptor
     .global     system_tss
@@ -31,18 +31,16 @@ kernel_stack_top:
 system_tss:
     .zero       102
     .word       104
-    # The actual GDT
-gdt_table:
-    .quad       0                     # Null Descriptor
-    .quad       0x00AF9A000000FFFF    # Code Segment for Ring 0; offset 0x8
-    .quad       0x00CF93000000FFFF    # Data Segment for Ring 0; offset 0x10
-    .quad       0x00CFF3000000FFFF    # Data Segment for Ring 3; offset 0x18
-    .quad       0x00AFFA000000FFFF    # Code Segment for Ring 3; offset 0x20
+gdt_table:                              # The actual GDT
+    .quad       0                       # Null Descriptor
+    .quad       0x00AF9A000000FFFF      # Code Segment for Ring 0; offset 0x8
+    .quad       0x00CF93000000FFFF      # Data Segment for Ring 0; offset 0x10
+    .quad       0x00CFF3000000FFFF      # Data Segment for Ring 3; offset 0x18
+    .quad       0x00AFFA000000FFFF      # Code Segment for Ring 3; offset 0x20
 local_tss_descr:
     .zero       16
     .zero       4040
-    # The GDT pointer struct
-gdt_descriptor:
+gdt_descriptor:                         # The GDT pointer struct
     .word       0x0FFF
     .quad       gdt_table
 idt_table:
@@ -74,7 +72,7 @@ fill_tss_descriptor:
 	shrq	$32,        %rdx
 	movq	%rdx,       8(%rdi)
 	ret
-    .size   fill_tss_descriptor,  .-fill_tss_descriptor
+    .size   fill_tss_descriptor,    .-fill_tss_descriptor
 gdt_setup:
     leaq    local_tss_descr,        %rdi
     leaq    system_tss,             %rsi
@@ -94,11 +92,11 @@ local_reload_segments:
     movw    $0x28,  %ax
     ltr     %ax
     ret
-    .size       gdt_setup,    .-gdt_setup
+    .size       gdt_setup,      .-gdt_setup
 idt_register:
     lidtq       idt_descriptor
-    movq        %cr4,       %rax
-    orq         $0x10000,   %rax
-    movq        %rax,       %cr4
+    movq        %cr4,           %rax
+    orq         $0x10000,       %rax
+    movq        %rax,           %cr4
     ret
     .size       idt_register,   .-idt_register

@@ -3,7 +3,6 @@ KERNEL_VMA = 2M;
 PHDRS
 {
      headers PT_PHDR PHDRS;
-     /* RX = 0x05 */
      text PT_LOAD FILEHDR PHDRS FLAGS(0x5);
      data PT_LOAD;
 }

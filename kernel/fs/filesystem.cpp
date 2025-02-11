@@ -22,18 +22,10 @@ bool filesystem::xunlink(folder_inode* parent, std::string const& what, bool ign
 {
     tnode* node{ parent->find(what) };
     if(!node) { if(!ignore_nonexistent) throw std::logic_error{ "cannot unlink " + what + " because it does not exist" }; else return false; }
-    if(node->is_folder() && (*node)->num_refs() <= 1) 
-    {
-        if(!node->as_folder()->is_empty() && !dir_recurse) throw std::logic_error{ "folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)" };
-        if(dir_recurse) for(std::string s : node->as_folder()->lsdir()) this->xunlink(node->as_folder(), s, true, true);
-    }
+    if(node->is_folder() && (*node)->num_refs() <= 1) { if(!node->as_folder()->is_empty() && !dir_recurse) throw std::logic_error{ "folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)" }; if(dir_recurse) for(std::string s : node->as_folder()->lsdir()) this->xunlink(node->as_folder(), s, true, true); }
     if(!parent->unlink(what)) return false;
     (*node)->unregister_reference(node);
-    if(!(*node)->has_refs())
-    {
-        if(node->is_file()){ if(node->as_file()->is_device()) { this->dldevnode(dynamic_cast<device_inode*>(node->as_file())); } else this->dlfilenode(node->as_file()); }
-        if(node->is_folder()) this->dldirnode(node->as_folder());
-    }
+    if(!(*node)->has_refs()) { if(node->is_file()){ if(node->as_file()->is_device()) { this->dldevnode(dynamic_cast<device_inode*>(node->as_file())); } else this->dlfilenode(node->as_file()); } if(node->is_folder()) this->dldirnode(node->as_folder()); }
     return true;
 }
 tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
@@ -53,11 +45,7 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
     {
         if(pathspec[i].empty()) continue;
         tnode* cur = node->find(pathspec[i]);
-        if(!cur)
-        {
-            if(create) { cur = node->add(this->mkdirnode(node, pathspec[i])); node = cur->as_folder(); }
-            else{ throw std::logic_error{ "folder " + pathspec[i] + " does not exist (use get_folder(\".../" + pathspec[i] + "\", true) to create it)" };}
-        }
+        if(!cur) { if(create) { cur = node->add(this->mkdirnode(node, pathspec[i])); node = cur->as_folder(); }  else{ throw std::logic_error{ "folder " + pathspec[i] + " does not exist (use get_folder(\".../" + pathspec[i] + "\", true) to create it)" };} }
         else if(cur->is_folder()) node = cur->as_folder();
         else throw std::logic_error{ "path is invalid because entry " + pathspec[i] + " is a file" };
     }
@@ -96,11 +84,7 @@ folder_inode* filesystem::get_folder(std::string const& path, bool create)
     if(path.empty()) return this->get_root_directory(); // empty path or "/" refers to root directory
     target_pair parent{ this->get_parent(path, create) };
     tnode* node{ parent.first->find(parent.second) };
-    if(!node)
-    {
-        if(create) { node = parent.first->add(this->mkdirnode(parent.first, parent.second)); return node->as_folder(); }
-        else throw std::logic_error{ "path " + path + " does not exist (use get_folder(\"" + path + "\", true) to create it)" };
-    }
+    if(!node) { if(create) { node = parent.first->add(this->mkdirnode(parent.first, parent.second)); return node->as_folder(); } else throw std::logic_error{ "path " + path + " does not exist (use get_folder(\"" + path + "\", true) to create it)" }; }
     else if (node->is_file()) throw std::logic_error{ "path " + path + " exists and is a file" };
     else return node->as_folder();
 }
@@ -112,8 +96,7 @@ bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool d
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
 static inline void __st_intl(inode* n, filesystem* fsptr, stat* st) 
 { 
-    new (translate_user_pointer(st)) 
-    stat
+    new (translate_user_pointer(st)) stat
     { 
         .st_dev = fsptr->get_dev_id(), 
         .st_ino = n->cid(), 

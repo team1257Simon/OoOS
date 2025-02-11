@@ -5,12 +5,12 @@
 extern "C" 
 {
 #endif
-typedef struct 
+typedef struct __point
 {
 	uint32_t x;
 	uint32_t y;
 } point;
-typedef struct 
+typedef struct __psf2_t
 {
     uint32_t magic;
     uint32_t version;

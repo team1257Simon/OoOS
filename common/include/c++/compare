@@ -69,7 +69,7 @@ namespace std
     {
         __cmp_cat::type __my_value;
         constexpr explicit strong_ordering(__cmp_cat::__ord __v) noexcept : __my_value(__cmp_cat::type(__v)) {}
-        public:
+    public:
         static const strong_ordering less;
         static const strong_ordering equal;
         static const strong_ordering equivalent;
@@ -199,11 +199,7 @@ namespace std
         public:
             template<typename T, __decayed_same_as<T> U>
             requires __strongly_ordered<T, U>
-            constexpr strong_ordering operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>())
-            {
-                if constexpr (__adl_strong<T, U>) return strong_ordering(strong_order(static_cast<T&&>(__e), static_cast<U&&>(__f)));
-                else if constexpr (__cmp3way<strong_ordering, T, U>) return compare_three_way()(static_cast<T&&>(__e), static_cast<U&&>(__f));
-            }
+            constexpr strong_ordering operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>()) { if constexpr (__adl_strong<T, U>) return strong_ordering(strong_order(static_cast<T&&>(__e), static_cast<U&&>(__f))); else if constexpr (__cmp3way<strong_ordering, T, U>) return compare_three_way()(static_cast<T&&>(__e), static_cast<U&&>(__f)); }
         };
         template<typename T, typename U> concept __weakly_ordered = floating_point<remove_reference_t<T>> || __adl_weak<T, U> || __cmp3way<weak_ordering, T, U> || __strongly_ordered<T, U>;
         class __weak_order
@@ -265,9 +261,7 @@ namespace std
             template<typename T, __decayed_same_as<T> U>
             requires __strongly_ordered<T, U> || __op_eq_lt<T, U>
             constexpr strong_ordering operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>())
-            {
-                if constexpr (__strongly_ordered<T, U>) return __strong_order{}(static_cast<T&&>(__e), static_cast<U&&>(__f));
-                else return static_cast<T&&>(__e) == static_cast<U&&>(__f) ? strong_ordering::equal : static_cast<T&&>(__e) < static_cast<U&&>(__f) ? strong_ordering::less : strong_ordering::greater;
+            {      if constexpr (__strongly_ordered<T, U>) return __strong_order{}(static_cast<T&&>(__e), static_cast<U&&>(__f)); else return static_cast<T&&>(__e) == static_cast<U&&>(__f) ? strong_ordering::equal : static_cast<T&&>(__e) < static_cast<U&&>(__f) ? strong_ordering::less : strong_ordering::greater;
             }
         };
         class __weak_fallback
@@ -282,32 +276,15 @@ namespace std
         public:
             template<typename T, __decayed_same_as<T> U>
             requires __weakly_ordered<T, U> || __op_eq_lt<T, U>
-            constexpr weak_ordering operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>())
-            {
-                if constexpr (__weakly_ordered<T, U>) return __weak_order{}(static_cast<T&&>(__e), static_cast<U&&>(__f));
-                else return static_cast<T&&>(__e) == static_cast<U&&>(__f) ? weak_ordering::equivalent : static_cast<T&&>(__e) < static_cast<U&&>(__f) ? weak_ordering::less : weak_ordering::greater;
-            }
+            constexpr weak_ordering operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>()) { if constexpr (__weakly_ordered<T, U>) return __weak_order{}(static_cast<T&&>(__e), static_cast<U&&>(__f)); else return static_cast<T&&>(__e) == static_cast<U&&>(__f) ? weak_ordering::equivalent : static_cast<T&&>(__e) < static_cast<U&&>(__f) ? weak_ordering::less : weak_ordering::greater; }
         };
         template<typename T, typename U>
         concept __op_eq_lt_lt = __op_eq_lt<T, U> && requires(T&& __t, U&& __u) { { static_cast<U&&>(__u) < static_cast<T&&>(__t) } -> convertible_to<bool>; };
         class __partial_fallback
         {
-            template<typename T, typename U>
-            static constexpr bool
-            __is_noexcept()
-            {
-                if constexpr (__partially_ordered<T, U>) return __partial_order::__is_noexcept<T, U>();
-                else return noexcept(bool(std::declval<T>() == std::declval<U>())) && noexcept(bool(std::declval<T>() < std::declval<U>()));
-            }
+            template<typename T, typename U> static constexpr bool __is_noexcept() { if constexpr (__partially_ordered<T, U>) return __partial_order::__is_noexcept<T, U>(); else return noexcept(bool(std::declval<T>() == std::declval<U>())) && noexcept(bool(std::declval<T>() < std::declval<U>())); }
         public:
-            template<typename T, __decayed_same_as<T> U>
-            requires __partially_ordered<T, U> || __op_eq_lt_lt<T, U>
-            constexpr partial_ordering
-            operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>())
-            {
-                if constexpr (__partially_ordered<T, U>) return __partial_order{}(static_cast<T&&>(__e), static_cast<U&&>(__f));
-                else return static_cast<T&&>(__e) == static_cast<U&&>(__f) ? partial_ordering::equivalent : static_cast<T&&>(__e) < static_cast<U&&>(__f) ? partial_ordering::less : static_cast<U&&>(__f) < static_cast<T&&>(__e) ? partial_ordering::greater : partial_ordering::unordered;
-            }
+            template<typename T, __decayed_same_as<T> U> requires __partially_ordered<T, U> || __op_eq_lt_lt<T, U> constexpr partial_ordering operator()(T&& __e, U&& __f) const noexcept(__is_noexcept<T, U>()) { if constexpr (__partially_ordered<T, U>) return __partial_order{}(static_cast<T&&>(__e), static_cast<U&&>(__f)); else return static_cast<T&&>(__e) == static_cast<U&&>(__f) ? partial_ordering::equivalent : static_cast<T&&>(__e) < static_cast<U&&>(__f) ? partial_ordering::less : static_cast<U&&>(__f) < static_cast<T&&>(__e) ? partial_ordering::greater : partial_ordering::unordered; }
         };
     }
     inline namespace __cmp_alg
@@ -323,14 +300,8 @@ namespace std
     {
         inline constexpr struct __synth3way
         {
-            template<typename T, typename U>
-            static constexpr bool __is_noexcept(const T* __t = nullptr, const U* __u = nullptr)
-            {
-                if constexpr (three_way_comparable_with<T, U>) return noexcept(*__t <=> *__u);
-                else return noexcept(*__t < *__u) && noexcept(*__u < *__t);
-            }
-            template<typename T, typename U>
-            constexpr auto operator()(const T& __t, const U& __u) const noexcept(__is_noexcept<T, U>())
+            template<typename T, typename U> static constexpr bool __is_noexcept(const T* __t = nullptr, const U* __u = nullptr) { if constexpr (three_way_comparable_with<T, U>) return noexcept(*__t <=> *__u); else return noexcept(*__t < *__u) && noexcept(*__u < *__t); }
+            template<typename T, typename U> constexpr auto operator()(const T& __t, const U& __u) const noexcept(__is_noexcept<T, U>())
             requires requires { { __t < __u } -> __boolean_testable; { __u < __t } -> __boolean_testable; }
             {
                 if constexpr (three_way_comparable_with<T, U>)

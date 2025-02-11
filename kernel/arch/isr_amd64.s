@@ -93,10 +93,10 @@ task_change_flag:
             addq    $8,         %rsp
             .endif
             cmpb    $0,         task_change_flag
-            jz      2f
+            jz      1f
             movb    $0,         task_change_flag
             jmp     task_change
-        2:
+        1:
             sti
             iretq
         .size       isr_\i,     .-isr_\i

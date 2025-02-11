@@ -11,24 +11,20 @@ rtc_driver volatile &rtc_driver::get_instance() noexcept { return __instance; }
 rtc_time rtc_driver::get_time() volatile { return __my_time; }
 uint64_t rtc_driver::get_timestamp() volatile { return to_unix_timestamp(get_time()); }
 fadt_t *find_fadt(xsdt_t *xsdt) { return vaddr_t{ find_system_table(xsdt, "FACP") }; }
-extern "C"
-{ 
-    uint64_t syscall_time(uint64_t* tm_target) { uint64_t t = rtc_driver::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; }
-    int syscall_gettimeofday(timeval *restrict tm, void *restrict tz) { dhang(); new (tm) timeval { timestamp_to_timeval(rtc_driver::get_instance().get_timestamp()) }; return 0; }
-}
+extern "C" { uint64_t syscall_time(uint64_t* tm_target) { uint64_t t = rtc_driver::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; } int syscall_gettimeofday(timeval *restrict tm, void *restrict tz) { dhang(); new (tm) timeval { timestamp_to_timeval(rtc_driver::get_instance().get_timestamp()) }; return 0; } }
 __isrcall void rtc_driver::rtc_time_update() volatile noexcept
 {
     while(is_cmos_update_in_progress());
     uint16_t century{ (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20ui8) };
     rtc_time nt
     {
-        read_rtc_register<0x00ui8>(),
-        read_rtc_register<0x02ui8>(),
-        read_rtc_register<0x04ui8>(),
-        0,
-        read_rtc_register<0x07ui8>(),
-        read_rtc_register<0x08ui8>(),
-        read_rtc_register<0x09ui8>()
+        .sec = read_rtc_register<0x00ui8>(),
+        .min = read_rtc_register<0x02ui8>(),
+        .hr = read_rtc_register<0x04ui8>(),
+        .wkday = 0U,
+        .day = read_rtc_register<0x07ui8>(),
+        .month = read_rtc_register<0x08ui8>(),
+        .year = read_rtc_register<0x09ui8>()
     };
     if(__is_12h)
     {

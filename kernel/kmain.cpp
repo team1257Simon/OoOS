@@ -16,7 +16,6 @@
 #include "bits/stl_queue.hpp"
 #include "algorithm"
 extern psf2_t* __startup_font;
-static std::atomic<uint64_t> t_ticks;
 static direct_text_render startup_tty;
 static serial_driver_amd64* com;
 static sysinfo_t* sysinfo;
@@ -105,14 +104,6 @@ void map_tests()
         startup_tty.print_text("; ");
     }
 }
-void serial_tests()
-{
-    if(com)
-    {
-        com->sputn("Hello Serial!\n", 14);
-        com->pubsync();
-    }
-}
 void str_tests()
 {
     srand(syscall_time(nullptr));
@@ -123,13 +114,6 @@ void str_tests()
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
-}
-void ahci_tests()
-{
-    uint64_t tk = t_ticks;
-    while(tk < 10) { tk = t_ticks; BARRIER; }
-    startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
-    if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
 }
 void vfs_tests()
 {
@@ -226,25 +210,13 @@ void elf64_tests()
         if(exec.load())
         {
             startup_tty.print_line("Validated.");
-            elf64_desc const* desc = &(exec.describe());
+            elf64_program_descriptor const* desc = &(exec.describe());
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
             filesystem* fs = task->get_vfs_ptr();
             dynamic_cast<ramfs&>(*fs).link_stdio(serial_driver_amd64::get_instance());
-            // heap_allocator::get().enter_frame(task->task_struct.frame_ptr);
-            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(0x403b5bUL)));   // specific address to debug (messily)
-            // uint8_t* tgt_bytes = vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(desc->entry));           // or just use the entry point at _start
-            // overwrite the init_signal call with nops for now because it's being dumb
-            // tgt_bytes[14] = 0x90;     
-            // tgt_bytes[15] = 0x90;
-            // tgt_bytes[16] = 0x90;
-            // tgt_bytes[17] = 0x90;
-            // tgt_bytes[18] = 0x90;
-            // alternatively, insert a hang-loop (aka breakpoint at home, aka "feeb", and no I am not ashamed of this name) right at the target point if we just need to see the machine state at a given instruction
-            // tgt_bytes[0] = 0xEB;
-            // tgt_bytes[1] = 0xFE;
             task->start_task();
             user_entry(task->task_struct.self);
         }
@@ -269,23 +241,23 @@ static const char* codes[] =
     "#SS [Stack Segment Fault]",
     "#GP [General Protection Fault]",
     "#PF [Page Fault]",
-    "",
+    "[RESERVED INTERRUPT 0x0E]",
     "#MF [x87 Floating-Point Error]",
     "#AC [Alignment check]",
     "#MC [Machine Check Exception]",
     "#XM [SIMD Floating-Point Error]",
     "#VE [Virtualization Exception]",
     "#CP [Control Protection Exception]",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
+    "[RESERVED INTERRUPT 0x16]",
+    "[RESERVED INTERRUPT 0x17]",
+    "[RESERVED INTERRUPT 0x18]",
+    "[RESERVED INTERRUPT 0x19]",
+    "[RESERVED INTERRUPT 0x1A]",
+    "[RESERVED INTERRUPT 0x1B (ELEVENTEEN)]",
     "#HV [Hypervisor Injection Exception]",
     "#VC [VMM Communication Exception]",
     "#SX [Security Exception]",
-    ""
+    "[RESERVED INTERRUPT 0x1F]"
 };
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 void run_tests()
@@ -310,12 +282,12 @@ void run_tests()
         }
         else
         {
-            startup_tty.print_text("(Received interrupt ");
+            startup_tty.print_text("Received interrupt ");
             __dbg_num(idx, 2);
-            startup_tty.print_line(")");
+            startup_tty.print_line(" from software.");
         }
     });
-    interrupt_table::add_irq_handler(0, LAMBDA_ISR() { t_ticks++; }); // There will be three callbacks on IRQ zero: the RTC, the scheduler, and this lil boi
+    startup_tty.print_line("interrupt test...");
     // Test generic, non-error interrupts
     asm volatile("int $0x40" ::: "memory");
     // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
@@ -325,9 +297,9 @@ void run_tests()
     map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
-    serial_tests();
-    startup_tty.print_line("disk test...");
-    ahci_tests();
+    if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
+    startup_tty.print_line("ahci test...");
+    if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();
@@ -402,6 +374,7 @@ extern "C"
         __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         scheduler::init_instance();
+        startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
         direct_print_enable = true;
         try
         {
