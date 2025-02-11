@@ -60,5 +60,5 @@ folder_inode* fat32::mkdirnode(folder_inode* parent, std::string const& name)
     return i.base();
 }
 bool fat32::init() { return __root_directory.parse_dir_data(); }
-fat32_file_inode *fat32::put_file_node(std::string const& name, fat32_regular_entry* e) { std::pair<std::set<fat32_file_inode>::iterator, bool> result = __file_nodes.emplace(this, name, e); if(!result.second) return nullptr; return result.first.base(); }
-fat32_folder_inode *fat32::put_folder_node(std::string const& name, fat32_regular_entry* e) { std::pair<std::set<fat32_folder_inode>::iterator, bool> result = this->__folder_nodes.emplace(this, name, e); if(!result.second) return nullptr; return result.first.base(); }
+fat32_file_inode *fat32::put_file_node(std::string const& name, fat32_regular_entry* e) { std::pair<std::set<fat32_file_inode>::iterator, bool> result = __file_nodes.emplace(this, name, e); if(!result.second) { return nullptr; } return result.first.base(); }
+fat32_folder_inode *fat32::put_folder_node(std::string const& name, fat32_regular_entry* e) { std::pair<std::set<fat32_folder_inode>::iterator, bool> result = this->__folder_nodes.emplace(this, name, e); if(!result.second) { return nullptr; } return result.first.base(); }

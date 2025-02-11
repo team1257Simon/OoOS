@@ -179,11 +179,11 @@ class heap_allocator
         __kernel_heap_begin         { kernel_heap_addr },
         __kernel_cr3                { kernel_cr3 }
                                     {}
-    constexpr status_byte* __get_sb(uintptr_t addr) { return &(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
+    constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
     void __mark_used(uintptr_t addr_start, size_t num_regions);
     uintptr_t __claim_region(uintptr_t addr, block_idx idx);
-    uintptr_t __find_claim_avail_region(size_t sz);
+    uintptr_t __find_and_claim_available_region(size_t sz);
     void __release_claimed_region(size_t sz, uintptr_t start);
     void __lock();
     void __unlock();
@@ -197,7 +197,6 @@ public:
     static size_t page_aligned_region_size(vaddr_t start, size_t requested);
     static void suspend_user_frame();
     static void resume_user_frame();
-    inline bool avail() const { return !test_lock(&__heap_mutex); }
     constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
     heap_allocator(heap_allocator const&) = delete;
     heap_allocator(heap_allocator&&) = delete;

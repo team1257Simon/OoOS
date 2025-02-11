@@ -23,11 +23,7 @@ void task_ctx::init_task_state()
     asm volatile("fxsave %0" : "=m"(task_struct.fxsv) :: "memory");
     __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
-    if(is_system())
-    {
-        task_struct.saved_regs.cs = 0x08;
-        task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x10;     
-    }
+    if(is_system()) { task_struct.saved_regs.cs = 0x08; task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x10; }
     else
     {
         task_struct.saved_regs.cs = 0x23;

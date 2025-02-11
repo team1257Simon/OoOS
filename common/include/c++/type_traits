@@ -5,10 +5,10 @@
 #define ARGSCHK static_assert((__is_complete_or_unbounded(__type_identity <Args> {}) && ...), "each argument type must be a complete class or an unbounded array")
 // Credit goes to the GNU project for these implementations
 // GCC / glibcxx is under the GPL
-    #ifndef _GCC_STDINT_H
-    #include "stdint.h"
-    #endif
-    #include "stddef.h"
+#ifndef _GCC_STDINT_H
+#include "stdint.h"
+#endif
+#include "stddef.h"
 namespace std
 {
 	template <typename T> class reference_wrapper;

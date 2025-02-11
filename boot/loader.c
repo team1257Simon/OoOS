@@ -52,11 +52,11 @@ paging_table* pg_addrs;
 inline static bool validate_elf(elf64_ehdr * elf)
 {
     return (memcmp(elf->e_ident, "\177ELF",  SELFMAG) == 0  /* magic match? */
-        && elf->e_ident[EI_CLASS] == ELFCLASS64         /* 64 bit? */
-        && elf->e_ident[EI_DATA] == ELFDATA2LSB         /* LSB? */
-        && elf->e_type == ET_EXEC                       /* executable object? */
-        && elf->e_machine == EM_MACH                    /* architecture match? */
-        && elf->e_phnum > 0)                            /* has program headers? */
+        && elf->e_ident[EI_CLASS] == ELFCLASS64             /* 64 bit? */
+        && elf->e_ident[EI_DATA] == ELFDATA2LSB             /* LSB? */
+        && elf->e_type == ET_EXEC                           /* executable object? */
+        && elf->e_machine == EM_MACH                        /* architecture match? */
+        && elf->e_phnum > 0)                                /* has program headers? */
         ? true : false;                            
 }
 inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
@@ -108,7 +108,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
     {
         if(pdpt == NULL || !__boot_pml4[current_idx.idx.pml4_idx].present) 
         {
-            pdpt = tables_start + current_table_num*512;
+            pdpt = tables_start + current_table_num * 512;
             __boot_pml4[current_idx.idx.pml4_idx].present = 1;
             __boot_pml4[current_idx.idx.pml4_idx].write = 1;
             __boot_pml4[current_idx.idx.pml4_idx].user_access = 1;
@@ -117,7 +117,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
         }
         if(pd == NULL || !pdpt[current_idx.idx.pdp_idx].present)
         {
-            pd = tables_start + current_table_num*512;
+            pd = tables_start + current_table_num * 512;
             pdpt[current_idx.idx.pdp_idx].present = 1;
             pdpt[current_idx.idx.pdp_idx].write = 1;
             pdpt[current_idx.idx.pdp_idx].user_access = 1;
@@ -126,7 +126,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
         }
         if(pt == NULL || !pd[current_idx.idx.pd_idx].present)
         {
-            pt = tables_start + current_table_num*512;
+            pt = tables_start + current_table_num * 512;
             pd[current_idx.idx.pd_idx].present = 1;
             pd[current_idx.idx.pd_idx].write = 1;
             pd[current_idx.idx.pd_idx].user_access = 1;

@@ -13,7 +13,7 @@ namespace interrupt_table
     void __lock() { lock (&__itable_mutex); }
     void __unlock() { release(&__itable_mutex); }
     bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(handler); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
-    void add_interrupt_callback(interrupt_callback &&cb) { __registered_callbacks.push_back(cb); }
+    void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(cb); }
     void map_interrupt_callbacks(vaddr_t frame) { heap_allocator::get().enter_frame(frame); heap_allocator::get().identity_map_to_user(__registered_callbacks.data(), __registered_callbacks.size() * 8, false, true); for(int i = 0; i < 16; i++) { heap_allocator::get().identity_map_to_user(__handler_tables[i].data(), __handler_tables[i].size() * 8, false, true); } heap_allocator::get().exit_frame(); }
 }
 inline void pic_eoi(byte irq) { if (irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
@@ -49,7 +49,7 @@ extern "C"
             for(irq_callback const& h : __handler_tables[irq]) h();
             pic_eoi(irq);
         }
-        else { heap_allocator::suspend_user_frame(); for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }  heap_allocator::resume_user_frame(); }
+        else { heap_allocator::suspend_user_frame(); for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); } heap_allocator::resume_user_frame(); }
         // Other stuff as needed
     }
     void idt_init()

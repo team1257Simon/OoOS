@@ -183,6 +183,10 @@ public:
     void rename(std::string const&);
     void rename(const char*);
     const char* name() const;
+    inode* ptr() noexcept;
+    inode const* ptr() const noexcept;
+    inode& ref() noexcept;
+    inode const& ref() const noexcept;
     inode& operator*() noexcept;
     inode const& operator*() const noexcept;
     inode* operator->() noexcept;

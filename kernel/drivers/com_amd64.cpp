@@ -56,11 +56,7 @@ std::streamsize serial_driver_amd64::__ddrem() { return this->__qrem(); }
 int serial_driver_amd64::__ddwrite()
 {
     char* ptr = this->__beg();
-    while(ptr != this->__cur()) 
-    {
-        for(size_t i = 0; i < 16 && ptr != this->__cur(); i++, ++ptr) outb(port_com1, byte(*ptr));
-        while(!serial_empty_transmit()) PAUSE;
-    }
+    while(ptr != this->__cur()) { for(size_t i = 0; i < 16 && ptr != this->__cur(); i++, ++ptr) outb(port_com1, byte(*ptr)); while(!serial_empty_transmit()) PAUSE; }
     this->__setc(this->__beg());
     return 0;
 }

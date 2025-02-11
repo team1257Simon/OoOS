@@ -4,7 +4,6 @@
 #include "kernel/heap_allocator.hpp"
 class elf64_executable : public elf64_object
 {
-
     size_t __image_total_size;
     size_t __tgt_stack_size;
     size_t __tgt_tls_size;

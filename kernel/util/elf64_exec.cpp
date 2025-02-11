@@ -19,11 +19,11 @@ bool elf64_executable::xload()
     for(size_t n = 0; n < this->ehdr().e_phnum; n++)
     {
         if(!is_load(phdr(n))) continue;
-        if(!this->__process_frame_base || this->__process_frame_base > phdr(n).p_vaddr) this->__process_frame_base = vaddr_t{ phdr(n).p_vaddr };
-        if(!this->__process_frame_extent || phdr(n).p_vaddr + phdr(n).p_memsz > this->__process_frame_extent) this->__process_frame_extent = vaddr_t{ phdr(n).p_vaddr + phdr(n).p_memsz };
+        if(!this->__process_frame_base || this->__process_frame_base > phdr(n).p_vaddr) this->__process_frame_base = vaddr_t(phdr(n).p_vaddr);
+        if(!this->__process_frame_extent || phdr(n).p_vaddr + phdr(n).p_memsz > this->__process_frame_extent) this->__process_frame_extent = vaddr_t(phdr(n).p_vaddr + phdr(n).p_memsz);
     }
     this->__process_frame_base = this->__process_frame_base.page_aligned();
-    this->__process_frame_extent = (this->__process_frame_extent + ptrdiff_t(PAGESIZE)).page_aligned();
+    this->__process_frame_extent = this->__process_frame_extent.plus(static_cast<ptrdiff_t>(PAGESIZE)).page_aligned();
     this->__process_stack_base = this->__process_frame_extent;
     this->__process_frame_extent += this->__tgt_stack_size;
     this->__process_tls_base = this->__process_frame_extent;
@@ -34,12 +34,12 @@ bool elf64_executable::xload()
         for(size_t n = 0; n < this->ehdr().e_phnum; n++)
         {
             if(!is_load(phdr(n)) || !phdr(n).p_memsz) continue;
-            vaddr_t blk = heap_allocator::get().allocate_user_block(phdr(n).p_memsz, vaddr_t{ phdr(n).p_vaddr }, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
-            if(!blk) { throw std::bad_alloc{}; }
-            this->__process_frame_tag->usr_blocks.emplace_back(blk, heap_allocator::page_aligned_region_size(vaddr_t{ phdr(n).p_vaddr }, phdr(n).p_memsz));
             vaddr_t addr{ phdr(n).p_vaddr };
+            vaddr_t blk = heap_allocator::get().allocate_user_block(phdr(n).p_memsz, addr, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
             vaddr_t idmap{ heap_allocator::get().translate_vaddr_in_current_frame(addr) };
-            vaddr_t img_dat = this->segment_ptr(n);
+            vaddr_t img_dat = this->segment_ptr(n);    
+            if(!blk) { throw std::bad_alloc{}; }
+            this->__process_frame_tag->usr_blocks.emplace_back(blk, heap_allocator::page_aligned_region_size(addr, phdr(n).p_memsz));
             arraycopy<uint8_t>(idmap, img_dat, phdr(n).p_filesz);
             if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(vaddr_t(heap_allocator::get().translate_vaddr_in_current_frame(vaddr_t(phdr(n).p_vaddr + phdr(n).p_filesz))), diff); }
         }
@@ -49,7 +49,15 @@ bool elf64_executable::xload()
         this->__process_frame_tag->usr_blocks.emplace_back(stkblk, this->__tgt_stack_size);
         this->__process_frame_tag->usr_blocks.emplace_back(tlsblk, this->__tgt_tls_size);
         heap_allocator::get().exit_frame();
-        __descr = { __process_frame_tag, __process_stack_base, __tgt_stack_size, __process_tls_base, __tgt_tls_size, __process_entry_ptr }; 
+        new(&__descr) elf64_program_descriptor 
+        { 
+            .frame_ptr = __process_frame_tag, 
+            .prg_stack = __process_stack_base, 
+            .stack_size = __tgt_stack_size, 
+            .prg_tls = __process_tls_base, 
+            .tls_size = __tgt_tls_size, 
+            .entry = __process_entry_ptr 
+        };
         return true;
     }
     catch (...) {  frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); panic("could not allocate blocks for executable"); }

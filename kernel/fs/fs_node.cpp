@@ -40,6 +40,10 @@ tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
 void tnode::rename(std::string const& n) { __my_name = n; }
 void tnode::rename(const char* n) { __my_name = n; }
 const char *tnode::name() const { return __my_name.c_str(); }
+inode* tnode::ptr() noexcept { return __my_node; }
+inode const* tnode::ptr() const noexcept { return __my_node; }
+inode& tnode::ref() noexcept { return *__my_node; }
+inode const& tnode::ref() const noexcept { return *__my_node; }
 inode &tnode::operator*() noexcept { return *__my_node; }
 inode const &tnode::operator*() const noexcept { return *__my_node; }
 inode *tnode::operator->() noexcept { return __my_node; }

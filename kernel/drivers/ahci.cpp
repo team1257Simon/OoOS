@@ -219,14 +219,7 @@ void ahci_driver::port_soft_reset(uint8_t idx)
     BARRIER;
     uint32_t slots = __my_abar->ports[idx].s_active | __my_abar->ports[idx].cmd_issue;
     BARRIER;
-    for(int i = 0; i < 32 && s1 < 0 && s2 < 0; i++)
-    {
-        if(!(dword(slots)[i])) 
-        {
-            if(s1 < 0) s1 = i; 
-            else s2 = i; 
-        }
-    } 
+    for(int i = 0; i < 32 && s1 < 0 && s2 < 0; i++) { if(!(dword(slots)[i])) { if(s1 < 0) s1 = i; else s2 = i; } } 
     if(s1 < 0 && s2 < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
     BARRIER;
     __my_abar->ports[idx].command_list[s1].cl_busy = true;

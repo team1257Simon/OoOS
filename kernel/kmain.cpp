@@ -297,11 +297,7 @@ void run_tests()
     map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
-    if(com)
-    {
-        com->sputn("Hello Serial!\n", 14);
-        com->pubsync();
-    }
+    if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
     startup_tty.print_line("ahci test...");
     if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
     // Test the complicated stuff

@@ -1,11 +1,7 @@
 #ifndef __KEYBD_DRIVER
 #define __KEYBD_DRIVER
 #include "kernel/isr_table.hpp"
-enum write_mode : bool
-{
-    INSERT = false,
-    OVERWRITE = true
-};
+enum write_mode : bool { INSERT = false, OVERWRITE = true };
 struct kb_state
 {
     bool shift      : 1 { false  };

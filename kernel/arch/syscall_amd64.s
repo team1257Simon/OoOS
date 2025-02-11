@@ -40,7 +40,7 @@ do_syscall:
     movq    %r13,                   %gs:0x068
     movq    %r14,                   %gs:0x070
     movq    %r15,                   %gs:0x078
-    incq    %gs:0x2F0     
+    incq    %gs:0x2F0               # subject to change, but for now just count all syscalls as 1
     movq    %gs:0x000,              %rcx
     fxsave  %gs:0x0D0    
     swapgs
@@ -57,7 +57,6 @@ do_syscall:
     fxrstor %gs:0x0D0
     pushq   %rbp
     movq    %rsp,                   %rbp   
-    # subject to change, but for now just count all syscalls as 1
     sti
     call    *%rax
     cli

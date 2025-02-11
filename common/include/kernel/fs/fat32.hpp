@@ -253,10 +253,8 @@ public:
     fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cluster);
     friend inline std::strong_ordering operator<=>(fat32_folder_inode const& __this, fat32_folder_inode const& __that) noexcept { return std::string(__this.name()) <=> __that.name(); }
 };
-class fat32 : public filesystem
+class fat32 final : public filesystem
 {
-    friend class fat32_folder_inode;
-    friend class fat32_file_inode;
     std::set<fat32_file_inode> __file_nodes;
     std::set<fat32_folder_inode> __folder_nodes;    
     std::map<uint64_t, size_t> __st_cluster_ref_counts;
@@ -268,6 +266,8 @@ class fat32 : public filesystem
     fat32_folder_inode __root_directory;
     void __release_clusters_from(uint32_t start);
     friend void fat32_tests();
+    friend class fat32_folder_inode;
+    friend class fat32_file_inode;
 protected:
     void add_start_cluster_ref(uint64_t cl);
     void rm_start_cluster_ref(uint64_t cl);

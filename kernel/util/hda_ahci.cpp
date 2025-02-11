@@ -53,7 +53,7 @@ std::streamsize ahci_hda::write(uint64_t start_sector, const char *in, uint32_t 
 {
     if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return 0; }
     __instance.__write_buffer.clear();
-    std::streamsize result = __instance.__write_buffer.sputn(vaddr_t{ in }, __count_to_wide_streamsize(count)) * 2;
+    std::streamsize result = __instance.__write_buffer.sputn(vaddr_t(in), __count_to_wide_streamsize(count)) * 2;
     if(!__instance.__write_ahci(start_sector, count, __instance.__write_buffer.beg())) { panic("bad write"); return 0; }
     return result;
 }

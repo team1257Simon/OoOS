@@ -23,7 +23,7 @@ unsigned long strtoul(const char* str, char** endptr, int base);
 unsigned long long strtoull(const char* str, char** endptr, int base);
 void srand(unsigned int);
 int rand();
-// More to come...
+// More as needed
 #ifdef __cplusplus
 }
 #endif

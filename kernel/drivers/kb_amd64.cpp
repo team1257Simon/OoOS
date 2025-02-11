@@ -15,7 +15,7 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
         result.k_char = '\0';
         if((scan & KEY_UP) != 0)
         { 
-            result.k_code = id & ~KEY_UP; 
+            result.k_code = id & ~KEY_UP;
             result.event_code = byte(KEYUP_SPECIAL); 
             if(id == K_LALT) { result.state.alt = false; return result; }
             else if(id == K_LCTRL) { result.state.ctrl = false; return result; }
@@ -34,20 +34,12 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
     if(id == K_LSHIFT || id == K_RSHIFT) result.state.shift = !is_up;
     else if(id == K_LALT) result.state.alt = !is_up;
     else if(id == K_LCTRL) result.state.ctrl = !is_up;
-    if(is_up)
-    {
-        result.event_code = byte(KEY_UP);
-        result.k_char = '\0';
-    }
+    if(is_up) { result.event_code = byte(KEY_UP); result.k_char = '\0'; }
     else
     {
         result.event_code = byte(KEY_DN);
         result.k_char = (current_state.shift ? sc_shift : sc_lower)[id];
-        if(current_state.capslk) 
-        {
-            if(result.k_char >= 'a' && result.k_char <= 'z') result.k_char -= case_diff;
-            else if(result.k_char >= 'A' && result.k_char <= 'Z') result.k_char += case_diff;
-        }
+        if(current_state.capslk) { if(result.k_char >= 'a' && result.k_char <= 'z') result.k_char -= case_diff; else if(result.k_char >= 'A' && result.k_char <= 'Z') result.k_char += case_diff; }
         if(id == K_NUMLK) result.state.numlk = !current_state.numlk;
         else if(id == K_CAPS) result.state.capslk = !current_state.capslk;
     }
