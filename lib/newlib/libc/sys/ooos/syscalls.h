@@ -25,6 +25,8 @@
 #define SYSCVEC_N_isatty         19
 #define SYSCVEC_N_execve         20
 #define SYSCVEC_N_kill           21
+#define SYSCVEC_N_mmap           22
+#define SYSCVEC_N_munmap         23
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict
@@ -56,6 +58,7 @@ int gettimeofday(struct timeval* restrict p, void* restrict z);
 #define XSYSCALL1(name, ret, arg0) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0) : "memory")
 #define XSYSCALL2(name, ret, arg0, arg1) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1) : "memory")
 #define XSYSCALL3(name, ret, arg0, arg1, arg2) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1), "d"(arg2) : "memory")
+#define XSYSCALL6(name, ret, arg0, arg1, arg2, arg3, arg4, arg5) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1), "d"(arg2), "r"(arg3), "r"(arg4), "r"(arg5) : "memory")
 #define SYSCALL_RETVAL(type, ret) do \
 { \
    if((signed long)(ret) < 0L) { errno = -(int)(ret); return (type)(-1); } \
@@ -83,6 +86,15 @@ int gettimeofday(struct timeval* restrict p, void* restrict z);
 { \
    rt ret; \
    XSYSCALL3(name, ret, n1, n2, n3); \
+   SYSCALL_RETVAL(rt, ret); \
+}
+#define DEF_SYSCALL6(rt, name, t1, n1, t2, n2, t3, n3, t4, n4, t5, n5, t6, n6) rt name(t1 n1, t2 n2, t3 n3, t4 n4, t5 n5, t6 n6) \
+{ \
+   rt ret; \
+   register t4 r8 asm("r8") = n4; \
+   register t5 r9 asm("r9") = n5; \
+   register t6 r10 asm("r10") = n6; \
+   XSYSCALL6(name, ret, n1, n2, n3, r8, r9, r10); \
    SYSCALL_RETVAL(rt, ret); \
 }
 #ifdef __cplusplus

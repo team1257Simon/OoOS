@@ -50,6 +50,7 @@ struct task_ctx
     task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places
     void init_task_state();
 } __align(16);
+file_inode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 extern "C"
 {
     clock_t syscall_times(struct tms* out);

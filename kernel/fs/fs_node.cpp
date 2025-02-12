@@ -29,6 +29,7 @@ device_inode::device_inode(std::string const &name, int fd, vfs_filebuf_base<cha
 bool device_inode::fsync() { return __my_device->pubsync() == 0; }
 bool device_inode::is_device() const noexcept { return true; }
 uint64_t device_inode::size() const noexcept { return __my_device->in_avail(); }
+device_inode::pos_type device_inode::tell() const { return __my_device->tell(); }
 device_inode::size_type device_inode::write(const_pointer src, size_type n) { size_type result{ __my_device->sputn(src, n) }; if(result) syscall_time(&this->modif_time); return result; }
 device_inode::size_type device_inode::read(pointer dest, size_type n) { return __my_device->sgetn(dest, n); }
 device_inode::pos_type device_inode::seek(off_type off, std::ios_base::seekdir way) { return __my_device->pubseekoff(off, way); }

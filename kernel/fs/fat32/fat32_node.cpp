@@ -95,6 +95,7 @@ fat32_file_inode::fat32_file_inode(fat32* parent, std::string const& real_name, 
 uint64_t fat32_file_inode::size() const noexcept { return __on_disk_size; }
 void fat32_file_inode::set_fd(int i) { this->fd = i; }
 bool fat32_file_inode::fsync() { update_times(*disk_entry); disk_entry->size_bytes = size(); return __my_filebuf.sync() == 0; }
+fat32_file_inode::pos_type fat32_file_inode::tell() const { return pos_type(__my_filebuf.tell()); }
 fat32_file_inode::pos_type fat32_file_inode::seek(pos_type pos) { return __my_filebuf.seekpos(pos); }
 fat32_file_inode::pos_type fat32_file_inode::seek(off_type off, std::ios_base::seekdir way) { return __my_filebuf.seekoff(off, way); }
 fat32_file_inode::size_type fat32_file_inode::read(pointer dest, size_type n) { return __my_filebuf.xsgetn(dest, n); }

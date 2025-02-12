@@ -35,6 +35,7 @@ public:
     data_buffer(data_buffer&& that) : __sb_type{}, __dynamic_base{ std::move(that) } { this->__on_modify(); }
     data_buffer& operator=(data_buffer const&) = delete;
     data_buffer& operator=(data_buffer&& that) { this->__realloc_move(std::move(that)); return *this; }
+    pos_type tell() const noexcept { return pos_type(this->__cur() - this->__beg()); }
 };
 template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
 typename data_buffer<CT, TT, AT>::pos_type data_buffer<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)

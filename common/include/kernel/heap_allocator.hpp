@@ -12,6 +12,17 @@
 #ifndef MAX_COMPLETE_PAGES
 #define MAX_COMPLETE_PAGES 5u
 #endif
+#define PROT_READ	0x1		/* Page can be read.  */
+#define PROT_WRITE	0x2		/* Page can be written.  */
+#define PROT_EXEC	0x4		/* Page can be executed.  */
+#define PROT_NONE	0x0		/* Page can not be accessed.  */
+/* Sharing types (must choose one and only one of these).  */
+#define MAP_SHARED	0x01		/* Share changes.  */
+#define MAP_PRIVATE	0x02		/* Changes are private.  */
+/* Other flags.  */
+#define MAP_FIXED	0x10
+#define MAP_FILE	0
+#define MAP_ANONYMOUS	0x20
 // 64 bits means new levels of l33tpuns! Now featuring Pokemon frustrations using literal suffixes.
 constexpr uint64_t BLOCK_MAGIC = 0xB1600FBA615FULL;
 // Of course, we wouldn't want to offend anyone, so... (the 7s are T's...don't judge me >.<)
@@ -19,6 +30,7 @@ constexpr uint64_t KFRAME_MAGIC = 0xD0BE7AC7FUL;
 // Oh yea we did...
 constexpr uint64_t UFRAME_MAGIC = 0xACED17C001B012;
 constexpr inline uint64_t REGION_SIZE = PAGESIZE * PT_LEN;
+constexpr uintptr_t mmap_min_addr = 0x500000;
 struct block_tag
 {
     uint64_t magic{ BLOCK_MAGIC };
@@ -82,6 +94,7 @@ struct uframe_tag
     paging_table pml4;
     vaddr_t base;
     vaddr_t extent;
+    vaddr_t mapped_max;
     std::vector<vaddr_t> pt_blocks{};
     std::vector<block_descr> usr_blocks{};
 private:
@@ -89,9 +102,10 @@ private:
     void __lock();
     void __unlock();
 public:
-    constexpr uframe_tag(paging_table cr3, vaddr_t st_base, vaddr_t st_extent) noexcept : pml4{ cr3 }, base{ st_base }, extent{ st_extent } {}
+    constexpr uframe_tag(paging_table cr3, vaddr_t st_base, vaddr_t st_extent) noexcept : pml4{ cr3 }, base{ st_base }, extent{ st_extent }, mapped_max{ st_extent } {}
     ~uframe_tag();
     bool shift_extent(ptrdiff_t amount);
+    vaddr_t mmap_add(vaddr_t addr, size_t len, bool write, bool exec);
 };
 enum block_idx : uint8_t
 {
@@ -216,4 +230,6 @@ public:
     vaddr_t copy_kernel_mappings(paging_table target);
 };
 extern "C" vaddr_t syscall_sbrk(ptrdiff_t incr);
+extern "C" vaddr_t syscall_mmap(vaddr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);
+extern "C" int syscall_munmap(vaddr_t addr, size_t len);
 #endif

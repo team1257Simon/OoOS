@@ -1,7 +1,7 @@
 #include "kernel/heap_allocator.hpp"
 #include "direct_text_render.hpp"
 #include "errno.h"
-#include "sched/task.h"
+#include "sched/task_ctx.hpp"
 extern "C"
 {
     extern unsigned char __start;
@@ -305,6 +305,7 @@ vaddr_t heap_allocator::allocate_user_block(size_t sz, vaddr_t start, size_t ali
     __userlock();
     size_t rsz = page_aligned_region_size(start, sz); // allocate to the end of page so the userspace doesn't see kernel data structures
     vaddr_t result = __kernel_frame_tag->allocate(rsz, align);
+    if(!start) start = result;
     if(result && !__map_user_pages(start.page_aligned(), result, div_roundup(rsz, PAGESIZE), pml4, write, execute)) { __kernel_frame_tag->deallocate(result, align); result = nullptr; }
     __userunlock();
     return result;
@@ -524,8 +525,20 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     }
     size_t added{ region_size_for(static_cast<size_t>(amount)) };
     vaddr_t allocated = heap_allocator::get().allocate_user_block(added, extent);
-    if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; return true; }
+    if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; if(mapped_max < extent) mapped_max = extent; return true; }
     return false;
+}
+vaddr_t uframe_tag::mmap_add(vaddr_t addr, size_t len, bool write, bool exec)
+{
+    if(vaddr_t result = heap_allocator::get().allocate_user_block(len, addr.page_aligned(), PAGESIZE, write, exec)) 
+    {
+        if(!addr) addr = result;
+        usr_blocks.emplace_back(result, heap_allocator::page_aligned_region_size(addr, len));
+        array_zero<uint8_t>(result, len);
+        if(result + len > mapped_max) mapped_max = result.plus(len).page_aligned().plus((result + len) % PAGESIZE ? PAGESIZE : 0L);
+        return result;
+    }
+    return vaddr_t{ uintptr_t(-ENOMEM) };
 }
 extern "C"
 { 
@@ -533,7 +546,6 @@ extern "C"
     vaddr_t translate_user_pointer(vaddr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != UFRAME_MAGIC) return nullptr; heap_allocator::get().enter_frame(ctask_frame); vaddr_t result{ heap_allocator::get().translate_vaddr_in_current_frame(ptr) }; heap_allocator::get().exit_frame(); return result; }
     vaddr_t syscall_sbrk(ptrdiff_t incr)
     {
-        
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != UFRAME_MAGIC) return vaddr_t{ uintptr_t(-EINVAL) };
         heap_allocator::get().enter_frame(ctask_frame);
@@ -542,5 +554,48 @@ extern "C"
         heap_allocator::get().exit_frame();
         if(success) { return result; }
         else return vaddr_t{ uintptr_t(-ENOMEM) };
+    }
+    vaddr_t syscall_mmap(vaddr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset)
+    {
+        uframe_tag* ctask_frame = current_active_task()->frame_ptr;
+        if(ctask_frame->magic != UFRAME_MAGIC || !len || size_t(offset) > len || offset % PAGESIZE) return vaddr_t{ uintptr_t(-EINVAL) };
+        if(!prot) return nullptr;
+        vaddr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.val()));
+        if(min != min.page_aligned()) min = min.plus(PAGESIZE).page_aligned();
+        if(!flags & MAP_FIXED) addr = std::max(min, addr).page_aligned();
+        else if(addr && (addr < min || addr != addr.page_aligned())) return vaddr_t{ uintptr_t(-EINVAL) };
+        heap_allocator::get().enter_frame(ctask_frame);
+        vaddr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
+        heap_allocator::get().exit_frame();
+        if(!(flags & MAP_ANONYMOUS))
+        {
+            filesystem* fsptr = get_fs_instance();
+            if(!fsptr) return vaddr_t{ uintptr_t(-ENOSYS) };
+            else try 
+            { 
+                file_inode* n = get_by_fd(fsptr,current_active_task()->self, fd);
+                if(n)
+                {
+                    size_t data_len = std::min(size_t(len - offset), n->size());
+                    file_inode::pos_type pos = n->tell();
+                    n->seek(offset, std::ios_base::beg);
+                    n->read(result, data_len);
+                    n->seek(pos);
+                    return result;
+                }
+            } 
+            catch(std::exception& e) { panic(e.what()); }
+            return vaddr_t{ uintptr_t(-EBADF) };
+        }
+        return result;
+    }
+    int syscall_munmap(vaddr_t addr, size_t len)
+    {
+        uframe_tag* ctask_frame = current_active_task()->frame_ptr;
+        if(ctask_frame->magic != UFRAME_MAGIC) return vaddr_t{ uintptr_t(-EINVAL) };
+        if(addr > ctask_frame->mapped_max) return 0;
+        len = std::min(len, size_t(ctask_frame->mapped_max - addr));
+        __unmap_pages(addr, truncate(len, PAGESIZE), ctask_frame->pml4);
+        return 0;
     }
 }

@@ -214,6 +214,7 @@ public:
     virtual pos_type seek(pos_type pos) override;
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
+    virtual pos_type tell() const;
     void on_open();
     void set_fd(int i);
     fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);

@@ -131,6 +131,7 @@ public:
     virtual size_type read(pointer dest, size_type n) = 0;
     virtual pos_type seek(off_type, std::ios_base::seekdir) = 0;
     virtual pos_type seek(pos_type) = 0;
+    virtual pos_type tell() const = 0;
     file_inode(std::string const& name, int vfd, uint64_t cid);
     virtual bool is_file() const noexcept final override;
     virtual bool chk_lock() const noexcept;
@@ -167,6 +168,7 @@ public:
     virtual size_type read(pointer dest, size_type n) override;
     virtual pos_type seek(off_type, std::ios_base::seekdir) override;
     virtual pos_type seek(pos_type) override;
+    virtual pos_type tell() const override;
     device_inode(std::string const& name, int fd, vfs_filebuf_base<char>* dev_buffer);
     virtual bool fsync() override;
     virtual bool is_device() const noexcept final override;

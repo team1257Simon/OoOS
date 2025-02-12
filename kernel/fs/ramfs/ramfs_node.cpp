@@ -12,6 +12,7 @@ tnode *ramfs_folder_inode::find(std::string const& name) { tnode_dir::iterator i
 ramfs_file_inode::ramfs_file_inode(std::string const& name, int fd) : file_inode{ name, fd, vaddr_t(this) } {}
 ramfs_file_inode::size_type ramfs_file_inode::write(const_pointer src, size_type n) { size_t result = this->sputn(src, n); if(result) syscall_time(&this->modif_time); return result; }
 ramfs_file_inode::size_type ramfs_file_inode::read(pointer dest, size_type n) { return this->sgetn(dest, n); }
+ramfs_file_inode::pos_type ramfs_file_inode::tell() const { return this->generic_binary_buffer<char>::tell(); }
 ramfs_file_inode::pos_type ramfs_file_inode::seek(off_type off, std::ios_base::seekdir way) { return this->seekoff(off, way); }
 ramfs_file_inode::pos_type ramfs_file_inode::seek(pos_type pos) { return this->seekpos(pos); }
 bool ramfs_file_inode::fsync() { this->__q_on_modify(); return true; }

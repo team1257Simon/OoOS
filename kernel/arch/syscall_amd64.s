@@ -25,6 +25,8 @@ syscall_vec:
     .quad syscall_isatty        # 19
     .quad syscall_execve        # 20
     .quad syscall_kill          # 21
+    .quad syscall_mmap          # 22
+    .quad syscall_munmap        # 23
     .size syscall_vec,      .-syscall_vec
     .section .text
     .global do_syscall
