@@ -44,9 +44,8 @@ enum elf_object_type : uint16_t
     ET_REL = 1,
     ET_EXEC = 2,
     ET_DYN = 3,
-    ET_CORE = 4,
-    ET_LOPROC = 0xFF00,
-    ET_HIPROC = 0xFFFF 
+    ET_CORE = 4
+    // PC-Specific = 0xFF00~0xFFFF
 };
 enum elf_segment_type : uint32_t
 {
@@ -57,8 +56,7 @@ enum elf_segment_type : uint32_t
     PT_NOTE = 4,
     PT_SHLIB = 5,
     PT_PHDR = 6,
-    PT_LOPROC = 0x70000000,
-    PT_HIPROC = 0x7FFFFFFF
+    // PC-Specific = 0x70000000~0x7FFFFFFF
 };
 enum elf_section_type : uint32_t
 {
@@ -73,7 +71,10 @@ enum elf_section_type : uint32_t
     ST_NOBITS = 8,
     ST_REL = 9,
     ST_SHLIB = 10,
-    ST_DYNSYM = 11
+    ST_DYNSYM = 11,
+    // OS-Specific = 0x60000000~0x6FFFFFFF
+    // PC-Specific = 0x70000000~0x7FFFFFFF
+    ST_AMD64_UNWIND = 0x70000001
 };
 enum elf_sym_type : uint8_t
 {
@@ -177,6 +178,7 @@ constexpr unsigned phdr_flag_write = 0x2U;
 constexpr unsigned shdr_flag_write = 0x1U;
 constexpr unsigned shdr_flag_alloc = 0x2U;
 constexpr unsigned shdr_flag_execute = 0x4U;
+constexpr unsigned shdr_flag_amd64_large = 0x10000000U;
 constexpr unsigned elf_ident_class_idx = 4U;
 constexpr unsigned elf_ident_encoding_idx = 5U;
 constexpr unsigned dyn_flag_origin = 0x1U;

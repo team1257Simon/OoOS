@@ -4,7 +4,7 @@
 constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
 constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
 constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
-elf64_executable::elf64_executable(vaddr_t image, size_t sz, size_t stack_sz, size_t tls_sz) noexcept : elf64_object{ image }, __image_total_size{ sz }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
+elf64_executable::elf64_executable(file_inode* n, size_t stack_sz, size_t tls_sz) noexcept : elf64_object{ n }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
 bool elf64_executable::xvalidate()
 {
     if(ehdr_ptr()->e_machine != EM_AMD64 || ehdr_ptr()->e_ident[elf_ident_encoding_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }

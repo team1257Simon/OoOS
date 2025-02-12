@@ -163,28 +163,23 @@ extern "C"
         name = translate_user_pointer(name);
         argv = translate_user_pointer(argv);
         env = translate_user_pointer(env);
-        std::aligned_allocator<char, elf64_ehdr> fballoc{};
-        char* buf{ nullptr };
         file_inode* n{ nullptr };
         try
         {
             n = fs_ptr->open_file(name, std::ios_base::in);
             if(!(n->mode.exec_group || n->mode.exec_owner || n->mode.exec_others)) { fs_ptr->close_file(n); return -EPERM; }
-            try { buf = fballoc.allocate(n->size()); } catch(...) { fs_ptr->close_file(n); return -ENOMEM; }
-            if(!n->read(buf, n->size())) { fballoc.deallocate(buf, n->size()); fs_ptr->close_file(n); return -EPIPE; }
-            elf64_executable exec{ buf, n->size() };
-            if(!exec.load()) { fballoc.deallocate(buf, n->size()); fs_ptr->close_file(n); return -ENOEXEC; }
+            elf64_executable exec{ n };
+            if(!exec.load()) { fs_ptr->close_file(n); return -ENOEXEC; }
             task_ctx* i = task_list::get().create_user_task(exec.describe(), std::vector<const char*>{}, task->get_pid(), task->task_struct.task_ctl.prio_base, task->task_struct.quantum_val);
             for(char** c = env; *c; c++) i->env_vec.push_back(*c);
             for(char** c = argv; *c; c++) i->arg_vec.push_back(*c);
             i->init_task_state();
             i->env_vec.push_back(nullptr);
             i->start_task(task->exit_target);
-            fballoc.deallocate(buf, n->size());
             fs_ptr->close_file(n);
             return 0;
         }
-        catch(std::exception& e) { panic(e.what()); if(buf) fballoc.deallocate(buf, n ? n->size() : 0); if(n) { fs_ptr->close_file(n); return -EPIPE; } else if(buf) return -EAGAIN; else return -ENOENT; } 
+        catch(std::exception& e) { panic(e.what()); if(n) { fs_ptr->close_file(n); return -EPIPE; } else return -EAGAIN; } 
         return -EINVAL;
     }
     [[noreturn]] void handle_exit() { cli(); task_ctx* task = current_active_task()->self; if(task){ task->terminate(); task_list::get().destroy_task(task->get_pid()); } sti(); kernel_reentry(); __builtin_unreachable(); }

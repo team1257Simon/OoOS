@@ -199,16 +199,12 @@ void elf64_tests()
     {
         if(!fat32_testfs) fat32_testfs = fat32::get_instance();
         file_inode* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
-        std::aligned_allocator<char, elf64_ehdr> dalloc{};
-        char* exec_buf = dalloc.allocate(f->size());
-        size_t s = f->read(exec_buf, f->size());
-        elf64_executable exec(exec_buf, s);
+        elf64_executable exec(f);
+        fat32_testfs->close_file(f);
         if(exec.load())
         {
-            startup_tty.print_line("Validated.");
             elf64_program_descriptor const* desc = &(exec.describe());
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
-            startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
             file_inode* c = task->get_vfs_ptr()->lndev("com", com, 0);
