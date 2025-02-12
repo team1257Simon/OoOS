@@ -535,7 +535,7 @@ vaddr_t uframe_tag::mmap_add(vaddr_t addr, size_t len, bool write, bool exec)
         if(!addr) addr = result;
         usr_blocks.emplace_back(result, heap_allocator::page_aligned_region_size(addr, len));
         array_zero<uint8_t>(result, len);
-        if(result + len > mapped_max) mapped_max = result.plus(len).page_aligned().plus((result + len) % PAGESIZE ? PAGESIZE : 0L);
+        if(result.plus(len )> mapped_max) mapped_max = result.plus(len).page_aligned().plus((result.plus(len) % PAGESIZE) ? PAGESIZE : 0L);
         return result;
     }
     return vaddr_t{ uintptr_t(-ENOMEM) };
@@ -562,7 +562,7 @@ extern "C"
         if(!prot) return nullptr;
         vaddr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.val()));
         if(min != min.page_aligned()) min = min.plus(PAGESIZE).page_aligned();
-        if(!flags & MAP_FIXED) addr = std::max(min, addr).page_aligned();
+        if(!(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
         else if(addr && (addr < min || addr != addr.page_aligned())) return vaddr_t{ uintptr_t(-EINVAL) };
         heap_allocator::get().enter_frame(ctask_frame);
         vaddr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
