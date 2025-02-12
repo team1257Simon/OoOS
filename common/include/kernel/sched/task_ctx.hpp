@@ -23,7 +23,7 @@ struct task_ctx
     size_t stack_allocated_size;
     vaddr_t tls;
     size_t tls_size;
-    ramfs ctx_filesystem;
+    filesystem* ctx_filesystem;
     file_inode* stdio_ptrs[3]{};
     execution_state current_state{ execution_state::STOPPED };
     int exit_code{ 0 };
@@ -31,6 +31,7 @@ struct task_ctx
     vaddr_t notif_target{ nullptr };
     task_ctx* last_notified{ nullptr };
     task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
+    task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places   
     constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
     constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == KFRAME_MAGIC; }
@@ -47,7 +48,6 @@ struct task_ctx
     void set_exit(int n);
     void terminate();
     tms get_times() const noexcept;
-    task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places
     void init_task_state();
 } __align(16);
 file_inode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);

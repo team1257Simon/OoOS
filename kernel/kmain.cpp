@@ -186,7 +186,7 @@ void fat32_tests()
 {
     if(fat32::init_instance())
     {
-        fat32_testfs = fat32::get_instance();
+        if(!fat32_testfs) fat32_testfs = fat32::get_instance();
         startup_tty.print_line("initialized...");
         file_inode* f = fat32_testfs->open_file("FILES/A.TXT");
         f->write("eleventeenology!", 16);
@@ -197,7 +197,7 @@ void elf64_tests()
 {
     if(fat32::init_instance()) try
     {
-        fat32_testfs = fat32::get_instance();
+        if(!fat32_testfs) fat32_testfs = fat32::get_instance();
         file_inode* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
         std::aligned_allocator<char, elf64_ehdr> dalloc{};
         char* exec_buf = dalloc.allocate(f->size());
@@ -211,7 +211,7 @@ void elf64_tests()
             startup_tty.print_line("Frame pointer at " + std::to_string(desc->frame_ptr));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
-            file_inode* c = task->ctx_filesystem.lndev("com", com, 0);
+            file_inode* c = task->get_vfs_ptr()->lndev("com", com, 0);
             task->set_stdio_ptrs(c, c, c);
             task->start_task();
             user_entry(task->task_struct.self);
@@ -296,6 +296,7 @@ void run_tests()
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();
+    if(fat32::init_instance()) fat32_testfs = fat32::get_instance();      
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
     startup_tty.print_line("userland tests...");

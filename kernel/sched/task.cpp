@@ -3,7 +3,7 @@
 #include "frame_manager.hpp"
 #include "heap_allocator.hpp"
 #include "errno.h"
-#include "fs/ramfs.hpp"
+#include "fs/fat32.hpp"
 #include "elf64_exec.hpp"
 #include "arch/com_amd64.h"
 #include "isr_table.hpp"
@@ -41,8 +41,8 @@ void task_ctx::init_task_state()
         heap_allocator::get().exit_frame();
     }
 }
-filesystem *task_ctx::get_vfs_ptr() { return &ctx_filesystem; }
-task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } {}
+filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
+task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } { set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
 task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
     task_struct 
     { 
@@ -87,7 +87,7 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t s
     stack_allocated_size{ static_cast<size_t>(stack_size) }, 
     tls{ tls_base }, 
     tls_size{ tls_len }, 
-    ctx_filesystem{} 
+    ctx_filesystem{ fat32::get_instance() } 
     {}
 void task_ctx::add_child(task_ctx *that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<vaddr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx *that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
