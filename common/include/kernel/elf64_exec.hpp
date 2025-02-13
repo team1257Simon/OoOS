@@ -1,7 +1,7 @@
 #ifndef __EXECUTABLE
 #define __EXECUTABLE
 #include "kernel/elf64_object.hpp"
-#include "kernel/heap_allocator.hpp"
+#include "kernel/kernel_mm.hpp"
 class elf64_executable : public elf64_object
 {
     size_t __image_total_size;

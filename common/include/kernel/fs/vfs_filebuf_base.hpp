@@ -1,6 +1,6 @@
 #ifndef __VFS_FILEBUF_BASE
 #define __VFS_FILEBUF_BASE
-#include "fs/data_buffer.hpp"
+#include "kernel/fs/data_buffer.hpp"
 template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>>
 class vfs_filebuf_base : public data_buffer<CT, TT>
 {

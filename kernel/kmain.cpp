@@ -1,7 +1,7 @@
 #include "direct_text_render.hpp"
 #include "arch/idt_amd64.h"
 #include "arch/com_amd64.h"
-#include "heap_allocator.hpp"
+#include "kernel_mm.hpp"
 #include "rtc.h"
 #include "elf64_exec.hpp"
 #include "keyboard_driver.hpp"
@@ -330,7 +330,7 @@ extern "C"
         nmi_disable();         
         kproc.self = &kproc;
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
-        heap_allocator::init_instance(mmap); 
+        kernel_memory_mgr::init_instance(mmap); 
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
         _init();
         // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.

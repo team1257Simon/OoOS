@@ -10,8 +10,8 @@
  *  5: The "times skipped" value of the front process in each queue of lower priority than the one accessed is incremented.
  *  6: If the above value exceeds the threshold (tbd), the process is moved to the back of the queue above its current queue.
  */
+#include "kernel/sched/task.h"
 #include "bits/stl_queue.hpp"
-#include "sched/task.h"
 #include "array"
 typedef std::ext::resettable_queue<task_t*, std::allocator<task_t*>> task_ptr_queue_base;
 class task_pl_queue : public task_ptr_queue_base

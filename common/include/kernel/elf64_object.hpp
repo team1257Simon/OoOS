@@ -2,7 +2,7 @@
 #define __ELF64_OBJ
 #include "kernel/kernel_defs.h"
 #include "kernel/elf64.h"
-#include "fs/fs.hpp"
+#include "kernel/fs/fs.hpp"
 class elf64_object
 {
     bool __validated{ false };

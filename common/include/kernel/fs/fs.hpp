@@ -10,7 +10,7 @@
 #include "bits/ios_base.hpp"
 #include "vector"
 #include "set"
-#include "fs/vfs_filebuf_base.hpp"
+#include "kernel/fs/vfs_filebuf_base.hpp"
 #include "sys/stat.h"
 struct file_mode
 {

@@ -5,12 +5,10 @@
 #include "functional"
 typedef int (attribute(sysv_abi) task_closure)(int, char**);
 typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
-typedef std::function<task_closure>* task_func_pointer;
 extern "C" 
 {
 #else
 typedef int (attribute(sysv_abi) *task_functor)(int argc, char** argv);
-typedef void* task_func_pointer;
 #endif
 struct uframe_tag;
 typedef enum

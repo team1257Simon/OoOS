@@ -2,7 +2,7 @@
 #define __ARCH_AMD64
 #if defined(__x86_64__) || defined(_M_X64)
 #include "kernel/kernel_defs.h"
-#include "sched/task.h"
+#include "kernel/sched/task.h"
 #ifdef __cplusplus
 #include "concepts"
 constexpr byte sig_pic_eoi       =   0x20;	    /* End-of-interrupt command code */

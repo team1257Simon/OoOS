@@ -1,7 +1,8 @@
-#include "kernel/heap_allocator.hpp"
+#include "kernel/kernel_mm.hpp"
 #include "direct_text_render.hpp"
-#include "errno.h"
 #include "sched/task_ctx.hpp"
+#include "errno.h"
+
 extern "C"
 {
     extern unsigned char __start;
@@ -10,7 +11,7 @@ extern "C"
     kframe_tag* __kernel_frame_tag = reinterpret_cast<kframe_tag*>(&__end);
 }
 constexpr ptrdiff_t bt_offset{ sizeof(block_tag) };
-static uint8_t __heap_allocator_data_loc[sizeof(heap_allocator)];
+static uint8_t __heap_allocator_data_loc[sizeof(kernel_memory_mgr)];
 constexpr uint32_t get_block_exp(uint64_t size) { if(size < (1ull << MIN_BLOCK_EXP)) return  MIN_BLOCK_EXP; for(size_t j =  MIN_BLOCK_EXP; j < MAX_BLOCK_EXP; j++) if(static_cast<uint64_t>(1ull << j) > size) return j; return MAX_BLOCK_EXP - 1; }
 constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t how_many_status_arrays(size_t mem_size) { return div_roundup(mem_size, GIGABYTE); }
@@ -41,7 +42,7 @@ static uintptr_t block_offset(uintptr_t addr, block_idx idx)
 }
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
-    paging_table result = heap_allocator::get().allocate_pt();
+    paging_table result = kernel_memory_mgr::get().allocate_pt();
     if(result)
     {
         in[idx].present = true;
@@ -191,17 +192,17 @@ static void __unmap_pages(addr_t start, size_t pages, addr_t pml4 = get_cr3())
         }
     }
 }
-heap_allocator* heap_allocator::__instance{ reinterpret_cast<heap_allocator*>(__heap_allocator_data_loc) };
-heap_allocator &heap_allocator::get() { return *__instance; }
-uintptr_t heap_allocator::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
-void heap_allocator::__lock() { lock(&__heap_mutex); __suspend_frame(); }
-void heap_allocator::__unlock() { release(&__heap_mutex); __resume_frame(); }
-void heap_allocator::__userlock() { lock(&__user_mutex); }
-void heap_allocator::__userunlock() { release(&__user_mutex); }
-void heap_allocator::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
-void heap_allocator::__suspend_frame() noexcept { addr_t cur_cr3{ get_cr3() }; if(cur_cr3 != __kernel_cr3) { __suspended_cr3 = cur_cr3; set_cr3(__kernel_cr3); } }
-void heap_allocator::__resume_frame() noexcept { if(__suspended_cr3) { set_cr3(__suspended_cr3); __suspended_cr3 = nullptr; } }
-uintptr_t heap_allocator::__find_and_claim_available_region(size_t sz)
+kernel_memory_mgr* kernel_memory_mgr::__instance{ reinterpret_cast<kernel_memory_mgr*>(__heap_allocator_data_loc) };
+kernel_memory_mgr &kernel_memory_mgr::get() { return *__instance; }
+uintptr_t kernel_memory_mgr::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
+void kernel_memory_mgr::__lock() { lock(&__heap_mutex); __suspend_frame(); }
+void kernel_memory_mgr::__unlock() { release(&__heap_mutex); __resume_frame(); }
+void kernel_memory_mgr::__userlock() { lock(&__user_mutex); }
+void kernel_memory_mgr::__userunlock() { release(&__user_mutex); }
+void kernel_memory_mgr::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
+void kernel_memory_mgr::__suspend_frame() noexcept { addr_t cur_cr3{ get_cr3() }; if(cur_cr3 != __kernel_cr3) { __suspended_cr3 = cur_cr3; set_cr3(__kernel_cr3); } }
+void kernel_memory_mgr::__resume_frame() noexcept { if(__suspended_cr3) { set_cr3(__suspended_cr3); __suspended_cr3 = nullptr; } }
+uintptr_t kernel_memory_mgr::__find_and_claim_available_region(size_t sz)
 {
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
     if(sz > S256)
@@ -238,7 +239,7 @@ uintptr_t heap_allocator::__find_and_claim_available_region(size_t sz)
     }
     return 0;
 }
-void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
+void kernel_memory_mgr::__release_claimed_region(size_t sz, uintptr_t start)
 {
     block_size bs = nearest(sz);
     if(sz > S256) { size_t n = div_roundup(sz, S512); for(size_t i = 0; i < n; i++, start += S512) { __status(start).set_free(ALL); } }
@@ -270,28 +271,28 @@ void heap_allocator::__release_claimed_region(size_t sz, uintptr_t start)
         }
     }
 }
-size_t heap_allocator::page_aligned_region_size(addr_t start, size_t requested) { return size_t((start + ptrdiff_t(requested + PAGESIZE)).page_aligned() - start.page_aligned()); }
-void heap_allocator::suspend_user_frame() { __instance->__suspend_frame(); }
-void heap_allocator::resume_user_frame() { __instance->__resume_frame(); }
-uintptr_t heap_allocator::translate_vaddr_in_current_frame(addr_t addr) { if(paging_table pt = __find_table(addr, __active_frame ? __active_frame->pml4 : paging_table(__kernel_cr3))) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
-void heap_allocator::deallocate_block(addr_t const& base, size_t sz, bool should_unmap) { uintptr_t phys{ translate_vaddr_in_current_frame(base) }; addr_t pml4 =  __active_frame ? addr_t{ __active_frame->pml4 } : __kernel_cr3; __lock(); if(phys) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE), pml4); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
-void heap_allocator::init_instance(mmap_t *mmap)
+size_t kernel_memory_mgr::page_aligned_region_size(addr_t start, size_t requested) { return size_t((start + ptrdiff_t(requested + PAGESIZE)).page_aligned() - start.page_aligned()); }
+void kernel_memory_mgr::suspend_user_frame() { __instance->__suspend_frame(); }
+void kernel_memory_mgr::resume_user_frame() { __instance->__resume_frame(); }
+uintptr_t kernel_memory_mgr::translate_vaddr_in_current_frame(addr_t addr) { if(paging_table pt = __find_table(addr, __active_frame ? __active_frame->pml4 : paging_table(__kernel_cr3))) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
+void kernel_memory_mgr::deallocate_block(addr_t const& base, size_t sz, bool should_unmap) { uintptr_t phys{ translate_vaddr_in_current_frame(base) }; addr_t pml4 =  __active_frame ? addr_t{ __active_frame->pml4 } : __kernel_cr3; __lock(); if(phys) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE), pml4); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
+void kernel_memory_mgr::init_instance(mmap_t *mmap)
 {
     gb_status* __the_status_bytes{ addr_t{ &__end }.plus(sizeof(kframe_tag)) };
     size_t num_status_bytes{ how_many_status_arrays(mmap->total_memory) };
     uintptr_t heap{ addr_t{ &__end }.plus(sizeof(kframe_tag) + num_status_bytes * sizeof(gb_status)) };
     new (__the_status_bytes) gb_status[num_status_bytes];
     new (__kernel_frame_tag) kframe_tag{};
-    new (heap_allocator::__instance) heap_allocator{ __the_status_bytes, num_status_bytes, heap, get_cr3() };
-    heap_allocator::__instance->__mark_used(0, div_roundup(heap, REGION_SIZE));
-    for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { heap_allocator::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) __map_mmio_pages(addr_t{ mmap->entries[i].addr }, mmap->entries[i].len); } }
+    new (kernel_memory_mgr::__instance) kernel_memory_mgr{ __the_status_bytes, num_status_bytes, heap, get_cr3() };
+    kernel_memory_mgr::__instance->__mark_used(0, div_roundup(heap, REGION_SIZE));
+    for(size_t i = 0; i < mmap->num_entries; i++) { if(mmap->entries[i].type != AVAILABLE) { kernel_memory_mgr::__instance->__mark_used(mmap->entries[i].addr, div_roundup(mmap->entries[i].len, PT_LEN)); if(mmap->entries[i].type == MMIO) __map_mmio_pages(addr_t{ mmap->entries[i].addr }, mmap->entries[i].len); } }
     __instance->__physical_open_watermark = heap;
     __set_kernel_page_settings(addr_t{ &__end }.plus(sizeof(kframe_tag)));
 }
-void heap_allocator::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
-void heap_allocator::exit_frame() noexcept { this->__active_frame = nullptr; }
-addr_t heap_allocator::copy_kernel_mappings(paging_table target) { return __copy_kernel_page_mapping(addr_t(&__start), div_roundup(static_cast<size_t>(&__end - &__start), PAGESIZE), target); }
-addr_t heap_allocator::allocate_mmio_block(size_t sz)
+void kernel_memory_mgr::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
+void kernel_memory_mgr::exit_frame() noexcept { this->__active_frame = nullptr; }
+addr_t kernel_memory_mgr::copy_kernel_mappings(paging_table target) { return __copy_kernel_page_mapping(addr_t(&__start), div_roundup(static_cast<size_t>(&__end - &__start), PAGESIZE), target); }
+addr_t kernel_memory_mgr::allocate_mmio_block(size_t sz)
 {
     __lock();
     addr_t result{ nullptr };
@@ -299,7 +300,7 @@ addr_t heap_allocator::allocate_mmio_block(size_t sz)
     __unlock();
     return result;
 }
-addr_t heap_allocator::allocate_user_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
+addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
 {
     addr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
     __userlock();
@@ -310,7 +311,7 @@ addr_t heap_allocator::allocate_user_block(size_t sz, addr_t start, size_t align
     __userunlock();
     return result;
 }
-paging_table heap_allocator::allocate_pt()
+paging_table kernel_memory_mgr::allocate_pt()
 {
     const size_t pt_size{ sizeof(pt_entry) * PT_LEN };
     const size_t total_sz = up_to_nearest(pt_size + bt_offset, PAGESIZE);
@@ -339,7 +340,7 @@ paging_table heap_allocator::allocate_pt()
     if(result && __active_frame) { bool lk = test_lock(&__heap_mutex); if(lk) __unlock(); __active_frame->pt_blocks.push_back(result); if(lk) __lock(); }
     return result;
 }
-addr_t heap_allocator::allocate_kernel_block(size_t sz)
+addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz)
 {
     __lock();
     addr_t phys{ __find_and_claim_available_region(sz) };
@@ -348,7 +349,7 @@ addr_t heap_allocator::allocate_kernel_block(size_t sz)
     __unlock();
     return result;
 }
-addr_t heap_allocator::duplicate_user_block(size_t sz, addr_t start, bool write, bool execute)
+addr_t kernel_memory_mgr::duplicate_user_block(size_t sz, addr_t start, bool write, bool execute)
 {
     addr_t id_map = identity_map_to_kernel(start, sz);
     if(!id_map) return nullptr;
@@ -359,7 +360,7 @@ addr_t heap_allocator::duplicate_user_block(size_t sz, addr_t start, bool write,
     __unlock();
     return result;
 }
-addr_t heap_allocator::identity_map_to_kernel(addr_t start, size_t sz)
+addr_t kernel_memory_mgr::identity_map_to_kernel(addr_t start, size_t sz)
 {
     uintptr_t phys = translate_vaddr_in_current_frame(start);
     if(!phys) return nullptr;
@@ -373,7 +374,7 @@ addr_t heap_allocator::identity_map_to_kernel(addr_t start, size_t sz)
     if(result) return addr_t(phys);
     return nullptr;
 }
-addr_t heap_allocator::identity_map_to_user(addr_t what, size_t sz, bool write, bool execute)
+addr_t kernel_memory_mgr::identity_map_to_user(addr_t what, size_t sz, bool write, bool execute)
 {
     if(!__active_frame) return nullptr;
     __lock();
@@ -386,7 +387,7 @@ void kframe_tag::__unlock() { release(&__my_mutex); }
 block_tag *kframe_tag::__create_tag(size_t size, size_t align)
 {
     size_t actual_size = std::max(size + bt_offset, align) + align;
-    addr_t allocated{ heap_allocator::get().allocate_kernel_block(actual_size) };
+    addr_t allocated{ kernel_memory_mgr::get().allocate_kernel_block(actual_size) };
     if(!allocated) return nullptr;
     return new (allocated) block_tag{ region_size_for(actual_size), size, -1, add_align_size(allocated, align) };
 }
@@ -436,7 +437,7 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
             break;
         }
     }
-    if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("out of memory"); debug_print_num(heap_allocator::get().open_wm()); debug_print_num(size); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
+    if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("out of memory"); debug_print_num(kernel_memory_mgr::get().open_wm()); debug_print_num(size); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
     tag->index = idx;
     if(tag->available_size() - sizeof(block_tag) >= (1 << MIN_BLOCK_EXP)) insert_block(tag->split(), -1);
     __unlock();
@@ -456,7 +457,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
             while(tag->left_split && (tag->left_split->index >= 0)) tag = __melt_left(tag);
             while(tag->right_split && (tag->right_split->index >= 0)) tag = __melt_right(tag);
             unsigned int idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP;
-            if((!tag->left_split && !tag->right_split) && complete_pages[idx] >= MAX_COMPLETE_PAGES) { heap_allocator::get().deallocate_block(tag, tag->block_size); __unlock(); return; }
+            if((!tag->left_split && !tag->right_split) && complete_pages[idx] >= MAX_COMPLETE_PAGES) { kernel_memory_mgr::get().deallocate_block(tag, tag->block_size); __unlock(); return; }
             insert_block(tag, idx);
         }
         __unlock();
@@ -497,7 +498,7 @@ block_tag *block_tag::split()
 }
 void uframe_tag::__lock() { lock(&__my_mutex); }
 void uframe_tag::__unlock() { release(&__my_mutex); }
-uframe_tag::~uframe_tag() { for(block_descr blk : usr_blocks) heap_allocator::get().deallocate_block(blk.start, blk.size, true); for(addr_t addr : pt_blocks) __kernel_frame_tag->deallocate(addr); }
+uframe_tag::~uframe_tag() { for(block_descr blk : usr_blocks) kernel_memory_mgr::get().deallocate_block(blk.start, blk.size, true); for(addr_t addr : pt_blocks) __kernel_frame_tag->deallocate(addr); }
 bool uframe_tag::shift_extent(ptrdiff_t amount)
 {
     if(amount == 0) return true; // nothing to do, vacuous success
@@ -508,14 +509,14 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         {
             addr_t target = extent + amount;
             std::vector<block_descr>::reverse_iterator i = usr_blocks.rend();
-            while(i != usr_blocks.rbegin() && target < i->start) { heap_allocator::get().deallocate_block(i->start, i->size, true); i++; }
+            while(i != usr_blocks.rbegin() && target < i->start) { kernel_memory_mgr::get().deallocate_block(i->start, i->size, true); i++; }
             bool nrem = (i != usr_blocks.rbegin());
             usr_blocks.erase(i.base(), usr_blocks.end());
-            if(!nrem) { size_t nsz = region_size_for(uint64_t(target)); extent = base.plus(nsz); addr_t allocated = heap_allocator::get().allocate_user_block(nsz, base); if(!allocated) { extent = nullptr; return false; } usr_blocks.emplace_back(allocated, nsz); return true; }
+            if(!nrem) { size_t nsz = region_size_for(uint64_t(target)); extent = base.plus(nsz); addr_t allocated = kernel_memory_mgr::get().allocate_user_block(nsz, base); if(!allocated) { extent = nullptr; return false; } usr_blocks.emplace_back(allocated, nsz); return true; }
             addr_t nst = usr_blocks.back().start.plus(usr_blocks.back().size);
             size_t nsz = region_size_for(target - nst);
             extent = nst;
-            addr_t allocated = heap_allocator::get().allocate_user_block(nsz, nst);
+            addr_t allocated = kernel_memory_mgr::get().allocate_user_block(nsz, nst);
             if(!allocated) return false;
             usr_blocks.emplace_back(allocated, nsz);
             extent += nsz;
@@ -524,16 +525,16 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         else return false;
     }
     size_t added{ region_size_for(static_cast<size_t>(amount)) };
-    addr_t allocated = heap_allocator::get().allocate_user_block(added, extent);
+    addr_t allocated = kernel_memory_mgr::get().allocate_user_block(added, extent);
     if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; if(mapped_max < extent) mapped_max = extent; return true; }
     return false;
 }
 addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
 {
-    if(addr_t result = heap_allocator::get().allocate_user_block(len, addr.page_aligned(), PAGESIZE, write, exec)) 
+    if(addr_t result = kernel_memory_mgr::get().allocate_user_block(len, addr.page_aligned(), PAGESIZE, write, exec)) 
     {
         if(!addr) addr = result;
-        usr_blocks.emplace_back(result, heap_allocator::page_aligned_region_size(addr, len));
+        usr_blocks.emplace_back(result, kernel_memory_mgr::page_aligned_region_size(addr, len));
         array_zero<uint8_t>(result, len);
         if(result.plus(len )> mapped_max) mapped_max = result.plus(len).page_aligned().plus((result.plus(len) % PAGESIZE) ? PAGESIZE : 0L);
         return result;
@@ -543,15 +544,15 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
 extern "C"
 { 
     uintptr_t translate_vaddr(addr_t addr) { if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
-    addr_t translate_user_pointer(addr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != UFRAME_MAGIC) return nullptr; heap_allocator::get().enter_frame(ctask_frame); addr_t result{ heap_allocator::get().translate_vaddr_in_current_frame(ptr) }; heap_allocator::get().exit_frame(); return result; }
+    addr_t translate_user_pointer(addr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != UFRAME_MAGIC) return nullptr; kernel_memory_mgr::get().enter_frame(ctask_frame); addr_t result{ kernel_memory_mgr::get().translate_vaddr_in_current_frame(ptr) }; kernel_memory_mgr::get().exit_frame(); return result; }
     addr_t syscall_sbrk(ptrdiff_t incr)
     {
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != UFRAME_MAGIC) return addr_t{ uintptr_t(-EINVAL) };
-        heap_allocator::get().enter_frame(ctask_frame);
+        kernel_memory_mgr::get().enter_frame(ctask_frame);
         addr_t result = ctask_frame->extent;
         bool success = ctask_frame->shift_extent(incr);
-        heap_allocator::get().exit_frame();
+        kernel_memory_mgr::get().exit_frame();
         if(success) { return result; }
         else return addr_t{ uintptr_t(-ENOMEM) };
     }
@@ -564,9 +565,9 @@ extern "C"
         if(min != min.page_aligned()) min = min.plus(PAGESIZE).page_aligned();
         if(!(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
         else if(addr && (addr < min || addr != addr.page_aligned())) return addr_t{ uintptr_t(-EINVAL) };
-        heap_allocator::get().enter_frame(ctask_frame);
+        kernel_memory_mgr::get().enter_frame(ctask_frame);
         addr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
-        heap_allocator::get().exit_frame();
+        kernel_memory_mgr::get().exit_frame();
         if(!(flags & MAP_ANONYMOUS))
         {
             filesystem* fsptr = get_fs_instance();

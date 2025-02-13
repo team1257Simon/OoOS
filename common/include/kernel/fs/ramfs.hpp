@@ -1,7 +1,7 @@
 #ifndef __RAMFS
 #define __RAMFS
-#include "fs/fs.hpp"
-#include "fs/generic_binary_buffer.hpp"
+#include "kernel/fs/fs.hpp"
+#include "kernel/fs/generic_binary_buffer.hpp"
 constexpr dev_t ramfs_magic = 0xC001;
 class ramfs_folder_inode : public folder_inode
 {

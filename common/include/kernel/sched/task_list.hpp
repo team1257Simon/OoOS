@@ -1,7 +1,7 @@
 #ifndef __SCHED_TASKLIST
 #define __SCHED_TASKLIST
-#include "sched/task_ctx.hpp"
-#include "elf64.h"
+#include "kernel/sched/task_ctx.hpp"
+#include "kernel/elf64.h"
 #include "set"
 class task_list : std::set<task_ctx>
 {

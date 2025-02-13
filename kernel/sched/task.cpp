@@ -1,7 +1,7 @@
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
 #include "frame_manager.hpp"
-#include "heap_allocator.hpp"
+#include "kernel_mm.hpp"
 #include "errno.h"
 #include "fs/fat32.hpp"
 #include "elf64_exec.hpp"
@@ -34,11 +34,11 @@ void task_ctx::init_task_state()
     {
         task_struct.saved_regs.cs = 0x23;
         task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x1B;
-        heap_allocator::get().enter_frame(task_struct.frame_ptr);
-        heap_allocator::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
-        heap_allocator::get().identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL)* sizeof(char*), true, false);
-        for(const char* str : arg_vec) { if(str) heap_allocator::get().identity_map_to_user(str, std::strlen(str), true, false); }
-        heap_allocator::get().exit_frame();
+        kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
+        kernel_memory_mgr::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
+        kernel_memory_mgr::get().identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL)* sizeof(char*), true, false);
+        for(const char* str : arg_vec) { if(str) kernel_memory_mgr::get().identity_map_to_user(str, std::strlen(str), true, false); }
+        kernel_memory_mgr::get().exit_frame();
     }
 }
 filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
@@ -98,10 +98,10 @@ void task_ctx::start_task(addr_t exit_fn)
     this->exit_target = exit_fn;  
     if(is_user())
     {
-        heap_allocator::get().enter_frame(task_struct.frame_ptr);
-        heap_allocator::get().identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
-        for(const char* str : env_vec) { if(str) heap_allocator::get().identity_map_to_user(str, std::strlen(str), true, false); }
-        heap_allocator::get().exit_frame();
+        kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
+        kernel_memory_mgr::get().identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
+        for(const char* str : env_vec) { if(str) kernel_memory_mgr::get().identity_map_to_user(str, std::strlen(str), true, false); }
+        kernel_memory_mgr::get().exit_frame();
         interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
     }
     else *static_cast<uintptr_t*>(task_struct.saved_regs.rsp) = addr_t(&sys_task_exit);

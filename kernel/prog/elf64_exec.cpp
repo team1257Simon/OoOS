@@ -30,25 +30,25 @@ bool elf64_executable::xload()
     this->__process_frame_extent += this->__tgt_tls_size;
     if((this->__process_frame_tag = std::addressof(frame_manager::get().create_frame(this->__process_frame_base, this->__process_frame_extent)))) try
     {
-        heap_allocator::get().enter_frame(this->__process_frame_tag);
+        kernel_memory_mgr::get().enter_frame(this->__process_frame_tag);
         for(size_t n = 0; n < this->ehdr().e_phnum; n++)
         {
             if(!is_load(phdr(n)) || !phdr(n).p_memsz) continue;
             addr_t addr{ phdr(n).p_vaddr };
-            addr_t blk = heap_allocator::get().allocate_user_block(phdr(n).p_memsz, addr, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
-            addr_t idmap{ heap_allocator::get().translate_vaddr_in_current_frame(addr) };
+            addr_t blk = kernel_memory_mgr::get().allocate_user_block(phdr(n).p_memsz, addr, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
+            addr_t idmap{ kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr) };
             addr_t img_dat = this->segment_ptr(n);    
             if(!blk) { throw std::bad_alloc{}; }
-            this->__process_frame_tag->usr_blocks.emplace_back(blk, heap_allocator::page_aligned_region_size(addr, phdr(n).p_memsz));
+            this->__process_frame_tag->usr_blocks.emplace_back(blk, kernel_memory_mgr::page_aligned_region_size(addr, phdr(n).p_memsz));
             arraycopy<uint8_t>(idmap, img_dat, phdr(n).p_filesz);
-            if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(addr_t(heap_allocator::get().translate_vaddr_in_current_frame(addr_t(phdr(n).p_vaddr + phdr(n).p_filesz))), diff); }
+            if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(addr_t(kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr_t(phdr(n).p_vaddr + phdr(n).p_filesz))), diff); }
         }
-        addr_t stkblk = heap_allocator::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, PAGESIZE, true, false);
-        addr_t tlsblk = heap_allocator::get().allocate_user_block(this->__tgt_tls_size, this->__process_tls_base, PAGESIZE, true, false);
+        addr_t stkblk = kernel_memory_mgr::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, PAGESIZE, true, false);
+        addr_t tlsblk = kernel_memory_mgr::get().allocate_user_block(this->__tgt_tls_size, this->__process_tls_base, PAGESIZE, true, false);
         if(!stkblk || !tlsblk) { throw std::bad_alloc{}; }
         this->__process_frame_tag->usr_blocks.emplace_back(stkblk, this->__tgt_stack_size);
         this->__process_frame_tag->usr_blocks.emplace_back(tlsblk, this->__tgt_tls_size);
-        heap_allocator::get().exit_frame();
+        kernel_memory_mgr::get().exit_frame();
         new(&__descr) elf64_program_descriptor 
         { 
             .frame_ptr = __process_frame_tag, 
@@ -60,7 +60,7 @@ bool elf64_executable::xload()
         };
         return true;
     }
-    catch (...) {  frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; heap_allocator::get().exit_frame(); panic("could not allocate blocks for executable"); }
+    catch (...) {  frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; kernel_memory_mgr::get().exit_frame(); panic("could not allocate blocks for executable"); }
     else { panic("could not allocate frame"); }
     return false; 
 }

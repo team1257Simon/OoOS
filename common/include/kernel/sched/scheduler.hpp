@@ -1,6 +1,6 @@
 #ifndef __SCHED
 #define __SCHED
-#include "sched/task_queue.hpp"
+#include "kernel/sched/task_queue.hpp"
 #include "atomic"
 #include "vector"
 class scheduler

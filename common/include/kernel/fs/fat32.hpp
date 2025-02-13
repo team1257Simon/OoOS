@@ -1,6 +1,6 @@
 #ifndef __FS_FAT32
 #define __FS_FAT32
-#include "fs/fs.hpp"
+#include "kernel/fs/fs.hpp"
 #include "map"
 #include "sys/time.h"
 constexpr uint16_t fat_year_base = 1980u;

@@ -1,9 +1,8 @@
 #ifndef __AHCI_HARD_DISK_ACCESS
 #define __AHCI_HARD_DISK_ACCESS
-#include "arch/ahci.hpp"
+#include "kernel/arch/ahci.hpp"
 #include "kernel/libk_decls.h"
-#include "fs/generic_binary_buffer.hpp"
-#include "functional"
+#include "kernel/fs/generic_binary_buffer.hpp"
 #include "vector"
 constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (should be 1)
 constexpr size_t max_op_sectors = prdt_entries_count * 16;

@@ -3,26 +3,26 @@
 frame_manager frame_manager::__inst{};
 uframe_tag &frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 {
-    paging_table pt = heap_allocator::get().allocate_pt();
+    paging_table pt = kernel_memory_mgr::get().allocate_pt();
     if(!pt) throw std::runtime_error{ "could not initialize paging tables" };
-    else if(!heap_allocator::get().copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
+    else if(!kernel_memory_mgr::get().copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
     uframe_tag* result = &this->emplace_back(pt, start_base, start_extent);
-    heap_allocator::get().enter_frame(result);
-    if(!heap_allocator::get().identity_map_to_user(pt, PT_LEN, true, false)) { destroy_frame(*result);  throw std::runtime_error{ "could not initialize page mappings" }; }
-    heap_allocator::get().exit_frame();
+    kernel_memory_mgr::get().enter_frame(result);
+    if(!kernel_memory_mgr::get().identity_map_to_user(pt, PT_LEN, true, false)) { destroy_frame(*result);  throw std::runtime_error{ "could not initialize page mappings" }; }
+    kernel_memory_mgr::get().exit_frame();
     return *result;
 }
 uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)
 {
     uframe_tag& result = create_frame(t.base, t.extent);
-    heap_allocator::get().enter_frame(&result);
+    kernel_memory_mgr::get().enter_frame(&result);
     for(std::vector<block_descr>::const_iterator i = t.usr_blocks.begin(); i != t.usr_blocks.end(); i++)
     {
-        addr_t nblk = heap_allocator::get().duplicate_user_block(i->size, i->start, i->write, i->execute);
+        addr_t nblk = kernel_memory_mgr::get().duplicate_user_block(i->size, i->start, i->write, i->execute);
         if(!nblk) throw std::runtime_error{ "failed to allocate new block" };
         result.usr_blocks.emplace_back(nblk, i->size, i->write, i->execute);
     }
-    heap_allocator::get().exit_frame();
+    kernel_memory_mgr::get().exit_frame();
     return result;
 }
 void frame_manager::destroy_frame(uframe_tag& ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }

@@ -1,7 +1,7 @@
 #include "arch/ahci.hpp"
 #include "arch/arch_amd64.h"
 #include "isr_table.hpp"
-#include "heap_allocator.hpp"
+#include "kernel_mm.hpp"
 #include "stdexcept"
 #include "string.h"
 constexpr size_t cl_offs_base{ 32uL * sizeof(hba_cmd_header) };
@@ -103,7 +103,7 @@ bool ahci_driver::init(pci_config_space *ps) noexcept
     {
         __my_ahci_controller = ps;
         __my_abar = compute_base(ps->header_0x0.bar[5]);
-        __my_block = heap_allocator::get().allocate_mmio_block(S128);
+        __my_block = kernel_memory_mgr::get().allocate_mmio_block(S128);
         BARRIER;
         __my_ahci_controller->command.bus_master = 1;
         __my_ahci_controller->command.memory_space = 1;

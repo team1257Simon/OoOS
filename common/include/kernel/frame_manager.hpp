@@ -1,6 +1,6 @@
 #ifndef __FRAME_MGR
 #define __FRAME_MGR
-#include "heap_allocator.hpp"
+#include "kernel/kernel_mm.hpp"
 #include "vector"
 class frame_manager : std::vector<uframe_tag>
 {

@@ -1,4 +1,4 @@
-#include "kernel/heap_allocator.hpp"
+#include "kernel/kernel_mm.hpp"
 #include "new"
 #include "bits/stdexcept.h"
 #include "atomic"

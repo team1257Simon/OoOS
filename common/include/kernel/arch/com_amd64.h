@@ -1,6 +1,6 @@
 #ifndef __AMD64_SERIAL
 #define __AMD64_SERIAL
-#include "arch/arch_amd64.h"
+#include "kernel/arch/arch_amd64.h"
 constexpr word port_com1 = 0x03F8;
 constexpr word port_com1_ier = port_com1 + 1;
 constexpr word port_com1_iir = port_com1 + 2;

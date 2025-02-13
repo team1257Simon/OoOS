@@ -2,7 +2,6 @@
 #define __HEAP_ALLOC
 #include "kernel/libk_decls.h"
 #include "vector"
-#include "sched/task.h"
 #ifndef MAX_BLOCK_EXP
 #define MAX_BLOCK_EXP 32u
 #endif
@@ -56,7 +55,7 @@ struct block_tag
     constexpr block_tag(size_t size, size_t held, int32_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
     constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
     constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
-    constexpr addr_t actual_start() const noexcept { return addr_t { const_cast<block_tag*>(this) } + ptrdiff_t(sizeof(block_tag) + align_bytes); }
+    constexpr addr_t actual_start() const noexcept { return addr_t { const_cast<block_tag*>(this) }.plus(sizeof(block_tag) + align_bytes); }
     block_tag* split();
 } __pack;
 struct kframe_tag
@@ -175,7 +174,7 @@ private:
     constexpr static unsigned int gb_of(uintptr_t addr) { return addr / GIGABYTE; }
     constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / (PAGESIZE * PT_LEN)) % 512; }
 } __align(1) __pack status_byte, gb_status[512];
-class heap_allocator
+class kernel_memory_mgr
 {
     spinlock_t __heap_mutex{};                  // Calls to kernel allocations lock this mutex to prevent comodification
     spinlock_t __user_mutex{};                  // Separate mutex for userspace calls because userspace memory will be delegated from kernel blocks
@@ -186,8 +185,8 @@ class heap_allocator
     uintptr_t __physical_open_watermark{ 0 };   // The lowest physical address known to be open.
     addr_t __suspended_cr3{ nullptr };         // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame{ nullptr };
-    static heap_allocator* __instance;
-    constexpr heap_allocator(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t kernel_cr3) noexcept :
+    static kernel_memory_mgr* __instance;
+    constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t kernel_cr3) noexcept :
         __status_bytes              { status_bytes },
         __num_status_bytes          { num_status_bytes },
         __kernel_heap_begin         { kernel_heap_addr },
@@ -207,15 +206,15 @@ class heap_allocator
     void __resume_frame() noexcept;
 public:
     static void init_instance(mmap_t* mmap);
-    static heap_allocator& get();
+    static kernel_memory_mgr& get();
     static size_t page_aligned_region_size(addr_t start, size_t requested);
     static void suspend_user_frame();
     static void resume_user_frame();
     constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
-    heap_allocator(heap_allocator const&) = delete;
-    heap_allocator(heap_allocator&&) = delete;
-    heap_allocator& operator=(heap_allocator const&) = delete;
-    heap_allocator& operator=(heap_allocator&&) = delete;
+    kernel_memory_mgr(kernel_memory_mgr const&) = delete;
+    kernel_memory_mgr(kernel_memory_mgr&&) = delete;
+    kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;
+    kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
     void enter_frame(uframe_tag* ft) noexcept;
     void exit_frame() noexcept;
     paging_table allocate_pt();
