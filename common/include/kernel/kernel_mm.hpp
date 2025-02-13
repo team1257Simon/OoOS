@@ -181,9 +181,9 @@ class kernel_memory_mgr
     gb_status* const __status_bytes;            // Array of 512-byte arrays
     size_t const __num_status_bytes;            // Length of said array
     uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
-    addr_t __kernel_cr3;                       // The location of the kernel's top-level paging structure
-    uintptr_t __physical_open_watermark{ 0 };   // The lowest physical address known to be open.
-    addr_t __suspended_cr3{ nullptr };         // Saved cr3 value for a frame suspended in order to access kernel paging structures
+    addr_t __kernel_cr3;                        // The location of the kernel's top-level paging structure
+    uintptr_t __physical_open_watermark{ 0 };   // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+    addr_t __suspended_cr3{ nullptr };          // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame{ nullptr };
     static kernel_memory_mgr* __instance;
     constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t kernel_cr3) noexcept :

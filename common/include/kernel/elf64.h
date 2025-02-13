@@ -175,6 +175,7 @@ enum elf_rel_type
 };
 constexpr unsigned phdr_flag_execute = 0x1U;
 constexpr unsigned phdr_flag_write = 0x2U;
+constexpr unsigned phdr_flag_read = 0x04U;
 constexpr unsigned shdr_flag_write = 0x1U;
 constexpr unsigned shdr_flag_alloc = 0x2U;
 constexpr unsigned shdr_flag_execute = 0x4U;
@@ -186,6 +187,16 @@ constexpr unsigned dyn_flag_symbolic = 0x2U;
 constexpr unsigned dyn_flag_textrel = 0x4U;
 constexpr unsigned dyn_flag_bind_now = 0x8U;
 constexpr unsigned dyn_flag_static_tls = 0x10U;
+enum elf_segment_prot : uint8_t
+{
+    PV_NONE = 0b000U,
+    PV_READ = 0b100U,
+    PV_WRITE = 0b010U,
+    PV_EXEC = 0b001U,
+    PV_READ_EXEC = 0b101U,
+    PV_READ_WRITE = 0b110U,
+    PV_RWX = 0b111U
+};
 #else
 typedef unsigned char elf_sym_bind;
 typedef unsigned char elf_sym_type;

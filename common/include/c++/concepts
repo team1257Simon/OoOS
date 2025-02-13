@@ -77,7 +77,9 @@ namespace std
     extension template<typename FT, typename RT, typename ... Args> concept functor = requires(FT&& __ft, Args&& ... args) { { static_cast<FT&&>(__ft)(static_cast<Args&&>(args)...) } -> same_as<RT>; };
     extension template<typename T> concept non_object = !is_object_v<T>;
     extension template<typename T> concept object = is_object_v<T>;
-    extension template<typename A, typename T> concept allocator_object = is_default_constructible_v<A> && requires(A a, T* ptr, size_t n) { { a.allocate(n) } -> same_as<T*>; a.deallocate(ptr, n); };
+    extension template<class A, typename T> concept __allocator_object = is_default_constructible_v<A> && requires(A a, T* ptr, size_t n) { { a.allocate(n) } -> same_as<T*>; a.deallocate(ptr, n); };
+    struct __somesuch{};
+    extension template<class A, typename T> concept allocator_object = __allocator_object<A, T> && __allocator_object<typename A::template rebind<__somesuch>, __somesuch>;
     extension template<template<typename> class PT, typename T> concept recursive_template_derived = std::derived_from<T, PT<T>>;
 #pragma endregion
 }

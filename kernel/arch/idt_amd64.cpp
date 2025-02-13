@@ -7,6 +7,7 @@
 #include "string"
 std::array<std::vector<irq_callback>, 16> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
+uintptr_t saved_stack_ptr{};
 namespace interrupt_table
 {
     spinlock_t __itable_mutex;
@@ -43,6 +44,7 @@ extern "C"
     [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
     {
         bool is_err = (idx == 0x08 || (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E);
+        asm volatile("movq %%rsp, %0" : "=m"(saved_stack_ptr) :: "memory");
         if(idx > 0x19 && idx < 0x30) 
         { 
             byte irq{ uint8_t(idx - 0x20ui8) };

@@ -24,6 +24,7 @@ static fat32* fat32_testfs;
 static bool direct_print_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
+extern uintptr_t saved_stack_ptr;
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 extern "C"
 {
@@ -269,6 +270,8 @@ void run_tests()
                 startup_tty.print_text("; page fault address = ");
                 __dbg_num(fault_addr, 16);
             }
+            startup_tty.print_text("; state on stack saved at ");
+            __dbg_num(saved_stack_ptr, 16);
             while(1);
             __builtin_unreachable();
         }
