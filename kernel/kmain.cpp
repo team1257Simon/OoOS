@@ -175,7 +175,7 @@ void test_landing_pad()
 }
 void task_tests()
 {
-    vaddr_t exit_test_fn{ &test_landing_pad };
+    addr_t exit_test_fn{ &test_landing_pad };
     task_ctx* tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVHIGH);
     task_ctx* tt2 = task_list::get().create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
     tt1->start_task(exit_test_fn);
@@ -342,7 +342,7 @@ extern "C"
         kproc.saved_regs.rsp = &kernel_stack_top;
         kproc.saved_regs.rbp = &kernel_stack_base;
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(vaddr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);     
+        init_syscall_msrs(addr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);     
         sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing

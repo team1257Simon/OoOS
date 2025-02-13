@@ -56,7 +56,7 @@ struct block_tag
     constexpr block_tag(size_t size, size_t held, int32_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
     constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
     constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
-    constexpr vaddr_t actual_start() const noexcept { return vaddr_t { const_cast<block_tag*>(this) } + ptrdiff_t(sizeof(block_tag) + align_bytes); }
+    constexpr addr_t actual_start() const noexcept { return addr_t { const_cast<block_tag*>(this) } + ptrdiff_t(sizeof(block_tag) + align_bytes); }
     block_tag* split();
 } __pack;
 struct kframe_tag
@@ -70,10 +70,10 @@ public:
     constexpr kframe_tag() = default;
     void insert_block(block_tag* blk, int idx);
     void remove_block(block_tag* blk);
-    vaddr_t allocate(size_t size, size_t align = 0);
-    void deallocate(vaddr_t ptr, size_t align = 0);
-    vaddr_t reallocate(vaddr_t ptr, size_t size, size_t align = 0);
-    vaddr_t array_allocate(size_t num, size_t size);
+    addr_t allocate(size_t size, size_t align = 0);
+    void deallocate(addr_t ptr, size_t align = 0);
+    addr_t reallocate(addr_t ptr, size_t size, size_t align = 0);
+    addr_t array_allocate(size_t num, size_t size);
 private:
     block_tag* __create_tag(size_t size, size_t align);
     block_tag* __melt_left(block_tag* tag) noexcept;
@@ -83,7 +83,7 @@ private:
 } __pack;
 struct block_descr
 {
-    vaddr_t start;
+    addr_t start;
     size_t size;
     bool write{ true };
     bool execute{ true };
@@ -92,20 +92,20 @@ struct uframe_tag
 {
     uint64_t magic{ UFRAME_MAGIC };
     paging_table pml4;
-    vaddr_t base;
-    vaddr_t extent;
-    vaddr_t mapped_max;
-    std::vector<vaddr_t> pt_blocks{};
+    addr_t base;
+    addr_t extent;
+    addr_t mapped_max;
+    std::vector<addr_t> pt_blocks{};
     std::vector<block_descr> usr_blocks{};
 private:
     spinlock_t __my_mutex{};
     void __lock();
     void __unlock();
 public:
-    constexpr uframe_tag(paging_table cr3, vaddr_t st_base, vaddr_t st_extent) noexcept : pml4{ cr3 }, base{ st_base }, extent{ st_extent }, mapped_max{ st_extent } {}
+    constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : pml4{ cr3 }, base{ st_base }, extent{ st_extent }, mapped_max{ st_extent } {}
     ~uframe_tag();
     bool shift_extent(ptrdiff_t amount);
-    vaddr_t mmap_add(vaddr_t addr, size_t len, bool write, bool exec);
+    addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
 };
 enum block_idx : uint8_t
 {
@@ -182,12 +182,12 @@ class heap_allocator
     gb_status* const __status_bytes;            // Array of 512-byte arrays
     size_t const __num_status_bytes;            // Length of said array
     uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
-    vaddr_t __kernel_cr3;                       // The location of the kernel's top-level paging structure
+    addr_t __kernel_cr3;                       // The location of the kernel's top-level paging structure
     uintptr_t __physical_open_watermark{ 0 };   // The lowest physical address known to be open.
-    vaddr_t __suspended_cr3{ nullptr };         // Saved cr3 value for a frame suspended in order to access kernel paging structures
+    addr_t __suspended_cr3{ nullptr };         // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame{ nullptr };
     static heap_allocator* __instance;
-    constexpr heap_allocator(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, vaddr_t kernel_cr3) noexcept :
+    constexpr heap_allocator(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t kernel_cr3) noexcept :
         __status_bytes              { status_bytes },
         __num_status_bytes          { num_status_bytes },
         __kernel_heap_begin         { kernel_heap_addr },
@@ -208,7 +208,7 @@ class heap_allocator
 public:
     static void init_instance(mmap_t* mmap);
     static heap_allocator& get();
-    static size_t page_aligned_region_size(vaddr_t start, size_t requested);
+    static size_t page_aligned_region_size(addr_t start, size_t requested);
     static void suspend_user_frame();
     static void resume_user_frame();
     constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
@@ -219,17 +219,17 @@ public:
     void enter_frame(uframe_tag* ft) noexcept;
     void exit_frame() noexcept;
     paging_table allocate_pt();
-    uintptr_t translate_vaddr_in_current_frame(vaddr_t addr);
-    vaddr_t allocate_kernel_block(size_t sz);
-    vaddr_t allocate_mmio_block(size_t sz);
-    vaddr_t allocate_user_block(size_t sz, vaddr_t start, size_t align = 0UL, bool write = true, bool execute = true);
-    vaddr_t duplicate_user_block(size_t sz, vaddr_t start, bool write, bool execute);
-    vaddr_t identity_map_to_kernel(vaddr_t start, size_t sz);
-    vaddr_t identity_map_to_user(vaddr_t what, size_t sz, bool write = true, bool execute = true);
-    void deallocate_block(vaddr_t const& base, size_t sz, bool should_unmap = false);
-    vaddr_t copy_kernel_mappings(paging_table target);
+    uintptr_t translate_vaddr_in_current_frame(addr_t addr);
+    addr_t allocate_kernel_block(size_t sz);
+    addr_t allocate_mmio_block(size_t sz);
+    addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);
+    addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
+    addr_t identity_map_to_kernel(addr_t start, size_t sz);
+    addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
+    void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
+    addr_t copy_kernel_mappings(paging_table target);
 };
-extern "C" vaddr_t syscall_sbrk(ptrdiff_t incr);
-extern "C" vaddr_t syscall_mmap(vaddr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);
-extern "C" int syscall_munmap(vaddr_t addr, size_t len);
+extern "C" addr_t syscall_sbrk(ptrdiff_t incr);
+extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);
+extern "C" int syscall_munmap(addr_t addr, size_t len);
 #endif

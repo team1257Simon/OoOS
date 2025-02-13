@@ -60,7 +60,7 @@ inline static bool validate_elf(elf64_ehdr * elf)
         ? true : false;                            
 }
 inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
-inline static size_t direct_table_idx(vaddr_t idx) { return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000; }
+inline static size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000; }
 inline static uint64_t div_roundup(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
 static bool guid_equals(efi_guid_t a, efi_guid_t b)
 {

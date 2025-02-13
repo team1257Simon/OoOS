@@ -7,7 +7,7 @@ class elf64_object
 {
     bool __validated{ false };
     bool __loaded{ false };
-    vaddr_t __image_start;
+    addr_t __image_start;
     size_t __image_size;
 protected:    
     constexpr elf64_ehdr const* ehdr_ptr() const noexcept { return __image_start; }
@@ -16,7 +16,7 @@ protected:
     constexpr elf64_phdr const& phdr(size_t n) const noexcept { return *phdr_ptr(n); }
     constexpr elf64_shdr const* shdr_ptr(size_t n) const noexcept { return this->__image_start.plus(this->ehdr().e_shoff + n * this->ehdr().e_shentsize); }
     constexpr elf64_shdr const& shdr(size_t n) const noexcept { return *shdr_ptr(n); }
-    constexpr vaddr_t segment_ptr(size_t n) const noexcept { return this->__image_start.plus(this->phdr(n).p_offset); }
+    constexpr addr_t segment_ptr(size_t n) const noexcept { return this->__image_start.plus(this->phdr(n).p_offset); }
     virtual bool xload() = 0;
     virtual bool xvalidate() = 0;
 public:

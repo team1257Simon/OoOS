@@ -61,14 +61,14 @@ typedef struct __reg_state
     register_t  r13;    // BASE+0x58=0x68
     register_t  r14;    // BASE+0x60=0x70
     register_t  r15;    // BASE+0x68=0x78
-    vaddr_t     rbp;    // BASE+0x70=0x80
-    vaddr_t     rsp;    // BASE+0x78=0x88
-    vaddr_t     rip;    // BASE+0x80=0x90
+    addr_t     rbp;    // BASE+0x70=0x80
+    addr_t     rsp;    // BASE+0x78=0x88
+    addr_t     rip;    // BASE+0x80=0x90
     register_t  rflags; // BASE+0x88=0x98
     uint16_t    ds;     // BASE+0x90=0xA0
     uint16_t    ss;     // BASE+0x92=0xA2
     uint16_t    cs;     // BASE+0x94=0xA4
-    vaddr_t     cr3;    // BASE+0x96=0xA6
+    addr_t     cr3;    // BASE+0x96=0xA6
                         // BASE+0x9E=0xAE
 } __pack __align(2) regstate_t;
 typedef struct __task_control
@@ -90,8 +90,8 @@ typedef struct __task_control
 } __align(1) __pack tcb_t;
 typedef struct __task_info
 {
-    vaddr_t self;                       // %gs:0x000; self-pointer
-    vaddr_t frame_ptr;                  // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
+    addr_t self;                       // %gs:0x000; self-pointer
+    addr_t frame_ptr;                  // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
     regstate_t saved_regs;              // %gs:0x010 - %gs:0x0AE
     uint16_t quantum_val;               // %gs:0x0AE; base amount of time allocated per timeslice
     uint16_t quantum_rem;               // %gs:0x0B0; amount of time remaining in the current timeslice
@@ -100,16 +100,16 @@ typedef struct __task_info
     uint64_t run_split;                 // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
     uint64_t run_time;                  // %gs:0x2D8; total runtime
     uint64_t sys_time;                  // %gs:0x2E0; approximate time in syscalls
-    vaddr_t tls_block;                  // %gs:0x2E8; location for TLS 
+    addr_t tls_block;                  // %gs:0x2E8; location for TLS 
     size_t num_child_procs;             // %gs:0x2F0; how many children
-    vaddr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
-    vaddr_t next;                       // %gs:0x300; updated when scheduling event fires.
+    addr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
+    addr_t next;                       // %gs:0x300; updated when scheduling event fires.
 } __align(16) __pack task_t;
 inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
-void user_entry(vaddr_t);
+void user_entry(addr_t);
 [[noreturn]] void kernel_reentry();
 void init_pit();
-void init_tss(vaddr_t k_rsp);
+void init_tss(addr_t k_rsp);
 #ifdef __cplusplus
 }
 constexpr unsigned int sub_tick_ratio{ 157 };

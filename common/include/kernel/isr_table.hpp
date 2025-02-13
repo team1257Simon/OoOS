@@ -11,6 +11,6 @@ namespace interrupt_table
 {
     bool add_irq_handler(byte idx, irq_callback&& handler);
     void add_interrupt_callback(interrupt_callback&& cb);
-    void map_interrupt_callbacks(vaddr_t frame);
+    void map_interrupt_callbacks(addr_t frame);
 }
 #endif

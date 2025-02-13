@@ -1,9 +1,9 @@
 #include "arch/ahci.hpp"
-#include "string.h"
-#include "isr_table.hpp"
 #include "arch/arch_amd64.h"
+#include "isr_table.hpp"
 #include "heap_allocator.hpp"
 #include "stdexcept"
+#include "string.h"
 constexpr size_t cl_offs_base{ 32uL * sizeof(hba_cmd_header) };
 constexpr size_t fis_offs_base{ 32uL * cl_offs_base };
 constexpr uint64_t table_offs_base{ fis_offs_base + 32uL * sizeof(hba_fis) };
@@ -66,7 +66,7 @@ void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t *buffer, at
         cmdtbl->prdt_entries[i].byte_count = i == l ? (((count.lo.lo & 0x0F) * 0x200 - 1) | 0x80000001) : 0x80001FFF;
         BARRIER;
     }
-    fis_reg_h2d* fis = vaddr_t{ cmdtbl->cmd_fis };
+    fis_reg_h2d* fis = addr_t{ cmdtbl->cmd_fis };
     BARRIER;
     fis->type = reg_h2d;
     fis->ctype = 1;
@@ -176,8 +176,8 @@ void ahci_driver::stop_port(uint8_t i)
 void ahci_driver::port_rebase(uint8_t idx)
 {
     stop_port(idx);
-    vaddr_t cl_base = __my_block.plus(idx * cl_offs_base);
-    vaddr_t f_base = __my_block.plus(fis_offs_base + idx * sizeof(hba_fis));
+    addr_t cl_base = __my_block.plus(idx * cl_offs_base);
+    addr_t f_base = __my_block.plus(fis_offs_base + idx * sizeof(hba_fis));
     __my_abar->ports[idx].command_list = cl_base;
     memset(static_cast<char*>(cl_base), 0, sizeof(hba_cmd_header) * 32);
     BARRIER;
@@ -186,7 +186,7 @@ void ahci_driver::port_rebase(uint8_t idx)
     BARRIER;
     for(int jdx = 0; jdx < 32; jdx++)
     {
-        vaddr_t t_base = __my_block.plus(table_offs_base + idx * prdt_size + jdx * sizeof(hba_cmd_table));
+        addr_t t_base = __my_block.plus(table_offs_base + idx * prdt_size + jdx * sizeof(hba_cmd_table));
         __my_abar->ports[idx].command_list[jdx].command_table = t_base;
         BARRIER;
         memset(static_cast<char*>(t_base), 0, prdt_size);
@@ -230,7 +230,7 @@ void ahci_driver::port_soft_reset(uint8_t idx)
     BARRIER;
     memset(ctbrst, 0, sizeof(hba_cmd_table));
     BARRIER;
-    fis_reg_h2d* frst = vaddr_t{ ctbrst->cmd_fis };
+    fis_reg_h2d* frst = addr_t{ ctbrst->cmd_fis };
     frst->type = reg_h2d;
     frst->control = soft_reset_bit;
     frst->ctype = 0;   
@@ -256,7 +256,7 @@ void ahci_driver::port_soft_reset(uint8_t idx)
     BARRIER;
     memset(ctbdia, 0, sizeof(hba_cmd_table));
     BARRIER;
-    fis_reg_h2d* fdia = vaddr_t{ ctbdia->cmd_fis };
+    fis_reg_h2d* fdia = addr_t{ ctbdia->cmd_fis };
     fdia->type = reg_h2d;
     BARRIER;
     __my_abar->ports[idx].s_active |= BIT(s2);
@@ -356,7 +356,7 @@ void ahci_driver::p_identify(uint8_t idx, identify_data *data)
     hba_port* port{ &(__my_abar->ports[idx]) };
     int slot = find_cmdslot(port);
     if(slot < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
-    qword addr = vaddr_t{ data };
+    qword addr = addr_t{ data };
     BARRIER;
     __my_abar->ports[idx].command_list[slot].cmd_fis_len = 5;
     __my_abar->ports[idx].command_list[slot].prdt_length = 1;
@@ -365,7 +365,7 @@ void ahci_driver::p_identify(uint8_t idx, identify_data *data)
     __my_abar->ports[idx].command_list[slot].command_table->prdt_entries[0].data_upper = addr.hi;
     __my_abar->ports[idx].command_list[slot].command_table->prdt_entries[0].byte_count = 511 | 0x80000001;
     BARRIER;
-    fis_reg_h2d* fis = vaddr_t{ __my_abar->ports[idx].command_list[slot].command_table->cmd_fis };
+    fis_reg_h2d* fis = addr_t{ __my_abar->ports[idx].command_list[slot].command_table->cmd_fis };
     memset(fis, 0, sizeof(fis_reg_h2d));
     BARRIER;
     fis->type = reg_h2d;

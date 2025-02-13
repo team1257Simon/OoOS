@@ -35,10 +35,10 @@ extern "C"
 typedef struct __tss_bits
 {
     uint32_t : 32;
-    vaddr_t rsp[3];
+    addr_t rsp[3];
     uint32_t : 32;
     uint32_t : 32;
-    vaddr_t ist[7];
+    addr_t ist[7];
     uint32_t : 32;
     uint32_t : 32;
     union
@@ -101,8 +101,8 @@ constexpr dword ia32_star      = 0xC0000081;
 constexpr dword lstar          = 0xC0000082;
 constexpr dword cstar          = 0xC0000083;
 constexpr dword sfmask         = 0xC0000084;
-constexpr void set_kernel_gs_base(vaddr_t value) { write_msr<kernel_gs_base>(value); }
-constexpr void init_syscall_msrs(vaddr_t syscall_target, qword flag_mask, word pl0_segbase, word pl3_segbase) { qword star = syscall_target; star.hi.lo = pl0_segbase; star.hi.hi = pl3_segbase; qword stbase =syscall_target; write_msr<ia32_star>(star); write_msr<cstar>(stbase); write_msr<lstar>(stbase); write_msr<sfmask>(flag_mask); qword efer = read_msr<ia32_efer>(); efer |= 1; write_msr<ia32_efer>(efer); }
+constexpr void set_kernel_gs_base(addr_t value) { write_msr<kernel_gs_base>(value); }
+constexpr void init_syscall_msrs(addr_t syscall_target, qword flag_mask, word pl0_segbase, word pl3_segbase) { qword star = syscall_target; star.hi.lo = pl0_segbase; star.hi.hi = pl3_segbase; qword stbase =syscall_target; write_msr<ia32_star>(star); write_msr<cstar>(stbase); write_msr<lstar>(stbase); write_msr<sfmask>(flag_mask); qword efer = read_msr<ia32_efer>(); efer |= 1; write_msr<ia32_efer>(efer); }
 #endif
 #endif
 #endif

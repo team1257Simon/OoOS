@@ -14,7 +14,7 @@ namespace interrupt_table
     void __unlock() { release(&__itable_mutex); }
     bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(handler); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
     void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(cb); }
-    void map_interrupt_callbacks(vaddr_t frame) { heap_allocator::get().enter_frame(frame); heap_allocator::get().identity_map_to_user(__registered_callbacks.data(), __registered_callbacks.size() * 8, false, true); for(int i = 0; i < 16; i++) { heap_allocator::get().identity_map_to_user(__handler_tables[i].data(), __handler_tables[i].size() * 8, false, true); } heap_allocator::get().exit_frame(); }
+    void map_interrupt_callbacks(addr_t frame) { heap_allocator::get().enter_frame(frame); heap_allocator::get().identity_map_to_user(__registered_callbacks.data(), __registered_callbacks.size() * 8, false, true); for(int i = 0; i < 16; i++) { heap_allocator::get().identity_map_to_user(__handler_tables[i].data(), __handler_tables[i].size() * 8, false, true); } heap_allocator::get().exit_frame(); }
 }
 inline void pic_eoi(byte irq) { if (irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
 extern "C"
@@ -28,7 +28,7 @@ extern "C"
         void* idt_ptr;
     } __pack idt_descriptor{};
     extern void idt_register();
-    constexpr static void idt_set_descriptor(uint8_t vector, vaddr_t isr)
+    constexpr static void idt_set_descriptor(uint8_t vector, addr_t isr)
     {
         new (std::addressof(idt_table[vector])) idt_entry_t
         {

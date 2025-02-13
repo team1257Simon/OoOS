@@ -404,7 +404,7 @@ class ahci_driver
     hba_mem* __my_abar{ nullptr }; // this will be stored in the BAR numbered 5
     ahci_device __my_devices[32]{ none };
     size_t __num_ports{};
-    vaddr_t __my_block{};
+    addr_t __my_block{};
 	int __last_command_on_port[32]{};
 	static bool __has_init;
 	static ahci_driver __instance;

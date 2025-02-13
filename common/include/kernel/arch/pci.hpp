@@ -148,8 +148,8 @@ struct pci_config_table
 } __pack;
 pci_config_table* find_pci_config(xsdt_t* xsdt);
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
-vaddr_t compute_base_address(uint32_t bar_registers[], uint8_t i);
-vaddr_t compute_base(uint32_t bar);
+addr_t compute_base_address(uint32_t bar_registers[], uint8_t i);
+addr_t compute_base(uint32_t bar);
 class pci_device_list : public std::vector<pci_config_space*>
 {
     constexpr pci_config_space* __add(pci_config_space* s) { if(s) this->push_back(s); return s; }

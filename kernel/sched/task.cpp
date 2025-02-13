@@ -7,7 +7,7 @@
 #include "elf64_exec.hpp"
 #include "arch/com_amd64.h"
 #include "isr_table.hpp"
-static inline vaddr_t get_applicable_cr3(vaddr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
+static inline addr_t get_applicable_cr3(addr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
 void sys_task_exit()
 {
     task_ctx* ctx;
@@ -43,7 +43,7 @@ void task_ctx::init_task_state()
 }
 filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } { set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
-task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t stack_base, ptrdiff_t stack_size, vaddr_t tls_base, size_t tls_len, vaddr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
+task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
     task_struct 
     { 
         &task_struct, 
@@ -52,7 +52,7 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t s
         {
             .rbp = stack_base + stack_size, 
             .rsp = stack_base + stack_size,
-            .rip = vaddr_t{ task },
+            .rip = addr_t{ task },
             .rflags = 0x202UL,
             .cr3 = get_applicable_cr3(frame_ptr)
         }, 
@@ -89,12 +89,12 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, vaddr_t s
     tls_size{ tls_len }, 
     ctx_filesystem{ fat32::get_instance() } 
     {}
-void task_ctx::add_child(task_ctx *that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<vaddr_t*>(child_tasks.data()); }
+void task_ctx::add_child(task_ctx *that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx *that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
-void task_ctx::start_task(vaddr_t exit_fn)
+void task_ctx::start_task(addr_t exit_fn)
 {
     if(env_vec.empty() || env_vec.back()) { env_vec.push_back(nullptr); }
-    task_struct.saved_regs.rdx = uintptr_t(vaddr_t{ env_vec.data() });
+    task_struct.saved_regs.rdx = uintptr_t(addr_t{ env_vec.data() });
     this->exit_target = exit_fn;  
     if(is_user())
     {
@@ -104,7 +104,7 @@ void task_ctx::start_task(vaddr_t exit_fn)
         heap_allocator::get().exit_frame();
         interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
     }
-    else *static_cast<uintptr_t*>(task_struct.saved_regs.rsp) = vaddr_t(&sys_task_exit);
+    else *static_cast<uintptr_t*>(task_struct.saved_regs.rsp) = addr_t(&sys_task_exit);
     scheduler::get().register_task(this->task_struct.self);
     this->current_state = execution_state::RUNNING;
 }

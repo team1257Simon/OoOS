@@ -458,7 +458,7 @@ typedef struct __vaddr
     uint16_t pml4_idx   :  9;
     uint16_t ext        : 16;
 #endif
-} __pack __align(1) vaddr_t;
+} __pack __align(1) addr_t;
 #ifdef __cplusplus
 extern "C" {
 #define CXX_INI(val) { val }
@@ -718,7 +718,7 @@ typedef madt_record<local_apic_nmi_data> lapic_nmi;
 #endif
 typedef union __idx_addr
 {
-    vaddr_t idx;
+    addr_t idx;
     uintptr_t addr;
 } __pack indexed_address;
 typedef union __guid
