@@ -12,24 +12,8 @@ namespace std
         template<typename CT> struct __is_char_type : __and_<__or_<is_trivial<CT>, is_standard_layout<CT>>, __not_<is_array<CT>>, __is_totally_ordered<CT>> {};
         template<typename CT> constexpr inline bool __is_char_type_v = __is_char_type<CT>::value;
     }
-    template<typename CT> concept char_type = __detail::__is_char_type_v<CT>;
-    namespace __impl
-    {
-        template<std::char_type CT> constexpr const CT* __find_impl(CT const* str, CT const* what) noexcept { if (!what[0]) return str; for (size_t i = 1; str[0]; str++) { if (str[0] == what[0]) { for (i = 1; what[i]; i++) { if (str[i] != what[i]) break; } if (!what[i]) return str; } } return NULL; }
-    }
-    #if defined(__x86_64__) || defined(_M_X64)
-    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) 
-    { 
-        if constexpr(sizeof(CT) == 1) asm volatile("repne scasb" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
-        else if constexpr(sizeof(CT) == 2) asm volatile("repne scasw" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
-        else if constexpr(sizeof(CT) == 4) asm volatile("repne scasl" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
-        else if constexpr(sizeof(CT) == 8) asm volatile("repne scasq" : "+D"(ptr) : "a"(c), "c"(n) : "memory");
-        else { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return ptr; }
-        return const_cast<CT*>(--ptr);
-    }
-    #else
-    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n; i++, ++ptr) { if(*ptr == c) return ptr; } return nullptr; }
-    #endif
+    extension template<typename CT> concept char_type = __detail::__is_char_type_v<CT>;
+    template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return const_cast<CT*>(ptr); }
     extension template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
     extension template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, size_t(-1)); }
     extension template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { arrayset(ptr, val, n); return ptr; }
@@ -45,7 +29,7 @@ namespace std
     extension template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); arraycopy<CT>(dest, src, n + 1); return dest + n; }
     extension template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && (*s2 == *s1) && (*s1 != 0) && (*s2 != 0); ++i, ++s1, ++s2); return (*s1 < *s2) ? -1 : (*s1 > *s2 ? 1 : 0); }
     extension template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
-    extension template<std::char_type CT> constexpr const CT* find(const CT* ptr, const CT* what) noexcept { return __impl::__find_impl(ptr, what); }
+    extension template<std::char_type CT> constexpr const CT* find(const CT* str, const CT* what) noexcept { if (!what[0]) return str; for (size_t i = 1; str[0]; str++) { if (str[0] == what[0]) { for (i = 1; what[i]; i++) { if (str[i] != what[i]) break; } if (!what[i]) return str; } } return nullptr; }
     template<> constexpr bool eq<char>(char a, char b) { return static_cast<unsigned char>(a) == static_cast<unsigned char>(b); }
     template<> constexpr bool lt<char>(char a, char b) { return static_cast<unsigned char>(a) < static_cast<unsigned char>(b); }
     constexpr int memcmp(const void* s1, const void* s2, size_t n) { return __builtin_memcmp(s1, s2, n); }
@@ -103,7 +87,7 @@ namespace std
         constexpr static int_type not_eof(int_type e) noexcept { return e > 0 ? e : (e * -1); }
     };
     typedef char_traits<char>::pos_type streampos;
-    template<typename TT, typename CT> concept char_traits_type = std::char_type<CT> && requires(CT& c1, CT const& c2, CT* p1, CT* p2, size_t n)
+    extension template<typename TT, typename CT> concept char_traits_type = std::char_type<CT> && requires(CT& c1, CT const& c2, CT* p1, CT* p2, size_t n)
     {
         { typename TT::char_type{} } -> std::same_as<CT>;
         { typename TT::int_type{} } -> std::integral;

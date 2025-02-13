@@ -7,7 +7,7 @@
 // C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility
 extern "C"
 {
-    char* strstr(const char* str, const char* what) { return const_cast<char*>(std::__impl::__find_impl(str, what)); }
+    char* strstr(const char* str, const char* what) { return const_cast<char*>(std::find(str, what)); }
     char* strnchr(const char* str, size_t n, int what) { return std::find<char>(str, n, char(what)); }
     char* strchr(const char* str, int what) { return std::find<char>(str, std::strlen(str), char(what)); }
     int strncmp(const char* restrict lhs, const char* restrict rhs, size_t n) { return std::strncmp<char>(lhs, rhs, n); }

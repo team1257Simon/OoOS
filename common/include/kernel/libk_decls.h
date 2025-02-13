@@ -45,31 +45,11 @@ inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 constexpr inline size_t GIGABYTE = 0x40000000;
 template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
-template<typename T> requires (nontrivial_copy<T> || std::larger<T, uint64_t>) constexpr void arrayset(T* dest, T const& value, std::size_t n) { for(std::size_t i = 0; i < n; i++, dest++) *dest = value; }
+template<typename T> constexpr void arrayset(T* dest, T const& value, std::size_t n) { for(std::size_t i = 0; i < n; i++, dest++) *dest = value; }
 template<nontrivial_copy T> constexpr void arraycopy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++, ++dest, ++src) *dest = *src; }
 template<typename T> constexpr void arraymove(T* dest, T* src, std::size_t n) { for(size_t i = 0; i < n; ++i, (void)++src) dest[i] = *src; }
-#if defined(__x86_64__) || defined(_M_X64)
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) 
-{
-    if constexpr(sizeof(T) == 2) asm volatile("rep stosw" : "+D"(dest) : "a"(value), "c"(n) : "memory");
-    else if constexpr(sizeof(T) == 4) asm volatile("rep stosl": "+D"(dest) : "a"(value), "c"(n) : "memory");
-    else if constexpr(sizeof(T) == 8) asm volatile("rep stosq": "+D"(dest) : "a"(value), "c"(n * sizeof(T) / 8) : "memory");
-    else asm volatile("rep stosb" : "+D"(dest) : "a"(value), "c"(n * sizeof(T)) : "memory");
-    asm volatile("mfence" ::: "memory");
-}
-template<typename T> concept qword_copy = trivial_copy<T> && (sizeof(T) == 8 || (sizeof(T) % 8 == 0 && alignof(T) % 8 == 0)); 
-template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n)
-{
-    if constexpr(sizeof(T) == 2) asm volatile("rep movsw" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory"); 
-    else if constexpr(sizeof(T) == 4) asm volatile("rep movsl" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n): "memory");
-    else if constexpr(qword_copy<T>) asm volatile("rep movsq" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T) / 8) : "memory"); 
-    else asm volatile("rep movsb" : "+D"(static_cast<T*>(dest)) : "S"(src), "c"(n * sizeof(T)): "memory");
-    asm volatile("mfence" ::: "memory");
-}
-#else
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { __builtin_memset(dest, value, n * sizeof(T)); }
-template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n) { __builtn_memcpy(dest, src, n * sizeof(T)); }
-#endif
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } }
+template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = src[i]; } }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
     if constexpr(std::is_default_constructible_v<T>) arrayset(dest, T{}, n);
