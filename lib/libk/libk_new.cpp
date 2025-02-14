@@ -9,6 +9,8 @@ extern "C"
     void free(void* ptr) { __kernel_frame_tag->deallocate(ptr); }
     void* calloc(size_t n, size_t s) { return __kernel_frame_tag->array_allocate(n, s); }
     void* realloc(void* ptr, size_t n) { return __kernel_frame_tag->reallocate(ptr, n); }
+    void* _mm_malloc(size_t n, size_t al) { return __kernel_frame_tag->allocate(n, al); }
+    void* _mm_free(void* ptr) { __kernel_frame_tag->deallocate(ptr, 16UL); }
 }
 [[nodiscard]] void* operator new(std::size_t count) { if(void* ptr = __kernel_frame_tag->allocate(count)) return ptr; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return __kernel_frame_tag->allocate(count); }
 [[nodiscard]] void* operator new[](std::size_t count) { if(void* ptr = __kernel_frame_tag->allocate(count)) return ptr; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return __kernel_frame_tag->allocate(count); }

@@ -1,0 +1,36 @@
+#ifndef __CXX_UNORDERED_MAP
+#define __CXX_UNORDERED_MAP
+#include "bits/hash_table.hpp"
+namespace std
+{
+        template<typename KT, typename VT, __detail::__hash_functor<KT> HT, __detail::__predicate<KT> ET = std::equal_to<void>, __detail::__hash_policy PT = __impl::__prime_number_policy, __detail::__hash_range_functor RT = __impl::__modulus_hash_range, allocator_object<__hash_node<pair<KT, VT>>> AT = std::allocator<__hash_node<pair<KT, VT>>>>
+        class unordered_map : public hash_map<KT, VT, HT, ET, PT, RT, AT>
+        {
+            using __base = hash_map<KT, VT, HT, ET, PT, RT, AT>;
+        protected:
+            using typename __base::__hash;
+            using typename __base::__hash_range;
+            using typename __base::__key_extract;
+            using typename __base::__hash_bucket;
+            using typename __base::__policy_type;
+            using typename __base::__node_ptr;
+            using typename __base::__node_const_ptr;
+            using typename __base::__buckets_ptr;
+        public:
+            using typename __base::key_type;
+            using typename __base::value_type;
+            using typename __base::allocator_type;
+            using typename __base::key_equal;
+            using typename __base::size_type;
+            using typename __base::iterator;
+            using typename __base::const_iterator;
+            typedef VT mapped_type;
+            constexpr unordered_map() noexcept : __base{} {}
+            constexpr unordered_map(size_type init_sz) : __base{ init_sz } {}
+            template<convertible_to<key_type> LT, convertible_to<mapped_type> WT> requires is_move_assignable_v<VT> constexpr iterator insert_or_assign(LT&& lt, WT&& wt) { pair<iterator, bool> res = this->insert(value_type(forward<LT>(lt), forward<WT>(wt))); if(!res.second) { res.first->first = forward<WT>(wt); } return res.first; }
+            template<convertible_to<key_type> LT, convertible_to<mapped_type> WT> requires is_copy_assignable_v<VT> constexpr iterator insert_or_assign(LT const& lt, WT const& wt) { pair<iterator, bool> res = this->insert(value_type(lt, wt)); if(!res.second) { res.first->first = wt; } return res.first; }
+            template<convertible_to<key_type> LT> requires is_default_constructible_v<mapped_type> constexpr mapped_type& operator[](LT&& lt) { __node_ptr p = this->__find(lt); if(p) return p->__get_ptr()->second; else return this->__insert_unique(value_type(forward<LT>(lt), mapped_type{})).first->second; }
+            template<convertible_to<key_type> LT> requires (is_default_constructible_v<mapped_type> && is_copy_constructible_v<key_type>) constexpr mapped_type& operator[](LT const& lt) { __node_ptr p = this->__find(lt); if(p) return p->__get_ptr()->second; else return this->__insert_unique(value_type(KT(lt), mapped_type{})).first->second; }
+        };
+}
+#endif

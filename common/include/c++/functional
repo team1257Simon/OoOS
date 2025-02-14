@@ -1,6 +1,7 @@
 #ifndef __FUNCTIONAL
 #define __FUNCTIONAL
 #include "bits/stl_function.hpp"
+#include "bits/functional_compare.hpp"
 #include "bits/invoke.hpp"
 #include "bits/refwrap.hpp"
 #include "tuple"
@@ -165,19 +166,5 @@ namespace std
         template<typename ... CArgs> constexpr invoke_result_t<FT, BArgs..., CArgs...> operator()(CArgs&&... __args) && noexcept(is_nothrow_invocable_v<FT, BArgs..., CArgs...>) { return __s_call(move(*this), __bound_indices{}, forward<CArgs>(__args)...); }
         template<typename ... CArgs> constexpr invoke_result_t<const FT, const BArgs..., CArgs...> operator()(CArgs&&... __args) const && noexcept(is_nothrow_invocable_v<const FT, const BArgs..., CArgs...>) { return __s_call(move(*this), __bound_indices{}, forward<CArgs>(__args)...); }
     };
-    template<typename FT, typename ... Args> using __bind_front_t = __bind_front_expr<decay_t<FT>, decay_t<Args>...>;
-    template<typename FT, typename ... Args> constexpr __bind_front_t<FT, Args...> bind_front(FT&& __f, Args&& ... __args) noexcept(is_nothrow_constructible_v<__bind_front_t<FT, Args...>, int, FT, Args...>) { return __bind_front_t<FT, Args...>(0, forward<FT>(__f), forward<Args>(__args)...); }
-    template<typename T = void> struct less { constexpr bool operator()(T const& __this, T const& __that) const{ return __this < __that; } };
-    template<typename T = void> struct greater { constexpr bool operator()(T const& __this, T const& __that) const{ return __this > __that; } };
-    template<typename T = void> struct less_equal { constexpr bool operator()(T const& __this, T const& __that) const{ return __this <= __that; } };
-    template<typename T = void> struct greater_equal { constexpr bool operator()(T const& __this, T const& __that) const{ return __this >= __that; } };
-    template<typename T = void> struct equal_to { constexpr bool operator()(T const& __this, T const& __that) const{ return __this == __that; } };
-    template<typename T = void> struct not_equal_to { constexpr bool operator()(T const& __this, T const& __that) const{ return __this != __that; } };
-    template<> struct less<void> { template<typename T, typename U> constexpr auto operator()(T&& __this, U&& __that) const -> decltype(forward<T>(__this) < forward<U>(__that)) { return forward<T>(__this) < forward<U>(__that); } };
-    template<> struct greater<void> { template<typename T, typename U> constexpr auto operator()(T&& __this, U&& __that) const -> decltype(forward<T>(__this) > forward<U>(__that)) { return forward<T>(__this) > forward<U>(__that); } };
-    template<> struct less_equal<void> { template<typename T, typename U> constexpr auto operator()(T&& __this, U&& __that) const -> decltype(forward<T>(__this) <= forward<U>(__that)) { return forward<T>(__this) <= forward<U>(__that); } };
-	template<> struct greater_equal<void> { template<typename T, typename U> constexpr auto operator()(T&& __this, U&& __that) const -> decltype(forward<T>(__this) >= forward<U>(__that)) { return forward<T>(__this) >= forward<U>(__that); } };
-	template<> struct equal_to<void> { template<typename T, typename U> constexpr auto operator()(T&& __this, U&& __that) const -> decltype(forward<T>(__this) == forward<U>(__that)) { return forward<T>(__this) == forward<U>(__that); } };
-	template<> struct not_equal_to<void> { template<typename T, typename U> constexpr auto operator()(T&& __this, U&& __that) const -> decltype(forward<T>(__this) != forward<U>(__that)) { return forward<T>(__this) != forward<U>(__that); } };
 }
 #endif

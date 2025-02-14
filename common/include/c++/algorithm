@@ -39,5 +39,22 @@ namespace std
         return !x1 ? std::strong_ordering::greater : !x2 ? std::strong_ordering::less : std::strong_ordering::equal;
     }
     template<typename T, typename U, matching_input_iterator<T> IT, matching_input_iterator<U> JT> constexpr auto lexicographical_compare_three_way(IT first1, IT last1, JT first2, JT last2) { return lexicographical_compare_three_way(first1, last1, first2, last2, std::compare_three_way{}); }
+    template<forward_iterator IT, typename T = iterator_traits<IT>::value_type, typename CT = std::less<T>>
+    IT lower_bound(IT first, IT last, T const& value, CT ct)
+    {
+        IT i, j = first;
+        typename iterator_traits<IT>::difference_type count = distance(first, last), step;
+        while(count > 0)
+        {
+            i = j;
+            step = count / 2;
+            advance(i, step);
+            if(ct(*i, value)) { j = ++i; count -= step + 1; }
+            else count = step;
+        }
+        return j;
+    }
+    template<forward_iterator IT, typename T = iterator_traits<IT>::value_type>
+    IT lower_bound(IT first, IT last, T const& value) { return lower_bound(first, last, value, std::less<void>{}); }
 }
 #endif
