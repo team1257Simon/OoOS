@@ -238,7 +238,7 @@ uintptr_t kernel_memory_mgr::__find_and_claim_available_region(size_t sz)
         }
     }
     // If we didn't find any, try again with the watermark reset in case it's inaccurate
-    if(__physical_open_watermark) { __physical_open_watermark = __kernel_heap_begin + __num_status_bytes; return __find_and_claim_available_region(sz); }
+    if(__physical_open_watermark > __kernel_heap_begin + __num_status_bytes) { __physical_open_watermark = __kernel_heap_begin + __num_status_bytes; return __find_and_claim_available_region(sz); }
     return 0;
 }
 void kernel_memory_mgr::__release_claimed_region(size_t sz, uintptr_t start)
