@@ -1,29 +1,6 @@
 #include "bits/stl_tree.hpp"
 namespace std
 {
-    static __node_base * __local_increment(__node_base *x) throw()
-    {
-        if(x->__my_right) { x = x->__my_right; while(x->__my_left) x = x->__my_left; }
-        else
-        {
-            __node_base* y = x->__my_parent;
-            while(x == y->__my_right) { x = y; y = y->__my_parent; }
-            if(x->__my_right != y) x = y;
-        }
-        return x;
-    }
-    static __node_base* __local_decrement(__node_base* x) throw()
-    {
-        if(x->__my_color == RED && x->__my_parent->__my_parent == x) x = x->__my_right;
-        else if(x->__my_left) { x = x->__my_left; while(x->__my_right) x = x->__my_right; }
-        else
-        {
-            __node_base* y = x->__my_parent;
-            while(x == y->__my_left) { x = y; y = y->__my_parent; }
-            x = y;
-        }
-        return x;
-    }
     static void __local_lrotate(__node_base* const x, __node_base* &root)
     {
         __node_base* const y = x->__my_right;
@@ -53,10 +30,6 @@ namespace std
     __node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left) x = x->__my_left; return x; }
     __node_base::__ptr __node_base::__max(__ptr x) { while(x->__my_right) x = x->__my_right; return x; }
     __node_base::__const_ptr __node_base::__max(__const_ptr x)  { while(x->__my_right) x = x->__my_right; return x; }
-    __node_base *__increment_node(__node_base *x) throw() { return __local_increment(x); }
-    __node_base *__decrement_node(__node_base *x) throw() { return __local_decrement(x); }
-    __node_base const *__increment_node(__node_base const *x) throw() { return __local_increment(const_cast<__node_base*>(x)); }
-    __node_base const *__decrement_node(__node_base const *x) throw() { return __local_decrement(const_cast<__node_base*>(x)); }
     static inline node_direction __opposite(const node_direction dir) { return (dir == RIGHT ? LEFT : RIGHT); }
     static inline void __local_rotate(__node_base* const x, __node_base* &root, const node_direction dir) { if(dir == RIGHT) __local_rrotate(x, root); else __local_lrotate(x, root); }
     static inline void __local_rebalance_after_insert(__node_base* &x, __node_base* &root )

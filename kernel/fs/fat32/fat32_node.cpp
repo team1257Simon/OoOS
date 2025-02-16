@@ -159,8 +159,8 @@ bool fat32_folder_inode::parse_dir_data()
                         name_entries.clear();
                     }
                     else { std::string sn(12, std::allocator<char>()); parse_filename(i->regular_entry, sn); name_iterator = __my_names.emplace(sn, std::addressof(i->regular_entry)).first; }
-                    if(i->regular_entry.attributes & 0x10) { fat32_folder_inode* n = parent_fs->put_folder_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n || !n->parse_dir_data()) return false; __my_directory.emplace(n, n->name()); }
-                    else { fat32_file_inode* n = parent_fs->put_file_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n) return false; __my_directory.emplace(n, n->name()); }
+                    if(i->regular_entry.attributes & 0x10) { fat32_folder_inode* n = parent_fs->put_folder_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n) throw std::runtime_error{ "failed to create folder node: " + name_iterator->first }; if(!n->parse_dir_data()) return false; __my_directory.emplace(n, n->name()); }
+                    else { fat32_file_inode* n = parent_fs->put_file_node(name_iterator->first, std::addressof(i->regular_entry)); if(!n) throw std::runtime_error{ "failed to create file node: " + name_iterator->first };; __my_directory.emplace(n, n->name()); }
                 }
             }
             __has_init = true;

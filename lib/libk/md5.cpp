@@ -140,7 +140,7 @@ void md5_step(uint32_t* buffer, uint32_t* input)
     buffer[2] += __c;
     buffer[3] += __d;
 }
-__int128_t md5(uint8_t const* input, size_t len)
+__int128_t md5_hash(const void* input, size_t len)
 {
     md5_ctx ctx{};
     uint8_t* buff = std::allocator<uint8_t>{}.allocate(len);
@@ -150,3 +150,4 @@ __int128_t md5(uint8_t const* input, size_t len)
     std::allocator<uint8_t>{}.deallocate(buff, len);
     return *reinterpret_cast<__int128_t*>(ctx.digest);
 }
+__int128_t md5::operator()(const void *input, size_t len) const noexcept { return md5_hash(input, len); }

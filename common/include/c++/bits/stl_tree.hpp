@@ -41,16 +41,58 @@ namespace std
         static __ptr __max(__ptr x);
         static __const_ptr __max(__const_ptr x);
     };
-    __node_base* __increment_node(__node_base* x) throw();
-    __node_base const* __increment_node(__node_base const* x) throw();
-    __node_base* __decrement_node(__node_base* x) throw();
-    __node_base const* __decrement_node(__node_base const* x) throw();
+    constexpr __node_base* __increment_node(__node_base* x)
+    {
+        if(x->__my_right) { x = x->__my_right; while(x->__my_left) x = x->__my_left; }
+        else
+        {
+            __node_base* y = x->__my_parent;
+            while(x == y->__my_right) { x = y; y = y->__my_parent; }
+            if(x->__my_right != y) x = y;
+        }
+        return x;
+    }
+    constexpr __node_base const* __increment_node(__node_base const* x)
+    {
+        if(x->__my_right) { x = x->__my_right; while(x->__my_left) x = x->__my_left; }
+        else
+        {
+            __node_base* y = x->__my_parent;
+            while(x == y->__my_right) { x = y; y = y->__my_parent; }
+            if(x->__my_right != y) x = y;
+        }
+        return x;
+    }
+    constexpr __node_base* __decrement_node(__node_base* x)
+    {
+        if(x->__my_color == RED && x->__my_parent->__my_parent == x) x = x->__my_right;
+        else if(x->__my_left) { x = x->__my_left; while(x->__my_right) x = x->__my_right; }
+        else
+        {
+            __node_base* y = x->__my_parent;
+            while(x == y->__my_left) { x = y; y = y->__my_parent; }
+            x = y;
+        }
+        return x;
+    }
+    constexpr __node_base const* __decrement_node(__node_base const* x)
+    {
+        if(x->__my_color == RED && x->__my_parent->__my_parent == x) x = x->__my_right;
+        else if(x->__my_left) { x = x->__my_left; while(x->__my_right) x = x->__my_right; }
+        else
+        {
+            __node_base* y = x->__my_parent;
+            while(x == y->__my_left) { x = y; y = y->__my_parent; }
+            x = y;
+        }
+        return x;
+    }
     struct __tree_trunk
     {
         // This node's parent is the root node; its left is the min node; its right is the max node
         __node_base __trunk;
         size_t __count;
-        constexpr inline void __reset() noexcept
+        constexpr void __reset() noexcept
         {
             __trunk.__my_color = RED;
             __trunk.__my_parent = nullptr;

@@ -1,5 +1,5 @@
 #ifndef __MD5_HASH
 #define __MD5_HASH
 #include "kernel/kernel_defs.h"
-__int128_t md5(uint8_t const* input, size_t len);
+struct md5 { __int128_t operator()(const void* input, size_t len) const noexcept; };
 #endif

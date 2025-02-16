@@ -66,8 +66,7 @@ bool fat32::init_instance()
     fat32_bootsect bootsect{};
     uint64_t ss = figure_start_sector();
     if(!ahci_hda::read_object(bootsect, ss)) return false;
-    __instance = fat_alloc.allocate(1);
-    new (__instance) fat32(bootsect.root_cluster_num, bootsect.sectors_per_cluster, bootsect.bytes_per_sector, ss + bootsect.num_reserved_sectors, bootsect.num_fats * bootsect.fat_size, bootsect.volume_serial);
+    __instance = new fat32(bootsect.root_cluster_num, bootsect.sectors_per_cluster, bootsect.bytes_per_sector, ss + bootsect.num_reserved_sectors, bootsect.num_fats * bootsect.fat_size, bootsect.volume_serial);
     __has_init = __instance->init();
     return __has_init;
 }

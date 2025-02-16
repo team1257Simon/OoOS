@@ -11,8 +11,10 @@ namespace std
         template<std::totally_ordered T> struct __is_totally_ordered<T> : true_type {};
         template<typename CT> struct __is_char_type : __and_<__or_<is_trivial<CT>, is_standard_layout<CT>>, __not_<is_array<CT>>, __is_totally_ordered<CT>> {};
         template<typename CT> constexpr inline bool __is_char_type_v = __is_char_type<CT>::value;
+        template<typename CT, typename VT = remove_cvref_t<CT>> struct __basic_char_type : __or_<is_same<VT, char>, is_same<VT, wchar_t>, is_same<VT, char8_t>, is_same<VT, char16_t>, is_same<VT, char32_t>> {};
     }
     extension template<typename CT> concept char_type = __detail::__is_char_type_v<CT>;
+    extension template<typename CT> concept basic_char_type = __detail::__basic_char_type<CT>::value;
     template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return const_cast<CT*>(ptr); }
     extension template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
     extension template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, size_t(-1)); }
