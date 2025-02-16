@@ -186,12 +186,16 @@ public:
     fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_file_inode* parent);
 };
 class fat32;
+class fat32_folder_inode;
 struct fat32_node 
 {
-    fat32_regular_entry* disk_entry;
-    fat32* parent_fs;
-    fat32_node(fat32_regular_entry* e, fat32* parent) noexcept;
+    fat32* parent_fs;    
+    fat32_folder_inode* parent_dir;
+    size_t dirent_index;
+    fat32_node(fat32* pfs, fat32_folder_inode* pdir, size_t didx) noexcept;
     uint32_t start_cluster() const noexcept;
+    fat32_regular_entry* disk_entry() noexcept;
+    fat32_regular_entry const* disk_entry() const noexcept;
 };
 class fat32_file_inode final : public file_inode, public fat32_node
 {
@@ -217,22 +221,23 @@ public:
     virtual pos_type tell() const;
     void on_open();
     void set_fd(int i);
-    fat32_file_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
-    friend inline std::strong_ordering operator<=>(fat32_file_inode const& __this, fat32_file_inode const& __that) noexcept { return std::string(__this.name()) <=> __that.name(); }
+    fat32_file_inode(fat32* pfs, std::string const& real_name, fat32_folder_inode* pdir, uint32_t cl_st, size_t dirent_idx);
+    friend constexpr std::strong_ordering operator<=>(fat32_file_inode const& __this, fat32_file_inode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(std::char_traits<char>::compare(__this.concrete_name.c_str(), __that.concrete_name.c_str(), std::max(__this.concrete_name.size(), __that.concrete_name.size()))); }
 };
 class fat32_folder_inode final : public folder_inode, public fat32_node
 {
     tnode_dir __my_directory;
-    std::map<std::string, fat32_regular_entry*> __my_names;    
     std::vector<fat32_directory_entry> __my_dir_data;
     std::vector<uint32_t> __my_covered_clusters;
     size_t __n_files;
     size_t __n_folders;
     bool __has_init{ false };
-    void __update_name_ptrs();
+    friend class fat32_node;
+    friend class fat32;    
     void __expand_dir();
+    bool __read_disk_data();
+    void __add_parsed_entry(fat32_regular_entry const& e, size_t j);
     bool __dir_ent_erase(std::string const& what);
-    std::vector<fat32_directory_entry>::iterator __reclaim_stray(fat32_regular_entry* e);
     std::vector<fat32_directory_entry>::iterator __whereis(fat32_regular_entry* e);
     std::vector<fat32_directory_entry>::iterator __get_longname_start(fat32_regular_entry* e);
 public:
@@ -249,9 +254,8 @@ public:
     fat32_regular_entry* find_dirent(std::string const&);
     bool parse_dir_data();
     constexpr bool valid() const { return __has_init; }
-    fat32_folder_inode(fat32* parent, std::string const& real_name, fat32_regular_entry* e);
-    fat32_folder_inode(fat32* parent, std::string const& real_name, uint32_t root_cluster);
-    friend inline std::strong_ordering operator<=>(fat32_folder_inode const& __this, fat32_folder_inode const& __that) noexcept { return std::string(__this.name()) <=> __that.name(); }
+    fat32_folder_inode(fat32* pfs, std::string const& real_name, fat32_folder_inode* pdir, uint32_t cl_st, size_t dirent_idx);
+    friend constexpr std::strong_ordering operator<=>(fat32_folder_inode const& __this, fat32_folder_inode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(std::char_traits<char>::compare(__this.concrete_name.c_str(), __that.concrete_name.c_str(), std::max(__this.concrete_name.size(), __that.concrete_name.size()))); }
 };
 class fat32 final : public filesystem
 {
@@ -283,8 +287,8 @@ protected:
     virtual folder_inode* mkdirnode(folder_inode* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_inode* open_fd(tnode*) override;
-    fat32_file_inode* put_file_node(std::string const& name, fat32_regular_entry* e);
-    fat32_folder_inode* put_folder_node(std::string const& name, fat32_regular_entry* e);
+    fat32_file_inode* put_file_node(std::string const& name, fat32_folder_inode* parent, uint32_t cl0, size_t dirent_idx);
+    fat32_folder_inode* put_folder_node(std::string const& name, fat32_folder_inode* parent, uint32_t cl0, size_t dirent_idx);
     fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial);
     bool init();
 public:

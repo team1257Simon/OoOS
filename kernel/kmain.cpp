@@ -14,8 +14,6 @@
 #include "bits/icxxabi.h"
 #include "stdlib.h"
 #include "bits/stl_queue.hpp"
-#include "bits/dragon.hpp"
-#include "md5.hpp"
 #include "algorithm"
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
@@ -115,10 +113,6 @@ void str_tests()
     startup_tty.print_line(std::to_string(rand()));
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
-    startup_tty.endl();
-    std::string ts2("I/like/to/eat/apples/and/banana");
-    debug_print_num(std::basic_string_dragon<char>{}(test_str));
-    debug_print_num(std::basic_string_dragon<char>{}(ts2));
     startup_tty.endl();
 }
 void vfs_tests()

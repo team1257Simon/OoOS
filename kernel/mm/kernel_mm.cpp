@@ -452,7 +452,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
         __lock();
         block_tag* tag{ ptr - bt_offset };
         for(size_t i = 0; tag && tag->magic != BLOCK_MAGIC; i++) tag = ptr - ptrdiff_t(bt_offset + i);
-        if(tag->magic == BLOCK_MAGIC)
+        if(tag && tag->magic == BLOCK_MAGIC)
         {
             tag->held_size = 0;
             tag->align_bytes = 0;

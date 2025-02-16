@@ -266,8 +266,8 @@ namespace std
         template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U&& u) { return __insert_node(x, p, __construct_node(forward<U>(u)));}
         template<std::convertible_to<T> U> constexpr __link __insert_lower(__b_ptr p, U&& u) { bool left = (p == __end() || __compare_l(u, p));  __link l = __construct_node(forward<U>(u));  __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
         template<std::convertible_to<T> U> constexpr __link __insert_lower_equal(U&& u) { __link x = __get_root(), y = __end(); while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); } return __insert_lower(y, forward<U>(u)); }
-        template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U const& u) { __pos_pair p = __insert_unique_hint_pos(this->__end(), u); if(p.second) return __res_pair { __insert(p.first, p.second, u), true }; return __res_pair{ p.first, false }; }
-        template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U && u) { __pos_pair p = __insert_unique_hint_pos(this->__end(), u); if(p.second) return __res_pair { __insert(p.first, p.second, forward<U>(u)), true }; return __res_pair{ p.first, false }; }
+        template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U const& u) { __pos_pair p = __insert_unique_hint_pos(nullptr, u); if(p.second) return __res_pair { __insert(p.first, p.second, u), true }; return __res_pair{ p.first, false }; }
+        template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U && u) { __pos_pair p = __insert_unique_hint_pos(nullptr, u); if(p.second) return __res_pair { __insert(p.first, p.second, forward<U>(u)), true }; return __res_pair{ p.first, false }; }
         template<std::convertible_to<T> U> constexpr __link __insert_equal(U && u) { __pos_pair p = __pos_for_equal(u); return __insert(p.first, p.second, forward<U>(u)); }
         template<typename U> requires __valid_comparator<CP, T, U> __const_link __lower_bound(__const_link x, __const_link y, U const& u) const noexcept { while(x) if(!__compare_r(x, u)) y = x, x = __left_of(x); else x = __right_of(x); return y; }
         template<typename U> requires __valid_comparator<CP, T, U> __const_link __upper_bound(__const_link x, __const_link y, U const& u) const noexcept { while(x) if(__compare_l(u, x)) y = x, x = __left_of(x); else x = __right_of(x); return y; }
@@ -307,7 +307,7 @@ namespace std
         __iterator j { y };
         if(comp) { if(j == __begin()) return __pos_pair{ x, y }; else --j; }
         if(__compare_r(j.__my_node, u)) return __pos_pair{ x, y };
-        return __pos_pair{ static_cast<__link>(j.__my_node), NULL };
+        return __pos_pair{ static_cast<__link>(j.__my_node), nullptr };
     }
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
     template<typename U>
@@ -325,22 +325,22 @@ namespace std
     constexpr typename __tree_base<T, CP, A>::__pos_pair __tree_base<T, CP, A>::__insert_unique_hint_pos(__const_link hint, U const& u) 
     {
         __link pos = const_cast<__link>(hint);
-        if(pos == __end() || !pos) { if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ NULL, __l_rightmost() }; else return __pos_for_unique(u); }
+        if(!hint || pos == __end()) { if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ nullptr, __l_rightmost() }; else return __pos_for_unique(u); }
         else if(__compare_l(u, pos))
         {
             __link before =static_cast<__link>(__decrement_node(pos)); 
             if(pos == __l_begin()) return __pos_pair{ __l_begin(), __l_begin() };
-            else if(__compare_r(before, u)) { if(!before->__my_right) return __pos_pair{ NULL, before }; else return __pos_pair{ pos, pos }; } 
+            else if(__compare_r(before, u)) { if(!before->__my_right) return __pos_pair{ nullptr, before }; else return __pos_pair{ pos, pos }; } 
             else return __pos_for_unique(u);
         }
         else if(__compare_r(pos, u))
         {
             __link after = static_cast<__link>(__increment_node(pos));
-            if(pos == __l_rightmost()) return __pos_pair{ NULL, __l_rightmost() };
-            else if(__compare_l(u, after)) { if(!pos->__my_right) return __pos_pair{ NULL, pos }; else return __pos_pair{ after, after }; }
+            if(pos == __l_rightmost()) return __pos_pair{ nullptr, __l_rightmost() };
+            else if(__compare_l(u, after)) { if(!pos->__my_right) return __pos_pair{ nullptr, pos }; else return __pos_pair{ after, after }; }
             else return __pos_for_unique(u);
         }
-        return __pos_pair{ pos, NULL };
+        return __pos_pair{ pos, nullptr };
     }
     template <typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
     template <typename... Args> 
@@ -348,7 +348,7 @@ namespace std
     constexpr typename __tree_base<T, CP, A>::__res_pair __tree_base<T, CP, A>::__emplace_unique(Args &&...args)
     {
         __link l = __construct_node(forward<Args>(args)...);
-        __pos_pair r = __insert_unique_hint_pos(this->__end(), l->__get_ref());
+        __pos_pair r = __pos_for_unique(l->__get_ref());
         if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
         __destroy_node(l);
         return __res_pair{ r.first, false};
