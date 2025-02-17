@@ -254,7 +254,7 @@ public:
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     filesystem();
 private:
-    void __put_fd(file_node* result);
+    void __put_fd(file_node* fd);
 };
 filesystem* get_fs_instance();
 extern "C"
