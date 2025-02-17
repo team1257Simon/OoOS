@@ -17,66 +17,68 @@ struct file_mode
     bool exec_others  : 1;
     bool write_others : 1;
     bool read_others  : 1;
-    bool              : 1;
     bool exec_group   : 1;
     bool write_group  : 1;
     bool read_group   : 1;
-    bool              : 1;
     bool exec_owner   : 1;
     bool write_owner  : 1;
     bool read_owner   : 1;
-    bool              : 1;
-    bool is_sticky    : 1;
-    bool is_gid       : 1;
-    bool is_uid       : 1;
-    bool              : 1;
-    bool is_fifo      : 1;
-    bool is_chardev   : 1;
-    bool is_dir       : 1;
-    bool              : 1;
-    bool reg          : 1;
-    bool              : 3;
-    uint8_t           : 8;
-    constexpr file_mode(uint32_t i) noexcept : 
-        exec_others     { NZ(i & 0x000001) }, 
-        write_others    { NZ(i & 0x000002) }, 
-        read_others     { NZ(i & 0x000004) },
-        exec_group      { NZ(i & 0x000010) }, 
-        write_group     { NZ(i & 0x000020) },
-        read_group      { NZ(i & 0x000040) },
-        exec_owner      { NZ(i & 0x000100) },
-        write_owner     { NZ(i & 0x000200) },
-        read_owner      { NZ(i & 0x000400) },
-        is_sticky       { NZ(i & 0x001000) },
-        is_gid          { NZ(i & 0x002000) },
-        is_uid          { NZ(i & 0x004000) },
-        is_fifo         { NZ(i & 0x010000) },
-        is_chardev      { NZ(i & 0x020000) },
-        is_dir          { NZ(i & 0x040000) },
-        reg             { NZ(i & 0x100000) }
+    bool sticky       : 1;
+    bool set_gid      : 1;
+    bool set_uid      : 1;
+    bool t_fifo       : 1;
+    bool t_chardev    : 1;
+    bool t_directory  : 1;
+    bool t_regular    : 1;
+    constexpr file_mode(uint16_t i) noexcept : 
+        exec_others     { NZ(i & 0000001) }, 
+        write_others    { NZ(i & 0000002) }, 
+        read_others     { NZ(i & 0000004) },
+        exec_group      { NZ(i & 0000010) }, 
+        write_group     { NZ(i & 0000020) },
+        read_group      { NZ(i & 0000040) },
+        exec_owner      { NZ(i & 0000100) },
+        write_owner     { NZ(i & 0000200) },
+        read_owner      { NZ(i & 0000400) },
+        sticky          { NZ(i & 0001000) },
+        set_gid         { NZ(i & 0002000) },
+        set_uid         { NZ(i & 0004000) },
+        t_fifo          { NZ(i & 0010000) },
+        t_chardev       { NZ(i & 0020000) },
+        t_directory     { NZ(i & 0040000) },
+        t_regular       { NZ(i & 0100000) }
                         {}
-    constexpr operator uint32_t() const noexcept 
+    constexpr operator uint16_t() const noexcept 
     {
-        return uint32_t
+        return uint16_t
         (
-            (exec_others    ? 0x000001U : 0) |
-            (write_others   ? 0x000002U : 0) |
-            (read_others    ? 0x000004U : 0) |
-            (exec_group     ? 0x000010U : 0) |
-            (write_group    ? 0x000020U : 0) |
-            (read_group     ? 0x000040U : 0) |
-            (exec_owner     ? 0x000100U : 0) |
-            (write_owner    ? 0x000200U : 0) |
-            (read_owner     ? 0x000400U : 0) |
-            (is_sticky      ? 0x001000U : 0) |
-            (is_gid         ? 0x002000U : 0) |
-            (is_uid         ? 0x004000U : 0) |
-            (is_fifo        ? 0x010000U : 0) |
-            (is_chardev     ? 0x020000U : 0) |
-            (is_dir         ? 0x040000U : 0) |
-            (reg            ? 0x100000U : 0)
+            (exec_others    ? 0000001U : 0) |
+            (write_others   ? 0000002U : 0) |
+            (read_others    ? 0000004U : 0) |
+            (exec_group     ? 0000010U : 0) |
+            (write_group    ? 0000020U : 0) |
+            (read_group     ? 0000040U : 0) |
+            (exec_owner     ? 0000100U : 0) |
+            (write_owner    ? 0000200U : 0) |
+            (read_owner     ? 0000400U : 0) |
+            (sticky         ? 0001000U : 0) |
+            (set_gid        ? 0002000U : 0) |
+            (set_uid        ? 0004000U : 0) |
+            (t_fifo         ? 0010000U : 0) |
+            (t_chardev      ? 0020000U : 0) |
+            (t_directory    ? 0040000U : 0) |
+            (t_regular      ? 0100000U : 0)
         );
     }
+    constexpr operator mode_t() const noexcept { return mode_t(uint16_t(*this)); }
+    constexpr bool is_symlink() const noexcept { return t_regular && t_chardev && !t_fifo && !t_directory; }
+    constexpr bool is_socket() const noexcept { return t_regular && t_directory && !t_fifo && !t_chardev; }
+    constexpr bool is_blockdev() const noexcept { return t_chardev && t_directory && !t_regular && !t_fifo; }
+    constexpr bool is_directory() const noexcept { return t_directory && !t_regular && !t_chardev && !t_fifo; }
+    constexpr bool is_chardev() const noexcept { return t_chardev && !t_regular && !t_directory && !t_fifo; }
+    constexpr bool is_regular() const noexcept { return t_regular && !t_directory && !t_chardev && !t_fifo; }
+    constexpr bool is_fifo() const noexcept { return t_fifo && !t_regular && !t_directory && !t_chardev; }
+    constexpr bool is_type_invalid() const noexcept { return (t_fifo && (t_directory || t_chardev || t_regular)) || (t_directory + t_chardev + t_regular) > 2; }
 };
 class tnode;
 struct fs_node

@@ -231,13 +231,9 @@ bool fat32_directory_node::fsync()
 }
 bool fat32_directory_node::unlink(std::string const& name)
 {
-    if(fat32_regular_entry* e = find_dirent(name))
-    {
-        tnode_dir::iterator i = __my_directory.find(name);
-        if(__builtin_expect(i == __my_directory.end(), false)) { panic("target does not exist"); return false; }
-        return __dir_ent_erase(name);
-    }
-    return false;
+    tnode_dir::iterator i = __my_directory.find(name);
+    if(__builtin_expect(i == __my_directory.end(), false)) { panic("target does not exist"); return false; }
+    return __dir_ent_erase(name);
 }
 bool fat32_directory_node::link(tnode* original, std::string const& target)
 {
@@ -248,7 +244,6 @@ bool fat32_directory_node::link(tnode* original, std::string const& target)
         if(i == __my_dir_data.end()) return false;
         try
         {
-            std::vector<fat32_directory_entry>::iterator next = first_unused_entry();
             fat32_directory_entry clone{};
             clone.regular_entry = i->regular_entry;
             init_times(clone.regular_entry);
