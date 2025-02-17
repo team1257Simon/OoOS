@@ -120,11 +120,11 @@ void vfs_tests()
     try 
     {
         // test folder creation
-        testramfs.get_folder("test/files");
-        file_inode* n = testramfs.open_file("test/files/memes.txt");
+        testramfs.get_dir("test/files");
+        file_node* n = testramfs.open_file("test/files/memes.txt");
         n->write("sweet dreams are made of memes\n", 31);
         testramfs.close_file(n);
-        file_inode* testout = testramfs.lndev("dev/com", com, 0, true);
+        file_node* testout = testramfs.lndev("dev/com", com, 0, true);
         n = testramfs.open_file("test/files/memes.txt");
         char teststr[32](0);
         // test device and file inodes
@@ -189,7 +189,7 @@ void fat32_tests()
     {
         if(!fat32_testfs) fat32_testfs = fat32::get_instance();
         startup_tty.print_line("initialized...");
-        file_inode* f = fat32_testfs->open_file("FILES/A.TXT");
+        file_node* f = fat32_testfs->open_file("FILES/A.TXT");
         f->write("eleventeenology!", 16);
         fat32_testfs->close_file(f);
     }
@@ -199,7 +199,7 @@ void elf64_tests()
     if(fat32::init_instance()) try
     {
         if(!fat32_testfs) fat32_testfs = fat32::get_instance();
-        file_inode* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
+        file_node* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
         elf64_executable exec(f);
         fat32_testfs->close_file(f);
         if(exec.load())
@@ -208,7 +208,7 @@ void elf64_tests()
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
-            file_inode* c = task->get_vfs_ptr()->lndev("com", com, 0);
+            file_node* c = task->get_vfs_ptr()->lndev("com", com, 0);
             task->set_stdio_ptrs(c, c, c);
             task->start_task();
             user_entry(task->task_struct.self);

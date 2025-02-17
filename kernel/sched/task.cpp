@@ -16,7 +16,7 @@ void sys_task_exit()
     asm volatile("movq %%gs:000, %0" : "=r" (ctx) :: "memory");
     ctx->set_exit(retv);
 }
-void task_ctx::set_stdio_ptrs(file_inode *stdin, file_inode *stdout, file_inode *stderr)
+void task_ctx::set_stdio_ptrs(file_node *stdin, file_node *stdout, file_node *stderr)
 {
     stdio_ptrs[0] = stdin;
     stdio_ptrs[1] = stdout;
@@ -163,7 +163,7 @@ extern "C"
         name = translate_user_pointer(name);
         argv = translate_user_pointer(argv);
         env = translate_user_pointer(env);
-        file_inode* n{ nullptr };
+        file_node* n{ nullptr };
         try
         {
             n = fs_ptr->open_file(name, std::ios_base::in);

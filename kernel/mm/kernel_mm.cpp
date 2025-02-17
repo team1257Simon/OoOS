@@ -576,11 +576,11 @@ extern "C"
             if(!fsptr) return addr_t{ uintptr_t(-ENOSYS) };
             else try 
             { 
-                file_inode* n = get_by_fd(fsptr,current_active_task()->self, fd);
+                file_node* n = get_by_fd(fsptr,current_active_task()->self, fd);
                 if(n)
                 {
                     size_t data_len = std::min(size_t(len - offset), n->size());
-                    file_inode::pos_type pos = n->tell();
+                    file_node::pos_type pos = n->tell();
                     n->seek(offset, std::ios_base::beg);
                     n->read(result, data_len);
                     n->seek(pos);

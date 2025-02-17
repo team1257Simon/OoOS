@@ -1,6 +1,6 @@
 #include "fs/fat32.hpp"
 #include "fs/hda_ahci.hpp"
-fat32_filebuf::fat32_filebuf(std::vector<uint32_t> &&covered_clusters, fat32_file_inode* pn) : 
+fat32_filebuf::fat32_filebuf(std::vector<uint32_t> &&covered_clusters, fat32_file_node* pn) : 
     __base                  {}, 
     __my_clusters           { covered_clusters }, 
     __next_cluster_idx      { 0UL },

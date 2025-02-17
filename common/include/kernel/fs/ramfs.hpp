@@ -3,7 +3,7 @@
 #include "kernel/fs/fs.hpp"
 #include "kernel/fs/generic_binary_buffer.hpp"
 constexpr dev_t ramfs_magic = 0xC001;
-class ramfs_folder_inode : public folder_inode
+class ramfs_directory_inode : public directory_node
 {
     tnode_dir __my_dir{};
     size_t __my_file_cnt{};
@@ -11,23 +11,23 @@ class ramfs_folder_inode : public folder_inode
 public:
     virtual tnode* find(std::string const& name) override;
     virtual bool link(tnode* original, std::string const& alias) override;
-    virtual tnode* add(inode*) override;
+    virtual tnode* add(fs_node*) override;
     virtual bool unlink(std::string const& what) override;
     virtual uint64_t num_files() const noexcept override;
     virtual uint64_t num_folders() const noexcept override;
     virtual std::vector<std::string> lsdir() const;
-    ramfs_folder_inode(std::string const& name);
+    ramfs_directory_inode(std::string const& name);
     virtual bool fsync() override;
 };
-class ramfs_file_inode final : generic_binary_buffer<char>, public file_inode
+class ramfs_file_inode final : generic_binary_buffer<char>, public file_node
 {
-	using file_inode::traits_type;
-	using file_inode::difference_type;
-	using file_inode::size_type;
-	using file_inode::pos_type;
-	using file_inode::off_type;
-	using file_inode::pointer;
-	using file_inode::const_pointer;
+	using file_node::traits_type;
+	using file_node::difference_type;
+	using file_node::size_type;
+	using file_node::pos_type;
+	using file_node::off_type;
+	using file_node::pointer;
+	using file_node::const_pointer;
 public:
     virtual size_type write(const_pointer src, size_type n) override;
     virtual size_type read(pointer dest, size_type n) override;
@@ -40,16 +40,16 @@ public:
 };
 class ramfs final : public filesystem
 {
-    ramfs_folder_inode __root_dir;
+    ramfs_directory_inode __root_dir;
     std::set<ramfs_file_inode> __file_nodes;
-    std::set<ramfs_folder_inode> __folder_nodes;
+    std::set<ramfs_directory_inode> __folder_nodes;
 protected:
-    virtual folder_inode* get_root_directory() override;
-    virtual void dlfilenode(file_inode* fd) override;
-    virtual void dldirnode(folder_inode* dd) override;
+    virtual directory_node* get_root_directory() override;
+    virtual void dlfilenode(file_node* fd) override;
+    virtual void dldirnode(directory_node* dd) override;
     virtual void syncdirs() override;
-    virtual file_inode* mkfilenode(folder_inode* parent, std::string const& name) override;
-    virtual folder_inode* mkdirnode(folder_inode* parent, std::string const& name) override;
+    virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
+    virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
 public:
     ramfs();

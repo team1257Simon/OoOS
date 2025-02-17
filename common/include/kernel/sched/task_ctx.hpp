@@ -24,7 +24,7 @@ struct task_ctx
     addr_t tls;
     size_t tls_size;
     filesystem* ctx_filesystem;
-    file_inode* stdio_ptrs[3]{};
+    file_node* stdio_ptrs[3]{};
     execution_state current_state{ execution_state::STOPPED };
     int exit_code{ 0 };
     addr_t exit_target{ nullptr };
@@ -40,7 +40,7 @@ struct task_ctx
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
     friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
-    void set_stdio_ptrs(file_inode* stdin, file_inode* stdout, file_inode* stderr);
+    void set_stdio_ptrs(file_node* stdin, file_node* stdout, file_node* stderr);
     filesystem* get_vfs_ptr();
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
@@ -50,7 +50,7 @@ struct task_ctx
     tms get_times() const noexcept;
     void init_task_state();
 } __align(16);
-file_inode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
+file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 extern "C"
 {
     clock_t syscall_times(struct tms* out);

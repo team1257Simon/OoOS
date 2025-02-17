@@ -20,7 +20,7 @@ protected:
     virtual bool xload() = 0;
     virtual bool xvalidate() = 0;
 public:
-    elf64_object(file_inode* n) noexcept;
+    elf64_object(file_node* n) noexcept;
     ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;
