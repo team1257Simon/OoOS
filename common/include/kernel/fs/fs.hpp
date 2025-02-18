@@ -83,36 +83,36 @@ struct file_mode
 class tnode;
 struct fs_node
 {
-    virtual int vid() const noexcept; // virtual ID (fd number); this is a temporary identifier for persistent filesystems
-    virtual void vid(int) noexcept; // change the FD number for a cached node
-    virtual uint64_t cid() const noexcept; // concrete id; this can be a start sector or anything persistent if applicable (ramfs just gives a self-pointer)
-    virtual uint64_t created_time() const noexcept; // time created
-    virtual uint64_t modified_time() const noexcept; // time last modified
-    virtual bool rename(std::string const&); // change the concrete (i.e. on-disk for persistent fs) name
-    virtual const char* name() const; // get the concrete (i.e. on-disk for persistent fs) name
-    virtual bool is_file() const noexcept;
-    virtual bool is_folder() const noexcept;
-    virtual bool is_device() const noexcept;
-    virtual uint64_t size() const noexcept = 0; // size in bytes (for files) or concrete entries (for folders)
-    virtual bool fsync() = 0; // Sync to disc, if applicable
+    virtual int vid() const noexcept;                   // virtual ID (fd number); this is a temporary identifier for persistent filesystems
+    virtual void vid(int) noexcept;                     // change the FD number for a cached node
+    virtual uint64_t cid() const noexcept;              // concrete id; this can be a start sector or anything persistent if applicable (ramfs just gives a self-pointer)
+    virtual uint64_t created_time() const noexcept;     // time created
+    virtual uint64_t modified_time() const noexcept;    // time last modified
+    virtual bool rename(std::string const&);            // change the concrete (i.e. on-disk for persistent fs) name
+    virtual const char* name() const;                   // get the concrete (i.e. on-disk for persistent fs) name; this may be an empty string (ext, for instance, only uses names for tnodes)
+    virtual bool is_file() const noexcept;              // equivalent to (dynamic_cast<file_node*>(this) != nullptr)
+    virtual bool is_directory() const noexcept;         // equivalent to (dynamic_cast<directory_node*>(this) != nullptr)
+    virtual bool is_device() const noexcept;            // equivalent to (dynamic_cast<device_inode*>(this) != nullptr)
+    virtual uint64_t size() const noexcept = 0;         // size in bytes (for files) or concrete entries (for directories)
+    virtual bool fsync() = 0;                           // sync to disc, if applicable
     virtual ~fs_node();
     int fd;
-    file_mode mode{ 0x0774U };   
+    file_mode mode{ 0774U };   
     uint64_t real_id;
     uint64_t create_time;
     uint64_t modif_time;
     std::string concrete_name;
     std::set<tnode*> refs{};
     fs_node(std::string const& name, int vfd, uint64_t cid);
-    // Move-assign and move-construct only; no copying allowed
     fs_node(fs_node const&) = delete;
     fs_node& operator=(fs_node const&) = delete;
     fs_node(fs_node&&) = default;
     fs_node& operator=(fs_node&&) = default;
-    void unregister_reference(tnode* ref);
-    void prune_refs();
-    bool has_refs() const noexcept;
-    size_t num_refs() const noexcept;
+    void add_reference(tnode* ref);                     // records the pointed tnode as referencing this inode (also calls add_referencing_tnode)
+    void rm_reference(tnode* ref);                      // removes the record of the pointed tnode from the reference list (also calls remove_referencing_tnode)
+    void prune_refs();                                  // equivalent to calling rm_reference on every node in the reference list; used by filesystems like fat32 that do not support hard links
+    bool has_refs() const noexcept;                     // equivalent to (num_refs() != 0)
+    size_t num_refs() const noexcept;                   // the number of tnodes that link to the filesystem object represented by this node
     friend class tnode;
     friend constexpr std::strong_ordering operator<=>(fs_node const& a, fs_node const& b) noexcept { return a.real_id <=> b.real_id; }
     friend constexpr std::strong_ordering operator<=>(fs_node const& a, uint64_t b) noexcept { return a.real_id <=> b; }
@@ -134,13 +134,13 @@ public:
     virtual pos_type seek(off_type, std::ios_base::seekdir) = 0;
     virtual pos_type seek(pos_type) = 0;
     virtual pos_type tell() const = 0;
-    file_node(std::string const& name, int vfd, uint64_t cid);
     virtual bool is_file() const noexcept final override;
     virtual bool chk_lock() const noexcept;
     virtual void acq_lock();
     virtual void rel_lock();
+    file_node(std::string const& name, int vfd, uint64_t cid);    
 };
-struct directory_node : public fs_node 
+struct directory_node : public fs_node
 {
     virtual tnode* find(std::string const&) = 0;
     virtual bool link(tnode*, std::string const&) = 0;
@@ -149,13 +149,13 @@ struct directory_node : public fs_node
     virtual uint64_t num_files() const noexcept = 0;
     virtual uint64_t num_folders() const noexcept = 0;
     virtual std::vector<std::string> lsdir() const = 0;
-    directory_node(std::string const& name, uint64_t cid);
-    virtual bool is_folder() const noexcept final override;
+    virtual bool is_directory() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool is_empty() const noexcept;
     virtual bool relink(std::string const& oldn, std::string const& newn);
+    directory_node(std::string const& name, uint64_t cid);    
 };
-class device_node final : public file_node
+class device_node : public file_node
 {
     using file_node::traits_type;
 	using file_node::difference_type;
@@ -171,10 +171,10 @@ public:
     virtual pos_type seek(off_type, std::ios_base::seekdir) override;
     virtual pos_type seek(pos_type) override;
     virtual pos_type tell() const override;
-    device_node(std::string const& name, int fd, vfs_filebuf_base<char>* dev_buffer);
     virtual bool fsync() override;
     virtual bool is_device() const noexcept final override;
     virtual uint64_t size() const noexcept override;
+    device_node(std::string const& name, int fd, vfs_filebuf_base<char>* dev_buffer);
 };
 class tnode
 {
@@ -203,7 +203,7 @@ public:
     bool if_folder(std::function<bool(directory_node const&)> const& action) const;
     bool if_device(std::function<bool(device_node const&)> const& action) const;
     bool is_file() const;
-    bool is_folder() const;
+    bool is_directory() const;
     bool is_device() const;
     file_node* as_file();
     file_node const* as_file() const;
@@ -211,11 +211,11 @@ public:
     directory_node const* as_folder() const;
     device_node* as_device();
     device_node const* as_device() const;
-    constexpr operator bool() const noexcept { return bool(__my_node); }
     void invlnode() noexcept;
     bool assign(fs_node* n) noexcept;
     friend tnode mklink(tnode* original, std::string const& name);
-    friend bool operator==(tnode const& __this, tnode const& __that) { return __this.__my_name == __that.__my_name && __this.__my_node == __that.__my_node; }
+    constexpr operator bool() const noexcept { return bool(__my_node); }    
+    friend constexpr bool operator==(tnode const& __this, tnode const& __that) { return __this.__my_name == __that.__my_name && __this.__my_node == __that.__my_node; }
     friend constexpr std::strong_ordering operator<=>(tnode const& __this, tnode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that.__my_name)); }
     friend constexpr std::strong_ordering operator<=>(tnode const& __this, std::string const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that)); }
     friend constexpr std::strong_ordering operator<=>(std::string const& __this, tnode const&  __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.compare(__that.__my_name)); }

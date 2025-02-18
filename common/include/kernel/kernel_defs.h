@@ -781,6 +781,7 @@ typedef struct __byte
     constexpr __byte(__byte&&) noexcept = default;
     constexpr __byte& operator=(__byte const&) noexcept = default;
     constexpr __byte& operator=(__byte&&) noexcept = default;
+    constexpr ~__byte() noexcept = default;
     constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
     constexpr operator uint8_t() const noexcept { return uint8_t((b0 ? 0x01u : 0) | (b1 ? 0x02u : 0) | (b2 ? 0x04u : 0) | (b3 ? 0x08u : 0) | (b4 ? 0x10u : 0) | (b5 ? 0x20u : 0) | (b6 ? 0x40u : 0) | (b7 ? 0x80u : 0)); }
@@ -809,6 +810,7 @@ typedef struct __word
     constexpr __word(__word&&) noexcept = default;
     constexpr __word& operator=(__word const&) noexcept = default;
     constexpr __word& operator=(__word&&) noexcept = default;
+    constexpr ~__word() noexcept = default;
     constexpr volatile __word& operator=(__word const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __word& operator=(__word&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
     constexpr operator uint16_t() const noexcept { return (uint16_t(hi) << 8) | lo; }    
@@ -834,6 +836,7 @@ typedef struct __dword
     constexpr __dword(__dword&&) noexcept = default;
     constexpr __dword& operator=(__dword const&) noexcept = default;
     constexpr __dword& operator=(__dword&&) noexcept = default;
+    constexpr ~__dword() noexcept = default;
     constexpr volatile __dword& operator=(__dword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __dword& operator=(__dword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
     constexpr operator uint32_t() const noexcept { return uint32_t(uint16_t(lo) | (uint32_t(uint16_t(hi)) << 16)); }
@@ -859,6 +862,7 @@ typedef struct __qword
     constexpr __qword(__qword&&) noexcept = default;
     constexpr __qword& operator=(__qword const&) noexcept = default;
     constexpr __qword& operator=(__qword&&) noexcept = default;
+    constexpr ~__qword() noexcept = default;
     constexpr volatile __qword& operator=(__qword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint64_t() const noexcept { return uint64_t(uint32_t(lo) | (uint64_t(uint32_t(hi)) << 32)); }
@@ -872,17 +876,75 @@ typedef struct __qword
     constexpr __qword& operator<<=(int that) noexcept { return *this = (*this << that); }
     constexpr bool operator[](uint8_t i) const noexcept { return (i >= 32 ? hi : lo)[i % 32]; }
 } __pack qword;
+/**
+ * These structures are for use with drivers that require working with numbers in big endian (amd64 is little endian).
+ * The region pragma is for making it easier to use preprocessor directives in case I ever decide to add another supported architecture (and that arch uses big endian).
+ * For instance, ext4's journaling structs are in big endian. Since the struct is read from disk as a 1024-byte block, the constructors that convert from little endian will not be called at that time.
+ * When accessing those members as numbers, the conversions will be applied such that assigning (for instance) an int to a __be32 will automatically be converted to big endian as the writes occur in memory,
+ * and comparing a a __be64 to an unsigned long will convert the __be64 to little endian before the comparison occurs (assuming this works the way I intend, which can be a longshot sometimes)
+ */
+#pragma region big-endian structs
+typedef struct __s_be16
+{
+    uint8_t hi;
+    uint8_t lo;
+    constexpr explicit __s_be16(uint16_t i) noexcept : hi{ uint8_t(i & 0xFF) }, lo{ uint8_t((i >> 8) & 0xFF) } {}
+    constexpr __s_be16() noexcept = default;
+    constexpr __s_be16(__s_be16&&) noexcept = default;
+    constexpr __s_be16(__s_be16 const&) noexcept = default;
+    constexpr ~__s_be16() noexcept = default;
+    constexpr operator uint16_t() const noexcept { return word(lo, hi); }
+    constexpr __s_be16& operator=(__s_be16 const&) noexcept = default;
+    constexpr __s_be16& operator=(__s_be16&&) noexcept = default;
+    constexpr __s_be16& operator=(uint16_t i) noexcept { return (*this = __s_be16(i)); }
+} __pack __be16;
+typedef struct __s_be32
+{
+    __be16 hi;
+    __be16 lo;
+    constexpr explicit __s_be32(uint32_t i) noexcept : hi{ uint16_t(i & 0xFFFF) }, lo{ uint16_t((i >> 16) & 0xFFFF) } {}
+    constexpr __s_be32() noexcept = default;
+    constexpr __s_be32(__s_be32&&) noexcept = default;
+    constexpr __s_be32(__s_be32 const&) noexcept = default;
+    constexpr ~__s_be32() noexcept = default;
+    constexpr operator uint32_t() const noexcept { return dword(lo, hi); }
+    constexpr __s_be32& operator=(__s_be32&&) noexcept = default;
+    constexpr __s_be32& operator=(__s_be32 const&) noexcept = default;
+    constexpr __s_be32& operator=(uint32_t i) noexcept { return (*this = __s_be32(i)); }
+} __pack __be32;
+typedef struct __s_be64
+{
+    __be32 hi;
+    __be32 lo;
+    constexpr explicit __s_be64(uint64_t i) noexcept : hi{ uint32_t(i & 0xFFFFFFFF) }, lo{ uint32_t((i >> 32) & 0xFFFFFFFF) } {}
+    constexpr __s_be64() noexcept = default;
+    constexpr __s_be64(__s_be64&&) noexcept = default;
+    constexpr __s_be64(__s_be64 const&) noexcept = default;
+    constexpr ~__s_be64() noexcept = default;
+    constexpr operator uint64_t() const noexcept { return qword(lo, hi); }
+    constexpr __s_be64& operator=(__s_be64&&) noexcept = default;
+    constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
+    constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
+} __pack __be64;
+
+constexpr __be16 operator""_be16(unsigned long long i) noexcept { return __be16(uint16_t(i)); }
+constexpr __be32 operator""_be32(unsigned long long i) noexcept { return __be32(uint32_t(i)); }
+constexpr __be64 operator""_be64(unsigned long long i) noexcept { return __be64(uint64_t(i)); }
+#pragma endregion
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
 constexpr byte operator""ui8(unsigned long long i) noexcept { return byte{ uint8_t(i) }; }
 constexpr word operator""ui16(unsigned long long i) noexcept { return word{ uint16_t(i) }; }
-constexpr dword operator""ui32(unsigned long long i) noexcept { return dword{ uint32_t(i)}; }
+constexpr dword operator""ui32(unsigned long long i) noexcept { return dword{ uint32_t(i) }; }
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;
 typedef uint16_t word;
 typedef uint32_t dword;
 typedef uint64_t qword;
+typedef uint16_t __be16;
+typedef uint32_t __be32;
+typedef uint64_t __be64;
 #endif
 #define BIT(n) (1 << n)
 #endif

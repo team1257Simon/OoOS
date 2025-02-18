@@ -202,8 +202,6 @@ class fat32_file_node final : public file_node, public fat32_node
     fat32_filebuf __my_filebuf;
     size_t __on_disk_size;
     friend class fat32_filebuf;
-    uint32_t claim_next(uint32_t cl);
-    uint64_t cl_to_s(uint32_t cl);
 public:
     using file_node::traits_type;
     using file_node::difference_type;
@@ -221,6 +219,8 @@ public:
     virtual pos_type tell() const;
     void on_open();
     void set_fd(int i);
+    uint32_t claim_next(uint32_t cl);
+    uint64_t cl_to_s(uint32_t cl);    
     fat32_file_node(fat32* pfs, std::string const& real_name, fat32_directory_node* pdir, uint32_t cl_st, size_t dirent_idx);
     friend constexpr std::strong_ordering operator<=>(fat32_file_node const& __this, fat32_file_node const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(std::char_traits<char>::compare(__this.concrete_name.c_str(), __that.concrete_name.c_str(), std::max(__this.concrete_name.size(), __that.concrete_name.size()))); }
 };

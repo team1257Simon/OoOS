@@ -128,7 +128,7 @@ void fat32_directory_node::__add_parsed_entry(fat32_regular_entry const& e, size
         asm volatile("mfence" ::: "memory");
         __my_directory.emplace(n, n->name());
         asm volatile("mfence" ::: "memory");
-        if(!n->parse_dir_data()) throw std::runtime_error{ "parse failed on directory" + name };
+        if(!n->parse_dir_data()) throw std::runtime_error{ "parse failed on directory " + name };
         __n_folders++;
     }
     else
@@ -199,7 +199,7 @@ tnode* fat32_directory_node::add(fs_node* n)
         std::vector<fat32_directory_entry>::iterator i = __whereis(e);
         dynamic_cast<fat32_node&>(*n).dirent_index = static_cast<size_t>(i - __my_dir_data.begin());
         set_filename(*e, get_short_name(n->name()));
-        bool directory = n->is_folder();
+        bool directory = n->is_directory();
         bool read_only = !n->mode.write_others && !n->mode.write_group && !n->mode.write_owner;
         bool hidden = !n->mode.read_others && !n->mode.read_group && !n->mode.read_owner;
         bool system = n->mode.exec_others || n->mode.exec_group || n->mode.exec_owner;
@@ -209,7 +209,7 @@ tnode* fat32_directory_node::add(fs_node* n)
         init_times(*e);
         e->winnt_reserved = 0;
         e->size_bytes = 0;
-        if(n->is_folder()) this->__n_folders++;
+        if(n->is_directory()) this->__n_folders++;
         else this->__n_files++;
         if(!this->fsync()) return nullptr;
     }
