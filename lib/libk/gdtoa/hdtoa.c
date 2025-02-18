@@ -52,7 +52,7 @@ char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, c
   if (ndigits == 0)
     ndigits = 1;
   bufsize = (sigfigs > ndigits) ? sigfigs : ndigits;
-  s0 = __rv_alloc_D2A(bufsize);
+  s0 = __rv_alloc_d2a(bufsize);
   if (s0 == (NULL))
     return ((NULL));
   for (s = s0 + bufsize - 1; s > s0 + sigfigs - 1; s--)
@@ -112,7 +112,7 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
   if (ndigits == 0)
     ndigits = 1;
   bufsize = (sigfigs > ndigits) ? sigfigs : ndigits;
-  s0 = __rv_alloc_D2A(bufsize);
+  s0 = __rv_alloc_d2a(bufsize);
   if (s0 == NULL)
     return (NULL);
   for (s = s0 + bufsize - 1; s > s0 + sigfigs - 1; s--)

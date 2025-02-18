@@ -1,11 +1,11 @@
 #include "gdtoa.h"
-char* __rv_alloc_D2A(int i)
+char* __rv_alloc_d2a(int i)
 {
   int j, k, *r;
-  j = sizeof(ULong);
-  for (k = 0; sizeof(Bigint) - sizeof(ULong) - sizeof(int) + j <= i; j <<= 1)
+  j = sizeof(uilong);
+  for (k = 0; sizeof(big_int) - sizeof(uilong) - sizeof(int) + j <= i; j <<= 1)
     k++;
-  r = (int*)__Balloc_D2A(k);
+  r = (int*)__balloc_d2a(k);
   if (r == (NULL))
     return (__dtoa_result_D2A = (NULL));
   *r = k;
@@ -14,7 +14,7 @@ char* __rv_alloc_D2A(int i)
 char* __nrv_alloc_D2A(char* s, char** rve, int n)
 {
   char *rv, *t;
-  t = rv = __rv_alloc_D2A(n);
+  t = rv = __rv_alloc_d2a(n);
   if (t == (NULL))
     return ((NULL));
   while ((*t = *s++) != 0)
@@ -25,16 +25,16 @@ char* __nrv_alloc_D2A(char* s, char** rve, int n)
 }
 void __freedtoa(char* s)
 {
-  Bigint* b = (Bigint*)((int*)s - 1);
+  big_int* b = (big_int*)((int*)s - 1);
   b->maxwds = 1 << (b->k = *(int*)b);
-  __Bfree_D2A(b);
+  __bfree_d2a(b);
   if (s == __dtoa_result_D2A)
     __dtoa_result_D2A = 0;
 }
-int __quorem_D2A(Bigint* b, Bigint* S)
+int __quorem_D2A(big_int* b, big_int* S)
 {
   int n;
-  ULong *bx, *bxe, q, *sx, *sxe;
+  uilong *bx, *bxe, q, *sx, *sxe;
   unsigned long long borrow, carry, y, ys;
   n = S->wds;
   if (b->wds < n)
@@ -61,7 +61,7 @@ int __quorem_D2A(Bigint* b, Bigint* S)
       b->wds = n;
     }
   }
-  if (__cmp_D2A(b, S) >= 0) {
+  if (__cmp_d2a(b, S) >= 0) {
     q++;
     borrow = 0;
     carry = 0;

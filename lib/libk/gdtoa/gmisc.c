@@ -1,7 +1,7 @@
 #include "gdtoa.h"
-void __rshift_D2A(Bigint* b, int k)
+void __rshift_d2a(big_int* b, int k)
 {
-  ULong *x, *x1, *xe, y;
+  uilong *x, *x1, *xe, y;
   int n;
   x = x1 = b->x;
   n = k >> 5;
@@ -24,17 +24,17 @@ void __rshift_D2A(Bigint* b, int k)
   if ((b->wds = x1 - b->x) == 0)
     b->x[0] = 0;
 }
-int __trailz_D2A(Bigint* b)
+int __trailz_d2a(big_int* b)
 {
-  ULong L, *x, *xe;
+  uilong u_l, *x, *xe;
   int n = 0;
   x = b->x;
   xe = x + b->wds;
   for (n = 0; x < xe && !*x; x++)
     n += 32;
   if (x < xe) {
-    L = *x;
-    n += __lo0bits_D2A(&L);
+    u_l = *x;
+    n += __lo0bits_d2a(&u_l);
   }
   return n;
 }

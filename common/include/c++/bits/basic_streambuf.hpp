@@ -44,7 +44,7 @@ namespace std
         void swap(basic_streambuf& that) { __in_region.__swap_ptrs(that.__in_region); __out_region.__swap_ptrs(that.__out_region); }
         virtual streamsize xsgetn(char_type *s, streamsize n);
         virtual streamsize xsputn(char_type const* s, streamsize n);
-                /**
+        /**
          * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.
          * Inheritors can override to add functionality that needs to be invoked whenever these pointers move. The default implementation does nothing.
          */

@@ -1,13 +1,13 @@
 #include "gdtoa.h"
 static const int fivesbits[] = { 0, 3, 5, 7, 10, 12, 14, 17, 19, 21, 24, 26, 28, 31, 33, 35, 38, 40, 42, 45, 47, 49, 52 };
-Bigint* __increment_D2A(Bigint* b)
+big_int* __increment_d2a(big_int* b)
 {
-  ULong *x, *xe;
-  Bigint* b1;
+  uilong *x, *xe;
+  big_int* b1;
   x = b->x;
   xe = x + b->wds;
   do {
-    if (*x < (ULong)0xffffffffL) {
+    if (*x < (uilong)0xffffffffL) {
       ++*x;
       return b;
     }
@@ -15,20 +15,20 @@ Bigint* __increment_D2A(Bigint* b)
   } while (x < xe);
   {
     if (b->wds >= b->maxwds) {
-      b1 = __Balloc_D2A(b->k + 1);
+      b1 = __balloc_d2a(b->k + 1);
       if (b1 == NULL)
         return (NULL);
-      memcpy(&b1->sign, &b->sign, b->wds * sizeof(ULong) + 2 * sizeof(int));
-      __Bfree_D2A(b);
+      memcpy(&b1->sign, &b->sign, b->wds * sizeof(uilong) + 2 * sizeof(int));
+      __bfree_d2a(b);
       b = b1;
     }
     b->x[b->wds++] = 1;
   }
   return b;
 }
-void __decrement_D2A(Bigint* b)
+void __decrement_d2a(big_int* b)
 {
-  ULong *x, *xe;
+  uilong *x, *xe;
   x = b->x;
   xe = x + b->wds;
   do {
@@ -39,9 +39,9 @@ void __decrement_D2A(Bigint* b)
     *x++ = 0xffffffffL;
   } while (x < xe);
 }
-static int all_on(Bigint* b, int n)
+static int all_on(big_int* b, int n)
 {
-  ULong *x, *xe;
+  uilong *x, *xe;
   x = b->x;
   xe = x + (n >> 5);
   while (x < xe)
@@ -51,14 +51,14 @@ static int all_on(Bigint* b, int n)
     return ((*x | (0xffffffff << n)) & 0xffffffff) == 0xffffffff;
   return 1;
 }
-Bigint* __set_ones_D2A(Bigint* b, int n)
+big_int* __set_ones_d2a(big_int* b, int n)
 {
   int k;
-  ULong *x, *xe;
+  uilong *x, *xe;
   k = (n + ((1 << 5) - 1)) >> 5;
   if (b->k < k) {
-    __Bfree_D2A(b);
-    b = __Balloc_D2A(k);
+    __bfree_d2a(b);
+    b = __balloc_d2a(k);
     if (b == NULL)
       return (NULL);
   }
@@ -74,15 +74,15 @@ Bigint* __set_ones_D2A(Bigint* b, int n)
     x[-1] >>= 32 - n;
   return b;
 }
-static int rvOK(U* d, FPI* fpi, int* exp, ULong* bits, int exact, int rd, int* irv)
+static int rvOK(udouble* d, fpi* fpi, int* exp, uilong* bits, int exact, int rd, int* irv)
 {
-  Bigint* b;
-  ULong carry, inex, lostbits;
+  big_int* b;
+  uilong carry, inex, lostbits;
   int bdif, e, j, k, k1, nb, rv;
   carry = rv = 0;
-  b = __d2b_D2A((d)->d, &e, &bdif);
+  b = __d2b_d2a((d)->d, &e, &bdif);
   if (b == NULL) {
-    *irv = STRTOG_NoMemory;
+    *irv = strtog_nomemory;
     return (1);
   }
   bdif -= nb = fpi->nbits;
@@ -118,7 +118,7 @@ static int rvOK(U* d, FPI* fpi, int* exp, ULong* bits, int exact, int rd, int* i
         break;
       goto trunc;
     }
-    if (b->x[k >> 5] & ((ULong)1 << (k & 31)))
+    if (b->x[k >> 5] & ((uilong)1 << (k & 31)))
       break;
     goto trunc;
   }
@@ -126,29 +126,29 @@ static int rvOK(U* d, FPI* fpi, int* exp, ULong* bits, int exact, int rd, int* i
 trunc:
   inex = lostbits = 0;
   if (bdif > 0) {
-    if ((lostbits = __any_on_D2A(b, bdif)) != 0)
-      inex = STRTOG_Inexlo;
-    __rshift_D2A(b, bdif);
+    if ((lostbits = __any_on_d2a(b, bdif)) != 0)
+      inex = strtog_inexlo;
+    __rshift_d2a(b, bdif);
     if (carry) {
-      inex = STRTOG_Inexhi;
-      b = __increment_D2A(b);
+      inex = strtog_inexhi;
+      b = __increment_d2a(b);
       if (b == NULL) {
-        *irv = STRTOG_NoMemory;
+        *irv = strtog_nomemory;
         return (1);
       }
       if ((j = nb & 31) != 0)
         j = 32 - j;
-      if (__hi0bits_D2A((ULong)(b->x[b->wds - 1])) != j) {
+      if (__hi0bits_d2a((uilong)(b->x[b->wds - 1])) != j) {
         if (!lostbits)
           lostbits = b->x[0] & 1;
-        __rshift_D2A(b, 1);
+        __rshift_d2a(b, 1);
         e++;
       }
     }
   } else if (bdif < 0) {
-    b = __lshift_D2A(b, -bdif);
+    b = __lshift_d2a(b, -bdif);
     if (b == NULL) {
-      *irv = STRTOG_NoMemory;
+      *irv = strtog_nomemory;
       return (1);
     }
   }
@@ -157,49 +157,49 @@ trunc:
     e = fpi->emin;
     if (k > nb || fpi->sudden_underflow) {
       b->wds = inex = 0;
-      *irv = STRTOG_Underflow | STRTOG_Inexlo;
+      *irv = strtog_uflow | strtog_inexlo;
     } else {
       k1 = k - 1;
       if (k1 > 0 && !lostbits)
-        lostbits = __any_on_D2A(b, k1);
+        lostbits = __any_on_d2a(b, k1);
       if (!lostbits && !exact)
         goto ret;
       lostbits |= carry = b->x[k1 >> 5] & (1 << (k1 & 31));
-      __rshift_D2A(b, k);
-      *irv = STRTOG_Denormal;
+      __rshift_d2a(b, k);
+      *irv = strtog_denormal;
       if (carry) {
-        b = __increment_D2A(b);
+        b = __increment_d2a(b);
         if (b == NULL) {
-          *irv = STRTOG_NoMemory;
+          *irv = strtog_nomemory;
           return (1);
         }
-        inex = STRTOG_Inexhi | STRTOG_Underflow;
+        inex = strtog_inexhi | strtog_uflow;
       } else if (lostbits)
-        inex = STRTOG_Inexlo | STRTOG_Underflow;
+        inex = strtog_inexlo | strtog_uflow;
     }
   } else if (e > fpi->emax) {
     e = fpi->emax + 1;
-    *irv = STRTOG_Infinite | STRTOG_Overflow | STRTOG_Inexhi;
+    *irv = strtog_infinite | strtog_oflow | strtog_inexhi;
     *(__errno()) = 34;
     b->wds = inex = 0;
   }
   *exp = e;
-  __copybits_D2A(bits, nb, b);
+  __copybits_d2a(bits, nb, b);
   *irv |= inex;
   rv = 1;
 ret:
-  __Bfree_D2A(b);
+  __bfree_d2a(b);
   return rv;
 }
-static int mantbits(U* d)
+static int mantbits(udouble* d)
 {
-  ULong L;
-  if ((L = (d)->L[0]) != 0)
-    return 53 - __lo0bits_D2A(&L);
-  L = (d)->L[1] | 0x100000;
-  return 53 - 32 - __lo0bits_D2A(&L);
+  uilong u_l;
+  if ((u_l = (d)->u_l[0]) != 0)
+    return 53 - __lo0bits_d2a(&u_l);
+  u_l = (d)->u_l[1] | 0x100000;
+  return 53 - 32 - __lo0bits_d2a(&u_l);
 }
-int __strtodg(const char* s00, char** se, FPI* fpi, int* exp, ULong* bits)
+int __strtodg(const char* s00, char** se, fpi* fpi, int* exp, uilong* bits)
 {
   int abe, abits, asub;
   int bb0, bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, decpt, denorm;
@@ -208,11 +208,11 @@ int __strtodg(const char* s00, char** se, FPI* fpi, int* exp, ULong* bits)
   int sudden_underflow;
   const char *s, *s0, *s1;
   double adj0, tol;
-  int L;
-  U adj, rv;
-  ULong *b, *be, y, z;
-  Bigint *ab, *bb, *bb1, *bd, *bd0, *bs, *delta, *rvb, *rvb0;
-  irv = STRTOG_Zero;
+  int u_l;
+  udouble adj, rv;
+  uilong *b, *be, y, z;
+  big_int *ab, *bb, *bb1, *bd, *bd0, *bs, *delta, *rvb, *rvb0;
+  irv = strtog_zero;
   denorm = sign = nz0 = nz = 0;
   (&rv)->d = 0.;
   rvb = 0;
@@ -226,7 +226,7 @@ int __strtodg(const char* s00, char** se, FPI* fpi, int* exp, ULong* bits)
         goto break2;
     case 0:
       sign = 0;
-      irv = STRTOG_NoNumber;
+      irv = strtog_no_num;
       s = s00;
       goto ret;
     case '\t':
@@ -244,10 +244,10 @@ break2:
     switch (s[1]) {
     case 'x':
     case 'X':
-      irv = __gethex_D2A(&s, fpi, exp, &rvb, sign);
-      if (irv == STRTOG_NoMemory)
-        return (STRTOG_NoMemory);
-      if (irv == STRTOG_NoNumber) {
+      irv = __gethex_d2a(&s, fpi, exp, &rvb, sign);
+      if (irv == strtog_nomemory)
+        return (strtog_nomemory);
+      if (irv == strtog_no_num) {
         s = s00;
         sign = 0;
       }
@@ -304,7 +304,7 @@ dig_done:
   e = 0;
   if (c == 'e' || c == 'E') {
     if (!nd && !nz && !nz0) {
-      irv = STRTOG_NoNumber;
+      irv = strtog_no_num;
       s = s00;
       goto ret;
     }
@@ -320,14 +320,14 @@ dig_done:
       while (c == '0')
         c = *++s;
       if (c > '0' && c <= '9') {
-        L = c - '0';
+        u_l = c - '0';
         s1 = s;
         while ((c = *++s) >= '0' && c <= '9')
-          L = 10 * L + c - '0';
-        if (s - s1 > 8 || L > 19999)
+          u_l = 10 * u_l + c - '0';
+        if (s - s1 > 8 || u_l > 19999)
           e = 19999;
         else
-          e = (int)L;
+          e = (int)u_l;
         if (esign)
           e = -e;
       } else
@@ -341,30 +341,30 @@ dig_done:
         switch (c) {
         case 'i':
         case 'I':
-          if (__match_D2A(&s, "nf")) {
+          if (__match_d2a(&s, "nf")) {
             --s;
-            if (!__match_D2A(&s, "inity"))
+            if (!__match_d2a(&s, "inity"))
               ++s;
-            irv = STRTOG_Infinite;
+            irv = strtog_infinite;
             goto infnanexp;
           }
           break;
         case 'n':
         case 'N':
-          if (__match_D2A(&s, "an")) {
-            irv = STRTOG_NaN;
+          if (__match_d2a(&s, "an")) {
+            irv = strog_nan;
             *exp = fpi->emax + 1;
             if (*s == '(')
-              irv = __hexnan_D2A(&s, fpi, bits);
+              irv = __hexnan_d2a(&s, fpi, bits);
             goto infnanexp;
           }
         }
-      irv = STRTOG_NoNumber;
+      irv = strtog_no_num;
       s = s00;
     }
     goto ret;
   }
-  irv = STRTOG_Normal;
+  irv = strtog_normal;
   e1 = e -= nf;
   rd = 0;
   switch (fpi->rounding & 3) {
@@ -387,8 +387,8 @@ dig_done:
   if (nbits <= 53 && nd <= 15) {
     if (!e) {
       if (rvOK(&rv, fpi, exp, bits, 1, rd, &irv)) {
-        if (irv == STRTOG_NoMemory)
-          return (STRTOG_NoMemory);
+        if (irv == strtog_nomemory)
+          return (strtog_nomemory);
         goto ret;
       }
     } else if (e > 0) {
@@ -396,8 +396,8 @@ dig_done:
         i = fivesbits[e] + mantbits(&rv) <= 53;
         (&rv)->d *= __tens_D2A[e];
         if (rvOK(&rv, fpi, exp, bits, i, rd, &irv)) {
-          if (irv == STRTOG_NoMemory)
-            return (STRTOG_NoMemory);
+          if (irv == strtog_nomemory)
+            return (strtog_nomemory);
           goto ret;
         }
         e1 -= e;
@@ -410,8 +410,8 @@ dig_done:
         (&rv)->d *= __tens_D2A[i];
         (&rv)->d *= __tens_D2A[e2];
         if (rvOK(&rv, fpi, exp, bits, 0, rd, &irv)) {
-          if (irv == STRTOG_NoMemory)
-            return (STRTOG_NoMemory);
+          if (irv == strtog_nomemory)
+            return (strtog_nomemory);
           goto ret;
         }
         e1 -= e2;
@@ -419,8 +419,8 @@ dig_done:
     } else if (e >= -22) {
       (&rv)->d /= __tens_D2A[-e];
       if (rvOK(&rv, fpi, exp, bits, 0, rd, &irv)) {
-        if (irv == STRTOG_NoMemory)
-          return (STRTOG_NoMemory);
+        if (irv == strtog_nomemory)
+          return (strtog_nomemory);
         goto ret;
       }
       e1 -= e;
@@ -435,15 +435,15 @@ rv_notOK:
     if (e1 &= ~15) {
       e1 >>= 4;
       while (e1 >= (1 << (5 - 1))) {
-        e2 += (((&rv)->L[1] & 0x7ff00000) >> 20) - 1023;
-        (&rv)->L[1] &= ~0x7ff00000;
-        (&rv)->L[1] |= 1023 << 20;
+        e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
+        (&rv)->u_l[1] &= ~0x7ff00000;
+        (&rv)->u_l[1] |= 1023 << 20;
         (&rv)->d *= __bigtens_D2A[5 - 1];
         e1 -= 1 << (5 - 1);
       }
-      e2 += (((&rv)->L[1] & 0x7ff00000) >> 20) - 1023;
-      (&rv)->L[1] &= ~0x7ff00000;
-      (&rv)->L[1] |= 1023 << 20;
+      e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
+      (&rv)->u_l[1] &= ~0x7ff00000;
+      (&rv)->u_l[1] |= 1023 << 20;
       for (j = 0; e1 > 0; j++, e1 >>= 1)
         if (e1 & 1)
           (&rv)->d *= __bigtens_D2A[j];
@@ -455,26 +455,26 @@ rv_notOK:
     if (e1 &= ~15) {
       e1 >>= 4;
       while (e1 >= (1 << (5 - 1))) {
-        e2 += (((&rv)->L[1] & 0x7ff00000) >> 20) - 1023;
-        (&rv)->L[1] &= ~0x7ff00000;
-        (&rv)->L[1] |= 1023 << 20;
+        e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
+        (&rv)->u_l[1] &= ~0x7ff00000;
+        (&rv)->u_l[1] |= 1023 << 20;
         (&rv)->d *= __tinytens_D2A[5 - 1];
         e1 -= 1 << (5 - 1);
       }
-      e2 += (((&rv)->L[1] & 0x7ff00000) >> 20) - 1023;
-      (&rv)->L[1] &= ~0x7ff00000;
-      (&rv)->L[1] |= 1023 << 20;
+      e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
+      (&rv)->u_l[1] &= ~0x7ff00000;
+      (&rv)->u_l[1] |= 1023 << 20;
       for (j = 0; e1 > 0; j++, e1 >>= 1)
         if (e1 & 1)
           (&rv)->d *= __tinytens_D2A[j];
     }
   }
-  rvb = __d2b_D2A((&rv)->d, &rve, &rvbits);
+  rvb = __d2b_d2a((&rv)->d, &rve, &rvbits);
   if (rvb == NULL)
-    return (STRTOG_NoMemory);
+    return (strtog_nomemory);
   rve += e2;
   if ((j = rvbits - nbits) > 0) {
-    __rshift_D2A(rvb, j);
+    __rshift_d2a(rvb, j);
     rvbits = nbits;
     rve += j;
   }
@@ -487,9 +487,9 @@ rv_notOK:
     denorm = 1;
     j = rve - emin;
     if (j > 0) {
-      rvb = __lshift_D2A(rvb, j);
+      rvb = __lshift_d2a(rvb, j);
       if (rvb == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
       rvbits += j;
     } else if (j < 0) {
       rvbits += j;
@@ -499,34 +499,34 @@ rv_notOK:
           rvb->wds = 0;
           rvb->x[0] = 0;
           *exp = emin;
-          irv = STRTOG_Underflow | STRTOG_Inexlo;
+          irv = strtog_uflow | strtog_inexlo;
           goto ret;
         }
         rvb->x[0] = rvb->wds = rvbits = 1;
       } else
-        __rshift_D2A(rvb, -j);
+        __rshift_d2a(rvb, -j);
     }
     rve = rve1 = emin;
     if (sudden_underflow && e2 + 1 < emin)
       goto ufl;
   }
-  bd0 = __s2b_D2A(s0, nd0, nd, y, 1);
+  bd0 = __s2b_d2a(s0, nd0, nd, y, 1);
   if (bd0 == NULL)
-    return (STRTOG_NoMemory);
+    return (strtog_nomemory);
   for (;;) {
-    bd = __Balloc_D2A(bd0->k);
+    bd = __balloc_d2a(bd0->k);
     if (bd == NULL)
-      return (STRTOG_NoMemory);
-    memcpy(&bd->sign, &bd0->sign, bd0->wds * sizeof(ULong) + 2 * sizeof(int));
-    bb = __Balloc_D2A(rvb->k);
+      return (strtog_nomemory);
+    memcpy(&bd->sign, &bd0->sign, bd0->wds * sizeof(uilong) + 2 * sizeof(int));
+    bb = __balloc_d2a(rvb->k);
     if (bb == NULL)
-      return (STRTOG_NoMemory);
-    memcpy(&bb->sign, &rvb->sign, rvb->wds * sizeof(ULong) + 2 * sizeof(int));
+      return (strtog_nomemory);
+    memcpy(&bb->sign, &rvb->sign, rvb->wds * sizeof(uilong) + 2 * sizeof(int));
     bbbits = rvbits - bb0;
     bbe = rve + bb0;
-    bs = __i2b_D2A(1);
+    bs = __i2b_d2a(1);
     if (bs == NULL)
-      return (STRTOG_NoMemory);
+      return (strtog_nomemory);
     if (e >= 0) {
       bb2 = bb5 = 0;
       bd2 = bd5 = e;
@@ -554,82 +554,82 @@ rv_notOK:
       bs2 -= i;
     }
     if (bb5 > 0) {
-      bs = __pow5mult_D2A(bs, bb5);
+      bs = __pow5mult_d2a(bs, bb5);
       if (bs == NULL)
-        return (STRTOG_NoMemory);
-      bb1 = __mult_D2A(bs, bb);
+        return (strtog_nomemory);
+      bb1 = __mult_d2a(bs, bb);
       if (bb1 == NULL)
-        return (STRTOG_NoMemory);
-      __Bfree_D2A(bb);
+        return (strtog_nomemory);
+      __bfree_d2a(bb);
       bb = bb1;
     }
     bb2 -= bb0;
     if (bb2 > 0) {
-      bb = __lshift_D2A(bb, bb2);
+      bb = __lshift_d2a(bb, bb2);
       if (bb == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
     } else if (bb2 < 0)
-      __rshift_D2A(bb, -bb2);
+      __rshift_d2a(bb, -bb2);
     if (bd5 > 0) {
-      bd = __pow5mult_D2A(bd, bd5);
+      bd = __pow5mult_d2a(bd, bd5);
       if (bd == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
     }
     if (bd2 > 0) {
-      bd = __lshift_D2A(bd, bd2);
+      bd = __lshift_d2a(bd, bd2);
       if (bd == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
     }
     if (bs2 > 0) {
-      bs = __lshift_D2A(bs, bs2);
+      bs = __lshift_d2a(bs, bs2);
       if (bs == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
     }
     asub = 1;
-    inex = STRTOG_Inexhi;
-    delta = __diff_D2A(bb, bd);
+    inex = strtog_inexhi;
+    delta = __diff_d2a(bb, bd);
     if (delta == NULL)
-      return (STRTOG_NoMemory);
+      return (strtog_nomemory);
     if (delta->wds <= 1 && !delta->x[0])
       break;
     dsign = delta->sign;
     delta->sign = finished = 0;
-    L = 0;
-    i = __cmp_D2A(delta, bs);
+    u_l = 0;
+    i = __cmp_d2a(delta, bs);
     if (rd && i <= 0) {
-      irv = STRTOG_Normal;
+      irv = strtog_normal;
       if ((finished = dsign ^ (rd & 1)) != 0) {
         if (dsign != 0) {
-          irv |= STRTOG_Inexhi;
+          irv |= strtog_inexhi;
           goto adj1;
         }
-        irv |= STRTOG_Inexlo;
+        irv |= strtog_inexlo;
         if (rve1 == emin)
           goto adj1;
         for (i = 0, j = nbits; j >= 32; i++, j -= 32) {
           if (rvb->x[i] & 0xffffffff)
             goto adj1;
         }
-        if (j > 1 && __lo0bits_D2A(rvb->x + i) < j - 1)
+        if (j > 1 && __lo0bits_d2a(rvb->x + i) < j - 1)
           goto adj1;
         rve = rve1 - 1;
-        rvb = __set_ones_D2A(rvb, rvbits = nbits);
+        rvb = __set_ones_d2a(rvb, rvbits = nbits);
         if (rvb == NULL)
-          return (STRTOG_NoMemory);
+          return (strtog_nomemory);
         break;
       }
-      irv |= dsign ? STRTOG_Inexlo : STRTOG_Inexhi;
+      irv |= dsign ? strtog_inexlo : strtog_inexhi;
       break;
     }
     if (i < 0) {
-      irv = dsign ? STRTOG_Normal | STRTOG_Inexlo : STRTOG_Normal | STRTOG_Inexhi;
+      irv = dsign ? strtog_normal | strtog_inexlo : strtog_normal | strtog_inexhi;
       if (dsign || bbbits > 1 || denorm || rve1 == emin)
         break;
-      delta = __lshift_D2A(delta, 1);
+      delta = __lshift_d2a(delta, 1);
       if (delta == NULL)
-        return (STRTOG_NoMemory);
-      if (__cmp_D2A(delta, bs) > 0) {
-        irv = STRTOG_Normal | STRTOG_Inexlo;
+        return (strtog_nomemory);
+      if (__cmp_d2a(delta, bs) > 0) {
+        irv = strtog_normal | strtog_inexlo;
         goto drop_down;
       }
       break;
@@ -640,56 +640,56 @@ rv_notOK:
           rvb->wds = 1;
           rvb->x[0] = 1;
           rve = emin + nbits - (rvbits = 1);
-          irv = STRTOG_Normal | STRTOG_Inexhi;
+          irv = strtog_normal | strtog_inexhi;
           denorm = 0;
           break;
         }
-        irv = STRTOG_Normal | STRTOG_Inexlo;
+        irv = strtog_normal | strtog_inexlo;
       } else if (bbbits == 1) {
-        irv = STRTOG_Normal;
+        irv = strtog_normal;
       drop_down:
         if (rve1 == emin) {
-          irv = STRTOG_Normal | STRTOG_Inexhi;
+          irv = strtog_normal | strtog_inexhi;
           if (rvb->wds == 1 && rvb->x[0] == 1)
             sudden_underflow = 1;
           break;
         }
         rve -= nbits;
-        rvb = __set_ones_D2A(rvb, rvbits = nbits);
+        rvb = __set_ones_d2a(rvb, rvbits = nbits);
         if (rvb == NULL)
-          return (STRTOG_NoMemory);
+          return (strtog_nomemory);
         break;
       } else
-        irv = STRTOG_Normal | STRTOG_Inexhi;
+        irv = strtog_normal | strtog_inexhi;
       if ((bbbits < nbits && !denorm) || !(rvb->x[0] & 1))
         break;
       if (dsign) {
-        rvb = __increment_D2A(rvb);
+        rvb = __increment_d2a(rvb);
         if (rvb == NULL)
-          return (STRTOG_NoMemory);
+          return (strtog_nomemory);
         j = 31 & (32 - (rvbits & 31));
-        if (__hi0bits_D2A((ULong)(rvb->x[rvb->wds - 1])) != j)
+        if (__hi0bits_d2a((uilong)(rvb->x[rvb->wds - 1])) != j)
           rvbits++;
-        irv = STRTOG_Normal | STRTOG_Inexhi;
+        irv = strtog_normal | strtog_inexhi;
       } else {
         if (bbbits == 1)
           goto undfl;
-        __decrement_D2A(rvb);
-        irv = STRTOG_Normal | STRTOG_Inexlo;
+        __decrement_d2a(rvb);
+        irv = strtog_normal | strtog_inexlo;
       }
       break;
     }
-    if (((&adj)->d = __ratio_D2A(delta, bs)) <= 2.) {
+    if (((&adj)->d = __ratio_d2a(delta, bs)) <= 2.) {
     adj1:
-      inex = STRTOG_Inexlo;
+      inex = strtog_inexlo;
       if (dsign) {
         asub = 0;
-        inex = STRTOG_Inexhi;
+        inex = strtog_inexhi;
       } else if (denorm && bbbits <= 1) {
       undfl:
         rvb->wds = 0;
         rve = emin;
-        irv = STRTOG_Underflow | STRTOG_Inexlo;
+        irv = strtog_uflow | strtog_inexlo;
         break;
       }
       adj0 = (&adj)->d = 1.;
@@ -697,11 +697,11 @@ rv_notOK:
       adj0 = (&adj)->d *= 0.5;
       if (dsign) {
         asub = 0;
-        inex = STRTOG_Inexlo;
+        inex = strtog_inexlo;
       }
       if ((&adj)->d < 2147483647.) {
-        L = adj0;
-        adj0 -= L;
+        u_l = adj0;
+        adj0 -= u_l;
         switch (rd) {
         case 0:
           if (adj0 >= .5)
@@ -714,76 +714,76 @@ rv_notOK:
         case 2:
           if (!asub && adj0 > 0.) {
           inc_L:
-            L++;
-            inex = STRTOG_Inexact - inex;
+            u_l++;
+            inex = strtog_inexact - inex;
           }
         }
-        (&adj)->d = L;
+        (&adj)->d = u_l;
       }
     }
     y = rve + rvbits;
     if (!denorm && rvbits < nbits) {
-      rvb = __lshift_D2A(rvb, j = nbits - rvbits);
+      rvb = __lshift_d2a(rvb, j = nbits - rvbits);
       if (rvb == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
       rve -= j;
       rvbits = nbits;
     }
-    ab = __d2b_D2A((&adj)->d, &abe, &abits);
+    ab = __d2b_d2a((&adj)->d, &abe, &abits);
     if (ab == NULL)
-      return (STRTOG_NoMemory);
+      return (strtog_nomemory);
     if (abe < 0)
-      __rshift_D2A(ab, -abe);
+      __rshift_d2a(ab, -abe);
     else if (abe > 0) {
-      ab = __lshift_D2A(ab, abe);
+      ab = __lshift_d2a(ab, abe);
       if (ab == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
     }
     rvb0 = rvb;
     if (asub) {
-      j = __hi0bits_D2A((ULong)(rvb->x[rvb->wds - 1]));
-      rvb = __diff_D2A(rvb, ab);
+      j = __hi0bits_d2a((uilong)(rvb->x[rvb->wds - 1]));
+      rvb = __diff_d2a(rvb, ab);
       if (rvb == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
       k = rvb0->wds - 1;
       if (denorm)
         ;
-      else if (rvb->wds <= k || __hi0bits_D2A((ULong)(rvb->x[k])) > __hi0bits_D2A((ULong)(rvb0->x[k]))) {
+      else if (rvb->wds <= k || __hi0bits_d2a((uilong)(rvb->x[k])) > __hi0bits_d2a((uilong)(rvb0->x[k]))) {
         if (rve1 == emin) {
           --rvbits;
           denorm = 1;
         } else {
-          rvb = __lshift_D2A(rvb, 1);
+          rvb = __lshift_d2a(rvb, 1);
           if (rvb == NULL)
-            return (STRTOG_NoMemory);
+            return (strtog_nomemory);
           --rve;
           --rve1;
-          L = finished = 0;
+          u_l = finished = 0;
         }
       }
     } else {
-      rvb = __sum_D2A(rvb, ab);
+      rvb = __sum_d2a(rvb, ab);
       if (rvb == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
       k = rvb->wds - 1;
-      if (k >= rvb0->wds || __hi0bits_D2A((ULong)(rvb->x[k])) < __hi0bits_D2A((ULong)(rvb0->x[k]))) {
+      if (k >= rvb0->wds || __hi0bits_d2a((uilong)(rvb->x[k])) < __hi0bits_d2a((uilong)(rvb0->x[k]))) {
         if (denorm) {
           if (++rvbits == nbits)
             denorm = 0;
         } else {
-          __rshift_D2A(rvb, 1);
+          __rshift_d2a(rvb, 1);
           rve++;
           rve1++;
-          L = 0;
+          u_l = 0;
         }
       }
     }
-    __Bfree_D2A(ab);
-    __Bfree_D2A(rvb0);
+    __bfree_d2a(ab);
+    __bfree_d2a(rvb0);
     if (finished)
       break;
     z = rve + rvbits;
-    if (y == z && L) {
+    if (y == z && u_l) {
       tol = (&adj)->d * 5e-16;
       (&adj)->d = adj0 - .5;
       if ((&adj)->d < -tol) {
@@ -796,27 +796,27 @@ rv_notOK:
         break;
       }
     }
-    bb0 = denorm ? 0 : __trailz_D2A(rvb);
-    __Bfree_D2A(bb);
-    __Bfree_D2A(bd);
-    __Bfree_D2A(bs);
-    __Bfree_D2A(delta);
+    bb0 = denorm ? 0 : __trailz_d2a(rvb);
+    __bfree_d2a(bb);
+    __bfree_d2a(bd);
+    __bfree_d2a(bs);
+    __bfree_d2a(delta);
   }
   if (!denorm && (j = nbits - rvbits)) {
     if (j > 0) {
-      rvb = __lshift_D2A(rvb, j);
+      rvb = __lshift_d2a(rvb, j);
       if (rvb == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
     } else
-      __rshift_D2A(rvb, -j);
+      __rshift_d2a(rvb, -j);
     rve -= j;
   }
   *exp = rve;
-  __Bfree_D2A(bb);
-  __Bfree_D2A(bd);
-  __Bfree_D2A(bs);
-  __Bfree_D2A(bd0);
-  __Bfree_D2A(delta);
+  __bfree_d2a(bb);
+  __bfree_d2a(bd);
+  __bfree_d2a(bs);
+  __bfree_d2a(bd0);
+  __bfree_d2a(delta);
   if (rve > fpi->emax) {
     switch (fpi->rounding & 3) {
     case FPI_Round_near:
@@ -829,9 +829,9 @@ rv_notOK:
       if (sign)
         goto huge;
     }
-    __Bfree_D2A(rvb);
+    __bfree_d2a(rvb);
     rvb = 0;
-    irv = STRTOG_Normal | STRTOG_Inexlo;
+    irv = strtog_normal | strtog_inexlo;
     *exp = fpi->emax;
     b = bits;
     be = b + ((fpi->nbits + 31) >> 5);
@@ -842,7 +842,7 @@ rv_notOK:
     goto ret;
   huge:
     rvb->wds = 0;
-    irv = STRTOG_Infinite | STRTOG_Overflow | STRTOG_Inexhi;
+    irv = strtog_infinite | strtog_oflow | strtog_inexhi;
     *(__errno()) = 34;
   infnanexp:
     *exp = fpi->emax + 1;
@@ -851,12 +851,12 @@ ret:
   if (denorm) {
     if (sudden_underflow) {
       rvb->wds = 0;
-      irv = STRTOG_Underflow | STRTOG_Inexlo;
+      irv = strtog_uflow | strtog_inexlo;
       *(__errno()) = 34;
     } else {
-      irv = (irv & ~STRTOG_Retmask) | (rvb->wds > 0 ? STRTOG_Denormal : STRTOG_Zero);
-      if (irv & STRTOG_Inexact) {
-        irv |= STRTOG_Underflow;
+      irv = (irv & ~strtog_retmask) | (rvb->wds > 0 ? strtog_denormal : strtog_zero);
+      if (irv & strtog_inexact) {
+        irv |= strtog_uflow;
         *(__errno()) = 34;
       }
     }
@@ -864,10 +864,10 @@ ret:
   if (se)
     *se = (char*)s;
   if (sign)
-    irv |= STRTOG_Neg;
+    irv |= strtog_neg;
   if (rvb) {
-    __copybits_D2A(bits, nbits, rvb);
-    __Bfree_D2A(rvb);
+    __copybits_d2a(bits, nbits, rvb);
+    __bfree_d2a(rvb);
   }
   return irv;
 }

@@ -80,6 +80,7 @@ struct file_mode
     constexpr bool is_fifo() const noexcept { return t_fifo && !t_regular && !t_directory && !t_chardev; }
     constexpr bool is_type_invalid() const noexcept { return (t_fifo && (t_directory || t_chardev || t_regular)) || (t_directory + t_chardev + t_regular) > 2; }
 };
+struct disk_block { uint64_t block_number; char* data_buffer; bool dirty = false; };
 class tnode;
 struct fs_node
 {
@@ -241,8 +242,8 @@ protected:
     virtual bool xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
     virtual target_pair get_parent(std::string const& path, bool create);    
-    void dldevnode(device_node*);
-    device_node* mkdevnode(directory_node*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
+    virtual void dldevnode(device_node*);
+    virtual device_node* mkdevnode(directory_node*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
 public:
     void link_stdio(vfs_filebuf_base<char>* target);
     device_node* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);

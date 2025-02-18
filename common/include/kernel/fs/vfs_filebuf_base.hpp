@@ -31,6 +31,7 @@ public:
     vfs_filebuf_base(std::streamsize init_buffer_size) : __buffer_base{ init_buffer_size } {}
     vfs_filebuf_base(vfs_filebuf_base&& that) : __buffer_base(std::forward<__buffer_base>(that)) {}
     vfs_filebuf_base& operator=(vfs_filebuf_base&& that) { this->__realloc_move(std::forward<__buffer_base>(that)); return *this; }
+    virtual ~vfs_filebuf_base() = default;
 };
 template <std::char_type CT, std::char_traits_type<CT> TT>
 std::streamsize vfs_filebuf_base<CT, TT>::xsgetn(char_type *s, std::streamsize n)

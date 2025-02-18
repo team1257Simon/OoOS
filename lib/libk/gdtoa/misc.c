@@ -1,22 +1,22 @@
 #include "gdtoa.h"
-static Bigint* freelist[9 + 1];
+static big_int* freelist[9 + 1];
 static double private_mem[((2304 + sizeof(double) - 1) / sizeof(double))], *pmem_next = private_mem;
-Bigint* __Balloc_D2A(int k)
+big_int* __balloc_d2a(int k)
 {
   int x;
-  Bigint* rv;
+  big_int* rv;
   unsigned int len;
   ;
   if (k <= 9 && (rv = freelist[k]) != 0) {
     freelist[k] = rv->next;
   } else {
     x = 1 << k;
-    len = (sizeof(Bigint) + (x - 1) * sizeof(ULong) + sizeof(double) - 1) / sizeof(double);
+    len = (sizeof(big_int) + (x - 1) * sizeof(uilong) + sizeof(double) - 1) / sizeof(double);
     if (k <= 9 && pmem_next - private_mem + len <= ((2304 + sizeof(double) - 1) / sizeof(double))) {
-      rv = (Bigint*)pmem_next;
+      rv = (big_int*)pmem_next;
       pmem_next += len;
     } else {
-      rv = (Bigint*)malloc(len * sizeof(double));
+      rv = (big_int*)malloc(len * sizeof(double));
       if (rv == NULL)
         return (NULL);
     }
@@ -26,7 +26,7 @@ Bigint* __Balloc_D2A(int k)
   rv->sign = rv->wds = 0;
   return rv;
 }
-void __Bfree_D2A(Bigint* v)
+void __bfree_d2a(big_int* v)
 {
   if (v) {
     if (v->k > 9)
@@ -39,10 +39,10 @@ void __Bfree_D2A(Bigint* v)
     }
   }
 }
-int __lo0bits_D2A(ULong* y)
+int __lo0bits_d2a(uilong* y)
 {
   int k;
-  ULong x = *y;
+  uilong x = *y;
   if (x & 7) {
     if (x & 1)
       return 0;
@@ -79,12 +79,12 @@ int __lo0bits_D2A(ULong* y)
   *y = x;
   return k;
 }
-Bigint* __multadd_D2A(Bigint* b, int m, int a)
+big_int* __multadd_d2a(big_int* b, int m, int a)
 {
   int i, wds;
-  ULong* x;
+  uilong* x;
   unsigned long long carry, y;
-  Bigint* b1;
+  big_int* b1;
   wds = b->wds;
   x = b->x;
   i = 0;
@@ -97,11 +97,11 @@ Bigint* __multadd_D2A(Bigint* b, int m, int a)
   } while (++i < wds);
   if (carry) {
     if (wds >= b->maxwds) {
-      b1 = __Balloc_D2A(b->k + 1);
+      b1 = __balloc_d2a(b->k + 1);
       if (b1 == NULL)
         return (NULL);
-      memcpy(&b1->sign, &b->sign, b->wds * sizeof(ULong) + 2 * sizeof(int));
-      __Bfree_D2A(b);
+      memcpy(&b1->sign, &b->sign, b->wds * sizeof(uilong) + 2 * sizeof(int));
+      __bfree_d2a(b);
       b = b1;
     }
     b->x[wds++] = carry;
@@ -109,7 +109,7 @@ Bigint* __multadd_D2A(Bigint* b, int m, int a)
   }
   return b;
 }
-int __hi0bits_D2A(ULong x)
+int __hi0bits_d2a(uilong x)
 {
   int k = 0;
   if (!(x & 0xffff0000)) {
@@ -135,22 +135,22 @@ int __hi0bits_D2A(ULong x)
   }
   return k;
 }
-Bigint* __i2b_D2A(int i)
+big_int* __i2b_d2a(int i)
 {
-  Bigint* b;
-  b = __Balloc_D2A(1);
+  big_int* b;
+  b = __balloc_d2a(1);
   if (b == NULL)
     return (NULL);
   b->x[0] = i;
   b->wds = 1;
   return b;
 }
-Bigint* __mult_D2A(Bigint* a, Bigint* b)
+big_int* __mult_d2a(big_int* a, big_int* b)
 {
-  Bigint* c;
+  big_int* c;
   int k, wa, wb, wc;
-  ULong *x, *xa, *xae, *xb, *xbe, *xc, *xc0;
-  ULong y;
+  uilong *x, *xa, *xae, *xb, *xbe, *xc, *xc0;
+  uilong y;
   unsigned long long carry, z;
   if (a->wds < b->wds) {
     c = a;
@@ -163,7 +163,7 @@ Bigint* __mult_D2A(Bigint* a, Bigint* b)
   wc = wa + wb;
   if (wc > a->maxwds)
     k++;
-  c = __Balloc_D2A(k);
+  c = __balloc_d2a(k);
   if (c == NULL)
     return (NULL);
   for (x = c->x, xa = x + wc; x < xa; x++)
@@ -192,14 +192,14 @@ Bigint* __mult_D2A(Bigint* a, Bigint* b)
   c->wds = wc;
   return c;
 }
-static Bigint* p5s;
-Bigint* __pow5mult_D2A(Bigint* b, int k)
+static big_int* p5s;
+big_int* __pow5mult_d2a(big_int* b, int k)
 {
-  Bigint *b1, *p5, *p51;
+  big_int *b1, *p5, *p51;
   int i;
   static int p05[3] = { 5, 25, 125 };
   if ((i = k & 3) != 0) {
-    b = __multadd_D2A(b, p05[i - 1], 0);
+    b = __multadd_d2a(b, p05[i - 1], 0);
     if (b == NULL)
       return (NULL);
   }
@@ -207,24 +207,24 @@ Bigint* __pow5mult_D2A(Bigint* b, int k)
     return b;
   if ((p5 = p5s) == 0) {
 
-    p5 = p5s = __i2b_D2A(625);
+    p5 = p5s = __i2b_d2a(625);
     if (p5 == NULL)
       return NULL;
     p5->next = 0;
   }
   for (;;) {
     if (k & 1) {
-      b1 = __mult_D2A(b, p5);
+      b1 = __mult_d2a(b, p5);
       if (b1 == NULL)
         return (NULL);
-      __Bfree_D2A(b);
+      __bfree_d2a(b);
       b = b1;
     }
     if (!(k >>= 1))
       break;
     if ((p51 = p5->next) == 0) {
 
-      p51 = p5->next = __mult_D2A(p5, p5);
+      p51 = p5->next = __mult_d2a(p5, p5);
       if (p51 == NULL)
         return (
 
@@ -235,17 +235,17 @@ Bigint* __pow5mult_D2A(Bigint* b, int k)
   }
   return b;
 }
-Bigint* __lshift_D2A(Bigint* b, int k)
+big_int* __lshift_d2a(big_int* b, int k)
 {
   int i, k1, n, n1;
-  Bigint* b1;
-  ULong *x, *x1, *xe, z;
+  big_int* b1;
+  uilong *x, *x1, *xe, z;
   n = k >> 5;
   k1 = b->k;
   n1 = n + b->wds + 1;
   for (i = b->maxwds; n1 > i; i <<= 1)
     k1++;
-  b1 = __Balloc_D2A(k1);
+  b1 = __balloc_d2a(k1);
   if (b1 == NULL)
     return (NULL);
   x1 = b1->x;
@@ -268,12 +268,12 @@ Bigint* __lshift_D2A(Bigint* b, int k)
       *x1++ = *x++;
     while (x < xe);
   b1->wds = n1 - 1;
-  __Bfree_D2A(b);
+  __bfree_d2a(b);
   return b1;
 }
-int __cmp_D2A(Bigint* a, Bigint* b)
+int __cmp_d2a(big_int* a, big_int* b)
 {
-  ULong *xa, *xa0, *xb, *xb0;
+  uilong *xa, *xa0, *xb, *xb0;
   int i, j;
   i = a->wds;
   j = b->wds;
@@ -291,15 +291,15 @@ int __cmp_D2A(Bigint* a, Bigint* b)
   }
   return 0;
 }
-Bigint* __diff_D2A(Bigint* a, Bigint* b)
+big_int* __diff_d2a(big_int* a, big_int* b)
 {
-  Bigint* c;
+  big_int* c;
   int i, wa, wb;
-  ULong *xa, *xae, *xb, *xbe, *xc;
+  uilong *xa, *xae, *xb, *xbe, *xc;
   unsigned long long borrow, y;
-  i = __cmp_D2A(a, b);
+  i = __cmp_d2a(a, b);
   if (!i) {
-    c = __Balloc_D2A(0);
+    c = __balloc_d2a(0);
     if (c == NULL)
       return NULL;
     c->wds = 1;
@@ -313,7 +313,7 @@ Bigint* __diff_D2A(Bigint* a, Bigint* b)
     i = 1;
   } else
     i = 0;
-  c = __Balloc_D2A(a->k);
+  c = __balloc_d2a(a->k);
   if (c ==NULL)
     return (NULL);
   c->sign = i;
@@ -341,60 +341,60 @@ Bigint* __diff_D2A(Bigint* a, Bigint* b)
   c->wds = wa;
   return c;
 }
-double __b2d_D2A(Bigint* a, int* e)
+double __b2d_d2a(big_int* a, int* e)
 {
-  ULong *xa, *xa0, w, y, z;
+  uilong *xa, *xa0, w, y, z;
   int k;
-  U d;
+  udouble d;
   xa0 = a->x;
   xa = xa0 + a->wds;
   y = *--xa;
-  k = __hi0bits_D2A((ULong)(y));
+  k = __hi0bits_d2a((uilong)(y));
   *e = 32 - k;
   if (k < 11) {
-    (&d)->L[1] = 0x3ff00000 | y >> (11 - k);
+    (&d)->u_l[1] = 0x3ff00000 | y >> (11 - k);
     w = xa > xa0 ? *--xa : 0;
-    (&d)->L[0] = y << ((32 - 11) + k) | w >> (11 - k);
+    (&d)->u_l[0] = y << ((32 - 11) + k) | w >> (11 - k);
     goto ret_d;
   }
   z = xa > xa0 ? *--xa : 0;
   if (k -= 11) {
-    (&d)->L[1] = 0x3ff00000 | y << k | z >> (32 - k);
+    (&d)->u_l[1] = 0x3ff00000 | y << k | z >> (32 - k);
     y = xa > xa0 ? *--xa : 0;
-    (&d)->L[0] = z << k | y >> (32 - k);
+    (&d)->u_l[0] = z << k | y >> (32 - k);
   } else {
-    (&d)->L[1] = 0x3ff00000 | y;
-    (&d)->L[0] = z;
+    (&d)->u_l[1] = 0x3ff00000 | y;
+    (&d)->u_l[0] = z;
   }
 
 ret_d:
   return (&d)->d;
 }
-Bigint* __d2b_D2A(double dd, int* e, int* bits)
+big_int* __d2b_d2a(double dd, int* e, int* bits)
 {
-  Bigint* b;
-  U d;
+  big_int* b;
+  udouble d;
   int i;
   int de, k;
-  ULong *x, y, z;
+  uilong *x, y, z;
   d.d = dd;
-  b = __Balloc_D2A(1);
+  b = __balloc_d2a(1);
   if (b == NULL)
     return (NULL);
   x = b->x;
-  z = (&d)->L[1] & 0xfffff;
-  (&d)->L[1] &= 0x7fffffff;
-  if ((de = (int)((&d)->L[1] >> 20)) != 0)
+  z = (&d)->u_l[1] & 0xfffff;
+  (&d)->u_l[1] &= 0x7fffffff;
+  if ((de = (int)((&d)->u_l[1] >> 20)) != 0)
     z |= 0x100000;
-  if ((y = (&d)->L[0]) != 0) {
-    if ((k = __lo0bits_D2A(&y)) != 0) {
+  if ((y = (&d)->u_l[0]) != 0) {
+    if ((k = __lo0bits_d2a(&y)) != 0) {
       x[0] = y | z << (32 - k);
       z >>= k;
     } else
       x[0] = y;
     i = b->wds = (x[1] = z) != 0 ? 2 : 1;
   } else {
-    k = __lo0bits_D2A(&z);
+    k = __lo0bits_d2a(&z);
     x[0] = z;
     i = b->wds = 1;
     k += 32;
@@ -404,7 +404,7 @@ Bigint* __d2b_D2A(double dd, int* e, int* bits)
     *bits = 53 - k;
   } else {
     *e = de - 1023 - (53 - 1) + 1 + k;
-    *bits = 32 * i - __hi0bits_D2A((ULong)(x[i - 1]));
+    *bits = 32 * i - __hi0bits_d2a((uilong)(x[i - 1]));
   }
   return b;
 }

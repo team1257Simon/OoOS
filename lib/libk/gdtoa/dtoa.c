@@ -3,11 +3,11 @@ char *__dtoa_result_D2A;
 char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve)
 {
   int bbits, b2, b5, be, dig, i, ieps, ilim, ilim0, ilim1, j, j1, k, k0, k_check, leftright, m2, m5, s2, s5, spec_case, try_quick;
-  int L;
+  int u_l;
   int denorm;
-  ULong x;
-  Bigint *b, *b1, *delta, *mlo, *mhi, *S;
-  U d, d2, eps;
+  uilong x;
+  big_int *b, *b1, *delta, *mlo, *mhi, *S;
+  udouble d, d2, eps;
   double ds;
   char *s, *s0;
   if (__dtoa_result_D2A) {
@@ -15,14 +15,14 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     __dtoa_result_D2A = 0;
   }
   d.d = d0;
-  if ((&d)->L[1] & 0x80000000) {
+  if ((&d)->u_l[1] & 0x80000000) {
     *sign = 1;
-    (&d)->L[1] &= ~0x80000000;
+    (&d)->u_l[1] &= ~0x80000000;
   } else
     *sign = 0;
-  if (((&d)->L[1] & 0x7ff00000) == 0x7ff00000) {
+  if (((&d)->u_l[1] & 0x7ff00000) == 0x7ff00000) {
     *decpt = 9999;
-    if (!(&d)->L[0] && !((&d)->L[1] & 0xfffff))
+    if (!(&d)->u_l[0] && !((&d)->u_l[1] & 0xfffff))
       return __nrv_alloc_D2A("Infinity", rve, 8);
     return __nrv_alloc_D2A("NaN", rve, 3);
   }
@@ -30,20 +30,20 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     *decpt = 1;
     return __nrv_alloc_D2A("0", rve, 1);
   }
-  b = __d2b_D2A((&d)->d, &be, &bbits);
+  b = __d2b_d2a((&d)->d, &be, &bbits);
   if (b == NULL)
     return (NULL);
-  if ((i = (int)((&d)->L[1] >> 20 & (0x7ff00000 >> 20))) != 0) {
+  if ((i = (int)((&d)->u_l[1] >> 20 & (0x7ff00000 >> 20))) != 0) {
     (&d2)->d = (&d)->d;
-    (&d2)->L[1] &= 0xfffff;
-    (&d2)->L[1] |= 0x3ff00000;
+    (&d2)->u_l[1] &= 0xfffff;
+    (&d2)->u_l[1] |= 0x3ff00000;
     i -= 1023;
     denorm = 0;
   } else {
     i = bbits + be + (1023 + (53 - 1) - 1);
-    x = i > 32 ? (&d)->L[1] << (64 - i) | (&d)->L[0] >> (i - 32) : (&d)->L[0] << (32 - i);
+    x = i > 32 ? (&d)->u_l[1] << (64 - i) | (&d)->u_l[0] >> (i - 32) : (&d)->u_l[0] << (32 - i);
     (&d2)->d = x;
-    (&d2)->L[1] -= 31 * 0x100000;
+    (&d2)->u_l[1] -= 31 * 0x100000;
     i -= (1023 + (53 - 1) - 1) + 1;
     denorm = 1;
   }
@@ -105,7 +105,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     if (i <= 0)
       i = 1;
   }
-  s = s0 = __rv_alloc_D2A(i);
+  s = s0 = __rv_alloc_d2a(i);
   if (s == NULL)
     return (NULL);
   if (ilim >= 0 && ilim <= 14 && try_quick) {
@@ -145,7 +145,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
       ieps++;
     }
     (&eps)->d = ieps * (&d)->d + 7.;
-    (&eps)->L[1] -= (53 - 1) * 0x100000;
+    (&eps)->u_l[1] -= (53 - 1) * 0x100000;
     if (ilim == 0) {
       S = mhi = 0;
       (&d)->d -= 5.;
@@ -158,9 +158,9 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     if (leftright) {
       (&eps)->d = 0.5 / __tens_D2A[ilim - 1] - (&eps)->d;
       for (i = 0;;) {
-        L = (&d)->d;
-        (&d)->d -= L;
-        *s++ = '0' + (int)L;
+        u_l = (&d)->d;
+        (&d)->d -= u_l;
+        *s++ = '0' + (int)u_l;
         if ((&d)->d < (&eps)->d)
           goto ret1;
         if (1. - (&d)->d < (&eps)->d)
@@ -173,10 +173,10 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     } else {
       (&eps)->d *= __tens_D2A[ilim - 1];
       for (i = 1;; i++, (&d)->d *= 10.) {
-        L = (int)((&d)->d);
-        if (!((&d)->d -= L))
+        u_l = (int)((&d)->d);
+        if (!((&d)->d -= u_l))
           ilim = i;
-        *s++ = '0' + (int)L;
+        *s++ = '0' + (int)u_l;
         if (i == ilim) {
           if ((&d)->d > 0.5 + (&eps)->d)
             goto bump_up;
@@ -205,15 +205,15 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
       goto one_digit;
     }
     for (i = 1;; i++, (&d)->d *= 10.) {
-      L = (int)((&d)->d / ds);
-      (&d)->d -= L * ds;
-      *s++ = '0' + (int)L;
+      u_l = (int)((&d)->d / ds);
+      (&d)->d -= u_l * ds;
+      *s++ = '0' + (int)u_l;
       if (!(&d)->d) {
         break;
       }
       if (i == ilim) {
         (&d)->d += (&d)->d;
-        if ((&d)->d > ds || ((&d)->d == ds && L & 1)) {
+        if ((&d)->d > ds || ((&d)->d == ds && u_l & 1)) {
         bump_up:
           while (*--s == '9')
             if (s == s0) {
@@ -235,7 +235,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     i = denorm ? be + (1023 + (53 - 1) - 1 + 1) : 1 + 53 - bbits;
     b2 += i;
     s2 += i;
-    mhi = __i2b_D2A(1);
+    mhi = __i2b_d2a(1);
     if (mhi == NULL)
       return (NULL);
   }
@@ -248,43 +248,43 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
   if (b5 > 0) {
     if (leftright) {
       if (m5 > 0) {
-        mhi = __pow5mult_D2A(mhi, m5);
+        mhi = __pow5mult_d2a(mhi, m5);
         if (mhi == NULL)
           return (NULL);
-        b1 = __mult_D2A(mhi, b);
+        b1 = __mult_d2a(mhi, b);
         if (b1 == NULL)
           return (NULL);
-        __Bfree_D2A(b);
+        __bfree_d2a(b);
         b = b1;
       }
       if ((j = b5 - m5) != 0) {
-        b = __pow5mult_D2A(b, j);
+        b = __pow5mult_d2a(b, j);
         if (b == NULL)
           return (NULL);
       }
     } else {
-      b = __pow5mult_D2A(b, b5);
+      b = __pow5mult_d2a(b, b5);
       if (b == NULL)
         return (NULL);
     }
   }
-  S = __i2b_D2A(1);
+  S = __i2b_d2a(1);
   if (S == NULL)
     return (NULL);
   if (s5 > 0) {
-    S = __pow5mult_D2A(S, s5);
+    S = __pow5mult_d2a(S, s5);
     if (S == NULL)
       return (NULL);
   }
   spec_case = 0;
   if ((mode < 2 || leftright)) {
-    if (!(&d)->L[0] && !((&d)->L[1] & 0xfffff) && (&d)->L[1] & (0x7ff00000 & ~0x100000)) {
+    if (!(&d)->u_l[0] && !((&d)->u_l[1] & 0xfffff) && (&d)->u_l[1] & (0x7ff00000 & ~0x100000)) {
       b2 += 1;
       s2 += 1;
       spec_case = 1;
     }
   }
-  if ((i = ((s5 ? 32 - __hi0bits_D2A((ULong)(S->x[S->wds - 1])) : 1) + s2) & 0x1f) != 0)
+  if ((i = ((s5 ? 32 - __hi0bits_d2a((uilong)(S->x[S->wds - 1])) : 1) + s2) & 0x1f) != 0)
     i = 32 - i;
   if (i > 4) {
     i -= 4;
@@ -298,23 +298,23 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     s2 += i;
   }
   if (b2 > 0) {
-    b = __lshift_D2A(b, b2);
+    b = __lshift_d2a(b, b2);
     if (b == NULL)
       return (NULL);
   }
   if (s2 > 0) {
-    S = __lshift_D2A(S, s2);
+    S = __lshift_d2a(S, s2);
     if (S == NULL)
       return (NULL);
   }
   if (k_check) {
-    if (__cmp_D2A(b, S) < 0) {
+    if (__cmp_d2a(b, S) < 0) {
       k--;
-      b = __multadd_D2A(b, 10, 0);
+      b = __multadd_d2a(b, 10, 0);
       if (b == NULL)
         return (NULL);
       if (leftright) {
-        mhi = __multadd_D2A(mhi, 10, 0);
+        mhi = __multadd_d2a(mhi, 10, 0);
         if (mhi == NULL)
           return (NULL);
       }
@@ -322,10 +322,10 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     }
   }
   if (ilim <= 0 && (mode == 3 || mode == 5)) {
-    S = __multadd_D2A(S, 5, 0);
+    S = __multadd_d2a(S, 5, 0);
     if (S == NULL)
       return (NULL);
-    if (ilim < 0 || __cmp_D2A(b, S) <= 0) {
+    if (ilim < 0 || __cmp_d2a(b, S) <= 0) {
     no_digits:
       k = -1 - ndigits;
       goto ret;
@@ -337,29 +337,29 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
   }
   if (leftright) {
     if (m2 > 0) {
-      mhi = __lshift_D2A(mhi, m2);
+      mhi = __lshift_d2a(mhi, m2);
       if (mhi == NULL)
         return (NULL);
     }
     mlo = mhi;
     if (spec_case) {
-      mhi = __Balloc_D2A(mhi->k);
+      mhi = __balloc_d2a(mhi->k);
       if (mhi == NULL)
         return (NULL);
-      memcpy(&mhi->sign, &mlo->sign, mlo->wds * sizeof(ULong) + 2 * sizeof(int));
-      mhi = __lshift_D2A(mhi, 1);
+      memcpy(&mhi->sign, &mlo->sign, mlo->wds * sizeof(uilong) + 2 * sizeof(int));
+      mhi = __lshift_d2a(mhi, 1);
       if (mhi == NULL)
         return (NULL);
     }
     for (i = 1;; i++) {
       dig = __quorem_D2A(b, S) + '0';
-      j = __cmp_D2A(b, mlo);
-      delta = __diff_D2A(S, mhi);
+      j = __cmp_d2a(b, mlo);
+      delta = __diff_d2a(S, mhi);
       if (delta == NULL)
         return (NULL);
-      j1 = delta->sign ? 1 : __cmp_D2A(b, delta);
-      __Bfree_D2A(delta);
-      if (j1 == 0 && mode != 1 && !((&d)->L[0] & 1)) {
+      j1 = delta->sign ? 1 : __cmp_d2a(b, delta);
+      __bfree_d2a(delta);
+      if (j1 == 0 && mode != 1 && !((&d)->u_l[0] & 1)) {
         if (dig == '9')
           goto round_9_up;
         if (j > 0)
@@ -367,15 +367,15 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
         *s++ = dig;
         goto ret;
       }
-      if (j < 0 || (j == 0 && mode != 1 && !((&d)->L[0] & 1))) {
+      if (j < 0 || (j == 0 && mode != 1 && !((&d)->u_l[0] & 1))) {
         if (!b->x[0] && b->wds <= 1) {
           goto accept_dig;
         }
         if (j1 > 0) {
-          b = __lshift_D2A(b, 1);
+          b = __lshift_d2a(b, 1);
           if (b == NULL)
             return (NULL);
-          j1 = __cmp_D2A(b, S);
+          j1 = __cmp_d2a(b, S);
           if ((j1 > 0 || (j1 == 0 && dig & 1)) && dig++ == '9')
             goto round_9_up;
         }
@@ -395,18 +395,18 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
       *s++ = dig;
       if (i == ilim)
         break;
-      b = __multadd_D2A(b, 10, 0);
+      b = __multadd_d2a(b, 10, 0);
       if (b == NULL)
         return (NULL);
       if (mlo == mhi) {
-        mlo = mhi = __multadd_D2A(mhi, 10, 0);
+        mlo = mhi = __multadd_d2a(mhi, 10, 0);
         if (mlo == NULL)
           return (NULL);
       } else {
-        mlo = __multadd_D2A(mlo, 10, 0);
+        mlo = __multadd_d2a(mlo, 10, 0);
         if (mlo == NULL)
           return (NULL);
-        mhi = __multadd_D2A(mhi, 10, 0);
+        mhi = __multadd_d2a(mhi, 10, 0);
         if (mhi == NULL)
           return (NULL);
       }
@@ -419,14 +419,14 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
       }
       if (i >= ilim)
         break;
-      b = __multadd_D2A(b, 10, 0);
+      b = __multadd_d2a(b, 10, 0);
       if (b == NULL)
         return (NULL);
     }
-  b = __lshift_D2A(b, 1);
+  b = __lshift_d2a(b, 1);
   if (b == NULL)
     return (NULL);
-  j = __cmp_D2A(b, S);
+  j = __cmp_d2a(b, S);
   if (j > 0 || (j == 0 && dig & 1)) {
   roundoff:
     while (*--s == '9')
@@ -442,14 +442,14 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     s++;
   }
 ret:
-  __Bfree_D2A(S);
+  __bfree_d2a(S);
   if (mhi) {
     if (mlo && mlo != mhi)
-      __Bfree_D2A(mlo);
-    __Bfree_D2A(mhi);
+      __bfree_d2a(mlo);
+    __bfree_d2a(mhi);
   }
 ret1:
-  __Bfree_D2A(b);
+  __bfree_d2a(b);
   *s = 0;
   *decpt = k + 1;
   if (rve)

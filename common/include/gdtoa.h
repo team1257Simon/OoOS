@@ -28,34 +28,34 @@ struct ieee_ext
 	unsigned ext_exp	: 16;
 	unsigned ext_sign	: 1;
 };
-typedef unsigned int ULong;
-typedef unsigned short UShort;
+typedef unsigned int uilong;
+typedef unsigned short ushort;
 enum 
 {
-	STRTOG_Zero		= 0x000,
-	STRTOG_Normal	= 0x001,
-	STRTOG_Denormal	= 0x002,
-	STRTOG_Infinite	= 0x003,
-	STRTOG_NaN		= 0x004,
-	STRTOG_NaNbits	= 0x005,
-	STRTOG_NoNumber	= 0x006,
-	STRTOG_NoMemory = 0x007,
-	STRTOG_Retmask	= 0x00f,
-	STRTOG_Inexlo	= 0x010,
-	STRTOG_Inexhi	= 0x020,
-	STRTOG_Inexact	= 0x030,
-	STRTOG_Underflow= 0x040,
-	STRTOG_Overflow	= 0x080,
-	STRTOG_Neg		= 0x100
+	strtog_zero		= 0x000,
+	strtog_normal	= 0x001,
+	strtog_denormal	= 0x002,
+	strtog_infinite	= 0x003,
+	strog_nan		= 0x004,
+	strtog_nanbits	= 0x005,
+	strtog_no_num	= 0x006,
+	strtog_nomemory = 0x007,
+	strtog_retmask	= 0x00f,
+	strtog_inexlo	= 0x010,
+	strtog_inexhi	= 0x020,
+	strtog_inexact	= 0x030,
+	strtog_uflow	= 0x040,
+	strtog_oflow	= 0x080,
+	strtog_neg		= 0x100
 };
-typedef struct FPI 
+typedef struct fpi 
 {
 	int nbits;
 	int emin;
 	int emax;
 	int rounding;
 	int sudden_underflow;
-} FPI;
+} fpi;
 enum
 {
 	FPI_Round_zero = 0,
@@ -63,91 +63,60 @@ enum
 	FPI_Round_up = 2,
 	FPI_Round_down = 3
 };
-typedef union { double d; ULong L[2]; } U;
-typedef struct Bigint 
+typedef union { double d; uilong u_l[2]; } udouble;
+typedef struct big_int 
 {
-	struct Bigint *next;
+	struct big_int *next;
 	int k, maxwds, sign, wds;
-	ULong x[1];
-} Bigint;
-
+	uilong x[1];
+} big_int;
 extern char* __dtoa  (double d, int mode, int ndigits, int *decpt, int *sign, char **rve);
-extern char* __gdtoa (FPI *fpi, int be, ULong *bits, int *kindp, int mode, int ndigits, int *decpt, char **rve);
+extern char* __gdtoa (fpi *fpi, int be, uilong *bits, int *kindp, int mode, int ndigits, int *decpt, char **rve);
 extern void __freedtoa (char*);
 extern float  strtof (const char *, char **);
 extern double strtod (const char *, char **);
-extern int __strtodg (const char*, char**, FPI*, int*, ULong*);
+extern int __strtodg (const char*, char**, fpi*, int*, uilong*);
 char	*__hdtoa(double, const char *, int, int *, int *, char **);
 char	*__hldtoa(long double, const char *, int, int *, int *, char **);
 char	*__ldtoa(long double *, int, int, int *, int *, char **);
-extern char*	__g_ddfmt  (char*, double*, int, size_t);
-extern char*	__g_dfmt   (char*, double*, int, size_t);
-extern char*	__g_ffmt   (char*, float*,  int, size_t);
-extern char*	__g_Qfmt   (char*, void*,   int, size_t);
-extern char*	__g_xfmt   (char*, void*,   int, size_t);
-extern char*	__g_xLfmt  (char*, void*,   int, size_t);
-extern int	__strtoId  (const char*, char**, double*, double*);
-extern int	__strtoIdd (const char*, char**, double*, double*);
-extern int	__strtoIf  (const char*, char**, float*, float*);
-extern int	__strtoIQ  (const char*, char**, void*, void*);
-extern int	__strtoIx  (const char*, char**, void*, void*);
-extern int	__strtoIxL (const char*, char**, void*, void*);
 extern int	__strtord  (const char*, char**, int, double*);
-extern int	__strtordd (const char*, char**, int, double*);
-extern int	__strtorf  (const char*, char**, int, float*);
-extern int	__strtorQ  (const char*, char**, int, void*);
-extern int	__strtorx  (const char*, char**, int, void*);
-extern int	__strtorxL (const char*, char**, int, void*);
-extern int	__strtodI  (const char*, char**, double*);
-extern int	__strtopd  (const char*, char**, double*);
-extern int	__strtopdd (const char*, char**, double*);
-extern int	__strtopf  (const char*, char**, float*);
-extern int	__strtopQ  (const char*, char**, void*);
-extern int	__strtopx  (const char*, char**, void*);
-extern int	__strtopxL (const char*, char**, void*);
+extern int	__strtor_q  (const char*, char**, int, void*);
 extern char *__dtoa_result_D2A;
 extern const double __bigtens_D2A[], __tens_D2A[], __tinytens_D2A[];
 extern unsigned char __hexdig_D2A[];
-extern Bigint *__Balloc_D2A (int);
-extern void __Bfree_D2A (Bigint*);
-extern void __ULtof_D2A (ULong*, ULong*, int, int);
-extern void __ULtod_D2A (ULong*, ULong*, int, int);
-extern void __ULtodd_D2A (ULong*, ULong*, int, int);
-extern void __ULtoQ_D2A (ULong*, ULong*, int, int);
-extern void __ULtox_D2A (UShort*, ULong*, int, int);
-extern void __ULtoxL_D2A (ULong*, ULong*, int, int);
-extern ULong __any_on_D2A (Bigint*, int);
-extern double __b2d_D2A (Bigint*, int*);
-extern int __cmp_D2A (Bigint*, Bigint*);
-extern void __copybits_D2A (ULong*, int, Bigint*);
-extern Bigint *__d2b_D2A (double, int*, int*);
-extern void __decrement_D2A (Bigint*);
-extern Bigint *__diff_D2A (Bigint*, Bigint*);
-extern char *__g__fmt_D2A (char*, char*, char*, int, ULong, size_t);
-extern int __gethex_D2A (const char**, FPI*, int*, Bigint**, int);
-extern void __hexdig_init_D2A(void);
-extern int __hexnan_D2A (const char**, FPI*, ULong*);
-extern int __hi0bits_D2A (ULong);
-extern Bigint *__i2b_D2A (int);
-extern Bigint *__increment_D2A (Bigint*);
-extern int __lo0bits_D2A (ULong*);
-extern Bigint *__lshift_D2A (Bigint*, int);
-extern int __match_D2A (const char**, char*);
-extern Bigint *__mult_D2A (Bigint*, Bigint*);
-extern Bigint *__multadd_D2A (Bigint*, int, int);
+extern big_int *__balloc_d2a (int);
+extern void __bfree_d2a (big_int*);
+extern void __ultod_d2a (uilong*, uilong*, int, int);
+extern void __ul_to_q_d2a (uilong*, uilong*, int, int);
+extern uilong __any_on_d2a (big_int*, int);
+extern double __b2d_d2a (big_int*, int*);
+extern int __cmp_d2a (big_int*, big_int*);
+extern void __copybits_d2a (uilong*, int, big_int*);
+extern big_int *__d2b_d2a (double, int*, int*);
+extern void __decrement_d2a (big_int*);
+extern big_int *__diff_d2a (big_int*, big_int*);
+extern int __gethex_d2a (const char**, fpi*, int*, big_int**, int);
+extern void __hexdig_init_d2a(void);
+extern int __hexnan_d2a (const char**, fpi*, uilong*);
+extern int __hi0bits_d2a (uilong);
+extern big_int *__i2b_d2a (int);
+extern big_int *__increment_d2a (big_int*);
+extern int __lo0bits_d2a (uilong*);
+extern big_int *__lshift_d2a (big_int*, int);
+extern int __match_d2a (const char**, char*);
+extern big_int *__mult_d2a (big_int*, big_int*);
+extern big_int *__multadd_d2a (big_int*, int, int);
 extern char *__nrv_alloc_D2A (char*, char **, int);
-extern Bigint *__pow5mult_D2A (Bigint*, int);
-extern int __quorem_D2A (Bigint*, Bigint*);
-extern double __ratio_D2A (Bigint*, Bigint*);
-extern void __rshift_D2A (Bigint*, int);
-extern char *__rv_alloc_D2A (int);
-extern Bigint *__s2b_D2A (const char*, int, int, ULong, int);
-extern Bigint *__set_ones_D2A (Bigint*, int);
-extern char *__strcp_D2A (char*, const char*);
-extern int __strtoIg_D2A (const char*, char**, FPI*, int*, Bigint**, int*);
-extern Bigint *__sum_D2A (Bigint*, Bigint*);
-extern int __trailz_D2A (Bigint*);
-extern double __ulp_D2A (U*);
+extern big_int *__pow5mult_d2a (big_int*, int);
+extern int __quorem_D2A (big_int*, big_int*);
+extern double __ratio_d2a (big_int*, big_int*);
+extern void __rshift_d2a (big_int*, int);
+extern char *__rv_alloc_d2a (int);
+extern big_int *__s2b_d2a (const char*, int, int, uilong, int);
+extern big_int *__set_ones_d2a (big_int*, int);
+extern big_int *__sum_d2a (big_int*, big_int*);
+extern int __trailz_d2a (big_int*);
+extern double __ulp_d2a (udouble*);
 #ifdef __cplusplus
 }
 #endif

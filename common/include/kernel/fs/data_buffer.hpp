@@ -33,6 +33,7 @@ public:
     data_buffer(std::size_t how_much, AT const& alloc = AT{}) : __sb_type{}, __dynamic_base{ how_much, alloc } { this->__on_modify(); }
     data_buffer(data_buffer const&) = delete;
     data_buffer(data_buffer&& that) : __sb_type{}, __dynamic_base{ std::move(that) } { this->__on_modify(); }
+    virtual ~data_buffer() = default;
     data_buffer& operator=(data_buffer const&) = delete;
     data_buffer& operator=(data_buffer&& that) { this->__realloc_move(std::move(that)); return *this; }
     pos_type tell() const noexcept { return pos_type(this->__cur() - this->__beg()); }

@@ -323,9 +323,11 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #ifdef NEED_STDBOOL
 #include "stdbool.h"
 #endif
-#define physical_block_size 512uL
+#define physical_block_size 512UL
+#define __may_alias
 #else
-constexpr size_t physical_block_size = 512;
+constexpr size_t physical_block_size = 512UL;
+#define __may_alias [[gnu::may_alias]]
 #define restrict
 #include "concepts"
 #include "compare"
@@ -716,12 +718,12 @@ typedef madt_record<nmi_source_override_data> nmi_override;
 typedef madt_record<local_apic_addr_override> apic_override;
 typedef madt_record<local_apic_nmi_data> lapic_nmi;
 #endif
-typedef union __idx_addr
+typedef union __may_alias __idx_addr
 {
     addr_t idx;
     uintptr_t addr;
 } __pack indexed_address;
-typedef union __guid
+typedef union __may_alias __guid
 {
     struct
     {
@@ -731,6 +733,7 @@ typedef union __guid
         uint8_t data_d[8];
     }__pack;
     uint64_t data_full[2];
+    uint8_t data_bytes[16];
 } __pack __align(1) guid_t;
 typedef struct __mmap_entry
 {

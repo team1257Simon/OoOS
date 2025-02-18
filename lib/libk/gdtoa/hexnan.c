@@ -1,5 +1,5 @@
 #include "gdtoa.h"
-static void L_shift(ULong* x, ULong* x1, int i)
+static void L_shift(uilong* x, uilong* x1, int i)
 {
   int j;
   i = 8 - i;
@@ -10,13 +10,13 @@ static void L_shift(ULong* x, ULong* x1, int i)
     x[1] >>= i;
   } while (++x < x1);
 }
-int __hexnan_D2A(const char** sp, FPI* fpi, ULong* x0)
+int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
 {
-  ULong c, h, *x, *x1, *xe;
+  uilong c, h, *x, *x1, *xe;
   const char* s;
   int havedig, hd0, i, nbits;
   if (!__hexdig_D2A['0'])
-    __hexdig_init_D2A();
+    __hexdig_init_d2a();
   nbits = fpi->nbits;
   x = x0 + (nbits >> 5);
   if (nbits & 31)
@@ -60,7 +60,7 @@ int __hexnan_D2A(const char** sp, FPI* fpi, ULong* x0)
           break;
         }
       } while ((c = *++s));
-      return STRTOG_NaN;
+      return strog_nan;
     }
     havedig++;
     if (++i > 8) {
@@ -72,7 +72,7 @@ int __hexnan_D2A(const char** sp, FPI* fpi, ULong* x0)
     *x = (*x << 4) | (h & 0xf);
   }
   if (!havedig)
-    return STRTOG_NaN;
+    return strog_nan;
   if (x < x1 && i < 8)
     L_shift(x, x1, i);
   if (x > x0) {
@@ -85,7 +85,7 @@ int __hexnan_D2A(const char** sp, FPI* fpi, ULong* x0)
     while (x1 <= xe);
   } else {
     if ((i = nbits & (32 - 1)) != 0)
-      *xe &= ((ULong)0xffffffff) >> (32 - i);
+      *xe &= ((uilong)0xffffffff) >> (32 - i);
   }
   for (x1 = xe;; --x1) {
     if (*x1 != 0)
@@ -95,5 +95,5 @@ int __hexnan_D2A(const char** sp, FPI* fpi, ULong* x0)
       break;
     }
   }
-  return STRTOG_NaNbits;
+  return strtog_nanbits;
 }

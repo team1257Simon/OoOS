@@ -1,15 +1,15 @@
 #include "gdtoa.h"
-Bigint* __sum_D2A(Bigint* a, Bigint* b)
+big_int* __sum_d2a(big_int* a, big_int* b)
 {
-  Bigint* c;
-  ULong carry, *xc, *xa, *xb, *xe, y;
-  ULong z;
+  big_int* c;
+  uilong carry, *xc, *xa, *xb, *xe, y;
+  uilong z;
   if (a->wds < b->wds) {
     c = b;
     b = a;
     a = c;
   }
-  c = __Balloc_D2A(a->k);
+  c = __balloc_d2a(a->k);
   if (c == NULL)
     return (NULL);
   c->wds = a->wds;
@@ -35,11 +35,11 @@ Bigint* __sum_D2A(Bigint* a, Bigint* b)
   }
   if (carry) {
     if (c->wds == c->maxwds) {
-      b = __Balloc_D2A(c->k + 1);
+      b = __balloc_d2a(c->k + 1);
       if (b == NULL)
         return (NULL);
-      memcpy(&b->sign, &c->sign, c->wds * sizeof(ULong) + 2 * sizeof(int));
-      __Bfree_D2A(c);
+      memcpy(&b->sign, &c->sign, c->wds * sizeof(uilong) + 2 * sizeof(int));
+      __bfree_d2a(c);
       c = b;
     }
     c->x[c->wds++] = 1;

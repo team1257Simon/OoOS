@@ -1,30 +1,28 @@
 #include "gdtoa.h"
-static const double tinytens[] = { 1e-16, 1e-32, 1e-64, 1e-128,
-  9007199254740992. * 9007199254740992.e-256 };
-static double __sulp_D2A(U* x, int scale)
+static const double tinytens[] = { 1e-16, 1e-32, 1e-64, 1e-128, 9007199254740992. * 9007199254740992.e-256 };
+static double __sulp_D2A(udouble* x, int scale)
 {
-  U u;
+  udouble u;
   double rv;
   int i;
-  rv = __ulp_D2A(x);
-  if (!scale || (i = 2 * 53 + 1 - (((x)->L[1] & 0x7ff00000) >> 20)) <= 0)
+  rv = __ulp_d2a(x);
+  if (!scale || (i = 2 * 53 + 1 - (((x)->u_l[1] & 0x7ff00000) >> 20)) <= 0)
     return rv;
-  (&u)->L[1] = 0x3ff00000 + (i << 20);
-  (&u)->L[0] = 0;
+  (&u)->u_l[1] = 0x3ff00000 + (i << 20);
+  (&u)->u_l[0] = 0;
   return rv * u.d;
 }
 double strtod(const char* s00, char** se)
 {
   int scale;
-  int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, decpt, dsign, e, e1, esign, i, j,
-      k, nd, nd0, nf, nz, nz0, sign;
+  int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, decpt, dsign, e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
   const char *s, *s0, *s1;
   double aadj;
-  int L;
-  U adj, aadj1, rv, rv0;
-  ULong y, z;
-  Bigint *bb = NULL, *bb1, *bd = NULL, *bd0 = NULL, *bs = NULL, *delta = NULL;
-  ULong Lsb, Lsb1;
+  int u_l;
+  udouble adj, aadj1, rv, rv0;
+  uilong y, z;
+  big_int *bb = NULL, *bb1, *bd = NULL, *bd0 = NULL, *bs = NULL, *delta = NULL;
+  uilong Lsb, Lsb1;
   sign = nz0 = nz = decpt = 0;
   (&rv)->d = 0.;
   for (s = s00;; s++)
@@ -49,27 +47,27 @@ double strtod(const char* s00, char** se)
 break2:
   if (*s == '0') {
     {
-      static FPI fpi = { 53, 1 - 1023 - 53 + 1, 2046 - 1023 - 53 + 1, 1, 0 };
+      static fpi fpi = { 53, 1 - 1023 - 53 + 1, 2046 - 1023 - 53 + 1, 1, 0 };
       int exp;
-      ULong bits[2];
+      uilong bits[2];
       switch (s[1]) {
       case 'x':
       case 'X': {
         switch (
-            (i = __gethex_D2A(&s, &fpi, &exp, &bb, sign)) & STRTOG_Retmask) {
-        case STRTOG_NoMemory:
+            (i = __gethex_d2a(&s, &fpi, &exp, &bb, sign)) & strtog_retmask) {
+        case strtog_nomemory:
           goto ovfl;
-        case STRTOG_NoNumber:
+        case strtog_no_num:
           s = s00;
           sign = 0;
-        case STRTOG_Zero:
+        case strtog_zero:
           break;
         default:
           if (bb) {
-            __copybits_D2A(bits, fpi.nbits, bb);
-            __Bfree_D2A(bb);
+            __copybits_d2a(bits, fpi.nbits, bb);
+            __bfree_d2a(bb);
           }
-          __ULtod_D2A(((U*)&rv)->L, bits, exp, i);
+          __ultod_d2a(((udouble*)&rv)->u_l, bits, exp, i);
         }
       }
         goto ret;
@@ -139,14 +137,14 @@ dig_done:
       while (c == '0')
         c = *++s;
       if (c > '0' && c <= '9') {
-        L = c - '0';
+        u_l = c - '0';
         s1 = s;
         while ((c = *++s) >= '0' && c <= '9')
-          L = 10 * L + c - '0';
-        if (s - s1 > 8 || L > 19999)
+          u_l = 10 * u_l + c - '0';
+        if (s - s1 > 8 || u_l > 19999)
           e = 19999;
         else
-          e = (int)L;
+          e = (int)u_l;
         if (esign)
           e = -e;
       } else
@@ -156,31 +154,31 @@ dig_done:
   }
   if (!nd) {
     if (!nz && !nz0) {
-      ULong bits[2];
-      static FPI fpinan = { 52, 1 - 1023 - 53 + 1, 2046 - 1023 - 53 + 1, 1, 0 };
+      uilong bits[2];
+      static fpi fpinan = { 52, 1 - 1023 - 53 + 1, 2046 - 1023 - 53 + 1, 1, 0 };
       if (!decpt)
         switch (c) {
         case 'i':
         case 'I':
-          if (__match_D2A(&s, "nf")) {
+          if (__match_d2a(&s, "nf")) {
             --s;
-            if (!__match_D2A(&s, "inity"))
+            if (!__match_d2a(&s, "inity"))
               ++s;
-            (&rv)->L[1] = 0x7ff00000;
-            (&rv)->L[0] = 0;
+            (&rv)->u_l[1] = 0x7ff00000;
+            (&rv)->u_l[0] = 0;
             goto ret;
           }
           break;
         case 'n':
         case 'N':
-          if (__match_D2A(&s, "an")) {
+          if (__match_d2a(&s, "an")) {
             if (*s == '('
-                && __hexnan_D2A(&s, &fpinan, bits) == STRTOG_NaNbits) {
-              (&rv)->L[1] = 0x7ff00000 | bits[1];
-              (&rv)->L[0] = bits[0];
+                && __hexnan_d2a(&s, &fpinan, bits) == strtog_nanbits) {
+              (&rv)->u_l[1] = 0x7ff00000 | bits[1];
+              (&rv)->u_l[0] = bits[0];
             } else {
-              (&rv)->L[1] = 0x7ff80000;
-              (&rv)->L[0] = 0x00000000;
+              (&rv)->u_l[1] = 0x7ff80000;
+              (&rv)->u_l[0] = 0x00000000;
             }
             goto ret;
           }
@@ -229,15 +227,15 @@ dig_done:
     if (e1 &= ~15) {
       if (e1 > 308) {
       ovfl:
-        (&rv)->L[1] = 0x7ff00000;
-        (&rv)->L[0] = 0;
+        (&rv)->u_l[1] = 0x7ff00000;
+        (&rv)->u_l[0] = 0;
       range_err:
         if (bd0) {
-          __Bfree_D2A(bb);
-          __Bfree_D2A(bd);
-          __Bfree_D2A(bs);
-          __Bfree_D2A(bd0);
-          __Bfree_D2A(delta);
+          __bfree_d2a(bb);
+          __bfree_d2a(bd);
+          __bfree_d2a(bs);
+          __bfree_d2a(bd0);
+          __bfree_d2a(delta);
         }
         *(__errno()) = 34;
         goto ret;
@@ -246,15 +244,15 @@ dig_done:
       for (j = 0; e1 > 1; j++, e1 >>= 1)
         if (e1 & 1)
           (&rv)->d *= __bigtens_D2A[j];
-      (&rv)->L[1] -= 53 * 0x100000;
+      (&rv)->u_l[1] -= 53 * 0x100000;
       (&rv)->d *= __bigtens_D2A[j];
-      if ((z = (&rv)->L[1] & 0x7ff00000) > 0x100000 * (1024 + 1023 - 53))
+      if ((z = (&rv)->u_l[1] & 0x7ff00000) > 0x100000 * (1024 + 1023 - 53))
         goto ovfl;
       if (z > 0x100000 * (1024 + 1023 - 1 - 53)) {
-        (&rv)->L[1] = (0xfffff | 0x100000 * (1024 + 1023 - 1));
-        (&rv)->L[0] = 0xffffffff;
+        (&rv)->u_l[1] = (0xfffff | 0x100000 * (1024 + 1023 - 1));
+        (&rv)->u_l[0] = 0xffffffff;
       } else
-        (&rv)->L[1] += 53 * 0x100000;
+        (&rv)->u_l[1] += 53 * 0x100000;
     }
   } else if (e1 < 0) {
     e1 = -e1;
@@ -268,15 +266,15 @@ dig_done:
       for (j = 0; e1 > 0; j++, e1 >>= 1)
         if (e1 & 1)
           (&rv)->d *= tinytens[j];
-      if (scale && (j = 2 * 53 + 1 - (((&rv)->L[1] & 0x7ff00000) >> 20)) > 0) {
+      if (scale && (j = 2 * 53 + 1 - (((&rv)->u_l[1] & 0x7ff00000) >> 20)) > 0) {
         if (j >= 32) {
-          (&rv)->L[0] = 0;
+          (&rv)->u_l[0] = 0;
           if (j >= 53)
-            (&rv)->L[1] = (53 + 2) * 0x100000;
+            (&rv)->u_l[1] = (53 + 2) * 0x100000;
           else
-            (&rv)->L[1] &= 0xffffffff << (j - 32);
+            (&rv)->u_l[1] &= 0xffffffff << (j - 32);
         } else
-          (&rv)->L[0] &= 0xffffffff << j;
+          (&rv)->u_l[0] &= 0xffffffff << j;
       }
       if (!(&rv)->d) {
       undfl:
@@ -285,18 +283,18 @@ dig_done:
       }
     }
   }
-  bd0 = __s2b_D2A(s0, nd0, nd, y, 1);
+  bd0 = __s2b_d2a(s0, nd0, nd, y, 1);
   if (bd0 == NULL)
     goto ovfl;
   for (;;) {
-    bd = __Balloc_D2A(bd0->k);
+    bd = __balloc_d2a(bd0->k);
     if (bd == NULL)
       goto ovfl;
-    memcpy(&bd->sign, &bd0->sign, bd0->wds * sizeof(ULong) + 2 * sizeof(int));
-    bb = __d2b_D2A((&rv)->d, &bbe, &bbbits);
+    memcpy(&bd->sign, &bd0->sign, bd0->wds * sizeof(uilong) + 2 * sizeof(int));
+    bb = __d2b_d2a((&rv)->d, &bbe, &bbbits);
     if (bb == NULL)
       goto ovfl;
-    bs = __i2b_D2A(1);
+    bs = __i2b_d2a(1);
     if (bs == NULL)
       goto ovfl;
     if (e >= 0) {
@@ -336,92 +334,92 @@ dig_done:
       bs2 -= i;
     }
     if (bb5 > 0) {
-      bs = __pow5mult_D2A(bs, bb5);
+      bs = __pow5mult_d2a(bs, bb5);
       if (bs == NULL)
         goto ovfl;
-      bb1 = __mult_D2A(bs, bb);
+      bb1 = __mult_d2a(bs, bb);
       if (bb1 == NULL)
         goto ovfl;
-      __Bfree_D2A(bb);
+      __bfree_d2a(bb);
       bb = bb1;
     }
     if (bb2 > 0) {
-      bb = __lshift_D2A(bb, bb2);
+      bb = __lshift_d2a(bb, bb2);
       if (bb == NULL)
         goto ovfl;
     }
     if (bd5 > 0) {
-      bd = __pow5mult_D2A(bd, bd5);
+      bd = __pow5mult_d2a(bd, bd5);
       if (bd == NULL)
         goto ovfl;
     }
     if (bd2 > 0) {
-      bd = __lshift_D2A(bd, bd2);
+      bd = __lshift_d2a(bd, bd2);
       if (bd == NULL)
         goto ovfl;
     }
     if (bs2 > 0) {
-      bs = __lshift_D2A(bs, bs2);
+      bs = __lshift_d2a(bs, bs2);
       if (bs == NULL)
         goto ovfl;
     }
-    delta = __diff_D2A(bb, bd);
+    delta = __diff_d2a(bb, bd);
     if (delta == NULL)
       goto ovfl;
     dsign = delta->sign;
     delta->sign = 0;
-    i = __cmp_D2A(delta, bs);
+    i = __cmp_d2a(delta, bs);
     if (i < 0) {
-      if (dsign || (&rv)->L[0] || (&rv)->L[1] & 0xfffff
-          || ((&rv)->L[1] & 0x7ff00000) <= (2 * 53 + 1) * 0x100000) {
+      if (dsign || (&rv)->u_l[0] || (&rv)->u_l[1] & 0xfffff
+          || ((&rv)->u_l[1] & 0x7ff00000) <= (2 * 53 + 1) * 0x100000) {
         break;
       }
       if (!delta->x[0] && delta->wds <= 1) {
         break;
       }
-      delta = __lshift_D2A(delta, 1);
+      delta = __lshift_d2a(delta, 1);
       if (delta == NULL)
         goto ovfl;
-      if (__cmp_D2A(delta, bs) > 0)
+      if (__cmp_d2a(delta, bs) > 0)
         goto drop_down;
       break;
     }
     if (i == 0) {
       if (dsign) {
-        if (((&rv)->L[1] & 0xfffff) == 0xfffff
-            && (&rv)->L[0]
+        if (((&rv)->u_l[1] & 0xfffff) == 0xfffff
+            && (&rv)->u_l[0]
                 == ((scale
-                        && (y = (&rv)->L[1] & 0x7ff00000) <= 2 * 53 * 0x100000)
+                        && (y = (&rv)->u_l[1] & 0x7ff00000) <= 2 * 53 * 0x100000)
                         ? (0xffffffff
                               & (0xffffffff << (2 * 53 + 1 - (y >> 20))))
                         : 0xffffffff)) {
-          if ((&rv)->L[1] == (0xfffff | 0x100000 * (1024 + 1023 - 1))
-              && (&rv)->L[0] == 0xffffffff)
+          if ((&rv)->u_l[1] == (0xfffff | 0x100000 * (1024 + 1023 - 1))
+              && (&rv)->u_l[0] == 0xffffffff)
             goto ovfl;
-          (&rv)->L[1] = ((&rv)->L[1] & 0x7ff00000) + 0x100000;
-          (&rv)->L[0] = 0;
+          (&rv)->u_l[1] = ((&rv)->u_l[1] & 0x7ff00000) + 0x100000;
+          (&rv)->u_l[0] = 0;
           dsign = 0;
           break;
         }
-      } else if (!((&rv)->L[1] & 0xfffff) && !(&rv)->L[0]) {
+      } else if (!((&rv)->u_l[1] & 0xfffff) && !(&rv)->u_l[0]) {
       drop_down:
         if (scale) {
-          L = (&rv)->L[1] & 0x7ff00000;
-          if (L <= (2 * 53 + 1) * 0x100000) {
-            if (L > (53 + 2) * 0x100000)
+          u_l = (&rv)->u_l[1] & 0x7ff00000;
+          if (u_l <= (2 * 53 + 1) * 0x100000) {
+            if (u_l > (53 + 2) * 0x100000)
               break;
             goto undfl;
           }
         }
-        L = ((&rv)->L[1] & 0x7ff00000) - 0x100000;
-        (&rv)->L[1] = L | 0xfffff;
-        (&rv)->L[0] = 0xffffffff;
+        u_l = ((&rv)->u_l[1] & 0x7ff00000) - 0x100000;
+        (&rv)->u_l[1] = u_l | 0xfffff;
+        (&rv)->u_l[0] = 0xffffffff;
         break;
       }
       if (Lsb1) {
-        if (!((&rv)->L[1] & Lsb1))
+        if (!((&rv)->u_l[1] & Lsb1))
           break;
-      } else if (!((&rv)->L[0] & Lsb))
+      } else if (!((&rv)->u_l[0] & Lsb))
         break;
       if (dsign)
         (&rv)->d += __sulp_D2A(&rv, scale);
@@ -433,11 +431,11 @@ dig_done:
       dsign = 1 - dsign;
       break;
     }
-    if ((aadj = __ratio_D2A(delta, bs)) <= 2.) {
+    if ((aadj = __ratio_d2a(delta, bs)) <= 2.) {
       if (dsign)
         aadj = (&aadj1)->d = 1.;
-      else if ((&rv)->L[0] || (&rv)->L[1] & 0xfffff) {
-        if ((&rv)->L[0] == 1 && !(&rv)->L[1])
+      else if ((&rv)->u_l[0] || (&rv)->u_l[1] & 0xfffff) {
+        if ((&rv)->u_l[0] == 1 && !(&rv)->u_l[1])
           goto undfl;
         aadj = 1.;
         (&aadj1)->d = -1.;
@@ -454,21 +452,21 @@ dig_done:
       if (1 == 0)
         (&aadj1)->d += 0.5;
     }
-    y = (&rv)->L[1] & 0x7ff00000;
+    y = (&rv)->u_l[1] & 0x7ff00000;
     if (y == 0x100000 * (1024 + 1023 - 1)) {
       (&rv0)->d = (&rv)->d;
-      (&rv)->L[1] -= 53 * 0x100000;
-      (&adj)->d = (&aadj1)->d * __ulp_D2A(&rv);
+      (&rv)->u_l[1] -= 53 * 0x100000;
+      (&adj)->d = (&aadj1)->d * __ulp_d2a(&rv);
       (&rv)->d += (&adj)->d;
-      if (((&rv)->L[1] & 0x7ff00000) >= 0x100000 * (1024 + 1023 - 53)) {
-        if ((&rv0)->L[1] == (0xfffff | 0x100000 * (1024 + 1023 - 1))
-            && (&rv0)->L[0] == 0xffffffff)
+      if (((&rv)->u_l[1] & 0x7ff00000) >= 0x100000 * (1024 + 1023 - 53)) {
+        if ((&rv0)->u_l[1] == (0xfffff | 0x100000 * (1024 + 1023 - 1))
+            && (&rv0)->u_l[0] == 0xffffffff)
           goto ovfl;
-        (&rv)->L[1] = (0xfffff | 0x100000 * (1024 + 1023 - 1));
-        (&rv)->L[0] = 0xffffffff;
+        (&rv)->u_l[1] = (0xfffff | 0x100000 * (1024 + 1023 - 1));
+        (&rv)->u_l[0] = 0xffffffff;
         goto cont;
       } else
-        (&rv)->L[1] += 53 * 0x100000;
+        (&rv)->u_l[1] += 53 * 0x100000;
     } else {
       if (scale && y <= 2 * 53 * 0x100000) {
         if (aadj <= 0x7fffffff) {
@@ -477,38 +475,38 @@ dig_done:
           aadj = z;
           (&aadj1)->d = dsign ? aadj : -aadj;
         }
-        (&aadj1)->L[1] += (2 * 53 + 1) * 0x100000 - y;
+        (&aadj1)->u_l[1] += (2 * 53 + 1) * 0x100000 - y;
       }
-      (&adj)->d = (&aadj1)->d * __ulp_D2A(&rv);
+      (&adj)->d = (&aadj1)->d * __ulp_d2a(&rv);
       (&rv)->d += (&adj)->d;
     }
-    z = (&rv)->L[1] & 0x7ff00000;
+    z = (&rv)->u_l[1] & 0x7ff00000;
     if (!scale)
       if (y == z) {
-        L = (int)aadj;
-        aadj -= L;
-        if (dsign || (&rv)->L[0] || (&rv)->L[1] & 0xfffff) {
+        u_l = (int)aadj;
+        aadj -= u_l;
+        if (dsign || (&rv)->u_l[0] || (&rv)->u_l[1] & 0xfffff) {
           if (aadj < .4999999 || aadj > .5000001)
             break;
         } else if (aadj < .4999999 / 2)
           break;
       }
   cont:
-    __Bfree_D2A(bb);
-    __Bfree_D2A(bd);
-    __Bfree_D2A(bs);
-    __Bfree_D2A(delta);
+    __bfree_d2a(bb);
+    __bfree_d2a(bd);
+    __bfree_d2a(bs);
+    __bfree_d2a(delta);
   }
-  __Bfree_D2A(bb);
-  __Bfree_D2A(bd);
-  __Bfree_D2A(bs);
-  __Bfree_D2A(bd0);
-  __Bfree_D2A(delta);
+  __bfree_d2a(bb);
+  __bfree_d2a(bd);
+  __bfree_d2a(bs);
+  __bfree_d2a(bd0);
+  __bfree_d2a(delta);
   if (scale) {
-    (&rv0)->L[1] = 0x3ff00000 - 2 * 53 * 0x100000;
-    (&rv0)->L[0] = 0;
+    (&rv0)->u_l[1] = 0x3ff00000 - 2 * 53 * 0x100000;
+    (&rv0)->u_l[0] = 0;
     (&rv)->d *= (&rv0)->d;
-    if (!((&rv)->L[1] & 0x7ff00000))
+    if (!((&rv)->u_l[1] & 0x7ff00000))
       *(__errno()) = 34;
   }
 ret:

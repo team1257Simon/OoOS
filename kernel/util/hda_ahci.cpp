@@ -12,13 +12,13 @@ bool ahci_hda::__read_pt()
     pt_header_t* hdr;
     try { hdr = alloc_hdr.allocate(1); }
     catch(std::bad_alloc&) { panic("no heap available"); return false; }
-    if(!__obj_read(hdr, 1ul, 1u)) { panic("bad read on header"); alloc_hdr.deallocate(hdr, 1); return false; }
+    if(!read_objects(hdr, 1ul, 1u)) { panic("bad read on header"); alloc_hdr.deallocate(hdr, 1); return false; }
     unsigned sz_multi = hdr->part_entry_size / sizeof(partition_entry_t);
     if(!sz_multi) { panic("invalid size for pt entries; is the GPT header corrupted?"); alloc_hdr.deallocate(hdr, 1); return false; }
     size_t n = hdr->num_part_entries * sz_multi;
     partition_entry_t* arr = alloc_pt.allocate(n);
     array_zero<partition_entry_t>(arr, n);
-    if(!__obj_read(arr, hdr->lba_partition_entry_array, n)) { panic("bad read on plus-size partition table"); alloc_hdr.deallocate(hdr, 1); alloc_pt.deallocate(arr, n); return false; }
+    if(!read_objects(arr, hdr->lba_partition_entry_array, n)) { panic("bad read on plus-size partition table"); alloc_hdr.deallocate(hdr, 1); alloc_pt.deallocate(arr, n); return false; }
     __my_partitions.reserve(size_t(hdr->num_part_entries));
     for(size_t i = 0; i < n; i += sz_multi) __my_partitions.push_back(arr[i]);
     alloc_hdr.deallocate(hdr, 1);

@@ -1,13 +1,13 @@
 #include "gdtoa.h"
-int __gethex_D2A(const char** sp, FPI* fpi, int* exp, Bigint** bp, int sign)
+int __gethex_d2a(const char** sp, fpi* fpi, int* exp, big_int** bp, int sign)
 {
-  Bigint* b;
+  big_int* b;
   const unsigned char *decpt, *s0, *s, *s1;
   int big, esign, havedig, irv, j, k, n, n0, nbits, up, zret;
-  ULong L, lostbits, *x;
+  uilong u_l, lostbits, *x;
   int e, e1;
   if (!__hexdig_D2A['0'])
-    __hexdig_init_D2A();
+    __hexdig_init_d2a();
   *bp = 0;
   havedig = 0;
   s0 = *(const unsigned char**)sp + 2;
@@ -73,7 +73,7 @@ pcheck:
   if (!havedig)
     *sp = (char*)s0 - 1;
   if (zret)
-    return STRTOG_Zero;
+    return strtog_zero;
   if (big) {
     if (esign) {
       switch (fpi->rounding) {
@@ -88,9 +88,9 @@ pcheck:
       }
       goto retz;
     ret_tiny:
-      b = __Balloc_D2A(0);
+      b = __balloc_d2a(0);
       if (b == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
       b->wds = 1;
       b->x[0] = 1;
       goto dret;
@@ -114,79 +114,79 @@ pcheck:
       ++n;
     for (j = n, k = 0; j >>= 1; ++k)
       ;
-    *bp = b = __Balloc_D2A(k);
+    *bp = b = __balloc_d2a(k);
     if (*bp == NULL)
-      return (STRTOG_NoMemory);
+      return (strtog_nomemory);
     b->wds = n;
     for (j = 0; j < n0; ++j)
       b->x[j] = 0xffffffff;
     if (n > n0)
       b->x[j] = 32 >> (32 - (nbits & 31));
     *exp = fpi->emin;
-    return STRTOG_Normal | STRTOG_Inexlo;
+    return strtog_normal | strtog_inexlo;
   }
   n = s1 - s0 - 1;
   for (k = 0; n > (1 << (5 - 2)) - 1; n >>= 1)
     k++;
-  b = __Balloc_D2A(k);
+  b = __balloc_d2a(k);
   if (b == NULL)
-    return (STRTOG_NoMemory);
+    return (strtog_nomemory);
   x = b->x;
   n = 0;
-  L = 0;
+  u_l = 0;
   while (s1 > s0) {
     if (*--s1 == '.')
       continue;
     if (n == 32) {
-      *x++ = L;
-      L = 0;
+      *x++ = u_l;
+      u_l = 0;
       n = 0;
     }
-    L |= (__hexdig_D2A[*s1] & 0x0f) << n;
+    u_l |= (__hexdig_D2A[*s1] & 0x0f) << n;
     n += 4;
   }
-  *x++ = L;
+  *x++ = u_l;
   b->wds = n = x - b->x;
-  n = 32 * n - __hi0bits_D2A((ULong)(L));
+  n = 32 * n - __hi0bits_d2a((uilong)(u_l));
   nbits = fpi->nbits;
   lostbits = 0;
   x = b->x;
   if (n > nbits) {
     n -= nbits;
-    if (__any_on_D2A(b, n)) {
+    if (__any_on_d2a(b, n)) {
       lostbits = 1;
       k = n - 1;
       if (x[k >> 5] & 1 << (k & 31)) {
         lostbits = 2;
-        if (k > 0 && __any_on_D2A(b, k))
+        if (k > 0 && __any_on_d2a(b, k))
           lostbits = 3;
       }
     }
-    __rshift_D2A(b, n);
+    __rshift_d2a(b, n);
     e += n;
   } else if (n < nbits) {
     n = nbits - n;
-    b = __lshift_D2A(b, n);
+    b = __lshift_d2a(b, n);
     if (b == NULL)
-      return (STRTOG_NoMemory);
+      return (strtog_nomemory);
     e -= n;
     x = b->x;
   }
   if (e > fpi->emax) {
   ovfl:
-    __Bfree_D2A(b);
+    __bfree_d2a(b);
   ovfl1:
     *(__errno()) = 34;
-    return STRTOG_Infinite | STRTOG_Overflow | STRTOG_Inexhi;
+    return strtog_infinite | strtog_oflow | strtog_inexhi;
   }
-  irv = STRTOG_Normal;
+  irv = strtog_normal;
   if (e < fpi->emin) {
-    irv = STRTOG_Denormal;
+    irv = strtog_denormal;
     n = fpi->emin - e;
     if (n >= nbits) {
       switch (fpi->rounding) {
       case FPI_Round_near:
-        if (n == nbits && (n < 2 || __any_on_D2A(b, n - 1)))
+        if (n == nbits && (n < 2 || __any_on_d2a(b, n - 1)))
           goto one_bit;
         break;
       case FPI_Round_up:
@@ -201,23 +201,23 @@ pcheck:
           *bp = b;
           *exp = fpi->emin;
           *(__errno()) = 34;
-          return STRTOG_Denormal | STRTOG_Inexhi | STRTOG_Underflow;
+          return strtog_denormal | strtog_inexhi | strtog_uflow;
         }
       }
-      __Bfree_D2A(b);
+      __bfree_d2a(b);
     retz:
       *(__errno()) = 34;
-      return STRTOG_Zero | STRTOG_Inexlo | STRTOG_Underflow;
+      return strtog_zero | strtog_inexlo | strtog_uflow;
     }
     k = n - 1;
     if (lostbits)
       lostbits = 1;
     else if (k > 0)
-      lostbits = __any_on_D2A(b, k);
+      lostbits = __any_on_d2a(b, k);
     if (x[k >> 5] & 1 << (k & 31))
       lostbits |= 2;
     nbits -= n;
-    __rshift_D2A(b, n);
+    __rshift_d2a(b, n);
     e = fpi->emin;
   }
   if (lostbits) {
@@ -237,21 +237,21 @@ pcheck:
     }
     if (up) {
       k = b->wds;
-      b = __increment_D2A(b);
+      b = __increment_d2a(b);
       if (b == NULL)
-        return (STRTOG_NoMemory);
+        return (strtog_nomemory);
       x = b->x;
-      if (irv == STRTOG_Denormal) {
+      if (irv == strtog_denormal) {
         if (nbits == fpi->nbits - 1 && x[nbits >> 5] & 1 << (nbits & 31))
-          irv = STRTOG_Normal;
-      } else if (b->wds > k || ((n = nbits & 31) != 0 && __hi0bits_D2A((ULong)(x[k - 1])) < 32 - n)) {
-        __rshift_D2A(b, 1);
+          irv = strtog_normal;
+      } else if (b->wds > k || ((n = nbits & 31) != 0 && __hi0bits_d2a((uilong)(x[k - 1])) < 32 - n)) {
+        __rshift_d2a(b, 1);
         if (++e > fpi->emax)
           goto ovfl;
       }
-      irv |= STRTOG_Inexhi;
+      irv |= strtog_inexhi;
     } else
-      irv |= STRTOG_Inexlo;
+      irv |= strtog_inexlo;
   }
   *bp = b;
   *exp = e;
