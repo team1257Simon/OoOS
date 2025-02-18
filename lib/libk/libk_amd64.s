@@ -3,80 +3,70 @@
 #   Also implements some low-level functions, such as hardware rng reads, which can't be constexpr.
     .code64
     .section    .text
-    .altmacro
-    .macro  defglobal   name
-    .global     \name
-    .type       \name,    @function
-\name:
-    .endm
-    defglobal   memcmp
+    .global memcmp
+    .global memcpy
+    .global memchr    
+    .global __errno
+    .global __rdseed
+    .global get_flags    
+    .type   memcmp,     @function
+    .type   memcpy,     @function
+    .type   memchr,     @function 
+    .type   __errno,    @function
+    .type   __rdseed,   @function
+    .type   get_flags,  @function
+memcmp:
     xorl    %eax,       %eax
     movq    %rdx,       %rcx
-    jrcxz   .L0
+    jrcxz   1f
     movl    $-1,        %edx
     repz    cmpsb
+    setg    %al    
     cmovll  %edx,       %eax
-    setg    %al
-.L0:
+1:
     ret
-    .size       memcmp, .-memcmp
-    defglobal   memcpy
+    .size   memcmp,     .-memcmp
+memcpy:
     movq    %rdi,       %rax
     movq    %rdx,       %rcx
-    jrcxz   .L0
+    jrcxz   1f
     rep     movsb
-    mfence
+1:
     ret
-    .size       memcpy, .-memcpy
-    defglobal   memchr
+    .size   memcpy,     .-memcpy
+memchr:
 	movq	%rdx, 		%rcx
 	movq	%rsi, 		%rax
 	repne	scasb
-	jne		.L1
+	jne		1f
 	leaq	-1(%rdi),	%rax
-	jmp		.L2
-.L1:
+	jmp		2f
+1:
 	xorq	%rax,	    %rax
-.L2:
+2:
 	ret
-	.size	    memchr,		.-memchr
-    defglobal   __errno
+	.size	memchr,		.-memchr
+__errno:
     movq	$errno,		%rax
 	ret
-    .size       __errno,    .-__errno
-    defglobal   __rdseed
+    .size   __errno,    .-__errno
+__rdseed:
     rdseed      %rax
     cmovncq     %rdi,   %rax
     ret
-    .size     __rdseed,   .-__rdseed
-    defglobal set_gs_base
-    wrgsbase    %rdi
-    ret
-    .size     set_gs_base, .-set_gs_base
-    defglobal set_fs_base
-    wrfsbase    %rdi
-    ret
-    .size     set_fs_base, .-set_fs_base
-    defglobal get_gs_base
-    rdgsbase    %rax
-    ret
-    .size     get_gs_base, .-get_gs_base
-    defglobal get_fs_base
-    rdfsbase    %rax
-    ret
-    .size     get_fs_base, .-get_fs_base
-    defglobal get_flags
+    .size   __rdseed,   .-__rdseed
+get_flags:
     pushfq
     popq        %rax
     ret
-    .size     get_flags,   .-get_flags
-    .section    .data
-	.global		__atexit_guard
-    .type       __atexit_guard,     @object
+    .size     get_flags, .-get_flags 
+    .section  .data
+	.global	  __atexit_guard
+    .type     __atexit_guard, @object
 __atexit_guard:
-    .byte 0
-    .size       __atexit_guard, 1
+    .byte     0
+    .size     __atexit_guard, 1
 errno:
-	.long	0
-	.size		errno,			4
-	.type		errno,			@object
+	.long	  0
+	.size	  errno,		  4
+	.type	  errno,		  @object

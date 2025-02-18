@@ -5,6 +5,7 @@
 #include "errno.h"
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
 filesystem::filesystem() : device_nodes{}, current_open_files{}, next_fd{ 3 } {}
+filesystem::~filesystem() = default;
 void filesystem::__put_fd(file_node *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files.set_at(fd->vid(), fd); for(std::vector<file_node*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
 const char *filesystem::path_separator() const noexcept { return "/"; }
 void filesystem::close_file(file_node* fd) { this->close_fd(fd); fd->rel_lock(); this->syncdirs(); }

@@ -114,6 +114,8 @@ void str_tests()
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
+    debug_print_num(crc32_calc(test_str.c_str(), 32), 8);
+    startup_tty.endl();
 }
 void vfs_tests()
 {
@@ -166,7 +168,7 @@ void test_landing_pad()
 {
     direct_writeln("Landed!");
     cli();
-    task_ctx* ctx = reinterpret_cast<task_t*>(get_gs_base())->self;
+    task_ctx* ctx = get_gs_base<task_ctx>();
     long retv = ctx->exit_code;
     ctx->terminate();
     task_list::get().destroy_task(ctx->get_pid());

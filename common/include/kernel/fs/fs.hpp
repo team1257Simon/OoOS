@@ -255,6 +255,7 @@ public:
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     filesystem();
+    ~filesystem();
 private:
     void __put_fd(file_node* fd);
 };

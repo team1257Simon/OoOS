@@ -291,6 +291,7 @@ protected:
     fat32_directory_node* put_folder_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
     fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial);
     bool init();
+    ~fat32();
 public:
     static bool has_init();
     static bool init_instance();

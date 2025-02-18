@@ -88,7 +88,7 @@ struct ext_superblock
     uint32_t group_quota_inode;
     uint32_t overhead_blocks;
     uint64_t backup_sb_block_groups;
-    uint8_t encryption_algorithm_ids[4];
+    uint8_t encryption_types[4];
     uint8_t string2key_salt[16];
     uint32_t lost_found_dir_inode;
     uint32_t project_quota_tracker_inode;
@@ -104,7 +104,7 @@ struct ext_superblock
     uint16_t filename_charset_encoding;
     uint16_t filename_charset_flags;
     uint8_t pad1[380];
-    uint32_t checksum;
+    uint32_t checksum;  // crc32c(superblock)
 } __pack;
 enum required_feature_flags : uint32_t
 {
@@ -148,7 +148,7 @@ struct block_group_descriptor
     uint16_t block_usage_bmp_checkum;
     uint16_t inode_usage_bmp_checksum;
     uint16_t free_inodes;
-    uint16_t group_checksum;
+    uint16_t group_checksum;    // crc16(sb_uuid+group+desc)
     uint32_t block_usage_bitmap_block_idx_hi;
     uint32_t inode_usage_bitmap_block_idx_hi;
     uint32_t inode_table_start_block_hi;
@@ -209,22 +209,44 @@ enum ext_inode_flags : uint32_t
 };
 struct ext_mmp
 {
-    uint32_t magic; // 0x004d4d50
+    uint32_t magic; // 0x004D4D50
     uint32_t sequence;
     uint64_t updated_time;
     char system_hostname[64];
     char mount_path[32];
     uint16_t check_interval;
     uint16_t padding[453];
-    uint32_t checksum;
+    uint32_t checksum;  // crc32c(uuid+mmp_block_number)
 } __pack;
 constexpr __be32 jbd2_magic = 0xC03B3998_be32;
+constexpr size_t jbd2_checksum_size_dwords = (32 / sizeof(uint32_t));
 struct jbd2_header
 {
     __be32 magic;
     __be32 blocktype;
     __be32 sequence;
 };
+struct jbd2_commit_header
+{
+    __be32 magic;
+    __be32 blocktype;
+    __be32 sequence;
+    uint8_t checksum_type;
+    uint8_t checksum_size;
+    uint8_t padding[2];
+    __be32 checksum[jbd2_checksum_size_dwords];
+    __be64 commit_seconds;
+    __be32 commit_nanos;
+};
+struct jbd_block_tag
+{
+    __be32 block_number;
+    __be32 flags;
+    __be32 block_number_hi;
+    __be32 checksum;        // crc32c(uuid+seq+block)
+};
+struct jbd_block_tail { __be32 block_checksum; /* crc32c(uuid+descr_block) */ }; 
+struct jbd_revoke_header { jbd2_header header; __be32 block_bytes_used; };
 struct ext_journal_superblock
 {
     jbd2_header header;
@@ -288,6 +310,7 @@ public:
     virtual pos_type tell() const;
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
 };
+constexpr size_t sb_sectors = (sizeof(ext_superblock) / physical_block_size);
 class ext_directory_vnode : public ext_vnode, public directory_node
 {
     tnode_dir __my_dir;
@@ -318,6 +341,7 @@ protected:
     virtual file_node* open_fd(tnode*) override;
 public:
     extfs(uint64_t start_lba);
+    ~extfs();
     // ...
 };
 #endif

@@ -888,7 +888,7 @@ typedef struct __s_be16
 {
     uint8_t hi;
     uint8_t lo;
-    constexpr explicit __s_be16(uint16_t i) noexcept : hi{ uint8_t(i & 0xFF) }, lo{ uint8_t((i >> 8) & 0xFF) } {}
+    constexpr explicit __s_be16(uint16_t i) noexcept : hi{ uint8_t((i >> 8) & 0xFF) }, lo{ uint8_t(i & 0xFF) } {}
     constexpr __s_be16() noexcept = default;
     constexpr __s_be16(__s_be16&&) noexcept = default;
     constexpr __s_be16(__s_be16 const&) noexcept = default;
@@ -902,7 +902,7 @@ typedef struct __s_be32
 {
     __be16 hi;
     __be16 lo;
-    constexpr explicit __s_be32(uint32_t i) noexcept : hi{ uint16_t(i & 0xFFFF) }, lo{ uint16_t((i >> 16) & 0xFFFF) } {}
+    constexpr explicit __s_be32(uint32_t i) noexcept : hi{ uint16_t((i >> 16) & 0xFFFF) }, lo{ uint16_t(i & 0xFFFF) } {}
     constexpr __s_be32() noexcept = default;
     constexpr __s_be32(__s_be32&&) noexcept = default;
     constexpr __s_be32(__s_be32 const&) noexcept = default;
@@ -916,7 +916,7 @@ typedef struct __s_be64
 {
     __be32 hi;
     __be32 lo;
-    constexpr explicit __s_be64(uint64_t i) noexcept : hi{ uint32_t(i & 0xFFFFFFFF) }, lo{ uint32_t((i >> 32) & 0xFFFFFFFF) } {}
+    constexpr explicit __s_be64(uint64_t i) noexcept : hi{ uint32_t((i >> 32) & 0xFFFFFFFF) }, lo{ uint32_t(i & 0xFFFFFFFF) } {}
     constexpr __s_be64() noexcept = default;
     constexpr __s_be64(__s_be64&&) noexcept = default;
     constexpr __s_be64(__s_be64 const&) noexcept = default;

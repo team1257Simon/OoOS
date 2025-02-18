@@ -23,18 +23,19 @@ void direct_writeln(const char* str);
 __isrcall void panic(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
-void set_fs_base(void*);
-void set_gs_base(void*);
-void* get_fs_base();
-void* get_gs_base();
 qword get_flags();
 uintptr_t translate_vaddr(addr_t addr);
 addr_t translate_user_pointer(addr_t ptr);
 uint64_t syscall_time(uint64_t* tm_target);
 paging_table kernel_cr3();
+uint32_t crc32_calc(const void* data, size_t len);
 #define dhang() direct_write(__builtin_FUNCTION()); while(1);
 #ifdef __cplusplus
 }
+template<typename T> constexpr void set_fs_base(T* value) { asm volatile("wrfsbase %0" :: "r"(value) : "memory"); }
+template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
+template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
+template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
 constexpr uint16_t unix_year_base = 1970u;
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from){ return ((yr - from) * 365U + (yr - from) / 4U + (((yr % 4U == 0U) || (from % 4U == 0U)) ? 1U : 0U)) - 1U; }

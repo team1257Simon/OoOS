@@ -51,6 +51,7 @@ struct task_ctx
     void init_task_state();
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
+inline task_ctx* active_task_context() { return current_active_task()->self; }
 extern "C"
 {
     clock_t syscall_times(struct tms* out);

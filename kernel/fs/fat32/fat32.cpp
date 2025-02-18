@@ -80,3 +80,4 @@ bool fat32::init_instance()
     __has_init = __instance->init();
     return __has_init;
 }
+fat32::~fat32() = default;
