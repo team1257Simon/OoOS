@@ -35,6 +35,7 @@ namespace std
             constexpr resettable_queue() noexcept : __base{} {}
             constexpr resettable_queue(size_type st_cap, allocator_type const& alloc = allocator_type{}) : __base{ st_cap, alloc } {}
             constexpr void reserve(size_type ncap) { if(this->__qcapacity() < ncap && ! this->__q_grow_buffer(static_cast<size_type>(ncap - this->__qcapacity()))) throw std::runtime_error{ "failed to allocate buffer" }; }
+            constexpr void clear() { this->__qclear(); }
             constexpr size_type size() const noexcept { return this->__qrem(); }
             constexpr bool empty() const noexcept { return !this->__qsize(); }
             constexpr bool at_end() const noexcept { return !this->__qrem(); }

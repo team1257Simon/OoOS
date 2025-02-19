@@ -4,6 +4,7 @@
     .global     kernel_stack_top
     .type       kernel_stack_base,   @object
     .type       kernel_stack_top,    @object
+    .align 4096
 kernel_stack_base:
     .zero 65536
 kernel_stack_top:
@@ -14,14 +15,12 @@ kernel_stack_top:
     .global     system_tss
     .global     idt_table
     .extern     idt_descriptor
-    .extern     kernel_isr_stack
     .type       gdt_table,          @object
     .type       gdt_descriptor,     @object
     .type       system_tss,         @object
     .type       local_tss_descr,    @object
     .type       idt_table,          @object
     .type       idt_descriptor,     @object
-    .type       kernel_isr_stack,   @object
     .size       gdt_table,          4096
     .size       gdt_descriptor,     10
     .size       system_tss,         104

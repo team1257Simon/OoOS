@@ -14,7 +14,7 @@ public:
     virtual tnode* add(fs_node*) override;
     virtual bool unlink(std::string const& what) override;
     virtual uint64_t num_files() const noexcept override;
-    virtual uint64_t num_folders() const noexcept override;
+    virtual uint64_t num_subdirs() const noexcept override;
     virtual std::vector<std::string> lsdir() const;
     ramfs_directory_inode(std::string const& name);
     virtual bool fsync() override;

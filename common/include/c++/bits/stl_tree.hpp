@@ -202,19 +202,8 @@ namespace std
     };
     [[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base* x, __node_base* p, __node_base& trunk) throw();
     [[gnu::nonnull]][[gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk) throw();
-    template<typename T, allocator_object<__node<T>> A>
-    struct __trunk_impl : public __tree_trunk
-    {
-        constexpr __trunk_impl() : __tree_trunk{} {}
-        constexpr __trunk_impl(__trunk_impl&& that) : __tree_trunk{ move(that) } {}
-        constexpr __trunk_impl(__trunk_impl const& that) : __tree_trunk{ that } {}
-        constexpr __trunk_impl& operator=(__trunk_impl const& that) { __trunk = that.__trunk; __count = that.__count; return *this; }
-        constexpr __trunk_impl& operator=(__trunk_impl&& that) { __trunk = move(that).__trunk; __count = move(that).__count; return *this; }
-        constexpr ~__trunk_impl() {}
-        constexpr void __clear_base() noexcept { new (static_cast<__node_base*>(&__trunk)) __node_base{}; __count = 0; __reset(); }
-    };
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
-    class __tree_base : __trunk_impl<T, A>
+    class __tree_base : __tree_trunk
     {
     protected: 
         typedef __node_base* __b_ptr;
@@ -228,7 +217,9 @@ namespace std
         typedef T __value_type;
         typedef A __alloc_type;
         typedef CP __compare_type;
-        typedef __trunk_impl<T, A> __trunk_type;
+        typedef __tree_trunk __trunk_type;
+        __alloc_type __alloc{};
+        constexpr void __clear_base() noexcept { __count = 0; this->__reset(); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __pos_pair __pos_for_unique(U const& u);
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __pos_pair __pos_for_equal(U && u);
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __pos_pair __insert_unique_hint_pos(__const_link hint, U const& u);
@@ -242,11 +233,9 @@ namespace std
         constexpr static __b_ptr __maxi(__b_ptr x) noexcept { return __node_base::__max(x); }
         constexpr static __cb_ptr __mini(__cb_ptr x) noexcept { return __node_base::__min(x); }
         constexpr static __cb_ptr __maxi(__cb_ptr x) noexcept { return __node_base::__max(x); }
-        __compare_type __comparator{};
-        __alloc_type __alloc{};
-        constexpr bool __compare(__b_ptr p, __b_ptr q) { return __comparator(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
-        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_r(__cb_ptr p, U const& u) const { return __comparator(static_cast<__const_link>(p)->__get_ref(), u); }
-        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_l(U const& u, __cb_ptr p) const { return __comparator(u, static_cast<__const_link>(p)->__get_ref()); }
+        constexpr bool __compare(__b_ptr p, __b_ptr q) { return __compare_type{}(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
+        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_r(__cb_ptr p, U const& u) const { return __compare_type{}(static_cast<__const_link>(p)->__get_ref(), u); }
+        template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_l(U const& u, __cb_ptr p) const { return __compare_type{}(u, static_cast<__const_link>(p)->__get_ref()); }
         constexpr __link __get_root() noexcept { return static_cast<__link>(this->__trunk.__my_parent); }
         constexpr __link __end() noexcept { return static_cast<__link>(&this->__trunk); }
         constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(this->__trunk.__my_parent); }
@@ -288,9 +277,9 @@ namespace std
         constexpr size_t size() const noexcept { return this->__count; }
         constexpr bool empty() const noexcept { return !this->size(); }
         constexpr ~__tree_base() { __recursive_destroy_base(); }
-        constexpr __tree_base() : __trunk_type{}, __comparator{}, __alloc{} {}
-        constexpr __tree_base(__tree_base const& that) : __trunk_type{that}, __comparator{}, __alloc{} {}
-        constexpr __tree_base(__tree_base&& that) : __trunk_type{ forward<__trunk_type>(that) }, __comparator{},  __alloc{} {}
+        constexpr __tree_base() : __tree_trunk{}, __alloc{} {}
+        constexpr __tree_base(__tree_base const& that) : __tree_trunk{ that }, __alloc{} {}
+        constexpr __tree_base(__tree_base&& that) : __tree_trunk{ forward<__tree_trunk>(that) }, __alloc{} {}
         template<matching_input_iterator<T> IT> constexpr __tree_base(IT st, IT ed) : __tree_base{} { this->__insert_range_unique(st, ed); }
         constexpr __tree_base& operator=(__tree_base const& that) { __clear();  this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
         constexpr __tree_base& operator=(__tree_base&& that) { __clear(); this->__trunk = that.__trunk; this->__count = that.__count; return *this; }

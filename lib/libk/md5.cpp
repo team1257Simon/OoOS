@@ -1,4 +1,5 @@
 #include "kernel/md5.hpp"
+#include "kernel/libk_decls.h"
 #include "bits/stl_allocator.h"
 struct md5_ctx
 {
@@ -144,7 +145,7 @@ __int128_t md5_hash(const void* input, size_t len)
 {
     md5_ctx ctx{};
     uint8_t* buff = std::allocator<uint8_t>{}.allocate(len);
-    __builtin_memcpy(buff, input, len);
+    arraycopy<uint8_t>(buff, static_cast<const uint8_t*>(input), len);
     md5_update(&ctx, buff, len);
     md5_finalize(&ctx);
     std::allocator<uint8_t>{}.deallocate(buff, len);

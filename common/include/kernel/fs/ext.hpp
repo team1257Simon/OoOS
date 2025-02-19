@@ -238,13 +238,13 @@ struct jbd2_header
     __be32 blocktype;
     __be32 sequence;
 };
-enum jbd_block_type
+enum jbd_block_type : uint32_t
 {
-    descriptor = 0x1,
-    commit = 0x2,
-    sbv1 = 0x3,
-    sbv2 = 0x4,
-    revocation = 0x5
+    descriptor = 0x1U,
+    commit = 0x2U,
+    sbv1 = 0x3U,
+    sbv2 = 0x4U,
+    revocation = 0x5U
 };
 enum jbd_feature_flags
 {
@@ -260,6 +260,12 @@ enum jbd_block_flags
     escape = 0x1,
     same_uuid = 0x2,
     last_block = 0x8
+};
+enum ext_jbd2_mode
+{
+    ordered,
+    journal,
+    writeback
 };
 struct jbd2_commit_header
 {
@@ -317,7 +323,7 @@ struct jbd2_journal_txn
     transaction_id id;
     std::vector<disk_block> data_blocks;
     jbd2_commit_header commit_header;
-    bool execute_and_complete();    // actually do the transaction, then erase it from the journal.
+    bool execute_and_complete(extfs* fs_ptr);    // actually do the transaction.
 };
 class jbd2_txn_queue : public std::ext::resettable_queue<jbd2_journal_txn>
 {
@@ -348,12 +354,20 @@ struct jbd2_journal
     extfs* parent_fs;
     jbd2_superblock* sb;
     jbd2_txn_queue active_transactions;
+    std::vector<disk_block> replay_blocks;
     uint32_t first_open_block;  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
-    bool create_txn(ext_vnode* changed_node);
+    bool create_txn(ext_vnode* changed_node);   // this overload is for files and directories (only needed in full journal and writeback mode)
+    bool create_txn(std::vector<disk_block> const&);    // this overload can be used directly for inodes, block groups, etc (needed in all modes)
     bool need_escape(disk_block const& bl);
+    bool clear_log();
+    bool read_log();
+    void parse_next_log_entry(disk_block& blk);
     off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
     size_t desc_tag_size(bool same_uuid);
-    bool execute_active();
+    size_t tags_per_block();
+    bool execute_pending_txns();
+    void free_buffers(std::vector<disk_block>& bufs);
+    char* allocate_block_buffer();
 };
 class ext_file_vnode : public ext_vnode, public file_node
 {
@@ -382,6 +396,8 @@ constexpr off_t sb_off = (1024L / physical_block_size);
 class ext_directory_vnode : public ext_vnode, public directory_node
 {
     tnode_dir __my_dir;
+    size_t __n_subdirs{};
+    size_t __n_files{};
 public:
     virtual std::streamsize __ddread(std::streamsize n) override;
     virtual std::streamsize __ddrem() override;
@@ -390,7 +406,7 @@ public:
     virtual tnode* add(fs_node* n) override;
     virtual bool unlink(std::string const& name) override;
     virtual uint64_t num_files() const noexcept override;
-    virtual uint64_t num_folders() const noexcept override;
+    virtual uint64_t num_subdirs() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
     virtual bool fsync() override;
     ext_directory_vnode(extfs* parent, uint32_t inode_number);
@@ -406,17 +422,7 @@ protected:
     size_t num_blk_groups;    
     uint64_t superblock_lba;
     jbd2_journal fs_journal;
-    friend class ext_file_vnode;
-    friend class ext_directory_vnode;
-    friend class ext_vnode;
-    friend class jbd2_journal;
-    size_t block_size();
-    size_t inodes_per_block();
-    size_t sectors_per_block();
-    uint64_t block_to_lba(uint64_t block);
-    uint64_t inode_to_block(uint32_t inode);
-    bool read_block(disk_block& blk);
-    ext_inode* read_inode(uint32_t inode_num);
+    ext_jbd2_mode mode() const;
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
     virtual void dldirnode(directory_node* dd) override;
@@ -426,7 +432,18 @@ protected:
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* open_fd(tnode* fd) override;
     void initialize();
+    bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
+    bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
 public:
+    size_t block_size();
+    size_t inodes_per_block();
+    size_t sectors_per_block();
+    uint64_t block_to_lba(uint64_t block);
+    uint64_t inode_to_block(uint32_t inode);
+    ext_inode* read_inode(uint32_t inode_num);
+    bool write_to_disk(disk_block const& bl);
+    bool read_from_disk(disk_block& bl);
+    bool persist(ext_vnode* n);
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };

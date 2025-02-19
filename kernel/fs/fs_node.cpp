@@ -24,7 +24,7 @@ void file_node::acq_lock() { acquire(&__my_lock); }
 void file_node::rel_lock() { release(&__my_lock); }
 directory_node::directory_node(std::string const &name, uint64_t cid) : fs_node{ name, -1, cid } {}
 bool directory_node::is_directory() const noexcept { return true; }
-uint64_t directory_node::size() const noexcept { return this->num_files() + this->num_folders(); }
+uint64_t directory_node::size() const noexcept { return this->num_files() + this->num_subdirs(); }
 bool directory_node::is_empty() const noexcept { return this->size() == 0; }
 bool directory_node::relink(std::string const &oldn, std::string const &newn) { if(tnode* ptr = this->find(oldn)) { return this->unlink(oldn) && this->link(ptr, newn); } else return false; } 
 device_node::device_node(std::string const &name, int fd, vfs_filebuf_base<char> *dev_buffer) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __my_device{ dev_buffer } { mode = 0x02666; }

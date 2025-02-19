@@ -22,16 +22,16 @@ namespace std
         typedef ::__impl::__iterator<const_pointer, vector> const_iterator;
         typedef std::reverse_iterator<iterator> reverse_iterator;
         typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-        constexpr explicit vector(allocator_type const& alloc) noexcept : __base { alloc } {}
+        constexpr explicit vector(allocator_type const& alloc) noexcept : __base{ alloc } {}
         constexpr vector() noexcept(noexcept(allocator_type())) : __base{} {}
         constexpr explicit vector(size_type count) noexcept : __base{ count, allocator_type{} } {}
-        constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type{}) : __base { count, value, alloc } {}
-        template<std::matching_input_iterator<value_type> IT> constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base { start, end, alloc } {}
-        constexpr vector(vector const& that) : __base { static_cast<__base const&>(that) } {}
-        constexpr vector(vector&& that) : __base { forward<__base>(that) } {}
+        constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type{}) : __base{ count, value, alloc } {}
+        template<std::matching_input_iterator<value_type> IT> constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type{}) : __base{ start, end, alloc } {}
+        constexpr vector(vector const& that) : __base{ static_cast<__base const&>(that) } {}
+        constexpr vector(vector&& that) : __base{ forward<__base>(that) } {}
         constexpr vector(vector const& that, allocator_type const& alloc) : __base{ static_cast<__base const&>(that), alloc } {}
         constexpr vector(vector&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
-        constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type{}) : __base { init, alloc } {}
+        constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr vector& operator=(vector const& that) { this->__copy_assign(that); return *this; }
         constexpr vector& operator=(vector&& that) { this->__realloc_move(move(that)); return *this; }
         constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }

@@ -41,19 +41,35 @@ bool ahci_hda::init()
 std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
 {
     if(!__instance.__drv) { panic("cannot read disk before initializing read accessor"); return 0; } 
+    size_t rem = count;
+    size_t t_read = 0;
     __instance.__read_buffer.clear();
     size_t n = __count_to_wide_streamsize(count);
     if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
-    if(!__instance.__read_ahci(start_sector, count, __instance.__read_buffer.beg())) { panic("bad read"); return 0; }
-    __instance.__read_buffer.__update_end(n);
-    __builtin_memcpy(out, __instance.__read_buffer.beg(), n * 2);
-    return n * 2;
+    while(rem)
+    {
+        size_t sct = std::min(rem, max_op_sectors);
+        if(!__instance.__read_ahci(start_sector, sct, __instance.__read_buffer.beg() + t_read)) { panic("bad read"); return 0; }
+        t_read += __count_to_wide_streamsize(sct);
+        rem -= sct;
+    }
+    __instance.__read_buffer.__update_end(t_read);
+    arraycopy(out, reinterpret_cast<uint8_t*>(__instance.__read_buffer.beg()), t_read * 2);
+    return t_read * 2;
 }
 std::streamsize ahci_hda::write(uint64_t start_sector, const char *in, uint32_t count)
 {
     if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return 0; }
+    size_t t_write = 0;
+    size_t rem = count;
     __instance.__write_buffer.clear();
     std::streamsize result = __instance.__write_buffer.sputn(reinterpret_cast<uint16_t const*>(in), __count_to_wide_streamsize(count)) * 2;
-    if(!__instance.__write_ahci(start_sector, count, __instance.__write_buffer.beg())) { panic("bad write"); return 0; }
+    while(rem) 
+    {
+        size_t sct = std::min(rem, max_op_sectors);
+        if(!__instance.__write_ahci(start_sector, sct, __instance.__write_buffer.beg() + t_write)) { panic("bad write"); return 0; }
+        t_write += __count_to_wide_streamsize(sct);
+        rem -= sct;
+    }
     return result;
 }

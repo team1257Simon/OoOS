@@ -15,8 +15,9 @@
     .type       ecode,                  @object
     .type       errinst,                @object
     .type       svinst,                 @object
+    .align  4096
 kernel_isr_stack_base:
-    .zero 16384
+    .zero   16384
 kernel_isr_stack_top:
     .size       kernel_isr_stack_base,  .-kernel_isr_stack_base
     .size       kernel_isr_stack_top,   .-kernel_isr_stack_base

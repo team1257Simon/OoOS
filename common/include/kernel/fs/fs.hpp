@@ -79,7 +79,7 @@ struct file_mode
     constexpr bool is_regular() const noexcept { return t_regular && !t_directory && !t_chardev && !t_fifo; }
     constexpr bool is_fifo() const noexcept { return t_fifo && !t_regular && !t_directory && !t_chardev; }
     constexpr bool is_type_invalid() const noexcept { return (t_fifo && (t_directory || t_chardev || t_regular)) || (t_directory + t_chardev + t_regular) > 2; }
-};
+} __pack;
 struct disk_block { uint64_t block_number; char* data_buffer; bool dirty = false; };
 class tnode;
 struct fs_node
@@ -97,13 +97,13 @@ struct fs_node
     virtual uint64_t size() const noexcept = 0;         // size in bytes (for files) or concrete entries (for directories)
     virtual bool fsync() = 0;                           // sync to disc, if applicable
     virtual ~fs_node();
+    file_mode mode{ 0774U };
+    std::set<tnode*> refs{};
     int fd;
-    file_mode mode{ 0774U };   
     uint64_t real_id;
     uint64_t create_time;
     uint64_t modif_time;
     std::string concrete_name;
-    std::set<tnode*> refs{};
     fs_node(std::string const& name, int vfd, uint64_t cid);
     fs_node(fs_node const&) = delete;
     fs_node& operator=(fs_node const&) = delete;
@@ -148,13 +148,13 @@ struct directory_node : public fs_node
     virtual tnode* add(fs_node*) = 0;
     virtual bool unlink(std::string const&) = 0;
     virtual uint64_t num_files() const noexcept = 0;
-    virtual uint64_t num_folders() const noexcept = 0;
+    virtual uint64_t num_subdirs() const noexcept = 0;
     virtual std::vector<std::string> lsdir() const = 0;
     virtual bool is_directory() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool is_empty() const noexcept;
     virtual bool relink(std::string const& oldn, std::string const& newn);
-    directory_node(std::string const& name, uint64_t cid);    
+    directory_node(std::string const& name, uint64_t cid);
 };
 class device_node : public file_node
 {
@@ -249,6 +249,7 @@ public:
     device_node* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);
     file_node* get_fd(int fd);      
     file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
+    file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* get_file(std::string const& path);
     directory_node* get_dir(std::string const& path, bool create = true);
     void close_file(file_node* fd);

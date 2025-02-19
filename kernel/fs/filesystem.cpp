@@ -12,6 +12,7 @@ void filesystem::close_file(file_node* fd) { this->close_fd(fd); fd->rel_lock();
 void filesystem::close_fd(file_node* fd) { if(fd->is_device()) return; fd->seek(0); int id = fd->vid(); if(static_cast<size_t>(id) < current_open_files.size()) { current_open_files[id] = nullptr; next_fd = id; } }
 file_node* filesystem::open_fd(tnode* node) { return node->as_file(); }
 void filesystem::dldevnode(device_node* n) { n->prune_refs(); current_open_files[n->vid()] = nullptr; device_nodes.erase(*n); this->syncdirs(); }
+file_node *filesystem::open_file(const char *path, std::ios_base::openmode mode) { return open_file(std::string(path), mode); }
 device_node* filesystem::mkdevnode(directory_node *parent, std::string const &name, vfs_filebuf_base<char> *dev, int fd_hint)
 {
     device_node* result = device_nodes.emplace(name, fd_hint, dev).first.base();
