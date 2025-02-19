@@ -255,6 +255,12 @@ enum jbd_feature_flags
     csum_v3 = 0x10,
     fast_commits = 0x20
 };
+enum jbd_block_flags
+{
+    escape = 0x1,
+    same_uuid = 0x2,
+    last_block = 0x8
+};
 struct jbd2_commit_header
 {
     jbd2_header header{ .blocktype = __be32(commit) };
@@ -309,12 +315,9 @@ struct jbd2_superblock
 struct jbd2_journal_txn
 {
     transaction_id id;
-    std::vector<disk_block> txn_blocks;
     std::vector<disk_block> data_blocks;
-    disk_block commit_block;
     jbd2_commit_header commit_header;
-    bool write_to_disk(); // writes the transaction to the journal file (i.e. the step before actually running the writes)
-
+    bool execute_and_complete();    // actually do the transaction, then erase it from the journal.
 };
 class jbd2_txn_queue : public std::ext::resettable_queue<jbd2_journal_txn>
 {
@@ -322,6 +325,9 @@ class jbd2_txn_queue : public std::ext::resettable_queue<jbd2_journal_txn>
 public:
     using __base::iterator;
     using __base::const_iterator;
+    using __base::reference;
+    using __base::const_reference;
+    reference put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h);
 };
 struct ext_vnode : public vfs_filebuf_base<char>
 {
@@ -342,7 +348,11 @@ struct jbd2_journal
     extfs* parent_fs;
     jbd2_superblock* sb;
     jbd2_txn_queue active_transactions;
+    uint32_t first_open_block;  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
     bool create_txn(ext_vnode* changed_node);
+    bool need_escape(disk_block const& bl);
+    off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
+    size_t desc_tag_size(bool same_uuid);
     bool execute_active();
 };
 class ext_file_vnode : public ext_vnode, public file_node
@@ -399,6 +409,7 @@ protected:
     friend class ext_file_vnode;
     friend class ext_directory_vnode;
     friend class ext_vnode;
+    friend class jbd2_journal;
     size_t block_size();
     size_t inodes_per_block();
     size_t sectors_per_block();
