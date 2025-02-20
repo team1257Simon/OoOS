@@ -6,6 +6,7 @@
 #include "stddef.h"
 #include "bits/ptr_traits.hpp"
 #include "type_traits"
+#include "new"
 namespace std
 {
     using size_t = decltype(sizeof(int));
@@ -45,7 +46,18 @@ namespace std
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
     }
 #pragma region non-standard memory functions
-    extension template<typename T> [[nodiscard]] [[gnu::always_inline]] constexpr T* resize(T* array, size_t ncount) { return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
+    extension template<typename T> [[nodiscard]] [[gnu::always_inline]] constexpr T* resize(T* array, size_t ocount, size_t ncount) 
+    {
+        if(__builtin_is_constant_evaluated())
+        {
+            __base_allocator<T> alloc{};
+            T* result = alloc.__allocate(ncount);
+            for(size_t i = 0; i < ncount; i++) { new (__builtin_addressof(result[i])) T(array[i]); }
+            alloc.__deallocate(array, ocount);
+            return result;
+        }
+        return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T)));
+    }
 #pragma endregion
     template<typename T>
     struct allocator : __base_allocator<T>

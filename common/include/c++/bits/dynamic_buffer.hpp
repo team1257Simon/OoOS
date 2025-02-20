@@ -73,7 +73,7 @@ namespace std::__impl
          * If the data consists of nontrivial objects (classes with virtual members, etc) this function does nothing.
          * Otherwise, it will behave similarly to using memset to zero the memory.
          */
-        constexpr void __zero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
+        constexpr void __zero(__ptr where, __size_type n) { array_zero<T>(where, n); }
         constexpr void __copy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
         constexpr bool __grow_buffer(__size_type added);
         extension constexpr void __post_modify_check_nt();
@@ -116,8 +116,8 @@ namespace std::__impl
         constexpr __size_type __capacity() const noexcept { return __size_type(__max() - __beg()); }
         constexpr __size_type __rem() const noexcept { return __size_type(__max() - __cur()); }
         constexpr __size_type __ediff(__const_ptr pos) const noexcept { return __size_type(__cur() - pos); }
-        constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize<T>(__beg(), num_elements), num_elements, num_elements); this->__post_modify_check_nt(); }
-        constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize<T>(__beg(), n), std::min(n, num_elements), n); this->__post_modify_check_nt(); }
+        constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize<T>(__beg(), __capacity(), num_elements), num_elements, num_elements); this->__post_modify_check_nt(); }
+        constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize<T>(__beg(), __capacity(), n), std::min(n, num_elements), n); this->__post_modify_check_nt(); }
         constexpr void __allocate_storage(__size_type n) { __setn(__allocator.allocate(n), n); }
         constexpr void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
         constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__post_modify_check_nt(); return __cur(); }
@@ -177,8 +177,8 @@ namespace std::__impl
     {
         if(!added) return true; // Zero elements -> vacuously true completion
         __size_type num_elements = __size();
-        __size_type target = __capacity() + added;
-        try { __setn(resize<T>(__beg(), target), num_elements, target); if constexpr(__end_zero) { this->__zero(__cur(), added); } } 
+        __size_type target = max(num_elements << 1, __capacity() + added);
+        try { __setn(resize<T>(__beg(), __capacity(), target), num_elements, target); if constexpr(__end_zero) { this->__zero(__cur(), added); } } 
         catch(...) { return false; }
         return true;
     }
@@ -286,6 +286,6 @@ namespace std::__impl
         __post_modify_check_nt();
         return __get_ptr(start_pos);
     }
-    extension template <typename T, allocator_object<T> A, bool NT> constexpr void std::__impl::__dynamic_buffer<T, A, NT>::__post_modify_check_nt() { if constexpr(__end_zero) { if(!(__max() > __cur())) this->__grow_buffer(1); this->__zero(this->__cur(), 1); } }
+    extension template <typename T, allocator_object<T> A, bool NT> constexpr void std::__impl::__dynamic_buffer<T, A, NT>::__post_modify_check_nt() { if constexpr(__end_zero) { if(!(__max() > __cur())) { this->__grow_buffer(1); } construct_at(this->__cur()); } }
 }
 #endif

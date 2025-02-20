@@ -40,9 +40,9 @@ namespace std
         constexpr size_type max_size() const noexcept { return this->__max_capacity(); }
         constexpr size_type capacity() const noexcept { return this->__capacity(); }
         constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
-        constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { 1, alloc } {}
+        constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { alloc } {}
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
-        constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{ count + 1, alloc } { array_zero(this->__beg(), count + 1); }
+        constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{ alloc } { size_t n(count + 1UL); this->__allocate_storage(n); for(size_t i = 0; i < n; i++) { new (__builtin_addressof(this->__beg()[i])) CT(); } }
         constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : basic_string{ count, alloc } { this->__set(this->__beg(), value, count); this->__setc(count); }
         template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : basic_string{ size_type(end - start), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); }
         constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count, alloc } {}

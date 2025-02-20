@@ -12,6 +12,7 @@
 #include "fs/fat32.hpp"
 #include "fs/ramfs.hpp"
 #include "bits/icxxabi.h"
+#include "bits/dragon.hpp"
 #include "stdlib.h"
 #include "bits/stl_queue.hpp"
 #include "algorithm"
@@ -114,8 +115,12 @@ void str_tests()
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
+    startup_tty.print_text("crc32c test: ");
     debug_print_num(crc32_calc(test_str.c_str(), 32), 8);
     startup_tty.endl();
+    startup_tty.print_text("dragon test: ");
+    debug_print_num(std::dragon<md5>{}(test_str.c_str(), test_str.size()));
+    startup_tty.print_line(" (rawr)");
 }
 void vfs_tests()
 {
@@ -319,7 +324,7 @@ extern "C"
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
-    [[noreturn]] void abort() { uint64_t *sp; asm volatile("movq %%rsp, %0" : "=r"(sp) :: "memory"); debug_print_num(*sp); startup_tty.endl(); startup_tty.print_line("ABORT"); if(com) { com->sputn("ABORT\n", 6); com->pubsync(); } while(1); }
+    [[noreturn]] void abort() { startup_tty.endl(); startup_tty.print_line("abort() called in kernel"); if(com) { com->sputn("KERNEL ABORT\n", 6); com->pubsync(); } while(1); }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
@@ -381,6 +386,7 @@ extern "C"
         catch(std::exception& e)
         {
             panic(e.what());
+            panic("unexpected error in tests");
             abort();
             __builtin_unreachable();
         }
