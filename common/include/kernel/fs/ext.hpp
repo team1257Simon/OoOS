@@ -2,6 +2,7 @@
 #define __FS_EXT
 #include "fs/fs.hpp"
 #include "bits/stl_queue.hpp"
+#include "map"
 struct ext_superblock
 {
     uint32_t inode_count;
@@ -156,11 +157,54 @@ struct block_group_descriptor
     uint16_t num_unallocated_blocks_hi;
     uint16_t num_unallocated_inodes_hi;
     uint16_t num_directories_hi;
+    uint16_t free_inodes_hi;    
     uint32_t snapshot_exclude_block_hi;
     uint16_t block_usage_bmp_checkum_hi;
     uint16_t inode_usage_bmp_checksum_hi;
-    uint16_t free_inodes_hi;
     uint32_t unused;
+} __pack;
+constexpr uint16_t ext_extent_magic = 0xF30A;
+struct ext_extent_header
+{
+    uint16_t magic;
+    uint16_t entries;
+    uint16_t max_entries;
+    uint16_t depth;
+    uint32_t generation;
+} __pack;
+struct ext_extent_index
+{
+    uint32_t file_node_start;
+    uint32_t next_level_block_lo;
+    uint16_t next_level_block_hi;
+    uint16_t unused;
+} __pack;
+struct ext_extent_leaf
+{
+    uint32_t file_node_start;
+    uint32_t extent_size;
+    uint16_t extent_start_hi;
+    uint32_t extent_start_lo;
+} __pack;
+union ext_extent_node
+{
+    ext_extent_index idx;
+    ext_extent_leaf leaf;
+} __pack;
+union ext_node_extent_root
+{
+    struct
+    {
+        ext_extent_header header;
+        ext_extent_node root_nodes[4];
+    } __pack ext4_extent;
+    struct
+    {
+        uint32_t direct_blocks[12];
+        uint32_t singly_indirect_block;
+        uint32_t doubly_indirect_block;
+        uint32_t triply_indirect_block;
+    } __pack legacy_extent;
 } __pack;
 struct ext_inode
 {
@@ -176,10 +220,7 @@ struct ext_inode
     uint16_t size_sectors;
     uint32_t flags;
     uint32_t os_specific_1;
-    uint32_t direct_blocks[12];
-    uint32_t singly_indirect_bp;
-    uint32_t doubly_indirect_bp;
-    uint32_t triply_indirect_bp;
+    ext_node_extent_root block_info; // either a list of block pointers (direct and indirect) or an extent tree
     uint32_t version_lo;
     uint32_t file_acl_block;
     uint32_t dir_acl_block; // for a file, this will instead be the high bits of the file size
@@ -203,6 +244,17 @@ struct ext_dir_entry
     uint8_t type_ind;   // if "directory entries have file type byte" is not set, this is instead the high 8-bits of the name length
     char name[];
 } __pack;
+enum ext_dirent_type
+{
+    dti_unknown = 0,
+    dti_regular = 1,
+    dti_dir = 2,
+    dti_chardev = 3,
+    dti_blockdev = 4,
+    dti_fifo = 5,
+    dti_socket = 6,
+    dti_symlink = 7
+};
 enum ext_inode_flags : uint32_t
 {
     secure_delete = 0x00001,
@@ -335,19 +387,34 @@ public:
     using __base::const_reference;
     reference put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h);
 };
+struct ext_vnode;
+struct cached_extent_node
+{
+    disk_block* block;
+    std::map<size_t, cached_extent_node*> next_level_extents;
+};
+struct ext_node_extent_tree
+{
+    ext_vnode* tracked_node;
+    std::vector<cached_extent_node> tracked_extents;
+    std::map<size_t, cached_extent_node*> base_extent_level;
+    // TODO this struct will implement mapping a file's extent in either legacy or ext4 tree mode
+};
 struct ext_vnode : public vfs_filebuf_base<char>
 {
     virtual int __ddwrite() override;
     virtual std::streamsize __overflow(std::streamsize n) override;    
     extfs* parent_fs;
     ext_inode* on_disk_node;
-    std::vector<disk_block> block_data;                  // all the actual data blocks are recorded here; blocks of block-pointers are cached in the next few fields
-    std::vector<disk_block> indirect_block_data;         // from the indirect block pointer, or loaded from doubly or triply indirect block pointers
-    std::vector<disk_block> doubly_indirect_block_data;  // from the doubly indirect block pointer, or loaded from triply indirect block pointers
-    disk_block* triply_indirect_block_data;              // from the triply indirect block pointer if present; otherwise null
+    std::vector<disk_block> block_data{}; // all the actual data blocks are recorded here
+    std::vector<disk_block> cached_metadata{}; // all metadata blocks, such as extent / indirect block pointers, that are part of the node are cached here
+    size_t last_checked_block_idx{};
+    ext_vnode(extfs* parent, ext_inode* inode);    
     ext_vnode(extfs* parent, uint32_t inode_number);
     virtual ~ext_vnode();
     void add_block(uint64_t block_number, char* data_ptr);
+    uint64_t next_block();
+    size_t block_of_data_ptr(size_t offs);
 };
 struct jbd2_journal
 {
@@ -371,7 +438,6 @@ struct jbd2_journal
 };
 class ext_file_vnode : public ext_vnode, public file_node
 {
-    size_t __last_read_block_idx;
 public:
     using file_node::traits_type;
     using file_node::difference_type;
@@ -390,12 +456,14 @@ public:
     virtual uint64_t size() const noexcept override;
     virtual pos_type tell() const;
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
+    ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
 };
 constexpr size_t sb_sectors = (sizeof(ext_superblock) / physical_block_size);
 constexpr off_t sb_off = (1024L / physical_block_size);
 class ext_directory_vnode : public ext_vnode, public directory_node
 {
     tnode_dir __my_dir;
+    bool __initialized{};
     size_t __n_subdirs{};
     size_t __n_files{};
 public:
@@ -409,20 +477,34 @@ public:
     virtual uint64_t num_subdirs() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
     virtual bool fsync() override;
+    bool initialize();
+    constexpr bool has_init() const noexcept { return __initialized; }
     ext_directory_vnode(extfs* parent, uint32_t inode_number);
+    ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data);
+};
+struct ext_block_group
+{
+    extfs* parent_fs;
+    block_group_descriptor* descr;
+    disk_block inode_usage_bmp;
+    disk_block blk_usage_bmp;
+    std::vector<disk_block> inode_blocks;
+    ext_block_group(extfs* parent, block_group_descriptor* desc);
+    ~ext_block_group();
 };
 class extfs : public filesystem
 {
 protected:    
     std::set<ext_file_vnode> file_nodes;
     std::set<ext_directory_vnode> dir_nodes;
+    std::vector<ext_block_group> block_groups;
     ext_superblock* sb;
-    block_group_descriptor* blk_groups;
+    block_group_descriptor* blk_group_descs;
     directory_node* root_dir;
-    size_t num_blk_groups;    
+    size_t num_blk_groups;
     uint64_t superblock_lba;
     jbd2_journal fs_journal;
-    ext_jbd2_mode mode() const;
+    ext_jbd2_mode journal_mode() const;
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
     virtual void dldirnode(directory_node* dd) override;
@@ -435,15 +517,26 @@ protected:
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
 public:
+    char* allocate_block_buffer();
+    void free_block_buffer(disk_block& bl);
     size_t block_size();
     size_t inodes_per_block();
     size_t sectors_per_block();
+    size_t blocks_per_group();
+    size_t inodes_per_group();
     uint64_t block_to_lba(uint64_t block);
+    uint64_t group_num_for_inode(uint32_t inode);
     uint64_t inode_to_block(uint32_t inode);
+    uint64_t claim_next_available_block();
+    off_t inode_block_offset(uint32_t inode);
     ext_inode* read_inode(uint32_t inode_num);
     bool write_to_disk(disk_block const& bl);
     bool read_from_disk(disk_block& bl);
-    bool persist(ext_vnode* n);
+    bool persist_group_metadata(size_t group_num);    
+    bool persist_inode(uint32_t inode_num);
+    bool persist(ext_file_vnode* n);
+    bool persist(ext_directory_vnode* n);
+    void put_dirent_node(ext_dir_entry* de);
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };
