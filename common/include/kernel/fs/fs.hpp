@@ -80,7 +80,7 @@ struct file_mode
     constexpr bool is_fifo() const noexcept { return t_fifo && !t_regular && !t_directory && !t_chardev; }
     constexpr bool is_type_invalid() const noexcept { return (t_fifo && (t_directory || t_chardev || t_regular)) || (t_directory + t_chardev + t_regular) > 2; }
 } __pack;
-struct disk_block { uint64_t block_number; char* data_buffer; bool dirty = false; };
+struct disk_block { uint64_t block_number; char* data_buffer; bool dirty = false; size_t chain_len = 1U; };
 class tnode;
 struct fs_node
 {

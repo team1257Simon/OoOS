@@ -64,6 +64,8 @@ namespace std
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr bool contains(U const& u) const noexcept { return this->__contains(u); }
+        template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) iterator lower_bound(U const& u) { return iterator{ this->__lower_bound(this->__get_root(), this->__end(), u) }; }
+        template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) iterator upper_bound(U const& u) { return iterator{ this->__upper_bound(this->__get_root(), this->__end(), u) }; }
         pair<iterator, bool> insert(value_type && vt) { __res_t res = this->__insert_unique(std::forward<value_type>(vt)); return pair{ iterator{ res.first }, res.second }; }
         pair<iterator, bool> insert(value_type const& vt) { __res_t res = this->__insert_unique(vt); return pair{ iterator{ res.first }, res.second }; }
         iterator insert(const_iterator pos, value_type const& value) { return iterator{ this->__hint_insert_unique(pos.__my_node, value) }; }

@@ -10,8 +10,8 @@ directory_node *extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
 bool extfs::read_hd(void *dest, uint64_t lba_src, size_t sectors) { return ahci_hda::is_initialized() && ahci_hda::read(static_cast<char*>(dest), lba_src, sectors); }
 bool extfs::write_hd(uint64_t lba_dest, const void *src, size_t sectors) { return ahci_hda::is_initialized() && ahci_hda::write(lba_dest, static_cast<char const*>(src), sectors); }
-bool extfs::read_from_disk(disk_block &bl) { return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block()); }
-bool extfs::write_to_disk(disk_block const &bl) { return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block()); }
+bool extfs::read_from_disk(disk_block &bl) { return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * std::max(bl.chain_len, 1UL)); }
+bool extfs::write_to_disk(disk_block const &bl) { return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * std::max(bl.chain_len, 1UL)); }
 bool extfs::persist(ext_directory_vnode *n) { return fs_journal.create_txn(n); /* directory entry data must go through the journal */ }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 jbd2_txn_queue::reference jbd2_txn_queue::put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h) { return this->emplace(static_cast<transaction_id>(this->size()), std::move(blocks), std::move(h)); }
@@ -96,8 +96,8 @@ ext_inode* extfs::read_inode(uint32_t inode_num)
 }
 off_t jbd2_journal::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first, bool is_last)
 {
-    off_t result = static_cast<off_t>(desc_tag_size(true));
-    uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (need_escape(bl) ? escape : 0);
+    off_t result = static_cast<off_t>(desc_tag_size(true)) * bl.chain_len;
+    uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (((__be32(reinterpret_cast<uint32_t const*>(bl.data_buffer)[0])) == jbd2_magic) ? escape : 0);
     if(sb->required_features & csum_v3) { new (static_cast<jbd2_block_tag3*>(where)) jbd2_block_tag3{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .flags = __be32(fl), .block_number_hi = __be32((bl.block_number >> 32) & 0xFFFFFFFF) }; }
     else { new (static_cast<jbd2_block_tag*>(where)) jbd2_block_tag{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .flags = __be16(fl), .block_number_hi = __be32(sb->required_features & x64_support ? ((bl.block_number >> 32) & 0xFFFFFFFF) : 0) }; }
     if(is_first) { uint8_t* uuid_pos = reinterpret_cast<uint8_t*>(where) + result; result += 16; arraycopy(uuid_pos, sb->uuid.data_bytes, 16); }
@@ -107,40 +107,42 @@ off_t jbd2_journal::desc_tag_create(disk_block const& bl, void* where, uint32_t 
 bool jbd2_journal::create_txn(ext_vnode *changed_node)
 {
     std::vector<disk_block> dirty_blocks{};
-    for(std::vector<disk_block>::iterator i = changed_node->block_data.begin(); i != changed_node->block_data.end(); i++) { if(i->dirty) { i->dirty = false; dirty_blocks.push_back(*i); } }
+    for(std::vector<disk_block>::iterator i = changed_node->block_data.begin(); i != changed_node->block_data.end(); i++) { if(i->dirty && i->data_buffer) { i->dirty = false; dirty_blocks.push_back(*i); } }
     for(std::vector<disk_block>::iterator i = changed_node->cached_metadata.begin(); i != changed_node->cached_metadata.end(); i++) { if(i->dirty) { i->dirty = false; dirty_blocks.push_back(*i); } }
     return create_txn(dirty_blocks);
 }
 bool jbd2_journal::create_txn(std::vector<disk_block> const& txn_blocks)
 {
     size_t tpb = tags_per_block();
-    disk_block tb{ first_open_block++,allocate_block_buffer() };
+    disk_block tb{ first_open_block++, allocate_block_buffer(), false, 1 };
     uint32_t s = 0;
     uint64_t j = tb.block_number;
     size_t k = 0;
     off_t o;
-    for(std::vector<disk_block>::const_iterator i = txn_blocks.begin(); i < txn_blocks.end(); i++, j++)
+    for(std::vector<disk_block>::const_iterator i = txn_blocks.begin(); i < txn_blocks.end(); i++)
     {
+        if(!i->data_buffer) continue; // skip empty file blocks if any made it this far
         if(!k)
         {
             array_zero(tb.data_buffer, sb->journal_block_size);
             o = static_cast<off_t>(sizeof(jbd2_header));
             new(reinterpret_cast<jbd2_header*>(tb.data_buffer)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(s++) };
         }
-        o += desc_tag_create(*i, tb.data_buffer + o, s, !k, (k + 1 == tpb|| i + 1 == txn_blocks.end()));
-        bool esc = need_escape(*i);
-        if(esc) *reinterpret_cast<uint32_t*>(i->data_buffer) = 0;
-        uint64_t tmp_bn = tb.block_number;
-        tb.block_number = j;
-        if(!parent_fs->write_to_disk(tb)) { panic("disk write failed"); sb->journal_errno = __be32(EPIPE); if(esc) { *reinterpret_cast<uint32_t*>(i->data_buffer) = jbd2_magic; } return false; }
-        tb.block_number = tmp_bn;
-        if(esc) { *reinterpret_cast<uint32_t*>(i->data_buffer) = jbd2_magic; }
+        for(size_t n = 0; n < std::max(1UL, i->chain_len); n++)
+        {
+            disk_block db{ j++, i->data_buffer + n*parent_fs->block_size(), false, 1 };
+            o += desc_tag_create(db, tb.data_buffer + o, s, !k, (k + 1 == tpb || i + 1 == txn_blocks.end()));
+            bool esc = ((__be32(reinterpret_cast<uint32_t const*>(db.data_buffer)[0])) == jbd2_magic);
+            if(esc) *reinterpret_cast<uint32_t*>(db.data_buffer) = 0;
+            if(!parent_fs->write_to_disk(db)) { panic("disk write failed"); sb->journal_errno = __be32(EPIPE); if(esc) { *reinterpret_cast<uint32_t*>(db.data_buffer) = jbd2_magic; } return false; }
+            if(esc) { *reinterpret_cast<uint32_t*>(db.data_buffer) = jbd2_magic; }
+        }
         k = (k + 1) % tpb;
         if(!k || i + 1 == txn_blocks.end())
         {
             if(!parent_fs->write_to_disk(tb)) { panic("disk write failed"); sb->journal_errno = __be32(EPIPE); return false; }
+            tb.block_number = j++;
             first_open_block = j;
-            tb.block_number = first_open_block++;
         }
     }
     array_zero(tb.data_buffer, sb->journal_block_size);
@@ -152,7 +154,7 @@ bool jbd2_journal::create_txn(std::vector<disk_block> const& txn_blocks)
 }
 bool jbd2_journal::clear_log()
 {
-    disk_block zb{ sb->start_block, allocate_block_buffer() };
+    disk_block zb{ sb->start_block, allocate_block_buffer(), false, 1 };
     array_zero(zb.data_buffer, sb->journal_block_size);
     for(size_t i = 0; i < sb->journal_block_count; i++, zb.block_number++) { if(!parent_fs->write_to_disk(zb)) { panic("write failed"); sb->journal_errno = __be32(EPIPE); return false; } } // TODO: better error handling :)
     std::allocator<char>{}.deallocate(zb.data_buffer, sb->journal_block_size);
@@ -182,7 +184,7 @@ bool jbd2_journal::execute_pending_txns()
 bool jbd2_journal::read_log()
 {
     char* blk_buffer = allocate_block_buffer();
-    disk_block blk{ sb->start_block, blk_buffer };
+    disk_block blk{ sb->start_block, blk_buffer, false, 1 };
     bool success = true;
     try { while(blk.block_number < sb->start_block + sb->journal_block_count) parse_next_log_entry(blk); }
     catch(std::exception& e) { panic(e.what()); success = false; }
@@ -233,8 +235,8 @@ void jbd2_journal::parse_next_log_entry(disk_block& blk)
                         s_uuid = tag->flags & same_uuid;
                     }
                     current_pos += desc_tag_size(s_uuid);
-                    disk_block& next = txn_data_blocks.emplace_back(target_block, allocate_block_buffer());
-                    disk_block read_tar{ dbnum++, next.data_buffer };
+                    disk_block& next = txn_data_blocks.emplace_back(target_block, allocate_block_buffer(), true, 1);
+                    disk_block read_tar{ dbnum++, next.data_buffer, false, 1 };
                     if(!parent_fs->read_from_disk(read_tar)) { free_buffers(txn_data_blocks); throw std::runtime_error{ "disk read failed on data block" }; }
                     if(esc) { *reinterpret_cast<uint32_t*>(read_tar.data_buffer) = jbd2_magic; }
                 }
@@ -252,7 +254,7 @@ void jbd2_journal::parse_next_log_entry(disk_block& blk)
 file_node *extfs::open_fd(tnode* fd)
 {
     file_node* n = fd->as_file();
-    // if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) exfn->do_ext_specific_stuff(); (this line is pseudocode for future stuff obviously)
+    if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) exfn->initialize();
     return n;
 }
 dev_t extfs::xgdevid() const noexcept
@@ -281,12 +283,12 @@ bool extfs::persist(ext_file_vnode* n)
     if(journal_mode() != ordered) { return fs_journal.create_txn(n); } 
     for(std::vector<disk_block>::iterator i = n->block_data.begin(); i != n->block_data.end(); i++) 
     { 
-        if(!i->dirty) continue; 
+        if(!i->dirty || !i->data_buffer) continue; 
         if(!write_to_disk(*i)) { panic("write failed"); sb->last_errno = EPIPE; return false; } 
         i->dirty = false;
     }
     std::vector<disk_block> dirty_metadata{};
-    for(std::vector<disk_block>::iterator i = n->cached_metadata.begin(); i != n->cached_metadata.end(); i++) { if(i->dirty) { dirty_metadata.push_back(*i); i->dirty = false; } }
+    for(std::vector<disk_block>::iterator i = n->cached_metadata.begin(); i != n->cached_metadata.end(); i++) { if(i->data_buffer && i->dirty) { dirty_metadata.push_back(*i); i->dirty = false; } }
     return fs_journal.create_txn(dirty_metadata);
 }
 bool extfs::persist_group_metadata(size_t group_num)
@@ -298,7 +300,7 @@ bool extfs::persist_group_metadata(size_t group_num)
         blks.push_back(block_groups[group_num].blk_usage_bmp);
         size_t descriptors_per_block = block_size() / sizeof(block_group_descriptor);
         size_t dsc_blk = (group_num * sizeof(block_group_descriptor)) / block_size();
-        blks.emplace_back(dsc_blk + 1, reinterpret_cast<char*>(blk_group_descs) + dsc_blk * block_size());
+        blks.emplace_back(dsc_blk + 1, reinterpret_cast<char*>(blk_group_descs) + dsc_blk * block_size(), true, 1);
         return fs_journal.create_txn(blks);
     }
     panic("block group number out of range");
@@ -312,17 +314,27 @@ bool extfs::persist_inode(uint32_t inode_num)
     blks.push_back(block_groups[group_num_for_inode(inode_num)].inode_blocks[(inode_num % sb->inodes_per_group) / inodes_per_block()]);
     return fs_journal.create_txn(blks);
 }
-void extfs::put_dirent_node(ext_dir_entry* de)
+fs_node* extfs::put_dirent_node(ext_dir_entry* de)
 {
     if(sb->required_features & dirent_type)
     {
         if(de->type_ind == dti_dir) dir_nodes.emplace(this, de->inode_idx);
-        else { file_nodes.emplace(this, de->inode_idx, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))); next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); }
+        else 
+        { 
+            fs_node* result = file_nodes.emplace(this, de->inode_idx, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))).first.base();
+            next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
+            return result;
+        }
     }
     else
     {
         ext_inode* n = read_inode(de->inode_idx);
-        if(n->mode.is_directory()) dir_nodes.emplace(this, de->inode_idx, n);
-        else { file_nodes.emplace(this, de->inode_idx, n, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))); next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); }
+        if(n->mode.is_directory()) return dir_nodes.emplace(this, de->inode_idx, n).first.base();
+        else 
+        { 
+            fs_node* result = file_nodes.emplace(this, de->inode_idx, n, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))).first.base(); 
+            next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
+            return result; 
+        }
     }
 }

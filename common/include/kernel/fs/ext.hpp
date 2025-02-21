@@ -267,7 +267,8 @@ enum ext_inode_flags : uint32_t
     no_access_time_update = 0x00080,
     hash_indexed_dir = 0x10000,
     afs_directory = 0x20000,
-    journal_file_data = 0x40000
+    journal_file_data = 0x40000,
+    use_extents = 0x80000
 };
 struct ext_mmp
 {
@@ -388,30 +389,46 @@ public:
     reference put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h);
 };
 struct ext_vnode;
-struct cached_extent_node
-{
-    disk_block* block;
-    std::map<size_t, cached_extent_node*> next_level_extents;
+struct ext_node_extent_tree;
+struct cached_extent_node 
+{ 
+    off_t blk_offset;
+    ext_vnode* tracked_node;
+    uint16_t depth;
+    std::map<uint64_t, cached_extent_node*> next_level_extents{};
+    disk_block* block();
+    cached_extent_node(disk_block* bptr, ext_vnode* tracked_node, uint16_t depth);
+    size_t nl_recurse_legacy(ext_node_extent_tree* parent, uint64_t start_file_block);
+    bool nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t start_file_block);
+    uint64_t get_disk_blocknum_recurse(uint64_t file_block);
+    disk_block* get_block_recurse(uint64_t file_block);
 };
 struct ext_node_extent_tree
 {
     ext_vnode* tracked_node;
-    std::vector<cached_extent_node> tracked_extents;
-    std::map<size_t, cached_extent_node*> base_extent_level;
-    // TODO this struct will implement mapping a file's extent in either legacy or ext4 tree mode
+    size_t total_extent{};
+    std::vector<cached_extent_node> tracked_extents{};        // the actual extent map objects are allocated here
+    std::map<uint64_t, cached_extent_node*> base_extent_level{};
+    bool parse_legacy();
+    bool parse_ext4();
+    uint64_t get_disk_blocknum(uint64_t file_block);
+    disk_block* get_extent_block(uint64_t file_block);
 };
 struct ext_vnode : public vfs_filebuf_base<char>
 {
     virtual int __ddwrite() override;
-    virtual std::streamsize __overflow(std::streamsize n) override;    
-    extfs* parent_fs;
-    ext_inode* on_disk_node;
+    virtual std::streamsize __overflow(std::streamsize n) override;
     std::vector<disk_block> block_data{}; // all the actual data blocks are recorded here
     std::vector<disk_block> cached_metadata{}; // all metadata blocks, such as extent / indirect block pointers, that are part of the node are cached here
     size_t last_checked_block_idx{};
+    extfs* parent_fs;
+    ext_inode* on_disk_node;
+    ext_node_extent_tree extents;
     ext_vnode(extfs* parent, ext_inode* inode);    
     ext_vnode(extfs* parent, uint32_t inode_number);
     virtual ~ext_vnode();
+    virtual bool initialize();
+    bool init_extents();
     void add_block(uint64_t block_number, char* data_ptr);
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
@@ -466,6 +483,7 @@ class ext_directory_vnode : public ext_vnode, public directory_node
     bool __initialized{};
     size_t __n_subdirs{};
     size_t __n_files{};
+    bool __parse_entries(size_t bs);
 public:
     virtual std::streamsize __ddread(std::streamsize n) override;
     virtual std::streamsize __ddrem() override;
@@ -477,7 +495,7 @@ public:
     virtual uint64_t num_subdirs() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
     virtual bool fsync() override;
-    bool initialize();
+    virtual bool initialize() override;
     constexpr bool has_init() const noexcept { return __initialized; }
     ext_directory_vnode(extfs* parent, uint32_t inode_number);
     ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data);
@@ -536,7 +554,7 @@ public:
     bool persist_inode(uint32_t inode_num);
     bool persist(ext_file_vnode* n);
     bool persist(ext_directory_vnode* n);
-    void put_dirent_node(ext_dir_entry* de);
+    fs_node* put_dirent_node(ext_dir_entry* de);
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };
