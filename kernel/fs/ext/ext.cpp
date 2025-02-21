@@ -235,7 +235,7 @@ void jbd2_journal::parse_next_log_entry(disk_block& blk)
                         s_uuid = tag->flags & same_uuid;
                     }
                     current_pos += desc_tag_size(s_uuid);
-                    disk_block& next = txn_data_blocks.emplace_back(target_block, allocate_block_buffer(), true, 1);
+                    disk_block& next = txn_data_blocks.emplace_back(target_block, allocate_block_buffer(), true, 1U);
                     disk_block read_tar{ dbnum++, next.data_buffer, false, 1 };
                     if(!parent_fs->read_from_disk(read_tar)) { free_buffers(txn_data_blocks); throw std::runtime_error{ "disk read failed on data block" }; }
                     if(esc) { *reinterpret_cast<uint32_t*>(read_tar.data_buffer) = jbd2_magic; }
@@ -259,24 +259,27 @@ file_node *extfs::open_fd(tnode* fd)
 }
 dev_t extfs::xgdevid() const noexcept
 {
-    return dev_t();
+    return dev_t(); // TODO
 }
 directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
-    return nullptr;
+    return nullptr; // TODO
 }
 file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
-    return nullptr;
+    return nullptr; // TODO
 }
 void extfs::syncdirs()
 {
+    // TODO
 }
 void extfs::dldirnode(directory_node* dd)
 {
+    // TODO
 }
 void extfs::dlfilenode(file_node* fd)
 {
+    // TODO
 }
 bool extfs::persist(ext_file_vnode* n) 
 { 
@@ -298,9 +301,8 @@ bool extfs::persist_group_metadata(size_t group_num)
         std::vector<disk_block> blks{};
         blks.push_back(block_groups[group_num].inode_usage_bmp);
         blks.push_back(block_groups[group_num].blk_usage_bmp);
-        size_t descriptors_per_block = block_size() / sizeof(block_group_descriptor);
         size_t dsc_blk = (group_num * sizeof(block_group_descriptor)) / block_size();
-        blks.emplace_back(dsc_blk + 1, reinterpret_cast<char*>(blk_group_descs) + dsc_blk * block_size(), true, 1);
+        blks.emplace_back(dsc_blk + 1, reinterpret_cast<char*>(blk_group_descs) + dsc_blk * block_size(), true, 1U);
         return fs_journal.create_txn(blks);
     }
     panic("block group number out of range");
@@ -316,23 +318,24 @@ bool extfs::persist_inode(uint32_t inode_num)
 }
 fs_node* extfs::put_dirent_node(ext_dir_entry* de)
 {
+    uint32_t idx = de->inode_idx;
     if(sb->required_features & dirent_type)
     {
-        if(de->type_ind == dti_dir) dir_nodes.emplace(this, de->inode_idx);
+        if(de->type_ind == dti_dir) return dir_nodes.emplace(this, idx).first.base();
         else 
         { 
-            fs_node* result = file_nodes.emplace(this, de->inode_idx, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))).first.base();
+            fs_node* result = file_nodes.emplace(this, idx, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))).first.base();
             next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
             return result;
         }
     }
     else
-    {
-        ext_inode* n = read_inode(de->inode_idx);
-        if(n->mode.is_directory()) return dir_nodes.emplace(this, de->inode_idx, n).first.base();
+    { 
+        ext_inode* n = read_inode(idx);
+        if(n->mode.is_directory()) return dir_nodes.emplace(this, idx, n).first.base();
         else 
         { 
-            fs_node* result = file_nodes.emplace(this, de->inode_idx, n, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))).first.base(); 
+            fs_node* result = file_nodes.emplace(this,idx, n, std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()))).first.base(); 
             next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
             return result; 
         }

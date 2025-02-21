@@ -28,7 +28,8 @@ uintptr_t translate_vaddr(addr_t addr);
 addr_t translate_user_pointer(addr_t ptr);
 uint64_t syscall_time(uint64_t* tm_target);
 paging_table kernel_cr3();
-uint32_t crc32_calc(const void* data, size_t len);
+uint32_t crc32_calc(const void* data, size_t len, uint32_t seed = 0U);
+uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = uint16_t(0));
 #define dhang() direct_write(__builtin_FUNCTION()); while(1);
 #ifdef __cplusplus
 }
@@ -36,6 +37,12 @@ template<typename T> constexpr void set_fs_base(T* value) { asm volatile("wrfsba
 template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
 template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
+template<typename ... Ts> uint32_t crc32c(Ts const*...);
+template<> inline uint32_t crc32c() { return 0U; }
+template<typename T, typename ... Us> inline uint32_t crc32c(T const* t, Us const* ... rem) { return crc32_calc(t, sizeof(T), crc32c(rem...)); }
+template<typename ... Ts> uint16_t crc16(Ts const*...);
+template<> inline uint16_t crc16() { return uint16_t(0); }
+template<typename T, typename ... Us> inline uint16_t crc16(T const* t, Us const* ... rem) { return crc16_calc(t, sizeof(T), crc16(rem...)); }
 constexpr uint16_t unix_year_base = 1970u;
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from){ return ((yr - from) * 365U + (yr - from) / 4U + (((yr % 4U == 0U) || (from % 4U == 0U)) ? 1U : 0U)) - 1U; }

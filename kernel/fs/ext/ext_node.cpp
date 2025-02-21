@@ -19,11 +19,11 @@ size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->bloc
 uint64_t ext_vnode::next_block() { return extents.get_disk_blocknum(last_checked_block_idx + 1); }
 std::streamsize ext_vnode::__overflow(std::streamsize n)
 {
-    return std::streamsize();
+    return std::streamsize(); // TODO
 }
 std::streamsize ext_file_vnode::__ddread(std::streamsize n)
 {
-    return std::streamsize();
+    return std::streamsize(); // TODO
 }
 bool ext_vnode::initialize() { return init_extents(); }
 std::streamsize ext_file_vnode::__ddrem() { return std::streamsize(size() - (this->__capacity())); }
@@ -48,15 +48,15 @@ std::streamsize ext_directory_vnode::__ddrem() { return std::streamsize(0); }
 tnode *ext_directory_vnode::find(std::string const& name) { if(tnode_dir::iterator i = __my_dir.find(name); i != __my_dir.end()) { if(ext_directory_vnode* d = dynamic_cast<ext_directory_vnode*>(i->ptr())) { if(!d->initialize()) { panic("directory init failed"); return nullptr; } }  return i.base(); }else return nullptr; }
 bool ext_directory_vnode::link(tnode* original, std::string const& target)
 {
-    return false;
+    return false; // TODO
 }
 tnode *ext_directory_vnode::add(fs_node* n)
 {
-    return nullptr;
+    return nullptr; // TODO
 }
 bool ext_directory_vnode::unlink(std::string const& name)
 {
-    return false;
+    return false; // TODO
 }
 bool ext_directory_vnode::initialize()
 {
@@ -78,12 +78,12 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
         for(size_t i = 0; i < block_data.size(); i++)
         {
             char* current_pos = block_data[i].data_buffer;
-            size_t n = 0;
-            while(n < bs)
+            ext_dir_entry* dirent;
+            for(size_t n = 0; n < bs; n += dirent->entry_size)
             {
-                ext_dir_entry* dirent = reinterpret_cast<ext_dir_entry*>(current_pos + n);
-                __my_dir.emplace(parent_fs->put_dirent_node(dirent), std::string(dirent->name, dirent->name_len));
-                n += dirent->entry_size;
+                dirent = reinterpret_cast<ext_dir_entry*>(current_pos + n);
+                if(!dirent->inode_idx) continue;
+                __my_dir.emplace(parent_fs->put_dirent_node(dirent), std::string(dirent->name, dirent->name_len)); // TODO: replace the tnode dir with a hash map (to support dx)
             }
         }
         return true;
@@ -91,6 +91,7 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
+
 uint64_t ext_directory_vnode::num_files() const noexcept { return __n_files; }
 uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs; }
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode_dir::const_iterator i = __my_dir.begin(); i != __my_dir.end(); i++) result.push_back(i->name()); return result; }

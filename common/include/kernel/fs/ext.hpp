@@ -94,7 +94,7 @@ struct ext_superblock
     uint8_t string2key_salt[16];
     uint32_t lost_found_dir_inode;
     uint32_t project_quota_tracker_inode;
-    uint32_t uuid_checksum;
+    uint32_t uuid_checksum; // crc32c(~0, uuid)
     uint8_t last_write_time_hi;
     uint8_t last_mount_time_hi;
     uint8_t create_time_hi;
@@ -182,7 +182,7 @@ struct ext_extent_index
 struct ext_extent_leaf
 {
     uint32_t file_node_start;
-    uint32_t extent_size;
+    uint16_t extent_size;
     uint16_t extent_start_hi;
     uint32_t extent_start_lo;
 } __pack;
@@ -191,6 +191,7 @@ union ext_extent_node
     ext_extent_index idx;
     ext_extent_leaf leaf;
 } __pack;
+struct ext_extent_tail { uint32_t checksum; };
 union ext_node_extent_root
 {
     struct
@@ -205,6 +206,7 @@ union ext_node_extent_root
         uint32_t doubly_indirect_block;
         uint32_t triply_indirect_block;
     } __pack legacy_extent;
+    char symlink_target[60];
 } __pack;
 struct ext_inode
 {
@@ -254,6 +256,55 @@ enum ext_dirent_type
     dti_fifo = 5,
     dti_socket = 6,
     dti_symlink = 7
+};
+struct ext_dx_entry { uint32_t hash; uint32_t node_dirfile_block; } __pack;
+enum ext_dx_hash_type : uint8_t
+{
+    hx_legacy = 0,
+    hx_half_md4 = 1,
+    hx_tea = 2,
+    hx_unsigned_legacy = 3,
+    hx_unsigned_half_md4 = 4,
+    hx_unsigned_tea = 5,
+    hx_siphahs = 6
+};
+struct ext_dx_root
+{
+    uint32_t inode_idx;
+    uint16_t dot_entry_size{ 12 };
+    uint8_t dot_name_len{ 1 };
+    uint8_t dot_type_ind{ dti_dir };
+    char dot[4]{ '.', '\0', '\0', '\0' };
+    uint32_t parent_inode_idx;
+    uint16_t dotdot_entry_size;
+    uint8_t dotdot_name_len{ 2 };
+    uint8_t dotdot_type_ind{ dti_dir };
+    char dotdot[4]{ '.', '.', '\0', '\0' };
+    uint32_t zero{ 0U };
+    ext_dx_hash_type hash_type;
+    uint8_t info_len{ 8 };
+    uint8_t htree_depth;
+    uint8_t unused_flags{ 0 };
+    uint16_t limit;
+    uint16_t count;
+    uint32_t start_file_block;
+    ext_dx_entry entries[];
+} __pack;
+struct ext_dx_node
+{
+    uint32_t fake_inode{ 0U };
+    uint16_t fake_len;
+    uint8_t fake_name_len{ 0 };
+    uint8_t fake_type{ 0 };
+    uint16_t limit;
+    uint16_t count;
+    uint32_t start_file_block;
+    ext_dx_entry entries[];
+} __pack;
+struct ext_dx_tail
+{
+    uint32_t dt_reserved;
+    uint32_t dt_checksum;
 };
 enum ext_inode_flags : uint32_t
 {
