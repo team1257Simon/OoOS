@@ -119,7 +119,8 @@ void str_tests()
     debug_print_num(crc32_calc(test_str.c_str(), 32), 8);
     startup_tty.endl();
     startup_tty.print_text("dragon test: ");
-    debug_print_num(std::dragon<md5>{}(test_str.c_str(), test_str.size()));
+    std::ext::dragon<std::string> sdragon{};
+    debug_print_num(sdragon(test_str));
     startup_tty.print_line(" (rawr)");
 }
 void vfs_tests()
