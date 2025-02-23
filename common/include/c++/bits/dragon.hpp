@@ -21,9 +21,14 @@ namespace std
             template<__large_hash HT>
             class __dragon_base
             {
-                ::__impl::__aligned_buffer<__int128_t> __tmp_result{};
+                mutable ::__impl::__aligned_buffer<__int128_t> __tmp_result;
             public:
-                uint64_t apply(const void* bytes, size_t len) noexcept
+                __dragon_base() : __tmp_result{} {}
+                __dragon_base(__dragon_base const&) : __tmp_result{} {}
+                __dragon_base(__dragon_base&&) : __tmp_result{} {}
+                __dragon_base& operator=(__dragon_base const&) { return *this; }
+                __dragon_base& operator=(__dragon_base&&) { return *this; }
+                uint64_t apply(const void* bytes, size_t len) const noexcept
                 {
                     construct_at(__tmp_result.__get_ptr(), HT{}(bytes, len));
                     uint8_t* rbytes = static_cast<uint8_t*>(__tmp_result.__get_addr());
@@ -33,13 +38,14 @@ namespace std
                         rbytes[i] |= 0x20;
                     }
                     uint64_t result = elf64_hash{}(rbytes, sizeof(__int128_t));
+                    construct_at(__tmp_result.__get_ptr()); // temporary result buffer is to be treated as though it doesn't exist except to provide storage space during calculations
                     return result;
                 }
             };
         }
-        template<typename T, __detail::__large_hash HT = md5> struct dragon : private __detail::__dragon_base<HT> { uint64_t operator()(T const& t) noexcept { return this->apply(&t, sizeof(T)); } };
-        template<__detail::__stl_array_like CT, __detail::__large_hash HT> struct dragon<CT, HT> : private __detail::__dragon_base<HT> { uint64_t operator()(CT const& container) noexcept { return this->apply(container.data(), container.size()); } };
-        template<std::char_type CT, __detail::__large_hash HT> struct dragon<basic_string<CT>, HT> : private __detail::__dragon_base<HT> { uint64_t operator()(std::basic_string<CT> const& str) noexcept { return this->apply(str.c_str(), str.siz) } };
+        template<typename T, __detail::__large_hash HT = md5> struct dragon : private __detail::__dragon_base<HT> { uint64_t operator()(T const& t) const noexcept { return this->apply(&t, sizeof(T)); } };
+        template<__detail::__stl_array_like CT, __detail::__large_hash HT> struct dragon<CT, HT> : private __detail::__dragon_base<HT> { uint64_t operator()(CT const& container) const noexcept { return this->apply(container.data(), container.size()); } };
+        template<std::char_type CT, __detail::__large_hash HT> struct dragon<basic_string<CT>, HT> : private __detail::__dragon_base<HT> { uint64_t operator()(std::basic_string<CT> const& str) const noexcept { return this->apply(str.c_str(), str.size()); } };
     }
 }
 #endif

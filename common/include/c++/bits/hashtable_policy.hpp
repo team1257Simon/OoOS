@@ -18,6 +18,7 @@ namespace std
             size_t __buckets_for_elements(size_t n) const;
             size_t __next_bucket(size_t n) const;
             pair<bool, size_t> __need_rehash(size_t n_buckets, size_t n_elems, size_t n_ins) const;
+            constexpr __state_type __state() const noexcept { return __next_resize; }
         };
         struct __pow2_policy
         {
@@ -32,9 +33,10 @@ namespace std
             size_t __buckets_for_elements(size_t n) const;
             size_t __next_bucket(size_t n) const;
             pair<bool, size_t> __need_rehash(size_t n_buckets, size_t n_elems, size_t n_ins) const;
+            constexpr __state_type __state() const noexcept { return __next_resize; }
         };
         struct __modulus_hash_range { constexpr size_t operator()(size_t idx, size_t nb) const noexcept { if(nb) return idx % nb; return 0; } };
-        template<typename T, typename U> struct __pair_key_extract { constexpr T const& operator()(pair<T, U> const& p) const noexcept { return p.first; } };
+        template<typename T, typename U> struct __pair_key_extract { constexpr T const& operator()(std::pair<T, U> const& p) const noexcept { return p.first; } };
         template<typename T> struct __identity_key { constexpr T const& operator()(T const& t) const noexcept { return t; } };
     }
 }

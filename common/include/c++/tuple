@@ -1,6 +1,7 @@
 #ifndef __TUPLE
 #define __TUPLE
 #include "bits/move.h"
+#include "bits/stl_pair.hpp"
 #include "concepts"
 namespace std
 {
@@ -136,5 +137,13 @@ namespace std
     template<size_t I, typename... ETs> constexpr __elem_t<I, ETs...>&& get(tuple<ETs...>&& t) noexcept { return std::forward<__elem_t<I, ETs...>>(__get_helper<I>(t)); }
     template<size_t I, typename... ETs> constexpr const __elem_t<I, ETs...>&& get(const tuple<ETs...>&& t) noexcept { return std::forward<__elem_t<I, ETs...>>(__get_helper<I>(t)); }
     template<typename... ETs> constexpr tuple<ETs&&...> forward_as_tuple(ETs&&... __args) noexcept { return tuple<ETs&&...>(std::forward<ETs>(__args)...); }
+    template<typename T1, typename T2>
+    template<typename... Args1, typename... Args2, size_t... Indx1, size_t... Indx2>
+    requires (constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) 
+    constexpr pair<T1, T2>::pair(tuple<Args1...> &t1, tuple<Args2...> &t2, __index_tuple<Indx1...>, __index_tuple<Indx2...>) : first(std::forward<Args1>(std::get<Indx1>(t1))...), second(std::forward<Args2>(std::get<Indx2>(t2))...) {}
+    template<typename T1, typename T2>
+    template<typename ... Args1, typename ... Args2> 
+    requires (constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) 
+    constexpr pair<T1, T2>::pair(piecewise_construct_t, tuple<Args1...> t1, tuple<Args2...> t2) : pair(t1, t2, typename __build_index_tuple<sizeof...(Args1)>::__type(), typename __build_index_tuple<sizeof...(Args2)>::__type()) {}
 }
 #endif

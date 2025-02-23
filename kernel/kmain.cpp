@@ -60,7 +60,7 @@ void map_tests()
     m.insert_or_assign("bweep", 42);
     m["fweep"] = 84;
     m.insert_or_assign("dreep", 105);
-    startup_tty.print_line("initial map values: ");
+    startup_tty.print_text("initial map values: ");
     for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
@@ -70,7 +70,7 @@ void map_tests()
     }
     startup_tty.endl();
     m.erase("gyeep");
-    startup_tty.print_line("map values after erase: ");
+    startup_tty.print_text("map values after erase: ");
     for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
@@ -81,7 +81,7 @@ void map_tests()
     startup_tty.endl();
     m["dreep"] = 45;
     m.insert_or_assign("fweep", 37);
-    startup_tty.print_line("map values after reassign: ");
+    startup_tty.print_text("map values after reassign: ");
     for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
@@ -96,7 +96,7 @@ void map_tests()
     m.insert_or_assign("bweep", 42);
     m["fweep"] = 84;
     m.insert_or_assign("dreep", 105);
-    startup_tty.print_line("map values after reset: ");
+    startup_tty.print_text("map values after reset: ");
     for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
@@ -104,6 +104,7 @@ void map_tests()
         startup_tty.print_text(std::to_string(i->second));
         startup_tty.print_text("; ");
     }
+    startup_tty.endl();
 }
 void str_tests()
 {
