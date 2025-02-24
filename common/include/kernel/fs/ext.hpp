@@ -36,7 +36,7 @@ struct ext_superblock
     uint32_t optional_features;
     uint32_t required_features;         // fetures that must be supported or else we must abort the mount
     uint32_t write_required_Features;   // features that must be supported or else the fs is read-only
-    guid_t fs_uuid;
+    guid_t fs_uuid;                     // whenever an extfs checksum references "uuid" it's referring to this
     char volume_name[16];
     char last_mount_path[64];
     uint32_t compression_algorithm_id;
@@ -221,15 +221,20 @@ struct ext_inode
     uint16_t referencing_dirents;
     uint16_t size_sectors;
     uint32_t flags;
-    uint32_t os_specific_1;
-    ext_node_extent_root block_info; // either a list of block pointers (direct and indirect) or an extent tree
+    uint32_t os_specific_1;             // unused for now
+    ext_node_extent_root block_info;    // either a list of block pointers (direct and indirect) or an extent tree
     uint32_t version_lo;
     uint32_t file_acl_block;
-    uint32_t dir_acl_block; // for a file, this will instead be the high bits of the file size
+    uint32_t dir_acl_block;             // for a file, this will instead be the high bits of the file size
     uint32_t fragment_block;
-    uint32_t os_specific_2[3];
+    uint16_t blocks_count_hi;
+    uint16_t os_specific_2;
+    uint16_t uid_high;
+    uint16_t gid_high;
+    uint16_t checksum_lo;               // crc32c(uuid+inode_number+inode)
+    uint16_t os_specific_3;
     uint16_t extra_isize;
-    uint16_t checksum_extra;
+    uint16_t checksum_hi;               // high-order 16 bits of the inode checksum
     uint32_t changed_time_extra;
     uint32_t mod_time_extra;
     uint32_t access_time_extra;
@@ -377,7 +382,7 @@ struct jbd2_commit_header
     uint8_t checksum_type;
     uint8_t checksum_size;
     uint8_t padding[2];
-    __be32 checksum[jbd2_checksum_size_dwords];
+    __be32 checksum[jbd2_checksum_size_dwords];     // crc32c(uuid+commit_block)
     __be64 commit_seconds;
     __be32 commit_nanos;
 };
@@ -391,7 +396,7 @@ struct jbd2_block_tag3
 struct jbd2_block_tag
 {
     __be32 block_number;
-    __be16 checksum;
+    __be16 checksum;        // crc32c(uuid+seq+block) low 16 bits
     __be16 flags;
     __be32 block_number_hi;
 };
@@ -409,7 +414,7 @@ struct jbd2_superblock
     __be32 required_features;
     __be32 optional_features;
     __be32 readonly_features;   // currently unused
-    guid_t uuid;
+    guid_t uuid;                // "uuid" for jbd2 structure checksums means this field, NOT the ext superblock uuid
     __be32 fs_using_count;
     __be32 jsb_dyn_su_copy_block;
     __be32 jbpt_max;            // currently unused
@@ -419,7 +424,7 @@ struct jbd2_superblock
     __be32 fast_commit_blocks;
     __be32 log_head_block;
     uint32_t pad1[40];
-    __be32 checksum;
+    __be32 checksum;            // crc32c(superblock)
     guid_t fs_using_ids[48];
 };
 struct jbd2_journal_txn
@@ -605,7 +610,7 @@ public:
     bool persist_inode(uint32_t inode_num);
     bool persist(ext_file_vnode* n);
     bool persist(ext_directory_vnode* n);
-    fs_node* put_dirent_node(ext_dir_entry* de);
+    fs_node* dirent_to_vnode(ext_dir_entry* de);
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };

@@ -25,6 +25,7 @@ char *extfs::allocate_block_buffer() { char* result = std::allocator<char>{}.all
 void extfs::free_block_buffer(disk_block& bl) { std::allocator<char>{}.deallocate(bl.data_buffer, block_size()); }
 off_t extfs::inode_block_offset(uint32_t inode) { return off_t((inode % inodes_per_block()) * sb->inode_size); }
 uint64_t extfs::group_num_for_inode(uint32_t inode) { return (static_cast<size_t>(inode - 1)) / sb->inodes_per_group; }
+dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
 extfs::extfs(uint64_t volume_start_lba) : 
     filesystem          {}, 
     file_nodes          {}, 
@@ -257,10 +258,7 @@ file_node *extfs::open_fd(tnode* fd)
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) exfn->initialize();
     return n;
 }
-dev_t extfs::xgdevid() const noexcept
-{
-    return dev_t(); // TODO
-}
+
 directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
     return nullptr; // TODO
@@ -280,6 +278,10 @@ void extfs::dldirnode(directory_node* dd)
 void extfs::dlfilenode(file_node* fd)
 {
     // TODO
+}
+uint64_t extfs::claim_next_available_block()
+{
+    return 0; // TODO
 }
 bool extfs::persist(ext_file_vnode* n) 
 { 
@@ -316,7 +318,7 @@ bool extfs::persist_inode(uint32_t inode_num)
     blks.push_back(block_groups[group_num_for_inode(inode_num)].inode_blocks[(inode_num % sb->inodes_per_group) / inodes_per_block()]);
     return fs_journal.create_txn(blks);
 }
-fs_node* extfs::put_dirent_node(ext_dir_entry* de)
+fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
 {
     uint32_t idx = de->inode_idx;
     if(sb->required_features & dirent_type)

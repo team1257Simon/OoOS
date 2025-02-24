@@ -73,6 +73,7 @@ bool ext_directory_vnode::initialize()
 }
 bool ext_directory_vnode::__parse_entries(size_t bs)
 {
+    // a directory in ext is essentially another file consisting of a series of directory entries, which correspond pretty much exactly with the tnodes we've already been using.
     try
     {
         for(size_t i = 0; i < block_data.size(); i++)
@@ -83,7 +84,7 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
             {
                 dirent = reinterpret_cast<ext_dir_entry*>(current_pos + n);
                 if(!dirent->inode_idx) continue;
-                __my_dir.emplace(parent_fs->put_dirent_node(dirent), std::string(dirent->name, dirent->name_len)); // TODO: replace the tnode dir with a hash map (to support dx)
+                __my_dir.emplace(parent_fs->dirent_to_vnode(dirent), std::string(dirent->name, dirent->name_len)); // TODO: maybe replace the tnode dir with a hash map (to support dx)
             }
         }
         return true;
@@ -91,7 +92,6 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
-
 uint64_t ext_directory_vnode::num_files() const noexcept { return __n_files; }
 uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs; }
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode_dir::const_iterator i = __my_dir.begin(); i != __my_dir.end(); i++) result.push_back(i->name()); return result; }

@@ -731,7 +731,7 @@ typedef union __may_alias __guid
         uint16_t data_b;
         uint16_t data_c;
         uint8_t data_d[8];
-    }__pack;
+    } __pack;
     uint64_t data_full[2];
     uint8_t data_bytes[16];
 } __pack __align(1) guid_t;
