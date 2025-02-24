@@ -1,18 +1,19 @@
 #include "fs/ext.hpp"
 bool ext_node_extent_tree::parse_legacy()
 {
+    if(has_init) return true;
     // blocks 0-11 are direct
     for(int i = 0; i < 12; i++)
     {
         uint64_t b = tracked_node->on_disk_node->block_info.legacy_extent.direct_blocks[i];
-        if(!b) return true; // if the block is not present we're done
+        if(!b) return (has_init = true); // if the block is not present we're done
         disk_block* bptr = std::addressof(tracked_node->block_data.emplace_back(b, nullptr)); // the block data buffer will be allocated if and when it is needed
         cached_extent_node* nptr = std::addressof(tracked_extents.emplace_back(bptr, tracked_node, uint16_t(0)));
         base_extent_level.insert_or_assign(static_cast<uint64_t>(i), nptr);
         total_extent++;
     }
     uint64_t ind1 = tracked_node->on_disk_node->block_info.legacy_extent.singly_indirect_block;
-    if(!ind1) return true; // no indirect block pointer means we're done
+    if(!ind1) return (has_init = true); // no indirect block pointer means we're done
     disk_block* single_ptr_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind1, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
     if(!tracked_node->parent_fs->read_from_disk(*single_ptr_block)) { panic("read on single pointer block failed"); return false; }
     uint64_t cur_file_block = 12;
@@ -21,27 +22,28 @@ bool ext_node_extent_tree::parse_legacy()
     {
         cur_file_block = exnode->second->nl_recurse_legacy(this, exnode->first);
         // the function will return 0 to indicate having reached the end of the file's extent; otherwise it will return the next file node. A failure will throw an exception
-        if(!cur_file_block) return true;
+        if(!cur_file_block) return (has_init = true);
         // if we get here, there are more blocks to parse in the doubly-indirect pointers
         uint64_t ind2 = tracked_node->on_disk_node->block_info.legacy_extent.doubly_indirect_block;
         disk_block* di_pointer_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind2, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
         if(!tracked_node->parent_fs->read_from_disk(*di_pointer_block)) { panic("read on double pointer block failed"); return false; }
         exnode = base_extent_level.insert(std::make_pair(cur_file_block, std::addressof(tracked_extents.emplace_back(di_pointer_block, tracked_node, uint16_t(2))))).first;
         cur_file_block = exnode->second->nl_recurse_legacy(this, exnode->first);
-        if(!cur_file_block) return true;
+        if(!cur_file_block) return (has_init = true);
         // if we made it all the way here, there are even more blocks, this time in triply-indirect pointers
         uint64_t ind3 = tracked_node->on_disk_node->block_info.legacy_extent.triply_indirect_block;
         disk_block* tri_pointer_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind3, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
         exnode = base_extent_level.insert(std::make_pair(cur_file_block, std::addressof(tracked_extents.emplace_back(tri_pointer_block, tracked_node, uint16_t(3))))).first;
         if(!tracked_node->parent_fs->read_from_disk(*tri_pointer_block)) { panic("read on triple pointer block failed"); return false; }
         exnode->second->nl_recurse_legacy(this, exnode->first);
-        return true;
+        return (has_init = true);
     } 
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
 bool ext_node_extent_tree::parse_ext4()
 {
+    if(has_init) return true;
     ext_extent_header* h = std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.header);
     if(h->magic != ext_extent_magic) { panic("invalid extent tree header"); return false; }
     ext_extent_node* nodes = tracked_node->on_disk_node->block_info.ext4_extent.root_nodes;
@@ -69,6 +71,7 @@ bool ext_node_extent_tree::parse_ext4()
             total_extent += ext_sz;
         }
     }
+    has_init = true;
     return true;
 }
 cached_extent_node::cached_extent_node(disk_block *bptr, ext_vnode *node, uint16_t d) : blk_offset{ bptr - (d ? node->cached_metadata.data() : node->block_data.data()) }, tracked_node{ node }, depth{ d } {}

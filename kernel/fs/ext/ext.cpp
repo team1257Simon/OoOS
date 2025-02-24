@@ -91,7 +91,7 @@ ext_inode* extfs::read_inode(uint32_t inode_num)
 file_node *extfs::open_fd(tnode* fd)
 {
     file_node* n = fd->as_file();
-    if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) exfn->initialize();
+    if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) { exfn->initialize(); }
     return n;
 }
 directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name)
@@ -114,9 +114,9 @@ void extfs::dlfilenode(file_node* fd)
 {
     // TODO
 }
-uint64_t extfs::claim_next_available_block()
+disk_block extfs::claim_blocks(ext_vnode *requestor, size_t how_many)
 {
-    return 0; // TODO
+    return disk_block(); // TODO
 }
 bool extfs::persist(ext_file_vnode* n) 
 { 

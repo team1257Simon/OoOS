@@ -465,6 +465,7 @@ struct ext_node_extent_tree
     size_t total_extent{};
     std::vector<cached_extent_node> tracked_extents{};        // the actual extent map objects are allocated here
     std::map<uint64_t, cached_extent_node*> base_extent_level{};
+    bool has_init{ false };
     bool parse_legacy();
     bool parse_ext4();
     uint64_t get_disk_blocknum(uint64_t file_block);
@@ -473,19 +474,19 @@ struct ext_node_extent_tree
 struct ext_vnode : public vfs_filebuf_base<char>
 {
     virtual int __ddwrite() override;
-    virtual std::streamsize __overflow(std::streamsize n) override;
     std::vector<disk_block> block_data{}; // all the actual data blocks are recorded here
     std::vector<disk_block> cached_metadata{}; // all metadata blocks, such as extent / indirect block pointers, that are part of the node are cached here
     size_t last_checked_block_idx{};
+    uint32_t inode_number;
     extfs* parent_fs;
     ext_inode* on_disk_node;
     ext_node_extent_tree extents;
-    ext_vnode(extfs* parent, ext_inode* inode);    
+    ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode);
     ext_vnode(extfs* parent, uint32_t inode_number);
+    bool expand_buffer(size_t added_bytes);
     virtual ~ext_vnode();
     virtual bool initialize();
     bool init_extents();
-    void add_block(uint64_t block_number, char* data_ptr);
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
 };
@@ -520,6 +521,7 @@ public:
     using file_node::off_type;
     using file_node::pointer;
     using file_node::const_pointer;
+    virtual std::streamsize __overflow(std::streamsize n) override;
     virtual std::streamsize __ddread(std::streamsize n) override;
     virtual std::streamsize __ddrem() override;
     virtual size_type write(const_pointer src, size_type n) override;
@@ -534,14 +536,19 @@ public:
 };
 constexpr size_t sb_sectors = (sizeof(ext_superblock) / physical_block_size);
 constexpr off_t sb_off = (1024L / physical_block_size);
+struct dirent_idx { unsigned block_num; unsigned block_offs; };
 class ext_directory_vnode : public ext_vnode, public directory_node
 {
     tnode_dir __my_dir;
+    std::map<tnode*, dirent_idx> __dir_index{};
     bool __initialized{};
     size_t __n_subdirs{};
     size_t __n_files{};
     bool __parse_entries(size_t bs);
+    bool __seek_available_entry(size_t name_len);
 public:
+    void write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
+    virtual std::streamsize __overflow(std::streamsize n) override;
     virtual std::streamsize __ddread(std::streamsize n) override;
     virtual std::streamsize __ddrem() override;
     virtual tnode* find(std::string const&) override;
@@ -602,7 +609,7 @@ public:
     uint64_t block_to_lba(uint64_t block);
     uint64_t group_num_for_inode(uint32_t inode);
     uint64_t inode_to_block(uint32_t inode);
-    uint64_t claim_next_available_block();
+    disk_block claim_blocks(ext_vnode* requestor, size_t how_many);
     off_t inode_block_offset(uint32_t inode);
     ext_inode* read_inode(uint32_t inode_num);
     bool write_to_disk(disk_block const& bl);
