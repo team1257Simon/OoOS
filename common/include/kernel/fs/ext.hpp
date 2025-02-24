@@ -427,16 +427,16 @@ struct jbd2_superblock
     __be32 checksum;            // crc32c(superblock)
     guid_t fs_using_ids[48];
 };
-struct jbd2_journal_txn
+struct jbd2_transaction
 {
     transaction_id id;
     std::vector<disk_block> data_blocks;
     jbd2_commit_header commit_header;
     bool execute_and_complete(extfs* fs_ptr);    // actually do the transaction.
 };
-class jbd2_txn_queue : public std::ext::resettable_queue<jbd2_journal_txn>
+class jbd2_transaction_queue : public std::ext::resettable_queue<jbd2_transaction>
 {
-    typedef std::ext::resettable_queue<jbd2_journal_txn> __base;
+    typedef std::ext::resettable_queue<jbd2_transaction> __base;
 public:
     using __base::iterator;
     using __base::const_iterator;
@@ -489,11 +489,11 @@ struct ext_vnode : public vfs_filebuf_base<char>
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
 };
-struct jbd2_journal
+struct jbd2
 {
     extfs* parent_fs;
     jbd2_superblock* sb;
-    jbd2_txn_queue active_transactions;
+    jbd2_transaction_queue active_transactions;
     std::vector<disk_block> replay_blocks;
     uint32_t first_open_block;  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
     bool create_txn(ext_vnode* changed_node);   // this overload is for files and directories (only needed in full journal and writeback mode)
@@ -508,6 +508,7 @@ struct jbd2_journal
     bool execute_pending_txns();
     void free_buffers(std::vector<disk_block>& bufs);
     char* allocate_block_buffer();
+    uint32_t calculate_sb_checksum();
 };
 class ext_file_vnode : public ext_vnode, public file_node
 {
@@ -577,7 +578,7 @@ protected:
     directory_node* root_dir;
     size_t num_blk_groups;
     uint64_t superblock_lba;
-    jbd2_journal fs_journal;
+    jbd2 fs_journal;
     ext_jbd2_mode journal_mode() const;
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
@@ -614,4 +615,5 @@ public:
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };
+template<typename ... Ts> uint32_t blk_crc32(disk_block const& blk, size_t block_size, Ts const* ... rem) { return crc32_calc(blk.data_buffer, block_size * blk.chain_len, crc32c(rem...)); }
 #endif
