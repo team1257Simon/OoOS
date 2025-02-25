@@ -76,6 +76,8 @@ namespace std
         iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
         iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__node_base*>(pos.__my_node)) }; }
         iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.__my_node, end.__my_node) }; }
+        iterator max() noexcept { __link_t r = this->__l_rightmost(); if(r) return iterator(r); return end(); }
+        const_iterator max() const noexcept { __clink_t r = this->__l_rightmost(); if(r) return const_iterator(r); return cend(); }
         constexpr void swap(map& that) noexcept { this->__swap(that); }
         template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U && u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(piecewise_construct, forward_as_tuple(move(u)), tuple<>())); } return r->__get_ref().second; }
         template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U const& u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(piecewise_construct, tuple<U const&>(u), tuple<>())); } return r->__get_ref().second; }

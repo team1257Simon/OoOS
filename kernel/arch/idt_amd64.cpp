@@ -33,12 +33,12 @@ extern "C"
     {
         new (std::addressof(idt_table[vector])) idt_entry_t
         {
-            .isr_low        = static_cast<uint16_t>(isr.val() & 0xFFFF),
+            .isr_low        = static_cast<uint16_t>(isr.full & 0xFFFF),
             .kernel_cs      = 0x8,
             .ist            = static_cast<uint8_t>((vector < 0x30) ? 1 : 0),
             .attributes     = 0xEE,
-            .isr_mid        = static_cast<uint16_t>((isr.val() >> 16) & 0xFFFF),
-            .isr_high       = static_cast<uint32_t>((isr.val()  >> 32) & 0xFFFFFFFF)
+            .isr_mid        = static_cast<uint16_t>((isr.full >> 16) & 0xFFFF),
+            .isr_high       = static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFF)
         };
     }
     [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
@@ -56,7 +56,7 @@ extern "C"
     }
     void idt_init()
     {
-        pic_remap<0x20, 0x28>();
+        pic_remap<0x20ui8, 0x28ui8>();
         for(int i = 0; i < 256; i++) idt_set_descriptor(i, isr_table[i]);
         idt_descriptor.size = 4095;
         idt_descriptor.idt_ptr = &idt_table[0];

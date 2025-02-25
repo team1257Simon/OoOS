@@ -142,22 +142,22 @@ struct block_group_descriptor
     uint32_t block_usage_bitmap_block_idx;
     uint32_t inode_usage_bitmap_block_idx;
     uint32_t inode_table_start_block;
-    uint16_t num_unallocated_blocks;
-    uint16_t num_unallocated_inodes;
+    uint16_t unallocated_blocks;
+    uint16_t free_inodes;
     uint16_t num_directories;
     uint16_t block_group_features;
     uint32_t snapshot_exclude_block;
     uint16_t block_usage_bmp_checkum;
     uint16_t inode_usage_bmp_checksum;
-    uint16_t free_inodes;
+    uint16_t unused_inodes;
     uint16_t group_checksum;    // crc16(sb_uuid+group+desc)
     uint32_t block_usage_bitmap_block_idx_hi;
     uint32_t inode_usage_bitmap_block_idx_hi;
     uint32_t inode_table_start_block_hi;
-    uint16_t num_unallocated_blocks_hi;
-    uint16_t num_unallocated_inodes_hi;
+    uint16_t free_blocks_hi;
+    uint16_t free_inodes_hi;
     uint16_t num_directories_hi;
-    uint16_t free_inodes_hi;    
+    uint16_t unused_inodes_hi;    
     uint32_t snapshot_exclude_block_hi;
     uint16_t block_usage_bmp_checkum_hi;
     uint16_t inode_usage_bmp_checksum_hi;
@@ -166,7 +166,7 @@ struct block_group_descriptor
 constexpr uint16_t ext_extent_magic = 0xF30A;
 struct ext_extent_header
 {
-    uint16_t magic;
+    uint16_t magic{ ext_extent_magic };
     uint16_t entries;
     uint16_t max_entries;
     uint16_t depth;
@@ -206,7 +206,7 @@ union ext_node_extent_root
         uint32_t doubly_indirect_block;
         uint32_t triply_indirect_block;
     } __pack legacy_extent;
-    char symlink_target[60];
+    char link_target[60];   // either a symlink target or device ID
 } __pack;
 struct ext_inode
 {
@@ -219,13 +219,13 @@ struct ext_inode
     uint32_t deletion_time;
     uint16_t gid;
     uint16_t referencing_dirents;
-    uint16_t size_sectors;
+    uint16_t blocks_count_lo;
     uint32_t flags;
     uint32_t os_specific_1;             // unused for now
     ext_node_extent_root block_info;    // either a list of block pointers (direct and indirect) or an extent tree
     uint32_t version_lo;
     uint32_t file_acl_block;
-    uint32_t dir_acl_block;             // for a file, this will instead be the high bits of the file size
+    uint32_t size_hi;
     uint32_t fragment_block;
     uint16_t blocks_count_hi;
     uint16_t os_specific_2;
@@ -451,25 +451,33 @@ struct cached_extent_node
     off_t blk_offset;
     ext_vnode* tracked_node;
     uint16_t depth;
-    std::map<uint64_t, cached_extent_node*> next_level_extents{};
+    std::map<uint64_t, off_t> next_level_extents{};
     disk_block* block();
     cached_extent_node(disk_block* bptr, ext_vnode* tracked_node, uint16_t depth);
     size_t nl_recurse_legacy(ext_node_extent_tree* parent, uint64_t start_file_block);
     bool nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t start_file_block);
-    uint64_t get_disk_blocknum_recurse(uint64_t file_block);
-    disk_block* get_block_recurse(uint64_t file_block);
+    bool push_extent_recurse_legacy(ext_node_extent_tree* parent, disk_block* blk);
+    bool push_extent_recurse_ext4(ext_node_extent_tree* parent, disk_block* blk);
+    uint64_t get_disk_blocknum_recurse(ext_node_extent_tree* parent, uint64_t file_block);
+    disk_block* get_block_recurse(ext_node_extent_tree* parent, uint64_t file_block);
 };
 struct ext_node_extent_tree
 {
     ext_vnode* tracked_node;
     size_t total_extent{};
     std::vector<cached_extent_node> tracked_extents{};        // the actual extent map objects are allocated here
-    std::map<uint64_t, cached_extent_node*> base_extent_level{};
+    std::map<uint64_t, off_t> base_extent_level{};
     bool has_init{ false };
     bool parse_legacy();
     bool parse_ext4();
     uint64_t get_disk_blocknum(uint64_t file_block);
     disk_block* get_extent_block(uint64_t file_block);
+    bool push_extent_legacy(disk_block* blk);
+    bool push_extent_ext4(disk_block* blk);
+    bool ext4_root_overflow();
+    off_t cached_node_pos(cached_extent_node const& n);
+    off_t cached_node_pos(cached_extent_node const* n);
+    cached_extent_node* get_cached(off_t which);
 };
 struct ext_vnode : public vfs_filebuf_base<char>
 {
@@ -531,6 +539,7 @@ public:
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
     virtual pos_type tell() const;
+    virtual ~ext_file_vnode();
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
 };
@@ -571,6 +580,12 @@ struct ext_block_group
     disk_block inode_usage_bmp;
     disk_block blk_usage_bmp;
     std::vector<disk_block> inode_blocks;
+    bool has_available_inode();
+    bool has_available_blocks();
+    bool has_available_blocks(size_t n);
+    void alter_available_blocks(int64_t diff);
+    void decrement_inode_ct();
+    void increment_inode_ct();
     ext_block_group(extfs* parent, block_group_descriptor* desc);
     ~ext_block_group();
 };
@@ -598,6 +613,7 @@ protected:
     void initialize();
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
+    uint32_t claim_inode();
 public:
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);
@@ -609,7 +625,8 @@ public:
     uint64_t block_to_lba(uint64_t block);
     uint64_t group_num_for_inode(uint32_t inode);
     uint64_t inode_to_block(uint32_t inode);
-    disk_block claim_blocks(ext_vnode* requestor, size_t how_many);
+    disk_block* claim_blocks(ext_vnode* requestor, size_t how_many);
+    disk_block* claim_metadata_block(ext_node_extent_tree* requestor);
     off_t inode_block_offset(uint32_t inode);
     ext_inode* read_inode(uint32_t inode_num);
     bool write_to_disk(disk_block const& bl);

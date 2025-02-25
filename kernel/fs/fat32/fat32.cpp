@@ -4,7 +4,7 @@
 bool fat32::__has_init{ false };
 fat32* fat32::__instance;
 static std::aligned_allocator<fat32, filesystem> fat_alloc{};
-uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect) { fat32_allocation_table::iterator i = tb.next_available(); if(i == tb.end()) return 0; if(last_sect) { tb[last_sect] = (tb[last_sect] & fat32_cluster_pres) | (i.offs() & fat32_cluster_mask); } *i |= fat32_cluster_mask; return i.offs(); }
+uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect) { for(uint32_t i = 3; i < tb.size(); i++) { if((tb[i] & fat32_cluster_mask) == 0) { if(last_sect > 2) { tb[last_sect] |= (i & fat32_cluster_mask); } tb[i] |= fat32_cluster_eof; return i; } } return 0; }
 uint64_t figure_start_sector() { if(ahci_hda::is_initialized() && !ahci_hda::get_partition_table().empty()) { return ahci_hda::get_partition_table().front().start_lba; } return 2048UL; /* default value assumed for now */ }
 fat32_allocation_table::fat32_allocation_table(size_t num_sectors, size_t bytes_per_sector, uint64_t start_sector) : __base{ num_sectors * bytes_per_sector / sizeof(uint32_t) }, __num_sectors{ num_sectors }, __start_sector{ start_sector } { get_from_disk(); }
 bool fat32_allocation_table::sync_to_disk() const { return ahci_hda::is_initialized() && ahci_hda::write(__start_sector, reinterpret_cast<const char*>(this->__beg()), this->__num_sectors); }
@@ -22,7 +22,7 @@ void fat32::syncdirs()
     __the_table.sync_to_disk();
 }
 directory_node* fat32::get_root_directory() { return __root_directory; }
-file_node* fat32::open_fd(tnode* n) { if(fat32_file_node* fn = dynamic_cast<fat32_file_node*>(n->as_file())) {fn->set_fd(this->next_fd++); fn->on_open(); return fn; } return nullptr; }
+file_node* fat32::open_fd(tnode* n) { if(fat32_file_node* fn = dynamic_cast<fat32_file_node*>(n->as_file())) { fn->set_fd(this->next_fd++); fn->on_open(); return fn; } return nullptr; }
 void fat32::dlfilenode(file_node* fd)
 {
     fd->prune_refs();

@@ -203,7 +203,7 @@ namespace std
     [[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base* x, __node_base* p, __node_base& trunk) throw();
     [[gnu::nonnull]][[gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk) throw();
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
-    class __tree_base : __tree_trunk
+    class __tree_base : protected __tree_trunk
     {
     protected: 
         typedef __node_base* __b_ptr;

@@ -159,7 +159,7 @@ public:
     constexpr const_iterator end() const noexcept { return cend(); }
     constexpr reference operator[](size_type n) noexcept { return *(this->__get_ptr(n)); }
     constexpr const_reference operator[](size_type n) const noexcept { return *(this->__get_ptr(n)); }
-    constexpr iterator next_available() noexcept { for(size_t i = 3; i < this->size(); i++) { if(((*this)[i] & fat32_cluster_mask )== 0) return from(static_cast<uint32_t>(i)); } return end(); }
+    constexpr iterator next_available() noexcept { for(size_t i = 3; i < this->size(); i++) { if(((*this)[i] & fat32_cluster_mask) == 0) return from(static_cast<uint32_t>(i)); } return end(); }
     constexpr const_iterator next_available() const noexcept { for(size_t i = 3; i < this->size(); i++) { if(((*this)[i] & fat32_cluster_mask) == 0) return from(static_cast<uint32_t>(i)); } return end(); }
 };
 uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect = 0U);

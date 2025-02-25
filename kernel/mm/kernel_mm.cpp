@@ -187,7 +187,7 @@ static void __unmap_pages(addr_t start, size_t pages, addr_t pml4 = get_cr3())
                 pt[curr.page_idx].user_access = false;
                 pt[curr.page_idx].execute_disable = false;
                 pt[curr.page_idx].physical_address = 0u;
-                asm volatile("invlpg (%0)" :: "r"(curr.val()) : "memory");
+                asm volatile("invlpg (%0)" :: "r"(curr.full) : "memory");
             }
         }
     }
@@ -563,7 +563,7 @@ extern "C"
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != UFRAME_MAGIC || !len || size_t(offset) > len || offset % PAGESIZE) return addr_t{ uintptr_t(-EINVAL) };
         if(!prot) return nullptr;
-        addr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.val()));
+        addr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.full));
         if(min != min.page_aligned()) min = min.plus(PAGESIZE).page_aligned();
         if(!(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
         else if(addr && (addr < min || addr != addr.page_aligned())) return addr_t{ uintptr_t(-EINVAL) };

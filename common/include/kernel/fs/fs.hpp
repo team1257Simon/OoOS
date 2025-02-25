@@ -245,8 +245,8 @@ protected:
     virtual void dldevnode(device_node*);
     virtual device_node* mkdevnode(directory_node*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
 public:
+    virtual device_node* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);
     void link_stdio(vfs_filebuf_base<char>* target);
-    device_node* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);
     file_node* get_fd(int fd);      
     file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);

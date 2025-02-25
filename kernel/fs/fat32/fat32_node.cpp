@@ -49,7 +49,7 @@ fat32_file_node::pos_type fat32_file_node::tell() const { return pos_type(__my_f
 fat32_file_node::pos_type fat32_file_node::seek(pos_type pos) { return __my_filebuf.seekpos(pos); }
 fat32_file_node::pos_type fat32_file_node::seek(off_type off, std::ios_base::seekdir way) { return __my_filebuf.seekoff(off, way); }
 fat32_file_node::size_type fat32_file_node::read(pointer dest, size_type n) { return __my_filebuf.xsgetn(dest, n); }
-fat32_file_node::size_type fat32_file_node::write(const_pointer src, size_type n) { size_t result = __my_filebuf.xsputn(src, n); this->__on_disk_size += result; if(!fsync()) return 0; return result; }
+fat32_file_node::size_type fat32_file_node::write(const_pointer src, size_type n) { size_t result = __my_filebuf.xsputn(src, n); this->__my_filebuf.__cur()[0] = std::char_traits<char>::eof(); this->__on_disk_size = size_t(this->tell()); if(!fsync()) return 0; return result; }
 fat32_regular_entry *fat32_directory_node::find_dirent(std::string const& name) { if(tnode_dir::iterator i = __my_directory.find(name); i != __my_directory.end()) { if(fat32_node* n = dynamic_cast<fat32_node*>(i->ptr()); n && n->parent_dir) return n->disk_entry(); } return nullptr; }
 uint64_t fat32_directory_node::num_files() const noexcept { return __n_files; }
 uint64_t fat32_directory_node::num_subdirs() const noexcept { return __n_folders; }
@@ -184,8 +184,6 @@ tnode* fat32_directory_node::add(fs_node* n)
         bool hidden = !n->mode.read_others && !n->mode.read_group && !n->mode.read_owner;
         bool system = n->mode.exec_others || n->mode.exec_group || n->mode.exec_owner;
         e->attributes = (directory ? 0x10 : 0) | (read_only ? 0x01 : 0) | (hidden ? 0x02 : 0) | (system ? 0x04 : 0);
-        e->first_cluster_hi = cluster.hi;
-        e->first_cluster_lo = cluster.lo;
         init_times(*e);
         e->winnt_reserved = 0;
         e->size_bytes = 0;

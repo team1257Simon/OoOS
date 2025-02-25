@@ -88,7 +88,7 @@ constexpr void irq_clear_mask(uint8_t idx) { outb(data_pic1, inb(data_pic1) & ~d
 template<byte R> constexpr void rtc_select() { uint8_t prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80) | R); }
 template<byte R> constexpr byte read_rtc_register() { rtc_select<R>(); return inb(data_rtc); }
 template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
-constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0A>() & 0x80) != 0; }
+constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0Aui8>() & 0x80) != 0; }
 constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
 inline void fx_save(task_t* tx) { asm volatile("fxsave %0" : "=m"(tx->fxsv) :: "memory"); }
 inline void fx_restore(task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx->fxsv) :: "memory"); }

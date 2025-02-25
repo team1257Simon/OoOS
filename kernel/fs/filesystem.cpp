@@ -87,7 +87,17 @@ directory_node* filesystem::get_dir(std::string const& path, bool create)
     if(path.empty()) return this->get_root_directory(); // empty path or "/" refers to root directory
     target_pair parent = this->get_parent(path, create);
     tnode* node = parent.first->find(parent.second);
-    if(!node) { if(create) { node = parent.first->add(this->mkdirnode(parent.first, parent.second)); return node->as_folder(); } else throw std::logic_error{ "path " + path + " does not exist (use get_dir(\"" + path + "\", true) to create it)" }; }
+    if(!node) 
+    { 
+        if(create) 
+        {
+            directory_node* cn = this->mkdirnode(parent.first, parent.second);
+            if(!cn) throw std::runtime_error{ "failed to create " + path };
+            node = parent.first->add(cn); 
+            return node->as_folder(); 
+        } 
+        else throw std::logic_error{ "path " + path + " does not exist (use get_dir(\"" + path + "\", true) to create it)" }; 
+    }
     else if (node->is_file()) throw std::logic_error{ "path " + path + " exists and is a file" };
     else return node->as_folder();
 }
