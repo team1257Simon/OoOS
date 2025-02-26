@@ -206,7 +206,7 @@ union ext_node_extent_root
         uint32_t doubly_indirect_block;
         uint32_t triply_indirect_block;
     } __pack legacy_extent;
-    char link_target[60];   // either a symlink target or device ID
+    char link_target[60]{};   // either a symlink target or device ID
 } __pack;
 struct ext_inode
 {
@@ -555,8 +555,9 @@ class ext_directory_vnode : public ext_vnode, public directory_node
     size_t __n_files{};
     bool __parse_entries(size_t bs);
     bool __seek_available_entry(size_t name_len);
+    void __write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
 public:
-    void write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
+    bool add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     virtual std::streamsize __overflow(std::streamsize n) override;
     virtual std::streamsize __ddread(std::streamsize n) override;
     virtual std::streamsize __ddrem() override;
@@ -614,6 +615,8 @@ protected:
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
     uint32_t claim_inode();
+    bool release_inode(uint32_t num);
+    void release_blocks(uint64_t start, size_t num);
 public:
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);

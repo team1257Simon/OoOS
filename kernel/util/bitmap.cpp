@@ -26,16 +26,34 @@ void bitmap_set_cbits(unsigned long *bitmap, off_t bit_pos, size_t num_bits)
 {
     off_t ulpos = bit_pos / ulsize;
     off_t bit_off = bit_pos % ulsize;
-    uint64_t mask = num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
-    bitmap[ulpos] |= (mask << bit_off);
-    if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] |= (mask >> ((num_bits + bit_off) % ulsize));
+    if(num_bits >= ulsize) 
+    { 
+        size_t actual = std::min(num_bits, size_t(ulsize - bit_off));
+        bitmap[ulpos] |= (~0UL << bit_off); 
+        if(num_bits > actual) { bitmap_set_cbits(bitmap, bit_pos + actual, size_t(num_bits - actual)); } 
+    }
+    else
+    {
+        uint64_t mask = num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
+        bitmap[ulpos] |= (mask << bit_off);
+        if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] |= (mask >> ((num_bits + bit_off) % ulsize));
+    }
 }
 void bitmap_clear_cbits(unsigned long *bitmap, off_t bit_pos, size_t num_bits)
 {
     off_t ulpos = bit_pos / ulsize;
     off_t bit_off = bit_pos % ulsize;
-    uint64_t mask = num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
-    bitmap[ulpos] &= ~(mask << bit_off);
-    if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] &= ~(mask >> ((num_bits + bit_off) % ulsize));
+    if(num_bits >= ulsize)
+    { 
+        size_t actual = std::min(num_bits, 
+        size_t(ulsize - bit_off)); bitmap[ulpos] &= ~(~0UL << bit_off); 
+        if(num_bits > actual) { bitmap_set_cbits(bitmap, bit_pos + actual, size_t(num_bits - actual)); } 
+    }
+    else
+    {
+        uint64_t mask = num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
+        bitmap[ulpos] &= ~(mask << bit_off);
+        if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] &= ~(mask >> ((num_bits + bit_off) % ulsize));
+    }
 }
 off_t bitmap_scan_sz(const unsigned long *bitmap, size_t num_ulongs) { for(size_t i = 0; i < num_ulongs; i++) { if(unsigned long ul = ~(bitmap[i])) return (ulsize * i) + __builtin_ctzl(ul); } return -1L; }

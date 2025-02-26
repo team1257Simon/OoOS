@@ -23,10 +23,12 @@ bool jbd2::create_txn(ext_vnode *changed_node)
     std::vector<disk_block> dirty_blocks{};
     for(std::vector<disk_block>::iterator i = changed_node->block_data.begin(); i != changed_node->block_data.end(); i++) { if(i->dirty && i->data_buffer) { i->dirty = false; dirty_blocks.push_back(*i); } }
     for(std::vector<disk_block>::iterator i = changed_node->cached_metadata.begin(); i != changed_node->cached_metadata.end(); i++) { if(i->dirty) { i->dirty = false; dirty_blocks.push_back(*i); } }
+    if(dirty_blocks.empty()) return true; // vacuous success; nothing to do
     return create_txn(dirty_blocks);
 }
 bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 {
+    if(txn_blocks.empty()) return true; // vacuous success; nothing to do
     size_t tpb = tags_per_block();
     disk_block tb{ first_open_block++, allocate_block_buffer(), false, 1U };
     uint32_t s = 0;

@@ -51,6 +51,7 @@ bool ext_node_extent_tree::parse_ext4()
     if(has_init) return true;
     ext_extent_header* h = std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.header);
     if(h->magic != ext_extent_magic) { panic("invalid extent tree header"); return false; }
+    if(!h->entries) return (has_init = true); // no entries means we're done (empty file, or newly created)
     ext_extent_node* nodes = tracked_node->on_disk_node->block_info.ext4_extent.root_nodes;
     size_t num = std::min(size_t(h->entries), 4UL);
     uint64_t cur_file_block;
@@ -241,6 +242,7 @@ static void populate_index(ext_extent_index& index, uint64_t next, uint64_t fn_s
 }
 bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
 {
+    if(!has_init && !parse_ext4()) return false;
     bool need_inode_persist = false;
     if(tracked_node->on_disk_node->block_info.ext4_extent.header.depth == 0)
     {

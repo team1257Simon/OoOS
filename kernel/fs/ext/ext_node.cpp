@@ -55,11 +55,7 @@ std::streamsize ext_file_vnode::__overflow(std::streamsize n)
 {
     size_t bs = parent_fs->block_size();
     size_t needed = div_roundup(n, bs);
-    if(disk_block *blk = parent_fs->claim_blocks(this, needed))
-    {
-        if(!expand_buffer(bs * blk->chain_len)) return 0;
-        return bs * blk->chain_len;
-    }
+    if(disk_block *blk = parent_fs->claim_blocks(this, needed)) { if(!expand_buffer(bs * blk->chain_len)) return 0; return bs * blk->chain_len; }
     return 0;
 }
 std::streamsize ext_file_vnode::__ddread(std::streamsize n)
@@ -79,6 +75,7 @@ ext_file_vnode::size_type ext_file_vnode::write(const_pointer src, size_type n)
     size_type result = this->sputn(src, n);
     size_t post_wr_next_block = block_of_data_ptr(this->__size()) + 1UL;
     for(size_t i = pre_wr_cur_block; i < post_wr_next_block && i < block_data.size(); i++) extents.get_extent_block(i)->dirty = true;
+    if(!fsync()) return 0UL;
     return result;
 }
 std::streamsize ext_directory_vnode::__overflow(std::streamsize n)
@@ -118,7 +115,7 @@ bool ext_directory_vnode::__seek_available_entry(size_t name_len)
     this->__setc(this->__max());
     return false; // indicate no open entries by having the pointer at the end of the directory file and returning false
 }
-void ext_directory_vnode::write_dir_entry(ext_vnode *vnode, ext_dirent_type type, const char *name, size_t name_len)
+void ext_directory_vnode::__write_dir_entry(ext_vnode *vnode, ext_dirent_type type, const char *name, size_t name_len)
 {
     ext_dir_entry* dirent = reinterpret_cast<ext_dir_entry*>(this->__cur());
     dirent->name_len = name_len;
@@ -127,30 +124,31 @@ void ext_directory_vnode::write_dir_entry(ext_vnode *vnode, ext_dirent_type type
     dirent->inode_idx = vnode->inode_number;
     this->block_data[block_of_data_ptr(this->tell())].dirty = true;
 }
+bool ext_directory_vnode::add_dir_entry(ext_vnode *vnode, ext_dirent_type type, const char *name, size_t name_len)
+{
+    if(!__seek_available_entry(name_len)) 
+    {
+        if(__cur() < __max())
+        {
+            ext_dir_entry* dirent = reinterpret_cast<ext_dir_entry*>(this->__cur());
+            size_t rem = unused_dirent_space(*dirent);
+            size_t nsz = dirent->name_len + 8UL;
+            dirent->entry_size = nsz;
+            this->__setc(reinterpret_cast<char*>(dirent + nsz));
+            reinterpret_cast<ext_dir_entry*>(this->__cur())->entry_size = rem;
+        }
+        else if(!this->__overflow(name_len + 8)) return false;
+    }
+    __write_dir_entry(vnode, type, name, name_len);
+    vnode->on_disk_node->referencing_dirents++;
+    if(type == dti_dir) __n_subdirs++;
+    else __n_files++;
+    return parent_fs->persist_inode(vnode->inode_number) && parent_fs->persist(this);
+}
 bool ext_directory_vnode::link(tnode* original, std::string const& target)
 {
-    if(ext_vnode* vnode = dynamic_cast<ext_vnode*>(original->ptr()))
-    {
-        const char* name = target.data();
-        size_t name_len = target.size();
-        ext_dirent_type type = original->is_file() ? dti_regular : dti_dir;
-        if(!__seek_available_entry(name_len)) 
-        {
-            if(__cur() < __max())
-            {
-                ext_dir_entry* dirent = reinterpret_cast<ext_dir_entry*>(this->__cur());
-                size_t rem = unused_dirent_space(*dirent);
-                size_t nsz = dirent->name_len + 8UL;
-                dirent->entry_size = nsz;
-                this->__setc(reinterpret_cast<char*>(dirent + nsz));
-                reinterpret_cast<ext_dir_entry*>(this->__cur())->entry_size = rem;
-            }
-            else if(!this->__overflow(name_len + 8)) return false;
-        }
-        write_dir_entry(vnode, type, name, name_len);
-        vnode->on_disk_node->referencing_dirents++;
-        return parent_fs->persist_inode(vnode->inode_number) && parent_fs->persist(this);
-    }
+    ext_dirent_type type = original->is_file() ? dti_regular : dti_dir;
+    if(ext_vnode* vnode = dynamic_cast<ext_vnode*>(original->ptr())) return add_dir_entry(vnode, type, target.data(), target.size());
     // TODO device hardlinks
     return false;
 }
