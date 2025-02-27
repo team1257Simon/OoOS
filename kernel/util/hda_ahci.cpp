@@ -43,14 +43,16 @@ std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
     if(!__instance.__drv) { panic("cannot read disk before initializing read accessor"); return 0; } 
     size_t rem = count;
     size_t t_read = 0;
+    size_t s_read = 0;
     __instance.__read_buffer.clear();
     size_t n = __count_to_wide_streamsize(count);
     if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
     while(rem)
     {
         size_t sct = std::min(rem, max_op_sectors);
-        if(!__instance.__read_ahci(start_sector, sct, __instance.__read_buffer.beg() + t_read)) { panic("bad read"); return 0; }
+        if(!__instance.__read_ahci(start_sector + s_read, sct, __instance.__read_buffer.beg() + t_read)) { panic("bad read"); return 0; }
         t_read += __count_to_wide_streamsize(sct);
+        s_read += sct;
         rem -= sct;
     }
     __instance.__read_buffer.__update_end(t_read);
@@ -61,14 +63,18 @@ std::streamsize ahci_hda::write(uint64_t start_sector, const char *in, uint32_t 
 {
     if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return 0; }
     size_t t_write = 0;
-    size_t rem = count;
+    size_t s_write = 0;
     __instance.__write_buffer.clear();
+    size_t n = __count_to_wide_streamsize(count);
+    if(!__instance.__write_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
     std::streamsize result = __instance.__write_buffer.sputn(reinterpret_cast<uint16_t const*>(in), __count_to_wide_streamsize(count)) * 2;
+    size_t rem = count;
     while(rem) 
     {
         size_t sct = std::min(rem, max_op_sectors);
-        if(!__instance.__write_ahci(start_sector, sct, __instance.__write_buffer.beg() + t_write)) { panic("bad write"); return 0; }
+        if(!__instance.__write_ahci(start_sector + s_write, sct, __instance.__write_buffer.beg() + t_write)) { panic("bad write"); return 0; }
         t_write += __count_to_wide_streamsize(sct);
+        s_write += sct;
         rem -= sct;
     }
     return result;

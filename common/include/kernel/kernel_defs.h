@@ -760,8 +760,8 @@ typedef union [[gnu::may_alias]] __byte
     } __pack;
     uint8_t full{};
     constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : b0{ v0 }, b1{ v1 }, b2{ v2 }, b3{ v3 }, b4{ v4 }, b5{ v5 }, b6{ v6 }, b7{ v7 } {}
-	constexpr __byte(uint8_t i) noexcept : full{ i }{}
-    template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte{ uint8_t(it) } {}
+	constexpr __byte(uint8_t i) noexcept : full{ i } {}
+    template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte{ static_cast<uint8_t>(it) } {}
 	constexpr __byte() noexcept = default;
     constexpr __byte(__byte const&) noexcept = default;
     constexpr __byte(__byte&&) noexcept = default;
@@ -771,7 +771,7 @@ typedef union [[gnu::may_alias]] __byte
     constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
     constexpr operator uint8_t() const noexcept { return full; }
-    constexpr bool operator[](uint8_t i) const noexcept { if(__builtin_is_constant_evaluated()) { return full & (1 << i); } return i == 0 ? b0  : (i == 1 ? b1  : (i == 2 ? b2  : (i == 3 ? b3  : (i == 4 ? b4  : (i == 5 ? b5  : (i == 6 ? b6  : (i == 7 ? b7  : false))))))); }
+    constexpr bool operator[](uint8_t i) const noexcept { if(__builtin_is_constant_evaluated()) { return full & (1 << i); } return i == 0 ? b0 : (i == 1 ? b1 : (i == 2 ? b2 : (i == 3 ? b3 : (i == 4 ? b4 : (i == 5 ? b5 : (i == 6 ? b6 : (i == 7 ? b7 : false))))))); }
     constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
     constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
     constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
@@ -794,16 +794,16 @@ typedef struct __word
     byte hi;
     constexpr __word() noexcept = default;
     constexpr __word(byte l, byte h) noexcept : lo{ l }, hi{ h } {}
-    constexpr __word(uint16_t value) noexcept : lo{ byte(value & 0x00FFu) }, hi{ byte((value & 0xFF00) >> 8) } {}
-    template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __word(IT it) noexcept : __word{ uint16_t(it) } {}
+    constexpr __word(uint16_t value) noexcept : lo{ byte(static_cast<uint8_t>(value & 0x00FF)) }, hi{ byte(static_cast<uint8_t>((value & 0xFF00) >> 8)) } {}
+    template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __word(IT it) noexcept : __word{ static_cast<uint16_t>(it) } {}
     constexpr __word(__word const&) noexcept = default;
     constexpr __word(__word&&) noexcept = default;
     constexpr __word& operator=(__word const&) noexcept = default;
     constexpr __word& operator=(__word&&) noexcept = default;
     constexpr ~__word() noexcept = default;
     constexpr volatile __word& operator=(__word const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __word& operator=(__word&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
-    constexpr operator uint16_t() const noexcept { return (uint16_t(hi) << 8) | lo; }    
+    constexpr volatile __word& operator=(__word&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr operator uint16_t() const noexcept { return (static_cast<uint16_t>(hi.full) << 8) | lo; }    
     constexpr __word& operator|=(__word const& that) noexcept { return *this = (*this | that); }
     constexpr __word& operator&=(__word const& that) noexcept { return *this = (*this & that); }
     constexpr __word& operator+=(__word const& that) noexcept { return *this = (*this + that); }
@@ -824,8 +824,8 @@ typedef struct __dword
     word hi;
     constexpr __dword() noexcept = default;
     constexpr __dword(word l, word h) noexcept : lo{ l }, hi{ h } {}
-    constexpr __dword(uint32_t value) noexcept : lo{ uint16_t(value & 0x0000FFFFu) }, hi{ uint16_t((value & 0xFFFF0000) >> 16) } {}
-    template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __dword(IT it) noexcept : __dword{ uint32_t(it) } {}
+    constexpr __dword(uint32_t value) noexcept : lo{ static_cast<uint16_t>(value & 0x0000FFFF) }, hi{ static_cast<uint16_t>((value & 0xFFFF0000) >> 16) } {}
+    template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __dword(IT it) noexcept : __dword{ static_cast<uint32_t>(it) } {}
     constexpr __dword(__dword const&) noexcept = default;
     constexpr __dword(__dword&&) noexcept = default;
     constexpr __dword& operator=(__dword const&) noexcept = default;
@@ -833,7 +833,7 @@ typedef struct __dword
     constexpr ~__dword() noexcept = default;
     constexpr volatile __dword& operator=(__dword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __dword& operator=(__dword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this;  }
-    constexpr operator uint32_t() const noexcept { return uint32_t(uint16_t(lo) | (uint32_t(uint16_t(hi)) << 16)); }
+    constexpr operator uint32_t() const noexcept { return static_cast<uint32_t>(static_cast<uint16_t>(lo) | (static_cast<uint32_t>(static_cast<uint16_t>(hi)) << 16)); }
     constexpr __dword& operator|=(__dword const& that) noexcept { return *this = (*this | that); }
     constexpr __dword& operator&=(__dword const& that) noexcept { return *this = (*this & that); }
     constexpr __dword& operator+=(__dword const& that) noexcept { return *this = (*this + that); }
@@ -854,8 +854,8 @@ typedef struct __qword
     dword hi;
     constexpr __qword() noexcept = default;
     constexpr __qword(dword l, dword h) noexcept : lo{ l }, hi{ h } {}
-    constexpr __qword(uint64_t value) noexcept : lo{ uint32_t(value & 0x00000000FFFFFFFFu) }, hi{ uint32_t((value & 0xFFFFFFFF00000000u) >> 32) } {}
-    template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __qword(IT it) noexcept : __qword{ uint64_t(it) } {}
+    constexpr __qword(uint64_t value) noexcept : lo{ static_cast<uint32_t>(value & 0x00000000FFFFFFFF) }, hi{ static_cast<uint32_t>((value & 0xFFFFFFFF00000000) >> 32) } {}
+    template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __qword(IT it) noexcept : __qword{ static_cast<uint64_t>(it) } {}
     constexpr __qword(__qword const&) noexcept = default;
     constexpr __qword(__qword&&) noexcept = default;
     constexpr __qword& operator=(__qword const&) noexcept = default;
@@ -863,7 +863,7 @@ typedef struct __qword
     constexpr ~__qword() noexcept = default;
     constexpr volatile __qword& operator=(__qword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
     constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr operator uint64_t() const noexcept { return uint64_t(uint32_t(lo) | (uint64_t(uint32_t(hi)) << 32)); }
+    constexpr operator uint64_t() const noexcept { return static_cast<uint64_t>(static_cast<uint32_t>(lo) | (static_cast<uint64_t>(static_cast<uint32_t>(hi)) << 32)); }
     constexpr __qword& operator|=(__qword const& that) noexcept { return *this = (*this | that); }
     constexpr __qword& operator&=(__qword const& that) noexcept { return *this = (*this & that); }
     constexpr __qword& operator+=(__qword const& that) noexcept { return *this = (*this + that); }
@@ -890,7 +890,7 @@ typedef struct __s_be16
 {
     uint8_t hi;
     uint8_t lo;
-    constexpr explicit __s_be16(uint16_t i) noexcept : hi{ uint8_t((i >> 8) & 0xFF) }, lo{ uint8_t(i & 0xFF) } {}
+    constexpr explicit __s_be16(uint16_t i) noexcept : hi{ static_cast<uint8_t>((i >> 8) & 0xFF) }, lo{ static_cast<uint8_t>(i & 0xFF) } {}
     constexpr __s_be16() noexcept = default;
     constexpr __s_be16(__s_be16&&) noexcept = default;
     constexpr __s_be16(__s_be16 const&) noexcept = default;
@@ -904,7 +904,7 @@ typedef struct __s_be32
 {
     __be16 hi;
     __be16 lo;
-    constexpr explicit __s_be32(uint32_t i) noexcept : hi{ uint16_t((i >> 16) & 0xFFFF) }, lo{ uint16_t(i & 0xFFFF) } {}
+    constexpr explicit __s_be32(uint32_t i) noexcept : hi{ static_cast<uint16_t>((i >> 16) & 0xFFFF) }, lo{ static_cast<uint16_t>(i & 0xFFFF) } {}
     constexpr __s_be32() noexcept = default;
     constexpr __s_be32(__s_be32&&) noexcept = default;
     constexpr __s_be32(__s_be32 const&) noexcept = default;
@@ -918,7 +918,7 @@ typedef struct __s_be64
 {
     __be32 hi;
     __be32 lo;
-    constexpr explicit __s_be64(uint64_t i) noexcept : hi{ uint32_t((i >> 32) & 0xFFFFFFFF) }, lo{ uint32_t(i & 0xFFFFFFFF) } {}
+    constexpr explicit __s_be64(uint64_t i) noexcept : hi{ static_cast<uint32_t>((i >> 32) & 0xFFFFFFFF) }, lo{ static_cast<uint32_t>(i & 0xFFFFFFFF) } {}
     constexpr __s_be64() noexcept = default;
     constexpr __s_be64(__s_be64&&) noexcept = default;
     constexpr __s_be64(__s_be64 const&) noexcept = default;
@@ -929,15 +929,15 @@ typedef struct __s_be64
     constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
 } __pack __be64;
 
-constexpr __be16 operator""_be16(unsigned long long i) noexcept { return __be16(uint16_t(i)); }
-constexpr __be32 operator""_be32(unsigned long long i) noexcept { return __be32(uint32_t(i)); }
-constexpr __be64 operator""_be64(unsigned long long i) noexcept { return __be64(uint64_t(i)); }
+constexpr __be16 operator""_be16(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
+constexpr __be32 operator""_be32(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
+constexpr __be64 operator""_be64(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
 #pragma endregion
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
-constexpr byte operator""ui8(unsigned long long i) noexcept { return byte{ uint8_t(i) }; }
-constexpr word operator""ui16(unsigned long long i) noexcept { return word{ uint16_t(i) }; }
-constexpr dword operator""ui32(unsigned long long i) noexcept { return dword{ uint32_t(i) }; }
+constexpr byte operator""ui8(unsigned long long i) noexcept { return byte(static_cast<uint8_t>(i)); }
+constexpr word operator""ui16(unsigned long long i) noexcept { return word(static_cast<uint16_t>(i)); }
+constexpr dword operator""ui32(unsigned long long i) noexcept { return dword(static_cast<uint32_t>(i)); }
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;

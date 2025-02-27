@@ -41,7 +41,7 @@ tnode::tnode(fs_node* node, const char *name) : __my_node{ node }, __my_name{ na
 tnode::tnode(std::string name) : __my_node { nullptr }, __my_name{ name } {}
 tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
 void tnode::rename(std::string const& n) { __my_name = n; }
-void tnode::rename(const char* n) { __my_name = n; }
+void tnode::rename(const char* n) { this->rename(std::string(n, std::strlen(n))); }
 const char *tnode::name() const { return __my_name.c_str(); }
 fs_node* tnode::ptr() noexcept { return __my_node; }
 fs_node const* tnode::ptr() const noexcept { return __my_node; }

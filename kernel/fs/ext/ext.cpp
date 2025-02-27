@@ -84,6 +84,9 @@ void extfs::initialize()
         }
         block_groups.push_back(bg);
     }
+    ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U).first.base();
+    rdnode->initialize();
+    root_dir = rdnode;
 }
 uint32_t extfs::claim_inode()
 {

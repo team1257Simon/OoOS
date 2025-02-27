@@ -514,6 +514,7 @@ struct jbd2
     off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
     size_t desc_tag_size(bool same_uuid);
     size_t tags_per_block();
+    bool write_block(disk_block const& bl);
     bool execute_pending_txns();
     void free_buffers(std::vector<disk_block>& bufs);
     char* allocate_block_buffer();

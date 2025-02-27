@@ -4,6 +4,7 @@
 #ifdef __cplusplus
 #include "concepts"
 #include "new"
+#include "memory"
 extern "C"
 {
 #else
@@ -21,6 +22,7 @@ void direct_write(const char* str);
 void debug_print_num(uintptr_t num, int lenmax = 16);
 void direct_writeln(const char* str);
 __isrcall void panic(const char* msg) noexcept;
+__isrcall void klog(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
 qword get_flags();
@@ -53,11 +55,12 @@ inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 constexpr inline size_t GIGABYTE = 0x40000000;
 template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
-template<typename T> constexpr void arrayset(T* dest, T const& value, std::size_t n) { for(std::size_t i = 0; i < n; i++, dest++) *dest = value; }
-template<nontrivial_copy T> constexpr void arraycopy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++, ++dest, ++src) *dest = *src; }
-template<typename T> constexpr void arraymove(T* dest, T* src, std::size_t n) { for(size_t i = 0; i < n; ++i, (void)++src) dest[i] = *src; }
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } }
-template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = src[i]; } }
+template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { if(__builtin_is_constant_evaluated()) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(array[i])); } } } }
+template<typename T> constexpr void arrayset(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++, dest++) *dest = value; }
+template<nontrivial_copy T> constexpr void arraycopy(T* dest, const T* src, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++, ++dest, ++src) *dest = *src; }
+template<typename T> constexpr void arraymove(T* dest, T* src, std::size_t n) { init_if_consteval(dest, n); for(size_t i = 0; i < n; ++i, (void)++src) dest[i] = *src; }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { init_if_consteval(dest, n); for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } }
+template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n) { init_if_consteval(dest, n); if(__builtin_is_constant_evaluated()) for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = src[i]; } else __builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T))); }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
     if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++, dest++) { new (__builtin_addressof(dest[i])) T(); }
