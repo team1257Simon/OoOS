@@ -161,7 +161,7 @@ class serial_driver_amd64 : public vfs_filebuf_base<char>, protected virtual std
     using __queue_container = typename __queue::__ptr_container;
     using typename __base::__ptr_container;
     bool __mode_echo{ true };
-    std::streamsize __pos_echo { 0 };
+    std::streamsize __pos_echo{ 0UL };
     void __do_echo();
 public:
     using typename __base::traits_type;

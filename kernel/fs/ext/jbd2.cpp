@@ -32,7 +32,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 {
     if(txn_blocks.empty()) return true; // vacuous success; nothing to do
     size_t tpb = tags_per_block();
-    disk_block tb{ first_open_block++, allocate_block_buffer(), false, 1U };
+    disk_block tb{ first_open_block++, allocate_block_buffer(), false, 1UL };
     uint32_t s = 0;
     uint64_t j = tb.block_number;
     size_t k = 0;
@@ -44,7 +44,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         {
             array_zero(tb.data_buffer, sb->journal_block_size);
             o = static_cast<off_t>(sizeof(jbd2_header));
-            new(reinterpret_cast<jbd2_header*>(tb.data_buffer)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(s++) };
+            new (reinterpret_cast<jbd2_header*>(tb.data_buffer)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(s++) };
         }
         for(size_t n = 0; n < std::max(1UL, i->chain_len); n++)
         {
@@ -64,7 +64,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         }
     }
     array_zero(tb.data_buffer, sb->journal_block_size);
-    jbd2_commit_header* ch = new(reinterpret_cast<jbd2_commit_header*>(tb.data_buffer)) jbd2_commit_header{};
+    jbd2_commit_header* ch = new (reinterpret_cast<jbd2_commit_header*>(tb.data_buffer)) jbd2_commit_header{};
     ch->checksum_size = 4;
     ch->checksum_type = 4; // crc32c
     uint64_t timestamp = syscall_time(0);

@@ -367,7 +367,7 @@ typedef struct __pt_entry
 } __pack __align(1) pt_entry;
 typedef pt_entry* paging_table;
 #ifdef __cplusplus 
-typedef union [[gnu::may_alias]] __vaddr
+typedef union __may_alias __vaddr
 #else
 typedef struct __vaddr
 #endif
@@ -745,7 +745,7 @@ typedef struct __mmap
 } __pack mmap_t;
 typedef void (attribute(sysv_abi) *kernel_entry_fn) (sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
-typedef union [[gnu::may_alias]] __byte
+typedef union __may_alias __byte
 {
 	struct
     {

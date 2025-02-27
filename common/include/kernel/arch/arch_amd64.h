@@ -80,21 +80,21 @@ constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(da
 constexpr void nmi_disable() { outb(command_rtc, inb(command_rtc) | 0x80); inb(data_rtc); }
 template<byte I> constexpr byte irq_mask() { if constexpr(I < 8) return 1 << I; else return (1 << (I - 8)); }
 constexpr byte dyn_irq_mask(uint8_t idx) { return idx < 8 ? 1 << idx : (1 << (idx - 8));  }
-template<byte O1, byte O2> constexpr void pic_remap() { byte a1 = inb(data_pic1), a2 = inb(data_pic2); outbw(command_pic1, icw1_init | icw1_icw4); outbw(command_pic2, icw1_init | icw1_icw4); outbw(data_pic1, O1); outbw(data_pic2, O2); outbw(data_pic1, 4); outbw(data_pic2, 2); outbw(data_pic1, icw4_8086_mode); outbw(data_pic2, icw4_8086_mode); outb(data_pic1, a1); outb(data_pic2, a2); }
-template<byte I> constexpr void irq_set_mask() { outb(data_pic1, inb(data_pic1) | irq_mask<I>()); }
-template<byte I> constexpr void irq_clear_mask() { outb(data_pic1, inb(data_pic1) & ~(irq_mask<I>())); }
+template<uint8_t O1, uint8_t O2> constexpr void pic_remap() { byte a1 = inb(data_pic1), a2 = inb(data_pic2); outbw(command_pic1, icw1_init | icw1_icw4); outbw(command_pic2, icw1_init | icw1_icw4); outbw(data_pic1, O1); outbw(data_pic2, O2); outbw(data_pic1, 4); outbw(data_pic2, 2); outbw(data_pic1, icw4_8086_mode); outbw(data_pic2, icw4_8086_mode); outb(data_pic1, a1); outb(data_pic2, a2); }
+template<uint8_t I> constexpr void irq_set_mask() { outb(data_pic1, inb(data_pic1) | irq_mask<I>()); }
+template<uint8_t I> constexpr void irq_clear_mask() { outb(data_pic1, inb(data_pic1) & ~(irq_mask<I>())); }
 constexpr void irq_set_mask(uint8_t idx) { outb(data_pic1, inb(data_pic1) | dyn_irq_mask(idx)); }
 constexpr void irq_clear_mask(uint8_t idx) { outb(data_pic1, inb(data_pic1) & ~dyn_irq_mask(idx)); }
-template<byte R> constexpr void rtc_select() { uint8_t prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80) | R); }
-template<byte R> constexpr byte read_rtc_register() { rtc_select<R>(); return inb(data_rtc); }
-template<byte R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
+template<uint8_t R> constexpr void rtc_select() { byte reg = R; byte prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80) | R); }
+template<uint8_t R> constexpr byte read_rtc_register() { rtc_select<R>(); return inb(data_rtc); }
+template<uint8_t R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
 constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0Aui8>() & 0x80) != 0; }
 constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
 inline void fx_save(task_t* tx) { asm volatile("fxsave %0" : "=m"(tx->fxsv) :: "memory"); }
 inline void fx_restore(task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx->fxsv) :: "memory"); }
 constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
-template<dword R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword{ lo, hi }; }
-template<dword R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
+template<uint32_t R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword{ lo, hi }; }
+template<uint32_t R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
 constexpr dword kernel_gs_base = 0xC0000102;
 constexpr dword ia32_efer      = 0xC0000080;
 constexpr dword ia32_star      = 0xC0000081;

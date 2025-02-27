@@ -48,6 +48,6 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
 }
 __isrcall kb_data keyboard_driver_amd64::__get_last(kb_state current_state) { return this->__get_next(current_state, false); }
 __isrcall bool keyboard_driver_amd64::__skip_send() { if(__skip) { __skip = false; return true; } return false; }
-void keyboard_driver_amd64::__on_init() { kb_put(0xF4ui8); kb_get(); irq_clear_mask<1>(); }
-byte keyboard_driver_amd64::__get_irq_index() { return 1; }
+void keyboard_driver_amd64::__on_init() { kb_put(0xF4ui8); kb_get(); irq_clear_mask<1ui8>(); }
+byte keyboard_driver_amd64::__get_irq_index() { return 1ui8; }
 keyboard_driver_base* get_kb_driver() { return static_cast<keyboard_driver_base*>(&__inst); }
