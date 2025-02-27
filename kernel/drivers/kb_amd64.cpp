@@ -43,7 +43,6 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
         if(id == K_NUMLK) result.state.numlk = !current_state.numlk;
         else if(id == K_CAPS) result.state.capslk = !current_state.capslk;
     }
-    
     return result;
 }
 __isrcall kb_data keyboard_driver_amd64::__get_last(kb_state current_state) { return this->__get_next(current_state, false); }

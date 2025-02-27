@@ -29,6 +29,7 @@ void extfs::free_block_buffer(disk_block& bl) { buff_alloc.deallocate(bl.data_bu
 off_t extfs::inode_block_offset(uint32_t inode) { return off_t((inode % inodes_per_block()) * sb->inode_size); }
 uint64_t extfs::group_num_for_inode(uint32_t inode) { return (static_cast<size_t>(inode - 1)) / sb->inodes_per_group; }
 dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
+void extfs::syncdirs() { if(!this->fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
 extfs::extfs(uint64_t volume_start_lba) : 
     filesystem          {}, 
     file_nodes          {}, 
@@ -203,7 +204,6 @@ file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
     else panic("no available inodes");
     return nullptr;
 }
-void extfs::syncdirs() { if(!this->fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
 void extfs::dldirnode(directory_node* dd)
 {
     if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete non-empty directory " } + dd->name() }; }

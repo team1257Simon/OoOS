@@ -1,6 +1,7 @@
 #include "bitmap.hpp"
 #include "string"
 constexpr off_t ulsize = CHAR_BIT * sizeof(unsigned long);
+off_t bitmap_scan_sz(const unsigned long *bitmap, size_t num_ulongs) { for(size_t i = 0; i < num_ulongs; i++) { if(unsigned long ul = ~(bitmap[i])) return (ulsize * i) + __builtin_ctzl(ul); } return -1L; }
 off_t bitmap_scan_cz(const unsigned long *bitmap, size_t num_ulongs, size_t num_zeroes)
 {
     if(num_zeroes > ulsize) 
@@ -56,4 +57,3 @@ void bitmap_clear_cbits(unsigned long *bitmap, off_t bit_pos, size_t num_bits)
         if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] &= ~(mask >> ((num_bits + bit_off) % ulsize));
     }
 }
-off_t bitmap_scan_sz(const unsigned long *bitmap, size_t num_ulongs) { for(size_t i = 0; i < num_ulongs; i++) { if(unsigned long ul = ~(bitmap[i])) return (ulsize * i) + __builtin_ctzl(ul); } return -1L; }

@@ -1,6 +1,8 @@
 #include "frame_manager.hpp"
 #include "stdexcept"
 frame_manager frame_manager::__inst{};
+void frame_manager::destroy_frame(uframe_tag& ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }
+frame_manager& frame_manager::get() { return __inst; }
 uframe_tag &frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 {
     paging_table pt = kernel_memory_mgr::get().allocate_pt();
@@ -8,7 +10,7 @@ uframe_tag &frame_manager::create_frame(addr_t start_base, addr_t start_extent)
     else if(!kernel_memory_mgr::get().copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
     uframe_tag* result = &this->emplace_back(pt, start_base, start_extent);
     kernel_memory_mgr::get().enter_frame(result);
-    if(!kernel_memory_mgr::get().identity_map_to_user(pt, PT_LEN, true, false)) { destroy_frame(*result);  throw std::runtime_error{ "could not initialize page mappings" }; }
+    if(!kernel_memory_mgr::get().identity_map_to_user(pt, PT_LEN, true, false)) { destroy_frame(*result); throw std::runtime_error{ "could not initialize page mappings" }; }
     kernel_memory_mgr::get().exit_frame();
     return *result;
 }
@@ -25,5 +27,3 @@ uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)
     kernel_memory_mgr::get().exit_frame();
     return result;
 }
-void frame_manager::destroy_frame(uframe_tag& ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }
-frame_manager& frame_manager::get() { return __inst; }

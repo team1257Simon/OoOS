@@ -4,6 +4,7 @@
 constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
 constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
 constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
+elf64_program_descriptor const& elf64_executable::describe() const noexcept { return __descr; }
 elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) noexcept : elf64_object{ n }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
 bool elf64_executable::xvalidate()
 {
@@ -64,4 +65,3 @@ bool elf64_executable::xload()
     else { panic("could not allocate frame"); }
     return false; 
 }
-elf64_program_descriptor const& elf64_executable::describe() const noexcept { return __descr; }

@@ -3,6 +3,13 @@
 extern "C" std::atomic<bool> task_change_flag;
 scheduler scheduler::__instance{};
 bool scheduler::__has_init{ false };
+bool scheduler::has_init() noexcept { return __has_init; }
+bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
+scheduler &scheduler::get() noexcept { return __instance; }
+scheduler::scheduler() = default;
+bool scheduler::__set_untimed_wait(task_t *task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
+void scheduler::register_task(task_t *task) { __my_queues[task->task_ctl.prio_base].push(task); }
+bool scheduler::interrupt_wait(task_t *waiting) { if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } else return false; }
 bool scheduler::__set_wait_time(task_t *task, unsigned int time, bool can_interrupt)
 {
     task->task_ctl.block = true;
@@ -22,7 +29,6 @@ bool scheduler::__set_wait_time(task_t *task, unsigned int time, bool can_interr
     __my_sleepers.push(task);
     return true;
 }
-bool scheduler::__set_untimed_wait(task_t *task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
 __isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
 {
     next->quantum_rem = next->quantum_val;
@@ -32,8 +38,6 @@ __isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
     next->run_split = ts;
     cur->run_time += (ts - cur->run_split);
 }
-scheduler::scheduler() = default;
-void scheduler::register_task(task_t *task) { __my_queues[task->task_ctl.prio_base].push(task); }
 bool scheduler::unregister_task(task_t *task) 
 {
     bool result = false;
@@ -82,7 +86,6 @@ bool scheduler::set_wait_timed(task_t *task, unsigned int time, bool can_interru
     for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0) { return __set_wait_time(task, time, can_interrupt); } }
     return false;
 }
-bool scheduler::interrupt_wait(task_t *waiting) { if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } else return false; }
 __isrcall void scheduler::on_tick()
 {
     __my_sleepers.tick_wait();
@@ -118,6 +121,3 @@ bool scheduler::init()
     });
     return true;
 }
-bool scheduler::has_init() noexcept { return __has_init; }
-bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
-scheduler &scheduler::get() noexcept { return __instance; }

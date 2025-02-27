@@ -2,7 +2,6 @@
 #include "direct_text_render.hpp"
 #include "sched/task_ctx.hpp"
 #include "errno.h"
-
 extern "C"
 {
     extern unsigned char __start;
@@ -17,6 +16,8 @@ constexpr block_size nearest(size_t sz)  { return sz <= S04 ? S04 : sz <= S08 ? 
 constexpr size_t how_many_status_arrays(size_t mem_size) { return div_roundup(mem_size, GIGABYTE); }
 constexpr size_t region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, S512)) : nearest(sz); }
 constexpr size_t add_align_size(addr_t tag, size_t align) { return align > 1 ? (up_to_nearest(tag + bt_offset, align) - ptrdiff_t(uintptr_t(tag) + bt_offset)) : 0; }
+static paging_table __find_table(addr_t const& of_page, paging_table pml4 = get_cr3()) { if (pml4[of_page.pml4_idx].present) { paging_table pdp = addr_t{ pml4[of_page.pml4_idx].physical_address << 12 }; if(pdp[of_page.pdp_idx].present) { paging_table pd = addr_t{ pdp[of_page.pdp_idx].physical_address << 12 }; if(pd[of_page.pd_idx].present) return addr_t{ pd[of_page.pd_idx].physical_address << 12 }; } }  return nullptr; }
+static void __set_kernel_page_settings(uintptr_t max) { paging_table pt = nullptr; for(addr_t addr{ &__start }; addr < max; addr += PAGESIZE) { if(!pt || !addr.page_idx) pt = __find_table(addr); if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = true; pt[addr.page_idx].user_access = true; } } }
 static uintptr_t block_offset(uintptr_t addr, block_idx idx) 
 {
     switch(idx)
@@ -53,7 +54,7 @@ static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thr
     }
     return result;
 }
-static paging_table __get_table(addr_t const& of_page, bool write_thru, paging_table pml4)
+static paging_table __get_table(addr_t const& of_page, bool write_thru, paging_table pml4 = get_cr3())
 {
     if (pml4[of_page.pml4_idx].present)
     {
@@ -73,10 +74,6 @@ static paging_table __get_table(addr_t const& of_page, bool write_thru, paging_t
     else { paging_table pdp = __build_new_pt(pml4, of_page.pml4_idx, write_thru); if(pdp) { paging_table pd = __build_new_pt(pdp, of_page.pdp_idx, write_thru); if(pd) return __build_new_pt(pd, of_page.pd_idx, write_thru); } }
     return nullptr;
 }
-static paging_table __get_table(addr_t const& of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
-static paging_table __find_table(addr_t const& of_page, paging_table pml4) { if (pml4[of_page.pml4_idx].present) { paging_table pdp = addr_t{ pml4[of_page.pml4_idx].physical_address << 12 }; if(pdp[of_page.pdp_idx].present) { paging_table pd = addr_t{ pdp[of_page.pdp_idx].physical_address << 12 }; if(pd[of_page.pd_idx].present) return addr_t{ pd[of_page.pd_idx].physical_address << 12 }; } }  return nullptr; }
-static paging_table __find_table(addr_t const& of_page) { return __find_table(of_page, get_cr3()); }
-static void __set_kernel_page_settings(uintptr_t max) { paging_table pt = nullptr; for(addr_t addr{ &__start }; addr < max; addr += PAGESIZE) { if(!pt || !addr.page_idx) pt = __find_table(addr); if(pt) { pt[addr.page_idx].global = true; pt[addr.page_idx].write = true; pt[addr.page_idx].user_access = true; } } }
 static addr_t __skip_mmio(addr_t start, size_t pages)
 {
     addr_t curr = start;
@@ -202,6 +199,14 @@ void kernel_memory_mgr::__userunlock() { release(&__user_mutex); }
 void kernel_memory_mgr::__mark_used(uintptr_t addr_start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, addr_start += REGION_SIZE) __get_sb(addr_start)->set_used(ALL); }
 void kernel_memory_mgr::__suspend_frame() noexcept { addr_t cur_cr3{ get_cr3() }; if(cur_cr3 != __kernel_cr3) { __suspended_cr3 = cur_cr3; set_cr3(__kernel_cr3); } }
 void kernel_memory_mgr::__resume_frame() noexcept { if(__suspended_cr3) { set_cr3(__suspended_cr3); __suspended_cr3 = nullptr; } }
+size_t kernel_memory_mgr::page_aligned_region_size(addr_t start, size_t requested) { return static_cast<size_t>((start.plus(requested + PAGESIZE)).page_aligned() - start.page_aligned()); }
+void kernel_memory_mgr::suspend_user_frame() { __instance->__suspend_frame(); }
+void kernel_memory_mgr::resume_user_frame() { __instance->__resume_frame(); }
+uintptr_t kernel_memory_mgr::translate_vaddr_in_current_frame(addr_t addr) { if(paging_table pt = __find_table(addr, __active_frame ? __active_frame->pml4 : paging_table(__kernel_cr3))) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
+void kernel_memory_mgr::deallocate_block(addr_t const& base, size_t sz, bool should_unmap) { uintptr_t phys = translate_vaddr_in_current_frame(base); addr_t pml4 =  __active_frame ?  __active_frame->pml4 : paging_table(__kernel_cr3); __lock(); if(phys) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE), pml4); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
+void kernel_memory_mgr::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
+void kernel_memory_mgr::exit_frame() noexcept { this->__active_frame = nullptr; }
+addr_t kernel_memory_mgr::copy_kernel_mappings(paging_table target) { return __copy_kernel_page_mapping(&__start, div_roundup(static_cast<size_t>(&__end - &__start), PAGESIZE), target); }
 uintptr_t kernel_memory_mgr::__find_and_claim_available_region(size_t sz)
 {
     uintptr_t addr = up_to_nearest(__physical_open_watermark, REGION_SIZE);
@@ -273,11 +278,6 @@ void kernel_memory_mgr::__release_claimed_region(size_t sz, uintptr_t start)
         }
     }
 }
-size_t kernel_memory_mgr::page_aligned_region_size(addr_t start, size_t requested) { return static_cast<size_t>((start.plus(requested + PAGESIZE)).page_aligned() - start.page_aligned()); }
-void kernel_memory_mgr::suspend_user_frame() { __instance->__suspend_frame(); }
-void kernel_memory_mgr::resume_user_frame() { __instance->__resume_frame(); }
-uintptr_t kernel_memory_mgr::translate_vaddr_in_current_frame(addr_t addr) { if(paging_table pt = __find_table(addr, __active_frame ? __active_frame->pml4 : paging_table(__kernel_cr3))) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
-void kernel_memory_mgr::deallocate_block(addr_t const& base, size_t sz, bool should_unmap) { uintptr_t phys = translate_vaddr_in_current_frame(base); addr_t pml4 =  __active_frame ?  __active_frame->pml4 : paging_table(__kernel_cr3); __lock(); if(phys) { __release_claimed_region(sz, phys); if(should_unmap) __unmap_pages(base, div_roundup(sz, PAGESIZE), pml4); __physical_open_watermark = std::min(phys, __physical_open_watermark); } __unlock(); }
 void kernel_memory_mgr::init_instance(mmap_t *mmap)
 {
     gb_status* __the_status_bytes = addr_t{ &__end }.plus(sizeof(kframe_tag));
@@ -291,9 +291,6 @@ void kernel_memory_mgr::init_instance(mmap_t *mmap)
     __instance->__physical_open_watermark = heap;
     __set_kernel_page_settings(addr_t{ &__end }.plus(sizeof(kframe_tag)));
 }
-void kernel_memory_mgr::enter_frame(uframe_tag *ft) noexcept { this->__active_frame = ft; }
-void kernel_memory_mgr::exit_frame() noexcept { this->__active_frame = nullptr; }
-addr_t kernel_memory_mgr::copy_kernel_mappings(paging_table target) { return __copy_kernel_page_mapping(&__start, div_roundup(static_cast<size_t>(&__end - &__start), PAGESIZE), target); }
 addr_t kernel_memory_mgr::allocate_mmio_block(size_t sz)
 {
     __lock();

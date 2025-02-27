@@ -8,6 +8,10 @@
 #include "arch/com_amd64.h"
 #include "isr_table.hpp"
 static inline addr_t get_applicable_cr3(addr_t frame_ptr) { if(static_cast<uframe_tag*>(frame_ptr)->magic == UFRAME_MAGIC) return static_cast<uframe_tag*>(frame_ptr)->pml4; else return get_cr3(); }
+filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
+task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } { set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
+static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller->is_system() || static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true; for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } return false; }
+task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->init_task_state(); result->start_task(t.exit_target); return result; }
 void sys_task_exit()
 {
     
@@ -40,8 +44,6 @@ void task_ctx::init_task_state()
         kernel_memory_mgr::get().exit_frame();
     }
 }
-filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
-task_ctx::task_ctx(task_ctx const &that) : task_ctx{ reinterpret_cast<task_functor>(that.task_struct.saved_regs.rip.operator void*()), std::vector<const char*>{ that.arg_vec }, that.allocated_stack, static_cast<ptrdiff_t>(that.stack_allocated_size), that.tls, that.tls_size, &(frame_manager::get().duplicate_frame(*(that.task_struct.frame_ptr.operator uframe_tag*()))), task_list::get().__mk_pid(), static_cast<int64_t>(that.get_pid()), that.task_struct.task_ctl.prio_base, that.task_struct.quantum_val } { set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
 task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
     task_struct 
     { 
@@ -143,10 +145,9 @@ tms task_ctx::get_times() const noexcept
     }
     return result;
 }
-static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller->is_system() || static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true; for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } return false; }
-task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->init_task_state(); result->start_task(t.exit_target); return result; }
 extern "C"
 {
+    [[noreturn]] void handle_exit() { cli(); if(task_ctx* task = active_task_context(); task->is_user()) { task->terminate(); task_list::get().destroy_task(task->get_pid()); } sti(); kernel_reentry(); __builtin_unreachable(); }
     clock_t syscall_times(tms *out) { out = translate_user_pointer(out); if(task_ctx* task = active_task_context(); task->is_user() && out) { new (out) tms{ active_task_context()->get_times() }; return syscall_time(nullptr); } else return -EINVAL; }
     long syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
     long syscall_fork() { try { if(task_ctx* task = active_task_context()) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
@@ -181,5 +182,4 @@ extern "C"
         catch(std::exception& e) { panic(e.what()); if(n) { fs_ptr->close_file(n); return -EPIPE; } else return -EAGAIN; } 
         return -EINVAL;
     }
-    [[noreturn]] void handle_exit() { cli(); if(task_ctx* task = active_task_context(); task->is_user()) { task->terminate(); task_list::get().destroy_task(task->get_pid()); } sti(); kernel_reentry(); __builtin_unreachable(); }
 }

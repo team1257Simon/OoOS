@@ -5,6 +5,11 @@ ahci_hda ahci_hda::__instance{};
 bool ahci_hda::__await_disk() { for(size_t i = 0; !__drv->is_done(__port); __sync_synchronize()) { BARRIER; i++; } return __drv->is_done(__port); }
 bool ahci_hda::__read_ahci(qword st, dword ct, uint16_t* bf) { try { __drv->read_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
 bool ahci_hda::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __drv->write_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
+ahci_hda::ahci_hda() : __read_buffer{ __bytes_per_sector() * 4 }, __write_buffer{ __bytes_per_sector() * 4 } {}
+bool ahci_hda::init_instance() { if(__has_init) return true; return (__has_init = __instance.init()); }
+bool ahci_hda::is_initialized() noexcept { return __has_init; }
+partition_table &ahci_hda::get_partition_table() { return __instance.__my_partitions; }
+ahci_hda *ahci_hda::get_instance() { return __has_init ? &__instance : nullptr; }
 bool ahci_hda::__read_pt()
 {
     std::allocator<pt_header_t> alloc_hdr{};
@@ -25,11 +30,6 @@ bool ahci_hda::__read_pt()
     alloc_pt.deallocate(arr, n);
     return true;
 }
-ahci_hda::ahci_hda() : __read_buffer{ __bytes_per_sector() * 4 }, __write_buffer{ __bytes_per_sector() * 4 } {}
-bool ahci_hda::init_instance() { if(__has_init) return true; return (__has_init = __instance.init()); }
-bool ahci_hda::is_initialized() noexcept { return __has_init; }
-partition_table &ahci_hda::get_partition_table() { return __instance.__my_partitions; }
-ahci_hda *ahci_hda::get_instance() { return __has_init ? &__instance : nullptr; }
 bool ahci_hda::init()
 {
    if(!ahci_driver::is_initialized()) { panic("no AHCI driver available"); return false; }
