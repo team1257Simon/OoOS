@@ -3,7 +3,7 @@
 #include "rtc.h"
 bool fat32::__has_init{ false };
 fat32* fat32::__instance;
-static std::aligned_allocator<fat32, filesystem> fat_alloc{};
+static std::alignas_allocator<fat32, filesystem> fat_alloc{};
 static void set_filename(char* fname, std::string const& sname) { size_t pos_dot = sname.find('.'), l = std::min(8UL, sname.size()); if(pos_dot != std::string::npos && pos_dot < l) l = pos_dot; std::string::const_iterator i = sname.begin(); for(size_t j = 0; j < 8; j++) { if(j < l) { fname[j] = *i; i++; } else { fname[j] = ' '; } } ++i; for(size_t j = 8; j < 11; j++, i++) { fname[j] = (i < sname.end()) ? *i : ' '; } }
 uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect) { for(uint32_t i = 3; i < tb.size(); i++) { if((tb[i] & fat32_cluster_mask) == 0) { if(last_sect > 2) { tb[last_sect] |= (i & fat32_cluster_mask); } tb[i] |= fat32_cluster_eof; tb.mark_dirty(); return i; } } return 0; }
 uint64_t figure_start_sector() { if(ahci_hda::is_initialized() && !ahci_hda::get_partition_table().empty()) { return ahci_hda::get_partition_table().front().start_lba; } return 2048UL; /* default value assumed for now */ }

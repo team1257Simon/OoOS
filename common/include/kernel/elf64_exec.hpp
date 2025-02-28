@@ -18,7 +18,8 @@ protected:
     virtual bool xload() override;
     virtual bool xvalidate() override;
 public:
-    elf64_executable(file_node* n, size_t stack_sz = S04, size_t tls_sz = S04) noexcept;
+    virtual ~elf64_executable();
+    elf64_executable(file_node* n, size_t stack_sz = S04, size_t tls_sz = S04);
     elf64_program_descriptor const& describe() const noexcept;
 };
 #endif

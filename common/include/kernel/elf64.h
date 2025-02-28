@@ -126,9 +126,10 @@ enum elf_dyn_tag : uint64_t
     DT_FLAGS            = 30,   //      d_val       opt         opt
     DT_ENCODING         = 31,   //          ?         ?           ?
     DT_PREINIT_ARRAY    = 32,   //      d_ptr       opt         N/A
-    DT_PREINIT_ARRAYSZ  = 33    //      d_val       opt         N/A
+    DT_PREINIT_ARRAYSZ  = 33,   //      d_val       opt         N/A
     // OS-specific 0x6000000D~0x6ffff000    ?         ?           ?
     // PC-specific 0x7000000D~0x7ffff000    ?         ?           ?
+    DT_GNU_HASH         = 0x6FFFFEF5    // replaces DT_HASH entry
 };
 enum elf_rel_type
 {

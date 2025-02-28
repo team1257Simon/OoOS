@@ -598,4 +598,5 @@ extern "C"
         __unmap_pages(addr, truncate(len, PAGESIZE), ctask_frame->pml4);
         return 0;
     }
+    void *aligned_malloc(size_t size, size_t align) { return __kernel_frame_tag->allocate(size, align); }
 }

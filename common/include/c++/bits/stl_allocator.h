@@ -80,23 +80,42 @@ namespace std
     };
     template<typename T, typename U> constexpr bool operator==(allocator<T> const&, allocator<U> const&) noexcept { return true; }
     extension template<typename T, typename U> 
-    struct aligned_allocator : __base_allocator<T, alignof(U)> 
+    struct alignas_allocator : __base_allocator<T, alignof(U)> 
     {
         typedef T value_type;
         typedef T* pointer;
         typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
-        template<typename V, typename W = U> using rebind = std::aligned_allocator<V, W>;
+        template<typename V, typename W = U> using rebind = std::alignas_allocator<V, W>;
         typedef true_type propagate_on_container_move_assignment;
         typedef decltype(sizeof(T)) size_type;
         typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
-        constexpr aligned_allocator() noexcept = default;
-        constexpr aligned_allocator(aligned_allocator const&) noexcept = default;
-        template<typename V, typename W = U> constexpr aligned_allocator(aligned_allocator<V, W> const&) noexcept {};
-        constexpr ~aligned_allocator() noexcept = default;
+        constexpr alignas_allocator() noexcept = default;
+        constexpr alignas_allocator(alignas_allocator const&) noexcept = default;
+        template<typename V, typename W = U> constexpr alignas_allocator(alignas_allocator<V, W> const&) noexcept {};
+        constexpr ~alignas_allocator() noexcept = default;
         [[nodiscard]] constexpr pointer allocate(size_type count) const { return this->__allocate(count); }
         constexpr void deallocate(pointer ptr, size_type count) const { this->__deallocate(ptr, count); }
+    };
+    extension template<typename T, std::align_val_t A>
+    struct alignval_allocator
+    {
+        typedef T value_type;
+        typedef T* pointer;
+        typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
+        typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
+        typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
+        typedef decltype(sizeof(T)) size_type;
+        typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
+    private:
+        constexpr static size_type __size_val = sizeof(T);
+        constexpr static std::align_val_t __align = A;
+    public:
+        constexpr alignval_allocator() noexcept = default;
+        constexpr ~alignval_allocator() noexcept = default;
+        [[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; return static_cast<pointer>(::operator new(n * __size_val, __align)); }
+        [[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
     };
 }
 #endif

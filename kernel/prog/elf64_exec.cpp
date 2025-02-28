@@ -1,11 +1,9 @@
 #include "elf64_exec.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"
-constexpr static bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
-constexpr static bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
-constexpr static bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return __descr; }
-elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) noexcept : elf64_object{ n }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
+elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) : elf64_object{ n }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
+elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 bool elf64_executable::xvalidate()
 {
     if(ehdr_ptr()->e_machine != EM_AMD64 || ehdr_ptr()->e_ident[elf_ident_encoding_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
@@ -50,18 +48,19 @@ bool elf64_executable::xload()
         this->__process_frame_tag->usr_blocks.emplace_back(stkblk, this->__tgt_stack_size);
         this->__process_frame_tag->usr_blocks.emplace_back(tlsblk, this->__tgt_tls_size);
         kernel_memory_mgr::get().exit_frame();
-        new(&__descr) elf64_program_descriptor 
+        new(std::addressof(__descr)) elf64_program_descriptor 
         { 
             .frame_ptr = __process_frame_tag, 
             .prg_stack = __process_stack_base, 
-            .stack_size = __tgt_stack_size, 
+            .stack_size = __tgt_stack_size,
             .prg_tls = __process_tls_base, 
             .tls_size = __tgt_tls_size, 
             .entry = __process_entry_ptr 
         };
+        cleanup();
         return true;
     }
-    catch (...) {  frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; kernel_memory_mgr::get().exit_frame(); panic("could not allocate blocks for executable"); }
+    catch (...) { frame_manager::get().destroy_frame(*this->__process_frame_tag); this->__process_frame_tag = nullptr; kernel_memory_mgr::get().exit_frame(); panic("could not allocate blocks for executable"); }
     else { panic("could not allocate frame"); }
     return false; 
 }

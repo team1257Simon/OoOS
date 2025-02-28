@@ -228,6 +228,7 @@ public:
     void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
     addr_t copy_kernel_mappings(paging_table target);
 };
+extern "C" void* aligned_malloc(size_t size, size_t align);
 extern "C" addr_t syscall_sbrk(ptrdiff_t incr);
 extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);
 extern "C" int syscall_munmap(addr_t addr, size_t len);

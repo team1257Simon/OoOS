@@ -213,7 +213,7 @@ void elf64_tests()
         fat32_testfs->close_file(f);
         if(exec.load())
         {
-            elf64_program_descriptor const* desc = &(exec.describe());
+            elf64_program_descriptor const* desc = std::addressof(exec.describe());
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
             task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
@@ -308,7 +308,7 @@ void run_tests()
     startup_tty.print_line("fat32 tests...");
     fat32_tests();
     startup_tty.print_line("userland tests...");
-    elf64_tests();   
+    elf64_tests();
     startup_tty.print_line("task tests...");
     task_tests(); 
     startup_tty.print_line("complete");
@@ -332,7 +332,7 @@ extern "C"
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
-        asm volatile("movq %0, %%rsp" :: "r"(&kernel_stack_top) : "memory");  
+        asm volatile("movq %0, %%rsp" :: "r"(&kernel_stack_top) : "memory");
         asm volatile("movq %0, %%rbp" :: "r"(&kernel_stack_base) : "memory");
         // Don't want to get interrupted during early initialization...
         cli();
@@ -340,7 +340,7 @@ extern "C"
         gdt_setup();
         // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
         idt_init();
-        nmi_disable();         
+        nmi_disable();
         kproc.self = &kproc;
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
         kernel_memory_mgr::init_instance(mmap); 
