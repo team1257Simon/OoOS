@@ -424,6 +424,9 @@ typedef struct __vaddr
     template<non_void T> using ctptr = const T*;
     template<non_void T> using vtptr = volatile T*;
     template<non_void T> using cvtptr = const volatile T*;
+    template<non_void T> constexpr T* as() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(full); }
+    template<non_void T> constexpr vtptr<T> as() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
+    template<typename T, typename ... Args> using functor_t = T(*)(Args...);
     constexpr operator void*() const noexcept { return std::bit_cast<void*>(full); }
     constexpr operator cvptr() const noexcept { return std::bit_cast<const void*>(full); }
     constexpr operator vvptr() const volatile noexcept { return std::bit_cast<volatile void*>(const_cast<__vaddr const*>(this)->full); }
@@ -432,6 +435,7 @@ typedef struct __vaddr
     template<non_void T> constexpr operator ctptr<T>() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(full); }
     template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
     template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return std::bit_cast<const volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
+    template<typename T, typename ... Args> inline operator functor_t<T, Args...>() const noexcept { return reinterpret_cast<functor_t<T, Args...>>(full); }
     constexpr operator bool() const noexcept { return bool(full); }
     friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full == __that.full; }
     friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.full; }

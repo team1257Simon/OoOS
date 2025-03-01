@@ -10,8 +10,6 @@
 off_t bitmap_scan_cz(const unsigned long* bitmap, size_t num_ulongs, size_t num_zeroes);
 void bitmap_set_cbits(unsigned long* bitmap, off_t bit_pos, size_t num_bits);
 void bitmap_clear_cbits(unsigned long* bitmap, off_t bit_pos, size_t num_bits);
-/**
- * Finds the position of the first zero in a bitmap of size num_ulongs * sizeof(unsigned long). The return value is the offset in total bits.
- */
+// Finds the position of the first zero in a bitmap of size num_ulongs * sizeof(unsigned long). The return value is the offset in total bits.
 off_t bitmap_scan_sz(const unsigned long* bitmap, size_t num_ulongs);
 #endif

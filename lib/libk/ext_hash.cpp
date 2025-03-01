@@ -1,6 +1,22 @@
 #include "kernel/libk_decls.h"
 #include "bits/functional_hash.hpp"
 struct hash_buffer { uint32_t dword_buf[8]; };
+typedef void (*hash_round_fn)(hash_buffer& buf, const hash_buffer& in);
+constexpr uint32_t K1 = 0;
+constexpr uint32_t K2 = 013240474631UL;
+constexpr uint32_t K3 = 015666365641UL;
+constexpr hash_buffer buf_init{ { 0x67452301U, 0xEFCDAB89U, 0x98BDACFEU, 0x10325476U, 0, 0, 0, 0 } };
+template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num);
+template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len);
+template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_t len);
+static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in);
+static void apply_md4_half_transform(hash_buffer& buf, hash_buffer const& in);
+uint64_t std::ext_legacy_hash_signed::operator()(const void *data, size_t n) { return apply_legacy_hash<true>(data, n); }
+uint64_t std::ext_legacy_hash_unsigned::operator()(const void *data, size_t n) { return apply_legacy_hash<false>(data, n); }
+uint64_t std::half_md4_hash_signed::operator()(const void *data, size_t n) { return gen_ext_hash<true, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
+uint64_t std::half_md4_hash_unsigned::operator()(const void *data, size_t n) { return gen_ext_hash<false, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
+uint64_t std::tea_hash_signed::operator()(const void *data, size_t n) { return gen_ext_hash<true, &apply_tea_transform, 4, 0U>(seed, data, n); }
+uint64_t std::tea_hash_unsigned::operator()(const void *data, size_t n) { return gen_ext_hash<false, &apply_tea_transform, 4, 0U>(seed, data, n); }
 template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num)
 {
     using data_t = typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
@@ -22,6 +38,22 @@ template<bool is_signed> void process_input(const void* in, hash_buffer& out, si
     }
     if(--num >= 0) out.dword_buf[n++] = val;
     while(--num >= 0) out.dword_buf[n++] = pad;
+}
+template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len)
+{
+    const char* name = static_cast<const char*>(data);
+    hash_buffer in{};
+    hash_buffer buf = buf_init;
+    if(seed) { for(int i = 0; i < 4; i++) { if(seed[i]) arraycopy(buf.dword_buf, seed, 4); break; } }
+    const char* p = name;
+    while(len > 0)
+    {
+        process_input<is_signed>(name, in, len, num);
+        (*hash_fn)(buf, in);
+        len -= num * 4;
+        p += num * 4;
+    }
+    return qword(buf.dword_buf[b_off], buf.dword_buf[b_off + 1]);
 }
 template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_t len)
 {
@@ -52,9 +84,6 @@ static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in)
     buf.dword_buf[0] += b0;
     buf.dword_buf[1] += b1;
 }
-constexpr uint32_t K1 = 0;
-constexpr uint32_t K2 = 013240474631UL;
-constexpr uint32_t K3 = 015666365641UL;
 static void apply_md4_half_transform(hash_buffer& buf, hash_buffer const& in)
 {
 	uint32_t a = buf.dword_buf[0], b = buf.dword_buf[1], c = buf.dword_buf[2], d = buf.dword_buf[3];
@@ -87,27 +116,3 @@ static void apply_md4_half_transform(hash_buffer& buf, hash_buffer const& in)
 	buf.dword_buf[3] += c;
 	buf.dword_buf[4] += d;
 }
-typedef void (*hash_round_fn)(hash_buffer& buf, const hash_buffer& in);
-constexpr hash_buffer buf_init{ { 0x67452301U, 0xEFCDAB89U, 0x98BDACFEU, 0x10325476U, 0, 0, 0, 0 } };
-uint64_t std::ext_legacy_hash_signed::operator()(const void *data, size_t n) { return apply_legacy_hash<true>(data, n); }
-uint64_t std::ext_legacy_hash_unsigned::operator()(const void *data, size_t n) { return apply_legacy_hash<false>(data, n); }
-template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len)
-{
-    const char* name = static_cast<const char*>(data);
-    hash_buffer in{};
-    hash_buffer buf = buf_init;
-    if(seed) { for(int i = 0; i < 4; i++) { if(seed[i]) arraycopy(buf.dword_buf, seed, 4); break; } }
-    const char* p = name;
-    while(len > 0)
-    {
-        process_input<is_signed>(name, in, len, num);
-        (*hash_fn)(buf, in);
-        len -= num * 4;
-        p += num * 4;
-    }
-    return qword(buf.dword_buf[b_off], buf.dword_buf[b_off + 1]);
-}
-uint64_t std::half_md4_hash_signed::operator()(const void *data, size_t n) { return gen_ext_hash<true, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
-uint64_t std::half_md4_hash_unsigned::operator()(const void *data, size_t n) { return gen_ext_hash<false, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
-uint64_t std::tea_hash_signed::operator()(const void *data, size_t n) { return gen_ext_hash<true, &apply_tea_transform, 4, 0U>(seed, data, n); }
-uint64_t std::tea_hash_unsigned::operator()(const void *data, size_t n) { return gen_ext_hash<false, &apply_tea_transform, 4, 0U>(seed, data, n); }

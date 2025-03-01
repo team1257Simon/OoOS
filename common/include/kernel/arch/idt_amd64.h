@@ -4,9 +4,6 @@
 #ifdef __cplusplus
 extern "C"
 {
-#define CXX_INI(val) { val }
-#else 
-#define CXX_INI(val)
 #endif
 typedef struct 
 {

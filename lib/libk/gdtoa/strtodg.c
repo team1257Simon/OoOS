@@ -382,7 +382,7 @@ dig_done:
   k = nd < 15 + 1 ? nd : 15 + 1;
   (&rv)->d = y;
   if (k > 9)
-    (&rv)->d = __tens_D2A[k - 9] * (&rv)->d + z;
+    (&rv)->d = __tens_d2a[k - 9] * (&rv)->d + z;
   bd0 = 0;
   if (nbits <= 53 && nd <= 15) {
     if (!e) {
@@ -394,7 +394,7 @@ dig_done:
     } else if (e > 0) {
       if (e <= 22) {
         i = fivesbits[e] + mantbits(&rv) <= 53;
-        (&rv)->d *= __tens_D2A[e];
+        (&rv)->d *= __tens_d2a[e];
         if (rvOK(&rv, fpi, exp, bits, i, rd, &irv)) {
           if (irv == strtog_nomemory)
             return (strtog_nomemory);
@@ -407,8 +407,8 @@ dig_done:
       if (e <= 22 + i) {
         e2 = e - i;
         e1 -= i;
-        (&rv)->d *= __tens_D2A[i];
-        (&rv)->d *= __tens_D2A[e2];
+        (&rv)->d *= __tens_d2a[i];
+        (&rv)->d *= __tens_d2a[e2];
         if (rvOK(&rv, fpi, exp, bits, 0, rd, &irv)) {
           if (irv == strtog_nomemory)
             return (strtog_nomemory);
@@ -417,7 +417,7 @@ dig_done:
         e1 -= e2;
       }
     } else if (e >= -22) {
-      (&rv)->d /= __tens_D2A[-e];
+      (&rv)->d /= __tens_d2a[-e];
       if (rvOK(&rv, fpi, exp, bits, 0, rd, &irv)) {
         if (irv == strtog_nomemory)
           return (strtog_nomemory);
@@ -431,7 +431,7 @@ rv_notOK:
   e2 = 0;
   if (e1 > 0) {
     if ((i = e1 & 15) != 0)
-      (&rv)->d *= __tens_D2A[i];
+      (&rv)->d *= __tens_d2a[i];
     if (e1 &= ~15) {
       e1 >>= 4;
       while (e1 >= (1 << (5 - 1))) {
@@ -451,7 +451,7 @@ rv_notOK:
   } else if (e1 < 0) {
     e1 = -e1;
     if ((i = e1 & 15) != 0)
-      (&rv)->d /= __tens_D2A[i];
+      (&rv)->d /= __tens_d2a[i];
     if (e1 &= ~15) {
       e1 >>= 4;
       while (e1 >= (1 << (5 - 1))) {

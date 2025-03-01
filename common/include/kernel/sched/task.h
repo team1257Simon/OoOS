@@ -59,19 +59,19 @@ typedef struct __reg_state
     register_t  r13;    // BASE+0x58=0x68
     register_t  r14;    // BASE+0x60=0x70
     register_t  r15;    // BASE+0x68=0x78
-    addr_t     rbp;    // BASE+0x70=0x80
-    addr_t     rsp;    // BASE+0x78=0x88
-    addr_t     rip;    // BASE+0x80=0x90
+    addr_t     rbp;     // BASE+0x70=0x80
+    addr_t     rsp;     // BASE+0x78=0x88
+    addr_t     rip;     // BASE+0x80=0x90
     register_t  rflags; // BASE+0x88=0x98
     uint16_t    ds;     // BASE+0x90=0xA0
     uint16_t    ss;     // BASE+0x92=0xA2
     uint16_t    cs;     // BASE+0x94=0xA4
-    addr_t     cr3;    // BASE+0x96=0xA6
+    addr_t     cr3;     // BASE+0x96=0xA6
                         // BASE+0x9E=0xAE
 } __pack __align(2) regstate_t;
 typedef struct __task_control
 {
-    volatile struct             // BASE+0x00
+    volatile struct                 // BASE+0x00
     {
         bool block              : 1; // sleep or wait
         bool can_interrupt      : 1; // true if the wait can be interrupted
@@ -79,29 +79,29 @@ typedef struct __task_control
         bool sigkill            : 1; // true if the process has stopped due to an abnormal termination (e.g. kill signal)
         priority_val prio_base  : 4; // the base priority of the thread/process
     } __pack __align(1);
-    uint8_t skips;              // BASE+0x01; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
-    uintptr_t signal_num;       // BASE+0x02; the sigval union (WIP)
-    uint32_t wait_ticks_delta;  // BASE+0x0A; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
-    int64_t parent_pid;         // BASE+0x0E; a negative number indicates no parent
-    uint64_t task_id;           // BASE+0x16; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
-                                // BASE+0x1E
+    uint8_t skips;                  // BASE+0x01; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
+    uintptr_t signal_num;           // BASE+0x02; the sigval union (WIP)
+    uint32_t wait_ticks_delta;      // BASE+0x0A; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
+    int64_t parent_pid;             // BASE+0x0E; a negative number indicates no parent
+    uint64_t task_id;               // BASE+0x16; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
+                                    // BASE+0x1E
 } __align(1) __pack tcb_t;
 typedef struct __task_info
 {
     addr_t self;                       // %gs:0x000; self-pointer
     addr_t frame_ptr;                  // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
-    regstate_t saved_regs;              // %gs:0x010 - %gs:0x0AE
-    uint16_t quantum_val;               // %gs:0x0AE; base amount of time allocated per timeslice
-    uint16_t quantum_rem;               // %gs:0x0B0; amount of time remaining in the current timeslice
-    tcb_t task_ctl;                     // %gs:0x0B8 - %gs:0x0D0
-    fx_state fxsv;                      // %gs:0x0D0 - %gs:0x2D0    
-    uint64_t run_split;                 // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
-    uint64_t run_time;                  // %gs:0x2D8; total runtime
-    uint64_t sys_time;                  // %gs:0x2E0; approximate time in syscalls
+    regstate_t saved_regs;             // %gs:0x010 - %gs:0x0AE; this stores all the register states when the process is not active
+    uint16_t quantum_val;              // %gs:0x0AE; base amount of time allocated per timeslice
+    uint16_t quantum_rem CXX_INI(0);   // %gs:0x0B0; amount of time remaining in the current timeslice
+    tcb_t task_ctl;                    // %gs:0x0B8 - %gs:0x0D0; this contains information related to the process' scheduling information, as well as PID and signaling info
+    fx_state fxsv CXX_INI();           // %gs:0x0D0 - %gs:0x2D0; stored state for floating-point registers
+    uint64_t run_split CXX_INI(0UL);   // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
+    uint64_t run_time CXX_INI(0UL);    // %gs:0x2D8; total runtime
+    uint64_t sys_time CXX_INI(0UL);    // %gs:0x2E0; approximate time in syscalls
     addr_t tls_block;                  // %gs:0x2E8; location for TLS 
-    size_t num_child_procs;             // %gs:0x2F0; how many children
+    size_t num_child_procs;            // %gs:0x2F0; how many children are in the array below
     addr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
-    addr_t next;                       // %gs:0x300; updated when scheduling event fires.
+    addr_t next CXX_INI(nullptr);      // %gs:0x300; updated when scheduling event fires.
 } __align(16) __pack task_t;
 inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 void user_entry(addr_t);

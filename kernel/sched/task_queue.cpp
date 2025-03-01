@@ -1,5 +1,4 @@
 #include "sched/task_queue.hpp"
-#include "kernel/libk_decls.h"
 #include "arch/arch_amd64.h"
 extern "C" tss system_tss;
 extern "C" void init_pit() { outb(port_pit_cmd, pit_mode); outb(port_pit_data, pit_divisor.lo); outb(port_pit_data, pit_divisor.hi); }

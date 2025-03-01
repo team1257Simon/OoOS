@@ -1,13 +1,18 @@
 #include "kernel/md5.hpp"
 #include "kernel/libk_decls.h"
 #include "bits/stl_allocator.h"
+__int128_t md5_hash(const void* input, size_t len);
+void md5_step(uint32_t* buffer, uint32_t* input);
+__int128_t md5::operator()(const void *input, size_t len) const noexcept { return md5_hash(input, len); }
+constexpr static uint32_t lrotate(uint32_t x, uint32_t n) { return (x << n) | (x >> (32 - n)); }
 struct md5_ctx
 {
-    uint64_t size{ 0UL };
-    uint32_t buffer[4]{ 0x67452301U, 0xEFCDAB89U, 0x98BADCFEU, 0x10325476U };
-    uint8_t input[64]{};
-    uint8_t digest[16]{};
+    uint64_t size       { 0UL };
+    uint32_t buffer[4]  { 0x67452301U, 0xEFCDAB89U, 0x98BADCFEU, 0x10325476U };
+    uint8_t input[64]   {};
+    uint8_t digest[16]  {};
 };
+static std::allocator<uint8_t> buf_alloc{};
 static uint32_t __s[] 
 {
     7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
@@ -45,8 +50,6 @@ static uint8_t padding[]
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-constexpr static uint32_t lrotate(uint32_t x, uint32_t n) { return (x << n) | (x >> (32 - n)); }
-void md5_step(uint32_t* buffer, uint32_t* input);
 /*
 * Add some amount of input to the context
 * If the input fills out a block of 512 bits, apply the algorithm (md5_step)
@@ -144,11 +147,10 @@ void md5_step(uint32_t* buffer, uint32_t* input)
 __int128_t md5_hash(const void* input, size_t len)
 {
     md5_ctx ctx{};
-    uint8_t* buff = std::allocator<uint8_t>{}.allocate(len);
+    uint8_t* buff = buf_alloc.allocate(len);
     arraycopy<uint8_t>(buff, static_cast<const uint8_t*>(input), len);
     md5_update(&ctx, buff, len);
     md5_finalize(&ctx);
-    std::allocator<uint8_t>{}.deallocate(buff, len);
+    buf_alloc.deallocate(buff, len);
     return *reinterpret_cast<__int128_t*>(ctx.digest);
 }
-__int128_t md5::operator()(const void *input, size_t len) const noexcept { return md5_hash(input, len); }

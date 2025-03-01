@@ -31,7 +31,7 @@ class font_render
 	uint32_t __background{};
 	uint32_t __pitch{};
 	constexpr size_t __buffer_start_offset(point const& start) const { return (start.x * __my_font->width) * 4 + (start.y * __my_font->height) * __pitch; }
-	constexpr size_t __buffer_offset(point const& start, point const& sub) const { return  ((__buffer_start_offset(start) + sub.y * __pitch) / 4) + sub.x; }
+	constexpr size_t __buffer_offset(point const& start, point const& sub) const { return ((__buffer_start_offset(start) + sub.y * __pitch) / 4) + sub.x; }
 	constexpr char __ensure_bounds(char c) const { return (static_cast<unsigned char>(c) > __my_font->numglyph || c < 1) ? ' ' : c; }
 	constexpr size_t __glyph_index(char c) const { return __my_font->bpg * __ensure_bounds(c); }
 	constexpr uint8_t __glyph_byte(char c, point const& offs) const { return __my_font->glyph_data[__glyph_index(c) + (offs.x / 8) + offs.y]; }

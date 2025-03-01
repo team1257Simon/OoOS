@@ -4,6 +4,7 @@
 #include "stdexcept"
 #include "errno.h"
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
+file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_fd(fd); }
 filesystem::filesystem() : device_nodes{}, current_open_files{}, next_fd{ 3 } {}
 filesystem::~filesystem() = default;
 void filesystem::__put_fd(file_node *fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files.set_at(fd->vid(), fd); for(std::vector<file_node*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
@@ -13,6 +14,12 @@ void filesystem::close_fd(file_node* fd) { if(fd->is_device()) return; fd->seek(
 file_node* filesystem::open_fd(tnode* node) { return node->as_file(); }
 void filesystem::dldevnode(device_node* n) { n->prune_refs(); current_open_files[n->vid()] = nullptr; device_nodes.erase(*n); this->syncdirs(); }
 file_node *filesystem::open_file(const char *path, std::ios_base::openmode mode) { return open_file(std::string(path), mode); }
+file_node* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) { return current_open_files[fd]; } else return nullptr; }
+device_node* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_hint, bool create_parents) { target_pair parent = this->get_parent(where, create_parents); if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; device_node* result = this->mkdevnode(parent.first, parent.second, what, fd_hint); this->__put_fd(result); return result; }
+void filesystem::link_stdio(vfs_filebuf_base<char> *target) { current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdin", target, 0)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdout", target, 1)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stderr", target, 2)); }
+tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink(this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
+bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent = this->get_parent(what, false); return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
+dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
 device_node* filesystem::mkdevnode(directory_node *parent, std::string const &name, vfs_filebuf_base<char> *dev, int fd_hint)
 {
     device_node* result = device_nodes.emplace(name, fd_hint, dev).first.base();
@@ -101,13 +108,7 @@ directory_node* filesystem::get_dir(std::string const& path, bool create)
     else if (node->is_file()) throw std::logic_error{ "path " + path + " exists and is a file" };
     else return node->as_folder();
 }
-file_node* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) { return current_open_files[fd]; } else return nullptr; }
-device_node* filesystem::lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_hint, bool create_parents) { target_pair parent = this->get_parent(where, create_parents); if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; device_node* result = this->mkdevnode(parent.first, parent.second, what, fd_hint); this->__put_fd(result); return result; }
-void filesystem::link_stdio(vfs_filebuf_base<char> *target) { current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdin", target, 0)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdout", target, 1)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stderr", target, 2)); }
-tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink(this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
-bool filesystem::unlink(std::string const &what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent = this->get_parent(what, false); return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
-dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
-static inline void __st_intl(fs_node* n, filesystem* fsptr, stat* st) 
+static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st) 
 {
     new (translate_user_pointer(st)) stat
     { 
@@ -126,7 +127,6 @@ static inline void __st_intl(fs_node* n, filesystem* fsptr, stat* st)
         .st_blocks = div_roundup(n->size(), 512) 
     };  
 }
-file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_fd(fd); }
 extern "C"
 {
     int syscall_open(char *name, int flags, ...)
@@ -190,7 +190,7 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try{ if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { __st_intl(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try{ if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_stat(const char *restrict name, stat *restrict st)
@@ -198,7 +198,7 @@ extern "C"
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        try{ if(file_node* n = fsptr->get_file(name)) { __st_intl(n, fsptr, st); return 0; } else if(directory_node* n{ fsptr->get_dir(name, false) }) { __st_intl(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
+        try{ if(file_node* n = fsptr->get_file(name)) { __stat_init(n, fsptr, st); return 0; } else if(directory_node* n{ fsptr->get_dir(name, false) }) { __stat_init(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }
     int syscall_fchmod(int fd, mode_t m)

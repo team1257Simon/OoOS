@@ -195,7 +195,7 @@ dig_done:
   k = nd < 15 + 1 ? nd : 15 + 1;
   (&rv)->d = y;
   if (k > 9) {
-    (&rv)->d = __tens_D2A[k - 9] * (&rv)->d + z;
+    (&rv)->d = __tens_d2a[k - 9] * (&rv)->d + z;
   }
   if (nd <= 15
 
@@ -204,18 +204,18 @@ dig_done:
       goto ret;
     if (e > 0) {
       if (e <= 22) {
-        (&rv)->d *= __tens_D2A[e];
+        (&rv)->d *= __tens_d2a[e];
         goto ret;
       }
       i = 15 - nd;
       if (e <= 22 + i) {
         e -= i;
-        (&rv)->d *= __tens_D2A[i];
-        (&rv)->d *= __tens_D2A[e];
+        (&rv)->d *= __tens_d2a[i];
+        (&rv)->d *= __tens_d2a[e];
         goto ret;
       }
     } else if (e >= -22) {
-      (&rv)->d /= __tens_D2A[-e];
+      (&rv)->d /= __tens_d2a[-e];
       goto ret;
     }
   }
@@ -223,7 +223,7 @@ dig_done:
   scale = 0;
   if (e1 > 0) {
     if ((i = e1 & 15) != 0)
-      (&rv)->d *= __tens_D2A[i];
+      (&rv)->d *= __tens_d2a[i];
     if (e1 &= ~15) {
       if (e1 > 308) {
       ovfl:
@@ -257,7 +257,7 @@ dig_done:
   } else if (e1 < 0) {
     e1 = -e1;
     if ((i = e1 & 15) != 0)
-      (&rv)->d /= __tens_D2A[i];
+      (&rv)->d /= __tens_d2a[i];
     if (e1 >>= 4) {
       if (e1 >= 1 << 5)
         goto undfl;

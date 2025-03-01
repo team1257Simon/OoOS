@@ -52,15 +52,20 @@ constexpr uint16_t day_of_year(uint8_t month, uint16_t day, bool leap) { uint16_
 inline void set_cr3(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
 inline paging_table get_cr3() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
 inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
-constexpr inline size_t GIGABYTE = 0x40000000;
+constexpr inline size_t gigabyte = 0x40000000;
 template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { if(__builtin_is_constant_evaluated()) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(array[i])); } } } }
-template<typename T> constexpr void arrayset(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++, dest++) *dest = value; }
+template<typename T> requires std::larger<T, uint64_t> constexpr void arrayset(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n);  if(__builtin_is_constant_evaluated()) { for(std::size_t i = 0; i < n; i++, dest++) *dest = value; } else { __builtin_memset(dest, value, n); } }
 template<nontrivial_copy T> constexpr void arraycopy(T* dest, const T* src, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++, ++dest, ++src) *dest = *src; }
 template<typename T> constexpr void arraymove(T* dest, T* src, std::size_t n) { init_if_consteval(dest, n); for(size_t i = 0; i < n; ++i, (void)++src) dest[i] = *src; }
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { init_if_consteval(dest, n); for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } }
 template<trivial_copy T> constexpr void arraycopy(void* dest, const T* src, std::size_t n) { init_if_consteval(dest, n); if(__builtin_is_constant_evaluated()) for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = src[i]; } else __builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T))); }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void arrayset(void* dest, T value, std::size_t n) { if constexpr(std::is_copy_constructible_v<T>) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value); } } else { init_if_consteval(dest, n); if(__builtin_is_constant_evaluated()) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } } else { __builtin_memset(dest, value, n); } } }
+// If a nontrivial type is default-constructible, "zeroing" an array really means resetting it to the default value for that type. Otherwise we leave it alone.
+template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++, dest++) { std::construct_at(std::addressof(dest[i])); } } }
+constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
+constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
+constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : truncate(n + unit, unit); }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
     if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++, dest++) { new (__builtin_addressof(dest[i])) T(); }
@@ -77,10 +82,5 @@ template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_
     else if constexpr(sizeof(T) % 2 == 0) arrayset<uint16_t>(dest, 0U, n * sizeof(T) / 2);
     else arrayset<uint8_t>(dest, 0U, n * sizeof(T));
 }
-// If a nontrivial type is default-constructible, "zeroing" an array really means resetting it to the default value for that type. Otherwise we leave it alone.
-template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++, dest++) { new (__builtin_addressof(dest[i])) T(); } } }
-constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
-constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
-constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : truncate(n + unit, unit); }
 #endif
 #endif

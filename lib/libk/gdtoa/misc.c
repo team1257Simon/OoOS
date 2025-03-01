@@ -411,4 +411,4 @@ big_int* __d2b_d2a(double dd, int* e, int* bits)
 const double __bigtens_D2A[] = { 1e16, 1e32, 1e64, 1e128, 1e256 };
 const double __tinytens_D2A[] = { 1e-16, 1e-32, 1e-64, 1e-128, 1e-256 };
 
-const double __tens_D2A[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22 };
+const double __tens_d2a[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22 };

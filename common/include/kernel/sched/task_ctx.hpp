@@ -34,8 +34,8 @@ struct task_ctx
     task_ctx(task_ctx const& that); // special copy constructor for fork() that ties in the heavy-lifting functions from other places   
     constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
-    constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == KFRAME_MAGIC; }
-    constexpr bool is_user() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == UFRAME_MAGIC; }
+    constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == kframe_magic; }
+    constexpr bool is_user() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == uframe_magic; }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.get_pid() <=> __that.get_pid(); }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }

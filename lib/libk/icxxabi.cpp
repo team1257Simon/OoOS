@@ -17,7 +17,9 @@ extern "C"
 	uarch_t __atexit_func_count = 0;
 	extern "C" void *__dso_handle;
 	extern "C" __cxxabiv1::__guard __atexit_guard;
-	extern "C" void _fini();
+	extern "C" void _fini();	
+	void __cxa_pure_virtual() { panic("Call to pure virtual"); abort(); __builtin_unreachable(); }
+	[[noreturn]] void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; abort(); __builtin_unreachable(); }
 	int __cxa_atexit(void (*f)(void *), void *objptr, void *dso)
 	{
 		__cxxabiv1::__cxa_guard_acquire(&__atexit_guard);
@@ -42,6 +44,5 @@ extern "C"
 		}
 		if(!f) _fini();
 	};
-	void __cxa_pure_virtual() { panic("Call to pure virtual"); abort(); __builtin_unreachable(); }
-	[[noreturn]] void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; abort(); __builtin_unreachable(); }
+
 }

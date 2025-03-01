@@ -1,6 +1,16 @@
 #include "bits/stl_tree.hpp"
 namespace std
 {
+    static void __local_lrotate(__node_base* const x, __node_base* &root);
+    static void __local_rrotate(__node_base* const x, __node_base* &root);
+    static inline __node_base* __next(__node_base* x, const node_direction dir) { return (dir == RIGHT ? x->__my_right : x->__my_left); }
+    __node_base::__ptr __node_base::__min(__ptr x) { while(x->__my_left) x = x->__my_left; return x; }
+    __node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left) x = x->__my_left; return x; }
+    __node_base::__ptr __node_base::__max(__ptr x) { while(x->__my_right) x = x->__my_right; return x; }
+    __node_base::__const_ptr __node_base::__max(__const_ptr x)  { while(x->__my_right) x = x->__my_right; return x; }
+    static inline node_direction __opposite(const node_direction dir) { return (dir == RIGHT ? LEFT : RIGHT); }
+    static inline void __local_rotate(__node_base* const x, __node_base* &root, const node_direction dir) { if(dir == RIGHT) __local_rrotate(x, root); else __local_lrotate(x, root); }
+    static inline bool __local_erase_rebalance_check_color(__node_base* w, const node_direction dir) { __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left); return (!w1 || w1->__my_color == BLACK); }
     static void __local_lrotate(__node_base* const x, __node_base* &root)
     {
         __node_base* const y = x->__my_right;
@@ -25,13 +35,6 @@ namespace std
         y->__my_right = x;
         x->__my_parent = y;
     }
-    static inline __node_base* __next(__node_base* x, const node_direction dir) { return (dir == RIGHT ? x->__my_right : x->__my_left); }
-    __node_base::__ptr __node_base::__min(__ptr x) { while(x->__my_left) x = x->__my_left; return x; }
-    __node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left) x = x->__my_left; return x; }
-    __node_base::__ptr __node_base::__max(__ptr x) { while(x->__my_right) x = x->__my_right; return x; }
-    __node_base::__const_ptr __node_base::__max(__const_ptr x)  { while(x->__my_right) x = x->__my_right; return x; }
-    static inline node_direction __opposite(const node_direction dir) { return (dir == RIGHT ? LEFT : RIGHT); }
-    static inline void __local_rotate(__node_base* const x, __node_base* &root, const node_direction dir) { if(dir == RIGHT) __local_rrotate(x, root); else __local_lrotate(x, root); }
     static inline void __local_rebalance_after_insert(__node_base* &x, __node_base* &root )
     {
         __node_base* const w = x->__my_parent->__my_parent;
@@ -53,8 +56,7 @@ namespace std
             __local_rotate(w, root, dir);
         }
     }
-    [[gnu::nonnull]]
-    void __insert_and_rebalance(const node_direction dir, __node_base *x, __node_base *p, __node_base &trunk) throw()
+    [[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base *x, __node_base *p, __node_base &trunk) throw()
     {
         __node_base* &root = trunk.__my_parent;
         x->__my_parent = p;
@@ -71,7 +73,6 @@ namespace std
         while(x != root && x->__my_parent->__my_color == RED) { __local_rebalance_after_insert(x, root); }
         root->__my_color = BLACK;
     }
-    static inline bool __local_erase_rebalance_check_color(__node_base* w, const node_direction dir) { __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left); return (!w1 || w1->__my_color == BLACK); }
     static inline bool __local_erase_rebalance_fix_clashes(__node_base* &x, __node_base* &x_parent, __node_base* &root, const node_direction dir)
     {
         __node_base* w = __next(x_parent, dir);
@@ -108,9 +109,7 @@ namespace std
         }
         return false;
     }
-    [[gnu::nonnull]]
-    [[gnu::returns_nonnull]]
-    __node_base *__rebalance_for_erase(__node_base *const z, __node_base &trunk) throw()
+    [[gnu::nonnull]] [[gnu::returns_nonnull]] __node_base *__rebalance_for_erase(__node_base *const z, __node_base &trunk) throw()
     {
         __node_base* &root = trunk.__my_parent;
         __node_base* &leftmost = trunk.__my_left;

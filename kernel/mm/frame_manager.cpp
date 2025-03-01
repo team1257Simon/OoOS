@@ -1,7 +1,7 @@
 #include "frame_manager.hpp"
 #include "stdexcept"
 frame_manager frame_manager::__inst{};
-void frame_manager::destroy_frame(uframe_tag& ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ &ft }); }
+void frame_manager::destroy_frame(uframe_tag& ft) { if(this->__out_of_range(&ft)) throw std::out_of_range{ "invalid frame tag" }; this->erase(const_iterator{ std::addressof(ft) }); }
 frame_manager& frame_manager::get() { return __inst; }
 uframe_tag &frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 {
@@ -17,7 +17,7 @@ uframe_tag &frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 uframe_tag &frame_manager::duplicate_frame(uframe_tag const &t)
 {
     uframe_tag& result = create_frame(t.base, t.extent);
-    kernel_memory_mgr::get().enter_frame(&result);
+    kernel_memory_mgr::get().enter_frame(std::addressof(result));
     for(std::vector<block_descr>::const_iterator i = t.usr_blocks.begin(); i != t.usr_blocks.end(); i++)
     {
         addr_t nblk = kernel_memory_mgr::get().duplicate_user_block(i->size, i->start, i->write, i->execute);

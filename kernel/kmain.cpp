@@ -40,7 +40,11 @@ extern "C"
     extern void test_fault();
     task_t kproc{};
 }
+filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
+void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
+void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
+constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 static void descr_pt(partition_table const& pt)
 {
     for(partition_entry_t e : pt)
@@ -261,7 +265,7 @@ static const char* codes[] =
     "#SX [Security Exception]",
     "[RESERVED INTERRUPT 0x1F]"
 };
-constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
+
 void run_tests()
 {
     // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
@@ -313,9 +317,6 @@ void run_tests()
     task_tests(); 
     startup_tty.print_line("complete");
 }
-filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
-void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
-void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 extern "C"
 {
     extern void _init();

@@ -3,13 +3,13 @@
 #include "kernel/libk_decls.h"
 #include "vector"
 #ifndef MAX_BLOCK_EXP
-#define MAX_BLOCK_EXP 32u
+#define MAX_BLOCK_EXP 32U
 #endif
 #ifndef MIN_BLOCK_EXP
-#define MIN_BLOCK_EXP 8u // This times 2^(index) is the full size of a block at that index in a frame 
+#define MIN_BLOCK_EXP 8U // This times 2^(index) is the full size of a block at that index in a frame 
 #endif
 #ifndef MAX_COMPLETE_PAGES
-#define MAX_COMPLETE_PAGES 5u
+#define MAX_COMPLETE_PAGES 5U
 #endif
 #define PROT_READ	0x1		/* Page can be read.  */
 #define PROT_WRITE	0x2		/* Page can be written.  */
@@ -19,20 +19,21 @@
 #define MAP_SHARED	0x01		/* Share changes.  */
 #define MAP_PRIVATE	0x02		/* Changes are private.  */
 /* Other flags.  */
-#define MAP_FIXED	0x10
-#define MAP_FILE	0
-#define MAP_ANONYMOUS	0x20
+#define MAP_FIXED	    0x10
+#define MAP_FILE	    0x00
+#define MAP_ANONYMOUS   0x20
 // 64 bits means new levels of l33tpuns! Now featuring Pokemon frustrations using literal suffixes.
-constexpr uint64_t BLOCK_MAGIC = 0xB1600FBA615FULL;
+constexpr uint64_t block_magic = 0xB1600FBA615FULL;
 // Of course, we wouldn't want to offend anyone, so... (the 7s are T's...don't judge me >.<)
-constexpr uint64_t KFRAME_MAGIC = 0xD0BE7AC7FUL;
+constexpr uint64_t kframe_magic = 0xD0BE7AC7FUL;
 // Oh yea we did...
-constexpr uint64_t UFRAME_MAGIC = 0xACED17C001B012;
-constexpr inline uint64_t REGION_SIZE = PAGESIZE * PT_LEN;
-constexpr uintptr_t mmap_min_addr = 0x500000;
+constexpr uint64_t uframe_magic = 0xACED17C001B012;
+constexpr inline uint64_t region_size = PAGESIZE * PT_LEN;
+constexpr uintptr_t mmap_min_addr = 0x500000UL;
+constexpr size_t block_exp_range = MAX_BLOCK_EXP - MIN_BLOCK_EXP;
 struct block_tag
 {
-    uint64_t magic{ BLOCK_MAGIC };
+    uint64_t magic{ block_magic };
     size_t block_size;
     size_t held_size;
     int64_t index;
@@ -60,9 +61,9 @@ struct block_tag
 } __pack;
 struct kframe_tag
 {
-    uint64_t magic{ KFRAME_MAGIC };
-    uint16_t complete_pages[MAX_BLOCK_EXP - MIN_BLOCK_EXP]{};
-    block_tag* available_blocks[MAX_BLOCK_EXP - MIN_BLOCK_EXP]{};
+    uint64_t magic{ kframe_magic };
+    uint16_t complete_pages[block_exp_range]{};
+    block_tag* available_blocks[block_exp_range]{};
 private:
     spinlock_t __my_mutex{};
 public:
@@ -89,7 +90,7 @@ struct block_descr
 };
 struct uframe_tag
 {
-    uint64_t magic{ UFRAME_MAGIC };
+    uint64_t magic{ uframe_magic };
     paging_table pml4;
     addr_t base;
     addr_t extent;
@@ -168,11 +169,11 @@ private:
     constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
     constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
     constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
-    constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(BS2BI(i)); }
+    constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i == S16 ? I4 : (i == S32 ? I3 : (i == S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))); }
     constexpr operator bool() const noexcept { return !all_used(); }
     constexpr bool operator!() const noexcept { return all_used(); }
-    constexpr static unsigned int gb_of(uintptr_t addr) { return addr / GIGABYTE; }
-    constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / (PAGESIZE * PT_LEN)) % 512; }
+    constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
+    constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
 } __align(1) __pack status_byte, gb_status[512];
 class kernel_memory_mgr
 {
