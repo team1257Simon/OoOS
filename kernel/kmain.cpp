@@ -47,13 +47,13 @@ static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 static void descr_pt(partition_table const& pt)
 {
-    for(partition_entry_t e : pt)
+    for(partition_table::const_iterator i = pt.begin(); i != pt.end(); i++)
     {
-        if(e.type_guid.data_full[0] == 0 && e.type_guid.data_full[1] == 0) continue;
+        if(i->type_guid.data_full[0] == 0 && i->type_guid.data_full[1] == 0) continue;
         startup_tty.print_text("Partition at: ");
-        startup_tty.print_text(std::to_string(e.start_lba));
+        startup_tty.print_text(std::to_string(i->start_lba));
         startup_tty.print_text(" to ");
-        startup_tty.print_line(std::to_string(e.end_lba));
+        startup_tty.print_line(std::to_string(i->end_lba));
     }
 }
 void map_tests()

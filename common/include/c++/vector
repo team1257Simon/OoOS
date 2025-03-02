@@ -71,6 +71,7 @@ namespace std
         template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { return *(this->__emplace_at_end(std::forward<Args>(args)...)); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
+        template<std::matching_input_iterator<value_type> IT> constexpr void push_back(IT start, IT end) { this->__append_elements(start, end); }
         constexpr void pop_back() { this->__erase_at_end(1); }
         constexpr iterator erase(const_iterator pos) { return iterator { this->__erase(pos.base()) }; }
         constexpr iterator erase(const_iterator start, const_iterator end) { return iterator { this->__erase_range(start.base(), end.base()) }; }

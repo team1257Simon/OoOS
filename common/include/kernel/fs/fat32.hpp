@@ -181,6 +181,7 @@ protected:
     virtual std::streamsize __ddread(std::streamsize n) override;
     virtual std::streamsize __ddrem() override;
     virtual std::streamsize __overflow(std::streamsize n) override;
+    virtual int sync() override;
 public:
     fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_file_node* parent);
 };
@@ -230,6 +231,7 @@ class fat32_directory_node final : public directory_node, public fat32_node
     bool __has_init{ false };    
     size_t __n_files{};
     size_t __n_folders{};
+    bool __dirty{ false };
     friend class fat32_node;
     friend class fat32;    
     void __expand_dir();
@@ -252,6 +254,7 @@ public:
     fat32_regular_entry* find_dirent(std::string const&);
     bool parse_dir_data();
     constexpr bool valid() const { return __has_init; }
+    constexpr void mark_dirty() { __dirty = true; }
     fat32_directory_node(fat32* pfs, std::string const& real_name, fat32_directory_node* pdir, uint32_t cl_st, size_t dirent_idx);
     friend constexpr std::strong_ordering operator<=>(fat32_directory_node const& __this, fat32_directory_node const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(std::char_traits<char>::compare(__this.concrete_name.c_str(), __that.concrete_name.c_str(), std::max(__this.concrete_name.size(), __that.concrete_name.size()))); }
 };
