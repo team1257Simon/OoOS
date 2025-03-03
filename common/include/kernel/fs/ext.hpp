@@ -65,7 +65,7 @@ struct ext_superblock
     uint16_t multi_mount_protection_wait;
     uint64_t multi_mount_protection_block;
     uint32_t raid_block_rw_thresh;
-    uint8_t groups_per_flex_shift;      // as above, shift 1024 by this
+    uint8_t groups_per_flex_shift;      // as above, but shift from 1 instead of 1024 (or right-shift the number of groups to get the number of flex groups)
     uint8_t metadata_checksum_algo_id;
     uint8_t encryption_version;
     uint8_t pad0;

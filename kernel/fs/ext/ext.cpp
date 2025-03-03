@@ -51,8 +51,8 @@ extfs::~extfs()
 ext_block_group::ext_block_group(extfs *parent, block_group_descriptor *desc) : 
     parent_fs       { parent }, 
     descr           { desc }, 
-    inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi), parent->allocate_block_buffer() },
-    blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi), parent->allocate_block_buffer() },
+    inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi) },
+    blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi) },
     inode_blocks    {}
                     {}
 ext_block_group::~ext_block_group()
@@ -72,14 +72,23 @@ void extfs::initialize()
     blk_group_descs = bg_alloc.allocate(num_blk_groups);
     size_t inode_blocks_per_group = div_roundup(sb->inodes_per_group, inodes_per_block());
     if(!(num_blk_groups && blk_group_descs && read_hd(blk_group_descs, block_to_lba(1UL), (num_blk_groups * sizeof(block_group_descriptor)) / physical_block_size))) throw std::runtime_error{ "failed to read block group table" };
-    for(size_t i = 0; i < num_blk_groups; i++)
+    size_t num_group_structs = num_blk_groups;
+    size_t group_incr;
+    if(sb->required_features & flex_groups) { num_group_structs >>= sb->groups_per_flex_shift; group_incr = 1 << sb->groups_per_flex_shift; }
+    else group_incr = 1;
+    size_t total_meta_size = block_size() * group_incr;
+    for(size_t i = 0; i < num_group_structs; i++)
     {
-        ext_block_group bg(this, blk_group_descs + i);
+        ext_block_group bg(this, blk_group_descs + (i * group_incr));
+        bg.inode_usage_bmp.chain_len = group_incr;
+        bg.blk_usage_bmp.chain_len = group_incr;
+        bg.inode_usage_bmp.data_buffer = buff_alloc.allocate(total_meta_size);
+        bg.blk_usage_bmp.data_buffer = buff_alloc.allocate(total_meta_size);
         if(!read_from_disk(bg.inode_usage_bmp) || !read_from_disk(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
         uint64_t inode_table_start = qword(bg.descr->inode_table_start_block, bg.descr->inode_table_start_block_hi);
-        for(size_t j = 0; j < inode_blocks_per_group; j++)
+        for(size_t j = 0; j < inode_blocks_per_group * group_incr; j++)
         {
-            disk_block ibl{ inode_table_start + j, allocate_block_buffer() };
+            disk_block ibl{ inode_table_start + (j * group_incr), buff_alloc.allocate(total_meta_size), false, group_incr };
             if(!read_from_disk(ibl)) { free_block_buffer(ibl); throw std::runtime_error{ "failed to read inode table" }; }
             bg.inode_blocks.push_back(ibl);
         }
@@ -96,7 +105,7 @@ uint32_t extfs::claim_inode()
         if(block_groups[i].has_available_inode())
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_sz(bmp, block_size() / sizeof(unsigned long));
+            off_t avail = bitmap_scan_sz(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len)/ sizeof(unsigned long));
             uint32_t result = static_cast<uint32_t>(avail + sb->inodes_per_group * i);
             bitmap_set_cbits(bmp, avail, 1UL);
             block_groups[i].decrement_inode_ct();
@@ -237,7 +246,7 @@ disk_block *extfs::claim_blocks(ext_vnode *requestor, size_t how_many)
         if(block_groups[i].has_available_blocks(how_many))
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_cz(bmp, block_size() / sizeof(unsigned long), how_many);
+            off_t avail = bitmap_scan_cz(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
             if(avail < 0) continue;
             bitmap_set_cbits(bmp, avail, how_many);
             block_groups[i].alter_available_blocks(-how_many);
@@ -257,7 +266,7 @@ disk_block *extfs::claim_metadata_block(ext_node_extent_tree *requestor)
         if(block_groups[i].has_available_blocks())
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_sz(bmp, block_size() / sizeof(unsigned long));
+            off_t avail = bitmap_scan_sz(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
             bitmap_set_cbits(bmp, avail, 1);
             block_groups[i].alter_available_blocks(-1L);
             if(!persist_group_metadata(i)) return nullptr;
