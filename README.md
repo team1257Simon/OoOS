@@ -19,4 +19,7 @@ To build the OS, you will need to install the libc and targeted toolchain as wel
  10. In the gcc directory, run `../gcc/configure --target=x86_64-ooos --enable-languages=c,c++ --with-sysroot=$SYSROOT --with-newlib`. Then, run `make all-gcc all-target-ligbcc` (not just `make`). Replace `all` with `install` to install a given target.
  11. After installing those, you can also run `make all-target-libstdc++-v3` to build the c++ library.
  12. Maybe go get a drink of water or something...the build process for GCC can take nearly an hour.
+In addition, the script `create_image.sh` has the following dependencies:
+- `fuse fuse2fs libfuse-dev fuseloop`
+- The last of these is a pretty simple program you can get from https://github.com/jmattsson/fuseloop.git which allows the script to build the image without root privileges.
 Anyway, I'm going to be making improvements so that reproducing this is easier. Thanks for your interest in my silly little pet project!

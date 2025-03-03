@@ -612,7 +612,6 @@ protected:
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* open_fd(tnode* fd) override;
-    void initialize();
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
     uint32_t claim_inode();
@@ -640,6 +639,7 @@ public:
     bool persist(ext_file_vnode* n);
     bool persist(ext_directory_vnode* n);
     fs_node* dirent_to_vnode(ext_dir_entry* de);
+    void initialize();
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };

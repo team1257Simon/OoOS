@@ -3,25 +3,25 @@
 #include "arch/com_amd64.h"
 #include "kernel_mm.hpp"
 #include "rtc.h"
-#include "elf64_exec.hpp"
 #include "keyboard_driver.hpp"
 #include "sched/task_ctx.hpp"
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
 #include "fs/hda_ahci.hpp"
-#include "fs/fat32.hpp"
 #include "fs/ramfs.hpp"
+#include "fs/ext.hpp"
 #include "bits/icxxabi.h"
 #include "bits/dragon.hpp"
 #include "stdlib.h"
 #include "bits/stl_queue.hpp"
 #include "algorithm"
+#include "map"
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
 static serial_driver_amd64* com;
 static sysinfo_t* sysinfo;
 static ramfs testramfs;
-static fat32* fat32_testfs;
+static extfs test_extfs(94208UL);
 static bool direct_print_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
@@ -196,39 +196,16 @@ void task_tests()
     tt2->start_task(exit_test_fn);
     scheduler::get().start();
 }
-void fat32_tests()
+void extfs_tests()
 {
-    if(fat32::init_instance())
+    try
     {
-        if(!fat32_testfs) fat32_testfs = fat32::get_instance();
-        startup_tty.print_line("initialized...");
-        file_node* f = fat32_testfs->open_file("FILES/A.TXT");
-        f->write("eleventeenology!", 16);
-        fat32_testfs->close_file(f);
+        test_extfs.initialize();
+        file_node* f = test_extfs.open_file("files/memes.txt");
+        f->write("sweet dreams are made of memes", 31UL);
+        test_extfs.close_file(f);
     }
-}
-void elf64_tests()
-{
-    if(fat32::init_instance()) try
-    {
-        if(!fat32_testfs) fat32_testfs = fat32::get_instance();
-        file_node* f = fat32_testfs->open_file("FILES/TEST.ELF", std::ios_base::in);
-        elf64_executable exec(f);
-        fat32_testfs->close_file(f);
-        if(exec.load())
-        {
-            elf64_program_descriptor const* desc = std::addressof(exec.describe());
-            startup_tty.print_line("Entry at " + std::to_string(desc->entry));
-            startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
-            task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
-            file_node* c = task->get_vfs_ptr()->lndev("com", com, 0);
-            task->set_stdio_ptrs(c, c, c);
-            task->start_task();
-            user_entry(task->task_struct.self);
-        }
-        else startup_tty.print_line("Executable failed to validate");
-    }
-    catch(std::exception& e) { panic(e.what()); }
+    catch(std::exception& e) { panic(e.what());}
 }
 static const char* codes[] = 
 {
@@ -307,12 +284,9 @@ void run_tests()
     if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
-    vfs_tests();
-    if(fat32::init_instance()) fat32_testfs = fat32::get_instance();      
-    startup_tty.print_line("fat32 tests...");
-    fat32_tests();
-    startup_tty.print_line("userland tests...");
-    elf64_tests();
+    vfs_tests();   
+    startup_tty.print_line("extfs tests...");
+    extfs_tests();
     startup_tty.print_line("task tests...");
     task_tests(); 
     startup_tty.print_line("complete");

@@ -8,8 +8,8 @@ CFLAGS = -O2 -Wall
 CCFLAGS = $(CFLAGS) -std=gnu23
 CXXFLAGS = $(CFLAGS) -std=c++20
 LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -lc -lg -lm -lnosys
-OUTDIR = $(BUILD_DIR)/FILES
-TARGET = $(OUTDIR)/TEST.ELF
+OUTDIR = $(IMAGE_FILE_DIR)
+TARGET = $(OUTDIR)/test.elf
 CSRC = test.c
 CPPSRC = $(wildcard *.cpp)
 OBJECTS = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)

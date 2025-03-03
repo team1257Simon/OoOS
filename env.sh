@@ -10,4 +10,4 @@ PREFIX="${BUILD_DIR}/cc"
 BIN_D="${PREFIX}/bin"
 
 PATH=$PATH:$BIN_D
-
+SYSROOT="${PREFIX}/ooos_sysroot"

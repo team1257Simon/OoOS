@@ -5,6 +5,7 @@ ARCH = x86_64
 OSNAME = ooos
 TARGET_BARE = $(ARCH)-elf
 TARGET_HOSTED = $(ARCH)-$(OSNAME)
+IMAGE_FILE_DIR = $(CURDIR)/img
 READ := $(TARGET_BARE)-readelf
 READFLAGS = -a -C -W
 USE_GCC = 1
@@ -30,6 +31,7 @@ export LOG_DIR
 export SYSROOT
 export SYS_LIB
 export LIB_GCC
+export IMAGE_FILE_DIR
 SUBDIRS = lib boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)
@@ -53,7 +55,7 @@ clean:
 		cd .. ;\
 	done
 $(OUT_IMG): $(BUILD_DIR) create_image.sh $(SUBDIRS)
-	sh create_image.sh $@ $(BUILD_DIR)
+	sh create_image.sh $@ $(BUILD_DIR) $(IMAGE_FILE_DIR)
 asmtest: 
 	cd kernel && $(MAKE) asmtest
 	cd lib && $(MAKE) asmtest
