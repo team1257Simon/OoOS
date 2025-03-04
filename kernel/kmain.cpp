@@ -201,6 +201,10 @@ void extfs_tests()
     try
     {
         test_extfs.initialize();
+        BARRIER;
+        startup_tty.print_line("init complete");
+        BARRIER;
+        test_extfs.get_dir("files");
         file_node* f = test_extfs.open_file("files/memes.txt");
         f->write("sweet dreams are made of memes", 31UL);
         test_extfs.close_file(f);

@@ -1,6 +1,9 @@
 #include "fs/ext.hpp"
 #include "sys/errno.h"
 std::allocator<char> bl_alloc{};
+std::allocator<jbd2_superblock> sb_alloc{};
+jbd2::jbd2(extfs *parent, uint32_t inode) : ext_vnode{ parent, inode } {}
+jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
 jbd2_transaction_queue::reference jbd2_transaction_queue::put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h) { return this->emplace(static_cast<transaction_id>(this->size()), std::move(blocks), std::move(h)); }
 bool jbd2_transaction::execute_and_complete(extfs *fs_ptr) { for(std::vector<disk_block>::iterator i = data_blocks.begin(); i != data_blocks.end(); i++) { if(!i->block_number) continue; /* Zeroed blocknums are revoked blocks */ if(!fs_ptr->write_to_disk(*i)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const &bl) { return ((__be32(reinterpret_cast<uint32_t const*>(bl.data_buffer)[0])) == jbd2_magic); }
@@ -32,7 +35,8 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 {
     if(txn_blocks.empty()) return true; // vacuous success; nothing to do
     size_t tpb = tags_per_block();
-    disk_block tb{ first_open_block++, allocate_block_buffer(), false, 1UL };
+    disk_block tb{ first_open_block + sb->start_block, allocate_block_buffer(), false, 1UL };
+    first_open_block++;
     uint32_t s = 0;
     uint64_t j = tb.block_number;
     size_t k = 0;
@@ -48,12 +52,13 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         }
         for(size_t n = 0; n < std::max(1UL, i->chain_len); n++)
         {
-            disk_block db{ j++, i->data_buffer + n*parent_fs->block_size(), false, 1 };
+            disk_block db{ j++, i->data_buffer + n * parent_fs->block_size(), false, 1UL };
             o += desc_tag_create(db, tb.data_buffer + o, s, !k, (k + 1 == tpb || i + 1 == txn_blocks.end()));
             bool esc = ((__be32(reinterpret_cast<uint32_t const*>(db.data_buffer)[0])) == jbd2_magic);
             if(esc) *reinterpret_cast<uint32_t*>(db.data_buffer) = 0;
-            if(!write_block(db)) { if(esc) { *reinterpret_cast<uint32_t*>(db.data_buffer) = jbd2_magic; } return false; }
+            bool succeeded = write_block(db);
             if(esc) { *reinterpret_cast<uint32_t*>(db.data_buffer) = jbd2_magic; }
+            if(!succeeded) return false;
         }
         k = (k + 1) % tpb;
         if(!k || i + 1 == txn_blocks.end())
@@ -220,4 +225,10 @@ uint32_t jbd2::calculate_sb_checksum()
     uint32_t result = crc32c(sb);
     sb->checksum = __be32(sb_cs_val);
     return result;
+}
+bool jbd2::initialize()
+{
+    if(!init_extents()) return false;
+    sb = reinterpret_cast<jbd2_superblock*>(extents.get_extent_block(0UL)->data_buffer);
+    return true;
 }

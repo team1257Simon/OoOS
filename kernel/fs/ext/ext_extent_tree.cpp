@@ -33,6 +33,7 @@ bool ext_node_extent_tree::parse_legacy()
     }
     uint64_t ind1 = tracked_node->on_disk_node->block_info.legacy_extent.singly_indirect_block;
     if(!ind1) return (has_init = true); // no indirect block pointer means we're done
+    base_depth++;
     disk_block* single_ptr_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind1, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
     if(!tracked_node->parent_fs->read_from_disk(*single_ptr_block)) { panic("read on single pointer block failed"); return false; }
     uint64_t cur_file_block = 12;
@@ -43,6 +44,7 @@ bool ext_node_extent_tree::parse_legacy()
         cur_file_block = base->nl_recurse_legacy(this, exnode->first);
         // the function will return 0 to indicate having reached the end of the file's extent; otherwise it will return the next file node. A failure will throw an exception
         if(!cur_file_block) return (has_init = true);
+        base_depth++;
         // if we get here, there are more blocks to parse in the doubly-indirect pointers
         uint64_t ind2 = tracked_node->on_disk_node->block_info.legacy_extent.doubly_indirect_block;
         disk_block* di_pointer_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind2, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
@@ -51,6 +53,7 @@ bool ext_node_extent_tree::parse_legacy()
         exnode = base_extent_level.insert(std::make_pair(cur_file_block, cached_node_pos(base))).first;
         cur_file_block = base->nl_recurse_legacy(this, exnode->first);
         if(!cur_file_block) return (has_init = true);
+        base_depth++;
         // if we made it all the way here, there are even more blocks, this time in triply-indirect pointers
         uint64_t ind3 = tracked_node->on_disk_node->block_info.legacy_extent.triply_indirect_block;
         disk_block* tri_pointer_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind3, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
@@ -68,6 +71,7 @@ bool ext_node_extent_tree::parse_ext4()
     if(has_init) return true;
     ext_extent_header* h = std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.header);
     if(h->magic != ext_extent_magic) { panic("invalid extent tree header"); return false; }
+    base_depth = h->depth;
     if(!h->entries) return (has_init = true); // no entries means we're done (empty file, or newly created)
     ext_extent_node* nodes = tracked_node->on_disk_node->block_info.ext4_extent.root_nodes;
     size_t num = std::min(size_t(h->entries), 4UL);
@@ -150,6 +154,19 @@ bool cached_extent_node::nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t 
 }
 uint64_t cached_extent_node::get_disk_blocknum_recurse(ext_node_extent_tree* parent, uint64_t file_block)
 {
+    if(depth == 0)
+    {
+        for(auto i = next_level_extents.begin(); i != next_level_extents.end(); i++)
+        {
+            if(i->first < file_block && parent->get_cached(i->second))
+            {
+                cached_extent_node* base = parent->get_cached(i->second);
+                disk_block* b = base->block();
+                if(file_block < b->chain_len + i->first) return b->block_number + (file_block % i->first);;
+            }
+        }
+        return 0;
+    }
     auto i = next_level_extents.lower_bound(file_block);
     if(i == next_level_extents.end()) i--;
     cached_extent_node* base = parent->get_cached(i->second);
@@ -161,6 +178,19 @@ uint64_t cached_extent_node::get_disk_blocknum_recurse(ext_node_extent_tree* par
 }
 uint64_t ext_node_extent_tree::get_disk_blocknum(uint64_t file_block)
 {
+    if(base_depth == 0)
+    {
+        for(auto i = base_extent_level.begin(); i != base_extent_level.end(); i++)
+        {
+            if(i->first < file_block && get_cached(i->second))
+            {
+                cached_extent_node* base = get_cached(i->second);
+                disk_block* b = base->block();
+                if(file_block < b->chain_len + i->first) return b->block_number + (file_block % i->first);
+            }
+        }
+        return 0;
+    }
     auto i = base_extent_level.lower_bound(file_block);
     if(i == base_extent_level.end()) i--;
     cached_extent_node* base = get_cached(i->second);
@@ -172,6 +202,19 @@ uint64_t ext_node_extent_tree::get_disk_blocknum(uint64_t file_block)
 }
 disk_block *cached_extent_node::get_block_recurse(ext_node_extent_tree* parent, uint64_t file_block)
 {
+    if(depth == 0)
+    {
+        for(auto i = next_level_extents.begin(); i != next_level_extents.end(); i++)
+        {
+            if(i->first < file_block && parent->get_cached(i->second))
+            {
+                cached_extent_node* base = parent->get_cached(i->second);
+                disk_block* b = base->block();
+                if(file_block < b->chain_len + i->first) return b;
+            }
+        }
+        return nullptr;
+    }
     auto i = next_level_extents.lower_bound(file_block);
     if(i == next_level_extents.end()) i--;
     cached_extent_node* base = parent->get_cached(i->second);
@@ -183,6 +226,19 @@ disk_block *cached_extent_node::get_block_recurse(ext_node_extent_tree* parent, 
 }
 disk_block *ext_node_extent_tree::get_extent_block(uint64_t file_block)
 {
+    if(base_depth == 0)
+    {
+        for(auto i = base_extent_level.begin(); i != base_extent_level.end(); i++)
+        {
+            if(i->first < file_block && get_cached(i->second))
+            {
+                cached_extent_node* base = get_cached(i->second);
+                disk_block* b = base->block();
+                if(file_block < b->chain_len + i->first) return b;
+            }
+        }
+        return nullptr;
+    }
     auto i = base_extent_level.lower_bound(file_block);
     if(i == base_extent_level.end()) i--;
     cached_extent_node* base = get_cached(i->second);
@@ -225,6 +281,7 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
             if(base->depth < 3)
             {
                 uint16_t nd = base->depth + 1;
+                if(nd > base_depth) base_depth = nd;
                 disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(this);
                 if(nl_blk) 
                 { 
@@ -289,13 +346,14 @@ bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
 }
 bool ext_node_extent_tree::ext4_root_overflow()
 {
-    if(__builtin_expect(tracked_node->on_disk_node->block_info.ext4_extent.header.depth > 4, false)) { panic("max file extent reached"); return false; }
+    if(__builtin_expect(base_depth > 4, false)) { panic("max file extent reached"); return false; }
     disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(this);
     if(!nl_blk) { panic("failed to claim metadata block"); return false; }
     size_t bs = tracked_node->parent_fs->block_size();
-    uint16_t current_depth = tracked_node->on_disk_node->block_info.ext4_extent.header.depth++;
+    base_depth++;
+    tracked_node->on_disk_node->block_info.ext4_extent.header.depth++;
     size_t nodes_per_block = ((bs - sizeof(ext_extent_header)) / sizeof(ext_extent_node));
-    ext_extent_header* header = new (reinterpret_cast<ext_extent_header*>(nl_blk->data_buffer)) ext_extent_header{ .magic = ext_extent_magic, .max_entries = uint16_t(nodes_per_block), .depth = uint16_t(current_depth + 1) };
+    ext_extent_header* header = new (reinterpret_cast<ext_extent_header*>(nl_blk->data_buffer)) ext_extent_header{ .magic = ext_extent_magic, .max_entries = uint16_t(nodes_per_block), .depth = uint16_t(base_depth) };
     size_t root_entries = std::min(uint16_t(4), tracked_node->on_disk_node->block_info.ext4_extent.header.max_entries);
     ext_extent_node* extent_nodes = reinterpret_cast<ext_extent_node*>(nl_blk->data_buffer + sizeof(ext_extent_header));
     arraycopy(extent_nodes, tracked_node->on_disk_node->block_info.ext4_extent.root_nodes, root_entries);
@@ -304,7 +362,7 @@ bool ext_node_extent_tree::ext4_root_overflow()
     new (std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[0])) ext_extent_node{ .idx = ext_extent_index{ .next_level_block_lo = nblk_qw.lo, .next_level_block_hi = nblk_qw.hi.lo } };
     array_zero(std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[1]), root_entries);
     nl_blk->dirty = true;
-    cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, current_depth));
+    cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, base_depth));
     base->next_level_extents.swap(base_extent_level);
     base_extent_level.insert_or_assign(0UL, cached_node_pos(base));
     tracked_node->on_disk_node->block_info.ext4_extent.header.entries = 1;

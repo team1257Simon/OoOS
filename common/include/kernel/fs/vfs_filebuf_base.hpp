@@ -15,9 +15,9 @@ protected:
     using typename std::basic_streambuf<CT, TT>::__sb_type;
     using typename std::basic_streambuf<CT, TT>::__ptr_container;
     bool __dirty { false };
-    virtual int __ddwrite() = 0; // Sync the put region to the file if this stream is output-buffered.
-    virtual std::streamsize __ddread(std::streamsize) = 0; // Get more bytes from the file if there are any left.
-    virtual std::streamsize __ddrem() = 0; // How many unread bytes are in the file's data sequence.
+    virtual int __ddwrite() { return 0; } // Sync the put region to the file if this stream is output-buffered.
+    virtual std::streamsize __ddread(std::streamsize) { return std::streamsize(0); } // Get more bytes from the file if there are any left.
+    virtual std::streamsize __ddrem() { return 0; } // How many unread bytes are in the file's data sequence.
     virtual std::streamsize __sect_size() { return physical_block_size; }
     virtual std::streamsize __overflow(std::streamsize n) { if(this->__grow_buffer(n)) return n; return 0; }
     virtual std::streamsize showmanyc() override { return __ddrem(); }

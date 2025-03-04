@@ -461,7 +461,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
     {
         __lock();
         block_tag* tag = ptr - bt_offset;
-        for(size_t i = 0; tag && tag->magic != block_magic; i++) tag = ptr.minus(ptrdiff_t(bt_offset + i));
+        for(size_t i = 0; tag && (tag->magic != block_magic); i++) tag = addr_t(tag).minus(1L);
         if(tag && tag->magic == block_magic)
         {
             tag->held_size = 0;
@@ -480,8 +480,8 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
     if(!ptr) return allocate(size, align);
     if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     block_tag* tag = ptr - bt_offset;
-    for(size_t i = 0; tag->magic != block_magic; i++) tag = ptr.minus(bt_offset + i);
-    if(tag->magic == block_magic && tag->allocated_size() >= size + add_align_size(tag, align))
+    for(size_t i = 0; tag && (tag->magic != block_magic); i++) tag = addr_t(tag).minus(1L);
+    if(tag && (tag->magic == block_magic) && (tag->allocated_size() >= size + add_align_size(tag, align)))
     {
         tag->align_bytes = add_align_size(tag, align);
         size_t delta = size - (tag->held_size + tag->align_bytes);

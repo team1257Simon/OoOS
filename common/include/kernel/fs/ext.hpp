@@ -464,6 +464,7 @@ struct cached_extent_node
 struct ext_node_extent_tree
 {
     ext_vnode* tracked_node;
+    uint16_t base_depth{};
     size_t total_extent{};
     std::vector<cached_extent_node> tracked_extents{};        // the actual extent map objects are allocated here
     std::map<uint64_t, off_t> base_extent_level{};
@@ -491,6 +492,7 @@ struct ext_vnode : public vfs_filebuf_base<char>
     ext_node_extent_tree extents;
     ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode);
     ext_vnode(extfs* parent, uint32_t inode_number);
+    ext_vnode() = default;
     bool expand_buffer(size_t added_bytes);
     virtual ~ext_vnode();
     virtual bool initialize();
@@ -498,13 +500,12 @@ struct ext_vnode : public vfs_filebuf_base<char>
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
 };
-struct jbd2
+struct jbd2 : public ext_vnode
 {
-    extfs* parent_fs;
     jbd2_superblock* sb;
-    jbd2_transaction_queue active_transactions;
-    std::vector<disk_block> replay_blocks;
-    uint32_t first_open_block;  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
+    jbd2_transaction_queue active_transactions{};
+    std::vector<disk_block> replay_blocks{};
+    uint32_t first_open_block{};  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
     bool create_txn(ext_vnode* changed_node);   // this overload is for files and directories (only needed in full journal and writeback mode)
     bool create_txn(std::vector<disk_block> const&);    // this overload can be used directly for inodes, block groups, etc (needed in all modes)
     bool need_escape(disk_block const& bl);
@@ -519,6 +520,10 @@ struct jbd2
     void free_buffers(std::vector<disk_block>& bufs);
     char* allocate_block_buffer();
     uint32_t calculate_sb_checksum();
+    ~jbd2();
+    jbd2() = default;
+    jbd2(extfs* parent, uint32_t inode);
+    virtual bool initialize() override;
 };
 class ext_file_vnode : public ext_vnode, public file_node
 {
@@ -581,7 +586,7 @@ struct ext_block_group
     block_group_descriptor* descr;
     disk_block inode_usage_bmp;
     disk_block blk_usage_bmp;
-    std::vector<disk_block> inode_blocks;
+    disk_block inode_block;
     bool has_available_inode();
     bool has_available_blocks();
     bool has_available_blocks(size_t n);
@@ -620,8 +625,10 @@ protected:
 public:
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);
+    void allocate_block_buffer(disk_block& bl);
     size_t block_size();
     size_t inodes_per_block();
+    uint32_t inode_pos_in_group(uint32_t inode_num);
     size_t sectors_per_block();
     size_t blocks_per_group();
     size_t inodes_per_group();
