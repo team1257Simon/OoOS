@@ -208,8 +208,8 @@ public:
     bool is_device() const;
     file_node* as_file();
     file_node const* as_file() const;
-    directory_node* as_folder();
-    directory_node const* as_folder() const;
+    directory_node* as_directory();
+    directory_node const* as_directory() const;
     device_node* as_device();
     device_node const* as_device() const;
     void invlnode() noexcept;

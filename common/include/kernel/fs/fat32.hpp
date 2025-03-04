@@ -265,7 +265,7 @@ class fat32 final : public filesystem
     uint64_t __sector_base;
     dev_t __dev_serial;
     std::set<fat32_file_node> __file_nodes{};
-    std::set<fat32_directory_node> __folder_nodes{};    
+    std::set<fat32_directory_node> __directory_nodes{};    
     std::map<uint64_t, size_t> __st_cluster_ref_counts{};
     fat32_directory_node* __root_directory{};
     fat32_allocation_table __the_table;

@@ -59,8 +59,8 @@ bool tnode::if_device(std::function<bool(device_node &)> const &action) { return
 bool tnode::if_device(std::function<bool(device_node const &)> const &action) const { return this->is_device() && action(dynamic_cast<device_node const&>(*__my_node)); }
 file_node* tnode::as_file() { return dynamic_cast<file_node*>(__my_node); }
 file_node const* tnode::as_file() const { return dynamic_cast<file_node const*>(__my_node); }
-directory_node* tnode::as_folder() { return dynamic_cast<directory_node*>(__my_node); }
-directory_node const* tnode::as_folder() const { return dynamic_cast<directory_node*>(__my_node); }
+directory_node* tnode::as_directory() { return dynamic_cast<directory_node*>(__my_node); }
+directory_node const* tnode::as_directory() const { return dynamic_cast<directory_node*>(__my_node); }
 device_node *tnode::as_device() { return dynamic_cast<device_node*>(__my_node); }
 device_node const *tnode::as_device() const { return dynamic_cast<device_node const *>(__my_node); }
 bool tnode::is_file() const { return __my_node && __my_node->is_file(); }

@@ -46,7 +46,7 @@ std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
     size_t s_read = 0;
     __instance.__read_buffer.clear();
     size_t n = __count_to_wide_streamsize(count);
-    if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
+    if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); debug_print_num(n << 1); direct_writeln("needed"); return 0; }
     while(rem)
     {
         size_t sct = std::min(rem, max_op_sectors);
@@ -66,7 +66,7 @@ std::streamsize ahci_hda::write(uint64_t start_sector, const char *in, uint32_t 
     size_t s_write = 0;
     __instance.__write_buffer.clear();
     size_t n = __count_to_wide_streamsize(count);
-    if(!__instance.__write_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); }
+    if(!__instance.__write_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); debug_print_num(n << 1); direct_writeln("needed"); return 0; }
     std::streamsize result = __instance.__write_buffer.sputn(reinterpret_cast<uint16_t const*>(in), __count_to_wide_streamsize(count)) * 2;
     size_t rem = count;
     while(rem) 

@@ -4,9 +4,9 @@ std::allocator<char> bl_alloc{};
 std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2(extfs *parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
-jbd2_transaction_queue::reference jbd2_transaction_queue::put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h) { return this->emplace(static_cast<transaction_id>(this->size()), std::move(blocks), std::move(h)); }
+jbd2_transaction_queue::reference jbd2_transaction_queue::put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h) { return this->emplace(static_cast<transaction_id>(this->size()), blocks, h); }
 bool jbd2_transaction::execute_and_complete(extfs *fs_ptr) { for(std::vector<disk_block>::iterator i = data_blocks.begin(); i != data_blocks.end(); i++) { if(!i->block_number) continue; /* Zeroed blocknums are revoked blocks */ if(!fs_ptr->write_to_disk(*i)) { panic("write failed"); return false; } } return true; }
-bool jbd2::need_escape(disk_block const &bl) { return ((__be32(reinterpret_cast<uint32_t const*>(bl.data_buffer)[0])) == jbd2_magic); }
+bool jbd2::need_escape(disk_block const &bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
 size_t jbd2::tags_per_block() { return (sb->journal_block_size - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
 char *jbd2::allocate_block_buffer() { char* result = bl_alloc.allocate(sb->journal_block_size); array_zero(result, sb->journal_block_size); return result; }
@@ -14,8 +14,8 @@ void jbd2::free_buffers(std::vector<disk_block> &bufs) { for(std::vector<disk_bl
 bool jbd2::write_block(disk_block const &bl) { if(!parent_fs->write_to_disk(bl)) { panic("disk write failed"); sb->journal_errno = __be32(EIO); return false; } return true; }  // TODO: better error handling :)
 off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first, bool is_last)
 {
-    off_t result = static_cast<off_t>(desc_tag_size(true)) * bl.chain_len;
-    uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (((__be32(reinterpret_cast<uint32_t const*>(bl.data_buffer)[0])) == jbd2_magic) ? escape : 0);
+    off_t result = static_cast<off_t>(desc_tag_size(true));
+    uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | ((((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic) ? escape : 0);
     __be32 be_seq(seq);
     uint32_t csum = blk_crc32(bl, sb->journal_block_size, &be_seq, &(sb->uuid));
     if(sb->required_features & csum_v3) { new (static_cast<jbd2_block_tag3*>(where)) jbd2_block_tag3{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .flags = __be32(fl), .block_number_hi = __be32((bl.block_number >> 32) & 0xFFFFFFFF), .checksum = __be32(csum) }; }
@@ -35,61 +35,59 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 {
     if(txn_blocks.empty()) return true; // vacuous success; nothing to do
     size_t tpb = tags_per_block();
-    disk_block tb{ first_open_block + sb->start_block, allocate_block_buffer(), false, 1UL };
-    first_open_block++;
-    uint32_t s = 0;
-    uint64_t j = tb.block_number;
-    size_t k = 0;
-    off_t o;
-    for(std::vector<disk_block>::const_iterator i = txn_blocks.begin(); i < txn_blocks.end(); i++)
+    size_t bs = parent_fs->block_size();
+    uint64_t txn_st_block = first_open_block + sb->start_block;
+    size_t n = 0, total = 0;
+    char* pos = this->__get_ptr(txn_st_block * bs);
+    for(size_t i = 0; i < txn_blocks.size(); i++)
     {
-        if(!i->data_buffer || !i->block_number || !i->chain_len) continue; // skip empty file blocks if any made it this far
-        if(!k)
+        disk_block const& b = txn_blocks[i];
+        size_t j = 0;
+        while(j < b.chain_len)
         {
-            array_zero(tb.data_buffer, sb->journal_block_size);
-            o = static_cast<off_t>(sizeof(jbd2_header));
-            new (reinterpret_cast<jbd2_header*>(tb.data_buffer)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(s++) };
-        }
-        for(size_t n = 0; n < std::max(1UL, i->chain_len); n++)
-        {
-            disk_block db{ j++, i->data_buffer + n * parent_fs->block_size(), false, 1UL };
-            o += desc_tag_create(db, tb.data_buffer + o, s, !k, (k + 1 == tpb || i + 1 == txn_blocks.end()));
-            bool esc = ((__be32(reinterpret_cast<uint32_t const*>(db.data_buffer)[0])) == jbd2_magic);
-            if(esc) *reinterpret_cast<uint32_t*>(db.data_buffer) = 0;
-            bool succeeded = write_block(db);
-            if(esc) { *reinterpret_cast<uint32_t*>(db.data_buffer) = jbd2_magic; }
-            if(!succeeded) return false;
-        }
-        k = (k + 1) % tpb;
-        if(!k || i + 1 == txn_blocks.end())
-        {
-            if(!write_block(tb)) { return false; }
-            tb.block_number = j++;
-            first_open_block = j;
+            char* cur_tgt = pos + bs;
+            array_zero(pos, bs);
+            new (reinterpret_cast<jbd2_header*>(pos)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(n++) };
+            pos += sizeof(jbd2_header);
+            total++;
+            for(size_t k = j; k < tpb && j < b.chain_len; k++, j++, total++)
+            {
+                char* bl_pos = b.data_buffer + bs * j;
+                disk_block sub{ b.block_number + j, bl_pos, false, 1U };
+                pos += desc_tag_create(sub, pos, n, !k, (k + 1 == tpb) || (j + 1 == b.chain_len));
+                bool esc = (reinterpret_cast<__be32 const*>(bl_pos)[0] == jbd2_magic);
+                if(esc) reinterpret_cast<uint32_t*>(bl_pos)[0] = 0;
+                arraycopy(cur_tgt, sub.data_buffer, bs);
+                cur_tgt += bs;
+                total++;
+                if(esc) reinterpret_cast<__be32*>(bl_pos)[0] = jbd2_magic;
+            }
+            pos = cur_tgt;
         }
     }
-    array_zero(tb.data_buffer, sb->journal_block_size);
-    jbd2_commit_header* ch = new (reinterpret_cast<jbd2_commit_header*>(tb.data_buffer)) jbd2_commit_header{};
-    ch->checksum_size = 4;
-    ch->checksum_type = 4; // crc32c
+    array_zero(pos, bs);
+    disk_block ch_block{ txn_st_block + total++, pos, false, 1U };
     uint64_t timestamp = syscall_time(0);
-    ch->commit_nanos = __be32((timestamp % 1000U) * 1000U);
-    ch->commit_seconds = __be64(timestamp / 1000UL);
-    uint32_t csum = blk_crc32(tb, sb->journal_block_size, std::addressof(sb->uuid));
-    BARRIER; // can never be too safe with this
+    jbd2_commit_header* ch = new(reinterpret_cast<jbd2_commit_header*>(pos)) jbd2_commit_header
+    { 
+        .checksum_type = 4,
+        .checksum_size = 4,
+        .commit_seconds = __be64(timestamp / 1000UL),
+        .commit_nanos = __be32((timestamp % 1000U) * 1000U)
+    };
+    uint32_t csum = blk_crc32(ch_block, bs, std::addressof(sb->uuid));
+    BARRIER;
     ch->checksum[0] = __be32(csum);
-    active_transactions.put_txn(std::vector<disk_block>(txn_blocks), std::move(*ch));
-    if(!write_block(tb)) { return false; }
-    bl_alloc.deallocate(tb.data_buffer, sb->journal_block_size);
+    first_open_block = txn_st_block + total;
+    active_transactions.put_txn(std::vector<disk_block>(txn_blocks), jbd2_commit_header(*ch));
+    for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { if(!write_block(*i)) return false; }
     return true;
 }
 bool jbd2::clear_log()
 {
-    disk_block zb{ sb->start_block, allocate_block_buffer(), false, 1 };
-    array_zero(zb.data_buffer, sb->journal_block_size);
-    for(size_t i = 0; i < sb->journal_block_count; i++, zb.block_number++) { if(!write_block(zb)) { return false; } }
-    bl_alloc.deallocate(zb.data_buffer, sb->journal_block_size);
-    for(std::vector<disk_block>::iterator i = replay_blocks.begin(); i != replay_blocks.end(); i++) { if(i->data_buffer) { bl_alloc.deallocate(i->data_buffer, sb->journal_block_size); } }
+    size_t bs = parent_fs->block_size();
+    for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { if(i->data_buffer) { array_zero(i->data_buffer, bs * i->chain_len); if(!write_block(*i)) return false; } }
+    for(std::vector<disk_block>::iterator i = replay_blocks.begin(); i != replay_blocks.end(); i++) { if(i->data_buffer) { bl_alloc.deallocate(i->data_buffer, bs); } }
     replay_blocks.clear();
     return true;
 }
@@ -99,7 +97,8 @@ bool jbd2::execute_pending_txns()
     {
         while(!active_transactions.at_end()) 
         { 
-            if(!active_transactions.pop().execute_and_complete(parent_fs)) 
+            jbd2_transaction* t = std::addressof(active_transactions.pop());
+            if(!t->execute_and_complete(parent_fs)) 
             {
                 active_transactions.restart(); 
                 sb->journal_errno = __be32(EIO); 
@@ -113,109 +112,113 @@ bool jbd2::execute_pending_txns()
 }
 bool jbd2::read_log()
 {
-    char* blk_buffer = allocate_block_buffer();
-    disk_block blk{ sb->start_block, blk_buffer, false, 1 };
+    for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { if(!parent_fs->read_from_disk(*i)) { panic("journal block read failed"); return false; } }
     bool success = true;
-    try { while(blk.block_number < sb->start_block + sb->journal_block_count) parse_next_log_entry(blk); }
+    try { for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { parse_next_log_entry(i); } }
     catch(std::exception& e) { panic(e.what()); success = false; sb->journal_errno = __be32(EIO); }
-    bl_alloc.deallocate(blk_buffer, sb->journal_block_size);
     return success;
 }
-void jbd2::parse_next_log_entry(disk_block& blk)
+void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
 {
-    if(!parent_fs->read_from_disk(blk)) throw std::runtime_error{ "disk read failed on journal block" };
-    jbd2_header* h = reinterpret_cast<jbd2_header*>(blk.data_buffer);
-    if(h->magic == jbd2_magic)
+    size_t bs = parent_fs->block_size();
+    size_t j = 0;    
+    while(i != block_data.end() && j < i->chain_len)
     {
-        if(h->blocktype == descriptor)
+        char* pos = i->data_buffer + bs * j;
+        jbd2_header* h = reinterpret_cast<jbd2_header*>(pos);
+        if(h->magic == jbd2_magic)
         {
-            size_t tpb = tags_per_block();
-            std::vector<disk_block> txn_data_blocks{};
-            bool have_commit = false;
-            bool inval = false;
-            jbd2_commit_header ch{};
-            while(!have_commit)
+            uint32_t type = h->blocktype;
+            if(type == descriptor)
             {
-                if(h->magic != jbd2_magic) { klog("(WARN) invalid journal block magic; ignoring block"); blk.block_number++; continue; }
-                if((have_commit = (h->blocktype == commit))) ch = *reinterpret_cast<jbd2_commit_header const*>(blk.data_buffer);
-                else if(!inval)
+                size_t tpb = tags_per_block();
+                std::vector<disk_block> txn_data_blocks{};
+                bool have_commit = false;
+                bool inval = false;
+                jbd2_commit_header* ch = nullptr;
+                while(!have_commit)
                 {
-                    char* current_pos = blk.data_buffer + sizeof(jbd2_header);
-                    uint32_t dbnum = blk.block_number + 1;
-                    bool last_entry = false;
-                    for(size_t i = 0; i < tpb && !last_entry; i++)
+                    if(h->magic == jbd2_magic)
                     {
-                        uint64_t target_block;
-                        bool esc = false;
-                        bool s_uuid;
-                        uint32_t stored_csum, block_csum;
-                        if(sb->required_features & csum_v3)
+                        if((have_commit = (h->blocktype == commit))) ch = reinterpret_cast<jbd2_commit_header*>(pos);
+                        else if(!inval)
                         {
-                            jbd2_block_tag3* tag = reinterpret_cast<jbd2_block_tag3*>(current_pos);
-                            target_block = qword(tag->block_number, tag->block_number_hi);
-                            last_entry = tag->flags & last_block;
-                            esc = tag->flags & escape;
-                            s_uuid = tag->flags & same_uuid;
-                            stored_csum = tag->checksum;
+                            char* desc_pos = pos;
+                            pos += bs;
+                            bool last_entry = false;
+                            for(size_t k = 0; k < tpb && !last_entry; k++)
+                            {
+                                uint64_t disk_target_block;
+                                bool esc = false;
+                                bool is_same_uuid;
+                                uint32_t stored_csum, block_csum;
+                                if(sb->required_features & csum_v3)
+                                {
+                                    jbd2_block_tag3* tag = reinterpret_cast<jbd2_block_tag3*>(desc_pos);
+                                    disk_target_block = qword(tag->block_number, tag->block_number_hi);
+                                    last_entry = tag->flags & last_block;
+                                    esc = tag->flags & escape;
+                                    is_same_uuid = tag->flags & same_uuid;
+                                    stored_csum = tag->checksum;
+                                }
+                                else
+                                {
+                                    jbd2_block_tag* tag = reinterpret_cast<jbd2_block_tag*>(desc_pos);
+                                    disk_target_block = qword(tag->block_number, (sb->required_features & x64_support) ? tag->block_number_hi : 0U);
+                                    last_entry = tag->flags & last_block;
+                                    esc = tag->flags & escape;
+                                    is_same_uuid = tag->flags & same_uuid;
+                                    stored_csum = tag->checksum;
+                                }
+                                desc_pos += desc_tag_size(is_same_uuid);
+                                disk_block& next = txn_data_blocks.emplace_back(disk_target_block, parent_fs->allocate_block_buffer(), true, 1U);
+                                arraycopy(next.data_buffer, pos, bs);
+                                pos += bs;
+                                block_csum = blk_crc32(next, bs, std::addressof(sb->uuid), std::addressof(h->sequence));
+                                if(!(sb->required_features & csum_v3)) block_csum &= 0xFFFF; // only store 16 bits for v2 checksum
+                                if(block_csum != stored_csum) { klog("(WARN) ignoring invalid descriptor block"); free_buffers(txn_data_blocks); inval = true; continue; }
+                                if(esc) { reinterpret_cast<__be32*>(next.data_buffer)[0] = jbd2_magic; }
+                            }
                         }
-                        else
-                        {
-                            jbd2_block_tag* tag = reinterpret_cast<jbd2_block_tag*>(current_pos);
-                            target_block = qword(tag->block_number, (sb->required_features & x64_support) ? tag->block_number_hi : 0U);
-                            last_entry = tag->flags & last_block;
-                            esc = tag->flags & escape;
-                            s_uuid = tag->flags & same_uuid;
-                            stored_csum = tag->checksum;
-                        }
-                        current_pos += desc_tag_size(s_uuid);
-                        disk_block& next = txn_data_blocks.emplace_back(target_block, allocate_block_buffer(), true, 1U);
-                        disk_block read_tar{ dbnum++, next.data_buffer, false, 1 };
-                        if(!parent_fs->read_from_disk(read_tar)) { free_buffers(txn_data_blocks); throw std::runtime_error{ "disk read failed on data block" }; }
-                        block_csum = blk_crc32(read_tar, sb->journal_block_size, std::addressof(sb->uuid), std::addressof(h->sequence));
-                        if(!(sb->required_features & csum_v3)) block_csum &= 0xFFFF; // if the v3 flag is not set, the stored hecksum is only the low-order 16 bits
-                        if(block_csum != stored_csum) { klog("(WARN) ignoring invalid descriptor block"); free_buffers(txn_data_blocks); inval = true; continue; }
-                        if(esc) { *reinterpret_cast<uint32_t*>(read_tar.data_buffer) = jbd2_magic; }
                     }
-                    blk.block_number = dbnum;
-                    if(!parent_fs->read_from_disk(blk)) { free_buffers(txn_data_blocks); throw std::runtime_error{ "disk read failed on journal block" }; }
-                    h = reinterpret_cast<jbd2_header*>(blk.data_buffer);
+                    if(++j == i->chain_len) { i++; j = 0; if(i == block_data.end()) break; pos = i->data_buffer; }
                 }
+                if(!inval) { replay_blocks.push_back(txn_data_blocks.begin(), txn_data_blocks.end()); active_transactions.put_txn(std::move(txn_data_blocks), jbd2_commit_header(*ch)); }
             }
-            if(!inval) { for(std::vector<disk_block>::iterator i = txn_data_blocks.begin(); i != txn_data_blocks.end(); i++) { replay_blocks.push_back(*i); } active_transactions.put_txn(std::move(txn_data_blocks), std::move(ch)); }
-        }
-        else if(h->blocktype == revocation)
-        {
-            jbd2_revoke_header* rh = reinterpret_cast<jbd2_revoke_header*>(blk.data_buffer);
-            size_t bytes = rh->block_bytes_used;
-            bool inval = false;
-            if((sb->required_features & csum_v2) || (sb->required_features & csum_v3)) 
-            { 
-                bytes -= 4;
-                jbd2_block_tail* tail = reinterpret_cast<jbd2_block_tail*>(blk.data_buffer + bytes);
-                uint32_t og_checksum = tail->block_checksum;
-                tail->block_checksum = 0;
-                uint32_t calculated = blk_crc32(blk, sb->journal_block_size, std::addressof(sb->uuid));
-                tail->block_checksum = og_checksum;
-                inval = (og_checksum != calculated);
-            }
-            if(!inval)
+            else if(h->blocktype == revocation)
             {
-                if(sb->required_features & x64_support)
+                jbd2_revoke_header* rh = reinterpret_cast<jbd2_revoke_header*>(pos);
+                size_t bytes = rh->block_bytes_used;
+                bool inval = false;
+                if((sb->required_features & csum_v2) || (sb->required_features & csum_v3)) 
                 {
-                    uint64_t* block_nums = reinterpret_cast<uint64_t*>(blk.data_buffer + sizeof(jbd2_revoke_header));
-                    size_t num_blocks = bytes / sizeof(uint64_t);
-                    for(jbd2_transaction_queue::iterator i = active_transactions.begin(); i != active_transactions.end(); i++) { for(std::vector<disk_block>::iterator j =  i->data_blocks.begin(); j != i->data_blocks.end(); j++) { for(size_t k = 0; k < num_blocks; k++) { if(j->block_number == block_nums[k]) { j->block_number = 0UL; break; } } } }
+                    bytes -= 4;
+                    jbd2_block_tail* tail = reinterpret_cast<jbd2_block_tail*>(pos + bytes);
+                    uint32_t og_checksum = tail->block_checksum;
+                    tail->block_checksum = 0;
+                    uint32_t calculated = blk_crc32(*i, bs, std::addressof(sb->uuid));
+                    tail->block_checksum = og_checksum;
+                    inval = (og_checksum != calculated);
                 }
-                else
+                if(!inval)
                 {
-                    uint32_t* block_nums = reinterpret_cast<uint32_t*>(blk.data_buffer + sizeof(jbd2_revoke_header));
-                    size_t num_blocks = bytes / sizeof(uint32_t);
-                    for(jbd2_transaction_queue::iterator i = active_transactions.begin(); i != active_transactions.end(); i++) { for(std::vector<disk_block>::iterator j =  i->data_blocks.begin(); j != i->data_blocks.end(); j++) { for(size_t k = 0; k < num_blocks; k++) { if(j->block_number == block_nums[k]) { j->block_number = 0UL; break; } } } }
+                    if(sb->required_features & x64_support)
+                    {
+                        uint64_t* block_nums = reinterpret_cast<uint64_t*>(pos + sizeof(jbd2_revoke_header));
+                        size_t num_blocks = bytes / sizeof(uint64_t);
+                        for(jbd2_transaction_queue::iterator i = active_transactions.begin(); i != active_transactions.end(); i++) { for(std::vector<disk_block>::iterator d =  i->data_blocks.begin(); d != i->data_blocks.end(); d++) { for(size_t k = 0; k < num_blocks; k++) { if(d->block_number == block_nums[k]) { d->block_number = 0UL; break; } } } }
+                    }
+                    else
+                    {
+                        uint32_t* block_nums = reinterpret_cast<uint32_t*>(pos + sizeof(jbd2_revoke_header));
+                        size_t num_blocks = bytes / sizeof(uint32_t);
+                        for(jbd2_transaction_queue::iterator i = active_transactions.begin(); i != active_transactions.end(); i++) { for(std::vector<disk_block>::iterator d =  i->data_blocks.begin(); d != i->data_blocks.end(); d++) { for(size_t k = 0; k < num_blocks; k++) { if(d->block_number == block_nums[k]) { d->block_number = 0UL; break; } } } }
+                    }
                 }
+                else { klog("(WARN) ignoring invalid revocation block"); }
+                j++;
             }
-            else { klog("(WARN) ignoring invalid revocation block"); }
         }
-        blk.block_number++;
     }
 }
 uint32_t jbd2::calculate_sb_checksum()
@@ -229,6 +232,15 @@ uint32_t jbd2::calculate_sb_checksum()
 bool jbd2::initialize()
 {
     if(!init_extents()) return false;
-    sb = reinterpret_cast<jbd2_superblock*>(extents.get_extent_block(0UL)->data_buffer);
+    size_t s_req = extents.total_extent * parent_fs->block_size();
+    if(!this->__grow_buffer(s_req)) { panic("failed to allocate buffer");  return false; }
+    else { this->__setc(this->__max()); }
+    uint64_t d_bl = block_data[0].block_number;
+    disk_block tmp_db{ d_bl, parent_fs->allocate_block_buffer() };
+    if(!parent_fs->read_from_disk(tmp_db)) { panic("failed to read superblock"); return false; }
+    sb = sb_alloc.allocate(1);
+    new (sb) jbd2_superblock(*reinterpret_cast<jbd2_superblock*>(tmp_db.data_buffer));
+    parent_fs->free_block_buffer(tmp_db);
+    this->update_block_ptrs();
     return true;
 }

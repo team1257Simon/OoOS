@@ -56,7 +56,7 @@ struct block_tag
     constexpr block_tag(size_t size, size_t held, int32_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
     constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
     constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
-    constexpr addr_t actual_start() const noexcept { return addr_t { const_cast<block_tag*>(this) }.plus(sizeof(block_tag) + align_bytes); }
+    constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }
     block_tag* split();
 } __pack;
 struct kframe_tag

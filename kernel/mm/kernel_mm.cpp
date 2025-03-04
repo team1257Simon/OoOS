@@ -351,7 +351,7 @@ paging_table kernel_memory_mgr::allocate_pt()
     tag->align_bytes = add_align_size(tag, PAGESIZE);
     addr_t result = tag->actual_start();
     __builtin_memset(result, 0, PAGESIZE);
-    if(tag->available_size() - bt_offset >= (1 << MIN_BLOCK_EXP)) __kernel_frame_tag->insert_block(tag->split(), -1);
+    if(tag->available_size() >= (1 << MIN_BLOCK_EXP) + bt_offset) __kernel_frame_tag->insert_block(tag->split(), -1);
     if(result && __active_frame) { bool lk = test_lock(&__heap_mutex); if(lk) __unlock(); __active_frame->pt_blocks.push_back(result); if(lk) __lock(); }
     return result;
 }
@@ -449,9 +449,9 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
             break;
         }
     }
-    if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("out of memory"); debug_print_num(size); direct_write("bytes were requested"); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
+    if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("out of memory"); debug_print_num(size); direct_writeln("bytes were requested"); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
     tag->index = idx;
-    if(tag->available_size() - sizeof(block_tag) >= (1 << MIN_BLOCK_EXP)) insert_block(tag->split(), -1);
+    if(tag->available_size() >= (1 << MIN_BLOCK_EXP) + bt_offset) insert_block(tag->split(), -1);
     __unlock();
     return tag->actual_start();
 }
@@ -484,7 +484,7 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
     if(tag && (tag->magic == block_magic) && (tag->allocated_size() >= size + add_align_size(tag, align)))
     {
         tag->align_bytes = add_align_size(tag, align);
-        size_t delta = size - (tag->held_size + tag->align_bytes);
+        off_t delta = size - (tag->held_size + tag->align_bytes);
         tag->held_size += delta;
         return tag->actual_start();
     }

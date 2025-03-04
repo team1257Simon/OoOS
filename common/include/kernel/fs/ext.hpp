@@ -219,7 +219,7 @@ struct ext_inode
     uint32_t deletion_time;
     uint16_t gid;
     uint16_t referencing_dirents;
-    uint16_t blocks_count_lo;
+    uint32_t blocks_count_lo;
     uint32_t flags;
     uint32_t os_specific_1;             // unused for now
     ext_node_extent_root block_info;    // either a list of block pointers (direct and indirect) or an extent tree
@@ -227,19 +227,18 @@ struct ext_inode
     uint32_t file_acl_block;
     uint32_t size_hi;
     uint32_t fragment_block;
-    uint16_t blocks_count_hi;
-    uint16_t os_specific_2;
-    uint16_t uid_high;
-    uint16_t gid_high;
+    uint32_t blocks_count_hi;
+    uint16_t uid_hi;
+    uint16_t gid_hi;
     uint16_t checksum_lo;               // crc32c(uuid+inode_number+inode)
-    uint16_t os_specific_3;
+    uint16_t os_specific_3;             // unused for now
     uint16_t extra_isize;
     uint16_t checksum_hi;               // high-order 16 bits of the inode checksum
-    uint32_t changed_time_extra;
+    uint32_t changed_time_hi;
     uint32_t mod_time_extra;
-    uint32_t access_time_extra;
+    uint32_t access_time_hi;
     uint32_t created_time;
-    uint32_t created_time_extra;
+    uint32_t created_time_hi;
     uint32_t version_hi;
     uint32_t proj_id;
 } __pack;
@@ -458,8 +457,6 @@ struct cached_extent_node
     bool nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t start_file_block);
     bool push_extent_recurse_legacy(ext_node_extent_tree* parent, disk_block* blk);
     bool push_extent_recurse_ext4(ext_node_extent_tree* parent, disk_block* blk);
-    uint64_t get_disk_blocknum_recurse(ext_node_extent_tree* parent, uint64_t file_block);
-    disk_block* get_block_recurse(ext_node_extent_tree* parent, uint64_t file_block);
 };
 struct ext_node_extent_tree
 {
@@ -471,8 +468,6 @@ struct ext_node_extent_tree
     bool has_init{ false };
     bool parse_legacy();
     bool parse_ext4();
-    uint64_t get_disk_blocknum(uint64_t file_block);
-    disk_block* get_extent_block(uint64_t file_block);
     bool push_extent_legacy(disk_block* blk);
     bool push_extent_ext4(disk_block* blk);
     bool ext4_root_overflow();
@@ -493,6 +488,7 @@ struct ext_vnode : public vfs_filebuf_base<char>
     ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode);
     ext_vnode(extfs* parent, uint32_t inode_number);
     ext_vnode() = default;
+    void update_block_ptrs();
     bool expand_buffer(size_t added_bytes);
     virtual ~ext_vnode();
     virtual bool initialize();
@@ -511,7 +507,7 @@ struct jbd2 : public ext_vnode
     bool need_escape(disk_block const& bl);
     bool clear_log();
     bool read_log();
-    void parse_next_log_entry(disk_block& blk);
+    void parse_next_log_entry(std::vector<disk_block>::iterator& i);
     off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
     size_t desc_tag_size(bool same_uuid);
     size_t tags_per_block();
@@ -545,6 +541,7 @@ public:
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
     virtual pos_type tell() const;
+    virtual bool initialize() override;
     virtual ~ext_file_vnode();
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
@@ -608,6 +605,8 @@ protected:
     size_t num_blk_groups;
     uint64_t superblock_lba;
     jbd2 fs_journal;
+    disk_block bg_table_block{ 1UL, nullptr };
+    bool initialized{ false };
     ext_jbd2_mode journal_mode() const;
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
@@ -647,6 +646,7 @@ public:
     bool persist(ext_directory_vnode* n);
     fs_node* dirent_to_vnode(ext_dir_entry* de);
     void initialize();
+    constexpr bool has_init() const { return initialized; }
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };

@@ -42,7 +42,7 @@ class ramfs final : public filesystem
 {
     ramfs_directory_inode __root_dir;
     std::set<ramfs_file_inode> __file_nodes;
-    std::set<ramfs_directory_inode> __folder_nodes;
+    std::set<ramfs_directory_inode> __directory_nodes;
 protected:
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;

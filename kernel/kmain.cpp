@@ -10,6 +10,7 @@
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
 #include "fs/ext.hpp"
+#include "elf64_exec.hpp"
 #include "bits/icxxabi.h"
 #include "bits/dragon.hpp"
 #include "stdlib.h"
@@ -203,13 +204,39 @@ void extfs_tests()
         test_extfs.initialize();
         BARRIER;
         startup_tty.print_line("init complete");
-        BARRIER;
-        test_extfs.get_dir("files");
-        file_node* f = test_extfs.open_file("files/memes.txt");
-        f->write("sweet dreams are made of memes", 31UL);
-        test_extfs.close_file(f);
+        directory_node* dn = test_extfs.get_dir("files");
+        startup_tty.print_text("dirnode addr: ");
+        startup_tty.print_line(std::to_string(dn));
+        file_node* fn = test_extfs.open_file("files/memes.txt");
+        startup_tty.print_text("filenode addr: ");
+        startup_tty.print_line(std::to_string(fn));
+        fn->write("derple blerple", 14);
+        test_extfs.close_file(fn);
     }
     catch(std::exception& e) { panic(e.what());}
+}
+void elf64_tests()
+{
+    if(test_extfs.has_init()) try
+    {
+        file_node* tst = test_extfs.open_file("test.elf");
+        startup_tty.print_line("test.elf size: " + std::to_string(tst->size()));
+        elf64_executable test_exec(tst);
+        test_extfs.close_file(tst);
+        if(test_exec.load())
+        {
+            elf64_program_descriptor const* desc = std::addressof(test_exec.describe());
+            startup_tty.print_line("Entry at " + std::to_string(desc->entry));
+            startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
+            task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
+            file_node* c = task->get_vfs_ptr()->lndev("com", com, 0);
+            task->set_stdio_ptrs(c, c, c);
+            task->start_task();
+            user_entry(task->task_struct.self);
+        }
+        else startup_tty.print_line("Executable failed to validate");
+    }
+    catch(std::exception& e) { panic(e.what()); }
 }
 static const char* codes[] = 
 {
@@ -264,10 +291,10 @@ void run_tests()
                 startup_tty.print_text("; page fault address = ");
                 __dbg_num(fault_addr, 16);
             }
-            startup_tty.print_text("; state on stack saved at ");
-            __dbg_num(saved_stack_ptr, 16);
-            while(1);
-            __builtin_unreachable();
+            addr_t target = errinst ? addr_t(errinst) : addr_t(svinst);
+            uint8_t* bytes = target;
+            bytes[0] = 0xEB;
+            bytes[1] = 0xFE;
         }
         else
         {
@@ -291,6 +318,7 @@ void run_tests()
     vfs_tests();   
     startup_tty.print_line("extfs tests...");
     extfs_tests();
+    if(test_extfs.has_init()) { startup_tty.print_line("elf64 tests..."); elf64_tests(); }
     startup_tty.print_line("task tests...");
     task_tests(); 
     startup_tty.print_line("complete");
