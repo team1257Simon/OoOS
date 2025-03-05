@@ -26,6 +26,7 @@ static extfs test_extfs(94208UL);
 static bool direct_print_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
+std::atomic<bool> dbg_hold{ false };
 extern uintptr_t saved_stack_ptr;
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 extern "C"
@@ -375,6 +376,7 @@ extern "C"
         // The base keyboard driver object abstracts out low-level initialization code that could theoretically change for different implementations of keyboards.
         keyboard_driver_base* kb = get_kb_driver();
         kb->initialize();
+        kb->add_listener([&](kb_data) -> void { dbg_hold = false; });
         if(serial_driver_amd64::init_instance()) com = serial_driver_amd64::get_instance();
         nmi_enable();
         sti();

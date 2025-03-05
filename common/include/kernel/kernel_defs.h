@@ -337,6 +337,7 @@ template<class T> concept non_void = !std::is_void_v<T>;
 #endif
 #define PAUSE asm volatile ("pause" ::: "memory")
 #define BARRIER asm volatile ("" ::: "memory")
+#define FENCE() asm volatile("mfence" ::: "memory")
 typedef enum mem_type
 {
     AVAILABLE = 1,

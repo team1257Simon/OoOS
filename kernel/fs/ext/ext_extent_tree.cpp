@@ -1,4 +1,8 @@
 #include "fs/ext.hpp"
+#include "kdebug.hpp"
+ext_node_extent_tree::ext_node_extent_tree(ext_vnode *tracked) : tracked_node{ tracked } {}
+ext_node_extent_tree::ext_node_extent_tree() = default;
+ext_node_extent_tree::~ext_node_extent_tree() = default;
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const* n) { return n - tracked_extents.begin().base(); }
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const& n) { return cached_node_pos(&n); }
 cached_extent_node *ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
@@ -27,7 +31,7 @@ bool ext_node_extent_tree::parse_legacy()
     {
         uint64_t b = tracked_node->on_disk_node->block_info.legacy_extent.direct_blocks[i];
         if(!b) return (has_init = true); // if the block is not present we're done
-        disk_block* bptr = tracked_node->block_data.emplace(tracked_node->block_data.begin() + i, b, nullptr).base(); // the block data buffer will be allocated if and when it is needed
+        disk_block* bptr = tracked_node->block_data.insert(tracked_node->block_data.begin() + i, disk_block{ b, nullptr }).base(); // the block data buffer will be allocated if and when it is needed
         tracked_extents.emplace_back(bptr, tracked_node, uint16_t(0));
         total_extent++;
     }
@@ -94,9 +98,9 @@ bool ext_node_extent_tree::parse_ext4()
             cur_file_block = nodes[i].leaf.file_node_start;
             size_t ext_sz = nodes[i].leaf.extent_size % 0x8000;
             uint64_t blknum = qword(nodes[i].leaf.extent_start_lo, uint32_t(nodes[i].leaf.extent_start_hi));
-            std::vector<disk_block>::const_iterator j = tracked_node->block_data.begin() + cur_file_block;
-            disk_block* blk = tracked_node->block_data.emplace(j++, blknum, nullptr, false, 1U).base();
-            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.emplace(j++, blknum, nullptr, false, 1U); }
+            tracked_node->block_data.reserve(tracked_node->block_data.size() + ext_sz);
+            disk_block* blk = tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }).base();
+            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }); }
             base_extent_level.insert_or_assign(cur_file_block, cached_node_pos(tracked_extents.emplace_back(blk, tracked_node, base_depth)));
             total_extent += ext_sz;
         }
@@ -113,7 +117,7 @@ size_t cached_extent_node::nl_recurse_legacy(ext_node_extent_tree* parent, uint6
     for(size_t i = 0; i < total_dwords; i++, parent->total_extent++)
     {
         if(!blk_ptrs[i]) return 0; // if we hit an empty pointer we're done
-        disk_block* blk = depth == 1 ? tracked_node->block_data.emplace(tracked_node->block_data.begin() + cur_file_block, blk_ptrs[i], nullptr, false, 1U).base() : std::addressof(tracked_node->cached_metadata.emplace_back(blk_ptrs[i], tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
+        disk_block* blk = depth == 1 ? tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block, disk_block{ blk_ptrs[i], nullptr, false, 1U }).base() : std::addressof(tracked_node->cached_metadata.emplace_back(blk_ptrs[i], tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
         if(blk->data_buffer && !tracked_node->parent_fs->read_from_disk(*blk)) { throw std::runtime_error{ "failed to read disk block" }; }
         cached_extent_node* base = std::addressof(parent->tracked_extents.emplace_back(blk, tracked_node, uint16_t(depth - 1)));
         auto exnode = next_level_extents.insert_or_assign(cur_file_block, parent->cached_node_pos(base)).first;
@@ -149,9 +153,8 @@ bool cached_extent_node::nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t 
             uint64_t cur_file_block = nodes[i].leaf.file_node_start;
             size_t ext_sz = nodes[i].leaf.extent_size % 0x8000;
             uint64_t blknum = qword(nodes[i].leaf.extent_start_lo, uint32_t(nodes[i].leaf.extent_start_hi));
-            std::vector<disk_block>::const_iterator j = tracked_node->block_data.begin() + cur_file_block;
-            disk_block* blk = tracked_node->block_data.emplace(j++, blknum, nullptr, false, 1U).base();
-            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.emplace(j++, blknum, nullptr, false, 1U); }
+            disk_block* blk = tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }).base();
+            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }); }
             next_level_extents.insert_or_assign(cur_file_block, parent->cached_node_pos(parent->tracked_extents.emplace_back(blk, tracked_node, depth)));
             parent->total_extent += ext_sz;
         }
@@ -280,24 +283,25 @@ bool ext_node_extent_tree::ext4_root_overflow()
 }
 bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent, disk_block *blk)
 {
+    disk_block* my_blk = block();
     size_t bs = tracked_node->parent_fs->block_size();
     size_t ndwords = bs / 4;
     if(depth < 2)
     {
-        uint32_t* bptrs = reinterpret_cast<uint32_t*>(this->block()->data_buffer);
+        uint32_t* bptrs = reinterpret_cast<uint32_t*>(my_blk->data_buffer);
         for(size_t i = 0; i < ndwords; i++)
         {
             if(!bptrs[i]) 
             { 
                 bptrs[i] = static_cast<uint32_t>(blk->block_number); 
                 next_level_extents.insert_or_assign(parent->total_extent++, parent->cached_node_pos(parent->tracked_extents.emplace_back(blk, tracked_node, uint16_t(0)))); 
-                block()->dirty = true;
+                my_blk->dirty = true;
                 return true;
             }
         }
         return false;
     }
-    uint32_t* bptrs = reinterpret_cast<uint32_t*>(this->block()->data_buffer);
+    uint32_t* bptrs = reinterpret_cast<uint32_t*>(my_blk->data_buffer);
     uint32_t* target = nullptr;
     uint16_t nd = this->depth - 1;
     auto last = next_level_extents.max();
@@ -310,23 +314,24 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent
         cached_extent_node* base = std::addressof(parent->tracked_extents.emplace_back(nl_blk, tracked_node, nd));
         next_level_extents.insert(std::make_pair(parent->total_extent, parent->cached_node_pos(base)));
         *target = nl_blk->block_number;
-        block()->dirty = true;
+        my_blk->dirty = true;
         return tracked_node->parent_fs->persist_inode(tracked_node->inode_number) && base->push_extent_recurse_legacy(parent, blk);
     }
     return true;
 }
 bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree *parent, disk_block *blk)
 {
-    ext_extent_header* hdr = reinterpret_cast<ext_extent_header*>(block()->data_buffer);
+    disk_block* my_blk = block();
+    ext_extent_header* hdr = reinterpret_cast<ext_extent_header*>(my_blk->data_buffer);
     if(hdr->magic != ext_extent_magic) { throw std::runtime_error{ "invalid header" }; }
     if(depth < 2)
     {
         if(hdr->entries < hdr->max_entries)
         {
-            ext_extent_node* node = reinterpret_cast<ext_extent_node*>(block()->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
+            ext_extent_node* node = reinterpret_cast<ext_extent_node*>(my_blk->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
             populate_leaf(node->leaf, blk, parent->total_extent);
             parent->total_extent += blk->chain_len;
-            block()->dirty = true;
+            my_blk->dirty = true;
             return true;
         }
         return false;
@@ -339,11 +344,11 @@ bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree *parent, 
         {
             disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(parent);
             if(!nl_blk) throw std::runtime_error{ "failed to allocate block" };
-            ext_extent_node* node = reinterpret_cast<ext_extent_node*>(block()->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
+            ext_extent_node* node = reinterpret_cast<ext_extent_node*>(my_blk->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
             cached_extent_node* base = std::addressof(parent->tracked_extents.emplace_back(nl_blk, tracked_node, nd));
             next_level_extents.insert(std::make_pair(parent->total_extent, parent->cached_node_pos(base)));
             populate_index(node->idx, nl_blk->block_number, parent->total_extent);
-            block()->dirty = true;
+            my_blk->dirty = true;
             return tracked_node->parent_fs->persist_inode(tracked_node->inode_number) && base->push_extent_recurse_ext4(parent, blk);
         }
         return false;

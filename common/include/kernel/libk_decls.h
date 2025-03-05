@@ -65,7 +65,7 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void ar
 template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++, dest++) { std::construct_at(std::addressof(dest[i])); } } }
 constexpr uint64_t div_roundup(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
 constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
-constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : truncate(n + unit, unit); }
+constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : (unit * div_roundup(n, unit)); }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
     if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++, dest++) { new (__builtin_addressof(dest[i])) T(); }

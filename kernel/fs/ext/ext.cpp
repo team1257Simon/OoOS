@@ -2,7 +2,7 @@
 #include "fs/hda_ahci.hpp"
 #include "sys/errno.h"
 #include "bitmap.hpp"
-static std::alignval_allocator<char, std::align_val_t(PAGESIZE)> buff_alloc{};
+static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
 static std::allocator<ext_superblock> sb_alloc{};
 static std::allocator<block_group_descriptor> bg_alloc{};
 void ext_block_group::decrement_inode_ct() { dword inode_ct(descr->free_inodes, descr->free_inodes_hi); inode_ct--; descr->free_inodes = inode_ct.lo; descr->free_inodes_hi = inode_ct.hi; }
@@ -24,7 +24,7 @@ bool extfs::read_from_disk(disk_block& bl) { return read_hd(bl.data_buffer, bloc
 bool extfs::write_to_disk(disk_block const& bl) { return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * std::max(bl.chain_len, 1UL)); }
 bool extfs::persist(ext_directory_vnode* n) { return fs_journal.create_txn(n); /* directory entry data must go through the journal */ }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
-void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } bl.data_buffer = buff_alloc.allocate(block_size() * bl.chain_len); array_zero(bl.data_buffer, block_size() * bl.chain_len); }
+void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
 char *extfs::allocate_block_buffer() { char* result = buff_alloc.allocate(block_size()); array_zero(result, block_size()); return result; }
 void extfs::free_block_buffer(disk_block& bl) { buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
 off_t extfs::inode_block_offset(uint32_t inode) { return off_t(inode_pos_in_group(inode) * sb->inode_size); }
@@ -53,9 +53,9 @@ extfs::~extfs()
 ext_block_group::ext_block_group(extfs *parent, block_group_descriptor *desc) : 
     parent_fs       { parent }, 
     descr           { desc }, 
-    inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi) },
-    blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi) },
-    inode_block     {}
+    inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi), nullptr },
+    blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi), nullptr },
+    inode_block     { qword(desc->inode_table_start_block, desc->inode_table_start_block_hi), nullptr }
                     {}
 ext_block_group::~ext_block_group()
 {
@@ -77,7 +77,7 @@ void extfs::initialize()
     size_t inode_blocks_per_group = div_roundup(sb->inodes_per_group, inodes_per_block());
     bg_table_block.data_buffer = bg_buffer;
     bg_table_block.chain_len = div_roundup(bgsz, block_size());
-    if(!(num_blk_groups && blk_group_descs && read_hd(bg_buffer, block_to_lba(1UL), div_roundup(bgsz, physical_block_size)))) throw std::runtime_error{ "failed to read block group table" };
+    if(!(num_blk_groups && blk_group_descs && read_from_disk(bg_table_block))) throw std::runtime_error{ "failed to read block group table" };
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
     size_t num_group_structs = num_blk_groups;
     size_t group_incr;
@@ -88,18 +88,17 @@ void extfs::initialize()
         ext_block_group bg(this, blk_group_descs + (i * group_incr));
         bg.inode_usage_bmp.chain_len = group_incr;
         bg.blk_usage_bmp.chain_len = group_incr;
+        bg.inode_block.chain_len = inode_blocks_per_group * group_incr;
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);
-        if(!read_from_disk(bg.inode_usage_bmp) || !read_from_disk(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
-        uint64_t inode_table_start = qword(bg.descr->inode_table_start_block, bg.descr->inode_table_start_block_hi);
-        bg.inode_block.block_number = inode_table_start;
-        bg.inode_block.chain_len = inode_blocks_per_group * group_incr;
         allocate_block_buffer(bg.inode_block);
+        if(!read_from_disk(bg.inode_usage_bmp) || !read_from_disk(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
         if(!read_from_disk(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
         block_groups.push_back(bg);
+        FENCE();
     }
     ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U).first.base();
-    rdnode->initialize();
+    if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
     root_dir = rdnode;
     new (std::addressof(fs_journal)) jbd2(this, sb->journal_inode);
     if(!fs_journal.initialize()) throw std::runtime_error{ "journal init failed" };
@@ -147,11 +146,11 @@ uint64_t extfs::inode_to_block(uint32_t inode)
     size_t idx = (static_cast<size_t>(inode - 1)) % sb->inodes_per_group;
     return qword(blk_group_descs[grp].inode_table_start_block, blk_group_descs[grp].inode_table_start_block_hi) + (static_cast<uint64_t>(idx * sb->inode_size) / block_size());
 }
-ext_inode* extfs::read_inode(uint32_t inode_num)
+ext_inode* extfs::get_inode(uint32_t inode_num)
 {
     size_t grp = group_num_for_inode(inode_num);
     if(grp >= block_groups.size()) throw std::out_of_range{ "invalid inode group" };
-    return reinterpret_cast<ext_inode*>((block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num)));
+    return reinterpret_cast<ext_inode*>(block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num));
 }
 file_node *extfs::open_fd(tnode* fd)
 {
@@ -164,8 +163,7 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
     qword tstamp = syscall_time(0);
     if(uint32_t inode_num = claim_inode()) try
     {
-        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        ext_inode* inode = new(read_inode(inode_num)) ext_inode
+        ext_inode* inode = new (get_inode(inode_num)) ext_inode
         {
             .mode = 004777U,
             .changed_time = tstamp.lo,
@@ -180,9 +178,9 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
         dword checksum = crc32c(inode, std::addressof(sb->fs_uuid), std::addressof(inode_num));
         inode->checksum_lo = checksum.lo;
         inode->checksum_hi = checksum.hi;
-        next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
-        ext_directory_vnode* fn = dir_nodes.emplace(this, inode_num, inode).first.base();
-        if(exparent.add_dir_entry(fn, dti_dir, name.c_str(), name.size()) && persist_inode(inode_num)) return fn;
+        ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode).first.base();
+        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
+        if(exparent.add_dir_entry(static_cast<ext_vnode*>(vnode), dti_dir, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -194,8 +192,7 @@ file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
     qword tstamp = syscall_time(0);
     if(uint32_t inode_num = claim_inode()) try
     {
-        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        ext_inode* inode = new(read_inode(inode_num)) ext_inode
+        ext_inode* inode = new (get_inode(inode_num)) ext_inode
         {
             .mode = 010777U,
             .changed_time = tstamp.lo,
@@ -211,8 +208,9 @@ file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
         inode->checksum_lo = checksum.lo;
         inode->checksum_hi = checksum.hi;
         next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
-        ext_file_vnode* fn = file_nodes.emplace(this, inode_num, inode, next_fd).first.base();
-        if(exparent.add_dir_entry(fn, dti_regular, name.data(), name.size()) && persist_inode(inode_num)) return fn;
+        ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd).first.base();
+        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
+        if(exparent.add_dir_entry(static_cast<ext_vnode*>(vnode), dti_regular, name.data(), name.size()) && persist_inode(inode_num)) { return vnode;}
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -339,7 +337,7 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
     }
     else
     { 
-        ext_inode* n = read_inode(idx);
+        ext_inode* n = get_inode(idx);
         if(n->mode.is_directory()) return dir_nodes.emplace(this, idx, n).first.base();
         else 
         {

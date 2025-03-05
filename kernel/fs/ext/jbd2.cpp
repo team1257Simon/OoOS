@@ -233,14 +233,14 @@ bool jbd2::initialize()
 {
     if(!init_extents()) return false;
     size_t s_req = extents.total_extent * parent_fs->block_size();
-    if(!this->__grow_buffer(s_req)) { panic("failed to allocate buffer");  return false; }
-    else { this->__setc(this->__max()); }
+    if(!__grow_buffer(s_req)) { panic("failed to allocate buffer");  return false; }
     uint64_t d_bl = block_data[0].block_number;
     disk_block tmp_db{ d_bl, parent_fs->allocate_block_buffer() };
     if(!parent_fs->read_from_disk(tmp_db)) { panic("failed to read superblock"); return false; }
-    sb = sb_alloc.allocate(1);
-    new (sb) jbd2_superblock(*reinterpret_cast<jbd2_superblock*>(tmp_db.data_buffer));
+    sb = sb_alloc.allocate(1UL);
+    __builtin_memcpy(sb, tmp_db.data_buffer, sizeof(jbd2_superblock));
     parent_fs->free_block_buffer(tmp_db);
-    this->update_block_ptrs();
+    if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
+    update_block_ptrs();
     return true;
 }

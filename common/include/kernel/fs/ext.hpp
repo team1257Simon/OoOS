@@ -191,7 +191,7 @@ union ext_extent_node
     ext_extent_index idx;
     ext_extent_leaf leaf;
 } __pack;
-struct ext_extent_tail { uint32_t checksum; };
+struct ext_extent_tail { uint32_t checksum; } __pack;
 union ext_node_extent_root
 {
     struct
@@ -305,11 +305,7 @@ struct ext_dx_node
     uint32_t start_file_block;
     ext_dx_entry entries[];
 } __pack;
-struct ext_dx_tail
-{
-    uint32_t dt_reserved;
-    uint32_t dt_checksum;
-};
+struct ext_dx_tail { uint32_t dt_reserved; uint32_t dt_checksum; } __pack;
 enum ext_inode_flags : uint32_t
 {
     secure_delete = 0x00001,
@@ -337,6 +333,8 @@ struct ext_mmp
     uint32_t checksum;  // crc32c(uuid+mmp_block_number)
 } __pack;
 class extfs;
+struct ext_vnode;
+struct ext_node_extent_tree;
 constexpr __be32 jbd2_magic = 0xC03B3998_be32;
 constexpr size_t jbd2_checksum_size_dwords = (32 / sizeof(uint32_t));
 typedef unsigned int transaction_id;
@@ -443,8 +441,6 @@ public:
     using __base::const_reference;
     reference put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h);
 };
-struct ext_vnode;
-struct ext_node_extent_tree;
 struct cached_extent_node 
 { 
     off_t blk_offset;
@@ -474,10 +470,12 @@ struct ext_node_extent_tree
     off_t cached_node_pos(cached_extent_node const& n);
     off_t cached_node_pos(cached_extent_node const* n);
     cached_extent_node* get_cached(off_t which);
+    ext_node_extent_tree(ext_vnode* tracked);
+    ext_node_extent_tree();
+    ~ext_node_extent_tree();
 };
 struct ext_vnode : public vfs_filebuf_base<char>
 {
-    virtual int __ddwrite() override;
     std::vector<disk_block> block_data{}; // all the actual data blocks are recorded here
     std::vector<disk_block> cached_metadata{}; // all metadata blocks, such as extent / indirect block pointers, that are part of the node are cached here
     size_t last_checked_block_idx{};
@@ -488,10 +486,11 @@ struct ext_vnode : public vfs_filebuf_base<char>
     ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode);
     ext_vnode(extfs* parent, uint32_t inode_number);
     ext_vnode() = default;
+    virtual ~ext_vnode();
+    virtual int __ddwrite() override;
+    virtual bool initialize();
     void update_block_ptrs();
     bool expand_buffer(size_t added_bytes);
-    virtual ~ext_vnode();
-    virtual bool initialize();
     bool init_extents();
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
@@ -607,7 +606,6 @@ protected:
     jbd2 fs_journal;
     disk_block bg_table_block{ 1UL, nullptr };
     bool initialized{ false };
-    ext_jbd2_mode journal_mode() const;
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
     virtual void dldirnode(directory_node* dd) override;
@@ -616,6 +614,7 @@ protected:
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* open_fd(tnode* fd) override;
+    ext_jbd2_mode journal_mode() const;
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
     uint32_t claim_inode();
@@ -637,7 +636,7 @@ public:
     disk_block* claim_blocks(ext_vnode* requestor, size_t how_many);
     disk_block* claim_metadata_block(ext_node_extent_tree* requestor);
     off_t inode_block_offset(uint32_t inode);
-    ext_inode* read_inode(uint32_t inode_num);
+    ext_inode* get_inode(uint32_t inode_num);
     bool write_to_disk(disk_block const& bl);
     bool read_from_disk(disk_block& bl);
     bool persist_group_metadata(size_t group_num);    

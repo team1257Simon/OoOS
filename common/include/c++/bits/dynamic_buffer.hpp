@@ -214,11 +214,7 @@ namespace std::__impl
                     __allocator.deallocate(temp, n);
                     __advance(range_size);
                 }
-                else 
-                {
-                    __transfer(__get_ptr(offs), start_ptr, end_ptr);
-                    __setc(offs + range_size);
-                }
+                else { __transfer(__get_ptr(offs), start_ptr, end_ptr); __setc(offs + range_size); }
             }
             else 
             {
@@ -231,11 +227,7 @@ namespace std::__impl
                     __copy(nwdat.__get_ptr(offs + range_size), pos, rem);
                     nwdat.__setc(__size() + range_size);
                 }
-                else
-                {
-                    __copy(nwdat.__begin, __beg(), __size());
-                    nwdat.__setc(__size() + range_size);
-                }
+                else { __copy(nwdat.__begin, __beg(), __size()); nwdat.__setc(__size() + range_size); }
                 __allocator.deallocate(__beg(), __size());
                 __my_data.__copy_ptrs(nwdat);
                 __transfer(__get_ptr(offs), start_ptr, end_ptr);
@@ -251,8 +243,12 @@ namespace std::__impl
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__emplace_element(__const_ptr pos, Args&& ... args)
     {
         if(pos < __beg()) return nullptr;
-        if(pos >= __max()) { if(!__grow_buffer(1)) return nullptr; pos = __max() - 1; }
-        return construct_at(const_cast<__ptr>(pos), forward<Args>(args)...);
+        if(!__grow_buffer(1)) return nullptr;
+        if(pos >= __max()) { pos = __max() - 1; }
+        __ptr result = construct_at(const_cast<__ptr>(pos), forward<Args>(args)...);
+        if(pos > __cur()) { __setc(result); }
+        else __bumpc(1L);
+        return result;
     }
     template <typename T, allocator_object<T> A, bool NT>
     template <typename ... Args>
