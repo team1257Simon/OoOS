@@ -261,6 +261,7 @@ public:
 private:
     void __put_fd(file_node* fd);
 };
+filesystem* create_task_vfs();
 filesystem* get_fs_instance();
 extern "C"
 {

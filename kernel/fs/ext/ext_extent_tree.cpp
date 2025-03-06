@@ -100,7 +100,7 @@ bool ext_node_extent_tree::parse_ext4()
             uint64_t blknum = qword(nodes[i].leaf.extent_start_lo, uint32_t(nodes[i].leaf.extent_start_hi));
             tracked_node->block_data.reserve(tracked_node->block_data.size() + ext_sz);
             disk_block* blk = tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }).base();
-            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }); }
+            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum + k, nullptr, false, 1U }); }
             base_extent_level.insert_or_assign(cur_file_block, cached_node_pos(tracked_extents.emplace_back(blk, tracked_node, base_depth)));
             total_extent += ext_sz;
         }
@@ -154,7 +154,7 @@ bool cached_extent_node::nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t 
             size_t ext_sz = nodes[i].leaf.extent_size % 0x8000;
             uint64_t blknum = qword(nodes[i].leaf.extent_start_lo, uint32_t(nodes[i].leaf.extent_start_hi));
             disk_block* blk = tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }).base();
-            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum, nullptr, false, 1U }); }
+            for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, disk_block{ blknum + k, nullptr, false, 1U }); }
             next_level_extents.insert_or_assign(cur_file_block, parent->cached_node_pos(parent->tracked_extents.emplace_back(blk, tracked_node, depth)));
             parent->total_extent += ext_sz;
         }

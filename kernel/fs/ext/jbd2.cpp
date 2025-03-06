@@ -1,11 +1,11 @@
 #include "fs/ext.hpp"
 #include "sys/errno.h"
+#include "kdebug.hpp"
 std::allocator<char> bl_alloc{};
 std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2(extfs *parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
-jbd2_transaction_queue::reference jbd2_transaction_queue::put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h) { return this->emplace(static_cast<transaction_id>(this->size()), blocks, h); }
-bool jbd2_transaction::execute_and_complete(extfs *fs_ptr) { for(std::vector<disk_block>::iterator i = data_blocks.begin(); i != data_blocks.end(); i++) { if(!i->block_number) continue; /* Zeroed blocknums are revoked blocks */ if(!fs_ptr->write_to_disk(*i)) { panic("write failed"); return false; } } return true; }
+bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(std::vector<disk_block>::iterator i = data_blocks.begin(); i != data_blocks.end(); i++) { if(!i->block_number || !i->data_buffer) continue; if(!fs_ptr->write_to_disk(*i)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const &bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
 size_t jbd2::tags_per_block() { return (sb->journal_block_size - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
@@ -48,6 +48,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
             char* cur_tgt = pos + bs;
             array_zero(pos, bs);
             new (reinterpret_cast<jbd2_header*>(pos)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(n++) };
+            mark_write(pos);
             pos += sizeof(jbd2_header);
             total++;
             for(size_t k = j; k < tpb && j < b.chain_len; k++, j++, total++)
@@ -58,6 +59,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
                 bool esc = (reinterpret_cast<__be32 const*>(bl_pos)[0] == jbd2_magic);
                 if(esc) reinterpret_cast<uint32_t*>(bl_pos)[0] = 0;
                 arraycopy(cur_tgt, sub.data_buffer, bs);
+                mark_write(cur_tgt);
                 cur_tgt += bs;
                 total++;
                 if(esc) reinterpret_cast<__be32*>(bl_pos)[0] = jbd2_magic;
@@ -75,21 +77,34 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         .commit_seconds = __be64(timestamp / 1000UL),
         .commit_nanos = __be32((timestamp % 1000U) * 1000U)
     };
+    mark_write(pos);
     uint32_t csum = blk_crc32(ch_block, bs, std::addressof(sb->uuid));
     BARRIER;
     ch->checksum[0] = __be32(csum);
     first_open_block = txn_st_block + total;
-    active_transactions.put_txn(std::vector<disk_block>(txn_blocks), jbd2_commit_header(*ch));
-    for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { if(!write_block(*i)) return false; }
+    if(!ddwrite()) return false;
+    active_transactions.push(jbd2_transaction(txn_blocks, static_cast<int>(active_transactions.size())));
+    return true;
+}
+bool jbd2::ddread()
+{
+    disk_block full_blk{ block_data[0].block_number, __beg(), false, extents.total_extent };
+    if(!parent_fs->read_unbuffered(full_blk)) { panic("failed to read journal"); return false; }
+    return true;
+}
+bool jbd2::ddwrite()
+{
+    disk_block full_blk{ block_data[0].block_number, __beg(), false, extents.total_extent };
+    if(!parent_fs->write_unbuffered(full_blk)) { panic("failed to write journal"); return false; }
     return true;
 }
 bool jbd2::clear_log()
 {
     size_t bs = parent_fs->block_size();
-    for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { if(i->data_buffer) { array_zero(i->data_buffer, bs * i->chain_len); if(!write_block(*i)) return false; } }
+    array_zero(__beg() + bs, static_cast<size_t>(this->__capacity() - bs));
     for(std::vector<disk_block>::iterator i = replay_blocks.begin(); i != replay_blocks.end(); i++) { if(i->data_buffer) { bl_alloc.deallocate(i->data_buffer, bs); } }
     replay_blocks.clear();
-    return true;
+    return ddwrite();
 }
 bool jbd2::execute_pending_txns()
 {
@@ -112,7 +127,7 @@ bool jbd2::execute_pending_txns()
 }
 bool jbd2::read_log()
 {
-    for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { if(!parent_fs->read_from_disk(*i)) { panic("journal block read failed"); return false; } }
+    if(!initialize()) return false;
     bool success = true;
     try { for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { parse_next_log_entry(i); } }
     catch(std::exception& e) { panic(e.what()); success = false; sb->journal_errno = __be32(EIO); }
@@ -171,19 +186,23 @@ void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
                                     stored_csum = tag->checksum;
                                 }
                                 desc_pos += desc_tag_size(is_same_uuid);
-                                disk_block& next = txn_data_blocks.emplace_back(disk_target_block, parent_fs->allocate_block_buffer(), true, 1U);
-                                arraycopy(next.data_buffer, pos, bs);
+                                disk_block& next = txn_data_blocks.emplace_back(disk_target_block, pos, true, 1U);
                                 pos += bs;
                                 block_csum = blk_crc32(next, bs, std::addressof(sb->uuid), std::addressof(h->sequence));
                                 if(!(sb->required_features & csum_v3)) block_csum &= 0xFFFF; // only store 16 bits for v2 checksum
-                                if(block_csum != stored_csum) { klog("(WARN) ignoring invalid descriptor block"); free_buffers(txn_data_blocks); inval = true; continue; }
+                                if(block_csum != stored_csum) { klog("(WARN) ignoring invalid descriptor block"); txn_data_blocks.clear(); inval = true; continue; }
                                 if(esc) { reinterpret_cast<__be32*>(next.data_buffer)[0] = jbd2_magic; }
                             }
                         }
                     }
                     if(++j == i->chain_len) { i++; j = 0; if(i == block_data.end()) break; pos = i->data_buffer; }
                 }
-                if(!inval) { replay_blocks.push_back(txn_data_blocks.begin(), txn_data_blocks.end()); active_transactions.put_txn(std::move(txn_data_blocks), jbd2_commit_header(*ch)); }
+                if(!inval) 
+                { 
+                    replay_blocks.push_back(txn_data_blocks.begin(), txn_data_blocks.end()); 
+                    transaction_id i = static_cast<transaction_id>(ch->header.sequence);
+                    active_transactions.push(jbd2_transaction(txn_data_blocks, i));
+                }
             }
             else if(h->blocktype == revocation)
             {
@@ -202,17 +221,18 @@ void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
                 }
                 if(!inval)
                 {
+                    // In order to save time, rather than modify the arrays, we invalidate the blocks by zeroing their desriptors (thus causing them to be skipped).
                     if(sb->required_features & x64_support)
                     {
                         uint64_t* block_nums = reinterpret_cast<uint64_t*>(pos + sizeof(jbd2_revoke_header));
                         size_t num_blocks = bytes / sizeof(uint64_t);
-                        for(jbd2_transaction_queue::iterator i = active_transactions.begin(); i != active_transactions.end(); i++) { for(std::vector<disk_block>::iterator d =  i->data_blocks.begin(); d != i->data_blocks.end(); d++) { for(size_t k = 0; k < num_blocks; k++) { if(d->block_number == block_nums[k]) { d->block_number = 0UL; break; } } } }
+                        for(jbd2_transaction& txn : active_transactions) { for(disk_block& db : txn.data_blocks) { for(size_t k = 0; k < num_blocks; k++) { if(db.block_number == block_nums[k]) { db.block_number = 0UL; db.data_buffer = nullptr; break; } } } }
                     }
                     else
                     {
                         uint32_t* block_nums = reinterpret_cast<uint32_t*>(pos + sizeof(jbd2_revoke_header));
                         size_t num_blocks = bytes / sizeof(uint32_t);
-                        for(jbd2_transaction_queue::iterator i = active_transactions.begin(); i != active_transactions.end(); i++) { for(std::vector<disk_block>::iterator d =  i->data_blocks.begin(); d != i->data_blocks.end(); d++) { for(size_t k = 0; k < num_blocks; k++) { if(d->block_number == block_nums[k]) { d->block_number = 0UL; break; } } } }
+                        for(jbd2_transaction& txn : active_transactions) { for(disk_block& db : txn.data_blocks) { for(size_t k = 0; k < num_blocks; k++) { if(db.block_number == block_nums[k]) { db.block_number = 0UL; db.data_buffer = nullptr; break; } } } }
                     }
                 }
                 else { klog("(WARN) ignoring invalid revocation block"); }
@@ -231,16 +251,13 @@ uint32_t jbd2::calculate_sb_checksum()
 }
 bool jbd2::initialize()
 {
+    if(has_init) return true;
     if(!init_extents()) return false;
     size_t s_req = extents.total_extent * parent_fs->block_size();
-    if(!__grow_buffer(s_req)) { panic("failed to allocate buffer");  return false; }
-    uint64_t d_bl = block_data[0].block_number;
-    disk_block tmp_db{ d_bl, parent_fs->allocate_block_buffer() };
-    if(!parent_fs->read_from_disk(tmp_db)) { panic("failed to read superblock"); return false; }
-    sb = sb_alloc.allocate(1UL);
-    __builtin_memcpy(sb, tmp_db.data_buffer, sizeof(jbd2_superblock));
-    parent_fs->free_block_buffer(tmp_db);
-    if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
+    if(!__grow_buffer(s_req)) { panic("failed to allocate buffer"); return false; }
     update_block_ptrs();
-    return true;
+    if(!ddread()) return false;
+    sb = reinterpret_cast<jbd2_superblock*>(block_data[0].data_buffer);
+    if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
+    return (has_init = true);
 }

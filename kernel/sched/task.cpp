@@ -65,7 +65,7 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
     stack_allocated_size    { static_cast<size_t>(stack_size) }, 
     tls                     { tls_base }, 
     tls_size                { tls_len }, 
-    ctx_filesystem          { fat32::get_instance() } 
+    ctx_filesystem          { create_task_vfs() } 
                             {}
 void task_ctx::start_task(addr_t exit_fn)
 {

@@ -5,12 +5,7 @@ namespace std
 {
     extension namespace ext
     {
-        template<typename T, allocator_object<T> A>
-        struct stale_settings
-        {
-            unsigned int op_threshold;
-            typename __impl::__dynamic_queue<T, A>::__diff_type size_threshold;
-        };
+        template<typename T, allocator_object<T> A> struct stale_settings { unsigned int op_threshold; typename __impl::__dynamic_queue<T, A>::__diff_type size_threshold; };
         template<typename T, allocator_object<T> A = std::allocator<T>>
         class resettable_queue : protected __impl::__dynamic_queue<T, A>
         {

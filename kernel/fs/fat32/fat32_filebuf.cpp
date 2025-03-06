@@ -16,7 +16,7 @@ std::streamsize fat32_filebuf::__ddread(std::streamsize n)
     if(!this->__grow_buffer(s * physical_block_size)) return 0;
     if(!gptr()) { this->setg(this->__beg(), this->__cur(), this->__max()); }
     for(size_t i = 0; i < s && __next_cluster_idx < __my_clusters.size(); i++, ++__next_cluster_idx) { if(__parent->parent_fs->read_clusters(this->__get_ptr(k), __my_clusters[i])) { k += physical_block_size * __parent->parent_fs->__sectors_per_cluster; } else break; }
-    this->setg(this->__beg(), this->gptr(), this->__max());
+    this->setg(this->__beg(), this->__cur(), this->__max());
     return std::min(k, n);
 }
 std::streamsize fat32_filebuf::__overflow(std::streamsize n)

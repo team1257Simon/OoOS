@@ -40,7 +40,7 @@ bool ahci_hda::init()
 }
 std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
 {
-    if(!__instance.__drv) { panic("cannot read disk before initializing read accessor"); return 0; } 
+    if(!__instance.__drv) { panic("cannot read disk before initializing read accessor"); return 0; }
     size_t rem = count;
     size_t t_read = 0;
     size_t s_read = 0;
@@ -85,4 +85,41 @@ std::streamsize ahci_hda::write(uint64_t start_sector, const char* in, uint32_t 
     }
     FENCE();
     return result;
+}
+bool ahci_hda::write_direct(uint64_t start_sector, const void *in, uint32_t count)
+{
+    if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return false; }
+    uint16_t const* src = static_cast<uint16_t const*>(in);
+    size_t t_write = 0;
+    size_t s_write = 0;
+    size_t rem = count;
+    while(rem)
+    {
+        size_t sct = std::min(rem, max_op_sectors);
+        if(!__instance.__write_ahci(start_sector + s_write, sct, src + t_write)) { panic("bad write"); return false; }
+        t_write += __count_to_wide_streamsize(sct);
+        s_write += sct;
+        rem -= sct;
+    }
+    FENCE();
+    return true;
+}
+bool ahci_hda::read_direct(void* out, uint64_t start_sector, uint32_t count)
+{
+    if(!__instance.__drv) { panic("cannot read disk before initializing read accessor"); return false; }
+    uint16_t* target = static_cast<uint16_t*>(out);
+    size_t rem = count;
+    size_t t_read = 0;
+    size_t s_read = 0;
+    FENCE();
+    while(rem)
+    {
+        size_t sct = std::min(rem, max_op_sectors);
+        if(!__instance.__read_ahci(start_sector + s_read, sct, target + t_read)) { panic("bad read"); return false; }
+        t_read += __count_to_wide_streamsize(sct);
+        s_read += sct;
+        rem -= sct;
+    }
+    FENCE();
+    return true;
 }

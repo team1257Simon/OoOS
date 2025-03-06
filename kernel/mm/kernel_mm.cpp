@@ -461,7 +461,8 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
     {
         __lock();
         block_tag* tag = ptr - bt_offset;
-        for(size_t i = 0; tag && (tag->magic != block_magic); i++) tag = addr_t(tag).minus(1L);
+        for(size_t i = 0; (tag && (tag->magic != block_magic) && (!align || i < align)); i++) tag = addr_t(tag).minus(1L);
+        if(tag && tag->magic != block_magic) { tag = ptr.page_aligned(); }
         if(tag && tag->magic == block_magic)
         {
             tag->held_size = 0;
@@ -472,6 +473,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
             if((!tag->left_split && !tag->right_split) && complete_pages[idx] >= MAX_COMPLETE_PAGES) { kernel_memory_mgr::get().deallocate_block(tag, tag->block_size); __unlock(); return; }
             insert_block(tag, idx);
         }
+        else { direct_write("W: attempted to deallocate an invalid tag; check for memory corruption at or near address "); debug_print_num(ptr); direct_write("\n"); }
         __unlock();
     }
 }

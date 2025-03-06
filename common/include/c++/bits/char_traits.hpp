@@ -42,26 +42,24 @@ namespace std
         ST __state{};
         streamoff __offs{0};
     public:
-        ST state() const { return __state; }
-        void state(ST st) { __state = st; }
-        fpos() = default;
-        fpos(streamoff offs) : __state{}, __offs{offs}{}
-        fpos(fpos const&) = default;
-        fpos(fpos&&) = default;
-        fpos& operator=(fpos const&) = default;
-        fpos& operator=(fpos&&) = default;
-        operator streamoff() const { return __offs; }
-        bool operator==(fpos const& that){ return this->__state == that.__state && this->__offs == that.__offs; }
-        bool operator!=(fpos const& that){ return !(*this == that); }
-        fpos& operator+=(streamoff off) { __offs += off; return *this; }
-        fpos& operator-=(streamoff off) { __offs -= off; return *this; }
-        fpos operator+(streamoff off) const { fpos<ST> r{*this}; r += off; return r; }
-        fpos operator-(streamoff off) const { fpos<ST> r{*this}; r -= off; return r; }
-        streamoff operator-(fpos const& that) const { return this->__offs - that.__offs; }
-        template<typename PT> friend PT* operator+(PT* you, fpos<ST> const& me) { return (you + me.__offs); }
+        constexpr ST state() const { return __state; }
+        constexpr void state(ST st) { __state = st; }
+        constexpr fpos() = default;
+        constexpr fpos(streamoff offs) : __state{}, __offs{offs}{}
+        constexpr fpos(fpos const&) = default;
+        constexpr fpos(fpos&&) = default;
+        constexpr fpos& operator=(fpos const&) = default;
+        constexpr fpos& operator=(fpos&&) = default;
+        constexpr operator streamoff() const { return __offs; }
+        constexpr bool operator==(fpos const& that){ return this->__state == that.__state && this->__offs == that.__offs; }
+        constexpr fpos& operator+=(streamoff off) { __offs += off; return *this; }
+        constexpr fpos& operator-=(streamoff off) { __offs -= off; return *this; }
+        constexpr fpos operator+(streamoff off) const { fpos<ST> r(*this); r += off; return r; }
+        constexpr fpos operator-(streamoff off) const { fpos<ST> r(*this); r -= off; return r; }
+        constexpr streamoff operator-(fpos const& that) const { return this->__offs - that.__offs; }
+        template<typename PT> friend constexpr PT* operator+(PT* you, fpos<ST> const& me) { return (you + me.__offs); }
     };
-    template<typename ST>
-    fpos<ST> operator+(streamoff off, fpos<ST> const& p) { return p + off; }
+    template<typename ST> constexpr fpos<ST> operator+(streamoff off, fpos<ST> const& p) { return p + off; }
     typedef fpos<mbstate_t> fpos_t;
     template<std::char_type CT>
     struct char_traits

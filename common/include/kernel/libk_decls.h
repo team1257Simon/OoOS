@@ -40,8 +40,11 @@ template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsba
 template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename ... Ts> uint32_t crc32c(Ts const*...);
+template<typename ... Ts> uint32_t crc32c(uint32_t seed, Ts const*...);
 template<> inline uint32_t crc32c() { return 0U; }
+template<> inline uint32_t crc32c(uint32_t seed) { return seed; }
 template<typename T, typename ... Us> inline uint32_t crc32c(T const* t, Us const* ... rem) { return crc32_calc(t, sizeof(T), crc32c(rem...)); }
+template<typename T, typename ... Us> inline uint32_t crc32c(uint32_t seed, T const* t, Us const* ... rem) { return crc32_calc(t, sizeof(T), crc32c(seed, rem...)); }
 template<typename ... Ts> uint16_t crc16(Ts const*...);
 template<> inline uint16_t crc16() { return uint16_t(0); }
 template<typename T, typename ... Us> inline uint16_t crc16(T const* t, Us const* ... rem) { return crc16_calc(t, sizeof(T), crc16(rem...)); }

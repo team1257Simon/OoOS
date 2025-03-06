@@ -52,7 +52,7 @@ namespace std
         {
             __base_allocator<T> alloc{};
             T* result = alloc.__allocate(ncount);
-            for(size_t i = 0; i < ncount; i++) { new (__builtin_addressof(result[i])) T(array[i]); }
+            for(size_t i = 0; i < ncount; i++) { new (__builtin_addressof(result[i])) T(std::move(array[i])); }
             alloc.__deallocate(array, ocount);
             return result;
         }

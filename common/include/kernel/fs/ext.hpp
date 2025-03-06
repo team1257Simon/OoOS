@@ -34,9 +34,9 @@ struct ext_superblock
     uint16_t inode_size;
     uint16_t sb_backup_block_group;
     uint32_t optional_features;
-    uint32_t required_features;         // fetures that must be supported or else we must abort the mount
-    uint32_t write_required_Features;   // features that must be supported or else the fs is read-only
-    guid_t fs_uuid;                     // whenever an extfs checksum references "uuid" it's referring to this
+    uint32_t required_features;             // fetures that must be supported or else we must abort the mount
+    uint32_t read_only_optional_features;   // features that must be supported or else the fs is read-only
+    guid_t fs_uuid;                         // whenever an extfs checksum references "uuid" it's referring to this
     char volume_name[16];
     char last_mount_path[64];
     uint32_t compression_algorithm_id;
@@ -137,6 +137,24 @@ enum opt_feature_flags : uint32_t
     backup_superblock   = 0x0200,
     static_inode_nums   = 0x0800
 };
+enum read_only_opt_flags : uint32_t
+{
+    sparse_super        = 0x00001,
+    large_file          = 0x00002,
+    btree_dir           = 0x00004,
+    huge_file           = 0x00008,
+    gdt_csum            = 0x00010,
+    dir_nlink           = 0x00020,
+    extra_isize         = 0x00040,
+    quota               = 0x00100,
+    bigalloc            = 0x00200,
+    metadata_csum       = 0x00400,
+    replica             = 0x00800,
+    readonly_always     = 0x01000,
+    project_quotas      = 0x02000,
+    verity_inodes       = 0x08000,
+    orphans_present     = 0x10000
+};
 struct block_group_descriptor
 {
     uint32_t block_usage_bitmap_block_idx;
@@ -150,7 +168,7 @@ struct block_group_descriptor
     uint16_t block_usage_bmp_checkum;
     uint16_t inode_usage_bmp_checksum;
     uint16_t unused_inodes;
-    uint16_t group_checksum;    // crc16(sb_uuid+group+desc)
+    uint16_t group_checksum;    // crc16(sb_uuid+group+desc) or crc32c(sb_uuid+group+desc) depending on features
     uint32_t block_usage_bitmap_block_idx_hi;
     uint32_t inode_usage_bitmap_block_idx_hi;
     uint32_t inode_table_start_block_hi;
@@ -426,21 +444,11 @@ struct jbd2_superblock
 };
 struct jbd2_transaction
 {
-    transaction_id id;
     std::vector<disk_block> data_blocks;
-    jbd2_commit_header commit_header;
+    transaction_id id;
     bool execute_and_complete(extfs* fs_ptr);    // actually do the transaction.
 };
-class jbd2_transaction_queue : public std::ext::resettable_queue<jbd2_transaction>
-{
-    typedef std::ext::resettable_queue<jbd2_transaction> __base;
-public:
-    using __base::iterator;
-    using __base::const_iterator;
-    using __base::reference;
-    using __base::const_reference;
-    reference put_txn(std::vector<disk_block>&& blocks, jbd2_commit_header&& h);
-};
+typedef std::ext::resettable_queue<jbd2_transaction> jbd2_transaction_queue;
 struct cached_extent_node 
 { 
     off_t blk_offset;
@@ -489,6 +497,7 @@ struct ext_vnode : public vfs_filebuf_base<char>
     virtual ~ext_vnode();
     virtual int __ddwrite() override;
     virtual bool initialize();
+    void mark_write(void* pos);
     void update_block_ptrs();
     bool expand_buffer(size_t added_bytes);
     bool init_extents();
@@ -498,14 +507,17 @@ struct ext_vnode : public vfs_filebuf_base<char>
 struct jbd2 : public ext_vnode
 {
     jbd2_superblock* sb;
+    bool has_init{ false };
     jbd2_transaction_queue active_transactions{};
     std::vector<disk_block> replay_blocks{};
-    uint32_t first_open_block{};  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
+    uint32_t first_open_block{ 1U };  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
     bool create_txn(ext_vnode* changed_node);   // this overload is for files and directories (only needed in full journal and writeback mode)
     bool create_txn(std::vector<disk_block> const&);    // this overload can be used directly for inodes, block groups, etc (needed in all modes)
     bool need_escape(disk_block const& bl);
     bool clear_log();
     bool read_log();
+    bool ddread();
+    bool ddwrite();
     void parse_next_log_entry(std::vector<disk_block>::iterator& i);
     off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
     size_t desc_tag_size(bool same_uuid);
@@ -558,6 +570,7 @@ class ext_directory_vnode : public ext_vnode, public directory_node
     bool __parse_entries(size_t bs);
     bool __seek_available_entry(size_t name_len);
     void __write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
+    ext_dir_entry* __current_ent();
 public:
     bool add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     virtual std::streamsize __overflow(std::streamsize n) override;
@@ -589,8 +602,12 @@ struct ext_block_group
     void alter_available_blocks(int64_t diff);
     void decrement_inode_ct();
     void increment_inode_ct();
+    void compute_checksums(size_t);
     ext_block_group(extfs* parent, block_group_descriptor* desc);
     ~ext_block_group();
+    ext_block_group(ext_block_group const&) = delete;
+    ext_block_group& operator=(ext_block_group const&) = delete;
+    ext_block_group(ext_block_group&& that);
 };
 class extfs : public filesystem
 {
@@ -605,6 +622,7 @@ protected:
     uint64_t superblock_lba;
     jbd2 fs_journal;
     disk_block bg_table_block{ 1UL, nullptr };
+    friend struct ext_block_group;
     bool initialized{ false };
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
@@ -638,7 +656,9 @@ public:
     off_t inode_block_offset(uint32_t inode);
     ext_inode* get_inode(uint32_t inode_num);
     bool write_to_disk(disk_block const& bl);
+    bool write_unbuffered(disk_block const& bl);
     bool read_from_disk(disk_block& bl);
+    bool read_unbuffered(disk_block& bl);
     bool persist_group_metadata(size_t group_num);    
     bool persist_inode(uint32_t inode_num);
     bool persist(ext_file_vnode* n);

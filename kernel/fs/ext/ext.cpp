@@ -20,16 +20,18 @@ directory_node *extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
 bool extfs::read_hd(void* dest, uint64_t lba_src, size_t sectors) { return ahci_hda::is_initialized() && ahci_hda::read(static_cast<char*>(dest), lba_src, sectors); }
 bool extfs::write_hd(uint64_t lba_dest, const void* src, size_t sectors) { return ahci_hda::is_initialized() && ahci_hda::write(lba_dest, static_cast<char const*>(src), sectors); }
-bool extfs::read_from_disk(disk_block& bl) { return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * std::max(bl.chain_len, 1UL)); }
-bool extfs::write_to_disk(disk_block const& bl) { return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * std::max(bl.chain_len, 1UL)); }
+bool extfs::read_unbuffered(disk_block& bl) { if(bl.data_buffer && bl.block_number) return ahci_hda::read_direct(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::read_from_disk(disk_block& bl) { if(bl.data_buffer && bl.block_number) return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::write_unbuffered(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return ahci_hda::write_direct(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::write_to_disk(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 bool extfs::persist(ext_directory_vnode* n) { return fs_journal.create_txn(n); /* directory entry data must go through the journal */ }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
 char *extfs::allocate_block_buffer() { char* result = buff_alloc.allocate(block_size()); array_zero(result, block_size()); return result; }
-void extfs::free_block_buffer(disk_block& bl) { buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
-off_t extfs::inode_block_offset(uint32_t inode) { return off_t(inode_pos_in_group(inode) * sb->inode_size); }
-uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group) >> sb->groups_per_flex_shift; }
-uint32_t extfs::inode_pos_in_group(uint32_t inode_num) { return (inode_num - 1) % (sb->inodes_per_group << sb->groups_per_flex_shift); }
+void extfs::free_block_buffer(disk_block& bl) { if(bl.data_buffer && bl.chain_len) buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
+off_t extfs::inode_block_offset(uint32_t inode) { return static_cast<off_t>(inode_pos_in_group(inode) * sb->inode_size); }
+uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group); }
+uint32_t extfs::inode_pos_in_group(uint32_t inode_num) { return (inode_num - 1) % (sb->inodes_per_group); }
 dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
 void extfs::syncdirs() { if(!this->fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
 extfs::extfs(uint64_t volume_start_lba) : 
@@ -48,19 +50,51 @@ extfs::~extfs()
 { 
     if(sb) { sb_alloc.deallocate(sb, 1UL); } 
     block_groups.clear(); // destruct these now to avoid dangling pointer shenanigans
-    if(blk_group_descs) { bg_alloc.deallocate(blk_group_descs, num_blk_groups); } 
+    if(blk_group_descs) { bg_alloc.deallocate(blk_group_descs, num_blk_groups); }
 }
 ext_block_group::ext_block_group(extfs *parent, block_group_descriptor *desc) : 
     parent_fs       { parent }, 
-    descr           { desc }, 
+    descr           { desc },
     inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi), nullptr },
     blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi), nullptr },
     inode_block     { qword(desc->inode_table_start_block, desc->inode_table_start_block_hi), nullptr }
                     {}
+ext_block_group::ext_block_group(ext_block_group &&that) :
+    parent_fs       { that.parent_fs },
+    descr           { that.descr },
+    inode_usage_bmp { that.inode_usage_bmp },
+    blk_usage_bmp   { that.blk_usage_bmp },
+    inode_block     { that.inode_block }
+                    { that.inode_usage_bmp.data_buffer = that.inode_block.data_buffer = that.blk_usage_bmp.data_buffer = nullptr; }
 ext_block_group::~ext_block_group()
 {
     parent_fs->free_block_buffer(inode_usage_bmp);
     parent_fs->free_block_buffer(blk_usage_bmp);
+    parent_fs->free_block_buffer(inode_block);
+}
+void ext_block_group::compute_checksums(size_t group_num)
+{
+    dword gn(static_cast<uint32_t>(group_num));
+    size_t bs = parent_fs->block_size();
+    if(parent_fs->sb->read_only_optional_features & metadata_csum)
+    {
+        dword bbmp_cs = blk_crc32(blk_usage_bmp, bs, std::addressof(parent_fs->sb->fs_uuid), std::addressof(gn));
+        dword ibmp_cs = blk_crc32(inode_usage_bmp, bs, std::addressof(parent_fs->sb->fs_uuid), std::addressof(gn));
+        descr->block_usage_bmp_checkum = bbmp_cs.lo;
+        descr->block_usage_bmp_checkum_hi = bbmp_cs.hi;
+        descr->inode_usage_bmp_checksum = ibmp_cs.lo;
+        descr->inode_usage_bmp_checksum_hi = ibmp_cs.hi;
+        descr->group_checksum = 0;
+        BARRIER;
+        uint32_t cs_full = crc32c(gn, std::addressof(parent_fs->sb->fs_uuid), descr);
+        descr->group_checksum = static_cast<uint16_t>(cs_full & 0xFFFF);
+    }
+    else if(parent_fs->sb->read_only_optional_features & gdt_csum)
+    {
+        constexpr auto off1 = offsetof(block_group_descriptor, group_checksum);
+        constexpr auto off2 = offsetof(block_group_descriptor, block_usage_bitmap_block_idx_hi);
+        descr->group_checksum = crc16_calc(reinterpret_cast<char*>(descr) + off2, static_cast<size_t>(sizeof(block_group_descriptor) - off2), crc16_calc(descr, static_cast<size_t>(off1), crc16_calc(std::addressof(parent_fs->sb->fs_uuid), sizeof(guid_t), crc16_calc(std::addressof(gn), 4UL))));
+    }
 }
 void extfs::initialize()
 {
@@ -79,23 +113,17 @@ void extfs::initialize()
     bg_table_block.chain_len = div_roundup(bgsz, block_size());
     if(!(num_blk_groups && blk_group_descs && read_from_disk(bg_table_block))) throw std::runtime_error{ "failed to read block group table" };
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
-    size_t num_group_structs = num_blk_groups;
-    size_t group_incr;
-    if(sb->required_features & flex_groups) { num_group_structs = std::max(num_blk_groups >> sb->groups_per_flex_shift, 1UL); group_incr = std::min(1UL << sb->groups_per_flex_shift, num_blk_groups); }
-    else group_incr = 1;
-    for(size_t i = 0; i < num_group_structs; i++)
+    for(size_t i = 0; i < num_blk_groups; i++)
     {
-        ext_block_group bg(this, blk_group_descs + (i * group_incr));
-        bg.inode_usage_bmp.chain_len = group_incr;
-        bg.blk_usage_bmp.chain_len = group_incr;
-        bg.inode_block.chain_len = inode_blocks_per_group * group_incr;
+        ext_block_group& bg = block_groups.emplace_back(this, blk_group_descs + i);
+        bg.inode_usage_bmp.chain_len = div_roundup(sb->blocks_per_group, block_size() * CHAR_BIT);
+        bg.blk_usage_bmp.chain_len = div_roundup(sb->inodes_per_group, block_size() * CHAR_BIT);
+        bg.inode_block.chain_len = inode_blocks_per_group;
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);
         allocate_block_buffer(bg.inode_block);
         if(!read_from_disk(bg.inode_usage_bmp) || !read_from_disk(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
-        if(!read_from_disk(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
-        block_groups.push_back(bg);
-        FENCE();
+        if(!read_unbuffered(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
     }
     ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U).first.base();
     if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
@@ -125,7 +153,7 @@ bool extfs::release_inode(uint32_t num)
 {
     if(!num) return false;
     size_t i = num / sb->inodes_per_group;
-    off_t bit_off = off_t(num % sb->inodes_per_group);
+    off_t bit_off = static_cast<off_t>(num % sb->inodes_per_group);
     unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
     bitmap_clear_cbits(bmp, bit_off, 1UL);
     block_groups[i].increment_inode_ct();
@@ -134,10 +162,10 @@ bool extfs::release_inode(uint32_t num)
 void extfs::release_blocks(uint64_t start, size_t num)
 {
     size_t i = start / sb->blocks_per_group;
-    off_t off = off_t(start % sb->blocks_per_group);
+    off_t off = static_cast<off_t>(start % sb->blocks_per_group);
     unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
     bitmap_clear_cbits(bmp, off, num);
-    block_groups[i].alter_available_blocks(+num);
+    block_groups[i].alter_available_blocks(num);
     persist_group_metadata(i);
 }
 uint64_t extfs::inode_to_block(uint32_t inode)
@@ -184,7 +212,7 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
-    else panic("no available inodes");
+    else panic("failed to get inode");
     return nullptr;
 }
 file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
@@ -210,11 +238,11 @@ file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
         next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
         ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(static_cast<ext_vnode*>(vnode), dti_regular, name.data(), name.size()) && persist_inode(inode_num)) { return vnode;}
+        if(exparent.add_dir_entry(static_cast<ext_vnode*>(vnode), dti_regular, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
-    else panic("no available inodes");
+    else panic("failed to get inode");
     return nullptr;
 }
 void extfs::dldirnode(directory_node* dd)
@@ -224,7 +252,7 @@ void extfs::dldirnode(directory_node* dd)
     ext_directory_vnode& exdn = dynamic_cast<ext_directory_vnode&>(*dd);
     uint32_t inode_num = exdn.inode_number;
     release_inode(inode_num);
-    new (exdn.on_disk_node) ext_inode{ .mode = 0, .block_info = { .link_target = {} } };
+    array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
     persist_inode(inode_num);
     for(size_t i = 0; i < exdn.cached_metadata.size(); i++) { release_blocks(exdn.cached_metadata[i].block_number, exdn.cached_metadata[i].chain_len); }
     for(size_t i = 0; i < exdn.block_data.size(); i++) { release_blocks(exdn.block_data[i].block_number, exdn.block_data[i].chain_len); }
@@ -236,7 +264,7 @@ void extfs::dlfilenode(file_node* fd)
     ext_file_vnode& exfn = dynamic_cast<ext_file_vnode&>(*fd);
     uint32_t inode_num = exfn.inode_number;
     release_inode(inode_num);
-    new (exfn.on_disk_node) ext_inode{ .mode = 0, .block_info = { .link_target = {} } };
+    array_zero(reinterpret_cast<char*>(exfn.on_disk_node), sb->inode_size);
     persist_inode(inode_num);
     for(size_t i = 0; i < exfn.cached_metadata.size(); i++) { release_blocks(exfn.cached_metadata[i].block_number, exfn.cached_metadata[i].chain_len); }
     for(size_t i = 0; i < exfn.block_data.size(); i++) { release_blocks(exfn.block_data[i].block_number, exfn.block_data[i].chain_len); }
@@ -288,14 +316,14 @@ disk_block *extfs::claim_metadata_block(ext_node_extent_tree *requestor)
 bool extfs::persist(ext_file_vnode* n) 
 { 
     if(journal_mode() != ordered) { return fs_journal.create_txn(n); } 
-    for(std::vector<disk_block>::iterator i = n->block_data.begin(); i != n->block_data.end(); i++) 
-    { 
-        if(!i->dirty || !i->data_buffer) continue; 
-        if(!write_to_disk(*i)) { panic("write failed"); sb->last_errno = EPIPE; return false; } 
-        i->dirty = false;
+     for(disk_block& db : n->block_data) 
+    {
+		if(!(db.dirty && db.block_number && db.data_buffer)) continue;
+        if(!write_to_disk(db)) { panic("write failed"); sb->last_errno = EPIPE; return false; } 
+        db.dirty = false;
     }
     std::vector<disk_block> dirty_metadata{};
-    for(std::vector<disk_block>::iterator i = n->cached_metadata.begin(); i != n->cached_metadata.end(); i++) { if(i->data_buffer && i->dirty) { dirty_metadata.push_back(*i); i->dirty = false; } }
+    for(disk_block& mdb : n->cached_metadata) { if(mdb.dirty) { dirty_metadata.push_back(mdb); mdb.dirty = false; } }
     if(dirty_metadata.empty()) return true; // vacuous truth if nothing to do
     return fs_journal.create_txn(dirty_metadata);
 }
@@ -303,6 +331,7 @@ bool extfs::persist_group_metadata(size_t group_num)
 {
     if(group_num < block_groups.size())
     {
+        block_groups[group_num].compute_checksums(group_num);
         std::vector<disk_block> blks{};
         blks.push_back(block_groups[group_num].inode_usage_bmp);
         blks.push_back(block_groups[group_num].blk_usage_bmp);

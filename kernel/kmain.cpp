@@ -43,6 +43,7 @@ extern "C"
     task_t kproc{};
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
+filesystem* create_task_vfs() { return &testramfs; /* TODO */ }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }

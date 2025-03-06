@@ -5,7 +5,7 @@
 #include "kernel/fs/generic_binary_buffer.hpp"
 #include "vector"
 constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (should be 1)
-constexpr size_t max_op_sectors = (prdt_entries_count * 16) - 1;
+constexpr size_t max_op_sectors = (prdt_entries_count * 16);
 typedef struct __pt_header
 {
     char sig[8];
@@ -57,6 +57,8 @@ public:
     static bool init_instance();
     static bool is_initialized() noexcept;
     static ahci_hda* get_instance();
+    static bool read_direct(void* out, uint64_t start_sector, uint32_t count);
+    static bool write_direct(uint64_t start_sector, const void* in, uint32_t count);
     static std::streamsize read(char* out, uint64_t start_sector, uint32_t count);
     static std::streamsize write(uint64_t start_sector, const char* in, uint32_t count);
     static partition_table& get_partition_table();
