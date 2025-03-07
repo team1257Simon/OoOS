@@ -51,6 +51,7 @@ void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "
 void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "memory"); }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
+static int __xdigits(uintptr_t num) { return num ? div_roundup((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 static void descr_pt(partition_table const& pt)
@@ -287,14 +288,14 @@ void run_tests()
         if(idx < 0x20) 
         {
             startup_tty.print_text(codes[idx]);
-            if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, 16); startup_tty.print_text(")"); }
-            if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, 16); }
+            if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, __xdigits(ecode)); startup_tty.print_text(")"); }
+            if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
             if(idx == 0x0E) 
             {
                 uint64_t fault_addr;
                 asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
                 startup_tty.print_text("; page fault address = ");
-                __dbg_num(fault_addr, 16);
+                __dbg_num(fault_addr, __xdigits(fault_addr));
             }
             addr_t target = errinst ? addr_t(errinst) : addr_t(svinst);
             uint8_t* bytes = target;
@@ -337,7 +338,8 @@ extern "C"
     paging_table kernel_cr3() { return kproc.saved_regs.cr3; }
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
-    void debug_print_num(uintptr_t num, int lenmax) { __dbg_num(num, lenmax); direct_write(" "); }
+    void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_roundup((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
+    void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
     [[noreturn]] void abort() { if(com) { com->sputn("KERNEL ABORT\n", 13); com->pubsync(); } startup_tty.print_line("abort() called in kernel"); while(1); }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     __isrcall void klog(const char* msg) noexcept { startup_tty.print_line(msg); if(com) { com->sputn("[KERNEL] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }

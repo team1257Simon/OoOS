@@ -511,8 +511,8 @@ struct jbd2 : public ext_vnode
     jbd2_transaction_queue active_transactions{};
     std::vector<disk_block> replay_blocks{};
     uint32_t first_open_block{ 1U };  // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
-    bool create_txn(ext_vnode* changed_node);   // this overload is for files and directories (only needed in full journal and writeback mode)
-    bool create_txn(std::vector<disk_block> const&);    // this overload can be used directly for inodes, block groups, etc (needed in all modes)
+    bool create_txn(ext_vnode* changed_node);           // this overload is for files and directories (only needed in full journal and writeback mode)
+    bool create_txn(std::vector<disk_block> const&);    // this overload can be used directly for metadata (needed in all modes)
     bool need_escape(disk_block const& bl);
     bool clear_log();
     bool read_log();

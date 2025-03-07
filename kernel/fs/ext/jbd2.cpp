@@ -20,7 +20,7 @@ off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, boo
     uint32_t csum = blk_crc32(bl, sb->journal_block_size, &be_seq, &(sb->uuid));
     if(sb->required_features & csum_v3) { new (static_cast<jbd2_block_tag3*>(where)) jbd2_block_tag3{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .flags = __be32(fl), .block_number_hi = __be32((bl.block_number >> 32) & 0xFFFFFFFF), .checksum = __be32(csum) }; }
     else { new (static_cast<jbd2_block_tag*>(where)) jbd2_block_tag{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .checksum = __be16(uint16_t(csum & 0xFFFF)), .flags = __be16(fl), .block_number_hi = __be32(sb->required_features & x64_support ? ((bl.block_number >> 32) & 0xFFFFFFFF) : 0) }; }
-    if(is_first) { uint8_t* uuid_pos = reinterpret_cast<uint8_t*>(where) + result; result += 16; arraycopy(uuid_pos, sb->uuid.data_bytes, 16); }
+    if(is_first) { uint8_t* uuid_pos = reinterpret_cast<uint8_t*>(where) + result; result += 16; arraycopy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
     return result;
 }
 bool jbd2::create_txn(ext_vnode *changed_node)
@@ -31,59 +31,67 @@ bool jbd2::create_txn(ext_vnode *changed_node)
     if(dirty_blocks.empty()) return true; // vacuous success; nothing to do
     return create_txn(dirty_blocks);
 }
+static std::vector<disk_block> split_chains(std::vector<disk_block> const& orig, size_t bs)
+{
+    std::vector<disk_block> result{};
+    for(disk_block const& b : orig) { if(b.chain_len > 1) { for(size_t i = 0; i < b.chain_len; i++) { result.emplace_back(b.block_number + i, b.data_buffer + i * bs, false, 1UL); } } else result.push_back(b); }
+    return result;
+}
 bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 {
     if(txn_blocks.empty()) return true; // vacuous success; nothing to do
     size_t tpb = tags_per_block();
     size_t bs = parent_fs->block_size();
     uint64_t txn_st_block = first_open_block + sb->start_block;
-    size_t n = 0, total = 0;
+    std::vector<disk_block> actual_blocks = split_chains(txn_blocks, bs);
+    unsigned seq = static_cast<unsigned>(active_transactions.size());
     char* pos = this->__get_ptr(txn_st_block * bs);
-    for(size_t i = 0; i < txn_blocks.size(); i++)
+    char* desc_base = pos;
+    char* dblk_tar = pos + bs;
+    new (reinterpret_cast<jbd2_header*>(pos)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(seq) };
+    pos += sizeof(jbd2_header);
+    mark_write(pos);
+    size_t total = 0, tdesc = 0, k = tpb;
+    for(size_t i = 0; i < actual_blocks.size(); i++, total++)
     {
-        disk_block const& b = txn_blocks[i];
-        size_t j = 0;
-        while(j < b.chain_len)
+        pos += desc_tag_create(actual_blocks[i], pos, seq, k == tpb, !(k - 1) || (i + 1 == actual_blocks.size()));
+        arraycopy(dblk_tar, actual_blocks[i].data_buffer, bs);
+        mark_write(dblk_tar);
+        dblk_tar += bs;
+        if(!(--k))
         {
-            char* cur_tgt = pos + bs;
-            array_zero(pos, bs);
-            new (reinterpret_cast<jbd2_header*>(pos)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(n++) };
+            if(sb->required_features & (csum_v2 | csum_v3)) new (reinterpret_cast<jbd2_block_tail*>(pos)) jbd2_block_tail(__be32(crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid)))));
+            desc_base = dblk_tar;
+            dblk_tar += bs;
+            pos = desc_base;
             mark_write(pos);
-            pos += sizeof(jbd2_header);
+            tdesc++;
             total++;
-            for(size_t k = j; k < tpb && j < b.chain_len; k++, j++, total++)
-            {
-                char* bl_pos = b.data_buffer + bs * j;
-                disk_block sub{ b.block_number + j, bl_pos, false, 1U };
-                pos += desc_tag_create(sub, pos, n, !k, (k + 1 == tpb) || (j + 1 == b.chain_len));
-                bool esc = (reinterpret_cast<__be32 const*>(bl_pos)[0] == jbd2_magic);
-                if(esc) reinterpret_cast<uint32_t*>(bl_pos)[0] = 0;
-                arraycopy(cur_tgt, sub.data_buffer, bs);
-                mark_write(cur_tgt);
-                cur_tgt += bs;
-                total++;
-                if(esc) reinterpret_cast<__be32*>(bl_pos)[0] = jbd2_magic;
-            }
-            pos = cur_tgt;
         }
     }
-    array_zero(pos, bs);
-    disk_block ch_block{ txn_st_block + total++, pos, false, 1U };
+    if(!tdesc)
+    {
+        pos = desc_base + (bs - 4);
+        if(sb->required_features & (csum_v2 | csum_v3)) new (reinterpret_cast<jbd2_block_tail*>(pos)) jbd2_block_tail(__be32(crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid)))));
+        total++;
+    }
+    array_zero(dblk_tar, bs);
+    disk_block ch_block{ txn_st_block + total++, dblk_tar, false, 1U };
     uint64_t timestamp = syscall_time(0);
-    jbd2_commit_header* ch = new(reinterpret_cast<jbd2_commit_header*>(pos)) jbd2_commit_header
+    jbd2_commit_header* ch = new(reinterpret_cast<jbd2_commit_header*>(dblk_tar)) jbd2_commit_header
     { 
         .checksum_type = 4,
         .checksum_size = 4,
         .commit_seconds = __be64(timestamp / 1000UL),
         .commit_nanos = __be32((timestamp % 1000U) * 1000U)
     };
-    mark_write(pos);
+    mark_write(dblk_tar);
     uint32_t csum = blk_crc32(ch_block, bs, std::addressof(sb->uuid));
     BARRIER;
     ch->checksum[0] = __be32(csum);
     first_open_block = txn_st_block + total;
     if(!ddwrite()) return false;
-    active_transactions.push(jbd2_transaction(txn_blocks, static_cast<int>(active_transactions.size())));
+    active_transactions.push(jbd2_transaction(txn_blocks, static_cast<int>(seq)));
     return true;
 }
 bool jbd2::ddread()

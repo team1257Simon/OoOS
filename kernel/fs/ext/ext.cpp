@@ -2,6 +2,7 @@
 #include "fs/hda_ahci.hpp"
 #include "sys/errno.h"
 #include "bitmap.hpp"
+#include "kdebug.hpp"
 static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
 static std::allocator<ext_superblock> sb_alloc{};
 static std::allocator<block_group_descriptor> bg_alloc{};
@@ -347,8 +348,8 @@ bool extfs::persist_inode(uint32_t inode_num)
     if(grp >= block_groups.size()) { panic("invalid group number"); return false; }
     std::vector<disk_block> blks{};
     size_t bs = block_size();
-    off_t ioffs = truncate(inode_block_offset(inode_num), bs);
-    blks.emplace_back(block_groups[grp].inode_block.block_number + ioffs / bs, block_groups[grp].inode_block.data_buffer + ioffs, true, 1UL);
+    uint64_t iblk = inode_to_block(inode_num);
+    blks.emplace_back(iblk, block_groups[grp].inode_block.data_buffer + bs * (iblk - block_groups[grp].inode_block.block_number), true, 1UL);
     return fs_journal.create_txn(blks);
 }
 fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
