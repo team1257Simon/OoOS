@@ -1,5 +1,6 @@
 #include "fs/hda_ahci.hpp"
 #include "stdexcept"
+#include "kdebug.hpp"
 bool ahci_hda::__has_init = false;
 ahci_hda ahci_hda::__instance{};
 bool ahci_hda::__await_disk() { for(size_t i = 0; !__drv->is_done(__port); __sync_synchronize()) { BARRIER; i++; } return __drv->is_done(__port); }
@@ -47,7 +48,7 @@ std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
     FENCE();
     __instance.__read_buffer.clear();
     size_t n = __count_to_wide_streamsize(count);
-    if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); debug_print_num(n << 1); direct_writeln("needed"); return 0; }
+    if(!__instance.__read_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); xdirect_writeln(std::to_string(n << 1) + " needed"); return 0; }
     FENCE();
     while(rem)
     {
@@ -70,7 +71,7 @@ std::streamsize ahci_hda::write(uint64_t start_sector, const char* in, uint32_t 
     size_t s_write = 0;
     __instance.__write_buffer.clear();
     size_t n = __count_to_wide_streamsize(count);
-    if(!__instance.__write_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); debug_print_num(n << 1); direct_writeln("needed"); return 0; }
+    if(!__instance.__write_buffer.__ensure_capacity(n)) { panic("failed to get buffer space"); xdirect_writeln(std::to_string(n << 1) + " needed"); return 0; }
     FENCE();
     std::streamsize result = __instance.__write_buffer.sputn(reinterpret_cast<uint16_t const*>(in), __count_to_wide_streamsize(count)) * 2;
     FENCE();

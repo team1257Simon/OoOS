@@ -55,7 +55,16 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
     {
         if(pathspec[i].empty()) continue;
         tnode* cur = node->find(pathspec[i]);
-        if(!cur) { if(create) { cur = node->add(this->mkdirnode(node, pathspec[i])); node = cur->as_directory(); }  else { throw std::logic_error{ "path " + pathspec[i] + " does not exist (use get_dir(\".../" + pathspec[i] + "\", true) to create it)" };} }
+        if(!cur) 
+        { 
+            if(create) 
+            {
+                directory_node* created = this->mkdirnode(node, pathspec[i]);
+                cur = node->add(created); 
+                node = created; 
+            } 
+            else { throw std::logic_error{ "path " + pathspec[i] + " does not exist (use get_dir(\".../" + pathspec[i] + "\", true) to create it)" }; } 
+        }
         else if(cur->is_directory()) node = cur->as_directory();
         else throw std::logic_error{ "path is invalid because entry " + pathspec[i] + " is a file" };
     }

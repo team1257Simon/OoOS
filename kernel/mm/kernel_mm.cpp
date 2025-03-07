@@ -1,4 +1,5 @@
 #include "kernel/kernel_mm.hpp"
+#include "kdebug.hpp"
 #include "direct_text_render.hpp"
 #include "sched/task_ctx.hpp"
 #include "errno.h"

@@ -4,6 +4,7 @@
 #include "kernel_mm.hpp"
 #include "stdexcept"
 #include "string.h"
+#include "kdebug.hpp"
 constexpr size_t cl_offs_base{ 32uL * sizeof(hba_cmd_header) };
 constexpr size_t fis_offs_base{ 32uL * cl_offs_base };
 constexpr uint64_t table_offs_base{ fis_offs_base + 32uL * sizeof(hba_fis) };

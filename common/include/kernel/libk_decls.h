@@ -18,9 +18,6 @@ constexpr bool acquire(mutex_t m) { return __atomic_test_and_set(m, __ATOMIC_SEQ
 constexpr void release(mutex_t m) { __atomic_clear(m, __ATOMIC_SEQ_CST); }
 constexpr void lock(mutex_t m) { while(acquire(m)) PAUSE; }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, &b, __ATOMIC_SEQ_CST); return b; }
-void direct_write(const char* str);
-void debug_print_num(uintptr_t num, int lenmax = 16);
-void direct_writeln(const char* str);
 __isrcall void panic(const char* msg) noexcept;
 __isrcall void klog(const char* msg) noexcept;
 void __register_frame(void*);
@@ -32,9 +29,10 @@ uint64_t syscall_time(uint64_t* tm_target);
 paging_table kernel_cr3();
 uint32_t crc32_calc(const void* data, size_t len, uint32_t seed = 0U);
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = uint16_t(0));
-#define dhang() direct_write(__builtin_FUNCTION()); while(1);
 #ifdef __cplusplus
 }
+void kfx_save();
+void kfx_load();
 template<typename T> constexpr void set_fs_base(T* value) { asm volatile("wrfsbase %0" :: "r"(value) : "memory"); }
 template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
 template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }

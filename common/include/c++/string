@@ -72,6 +72,4 @@ namespace std
 		std::string to_lower(std::string const& str);
 	}
 }
-extension void xdirect_write(std::string const& str);
-extension void xdirect_writeln(std::string const& str);
 #endif

@@ -70,7 +70,7 @@ __isrcall std::streamsize serial_driver_amd64::__ddread(std::streamsize cnt)
     std::streamsize result;
     for(result = 0; serial_have_input() && (cnt == 0 || result < cnt); result++) this->__push_elements(inb(port_com1)); 
     if(result) __do_echo();
-    __pos_echo -=  this->__trim_stale();
+    __pos_echo -= this->__trim_stale();
     return result;
 }
 bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level, word baud_div)

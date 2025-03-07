@@ -1,7 +1,9 @@
 #include "direct_text_render.hpp"
 #include "arch/idt_amd64.h"
 #include "arch/com_amd64.h"
+#include "arch/kb_amd64.hpp"
 #include "kernel_mm.hpp"
+#include "kdebug.hpp"
 #include "rtc.h"
 #include "keyboard_driver.hpp"
 #include "sched/task_ctx.hpp"
@@ -24,6 +26,7 @@ static sysinfo_t* sysinfo;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
 static bool direct_print_enable{ false };
+static bool fx_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
 std::atomic<bool> dbg_hold{ false };
@@ -44,6 +47,8 @@ extern "C"
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
 filesystem* create_task_vfs() { return &testramfs; /* TODO */ }
+void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory"); }
+void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "memory"); }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
@@ -204,7 +209,6 @@ void extfs_tests()
     try
     {
         test_extfs.initialize();
-        BARRIER;
         startup_tty.print_line("init complete");
         directory_node* dn = test_extfs.get_dir("files");
         startup_tty.print_text("dirnode addr: ");
@@ -275,7 +279,6 @@ static const char* codes[] =
     "#SX [Security Exception]",
     "[RESERVED INTERRUPT 0x1F]"
 };
-
 void run_tests()
 {
     // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
@@ -377,7 +380,7 @@ extern "C"
         // The base keyboard driver object abstracts out low-level initialization code that could theoretically change for different implementations of keyboards.
         keyboard_driver_base* kb = get_kb_driver();
         kb->initialize();
-        kb->add_listener([&](kb_data) -> void { dbg_hold = false; });
+        kb->add_listener([&](kb_data d) -> void { if(!(d.event_code & KEY_UP)) dbg_hold = false; });
         if(serial_driver_amd64::init_instance()) com = serial_driver_amd64::get_instance();
         nmi_enable();
         sti();
@@ -386,6 +389,7 @@ extern "C"
         asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
         __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
+        fx_enable = true;
         scheduler::init_instance();
         startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
         direct_print_enable = true;

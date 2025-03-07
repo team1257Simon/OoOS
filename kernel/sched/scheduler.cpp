@@ -1,6 +1,6 @@
 #include "sched/scheduler.hpp"
 #include "isr_table.hpp"
-extern "C" std::atomic<bool> task_change_flag;
+extern "C" { extern std::atomic<bool> task_change_flag; extern task_t kproc; }
 scheduler scheduler::__instance{};
 bool scheduler::__has_init{ false };
 bool scheduler::has_init() noexcept { return __has_init; }
@@ -57,6 +57,7 @@ __isrcall task_t *scheduler::select_next()
 {
     // first check system priority (I/O drivers and such will go here; most of the time they will be sleeping)
     if(!__my_queues[priority_val::PVSYS].empty()) { if(__my_queues[priority_val::PVSYS].at_end()) __my_queues[priority_val::PVSYS].restart(); return __my_queues[priority_val::PVSYS].pop(); }
+    task_t* target = nullptr;
     for(priority_val pv = priority_val::PVEXTRA; pv >= priority_val::PVLOW; pv = priority_val(int8_t(pv) - 1))
     {
         task_pl_queue& queue = __my_queues[pv];
@@ -68,11 +69,11 @@ __isrcall task_t *scheduler::select_next()
             task_t* result = queue.pop();
             result->task_ctl.skips = 0;
             if(result->task_ctl.prio_base != pv) { __my_queues[pv].unpop(); __my_queues[pv].transfer_next(__my_queues[deescalate(pv)]); asm volatile("mfence" ::: "memory"); }
-            return result;
+            target = result;
+            break;
         }
     }
-    // no queued tasks means they are all sleeping; keep the same task active
-    return nullptr;
+    return target;
 }
 bool scheduler::set_wait_untimed(task_t *task)
 {

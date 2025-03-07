@@ -43,6 +43,7 @@ extern "C"
     }
     [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
     {
+        kfx_save();
         bool is_err = (idx == 0x08 || (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E);
         asm volatile("movq %%rsp, %0" : "=m"(saved_stack_ptr) :: "memory");
         if(idx > 0x19 && idx < 0x30) 
@@ -52,6 +53,7 @@ extern "C"
             pic_eoi(irq);
         }
         else { kernel_memory_mgr::suspend_user_frame(); for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); } kernel_memory_mgr::resume_user_frame(); }
+        kfx_load();
         // Other stuff as needed
     }
     void idt_init()
