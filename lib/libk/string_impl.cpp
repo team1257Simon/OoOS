@@ -31,12 +31,12 @@ extern "C"
     wchar_t* wstpcpy(wchar_t* dest, const wchar_t* src) { return std::stpcpy<wchar_t>(dest, src); }
     wchar_t* wstpncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::stpncpy<wchar_t>(dest, src, n); }
     void* memset(void* buffer, int value, size_t n) { return std::memset<int>(buffer, value, n); }
-    char* strdup(const char* str) { size_t n = std::strlen(str) + 1; if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); arraycopy<char>(result, str, n); return result; }
-    char* strndup(const char* str, size_t max) { size_t n = std::strnlen(str, max); if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); arraycopy<char>(result, str, n); return result; }
+    char* strdup(const char* str) { size_t n = std::strlen(str) + 1; if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); array_copy<char>(result, str, n); return result; }
+    char* strndup(const char* str, size_t max) { size_t n = std::strnlen(str, max); if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); array_copy<char>(result, str, n); return result; }
     const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
     {
         static std::string estr;
-        estr = { "Assertion failed in function " };
+        estr = std::move(std::string("Assertion failed in function: ", 31UL));
         estr.append(fname ? fname : "");
         estr.append(", file ");
         estr.append(filename ? filename : "");
@@ -193,13 +193,19 @@ namespace std
                 else return __char_encode<DT>::dot;
             }
         };
+        template<std::unsigned_integral UIT> size_t __clzg(UIT i, size_t x = 1UL)
+        {
+            if(!i) return x;
+            if constexpr(sizeof(UIT) > sizeof(uint32_t)) return __builtin_clzll(static_cast<uint64_t>(i));
+            else return __builtin_clz(i);
+        }
         template<std::integral IT, std::char_type CT> struct __ntos_conv
         {
             using __digi_type = __char_encode<CT>;
             using __trait_type = std::char_traits<CT>;
             constexpr static size_t __max_dec = __max_dec_digits<IT>();
             constexpr static size_t __max_hex = 2 * sizeof(IT);
-            constexpr static size_t __xdigits(IT i) noexcept { return div_roundup(sizeof(IT) * CHAR_BIT - __builtin_clzg(i, 1), 4); }
+            constexpr static size_t __xdigits(IT i) noexcept { using UIT = typename std::make_unsigned<IT>::type; return div_roundup(sizeof(IT) * CHAR_BIT - __clzg(static_cast<UIT>(i)), 4); }
             constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
             constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
             constexpr static IT __get_dec_digit_v(IT num, size_t idx) noexcept { if(idx < __max_dec - 1) return (num % __get_pow10(idx + 1)) / __get_pow10(idx); else return num / __get_pow10(idx); }
@@ -237,7 +243,7 @@ namespace std
             int dp = 0, sign = 0;
             char *rve = NULL, *result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str { result, rve };
+            std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -247,7 +253,7 @@ namespace std
             int dp = 0, sign = 0;
             char *rve = NULL, *result = __dtoa(d, 0, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str { result, rve };
+            std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -257,7 +263,37 @@ namespace std
             int dp = 0, sign = 0;
             char *rve = NULL, *result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str { result, rve };
+            std::string str{ result, rve };
+            if(sign) str.insert(str.cbegin(), '-');
+            if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
+            return str;
+        }
+        inline std::string __fptohs_conv(float f, int digits)
+        {
+            int dp = 0, sign = 0;
+            char *rve = NULL, *result = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            if(!result) { return "ERROR"; }
+            std::string str{ result, rve };
+            if(sign) str.insert(str.cbegin(), '-');
+            if(dp != 9999) str.insert(str.cbegin() + dp, '.');
+            return str;
+        }
+        inline std::string __fptohs_conv(double d, int digits)
+        {
+            int dp = 0, sign = 0;
+            char *rve = NULL, *result = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            if(!result) { return "ERROR"; }
+            std::string str{ result, rve };
+            if(sign) str.insert(str.cbegin(), '-');
+            if(dp != 9999) str.insert(str.cbegin() + dp, '.');
+            return str;
+        }
+        inline std::string __fptohs_conv(long double ld, int digits)
+        {
+            int dp = 0, sign = 0;
+            char *rve = NULL, *result = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            if(!result) { return "ERROR"; }
+            std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -353,11 +389,44 @@ namespace std
     u32string to_u32string(double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
     u32string to_u32string(long double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
     u32string to_u32string(bool value) { return value ? U"true" : U"false"; }
+    string to_string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char>::__to_hex_string(value); }
+    string to_string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char>::__to_hex_string(value); }
+    string to_string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char>::__to_hex_string(value); }
+    string to_string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char>::__to_hex_string(value); }
+    string to_string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char>::__to_hex_string(value); }
+    string to_string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char>::__to_hex_string(value); }
+    wstring to_wstring(int value, ext::hex_t) { return __impl::__ntos_conv<int, wchar_t>::__to_hex_string(value); }
+	wstring to_wstring(long value, ext::hex_t) { return __impl::__ntos_conv<long, wchar_t>::__to_hex_string(value); }
+	wstring to_wstring(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, wchar_t>::__to_hex_string(value); }
+	wstring to_wstring(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, wchar_t>::__to_hex_string(value); }
+	wstring to_wstring(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, wchar_t>::__to_hex_string(value); }
+	wstring to_wstring(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, wchar_t>::__to_hex_string(value); }
+    u8string to_u8string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char8_t>::__to_hex_string(value); }
+	u8string to_u8string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char8_t>::__to_hex_string(value); }
+	u8string to_u8string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char8_t>::__to_hex_string(value); }
+	u8string to_u8string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char8_t>::__to_hex_string(value); }
+	u8string to_u8string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char8_t>::__to_hex_string(value); }
+	u8string to_u8string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char8_t>::__to_hex_string(value); }
+    u16string to_u16string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char16_t>::__to_hex_string(value); }
+	u16string to_u16string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char16_t>::__to_hex_string(value); }
+	u16string to_u16string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char16_t>::__to_hex_string(value); }
+	u16string to_u16string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char16_t>::__to_hex_string(value); }
+	u16string to_u16string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char16_t>::__to_hex_string(value); }
+	u16string to_u16string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char16_t>::__to_hex_string(value); }
+    u32string to_u32string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char32_t>::__to_hex_string(value); }
+	u32string to_u32string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char32_t>::__to_hex_string(value); }
+	u32string to_u32string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char32_t>::__to_hex_string(value); }
+	u32string to_u32string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_hex_string(value); }
+	u32string to_u32string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_hex_string(value); }
+	u32string to_u32string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_hex_string(value); }
     namespace ext
     {
         std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }
         std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
         std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
+        std::string fcvth(float f, int ndigits) { return std::__impl::__fptohs_conv(f, ndigits); }
+        std::string fcvthd(double d, int ndigits) { return std::__impl::__fptohs_conv(d, ndigits); }
+        std::string fcvthl(long double ld, int ndigits) { return std::__impl::__fptohs_conv(ld, ndigits); }
         std::string to_upper(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__toupper(str[i])); } return result; }
         std::string to_lower(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__tolower(str[i])); } return result; }
     }

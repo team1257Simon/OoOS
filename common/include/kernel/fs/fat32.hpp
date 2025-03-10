@@ -123,10 +123,10 @@ union [[gnu::may_alias]] fat32_directory_entry
     fat32_regular_entry regular_entry; 
     fat32_longname_entry longname_entry;
     char full[32]{};
-    constexpr fat32_directory_entry(fat32_directory_entry const& that) { arraycopy(full, that.full, 32); }
-    constexpr fat32_directory_entry(fat32_directory_entry&& that) { arraymove(full, that.full, 32); }
-    constexpr fat32_directory_entry& operator=(fat32_directory_entry const& that) { arraycopy(full, that.full, 32); return *this; }
-    constexpr fat32_directory_entry& operator=(fat32_directory_entry&& that) { arraymove(full, that.full, 32); return *this; }
+    constexpr fat32_directory_entry(fat32_directory_entry const& that) { array_copy(full, that.full, 32); }
+    constexpr fat32_directory_entry(fat32_directory_entry&& that) { array_move(full, that.full, 32); }
+    constexpr fat32_directory_entry& operator=(fat32_directory_entry const& that) { array_copy(full, that.full, 32); return *this; }
+    constexpr fat32_directory_entry& operator=(fat32_directory_entry&& that) { array_move(full, that.full, 32); return *this; }
 } __pack __align(1);
 constexpr bool is_unused(fat32_directory_entry const& e) { return e.longname_entry.ordinal == 0xE8 || e.longname_entry.ordinal == 0; }
 constexpr bool is_longname(fat32_directory_entry const& e) { return (e.longname_entry.attributes & 0x0F) == 0x0F; }

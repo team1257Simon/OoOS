@@ -57,7 +57,7 @@ bool elf64_shared_object::xload()
             addr_t blk = kernel_memory_mgr::get().allocate_user_block(phdr(n).p_memsz, nullptr, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
             addr_t img_dat = segment_ptr(n);    
             if(!blk) { throw std::bad_alloc{}; }
-            arraycopy<uint8_t>(blk, img_dat, phdr(n).p_filesz);
+            array_copy<uint8_t>(blk, img_dat, phdr(n).p_filesz);
             elf_segment_prot perms = static_cast<elf_segment_prot>(0b100 | (is_write(phdr(n)) ? 0b010 : 0) | (is_exec(phdr(n)) ? 0b001 : 0));
             if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(blk.plus(phdr(n).p_filesz), diff); }
             new (std::addressof(__segments[n])) shared_segment_descriptor{ blk, static_cast<off_t>(phdr(n).p_vaddr), phdr(n).p_memsz, perms };
@@ -66,7 +66,7 @@ bool elf64_shared_object::xload()
         {
             this->__num_dyn_entries = phdr(n).p_filesz / sizeof(elf64_dyn);
             this->__dyn_entries = dynseg_alloc.allocate(__num_dyn_entries);
-            arraycopy<elf64_dyn>(__dyn_entries, segment_ptr(n), __num_dyn_entries);
+            array_copy<elf64_dyn>(__dyn_entries, segment_ptr(n), __num_dyn_entries);
             have_dyn = true;
         }
     }
@@ -97,13 +97,13 @@ bool elf64_shared_object::xload()
             size_t n_hvals = static_cast<size_t>((symtab_shdr->sh_size / symtab_shdr->sh_entsize) - h->symndx);
             uint32_t* hval_array = w_alloc.allocate(n_hvals);
             uint32_t* og_hvals = addr_t(og_buckets).plus(h->nbucket * sizeof(uint32_t));
-            arraycopy(bloom_filter, og_filter, h->maskwords);
-            arraycopy(buckets, og_buckets, h->nbucket);
-            arraycopy(hval_array, og_hvals, n_hvals);
+            array_copy(bloom_filter, og_filter, h->maskwords);
+            array_copy(buckets, og_buckets, h->nbucket);
+            array_copy(hval_array, og_hvals, n_hvals);
             addr_t strtab_data = aligned_malloc(strtab_shdr->sh_size, strtab_shdr->sh_addralign);
             addr_t symtab_data = aligned_malloc(symtab_shdr->sh_size, symtab_shdr->sh_addralign);
-            arraycopy<char>(strtab_data, img_ptr(strtab_shdr->sh_offset), strtab_shdr->sh_size);
-            arraycopy<char>(symtab_data, img_ptr(symtab_shdr->sh_offset), symtab_shdr->sh_size);
+            array_copy<char>(strtab_data, img_ptr(strtab_shdr->sh_offset), strtab_shdr->sh_size);
+            array_copy<char>(symtab_data, img_ptr(symtab_shdr->sh_offset), symtab_shdr->sh_size);
             new (std::addressof(__symbol_index)) elf64_dynsym_index
             {
                 .strtab { .total_size{ strtab_shdr->sh_size }, .data{ strtab_data } },

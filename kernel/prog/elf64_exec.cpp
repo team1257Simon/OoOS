@@ -39,7 +39,7 @@ bool elf64_executable::xload()
             addr_t img_dat = this->segment_ptr(n);    
             if(!blk) { throw std::bad_alloc{}; }
             this->__process_frame_tag->usr_blocks.emplace_back(blk, kernel_memory_mgr::page_aligned_region_size(addr, phdr(n).p_memsz));
-            arraycopy<uint8_t>(idmap, img_dat, phdr(n).p_filesz);
+            array_copy<uint8_t>(idmap, img_dat, phdr(n).p_filesz);
             if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(addr_t(kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr_t(phdr(n).p_vaddr + phdr(n).p_filesz))), diff); }
         }
         addr_t stkblk = kernel_memory_mgr::get().allocate_user_block(this->__tgt_stack_size, this->__process_stack_base, PAGESIZE, true, false);

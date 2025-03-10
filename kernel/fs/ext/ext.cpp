@@ -79,15 +79,15 @@ void ext_block_group::compute_checksums(size_t group_num)
     size_t bs = parent_fs->block_size();
     if(parent_fs->sb->read_only_optional_features & metadata_csum)
     {
-        dword bbmp_cs = blk_crc32(blk_usage_bmp, bs, std::addressof(parent_fs->sb->fs_uuid), std::addressof(gn));
-        dword ibmp_cs = blk_crc32(inode_usage_bmp, bs, std::addressof(parent_fs->sb->fs_uuid), std::addressof(gn));
+        dword bbmp_cs = blk_crc32(blk_usage_bmp, bs, parent_fs->sb->fs_uuid, group_num);
+        dword ibmp_cs = blk_crc32(inode_usage_bmp, bs, parent_fs->sb->fs_uuid, group_num);
         descr->block_usage_bmp_checkum = bbmp_cs.lo;
         descr->block_usage_bmp_checkum_hi = bbmp_cs.hi;
         descr->inode_usage_bmp_checksum = ibmp_cs.lo;
         descr->inode_usage_bmp_checksum_hi = ibmp_cs.hi;
         descr->group_checksum = 0;
         BARRIER;
-        uint32_t cs_full = crc32c(gn, std::addressof(parent_fs->sb->fs_uuid), descr);
+        uint32_t cs_full = crc32c(group_num, parent_fs->sb->fs_uuid, *descr);
         descr->group_checksum = static_cast<uint16_t>(cs_full & 0xFFFF);
     }
     else if(parent_fs->sb->read_only_optional_features & gdt_csum)
@@ -218,7 +218,7 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
             .created_time       { tstamp.lo },
             .created_time_hi    { tstamp.hi }
         };
-        dword checksum = crc32c(inode, std::addressof(sb->fs_uuid), std::addressof(inode_num));
+        dword checksum = crc32c(*inode, sb->fs_uuid, inode_num);
         inode->checksum_lo = checksum.lo;
         inode->checksum_hi = checksum.hi;
         ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode).first.base();
@@ -261,7 +261,7 @@ file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
             .created_time       { tstamp.lo },
             .created_time_hi    { tstamp.hi }
         };
-        dword checksum = crc32c(inode, std::addressof(sb->fs_uuid), std::addressof(inode_num));
+        dword checksum = crc32c(*inode, sb->fs_uuid, inode_num);
         inode->checksum_lo = checksum.lo;
         inode->checksum_hi = checksum.hi;
         next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));

@@ -60,7 +60,7 @@ std::streamsize ahci_hda::read(char* out, uint64_t start_sector, uint32_t count)
     }
     __instance.__read_buffer.__update_end(t_read);
     FENCE();
-    arraycopy(out, reinterpret_cast<uint8_t*>(__instance.__read_buffer.beg()), t_read * 2);
+    array_copy(out, reinterpret_cast<uint8_t*>(__instance.__read_buffer.beg()), t_read * 2);
     FENCE();
     return t_read * 2;
 }

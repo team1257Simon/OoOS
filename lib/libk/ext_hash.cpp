@@ -44,7 +44,7 @@ template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static 
     const char* name = static_cast<const char*>(data);
     hash_buffer in{};
     hash_buffer buf = buf_init;
-    if(seed) { for(int i = 0; i < 4; i++) { if(seed[i]) arraycopy(buf.dword_buf, seed, 4); break; } }
+    if(seed) { for(int i = 0; i < 4; i++) { if(seed[i]) array_copy(buf.dword_buf, seed, 4); break; } }
     const char* p = name;
     while(len > 0)
     {

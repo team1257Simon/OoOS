@@ -148,7 +148,7 @@ __int128_t md5_hash(const void* input, size_t len)
 {
     md5_ctx ctx{};
     uint8_t* buff = buf_alloc.allocate(len);
-    arraycopy<uint8_t>(buff, static_cast<const uint8_t*>(input), len);
+    array_copy<uint8_t>(buff, static_cast<const uint8_t*>(input), len);
     md5_update(&ctx, buff, len);
     md5_finalize(&ctx);
     buf_alloc.deallocate(buff, len);

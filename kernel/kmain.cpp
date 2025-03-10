@@ -126,6 +126,7 @@ void str_tests()
     startup_tty.print_line(std::to_string(sysinfo));
     startup_tty.print_line(std::to_string(3.14159265358L));
     startup_tty.print_line(std::to_string(rand()));
+    startup_tty.print_line(std::string(10UL, 'e'));
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();

@@ -103,13 +103,13 @@ typedef struct __task_info
     addr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
     addr_t next CXX_INI(nullptr);      // %gs:0x300; updated when scheduling event fires.
 } __align(16) __pack task_t;
-inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 void user_entry(addr_t);
 [[noreturn]] void kernel_reentry();
 void init_pit();
 void init_tss(addr_t k_rsp);
 #ifdef __cplusplus
 }
+inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 constexpr unsigned int sub_tick_ratio{ 157 };
 constexpr unsigned int early_trunc_thresh{ 5 };
 constexpr unsigned int cycle_max { 2280 };

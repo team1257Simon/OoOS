@@ -667,5 +667,5 @@ public:
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };
-template<typename ... Ts> uint32_t blk_crc32(disk_block const& blk, size_t block_size, Ts const* ... rem) { return crc32_calc(blk.data_buffer, block_size * blk.chain_len, crc32c(rem...)); }
+template<typename ... Ts> uint32_t blk_crc32(disk_block const& blk, size_t block_size, Ts const& ... rem) { return crc32_calc(blk.data_buffer, block_size * blk.chain_len, crc32c(rem...)); }
 #endif

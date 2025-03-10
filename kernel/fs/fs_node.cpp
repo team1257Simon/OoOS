@@ -27,12 +27,12 @@ bool directory_node::is_directory() const noexcept { return true; }
 uint64_t directory_node::size() const noexcept { return this->num_files() + this->num_subdirs(); }
 bool directory_node::is_empty() const noexcept { return this->size() == 0; }
 bool directory_node::relink(std::string const& oldn, std::string const &newn) { if(tnode* ptr = this->find(oldn)) { return this->unlink(oldn) && this->link(ptr, newn); } else return false; } 
-device_node::device_node(std::string const &name, int fd, vfs_filebuf_base<char> *dev_buffer) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __my_device{ dev_buffer } { mode = 0x02666; }
+device_node::device_node(std::string const &name, int fd, vfs_filebuf_base<char> *dev_buffer) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __my_device{ dev_buffer } { mode = 027666; }
 bool device_node::fsync() { return __my_device->pubsync() == 0; }
 bool device_node::is_device() const noexcept { return true; }
 uint64_t device_node::size() const noexcept { return __my_device->in_avail(); }
 device_node::pos_type device_node::tell() const { return __my_device->tell(); }
-device_node::size_type device_node::write(const_pointer src, size_type n) { size_type result{ __my_device->sputn(src, n) }; if(result) syscall_time(&this->modif_time); return result; }
+device_node::size_type device_node::write(const_pointer src, size_type n) { size_type result = __my_device->sputn(src, n); if(result) syscall_time(&this->modif_time); return result; }
 device_node::size_type device_node::read(pointer dest, size_type n) { return __my_device->sgetn(dest, n); }
 device_node::pos_type device_node::seek(off_type off, std::ios_base::seekdir way) { return __my_device->pubseekoff(off, way); }
 device_node::pos_type device_node::seek(pos_type pos) { return __my_device->pubseekpos(pos); }

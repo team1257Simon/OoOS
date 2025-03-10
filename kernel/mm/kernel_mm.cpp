@@ -372,7 +372,7 @@ addr_t kernel_memory_mgr::duplicate_user_block(size_t sz, addr_t start, bool wri
     addr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
     __lock();
     addr_t result{ nullptr };
-    if(uintptr_t result_phys = __find_and_claim_available_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); arraycopy<uint8_t>(result, id_map, sz); }
+    if(uintptr_t result_phys = __find_and_claim_available_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); array_copy<uint8_t>(result, id_map, sz); }
     __unlock();
     return result;
 }
@@ -492,7 +492,7 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
         return tag->actual_start();
     }
     addr_t result{ allocate(size, align) };
-    if(result) { arraycopy<uint8_t>(result, ptr, tag->held_size > size ? size : tag->held_size); }
+    if(result) { array_copy<uint8_t>(result, ptr, tag->held_size > size ? size : tag->held_size); }
     deallocate(ptr);
     return result;
 }

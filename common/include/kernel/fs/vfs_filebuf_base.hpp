@@ -38,7 +38,7 @@ std::streamsize vfs_filebuf_base<CT, TT>::xsgetn(char_type *s, std::streamsize n
 {
     std::streamsize l = std::min(n, std::streamsize(this->egptr() - this->gptr()));
     if(l < n) { l += this->__ddread(std::min(std::streamsize(l - n), this->__ddrem())); }
-    if(l) arraycopy(s, this->gptr(), l);
+    if(l) array_copy(s, this->gptr(), l);
     this->gbump(l);
     if(l) this->__on_modify();
     return l;
@@ -53,4 +53,5 @@ std::streamsize vfs_filebuf_base<CT, TT>::xsputn(char_type const *s, std::stream
     if(!result) return std::streamsize(0);
     return std::streamsize(result - old);
 }
+std::basic_streambuf<char>* get_kstio_stream();
 #endif

@@ -124,7 +124,7 @@ void ext_directory_vnode::__write_dir_entry(ext_vnode *vnode, ext_dirent_type ty
     ext_dir_entry* dirent = __current_ent();
     dirent->name_len = name_len;
     dirent->type_ind = type;
-    arraycopy(dirent->name, name, name_len);
+    array_copy(dirent->name, name, name_len);
     dirent->inode_idx = vnode->inode_number;
     mark_write(dirent);
 }

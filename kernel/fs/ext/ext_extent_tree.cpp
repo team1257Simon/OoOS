@@ -268,7 +268,7 @@ bool ext_node_extent_tree::ext4_root_overflow()
     ext_extent_header* header = ::new (static_cast<void*>(nl_blk->data_buffer)) ext_extent_header{ .magic{ ext_extent_magic }, .max_entries{ static_cast<uint16_t>(((bs - sizeof(ext_extent_header)) / sizeof(ext_extent_node))) }, .depth{ base_depth } };
     size_t root_entries = std::min(uint16_t(4), tracked_node->on_disk_node->block_info.ext4_extent.header.max_entries);
     ext_extent_node* extent_nodes = reinterpret_cast<ext_extent_node*>(nl_blk->data_buffer + sizeof(ext_extent_header));
-    arraycopy(extent_nodes, tracked_node->on_disk_node->block_info.ext4_extent.root_nodes, root_entries);
+    array_copy(extent_nodes, tracked_node->on_disk_node->block_info.ext4_extent.root_nodes, root_entries);
     header->entries = root_entries;
     qword nblk_qw(nl_blk->block_number);
     array_zero(std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[0]), root_entries);

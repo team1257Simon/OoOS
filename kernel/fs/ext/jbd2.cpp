@@ -14,10 +14,10 @@ off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, boo
     off_t result = static_cast<off_t>(desc_tag_size(true));
     uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (need_escape(bl) ? escape : 0);
     __be32 be_seq(seq);
-    uint32_t csum = blk_crc32(bl, sb->journal_block_size, std::addressof(be_seq), std::addressof(sb->uuid));
+    uint32_t csum = blk_crc32(bl, sb->journal_block_size, be_seq, sb->uuid);
     if(sb->required_features & csum_v3) { std::construct_at<jbd2_block_tag3>(static_cast<jbd2_block_tag3*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be32(fl), __be32((bl.block_number >> 32) & 0xFFFFFFFF), __be32(csum)); }
     else { std::construct_at<jbd2_block_tag>(static_cast<jbd2_block_tag*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be16(uint16_t(csum & 0xFFFF)), __be16(fl), __be32(sb->required_features & x64_support ? ((bl.block_number >> 32) & 0xFFFFFFFF) : 0)); }
-    if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16; arraycopy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
+    if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16; array_copy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
     return result;
 }
 bool jbd2::create_txn(ext_vnode *changed_node)
@@ -52,12 +52,12 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     for(size_t i = 0; i < actual_blocks.size(); i++, total++)
     {
         pos += desc_tag_create(actual_blocks[i], pos, seq, k == tpb, !(k - 1) || (i + 1 == actual_blocks.size()));
-        arraycopy(dblk_tar, actual_blocks[i].data_buffer, bs);
+        array_copy(dblk_tar, actual_blocks[i].data_buffer, bs);
         mark_write(dblk_tar);
         dblk_tar += bs;
         if(!(--k))
         {
-            if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at<__be32>(reinterpret_cast<__be32*>(pos), crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid))));
+            if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at<__be32>(reinterpret_cast<__be32*>(pos), crc32_calc(desc_base, bs, crc32c(sb->uuid)));
             desc_base = dblk_tar;
             dblk_tar += bs;
             pos = desc_base;
@@ -69,7 +69,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     if(!tdesc)
     {
         pos = desc_base + (bs - 4);
-        if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at<__be32>(reinterpret_cast<__be32*>(pos), crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid))));
+        if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at<__be32>(reinterpret_cast<__be32*>(pos), crc32_calc(desc_base, bs, crc32c(sb->uuid)));
         total++;
     }
     disk_block ch_block(txn_st_block + total++, dblk_tar, false, 1U);
@@ -82,7 +82,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         .commit_nanos = __be32((timestamp % 1000U) * 1000U)
     };
     mark_write(dblk_tar);
-    uint32_t csum = blk_crc32(ch_block, bs, std::addressof(sb->uuid));
+    uint32_t csum = blk_crc32(ch_block, bs, sb->uuid);
     BARRIER;
     ch->checksum[0] = __be32(csum);
     first_open_block = txn_st_block + total;
@@ -193,7 +193,7 @@ void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
                                 desc_pos += desc_tag_size(is_same_uuid);
                                 disk_block& next = txn_data_blocks.emplace_back(disk_target_block, pos, true, 1U);
                                 pos += bs;
-                                block_csum = blk_crc32(next, bs, std::addressof(sb->uuid), std::addressof(h->sequence));
+                                block_csum = blk_crc32(next, bs, sb->uuid, h->sequence);
                                 if(!(sb->required_features & csum_v3)) block_csum &= 0xFFFF; // only store 16 bits for v2 checksum
                                 if(block_csum != stored_csum) { klog("(WARN) ignoring invalid descriptor block"); txn_data_blocks.clear(); inval = true; continue; }
                                 if(esc) { reinterpret_cast<__be32*>(next.data_buffer)[0] = jbd2_magic; }
@@ -220,7 +220,7 @@ void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
                     jbd2_block_tail* tail = reinterpret_cast<jbd2_block_tail*>(pos + bytes);
                     uint32_t og_checksum = tail->block_checksum;
                     tail->block_checksum = 0;
-                    uint32_t calculated = blk_crc32(*i, bs, std::addressof(sb->uuid));
+                    uint32_t calculated = blk_crc32(*i, bs, sb->uuid);
                     tail->block_checksum = og_checksum;
                     inval = (og_checksum != calculated);
                 }
@@ -250,7 +250,7 @@ uint32_t jbd2::calculate_sb_checksum()
 {
     uint32_t sb_cs_val = sb->checksum;
     sb->checksum = __be32(0U);
-    uint32_t result = crc32c(sb);
+    uint32_t result = crc32c(*sb);
     sb->checksum = __be32(sb_cs_val);
     return result;
 }

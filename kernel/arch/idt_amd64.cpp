@@ -29,6 +29,8 @@ extern "C"
         void* idt_ptr;
     } __pack idt_descriptor{};
     extern void idt_register();
+    constexpr static void idt_set_descriptor(uint8_t vector, addr_t isr);
+    void exception_handler(int exception_number, void* exception_address) { idt_set_descriptor(static_cast<uint8_t>(exception_number), exception_address); }
     constexpr static void idt_set_descriptor(uint8_t vector, addr_t isr)
     {
         new (static_cast<void*>(std::addressof(idt_table[vector]))) idt_entry_t

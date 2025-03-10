@@ -62,7 +62,7 @@ namespace std
         streamsize sgetn(char_type *s, streamsize n) { return this->xsgetn(s, n); }
         int_type sputbackc(char_type c) { int_type result; const bool testpos = this->eback() < this->gptr(); if (__builtin_expect(!testpos || !traits_type::eq(c, this->gptr()[-1]), false)) result = this->pbackfail(traits_type::to_int_type(c)); else { this->gbump(-1); result = traits_type::to_int_type(*this->gptr()); } return result; }
         int_type sungetc() { int_type result; if (__builtin_expect(this->eback() < this->gptr(), true)) { this->gbump(-1); result = traits_type::to_int_type(*this->gptr()); } else result = this->pbackfail(); return result; }
-        int_type sputc(char_type c) { int_type result; if (__builtin_expect(this->pptr() < this->epptr(), true)) {  *this->pptr() = c; this->pbump(1); result = traits_type::to_int_type(c); } else result = this->overflow(traits_type::to_int_type(c)); return result; }
+        int_type sputc(char_type c) { int_type result; if (__builtin_expect(this->pptr() < this->epptr(), true)) { *this->pptr() = c; this->pbump(1); result = traits_type::to_int_type(c); } else result = this->overflow(traits_type::to_int_type(c)); return result; }
         streamsize sputn(char_type const* s, streamsize n) { return this->xsputn(s, n); }
     };
     template <std::char_type CT, std::char_traits_type<CT> TT>

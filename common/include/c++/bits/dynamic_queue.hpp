@@ -59,10 +59,10 @@ namespace std::__impl
         __diff_type __stale_size_thresh{ 16L };
         unsigned int __op_cnt{ 0U };
         template<std::matching_input_iterator<T> IT> constexpr void __qtransfer(__ptr where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
-        constexpr void __qset(__ptr where, __value_type const& val, __size_type n) { arrayset<T>(where, val, n); }
+        constexpr void __qset(__ptr where, __value_type const& val, __size_type n) { array_fill<T>(where, val, n); }
         constexpr void __qassign(__ptr where, __value_type&& val) { *where = std::move(val); }
         constexpr void __qzero(__ptr where, __size_type n)  { array_zero<T>(where, n); }
-        constexpr void __qcopy(__ptr where, __const_ptr src, __size_type n) { arraycopy<T>(where, src, n); }
+        constexpr void __qcopy(__ptr where, __const_ptr src, __size_type n) { array_copy<T>(where, src, n); }
         /**
          * Called whenever elements are pushed to or popped from the queue.
          * As with dynamic_buffer, the setn/sete/bumpn/bumpe functions do not call this function.

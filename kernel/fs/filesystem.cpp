@@ -126,15 +126,15 @@ static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st)
         .st_ino = n->cid(), 
         .st_mode = n->mode, 
         .st_nlink = n->num_refs(), 
-        .st_uid = 0,
-        .st_gid = 0, 
+        .st_uid = 0,    // WIP
+        .st_gid = 0,    // WIP
         .st_rdev = n->is_device() ? 1U : 0, 
         .st_size = static_cast<long>(n->size()),
         .st_atim = timestamp_to_timespec(n->create_time),
         .st_mtim = timestamp_to_timespec(n->modif_time), 
         .st_ctim = timestamp_to_timespec(n->modif_time), 
-        .st_blksize = 512,
-        .st_blocks = div_roundup(n->size(), 512) 
+        .st_blksize = physical_block_size,
+        .st_blocks = div_roundup(n->size(), physical_block_size) 
     };  
 }
 extern "C"
