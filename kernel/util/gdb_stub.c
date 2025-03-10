@@ -548,11 +548,11 @@ void handle_exception(int exception_vector)
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 			/* try to read optional parameter, pc unchanged if no parm */
 			if(hex_to_int(&ptr, &addr)) *((long*)(&registers.rip)) = addr;
-#pragma GCC diagnostic pop
 			/* clear the trace bit */
 			*((long*)&registers.rflags) &= 0xFFFFFEFF;
 			/* set the trace bit if we're stepping */
 			if (stepping) *((long*)&registers.rflags) |= 0x100;
+ #pragma GCC diagnostic pop           
 			return_from_exception();	/* this is a jump */
 			break;
 		/* kill the program */
