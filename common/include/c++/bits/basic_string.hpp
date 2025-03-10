@@ -51,7 +51,6 @@ namespace std
         constexpr basic_string(basic_string&& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } { that.clear(); }
         constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.__cur(), alloc } {}
         constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str() + pos, that.c_str() + pos + count, alloc } {}
-        constexpr ~basic_string() { this->__destroy(); }
         constexpr basic_string& operator=(basic_string const& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); this->__post_modify_check_nt(); return *this; }
         constexpr basic_string& operator=(basic_string&& that) { this->__destroy(); this->__allocate_storage(that.size() + 1); this->__copy(this->data(), that.data(), that.size()); this->__advance(that.size()); that.__destroy(); this->__post_modify_check_nt(); return *this; }
         constexpr basic_string(std::initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}

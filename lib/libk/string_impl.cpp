@@ -31,8 +31,8 @@ extern "C"
     wchar_t* wstpcpy(wchar_t* dest, const wchar_t* src) { return std::stpcpy<wchar_t>(dest, src); }
     wchar_t* wstpncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::stpncpy<wchar_t>(dest, src, n); }
     void* memset(void* buffer, int value, size_t n) { return std::memset<int>(buffer, value, n); }
-    char* strdup(const char* str) { size_t n = std::strlen(str) + 1; if(!n) return nullptr; char* result = std::allocator<char>{}.allocate(n); arraycopy<char>(result, str, n); return result; }
-    char* strndup(const char* str, size_t max) { size_t n = std::strnlen(str, max); if(!n) return nullptr; char* result = std::allocator<char>{}.allocate(n); arraycopy<char>(result, str, n); return result; }
+    char* strdup(const char* str) { size_t n = std::strlen(str) + 1; if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); arraycopy<char>(result, str, n); return result; }
+    char* strndup(const char* str, size_t max) { size_t n = std::strnlen(str, max); if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); arraycopy<char>(result, str, n); return result; }
     const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)
     {
         static std::string estr;
@@ -53,14 +53,14 @@ namespace std
     namespace __impl
     {
         template<std::integral IT> struct __pow_10  { constexpr static IT       values[] = {}; };
-        template<> struct __pow_10<uint8_t>         { constexpr static uint8_t  values[] = {1u, uint8_t(1E1), uint8_t(1E2)}; };
-        template<> struct __pow_10<uint16_t>        { constexpr static uint16_t values[] = {1u, uint16_t(1E1), uint16_t(1E2), uint16_t(1E3), uint16_t(1E4)}; };
-        template<> struct __pow_10<uint32_t>        { constexpr static uint32_t values[] = {1u, uint32_t(1E1), uint32_t(1E2), uint32_t(1E3), uint32_t(1E4), uint32_t(1E5), uint32_t(1E6), uint32_t(1E7), uint32_t(1E8),  uint32_t(1E9)}; };
-        template<> struct __pow_10<uint64_t>        { constexpr static uint64_t values[] = {1, uint64_t(1E1), uint64_t(1E2), uint64_t(1E3), uint64_t(1E4), uint64_t(1E5), uint64_t(1E6), uint64_t(1E7), uint64_t(1E8), uint64_t(1E9), uint64_t(1E10), uint64_t(1E11), uint64_t(1E12), uint64_t(1E13), uint64_t(1E14), uint64_t(1E15), uint64_t(1E16), uint64_t(1E17), uint64_t(1E18), uint64_t(1E19) }; };
-        template<> struct __pow_10<int8_t>          { constexpr static int8_t   values[] = {1, int8_t(1E1), int8_t(1E2)}; };
-        template<> struct __pow_10<int16_t>         { constexpr static int16_t  values[] = {1, int16_t(1E1), int16_t(1E2), int16_t(1E3), int16_t(1E4)}; };
-        template<> struct __pow_10<int32_t>         { constexpr static int32_t  values[] = {1, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4), int32_t(1E5),  int32_t(1E6),  int32_t(1E7),  int32_t(1E8),  int32_t(1E9)}; };
-        template<> struct __pow_10<int64_t>         { constexpr static int64_t  values[] = {1, int64_t(1E1), int64_t(1E2), int64_t(1E3), int64_t(1E4), int64_t(1E5), int64_t(1E6), int64_t(1E7), int64_t(1E8), int64_t(1E9), int64_t(1E10), int64_t(1E11), int64_t(1E12), int64_t(1E13), int64_t(1E14), int64_t(1E15), int64_t(1E16), int64_t(1E17), int64_t(1E18) }; };
+        template<> struct __pow_10<uint8_t>         { constexpr static uint8_t  values[] = { 1U, uint8_t(1E1), uint8_t(1E2) }; };
+        template<> struct __pow_10<uint16_t>        { constexpr static uint16_t values[] = { 1U, uint16_t(1E1), uint16_t(1E2), uint16_t(1E3), uint16_t(1E4) }; };
+        template<> struct __pow_10<uint32_t>        { constexpr static uint32_t values[] = { 1U, uint32_t(1E1), uint32_t(1E2), uint32_t(1E3), uint32_t(1E4), uint32_t(1E5), uint32_t(1E6), uint32_t(1E7), uint32_t(1E8),  uint32_t(1E9) }; };
+        template<> struct __pow_10<uint64_t>        { constexpr static uint64_t values[] = { 1, uint64_t(1E1), uint64_t(1E2), uint64_t(1E3), uint64_t(1E4), uint64_t(1E5), uint64_t(1E6), uint64_t(1E7), uint64_t(1E8), uint64_t(1E9), uint64_t(1E10), uint64_t(1E11), uint64_t(1E12), uint64_t(1E13), uint64_t(1E14), uint64_t(1E15), uint64_t(1E16), uint64_t(1E17), uint64_t(1E18), uint64_t(1E19) }; };
+        template<> struct __pow_10<int8_t>          { constexpr static int8_t   values[] = { 1, int8_t(1E1), int8_t(1E2) }; };
+        template<> struct __pow_10<int16_t>         { constexpr static int16_t  values[] = { 1, int16_t(1E1), int16_t(1E2), int16_t(1E3), int16_t(1E4) }; };
+        template<> struct __pow_10<int32_t>         { constexpr static int32_t  values[] = { 1, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4), int32_t(1E5),  int32_t(1E6),  int32_t(1E7),  int32_t(1E8),  int32_t(1E9) }; };
+        template<> struct __pow_10<int64_t>         { constexpr static int64_t  values[] = { 1, int64_t(1E1), int64_t(1E2), int64_t(1E3), int64_t(1E4), int64_t(1E5), int64_t(1E6), int64_t(1E7), int64_t(1E8), int64_t(1E9), int64_t(1E10), int64_t(1E11), int64_t(1E12), int64_t(1E13), int64_t(1E14), int64_t(1E15), int64_t(1E16), int64_t(1E17), int64_t(1E18) }; };
         template<std::integral IT> constexpr static size_t __max_dec_digits() noexcept { return sizeof(__pow_10<IT>::values) / sizeof(IT); } 
         bool __isalnum(char c)  { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
         bool __isalpha(char c)  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
@@ -77,12 +77,12 @@ namespace std
         char __toupper(char c)  { return __islower(c) ? (c - ('a' - 'A')) : c; }
         template <std::char_type CT> struct __char_encode
         {
-            constexpr static CT minus = CT(0);
+            constexpr static CT minus = static_cast<CT>(0);
             constexpr static const CT digits[] = {};
             constexpr static const CT hexpref[] = {};
             constexpr static int casediff = 32;
-            constexpr static CT dot = CT(0);
-            template <std::char_type DT> constexpr static DT __to_other(CT ct) { return DT(0); }
+            constexpr static CT dot = static_cast<CT>(0);
+            template <std::char_type DT> constexpr static DT __to_other(CT ct) { return static_cast<DT>(ct); }
             constexpr static bool __is_upper(CT c) { return false; }
             constexpr static bool __is_lower(CT c) { return false; }
             constexpr static CT __to_upper(CT c) { return c - casediff; }
@@ -199,10 +199,11 @@ namespace std
             using __trait_type = std::char_traits<CT>;
             constexpr static size_t __max_dec = __max_dec_digits<IT>();
             constexpr static size_t __max_hex = 2 * sizeof(IT);
+            constexpr static size_t __xdigits(IT i) noexcept { return div_roundup(sizeof(IT) * CHAR_BIT - __builtin_clzg(i, 1), 4); }
             constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
             constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
             constexpr static IT __get_dec_digit_v(IT num, size_t idx) noexcept { if(idx < __max_dec - 1) return (num % __get_pow10(idx + 1)) / __get_pow10(idx); else return num / __get_pow10(idx); }
-            constexpr static IT __get_hex_digit_v(IT num, size_t idx) noexcept { return (num & (IT(0xF) << (idx * 4))) >> (idx * 4); }
+            constexpr static IT __get_hex_digit_v(IT num, size_t idx) noexcept { return (num & (static_cast<IT>(0xF) << (idx * 4))) >> (idx * 4); }
             constexpr static CT __get_dec_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_dec_digit_v(num, idx)]; }
             constexpr static CT __get_hex_digit(IT num, size_t idx) noexcept { return __digi_type::digits[__get_hex_digit_v(num, idx)]; }
             constexpr static IT __abs(IT i) noexcept { if constexpr(std::is_signed_v<IT>) return (i < 0) ? -i : i; else return i; }
@@ -215,19 +216,20 @@ namespace std
                 for(size_t n = 0; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) str.append(__digi_type::minus); }
                 str.shrink_to_fit();
-                return std::basic_string<CT>{ str.rend(), str.rbegin(), std::allocator<CT>() };
+                return std::basic_string<CT>(str.rend(), str.rbegin());
             }
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
                 if(!i) return basic_string(1U, __digi_type::digits[0]);
                 std::basic_string<CT> hstr{};
-                hstr.reserve(__max_hex + 1);
+                size_t nd = __xdigits(i);
+                hstr.reserve(nd + 3);
                 IT j = __abs(i);
-                for(size_t n = 0; n < __max_hex && __get_pow16(n) <= j; n++) hstr.append(__get_hex_digit(j, n));
+                for(size_t n = 0; n < nd; n++) hstr.append(__get_hex_digit(j, n));
                 hstr.append(__digi_type::hexpref);
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
                 hstr.shrink_to_fit();
-                return std::basic_string<CT>{ hstr.rend(), hstr.rbegin(), std::allocator<CT>() };
+                return basic_string<CT>(hstr.rend(), hstr.rbegin());
             }
         };
         inline std::string __fptocs_conv(float f, int digits)
@@ -384,7 +386,7 @@ extern "C"
     unsigned long long strtoull(const char *str, char **endptr, int base) { return std::__impl::ston<unsigned long long>(str, *endptr, base); } 
     size_t __strcat_basic(char* buffer, size_t max, const char* str1, const char* str2)
     {
-        std::string cat{str1};
+        std::string cat{ str1 };
         cat += str2;
         strncpy(buffer, cat.c_str(), max);
         return std::min(cat.size(), max);
@@ -400,7 +402,7 @@ extern "C"
     int __ltoi_alloc(char** out, long n)
     {
         std::string s = std::to_string(n);
-        *out = new char[s.size() + 1];
+        *out = std::allocator<char>().allocate(s.size() + 1);
         if(!out) return -1;
         std::strncpy(*out, s.c_str(), s.size());
         (*out)[s.size()] = 0;

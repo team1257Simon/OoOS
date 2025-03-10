@@ -144,7 +144,7 @@ extern "C"
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
         uint8_t smallflags{ static_cast<uint8_t>(flags) };
-        try { if(file_node* n{ fsptr->open_file(static_cast<const char*>(translate_user_pointer(name)), std::ios_base::openmode(smallflags)) }) return n->vid(); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        try { if(file_node* n = fsptr->open_file(static_cast<const char*>(translate_user_pointer(name)), std::ios_base::openmode(smallflags))) return n->vid(); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }
     int syscall_close(int fd)
@@ -215,7 +215,7 @@ extern "C"
     {
         filesystem* fsptr{ get_fs_instance() };
         if(!fsptr) return -ENOSYS;
-        try{ if(file_node* n{ get_by_fd(fsptr, current_active_task()->self, fd) }) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try{ if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_chmod(const char* name, mode_t m)

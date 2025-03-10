@@ -524,8 +524,6 @@ struct jbd2 : public ext_vnode
     size_t tags_per_block();
     bool write_block(disk_block const& bl);
     bool execute_pending_txns();
-    void free_buffers(std::vector<disk_block>& bufs);
-    char* allocate_block_buffer();
     uint32_t calculate_sb_checksum();
     ~jbd2();
     jbd2() = default;

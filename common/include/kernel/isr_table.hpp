@@ -4,6 +4,7 @@
 #include "kernel/libk_decls.h"
 #include "functional"
 #include "vector"
+// The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
 #define LAMBDA_ISR(...) [&] __isrcall (__VA_ARGS__) -> void
 typedef std::function<void()> irq_callback;
 typedef std::function<void(byte, qword)> interrupt_callback;

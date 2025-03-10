@@ -19,14 +19,14 @@ size_t fs_node::num_refs() const noexcept { return refs.size(); }
 fs_node::~fs_node() { prune_refs(); }
 file_node::file_node(std::string const &name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 bool file_node::is_file() const noexcept { return true; }
-bool file_node::chk_lock() const noexcept { return !test_lock(&__my_lock); }
-void file_node::acq_lock() { acquire(&__my_lock); }
-void file_node::rel_lock() { release(&__my_lock); }
+bool file_node::chk_lock() const noexcept { return !test_lock(std::addressof(__my_lock)); }
+void file_node::acq_lock() { acquire(std::addressof(__my_lock)); }
+void file_node::rel_lock() { release(std::addressof(__my_lock)); }
 directory_node::directory_node(std::string const &name, uint64_t cid) : fs_node{ name, -1, cid } {}
 bool directory_node::is_directory() const noexcept { return true; }
 uint64_t directory_node::size() const noexcept { return this->num_files() + this->num_subdirs(); }
 bool directory_node::is_empty() const noexcept { return this->size() == 0; }
-bool directory_node::relink(std::string const &oldn, std::string const &newn) { if(tnode* ptr = this->find(oldn)) { return this->unlink(oldn) && this->link(ptr, newn); } else return false; } 
+bool directory_node::relink(std::string const& oldn, std::string const &newn) { if(tnode* ptr = this->find(oldn)) { return this->unlink(oldn) && this->link(ptr, newn); } else return false; } 
 device_node::device_node(std::string const &name, int fd, vfs_filebuf_base<char> *dev_buffer) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __my_device{ dev_buffer } { mode = 0x02666; }
 bool device_node::fsync() { return __my_device->pubsync() == 0; }
 bool device_node::is_device() const noexcept { return true; }

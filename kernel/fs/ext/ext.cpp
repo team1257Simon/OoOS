@@ -28,7 +28,7 @@ bool extfs::write_to_disk(disk_block const& bl) { if(bl.data_buffer && bl.block_
 bool extfs::persist(ext_directory_vnode* n) { return fs_journal.create_txn(n); /* directory entry data must go through the journal */ }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
-char *extfs::allocate_block_buffer() { char* result = buff_alloc.allocate(block_size()); array_zero(result, block_size()); return result; }
+char *extfs::allocate_block_buffer() { size_t bs = block_size(); char* result = buff_alloc.allocate(bs); array_zero(result, bs); return result; }
 void extfs::free_block_buffer(disk_block& bl) { if(bl.data_buffer && bl.chain_len) buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
 off_t extfs::inode_block_offset(uint32_t inode) { return static_cast<off_t>(inode_pos_in_group(inode) * sb->inode_size); }
 uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group); }
@@ -53,14 +53,14 @@ extfs::~extfs()
     block_groups.clear(); // destruct these now to avoid dangling pointer shenanigans
     if(blk_group_descs) { bg_alloc.deallocate(blk_group_descs, num_blk_groups); }
 }
-ext_block_group::ext_block_group(extfs *parent, block_group_descriptor *desc) : 
+ext_block_group::ext_block_group(extfs* parent, block_group_descriptor* desc) : 
     parent_fs       { parent }, 
     descr           { desc },
     inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi), nullptr },
     blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi), nullptr },
     inode_block     { qword(desc->inode_table_start_block, desc->inode_table_start_block_hi), nullptr }
                     {}
-ext_block_group::ext_block_group(ext_block_group &&that) :
+ext_block_group::ext_block_group(ext_block_group&& that) :
     parent_fs       { that.parent_fs },
     descr           { that.descr },
     inode_usage_bmp { that.inode_usage_bmp },
@@ -129,7 +129,7 @@ void extfs::initialize()
     ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U).first.base();
     if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
     root_dir = rdnode;
-    new (std::addressof(fs_journal)) jbd2(this, sb->journal_inode);
+    std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
     if(!fs_journal.initialize()) throw std::runtime_error{ "journal init failed" };
     else initialized = true;
 }
@@ -189,27 +189,41 @@ file_node *extfs::open_fd(tnode* fd)
 }
 directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
-    qword tstamp = syscall_time(0);
+    qword tstamp = syscall_time(nullptr);
     if(uint32_t inode_num = claim_inode()) try
     {
-        ext_inode* inode = new (get_inode(inode_num)) ext_inode
+        ext_inode* inode = ::new (static_cast<void*>(get_inode(inode_num))) ext_inode
         {
-            .mode = 004777U,
-            .changed_time = tstamp.lo,
-            .modified_time = tstamp.lo,
-            .flags = use_extents,
-            .block_info = { .ext4_extent = { .header = { .magic = ext_extent_magic, .entries = 0, .max_entries = 4, .depth = 0 } } },
-            .changed_time_hi = tstamp.hi,
-            .mod_time_extra = tstamp.hi,
-            .created_time = tstamp.lo,
-            .created_time_hi = tstamp.hi
+            .mode               { 004777U },
+            .size_lo            { 0U },
+            .changed_time       { tstamp.lo },
+            .modified_time      { tstamp.lo },
+            .flags              { use_extents },
+            .block_info         
+            { 
+                .ext4_extent
+                { 
+                    .header
+                    { 
+                        .magic          { ext_extent_magic },
+                        .entries        { 0 },
+                        .max_entries    { 4 },
+                        .depth          { 0 }
+                    } 
+                } 
+            },
+            .size_hi            { 0U },
+            .changed_time_hi    { tstamp.hi },
+            .mod_time_extra     { tstamp.hi },
+            .created_time       { tstamp.lo },
+            .created_time_hi    { tstamp.hi }
         };
         dword checksum = crc32c(inode, std::addressof(sb->fs_uuid), std::addressof(inode_num));
         inode->checksum_lo = checksum.lo;
         inode->checksum_hi = checksum.hi;
         ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(static_cast<ext_vnode*>(vnode), dti_dir, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
+        if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size()) && vnode->initialize()) { return vnode; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -218,20 +232,34 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
 }
 file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
-    qword tstamp = syscall_time(0);
+    qword tstamp = syscall_time(nullptr);
     if(uint32_t inode_num = claim_inode()) try
     {
-        ext_inode* inode = new (get_inode(inode_num)) ext_inode
+        ext_inode* inode = ::new (static_cast<void*>(get_inode(inode_num))) ext_inode
         {
-            .mode = 010777U,
-            .changed_time = tstamp.lo,
-            .modified_time = tstamp.lo,
-            .flags = use_extents,
-            .block_info = { .ext4_extent = { .header = { .magic = ext_extent_magic, .entries = 0, .max_entries = 4, .depth = 0 } } },
-            .changed_time_hi = tstamp.hi,
-            .mod_time_extra = tstamp.hi,
-            .created_time = tstamp.lo,
-            .created_time_hi = tstamp.hi
+            .mode               { 010777U },
+            .size_lo            { 0U },
+            .changed_time       { tstamp.lo },
+            .modified_time      { tstamp.lo },
+            .flags              { use_extents },
+            .block_info         
+            { 
+                .ext4_extent
+                { 
+                    .header
+                    { 
+                        .magic          { ext_extent_magic },
+                        .entries        { 0 },
+                        .max_entries    { 4 },
+                        .depth          { 0 } 
+                    } 
+                } 
+            },
+            .size_hi            { 0U },
+            .changed_time_hi    { tstamp.hi },
+            .mod_time_extra     { tstamp.hi },
+            .created_time       { tstamp.lo },
+            .created_time_hi    { tstamp.hi }
         };
         dword checksum = crc32c(inode, std::addressof(sb->fs_uuid), std::addressof(inode_num));
         inode->checksum_lo = checksum.lo;
@@ -239,7 +267,7 @@ file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
         next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
         ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(static_cast<ext_vnode*>(vnode), dti_regular, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
+        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -317,7 +345,7 @@ disk_block *extfs::claim_metadata_block(ext_node_extent_tree *requestor)
 bool extfs::persist(ext_file_vnode* n) 
 { 
     if(journal_mode() != ordered) { return fs_journal.create_txn(n); } 
-     for(disk_block& db : n->block_data) 
+    for(disk_block& db : n->block_data) 
     {
 		if(!(db.dirty && db.block_number && db.data_buffer)) continue;
         if(!write_to_disk(db)) { panic("write failed"); sb->last_errno = EPIPE; return false; } 

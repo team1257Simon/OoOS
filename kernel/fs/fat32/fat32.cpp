@@ -26,7 +26,7 @@ bool fat32::read_clusters(char* buffer, uint32_t cl_st, size_t num) { return thi
 file_node* fat32::open_fd(tnode* n) { if(fat32_file_node* fn = dynamic_cast<fat32_file_node*>(n->as_file())) { fn->set_fd(this->next_fd++); fn->on_open(); return fn; } return nullptr; }
 fat32_file_node *fat32::put_file_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx) { std::pair<std::set<fat32_file_node>::iterator, bool> result = __file_nodes.emplace(this, name, parent, cl0, dirent_idx); if(!result.second) { return nullptr; } return result.first.base(); }
 fat32_directory_node *fat32::put_folder_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx) { std::pair<std::set<fat32_directory_node>::iterator, bool> result = this->__directory_nodes.emplace(this, name, parent, cl0, dirent_idx); if(!result.second) { return nullptr; } return result.first.base(); }
-bool fat32::init() { __root_directory = __directory_nodes.emplace(this, std::string(), nullptr, __root_cl_num, 0UL).first.base(); __root_directory->parse_dir_data(); return __root_directory->valid(); }
+bool fat32::init() { __root_directory = __directory_nodes.emplace(this, "", nullptr, __root_cl_num, 0UL).first.base(); __root_directory->parse_dir_data(); return __root_directory->valid(); }
 bool fat32::has_init() { return __has_init; }
 fat32 *fat32::get_instance() { return __instance; }
 void fat32::dlfilenode(file_node* fd)

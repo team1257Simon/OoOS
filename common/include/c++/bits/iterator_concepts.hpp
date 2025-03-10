@@ -46,8 +46,7 @@ namespace std
     template<typename T> requires is_object_v<T> struct incrementable_traits<T*> { using difference_type = ptrdiff_t; };
     template<typename IT> struct incrementable_traits<const IT> : incrementable_traits<IT> {};
     template<typename T> requires requires { typename T::difference_type; } struct incrementable_traits<T> { using difference_type = typename T::difference_type; };
-    template<typename T> requires (!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; })
-    struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(std::declval<T>() - std::declval<T>())>::type; };
+    template<typename T> requires (!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; }) struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(std::declval<T>() - std::declval<T>())>::type; };
     #if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
     template<> struct incrementable_traits<__int128> { using difference_type = __int128; };
     template<> struct incrementable_traits<unsigned __int128> { using difference_type = __int128; };

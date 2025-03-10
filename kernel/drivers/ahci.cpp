@@ -11,6 +11,7 @@ constexpr uint64_t table_offs_base{ fis_offs_base + 32uL * sizeof(hba_fis) };
 constexpr size_t prdt_size{ prdt_entries_count * sizeof(hba_prdt_entry) };
 ahci_driver ahci_driver::__instance{};
 bool ahci_driver::__has_init = false;
+void ahci_driver::__init_irq() { for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __my_abar->i_status |= BIT(i); BARRIER; uint32_t s1 = __my_abar->ports[i].i_state; BARRIER; __my_abar->ports[i].i_state = s1; BARRIER; } }  if(interrupt_table::add_irq_handler(__my_ahci_controller->header_0x0.interrupt_line, std::move(LAMBDA_ISR() { this->handle_irq(); }))) irq_clear_mask(__my_ahci_controller->header_0x0.interrupt_line); }
 static inline bool __port_data_busy(hba_port* port) { BARRIER; dword i = port->task_file; BARRIER; return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /*drq*/ }
 static inline bool __port_cmd_busy(hba_port* port, int slot) { BARRIER; dword i = port->cmd_issue; BARRIER; dword j = port->i_state; BARRIER; return !j.lo.lo.b5 /* processed */ && i[slot]; }
 static inline bool __port_nack_stop(hba_port* port) { BARRIER; dword i = port->cmd; BARRIER; return i.lo.hi.b7 /* cr */ || i.lo.hi.b6; /* fr */ }
@@ -63,18 +64,18 @@ void ahci_driver::__issue_command(uint8_t idx, int slot)
     BARRIER;
     __last_command_on_port[idx] = slot;
 }
-void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t *buffer, ata_command command, hba_cmd_table *cmdtbl, uint16_t l)
+void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l)
 {
     BARRIER;
     memset(cmdtbl, 0, sizeof(hba_cmd_table));
     BARRIER;
-    qword addr{ translate_vaddr(buffer) };
-    for(uint16_t i = 0; i <= l; i++, addr += 0x2000)
+    qword addr = reinterpret_cast<uintptr_t>(buffer);
+    for(uint16_t i = 0; i < l; i++, addr += physical_block_size * 16)
     {
         BARRIER;
         cmdtbl->prdt_entries[i].data_base = addr.lo;
         cmdtbl->prdt_entries[i].data_upper = addr.hi;
-        cmdtbl->prdt_entries[i].byte_count = i == l ? (((count.lo.lo & 0x0F) * 0x200 - 1) | 0x80000001) : 0x80001FFF;
+        cmdtbl->prdt_entries[i].byte_count = ((i == l - 1) ? ((count % 16) * physical_block_size - 1) : (physical_block_size * 16 - 1)) | 0x80000000;
         BARRIER;
     }
     fis_reg_h2d* fis = reinterpret_cast<fis_reg_h2d*>(cmdtbl->cmd_fis);
@@ -92,19 +93,13 @@ void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t *buffer, at
     fis->count = count.lo;
     BARRIER;
 }
-void ahci_driver::__init_irq()
-{
-    for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __my_abar->i_status |= BIT(i); BARRIER; uint32_t s1 = __my_abar->ports[i].i_state; BARRIER; __my_abar->ports[i].i_state = s1; BARRIER; } }
-    interrupt_table::add_irq_handler(__my_ahci_controller->header_0x0.interrupt_line, LAMBDA_ISR() { this->handle_irq(); });
-    irq_clear_mask(__my_ahci_controller->header_0x0.interrupt_line);
-}
-bool ahci_driver::init_instance(pci_device_list *ls) noexcept
+bool ahci_driver::init_instance(pci_device_list* ls) noexcept
 {
     if(__has_init) return true;
     if(!ls) return false;
     return (__has_init = __instance.init(ls->find(dev_class_ahci, subclass_ahci_controller)));
 }
-bool ahci_driver::init(pci_config_space *ps) noexcept
+bool ahci_driver::init(pci_config_space* ps) noexcept
 {
     if(!ps) return false;
     try
@@ -305,7 +300,7 @@ void ahci_driver::port_hard_reset(uint8_t idx)
     BARRIER;
     start_port(idx);
 }
-void ahci_driver::read_sectors(uint8_t idx, qword start, dword count, uint16_t *buffer)
+void ahci_driver::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 {
     if(!has_port(idx)) { throw std::out_of_range("port " + std::to_string(idx) + " does not exist"); }
     hba_port* port = std::addressof(__my_abar->ports[idx]);
@@ -315,8 +310,8 @@ void ahci_driver::read_sectors(uint8_t idx, qword start, dword count, uint16_t *
     port->command_list[slot].cmd_fis_len = 5;
     port->command_list[slot].w_direction = 0; // d2h write
     port->command_list[slot].atapi = 0;
-    uint16_t l = static_cast<uint16_t>((count.lo - 1) >> 4);
-    port->command_list[slot].prdt_length = l + 1; // each entry can transfer at most 8kb, or 16 sectors
+    uint16_t l = static_cast<uint16_t>(div_roundup(count, 16));
+    port->command_list[slot].prdt_length = l; // each entry can transfer at most 8kb, or 16 sectors
     BARRIER;
     __build_h2d_fis(start, count, buffer, ata_command::read_dma_ext, port->command_list[slot].command_table, l);
     __issue_command(idx, slot);
@@ -333,8 +328,8 @@ void ahci_driver::write_sectors(uint8_t idx, qword start, dword count, const uin
     port->command_list[slot].cmd_fis_len = 5;
     port->command_list[slot].w_direction = 1; // h2d write
     port->command_list[slot].atapi = 0;
-    uint16_t l = static_cast<uint16_t>((count.lo - 1) >> 4);
-    port->command_list[slot].prdt_length = l + 1; // each entry can transfer at most 8kb, or 16 sectors
+    uint16_t l = static_cast<uint16_t>(div_roundup(count, 16));
+    port->command_list[slot].prdt_length = l; // each entry can transfer at most 8kb, or 16 sectors
     BARRIER;
     __build_h2d_fis(start, count, const_cast<uint16_t*>(buffer), ata_command::write_dma_ext, port->command_list[slot].command_table, l);
     __issue_command(idx, slot);

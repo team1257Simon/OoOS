@@ -106,7 +106,7 @@ bool scheduler::init()
     catch(std::exception& e) { panic(e.what()); return false; }
     task_change_flag.store(0);
     init_pit();
-    interrupt_table::add_irq_handler(0, LAMBDA_ISR()
+    interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(this->__running)
         {
@@ -119,6 +119,6 @@ bool scheduler::init()
                 if(this->__my_tick_cycles >= early_trunc_thresh) { this->__my_subticks++; if(this->__my_tick_cycles >= cycle_max) this->__my_tick_cycles = 0; }
             }
         }
-    });
+    }));
     return true;
 }

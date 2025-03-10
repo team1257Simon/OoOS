@@ -46,17 +46,18 @@ namespace std
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
     }
 #pragma region non-standard memory functions
-    extension template<typename T> [[nodiscard]] [[gnu::always_inline]] constexpr T* resize(T* array, size_t ocount, size_t ncount) 
+    extension template<typename T> [[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount) 
     {
         if(__builtin_is_constant_evaluated())
         {
             __base_allocator<T> alloc{};
             T* result = alloc.__allocate(ncount);
-            for(size_t i = 0; i < ncount; i++) { new (__builtin_addressof(result[i])) T(std::move(array[i])); }
+            size_t ccount = ncount < ocount ? ncount : ocount;
+            for(size_t i = 0; i < ccount; i++) { ::new (static_cast<void*>(__builtin_addressof(result[i]))) T(std::move(array[i])); }
             alloc.__deallocate(array, ocount);
             return result;
         }
-        return reinterpret_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T)));
+        return static_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T)));
     }
 #pragma endregion
     template<typename T>

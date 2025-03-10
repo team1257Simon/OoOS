@@ -111,7 +111,7 @@ bool fat32_directory_node::parse_dir_data()
     catch(std::exception& e) { panic("Parse failed: "); panic(e.what()); }
     return false;
 }
-void fat32_directory_node::get_short_name(std::string const &full, std::string& result)
+void fat32_directory_node::get_short_name(std::string const& full, std::string& result)
 {
     std::string upper = std::ext::to_upper(full);
     if(upper.size() < 13) { result = std::string(upper.c_str(), std::min(12UL, upper.size())); return; }
@@ -130,7 +130,7 @@ void fat32_directory_node::get_short_name(std::string const &full, std::string& 
         result.append(tail);
         i++;
     } while(this->__my_directory.contains(result) && i <= 999999);
-    if(this->__my_directory.contains(result)) throw std::logic_error{ "could not get a unique short name from " + full };
+    if(this->__my_directory.contains(result)) throw std::logic_error{ "could not get a unique short name from " + upper };
 }
 bool fat32_directory_node::fsync()
 {

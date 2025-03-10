@@ -86,8 +86,7 @@ bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trig
         outb(port_com1_modem_ctl, modem_ctl_byte{ true, true, true, true, false });
         init_ier.receive_data = true;
         outb(port_com1_ier, init_ier);
-        interrupt_table::add_irq_handler(4, LAMBDA_ISR() { __inst.__ddread(0); });
-        irq_clear_mask<4ui8>();
+        if(interrupt_table::add_irq_handler(4, std::move(LAMBDA_ISR() { __inst.__ddread(0); }))) irq_clear_mask<4ui8>();
         return true; 
     }
     else return false;

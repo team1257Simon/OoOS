@@ -1,26 +1,23 @@
 #include "fs/ext.hpp"
 #include "sys/errno.h"
 #include "kdebug.hpp"
-std::allocator<char> bl_alloc{};
 std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2(extfs *parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
-bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(std::vector<disk_block>::iterator i = data_blocks.begin(); i != data_blocks.end(); i++) { if(!i->block_number || !i->data_buffer) continue; if(!fs_ptr->write_to_disk(*i)) { panic("write failed"); return false; } } return true; }
-bool jbd2::need_escape(disk_block const &bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
+bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_to_disk(db)) { panic("write failed"); return false; } } return true; }
+bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
-size_t jbd2::tags_per_block() { return (sb->journal_block_size - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
-char *jbd2::allocate_block_buffer() { char* result = bl_alloc.allocate(sb->journal_block_size); array_zero(result, sb->journal_block_size); return result; }
-void jbd2::free_buffers(std::vector<disk_block> &bufs) { for(std::vector<disk_block>::iterator i = bufs.begin(); i < bufs.end(); i++) bl_alloc.deallocate(i->data_buffer, sb->journal_block_size); bufs.clear(); }
+size_t jbd2::tags_per_block() { return (parent_fs->block_size() - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
 bool jbd2::write_block(disk_block const &bl) { if(!parent_fs->write_to_disk(bl)) { panic("disk write failed"); sb->journal_errno = __be32(EIO); return false; } return true; }  // TODO: better error handling :)
 off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first, bool is_last)
 {
     off_t result = static_cast<off_t>(desc_tag_size(true));
-    uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | ((((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic) ? escape : 0);
+    uint32_t fl = (is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (need_escape(bl) ? escape : 0);
     __be32 be_seq(seq);
-    uint32_t csum = blk_crc32(bl, sb->journal_block_size, &be_seq, &(sb->uuid));
-    if(sb->required_features & csum_v3) { new (static_cast<jbd2_block_tag3*>(where)) jbd2_block_tag3{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .flags = __be32(fl), .block_number_hi = __be32((bl.block_number >> 32) & 0xFFFFFFFF), .checksum = __be32(csum) }; }
-    else { new (static_cast<jbd2_block_tag*>(where)) jbd2_block_tag{ .block_number = __be32((bl.block_number) & 0xFFFFFFFF), .checksum = __be16(uint16_t(csum & 0xFFFF)), .flags = __be16(fl), .block_number_hi = __be32(sb->required_features & x64_support ? ((bl.block_number >> 32) & 0xFFFFFFFF) : 0) }; }
-    if(is_first) { uint8_t* uuid_pos = reinterpret_cast<uint8_t*>(where) + result; result += 16; arraycopy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
+    uint32_t csum = blk_crc32(bl, sb->journal_block_size, std::addressof(be_seq), std::addressof(sb->uuid));
+    if(sb->required_features & csum_v3) { std::construct_at<jbd2_block_tag3>(static_cast<jbd2_block_tag3*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be32(fl), __be32((bl.block_number >> 32) & 0xFFFFFFFF), __be32(csum)); }
+    else { std::construct_at<jbd2_block_tag>(static_cast<jbd2_block_tag*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be16(uint16_t(csum & 0xFFFF)), __be16(fl), __be32(sb->required_features & x64_support ? ((bl.block_number >> 32) & 0xFFFFFFFF) : 0)); }
+    if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16; arraycopy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
     return result;
 }
 bool jbd2::create_txn(ext_vnode *changed_node)
@@ -48,7 +45,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     char* pos = this->__get_ptr(txn_st_block * bs);
     char* desc_base = pos;
     char* dblk_tar = pos + bs;
-    new (reinterpret_cast<jbd2_header*>(pos)) jbd2_header{ .blocktype = __be32(descriptor), .sequence = __be32(seq) };
+    std::construct_at<jbd2_header>(reinterpret_cast<jbd2_header*>(pos), jbd2_magic, __be32(descriptor), __be32(seq));
     pos += sizeof(jbd2_header);
     mark_write(pos);
     size_t total = 0, tdesc = 0, k = tpb;
@@ -60,7 +57,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         dblk_tar += bs;
         if(!(--k))
         {
-            if(sb->required_features & (csum_v2 | csum_v3)) new (reinterpret_cast<jbd2_block_tail*>(pos)) jbd2_block_tail(__be32(crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid)))));
+            if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at<__be32>(reinterpret_cast<__be32*>(pos), crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid))));
             desc_base = dblk_tar;
             dblk_tar += bs;
             pos = desc_base;
@@ -72,13 +69,12 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     if(!tdesc)
     {
         pos = desc_base + (bs - 4);
-        if(sb->required_features & (csum_v2 | csum_v3)) new (reinterpret_cast<jbd2_block_tail*>(pos)) jbd2_block_tail(__be32(crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid)))));
+        if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at<__be32>(reinterpret_cast<__be32*>(pos), crc32_calc(desc_base, bs, crc32c(std::addressof(sb->uuid))));
         total++;
     }
-    array_zero(dblk_tar, bs);
-    disk_block ch_block{ txn_st_block + total++, dblk_tar, false, 1U };
-    uint64_t timestamp = syscall_time(0);
-    jbd2_commit_header* ch = new(reinterpret_cast<jbd2_commit_header*>(dblk_tar)) jbd2_commit_header
+    disk_block ch_block(txn_st_block + total++, dblk_tar, false, 1U);
+    uint64_t timestamp = syscall_time(nullptr);
+    jbd2_commit_header* ch = ::new (static_cast<void*>(dblk_tar)) jbd2_commit_header
     { 
         .checksum_type = 4,
         .checksum_size = 4,
@@ -91,18 +87,19 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     ch->checksum[0] = __be32(csum);
     first_open_block = txn_st_block + total;
     if(!ddwrite()) return false;
-    active_transactions.push(jbd2_transaction(txn_blocks, static_cast<int>(seq)));
+    BARRIER;
+    active_transactions.push(std::move(jbd2_transaction(std::move(txn_blocks), static_cast<int>(seq))));
     return true;
 }
 bool jbd2::ddread()
 {
-    disk_block full_blk{ block_data[0].block_number, __beg(), false, extents.total_extent };
+    disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
     if(!parent_fs->read_unbuffered(full_blk)) { panic("failed to read journal"); return false; }
     return true;
 }
 bool jbd2::ddwrite()
 {
-    disk_block full_blk{ block_data[0].block_number, __beg(), false, extents.total_extent };
+    disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
     if(!parent_fs->write_unbuffered(full_blk)) { panic("failed to write journal"); return false; }
     return true;
 }
@@ -110,7 +107,7 @@ bool jbd2::clear_log()
 {
     size_t bs = parent_fs->block_size();
     array_zero(__beg() + bs, static_cast<size_t>(this->__capacity() - bs));
-    for(std::vector<disk_block>::iterator i = replay_blocks.begin(); i != replay_blocks.end(); i++) { if(i->data_buffer) { bl_alloc.deallocate(i->data_buffer, bs); } }
+    for(std::vector<disk_block>::iterator i = replay_blocks.begin(); i != replay_blocks.end(); i++) { if(i->data_buffer) { parent_fs->free_block_buffer(*i); } }
     replay_blocks.clear();
     return ddwrite();
 }

@@ -237,9 +237,9 @@ namespace std
         template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_r(__cb_ptr p, U const& u) const { return __compare_type{}(static_cast<__const_link>(p)->__get_ref(), u); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __compare_l(U const& u, __cb_ptr p) const { return __compare_type{}(u, static_cast<__const_link>(p)->__get_ref()); }
         constexpr __link __get_root() noexcept { return static_cast<__link>(this->__trunk.__my_parent); }
-        constexpr __link __end() noexcept { return static_cast<__link>(&this->__trunk); }
+        constexpr __link __end() noexcept { return static_cast<__link>(addressof(this->__trunk)); }
         constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(this->__trunk.__my_parent); }
-        constexpr __const_link __end() const noexcept { return static_cast<__const_link>(&this->__trunk); }
+        constexpr __const_link __end() const noexcept { return static_cast<__const_link>(std::addressof(this->__trunk)); }
         constexpr __b_ptr& __leftmost() noexcept { return this->__trunk.__my_left; }
         constexpr __b_ptr& __rightmost() noexcept { return this->__trunk.__my_right; }
         constexpr __link __l_begin() noexcept {  return static_cast<__link>(this->__trunk.__my_left); }
@@ -339,7 +339,7 @@ namespace std
         __link l = __construct_node(forward<Args>(args)...);
         __pos_pair r = __pos_for_unique(l->__get_ref());
         if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
-        __destroy_node(l);
+        else __destroy_node(l);
         return __res_pair{ r.first, false};
     }
     template <typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
@@ -350,7 +350,7 @@ namespace std
         __link l = __construct_node(forward<Args>(args)...);
         __pos_pair r = __insert_unique_hint_pos(hint, l->__get_ref());
         if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
-        __destroy_node(l);
+        else __destroy_node(l);
         return __res_pair{ r.first, false };
     }
 }

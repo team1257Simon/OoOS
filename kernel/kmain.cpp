@@ -280,35 +280,35 @@ static const char* codes[] =
     "#SX [Security Exception]",
     "[RESERVED INTERRUPT 0x1F]"
 };
+constexpr auto test_dbg_callback = [] [[gnu::target("general-regs-only")]] (byte idx, qword ecode) -> void
+{
+    if(idx < 0x20) 
+    {
+        startup_tty.print_text(codes[idx]);
+        if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, __xdigits(ecode)); startup_tty.print_text(")"); }
+        if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
+        if(idx == 0x0E) 
+        {
+            uint64_t fault_addr;
+            asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
+            startup_tty.print_text("; page fault address = ");
+            __dbg_num(fault_addr, __xdigits(fault_addr));
+        }
+        addr_t target = errinst ? addr_t(errinst) : addr_t(svinst);
+        uint8_t* bytes = target;
+        bytes[0] = 0xEB;
+        bytes[1] = 0xFE;
+    }
+    else
+    {
+        startup_tty.print_text("Received interrupt ");
+        __dbg_num(idx, 2);
+        startup_tty.print_line(" from software.");
+    }
+};
 void run_tests()
 {
-    // The current highlight of this OS (if you can call it that) is that I, an insane person, decided to make it possible to use lambdas for ISRs.
-    interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword ecode)
-    {
-        if(idx < 0x20) 
-        {
-            startup_tty.print_text(codes[idx]);
-            if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, __xdigits(ecode)); startup_tty.print_text(")"); }
-            if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
-            if(idx == 0x0E) 
-            {
-                uint64_t fault_addr;
-                asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
-                startup_tty.print_text("; page fault address = ");
-                __dbg_num(fault_addr, __xdigits(fault_addr));
-            }
-            addr_t target = errinst ? addr_t(errinst) : addr_t(svinst);
-            uint8_t* bytes = target;
-            bytes[0] = 0xEB;
-            bytes[1] = 0xFE;
-        }
-        else
-        {
-            startup_tty.print_text("Received interrupt ");
-            __dbg_num(idx, 2);
-            startup_tty.print_line(" from software.");
-        }
-    });
+    interrupt_table::add_interrupt_callback(test_dbg_callback);
     // First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
     startup_tty.print_line("string test...");
     str_tests();
@@ -369,7 +369,7 @@ extern "C"
         kproc.saved_regs.rsp = &kernel_stack_top;
         kproc.saved_regs.rbp = &kernel_stack_base;
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(addr_t{ &do_syscall }, 0UL, 0x08ui16, 0x10ui16);     
+        init_syscall_msrs(addr_t(&do_syscall), 0UL, 0x08ui16, 0x10ui16);     
         sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
