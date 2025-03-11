@@ -117,11 +117,10 @@ static addr_t __skip_mmio(addr_t start, size_t pages)
     {
         paging_table pt = __get_table(start, false);
         if(!pt) { return nullptr; }
-        if (pt[curr.page_idx].present && (pt[curr.page_idx].write_thru || pt[curr.page_idx].cache_disable)) i = 0;
+        if(pt[curr.page_idx].present && (pt[curr.page_idx].write_thru || pt[curr.page_idx].cache_disable)) i = 0;
     }
-    addr_t c_ed = curr.plus(pages * PAGESIZE);
-    if(c_ed > ed) curr = curr.plus(c_ed - ed);
-    return curr;
+    if(curr > ed) return start.plus(curr - ed);
+    return start;
 }
 static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
 {
