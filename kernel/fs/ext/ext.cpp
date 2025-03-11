@@ -141,7 +141,7 @@ uint32_t extfs::claim_inode()
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
             off_t avail = bitmap_scan_sz(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
-            uint32_t result = static_cast<uint32_t>(avail + (sb->inodes_per_group * i));
+            uint32_t result = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
             bitmap_set_cbits(bmp, avail, 1UL);
             block_groups[i].decrement_inode_ct();
             if(!persist_group_metadata(i)) return 0U;
