@@ -49,7 +49,7 @@ struct ext_superblock
     uint32_t orphan_inode_list_head;
     uint32_t hash_seed[4];
     uint8_t dir_hash_algorithm_id;
-    bool journal_inode_blocks_and_size;
+    uint8_t journal_inode_blocks_and_size;
     uint16_t group_descriptor_size;
     uint32_t mount_options;
     uint32_t first_metablock_group;

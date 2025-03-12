@@ -221,7 +221,7 @@ void extfs_tests()
         fn->write("derple blerple", 14);
         test_extfs.close_file(fn);
     }
-    catch(std::exception& e) { panic(e.what());}
+    catch(std::exception& e) { panic(e.what()); }
 }
 void elf64_tests()
 {

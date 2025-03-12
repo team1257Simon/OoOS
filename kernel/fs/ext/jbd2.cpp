@@ -8,7 +8,7 @@ bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db 
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
 size_t jbd2::tags_per_block() { return (parent_fs->block_size() - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
-bool jbd2::write_block(disk_block const &bl) { if(!parent_fs->write_to_disk(bl)) { panic("disk write failed"); sb->journal_errno = __be32(EIO); return false; } return true; }  // TODO: better error handling :)
+bool jbd2::write_block(disk_block const &bl) { if(!parent_fs->write_to_disk(bl)) { panic("disk write failed"); return false; } return true; }  // TODO: better error handling :)
 off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first, bool is_last)
 {
     off_t result = static_cast<off_t>(desc_tag_size(true));
@@ -54,6 +54,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         pos += desc_tag_create(actual_blocks[i], pos, seq, k == tpb, !(k - 1) || (i + 1 == actual_blocks.size()));
         array_copy(dblk_tar, actual_blocks[i].data_buffer, bs);
         mark_write(dblk_tar);
+        actual_blocks[i].data_buffer = dblk_tar;
         dblk_tar += bs;
         if(!(--k))
         {
@@ -88,7 +89,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     first_open_block = txn_st_block + total;
     if(!ddwrite()) return false;
     BARRIER;
-    active_transactions.push(std::move(jbd2_transaction(std::move(txn_blocks), static_cast<int>(seq))));
+    active_transactions.push(std::move(jbd2_transaction(actual_blocks, static_cast<int>(seq))));
     return true;
 }
 bool jbd2::ddread()
@@ -107,26 +108,12 @@ bool jbd2::clear_log()
 {
     size_t bs = parent_fs->block_size();
     array_zero(__beg() + bs, static_cast<size_t>(this->__capacity() - bs));
-    for(std::vector<disk_block>::iterator i = replay_blocks.begin(); i != replay_blocks.end(); i++) { if(i->data_buffer) { parent_fs->free_block_buffer(*i); } }
     replay_blocks.clear();
     return ddwrite();
 }
 bool jbd2::execute_pending_txns()
 {
-    try
-    {
-        while(!active_transactions.at_end()) 
-        { 
-            jbd2_transaction* t = std::addressof(active_transactions.pop());
-            if(!t->execute_and_complete(parent_fs)) 
-            {
-                active_transactions.restart(); 
-                sb->journal_errno = __be32(EIO); 
-                return false; 
-            } 
-        } 
-        return clear_log();
-    }
+    try { while(!active_transactions.at_end()) { jbd2_transaction* t = std::addressof(active_transactions.pop()); if(!t->execute_and_complete(parent_fs)) { active_transactions.restart(); return false; } } return clear_log(); }
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
@@ -135,7 +122,7 @@ bool jbd2::read_log()
     if(!initialize()) return false;
     bool success = true;
     try { for(std::vector<disk_block>::iterator i = block_data.begin(); i != block_data.end(); i++) { parse_next_log_entry(i); } }
-    catch(std::exception& e) { panic(e.what()); success = false; sb->journal_errno = __be32(EIO); }
+    catch(std::exception& e) { panic(e.what()); success = false; }
     return success;
 }
 void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
@@ -202,12 +189,7 @@ void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
                     }
                     if(++j == i->chain_len) { i++; j = 0; if(i == block_data.end()) break; pos = i->data_buffer; }
                 }
-                if(!inval) 
-                { 
-                    replay_blocks.push_back(txn_data_blocks.begin(), txn_data_blocks.end()); 
-                    transaction_id i = static_cast<transaction_id>(ch->header.sequence);
-                    active_transactions.push(jbd2_transaction(txn_data_blocks, i));
-                }
+                if(!inval) active_transactions.push(jbd2_transaction(txn_data_blocks, static_cast<transaction_id>(ch->header.sequence)));
             }
             else if(h->blocktype == revocation)
             {

@@ -1,6 +1,7 @@
 #include "fs/ext.hpp"
 #include "fs/hda_ahci.hpp"
 #include "sys/errno.h"
+#include "immintrin.h"
 #include "bitmap.hpp"
 #include "kdebug.hpp"
 static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};

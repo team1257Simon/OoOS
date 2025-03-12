@@ -29,6 +29,7 @@ uint64_t syscall_time(uint64_t* tm_target);
 paging_table kernel_cr3();
 uint32_t crc32_calc(const void* data, size_t len, uint32_t seed = 0U);
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = uint16_t(0));
+uint32_t crc32_posix(const void* data, size_t len, uint32_t seed = 0U);
 #ifdef __cplusplus
 }
 void kfx_save();
@@ -38,8 +39,11 @@ template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsba
 template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename ... Ts> uint32_t crc32c(Ts const& ... args);
+template<typename ... Ts> uint32_t crc32p(Ts const& ... args);
+template<> inline uint32_t crc32p() { return 0U; }
 template<> inline uint32_t crc32c() { return 0U; }
 template<typename T, typename ... Us> inline uint32_t crc32c(T const& t, Us const& ... us) { return crc32_calc(std::addressof(t), sizeof(T), crc32c(us...)); }
+template<typename T, typename ... Us> inline uint32_t crc32p(T const& t, Us const& ... us) { return crc32_posix(std::addressof(t), sizeof(T), crc32p(us...)); }
 template<typename ... Ts> uint16_t crc16(Ts const& ... args);
 template<> inline uint16_t crc16() { return uint16_t(0); }
 template<typename T, typename ... Us> inline uint16_t crc16(T const& t, Us const& ... us) { return crc16_calc(std::addressof(t), sizeof(T), crc16(us...)); }
