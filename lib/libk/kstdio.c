@@ -4,7 +4,7 @@ extern size_t kvfprintf(FILE* fd, const char* fmt, va_list args);
 extern size_t kvsprintf(char* restrict buffer, const char* restrict fmt, va_list args);
 extern size_t kvsnprintf(char* restrict buffer, size_t n, const char* restrict fmt, va_list args);
 extern size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
-attribute(__weak__) int printf(const char* restrict fmt, ...)
+attribute(weak) int printf(const char* restrict fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -12,7 +12,7 @@ attribute(__weak__) int printf(const char* restrict fmt, ...)
     va_end(args);
     return (int)n;
 }
-attribute(__weak__) int fprintf(FILE* fd, const char* restrict fmt, ...)
+attribute(weak) int fprintf(FILE* fd, const char* restrict fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -20,7 +20,7 @@ attribute(__weak__) int fprintf(FILE* fd, const char* restrict fmt, ...)
     va_end(args);
     return (int)n;
 }
-attribute(__weak__) int sprintf(char* restrict buffer, const char* restrict fmt, ...)
+attribute(weak) int sprintf(char* restrict buffer, const char* restrict fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -28,7 +28,7 @@ attribute(__weak__) int sprintf(char* restrict buffer, const char* restrict fmt,
     va_end(args);
     return (int)n;
 }
-attribute(__weak__) int snprintf(char* restrict buffer, size_t bufsz, const char* restrict fmt, ...)
+attribute(weak) int snprintf(char* restrict buffer, size_t bufsz, const char* restrict fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -36,7 +36,7 @@ attribute(__weak__) int snprintf(char* restrict buffer, size_t bufsz, const char
     va_end(args);
     return (int)n;
 }
-attribute(__weak__) int asprintf(char** restrict strp, const char* restrict fmt, ...)
+attribute(weak) int asprintf(char** restrict strp, const char* restrict fmt, ...)
 {
     va_list args;
     va_start(args, fmt);

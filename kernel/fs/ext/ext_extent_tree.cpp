@@ -182,7 +182,7 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
         { 
             cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, uint16_t(1)));
             base_extent_level.insert_or_assign(total_extent, cached_node_pos(base));
-            return tracked_node->parent_fs->persist_inode(tracked_node->inode_number) && base->push_extent_recurse_legacy(this, blk);
+            return base->push_extent_recurse_legacy(this, blk);
         }
         else return false;
     }
@@ -213,7 +213,6 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
 bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
 {
     if(!has_init && !parse_ext4()) return false;
-    bool need_inode_persist = false;
     if(tracked_node->on_disk_node->block_info.ext4_extent.header.depth == 0)
     {
         if(tracked_node->on_disk_node->block_info.ext4_extent.header.entries < tracked_node->on_disk_node->block_info.ext4_extent.header.max_entries) // should be 4
@@ -222,10 +221,9 @@ bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
             populate_leaf(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[idx].leaf, blk, total_extent);
             base_extent_level.insert_or_assign(total_extent, cached_node_pos(tracked_extents.emplace_back(blk, tracked_node, uint16_t(0))));
             total_extent += blk->chain_len;
-            return tracked_node->parent_fs->persist_inode(tracked_node->inode_number);
+            return true;
         }
         if(!ext4_root_overflow()) return false;
-        need_inode_persist = true;
     }
     auto i = base_extent_level.max();
     if(i == base_extent_level.end()) { panic("illegal extent tree state"); return false; }
@@ -244,15 +242,13 @@ bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
                 uint16_t d = tracked_node->on_disk_node->block_info.ext4_extent.header.depth;
                 cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, d));
                 base_extent_level.insert_or_assign(total_extent, cached_node_pos(base));
-                if(need_inode_persist && !tracked_node->parent_fs->persist_inode(tracked_node->inode_number)) return false;
                 return base->push_extent_recurse_ext4(this, blk);
             }
             if(!ext4_root_overflow()) return false;
             i = base_extent_level.max();
-            if(need_inode_persist && !tracked_node->parent_fs->persist_inode(tracked_node->inode_number)) return false;
             return get_cached(i->second)->push_extent_recurse_ext4(this, blk);
         }
-        return !need_inode_persist || tracked_node->parent_fs->persist_inode(tracked_node->inode_number);
+        return true;
     }
     catch(std::exception& e) { panic(e.what()); }
     return false;
@@ -314,7 +310,7 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent
         next_level_extents.insert(std::move(std::make_pair(parent->total_extent, parent->cached_node_pos(base))));
         *target = nl_blk->block_number;
         my_blk->dirty = true;
-        return tracked_node->parent_fs->persist_inode(tracked_node->inode_number) && base->push_extent_recurse_legacy(parent, blk);
+        return base->push_extent_recurse_legacy(parent, blk);
     }
     return true;
 }
@@ -348,7 +344,7 @@ bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree *parent, 
             next_level_extents.insert(std::move(std::make_pair(parent->total_extent, parent->cached_node_pos(base))));
             populate_index(node->idx, nl_blk->block_number, parent->total_extent);
             my_blk->dirty = true;
-            return tracked_node->parent_fs->persist_inode(tracked_node->inode_number) && base->push_extent_recurse_ext4(parent, blk);
+            return base->push_extent_recurse_ext4(parent, blk);
         }
         return false;
     }

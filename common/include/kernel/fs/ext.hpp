@@ -245,7 +245,8 @@ struct ext_inode
     uint32_t file_acl_block;
     uint32_t size_hi;
     uint32_t fragment_block;
-    uint32_t blocks_count_hi;
+    uint16_t blocks_count_hi;
+    uint16_t file_acl_block_hi;
     uint16_t uid_hi;
     uint16_t gid_hi;
     uint16_t checksum_lo;               // crc32c(uuid+inode_number+inode)
@@ -267,6 +268,15 @@ struct ext_dir_entry
     uint8_t name_len;
     uint8_t type_ind;   // if "directory entries have file type byte" is not set, this is instead the high 8-bits of the name length
     char name[];
+} __pack;
+struct ext_dir_tail
+{
+    uint32_t rsv0{ 0 };
+    uint16_t rlen{ 12 };
+    uint8_t rsv1{ 0 };
+    uint8_t rsv2{ 0xDE };
+    uint32_t csum;
+    constexpr ext_dir_tail(uint32_t blk_csum) noexcept : csum{ blk_csum } {}
 } __pack;
 enum ext_dirent_type
 {
@@ -497,6 +507,7 @@ struct ext_vnode : public vfs_filebuf_base<char>
     virtual ~ext_vnode();
     virtual int __ddwrite() override;
     virtual bool initialize();
+    virtual std::streamsize xsputn(char const* s, std::streamsize n) override;
     void mark_write(void* pos);
     void update_block_ptrs();
     bool expand_buffer(size_t added_bytes);
@@ -507,6 +518,7 @@ struct ext_vnode : public vfs_filebuf_base<char>
 struct jbd2 : public ext_vnode
 {
     jbd2_superblock* sb;
+    uint32_t uuid_checksum{};
     bool has_init{ false };
     jbd2_transaction_queue active_transactions{};
     std::vector<disk_block> replay_blocks{};
@@ -565,6 +577,7 @@ class ext_directory_vnode : public ext_vnode, public directory_node
     bool __initialized{};
     size_t __n_subdirs{};
     size_t __n_files{};
+    char* __current_block_start();
     bool __parse_entries(size_t bs);
     bool __seek_available_entry(size_t name_len);
     void __write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
@@ -583,6 +596,7 @@ public:
     virtual std::vector<std::string> lsdir() const override;
     virtual bool fsync() override;
     virtual bool initialize() override;
+    bool init_dir_blank(ext_directory_vnode* parent);
     constexpr bool has_init() const noexcept { return __initialized; }
     ext_directory_vnode(extfs* parent, uint32_t inode_number);
     ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data);
@@ -600,6 +614,8 @@ struct ext_block_group
     void alter_available_blocks(int64_t diff);
     void decrement_inode_ct();
     void increment_inode_ct();
+    void increment_dir_ct();
+    void decrement_dir_ct();
     void compute_checksums(size_t);
     ext_block_group(extfs* parent, block_group_descriptor* desc);
     ~ext_block_group();
@@ -633,8 +649,8 @@ protected:
     ext_jbd2_mode journal_mode() const;
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
-    uint32_t claim_inode();
-    bool release_inode(uint32_t num);
+    uint32_t claim_inode(bool dir);
+    bool release_inode(uint32_t num, bool dir);
     void release_blocks(uint64_t start, size_t num);
 public:
     char* allocate_block_buffer();
@@ -649,7 +665,7 @@ public:
     uint64_t block_to_lba(uint64_t block);
     uint64_t group_num_for_inode(uint32_t inode);
     uint64_t inode_to_block(uint32_t inode);
-    disk_block* claim_blocks(ext_vnode* requestor, size_t how_many);
+    disk_block* claim_blocks(ext_vnode* requestor, size_t how_many = 1UL);
     disk_block* claim_metadata_block(ext_node_extent_tree* requestor);
     off_t inode_block_offset(uint32_t inode);
     ext_inode* get_inode(uint32_t inode_num);
@@ -659,13 +675,12 @@ public:
     bool read_unbuffered(disk_block& bl);
     bool persist_group_metadata(size_t group_num);    
     bool persist_inode(uint32_t inode_num);
-    bool persist(ext_file_vnode* n);
-    bool persist(ext_directory_vnode* n);
+    bool persist(ext_vnode* n);
     fs_node* dirent_to_vnode(ext_dir_entry* de);
     void initialize();
     constexpr bool has_init() const { return initialized; }
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };
-template<typename ... Ts> uint32_t blk_crc32(disk_block const& blk, size_t block_size, Ts const& ... rem) { return crc32_calc(blk.data_buffer, block_size * blk.chain_len, crc32c(rem...)); }
+inline uint32_t crc32c_blk(uint32_t st, disk_block const& db, size_t bs) { return crc32c_x86_3way(st, reinterpret_cast<uint8_t const*>(db.data_buffer), db.chain_len * bs); }
 #endif

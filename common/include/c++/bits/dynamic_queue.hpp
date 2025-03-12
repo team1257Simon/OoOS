@@ -58,7 +58,7 @@ namespace std::__impl
         unsigned int __stale_op_thresh{ 3U };
         __diff_type __stale_size_thresh{ 16L };
         unsigned int __op_cnt{ 0U };
-        template<std::matching_input_iterator<T> IT> constexpr void __qtransfer(__ptr where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
+        template<std::matching_input_iterator<T> IT> constexpr void __qtransfer(__ptr where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy<T>(where, std::addressof(*start), static_cast<size_t>(std::distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
         constexpr void __qset(__ptr where, __value_type const& val, __size_type n) { array_fill<T>(where, val, n); }
         constexpr void __qassign(__ptr where, __value_type&& val) { *where = std::move(val); }
         constexpr void __qzero(__ptr where, __size_type n)  { array_zero<T>(where, n); }

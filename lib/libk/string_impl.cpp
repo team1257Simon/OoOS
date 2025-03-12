@@ -216,8 +216,7 @@ namespace std
             constexpr static std::basic_string<CT> __to_string(IT i)
             {
                 if(!i) return basic_string(1U, __digi_type::digits[0]);
-                std::basic_string<CT> str{};
-                str.reserve(__max_dec + 1);
+                std::basic_string<CT> str(static_cast<size_t>(__max_dec + 1));
                 IT j = __abs(i);
                 for(size_t n = 0; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) str.append(__digi_type::minus); }
@@ -227,9 +226,8 @@ namespace std
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
                 if(!i) return basic_string(1U, __digi_type::digits[0]);
-                std::basic_string<CT> hstr{};
                 size_t nd = __xdigits(i);
-                hstr.reserve(nd + 3);
+                std::basic_string<CT> hstr(static_cast<size_t>(nd + 3));
                 IT j = __abs(i);
                 for(size_t n = 0; n < nd; n++) hstr.append(__get_hex_digit(j, n));
                 hstr.append(__digi_type::hexpref);

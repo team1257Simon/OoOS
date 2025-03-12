@@ -131,7 +131,7 @@ void str_tests()
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
     startup_tty.print_text("crc32c test: ");
-    debug_print_num(crc32_calc(test_str.c_str(), 32), 8);
+    debug_print_num(crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(test_str.c_str()), test_str.size()), 8);
     startup_tty.endl();
     startup_tty.print_text("dragon test: ");
     std::ext::dragon<std::string> sdragon{};

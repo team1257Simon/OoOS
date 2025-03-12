@@ -66,7 +66,7 @@ namespace std::__impl
         /**
          * Copies data using iterators that might not be contiguous (e.g. tree iterators) or forward-facing (e.g. reverse iterators).
          */
-        template<std::matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { for(IT i = start; i != end; i++, where++) { *where = *i; } }
+        template<std::matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy<T>(where, std::addressof(*start), static_cast<size_t>(std::distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
         constexpr void __set(__ptr where, T const& val, __size_type n) { array_fill<T>(where, val, n); }
         /**
          * Selects the proper function to clear allocated storage of garbage data.
@@ -188,7 +188,7 @@ namespace std::__impl
     {
         __size_type rem = __rem();
         __size_type num = std::distance(start_it, end_it);
-        if(!__beg() || num > rem){ if(!this->__grow_buffer(num - rem)) return nullptr; }
+        if(!__beg() || num > rem) { if(!this->__grow_buffer(num - rem)) return nullptr; }
         for(IT i = start_it; i < end_it; i++, __advance(1)) construct_at(__cur(), *i);
         this->__post_modify_check_nt();
         return __cur();

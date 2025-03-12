@@ -42,10 +42,10 @@ namespace std
         constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
         constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base { alloc } {}
         constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string { allocator_type() } {}
-        constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{ alloc } { size_t n(count + 1UL); this->__allocate_storage(n); for(size_t i = 0; i < n; i++) { new (__builtin_addressof(this->__beg()[i])) CT(); } }
+        constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base{ alloc } { size_t n(count + 1UL); this->__allocate_storage(n); for(size_t i = 0; i < n; i++) { std::construct_at(this->__get_ptr(i)); } }
         constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : basic_string{ count, alloc } { this->__set(this->__beg(), value, count); this->__setc(count); }
-        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : basic_string{ size_type(end - start), alloc } { this->__transfer(data(), start, end); this->__advance(size_t(end - start)); }
-        constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ str, str + count, alloc } {}
+        template<std::matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : basic_string{ size_type(std::distance(start, end)), alloc } { this->__transfer(data(), start, end); this->__setc(std::distance(start, end)); }
+        constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string{ count, alloc } { traits_type::copy(this->__beg(), str, count); this->__setc(count); }
         constexpr basic_string(const_pointer str, allocator_type const& alloc = allocator_type{}) : basic_string{ str, traits_type::length(str), alloc } {}
         constexpr basic_string(basic_string const& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } {}
         constexpr basic_string(basic_string&& that, allocator_type const& alloc = allocator_type{}) : basic_string{ that.c_str(), that.size(), alloc } { that.clear(); }

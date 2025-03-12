@@ -4,6 +4,7 @@ static inline size_t unused_dirent_space(ext_dir_entry const& de) { return stati
 std::streamsize ext_directory_vnode::__ddread(std::streamsize n) { return std::streamsize(0); }
 std::streamsize ext_directory_vnode::__ddrem() { return std::streamsize(0); }
 ext_dir_entry *ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(this->__cur()); }
+char *ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
 uint64_t ext_directory_vnode::num_files() const noexcept { return __n_files; }
 uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs; }
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode const& tn : __my_dir) result.push_back(tn.name()); return result; }
@@ -13,6 +14,7 @@ ext_directory_vnode::ext_directory_vnode(extfs *parent, uint32_t inode_number) :
 ext_directory_vnode::ext_directory_vnode(extfs *parent, uint32_t inode_number, ext_inode *inode_data) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), inode_number) { mode = on_disk_node->mode; }
 tnode *ext_directory_vnode::add(fs_node* n) { return __my_dir.emplace(n, std::move(std::to_string(n->cid()))).first.base(); /* fast-track tnodes for newly-created files; dirents will be separately made */ }
 ext_file_vnode::size_type ext_file_vnode::read(pointer dest, size_type n) { return this->sgetn(dest, n); }
+ext_file_vnode::size_type ext_file_vnode::write(const_pointer src, size_type n) { size_t result = this->ext_vnode::xsputn(src, n); return result && fsync() ? result : 0; }
 ext_file_vnode::pos_type ext_file_vnode::seek(off_type off, std::ios_base::seekdir way) { return this->data_buffer<char>::seekoff(off, way); }
 ext_file_vnode::pos_type ext_file_vnode::seek(pos_type pos) { return this->data_buffer<char>::seekpos(pos); }
 bool ext_file_vnode::fsync() { return parent_fs->persist(this); }
@@ -59,29 +61,37 @@ bool ext_vnode::expand_buffer(size_t added_bytes)
     fsz += added_bytes;
     on_disk_node->size_lo = fsz.lo;
     on_disk_node->size_hi = fsz.hi;
+    update_block_ptrs();
     return parent_fs->persist_inode(inode_number);
 }
 std::streamsize ext_file_vnode::__overflow(std::streamsize n)
 {
     size_t bs = parent_fs->block_size();
     size_t needed = div_roundup(n, bs);
-    if(disk_block *blk = parent_fs->claim_blocks(this, needed)) { if(!expand_buffer(bs * blk->chain_len)) return 0; return bs * blk->chain_len; }
+    size_t ccap = __capacity();
+    if(disk_block *blk = parent_fs->claim_blocks(this, needed)) 
+    { 
+        if(!expand_buffer(bs * blk->chain_len)) return 0;
+        array_zero(__get_ptr(ccap), bs * blk->chain_len);
+        return bs * blk->chain_len; 
+    }
     return 0;
 }
-ext_file_vnode::size_type ext_file_vnode::write(const_pointer src, size_type n) 
+std::streamsize ext_vnode::xsputn(char const *s, std::streamsize n)
 {
-    char* a = __cur();
-    size_type result = this->sputn(src, n);
-    size_t bs = parent_fs->block_size();
-    char* b = __cur();
-    for(char* c = a; c < b; c += bs) { mark_write(c); } 
-    if(!fsync()) return 0UL;
-    return result;
+    if(n > __capacity() && !__overflow(static_cast<std::streamsize>(n - __capacity()))) return 0;
+    uint64_t sblk = block_of_data_ptr(__size());
+    size_t nblk = div_roundup(n, parent_fs->block_size());
+    array_copy(__cur(), s, n);
+    __advance(n);
+    for(size_t i = 0; i < nblk; i++) block_data[sblk + i].dirty = true;
+    __on_modify();
+    return n;
 }
 bool ext_file_vnode::initialize()
 {
     if(!init_extents()) return false;
-    if(on_disk_node->size_lo || on_disk_node->size_hi)
+    if(extents.total_extent)
     {
         if(!this->__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
         update_block_ptrs();
@@ -92,18 +102,17 @@ bool ext_file_vnode::initialize()
 std::streamsize ext_directory_vnode::__overflow(std::streamsize n)
 {
     size_t bs = parent_fs->block_size();
-    size_t needed = div_roundup(n, bs);
-    if(disk_block* blk = parent_fs->claim_blocks(this, needed))
+    if(disk_block* blk = parent_fs->claim_blocks(this))
     {
-        if(!expand_buffer(bs * blk->chain_len)) return 0;
+        if(!expand_buffer(bs)) return 0;
         // the data pointer of returned block should point at the newly added space
         __setc(blk->data_buffer);
         array_zero(__cur(), bs);
         ext_dir_entry* dirent = __current_ent();
-        size_t rem = static_cast<size_t>(bs - n);
+        size_t rem = static_cast<size_t>(bs - n - 12);
         dirent->entry_size = n;
         reinterpret_cast<ext_dir_entry*>(__cur() + n)->entry_size = rem;
-        return bs * blk->chain_len;
+        return bs;
     }
     return 0;
 }
@@ -122,11 +131,14 @@ bool ext_directory_vnode::__seek_available_entry(size_t name_len)
 void ext_directory_vnode::__write_dir_entry(ext_vnode *vnode, ext_dirent_type type, const char* name, size_t name_len)
 {
     ext_dir_entry* dirent = __current_ent();
+    size_t bs =  parent_fs->block_size();
     dirent->name_len = name_len;
     dirent->type_ind = type;
     array_copy(dirent->name, name, name_len);
     dirent->inode_idx = vnode->inode_number;
     mark_write(dirent);
+    char* cblk = __current_block_start();
+    ::new (static_cast<void*>(cblk + bs - 12)) ext_dir_tail(crc32c(~0U, cblk, bs));
 }
 bool ext_directory_vnode::add_dir_entry(ext_vnode *vnode, ext_dirent_type type, const char* nm, size_t name_len)
 {
@@ -190,7 +202,6 @@ bool ext_directory_vnode::initialize()
     if(__initialized) return true;
     size_t bs = parent_fs->block_size();
     if(!init_extents()) return false;
-    if(!extents.total_extent) { disk_block* db = parent_fs->claim_blocks(this, 1UL); if(db && expand_buffer(bs)) { return (__initialized = true); } else return false; }
     if(!this->__grow_buffer(extents.total_extent * bs)) { panic("failed to allocate buffer for directory data"); return false; }
     update_block_ptrs();
     for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_from_disk(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
@@ -216,5 +227,29 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
         return true;
     }
     catch(std::exception& e) { panic(e.what()); }
+    return false;
+}
+bool ext_directory_vnode::init_dir_blank(ext_directory_vnode *parent)
+{
+    size_t bs = parent_fs->block_size();
+    extents.has_init = true;
+    if(disk_block* db = parent_fs->claim_blocks(this))
+    {
+        if(!expand_buffer(bs * db->chain_len)) return false;
+        ext_dir_entry* dirent = __current_ent();
+        dirent->name_len = 1;
+        dirent->entry_size = 9;
+        dirent->type_ind = dti_dir;
+        dirent->inode_idx = this->inode_number;
+        dirent->name[0] = '.';
+        __bumpc(9);
+        dirent = __current_ent();
+        dirent->entry_size = bs - 21;
+        __write_dir_entry(parent, dti_dir, "..", 2);
+        mark_write(__cur());
+        parent->on_disk_node->referencing_dirents++;
+        this->on_disk_node->referencing_dirents++;
+        return (__initialized = parent_fs->persist_inode(parent->inode_number));
+    }
     return false;
 }

@@ -27,9 +27,8 @@ uintptr_t translate_vaddr(addr_t addr);
 addr_t translate_user_pointer(addr_t ptr);
 uint64_t syscall_time(uint64_t* tm_target);
 paging_table kernel_cr3();
-uint32_t crc32_calc(const void* data, size_t len, uint32_t seed = 0U);
+uint32_t crc32c_x86_3way(uint32_t, const uint8_t*, size_t);
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = uint16_t(0));
-uint32_t crc32_posix(const void* data, size_t len, uint32_t seed = 0U);
 #ifdef __cplusplus
 }
 void kfx_save();
@@ -38,15 +37,9 @@ template<typename T> constexpr void set_fs_base(T* value) { asm volatile("wrfsba
 template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
 template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
-template<typename ... Ts> uint32_t crc32c(Ts const& ... args);
-template<typename ... Ts> uint32_t crc32p(Ts const& ... args);
-template<> inline uint32_t crc32p() { return 0U; }
-template<> inline uint32_t crc32c() { return 0U; }
-template<typename T, typename ... Us> inline uint32_t crc32c(T const& t, Us const& ... us) { return crc32_calc(std::addressof(t), sizeof(T), crc32c(us...)); }
-template<typename T, typename ... Us> inline uint32_t crc32p(T const& t, Us const& ... us) { return crc32_posix(std::addressof(t), sizeof(T), crc32p(us...)); }
-template<typename ... Ts> uint16_t crc16(Ts const& ... args);
-template<> inline uint16_t crc16() { return uint16_t(0); }
-template<typename T, typename ... Us> inline uint16_t crc16(T const& t, Us const& ... us) { return crc16_calc(std::addressof(t), sizeof(T), crc16(us...)); }
+template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
+template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
+inline uint32_t crc32c(uint32_t start, const char* c, size_t l) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(c), l); }
 constexpr uint16_t unix_year_base = 1970u;
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from){ return ((yr - from) * 365U + (yr - from) / 4U + (((yr % 4U == 0U) || (from % 4U == 0U)) ? 1U : 0U)) - 1U; }
@@ -74,7 +67,7 @@ constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit =
 template<typename T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); array_zero(src, n); }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
-    if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++, dest++) { std::construct_at(std::addressof(dest[i])); }
+    if constexpr(std::is_default_constructible_v<T> && !std::integral<T>) for(std::size_t i = 0; i < n; i++, dest++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) == 8) array_fill<uint64_t>(dest, 0UL, n);
     else if constexpr(sizeof(T) == 4) array_fill<uint32_t>(dest, 0U, n);
     else if constexpr(sizeof(T) == 2) array_fill<uint16_t>(dest, 0U, n);

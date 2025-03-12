@@ -10,7 +10,7 @@ mcopy -s -i /tmp/part0.img  $2/* ::
 dd if=/tmp/part0.img of=$1 bs=512 count=91669 seek=2048 conv=notrunc
 rm /tmp/part0.img
 offs=$((46*2048*512))
-size=$((366*2048*512))
+size=$(((366-46)*2048*512))
 touch /tmp/part1
 fuseloop -O "$offs" -S "$size" $1 /tmp/part1
 mkfs.ext4 -O ^dir_index -d $3 /tmp/part1
