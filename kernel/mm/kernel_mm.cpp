@@ -350,28 +350,12 @@ addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz)
 }
 addr_t kernel_memory_mgr::duplicate_user_block(size_t sz, addr_t start, bool write, bool execute)
 {
-    addr_t id_map = identity_map_to_kernel(start, sz);
-    if(!id_map) return nullptr;
     addr_t pml4{ __active_frame ? __active_frame->pml4 : get_cr3() };
     __lock();
     addr_t result{ nullptr };
-    if(uintptr_t result_phys = __find_and_claim_available_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); array_copy<uint8_t>(result, id_map, sz); }
+    if(uintptr_t result_phys = __find_and_claim_available_region(sz)) { result = __map_user_pages(start, result_phys, div_roundup(region_size_for(sz), PAGESIZE), pml4, write, execute); array_copy<uint8_t>(result, start, sz); }
     __unlock();
     return result;
-}
-addr_t kernel_memory_mgr::identity_map_to_kernel(addr_t start, size_t sz)
-{
-    uintptr_t phys = translate_vaddr_in_current_frame(start);
-    if(!phys) return nullptr;
-    // Identity-mapping of pages in kernel space is on an as-needed basis; these mappings are never removed, but are not pinned globally as the kernel's space is
-    __lock();
-    uframe_tag* fr = __active_frame;
-    if(fr) exit_frame();
-    addr_t result{ __map_kernel_pages(addr_t{ phys }, div_roundup(sz, PAGESIZE), false) };
-    if(fr) enter_frame(fr);
-    __unlock();
-    if(result) return addr_t(phys);
-    return nullptr;
 }
 addr_t kernel_memory_mgr::identity_map_to_user(addr_t what, size_t sz, bool write, bool execute)
 {
@@ -418,7 +402,7 @@ void kframe_tag::remove_block(block_tag* blk)
 }
 addr_t kframe_tag::allocate(size_t size, size_t align)
 {
-    if(!size) { direct_writeln("WARN: size zero alloc"); return nullptr; }
+    if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     __lock();
     uint32_t idx = get_block_exp(size) - MIN_BLOCK_EXP;
     block_tag* tag = nullptr;
@@ -467,11 +451,10 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
     if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     block_tag* tag = ptr - bt_offset;
     for(size_t i = 0; tag && (tag->magic != block_magic); i++) tag = addr_t(tag).minus(1L);
-    if(tag && (tag->magic == block_magic) && (tag->allocated_size() >= size + add_align_size(tag, align)))
+    if(tag && (tag->magic == block_magic) && tag->allocated_size() >= size + add_align_size(tag, align))
     {
         tag->align_bytes = add_align_size(tag, align);
-        off_t delta = size - (tag->held_size + tag->align_bytes);
-        tag->held_size += delta;
+        tag->held_size = size;
         return tag->actual_start();
     }
     addr_t result{ allocate(size, align) };
@@ -503,23 +486,16 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         if(extent > amt_freed)
         {
             addr_t target = extent + amount;
-            std::vector<block_descr>::reverse_iterator i = usr_blocks.rend();
-            while(i != usr_blocks.rbegin() && target < i->start) { kernel_memory_mgr::get().deallocate_block(i->start, i->size, true); i++; }
-            bool nrem = (i != usr_blocks.rbegin());
-            usr_blocks.erase(i.base(), usr_blocks.end());
-            if(!nrem) { size_t nsz = region_size_for(uint64_t(target)); extent = base.plus(nsz); addr_t allocated = kernel_memory_mgr::get().allocate_user_block(nsz, base); if(!allocated) { extent = nullptr; return false; } usr_blocks.emplace_back(allocated, nsz); return true; }
-            addr_t nst = usr_blocks.back().start.plus(usr_blocks.back().size);
-            size_t nsz = region_size_for(target - nst);
-            extent = nst;
-            addr_t allocated = kernel_memory_mgr::get().allocate_user_block(nsz, nst);
-            if(!allocated) return false;
-            usr_blocks.emplace_back(allocated, nsz);
-            extent += nsz;
+            std::vector<block_descr>::reverse_iterator i;
+            for(i = usr_blocks.rend(); i->start >= target; i++) { kernel_memory_mgr::get().deallocate_block(i->start, i->size, true); }
+            usr_blocks.erase(std::vector<block_descr>::const_iterator((--i).base()), usr_blocks.end());
+            if(usr_blocks.empty()) return false;
+            extent = usr_blocks.back().start.plus(usr_blocks.back().size);
             return true; 
         }
         else return false;
     }
-    size_t added{ region_size_for(static_cast<size_t>(amount)) };
+    size_t added = region_size_for(static_cast<size_t>(amount));
     addr_t allocated = kernel_memory_mgr::get().allocate_user_block(added, extent);
     if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; if(mapped_max < extent) mapped_max = extent; return true; }
     return false;

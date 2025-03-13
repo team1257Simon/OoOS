@@ -36,7 +36,7 @@ struct block_tag
     uint64_t magic{ block_magic };
     size_t block_size;
     size_t held_size;
-    int64_t index;
+    int32_t index;
     block_tag* left_split{ nullptr };
     block_tag* right_split{ nullptr };
     block_tag* previous{ nullptr };
@@ -224,7 +224,6 @@ public:
     addr_t allocate_mmio_block(size_t sz);
     addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);
     addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
-    addr_t identity_map_to_kernel(addr_t start, size_t sz);
     addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
     void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
     addr_t copy_kernel_mappings(paging_table target);
