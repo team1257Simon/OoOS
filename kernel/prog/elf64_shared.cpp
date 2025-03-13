@@ -46,8 +46,8 @@ bool elf64_shared_object::xvalidate()
 bool elf64_shared_object::xload()
 {
     // allocate the array to have enough space for all indices, but the non-load segments will be zeroed
-    this->__num_seg_descriptors = ehdr().e_phnum;
-    this->__segments = sd_alloc.allocate(__num_seg_descriptors);
+    __num_seg_descriptors = ehdr().e_phnum;
+    __segments = sd_alloc.allocate(__num_seg_descriptors);
     bool have_dyn = false;
     for(size_t n = 0; n < ehdr().e_phnum; n++)
     {

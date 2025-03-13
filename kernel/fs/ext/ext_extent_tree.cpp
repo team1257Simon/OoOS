@@ -170,7 +170,7 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
         {
             tracked_node->on_disk_node->block_info.legacy_extent.direct_blocks[i] = static_cast<uint32_t>(blk->block_number);
             tracked_extents.emplace_back(blk, tracked_node, uint16_t(0));
-            this->total_extent++;
+            total_extent++;
             return tracked_node->parent_fs->persist_inode(tracked_node->inode_number);
         }
     }
@@ -298,7 +298,7 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent
     }
     uint32_t* bptrs = reinterpret_cast<uint32_t*>(my_blk->data_buffer);
     uint32_t* target = nullptr;
-    uint16_t nd = this->depth - 1;
+    uint16_t nd = depth - 1;
     auto last = next_level_extents.max();
     if(last == next_level_extents.end() || !parent->get_cached(last->second)->push_extent_recurse_legacy(parent, blk))
     {

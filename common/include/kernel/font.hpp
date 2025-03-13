@@ -46,12 +46,12 @@ public:
 	constexpr font_render() noexcept = default;
 	constexpr uint32_t glyph_width() const { return __my_font->width; }
 	constexpr uint32_t glyph_height() const { return __my_font->height; }
-	constexpr void set_fg_color(uint32_t value) noexcept { this->__foreground = value; }
-	constexpr void set_bg_color(uint32_t value) noexcept { this->__background = value; }
-	constexpr void set_fb_pitch(uint32_t value) noexcept { this->__pitch = value; }
-	constexpr uint32_t fg_color() const noexcept { return this->__foreground; }
-	constexpr uint32_t bg_color() const noexcept { return this->__background; }
-	constexpr uint32_t fb_pitch() const noexcept { return this->__pitch; }
+	constexpr void set_fg_color(uint32_t value) noexcept { __foreground = value; }
+	constexpr void set_bg_color(uint32_t value) noexcept { __background = value; }
+	constexpr void set_fb_pitch(uint32_t value) noexcept { __pitch = value; }
+	constexpr uint32_t fg_color() const noexcept { return __foreground; }
+	constexpr uint32_t bg_color() const noexcept { return __background; }
+	constexpr uint32_t fb_pitch() const noexcept { return __pitch; }
 	__isrcall void operator()(char c, uint32_t* fb, point const& pos) const;
 	__isrcall void fill(uint32_t color, uint32_t* fb, point const& pos) const;
 };

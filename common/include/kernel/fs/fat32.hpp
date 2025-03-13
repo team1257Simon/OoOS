@@ -163,9 +163,9 @@ public:
 };
 uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect = 0U);
 class fat32_file_node;
-class fat32_filebuf : public vfs_filebuf_base<char>
+class fat32_filebuf : public std::ext::dynamic_streambuf<char>
 {
-    using __base = vfs_filebuf_base<char>;
+    using __base = std::ext::dynamic_streambuf<char>;
     friend class fat32_file_node;
     friend class fat32_directory_node;
     std::vector<uint32_t> __my_clusters;
@@ -177,10 +177,10 @@ public:
     using __base::off_type;
     using __base::traits_type;
 protected:
-    virtual int __ddwrite() override;
-    virtual std::streamsize __ddread(std::streamsize n) override;
-    virtual std::streamsize __ddrem() override;
-    virtual std::streamsize __overflow(std::streamsize n) override;
+    virtual int write_dev() override;
+    virtual std::streamsize read_dev(std::streamsize n) override;
+    virtual std::streamsize unread_size() override;
+    virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual int sync() override;
 public:
     fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_file_node* parent);
@@ -269,11 +269,9 @@ class fat32 final : public filesystem
     std::map<uint64_t, size_t> __st_cluster_ref_counts{};
     fat32_directory_node* __root_directory{};
     fat32_allocation_table __the_table;
-    std::function<uint64_t (uint32_t)> __cl_to_sect_fn;
     static fat32 *__instance;
     static bool __has_init;
     void __release_clusters_from(uint32_t start);
-    friend void fat32_tests();
     friend class fat32_directory_node;
     friend class fat32_file_node;
     friend class fat32_allocation_table;
@@ -291,7 +289,7 @@ protected:
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* open_fd(tnode*) override;
     fat32_file_node* put_file_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
-    fat32_directory_node* put_folder_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
+    fat32_directory_node* put_directory_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
     fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial);
     bool init();
     ~fat32();

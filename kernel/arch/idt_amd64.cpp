@@ -11,8 +11,8 @@ uintptr_t saved_stack_ptr{};
 namespace interrupt_table
 {
     spinlock_t __itable_mutex;
-    void __lock() { lock (&__itable_mutex); }
-    void __unlock() { release(&__itable_mutex); }
+    void __lock() { lock(std::addressof(__itable_mutex)); }
+    void __unlock() { release(std::addressof(__itable_mutex)); }
     bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(std::move(handler)); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
     void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(std::move(cb)); }
     void map_interrupt_callbacks(addr_t frame) { kernel_memory_mgr::get().enter_frame(frame); kernel_memory_mgr::get().identity_map_to_user(__registered_callbacks.data(), __registered_callbacks.size() * 8, false, true); for(int i = 0; i < 16; i++) { kernel_memory_mgr::get().identity_map_to_user(__handler_tables[i].data(), __handler_tables[i].size() * 8, false, true); } kernel_memory_mgr::get().exit_frame(); }

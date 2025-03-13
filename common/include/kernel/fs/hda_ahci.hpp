@@ -2,9 +2,12 @@
 #define __AHCI_HARD_DISK_ACCESS
 #include "kernel/arch/ahci.hpp"
 #include "kernel/libk_decls.h"
-#include "kernel/fs/generic_binary_buffer.hpp"
+#include "kernel/fs/fifo_buffer.hpp"
+#include "ext/dynamic_streambuf.hpp"
 #include "vector"
-constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (should be 1)
+typedef fifo_buffer<uint8_t> binary_buffer;
+typedef fifo_buffer<uint16_t> wide_binary_buffer;
+constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (which is usually LBA 1)
 constexpr size_t max_op_sectors = (prdt_entries_count * 16);
 typedef struct __pt_header
 {
@@ -22,7 +25,7 @@ typedef struct __pt_header
     uint32_t num_part_entries;
     uint32_t part_entry_size; // will be a multiple of 128
     uint32_t partition_array_crc32_checksum;
-    char rsv1[physical_block_size - 0x5Cu];
+    char rsv1[physical_block_size - 0x5CU];
 } __pack pt_header_t;
 typedef struct __part_table_entry
 {
@@ -45,7 +48,7 @@ class ahci_hda
     partition_table __my_partitions{};
     constexpr static std::size_t __bytes_per_sector() noexcept { return physical_block_size; }
     constexpr static uint64_t __offset_to_sector(uint64_t offs) noexcept(physical_block_size != 0) { return offs / __bytes_per_sector(); }
-    constexpr static std::size_t __count_to_wide_streamsize(std::size_t count) noexcept { return (count * __bytes_per_sector()) / 2; }
+    constexpr static std::size_t __count_to_wide_streamsize(std::size_t count) noexcept { return (count * __bytes_per_sector()) >> 1; }
     bool __await_disk();
     bool __read_ahci(qword st, dword ct, uint16_t* bf);
     bool __write_ahci(qword st, dword ct, uint16_t const* bf);

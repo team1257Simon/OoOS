@@ -367,7 +367,7 @@ char* hex2mem(char* mem, char* buf, int count, int may_fault)
 	{
 		ch = hex(*buf++) << 4;
 		ch = ch + hex(*buf++);
-		set_char (mem++, ch);
+		set_char(mem++, ch);
 		if(may_fault && mem_err) return (mem);
 	}
 	if(may_fault) mem_fault_routine = NULL;

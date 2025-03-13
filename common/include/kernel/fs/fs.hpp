@@ -10,7 +10,7 @@
 #include "bits/ios_base.hpp"
 #include "vector"
 #include "set"
-#include "kernel/fs/vfs_filebuf_base.hpp"
+#include "ext/dynamic_streambuf.hpp"
 #include "sys/stat.h"
 struct file_mode
 {
@@ -70,7 +70,7 @@ struct file_mode
             (t_regular      ? 0100000U : 0)
         );
     }
-    constexpr operator mode_t() const noexcept { return mode_t(uint16_t(*this)); }
+    constexpr operator mode_t() const noexcept { return static_cast<mode_t>(static_cast<uint16_t>(*this)); }
     constexpr bool is_symlink() const noexcept { return t_regular && t_chardev && !t_fifo && !t_directory; }
     constexpr bool is_socket() const noexcept { return t_regular && t_directory && !t_fifo && !t_chardev; }
     constexpr bool is_blockdev() const noexcept { return t_chardev && t_directory && !t_regular && !t_fifo; }
@@ -165,7 +165,10 @@ class device_node : public file_node
 	using file_node::off_type;
 	using file_node::pointer;
 	using file_node::const_pointer;
-    vfs_filebuf_base<char>* __my_device;
+public:
+    using device_buffer = std::ext::dynamic_streambuf<char>;
+private:
+    device_buffer* __my_device;
 public:
     virtual size_type write(const_pointer src, size_type n) override;
     virtual size_type read(pointer dest, size_type n) override;
@@ -175,7 +178,7 @@ public:
     virtual bool fsync() override;
     virtual bool is_device() const noexcept final override;
     virtual uint64_t size() const noexcept override;
-    device_node(std::string const& name, int fd, vfs_filebuf_base<char>* dev_buffer);
+    device_node(std::string const& name, int fd, device_buffer* dev_buffer);
 };
 class tnode
 {
@@ -243,10 +246,10 @@ protected:
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
     virtual target_pair get_parent(std::string const& path, bool create);    
     virtual void dldevnode(device_node*);
-    virtual device_node* mkdevnode(directory_node*, std::string const&, vfs_filebuf_base<char>*, int fd_number_hint);
+    virtual device_node* mkdevnode(directory_node*, std::string const&, device_node::device_buffer*, int fd_number_hint);
 public:
-    virtual device_node* lndev(std::string const& where, vfs_filebuf_base<char>* what, int fd_number_hint, bool create_parents = true);
-    void link_stdio(vfs_filebuf_base<char>* target);
+    virtual device_node* lndev(std::string const& where, device_node::device_buffer* what, int fd_number_hint, bool create_parents = true);
+    void link_stdio(device_node::device_buffer* target);
     file_node* get_fd(int fd);      
     file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);

@@ -16,13 +16,13 @@ class elf64_object
 protected:    
     constexpr elf64_ehdr const* ehdr_ptr() const noexcept { return __image_start; }
     constexpr elf64_ehdr const& ehdr() const noexcept { return *ehdr_ptr(); }
-    constexpr elf64_phdr const* phdr_ptr(size_t n) const noexcept { return this->__image_start.plus(this->ehdr().e_phoff + n * this->ehdr().e_phentsize); }
+    constexpr elf64_phdr const* phdr_ptr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize); }
     constexpr elf64_phdr const& phdr(size_t n) const noexcept { return *phdr_ptr(n); }
-    constexpr elf64_shdr const* shdr_ptr(size_t n) const noexcept { return this->__image_start.plus(this->ehdr().e_shoff + n * this->ehdr().e_shentsize); }
+    constexpr elf64_shdr const* shdr_ptr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize); }
     constexpr elf64_shdr const& shdr(size_t n) const noexcept { return *shdr_ptr(n); }
-    constexpr addr_t img_ptr(size_t offs) const noexcept { return this->__image_start.plus(offs); }
-    constexpr addr_t segment_ptr(size_t n) const noexcept { return this->__image_start.plus(this->phdr(n).p_offset); }
-    constexpr addr_t section_ptr(size_t n) const noexcept { return this->__image_start.plus(this->shdr(n).sh_offset); }
+    constexpr addr_t img_ptr(size_t offs = 0UL) const noexcept { return __image_start.plus(offs); }
+    constexpr addr_t segment_ptr(size_t n) const noexcept { return __image_start.plus(phdr(n).p_offset); }
+    constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }
     void cleanup();
     virtual bool xload() = 0;
     virtual bool xvalidate() = 0;

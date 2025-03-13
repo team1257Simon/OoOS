@@ -64,13 +64,15 @@ namespace std::__impl
         __alloc_type __allocator;
         __container __my_data;
         /**
-         * Copies data using iterators that might not be contiguous (e.g. tree iterators) or forward-facing (e.g. reverse iterators).
+         * Copies data using iterators that might not be contiguous; i.e. not linear (e.g. tree iterators) or not forward-facing (e.g. reverse iterators).
+         * If the iterator happens to be contiguous (e.g. a pointer), this will simplify into the normal copy operation.
          */
         template<std::matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy<T>(where, std::addressof(*start), static_cast<size_t>(std::distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
         constexpr void __set(__ptr where, T const& val, __size_type n) { array_fill<T>(where, val, n); }
         /**
          * Selects the proper function to clear allocated storage of garbage data.
-         * If the data consists of nontrivial objects (classes with virtual members, etc) this function does nothing.
+         * If the type T is a nontrivial type which cannot be default-constructed, this function does nothing.
+         * If the type is nontrivial and can be default-constructed, it default-constructs each element of the destination array.
          * Otherwise, it will behave similarly to using memset to zero the memory.
          */
         constexpr void __zero(__ptr where, __size_type n) { array_zero<T>(where, n); }
@@ -126,7 +128,7 @@ namespace std::__impl
         constexpr __ptr __assign_elements(std::initializer_list<T> ini) { return __assign_elements(ini.begin(), ini.end()); }
         constexpr __ptr __append_elements(__size_type count, T const& t) { if(__max() <= __cur() + count) { if(!this->__grow_buffer(__size_type(count - __rem()))) return nullptr; } for(__size_type i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); this->__post_modify_check_nt(); return __cur(); }
         constexpr __ptr __append_element(T const& t) { if(!(__max() > __cur())) { if(!this->__grow_buffer(1)) return nullptr; } construct_at(__cur(), t); __advance(1); this->__post_modify_check_nt(); return __cur(); }
-        constexpr void __clear() { __size_type cap = __capacity(); __destroy(); __allocate_storage(cap); this->__post_modify_check_nt(); }
+        constexpr void __clear() { __size_type cap = __capacity(); __destroy(); __allocate_storage(cap); this->__post_modify_check_nt(); __zero(__beg(), __capacity()); }
         constexpr __ptr __erase_at_end(__size_type how_many) { if(how_many >= __size()) __clear(); else { __backtrack(how_many); this->__zero(__cur(), how_many); } __post_modify_check_nt(); return __cur(); }
         constexpr __ptr __erase(__const_ptr pos) { return __erase_range(pos, pos + 1); }
         constexpr void __destroy() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); __my_data.__reset(); } }
@@ -243,11 +245,17 @@ namespace std::__impl
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__emplace_element(__const_ptr pos, Args&& ... args)
     {
         if(pos < __beg()) return nullptr;
-        if(!__grow_buffer(1)) return nullptr;
-        if(pos >= __max()) { pos = __max() - 1; }
-        __ptr result = construct_at(const_cast<__ptr>(pos), forward<Args>(args)...);
-        if(pos > __cur()) { __setc(result); }
-        else __bumpc(1L);
+        if(pos >= __max()) { return __emplace_at_end(forward<Args>(args)...); }
+        __size_type start_pos = __diff(pos);
+        __size_type rem = __ediff(pos);
+        __size_type target_cap = (__size() < __capacity()) ? __capacity() : __capacity() + 1;
+        __container nwdat{ __allocator.allocate(target_cap), target_cap };
+        __ptr result = construct_at(nwdat.__get_ptr(start_pos), std::forward<Args>(args)...);
+        __copy(nwdat.__begin, __beg(), start_pos);
+        if(rem) __copy(result + 1, __get_ptr(start_pos), rem);
+        __destroy();
+        __my_data.__swap_ptrs(nwdat);
+        this->__post_modify_check_nt();
         return result;
     }
     template <typename T, allocator_object<T> A, bool NT>

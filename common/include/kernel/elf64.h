@@ -7,7 +7,9 @@
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #ifdef __cplusplus
-#define __alias [[gnu::may_alias]]
+#ifndef __may_alias
+#define __may_alias [[gnu::may_alias]]
+#endif
 enum elf_class : uint8_t
 {
     EC_NONE = 0,
@@ -201,7 +203,9 @@ enum elf_segment_prot : uint8_t
 #else
 typedef unsigned char elf_sym_bind;
 typedef unsigned char elf_sym_type;
-#define __alias
+#ifndef __may_alias
+#define __may_alias
+#endif
 #endif
 typedef struct __elf64_ehdr
 {
@@ -271,7 +275,7 @@ typedef struct __elf64_rela
 typedef struct __elf64_dyn
 {
     int64_t d_tag;
-    union __alias
+    union __may_alias
     {
         uint64_t d_val;
         uintptr_t d_ptr;

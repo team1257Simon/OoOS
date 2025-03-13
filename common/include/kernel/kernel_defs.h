@@ -886,9 +886,8 @@ typedef struct __qword
 /**
  * These structures are for use with drivers that require working with numbers in big endian (amd64 is little endian).
  * The region pragma is for making it easier to use preprocessor directives in case I ever decide to add another supported architecture (and that arch uses big endian).
- * For instance, ext4's journaling structs are in big endian. Since the struct is read from disk as a 1024-byte block, the constructors that convert from little endian will not be called at that time.
- * When accessing those members as numbers, the conversions will be applied such that assigning (for instance) an int to a __be32 will automatically be converted to big endian as the writes occur in memory,
- * and comparing a a __be64 to an unsigned long will convert the __be64 to little endian before the comparison occurs (assuming this works the way I intend, which can be a longshot sometimes)
+ * For instance, ext4's journaling structs are in big endian. Since the struct is read from disk as part of a block, the constructors that convert from little endian will not be called at that time.
+ * In the usual case, GCC will just emit a "bswap" instruction and call it a day (as determined empirically by viewing generated assembly), making these structs worth inlining.
  */
 #pragma region big-endian structs
 typedef struct __s_be16
@@ -933,7 +932,6 @@ typedef struct __s_be64
     constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
     constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
 } __pack __be64;
-
 constexpr __be16 operator""_be16(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
 constexpr __be32 operator""_be32(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
 constexpr __be64 operator""_be64(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }

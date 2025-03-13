@@ -206,7 +206,7 @@ file_node *extfs::open_fd(tnode* fd)
 }
 directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
-    qword tstamp = syscall_time(nullptr);
+    qword tstamp = sys_time(nullptr);
     if(uint32_t inode_num = claim_inode(true)) try
     {
         ext_inode* inode = ::new (static_cast<void*>(get_inode(inode_num))) ext_inode
@@ -255,7 +255,7 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
 }
 file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
-    qword tstamp = syscall_time(nullptr);
+    qword tstamp = sys_time(nullptr);
     if(uint32_t inode_num = claim_inode(false)) try
     {
         ext_inode* inode = ::new (static_cast<void*>(get_inode(inode_num))) ext_inode

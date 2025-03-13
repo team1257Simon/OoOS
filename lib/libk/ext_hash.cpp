@@ -63,7 +63,7 @@ template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_
     for(size_t i = 0; i < len; i++)
     {
         hash = hash1 + (hash0 ^ (static_cast<int>(buffer[i]) * 7152373));
-        if (hash & 0x80000000) hash -= 0x7FFFFFFFU;
+        if(hash & 0x80000000) hash -= 0x7FFFFFFFU;
         hash1 = hash0;
         hash0 = hash;
     }
@@ -78,8 +78,8 @@ static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in)
     do
     {
         sum += 0x9E3779B9;
-        b0 += ((b1 << 4)+a) ^ (b1 + sum) ^ ((b1 >> 5) + b);
-		b1 += ((b0 << 4)+c) ^ (b0 + sum) ^ ((b0 >> 5) + d);
+        b0 += ((b1 << 4) + a) ^ (b1 + sum) ^ ((b1 >> 5) + b);
+		b1 += ((b0 << 4) + c) ^ (b0 + sum) ^ ((b0 >> 5) + d);
     } while(--n);
     buf.dword_buf[0] += b0;
     buf.dword_buf[1] += b1;

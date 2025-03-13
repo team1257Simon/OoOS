@@ -34,7 +34,7 @@ __isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
     next->quantum_rem = next->quantum_val;
     cur->next = next;
     task_change_flag.store(true);
-    uint64_t ts = syscall_time(nullptr);
+    uint64_t ts = sys_time(nullptr);
     next->run_split = ts;
     cur->run_time += (ts - cur->run_split);
 }
@@ -108,15 +108,15 @@ bool scheduler::init()
     init_pit();
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
-        if(this->__running)
+        if(__running)
         {
-            this->__my_subticks++;
-            if(this->__my_subticks >= sub_tick_ratio)
+            __my_subticks++;
+            if(__my_subticks >= sub_tick_ratio)
             {
-                this->on_tick();
-                this->__my_subticks = 0;
-                this->__my_tick_cycles++;
-                if(this->__my_tick_cycles >= early_trunc_thresh) { this->__my_subticks++; if(this->__my_tick_cycles >= cycle_max) this->__my_tick_cycles = 0; }
+                on_tick();
+                __my_subticks = 0;
+                __my_tick_cycles++;
+                if(__my_tick_cycles >= early_trunc_thresh) { __my_subticks++; if(__my_tick_cycles >= cycle_max) __my_tick_cycles = 0; }
             }
         }
     }));

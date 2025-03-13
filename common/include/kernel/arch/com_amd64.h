@@ -152,11 +152,11 @@ typedef struct __line_status_reg
 #endif 
 } __pack line_status_byte;
 #ifdef __cplusplus
-#include "fs/vfs_filebuf_base.hpp"
+#include "ext/dynamic_streambuf.hpp"
 #include "bits/dynamic_queue.hpp"
-class serial_driver_amd64 : public vfs_filebuf_base<char>, protected virtual std::__impl::__dynamic_queue<char, std::allocator<char>>
+class serial_driver_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual std::__impl::__dynamic_queue<char, std::allocator<char>>
 {
-    using __base = vfs_filebuf_base<char>;
+    using __base = std::ext::dynamic_streambuf<char>;
     using __queue = typename std::__impl::__dynamic_queue<char, std::allocator<char>>;
     using __queue_container = typename __queue::__ptr_container;
     using typename __base::__ptr_container;
@@ -168,11 +168,11 @@ public:
     using typename __base::char_type;
     using typename __base::int_type;
 protected:
-    virtual int __ddwrite() override;
-    __isrcall virtual std::streamsize __ddread(std::streamsize cnt) override;
-    virtual std::streamsize __ddrem() override;
-    virtual std::streamsize __sect_size() override;
-    __isrcall virtual void __q_on_modify() override;
+    virtual int write_dev() override;
+    __isrcall virtual std::streamsize read_dev(std::streamsize cnt) override;
+    virtual std::streamsize unread_size() override;
+    virtual std::streamsize sector_size() override;
+    __isrcall virtual void on_modify_queue() override;
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     static serial_driver_amd64 __inst;

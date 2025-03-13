@@ -1,9 +1,10 @@
-#include "kernel/fs/vfs_filebuf_base.hpp"
+#include "ext/dynamic_streambuf.hpp"
 #include "string"
 #include "stdarg.h"
 constexpr const char errstr[] = "[SPECIFIER ERROR]";
 static int stderr_fd_placeholder = 1;
 static int stdout_stdin_placeholder = 0;
+extern std::basic_streambuf<char>* get_kstio_stream();
 size_t __arg_insert_ptr(void* ptr, std::basic_streambuf<char>* stream) { std::string str = std::to_string(ptr); return stream->sputn(str.c_str(), str.size()); }
 template<std::floating_point FT> std::string fcvtg(FT ft, size_t ndigit);
 template<std::floating_point FT> std::string fcvtg(FT ft, size_t ndigit, std::ext::hex_t);
@@ -231,9 +232,9 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
 typedef int FILE;
 extern "C"
 {
-    attribute(__weak__) FILE* stdin = std::addressof(stdout_stdin_placeholder);
-    attribute(__weak__) FILE* stdout = std::addressof(stdout_stdin_placeholder);
-    attribute(__weak__) FILE* stderr = std::addressof(stderr_fd_placeholder);
+    attribute(weak) FILE* stdin = std::addressof(stdout_stdin_placeholder);
+    attribute(weak) FILE* stdout = std::addressof(stdout_stdin_placeholder);
+    attribute(weak) FILE* stderr = std::addressof(stderr_fd_placeholder);
     size_t kvfprintf(FILE* fd, const char* fmt, va_list args)
     {
         std::basic_streambuf<char>* stream = get_kstio_stream();
@@ -242,7 +243,7 @@ extern "C"
     }
     size_t kvsnprintf(char* restrict buffer, size_t n, const char* restrict fmt, va_list args)
     {
-        data_buffer<char> db(n);
+        std::ext::dynamic_streambuf<char> db(n);
         size_t result = __kvfprintf_impl(std::addressof(db), fmt, args);
         size_t actual = std::min(n, result);
         array_copy(buffer, db.data(), actual);
@@ -250,14 +251,14 @@ extern "C"
     }
     size_t kvsprintf(char* restrict buffer, const char* restrict fmt, va_list args)
     {
-        data_buffer<char> db;
+        std::ext::dynamic_streambuf<char> db;
         size_t result = __kvfprintf_impl(std::addressof(db), fmt, args);
         array_copy(buffer, db.data(), result);
         return result;
     }
     size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args)
     {
-        data_buffer<char> db;
+        std::ext::dynamic_streambuf<char> db;
         size_t result = __kvfprintf_impl(std::addressof(db), fmt, args);
         *strp = std::allocator<char>().allocate(result);
         array_copy(*strp, db.data(), result);

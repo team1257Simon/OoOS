@@ -15,7 +15,6 @@ static uintptr_t block_offset(uintptr_t addr, block_idx idx);
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru);
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru);
 static paging_table __get_table(addr_t const& of_page, bool write_thru, paging_table pml4);
-static addr_t __skip_mmio(addr_t start, size_t pages);
 static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global);
 static addr_t __copy_kernel_page_mapping(addr_t start, size_t pages, paging_table pml4);
 static addr_t __map_mmio_pages(addr_t start, size_t pages);
@@ -109,25 +108,10 @@ static paging_table __get_table(addr_t const& of_page, bool write_thru, paging_t
     else { paging_table pdp = __build_new_pt(pml4, of_page.pml4_idx, write_thru); if(pdp) { paging_table pd = __build_new_pt(pdp, of_page.pdp_idx, write_thru); if(pd) return __build_new_pt(pd, of_page.pd_idx, write_thru); } }
     return nullptr;
 }
-static addr_t __skip_mmio(addr_t start, size_t pages)
-{
-    addr_t curr = start;
-    addr_t ed = start.plus(pages * PAGESIZE);
-    for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
-    {
-        paging_table pt = __get_table(start, false);
-        if(!pt) { return nullptr; }
-        if(pt[curr.page_idx].present && (pt[curr.page_idx].write_thru || pt[curr.page_idx].cache_disable)) i = 0;
-    }
-    if(curr > ed) return start.plus(curr - ed);
-    return start;
-}
 static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
 {
     if(!start) return nullptr; 
-    addr_t curr =  __skip_mmio(start, pages);
-    if(!curr) return nullptr;
-    start = curr;
+    addr_t curr =  start;
     uintptr_t phys = curr;
     paging_table pt = __get_table(curr, false);
     if(!pt) { return nullptr; }
@@ -434,7 +418,7 @@ void kframe_tag::remove_block(block_tag* blk)
 }
 addr_t kframe_tag::allocate(size_t size, size_t align)
 {
-    if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
+    if(!size) { direct_writeln("WARN: size zero alloc"); return nullptr; }
     __lock();
     uint32_t idx = get_block_exp(size) - MIN_BLOCK_EXP;
     block_tag* tag = nullptr;
@@ -449,7 +433,7 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
             break;
         }
     }
-    if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("out of memory"); debug_print_num(size); direct_writeln("bytes were requested"); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
+    if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("allocation failed"); debug_print_num(size); direct_writeln("bytes were requested"); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
     tag->index = idx;
     if(tag->available_size() >= (1 << MIN_BLOCK_EXP) + bt_offset) insert_block(tag->split(), -1);
     __unlock();
@@ -503,10 +487,10 @@ addr_t kframe_tag::array_allocate(size_t num, size_t size)
 }
 block_tag *block_tag::split()
 {
-    block_tag* that{ this->actual_start().plus(this->held_size) };
-    new (that) block_tag{ available_size(), 0, -1, this, this->right_split };
+    block_tag* that{ actual_start().plus(held_size) };
+    new (that) block_tag{ available_size(), 0, -1, this, right_split };
     if(that->right_split) that->right_split->left_split = that;
-    this->right_split = that;
+    right_split = that;
     this->block_size -= that->block_size;
     return that;
 }

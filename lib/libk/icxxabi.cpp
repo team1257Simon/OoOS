@@ -22,13 +22,13 @@ extern "C"
 	[[noreturn]] void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; abort(); __builtin_unreachable(); }
 	int __cxa_atexit(void (*f)(void *), void *objptr, void *dso)
 	{
-		__cxxabiv1::__cxa_guard_acquire(&__atexit_guard);
+		__cxxabiv1::__cxa_guard_acquire(std::addressof(__atexit_guard));
 		if (__atexit_func_count >= ATEXIT_MAX_FUNCS) {return -1;};
 		__atexit_funcs[__atexit_func_count].destructor_func = f;
 		__atexit_funcs[__atexit_func_count].obj_ptr = objptr;
 		__atexit_funcs[__atexit_func_count].dso_handle = dso;
 		__atexit_func_count++;
-		__cxxabiv1::__cxa_guard_release(&__atexit_guard);
+		__cxxabiv1::__cxa_guard_release(std::addressof(__atexit_guard));
 		return 0;
 	};
 	void __cxa_finalize(void *f)
@@ -38,7 +38,7 @@ extern "C"
 		{
 			__atexit_funcs[i].destructor_func(__atexit_funcs[i].obj_ptr);
 			memcpy(__tmp_atexit_buff, &__atexit_funcs[i + 1], ((ATEXIT_MAX_FUNCS - i - 1) * sizeof(atexit_func_entry_t)));
-			memcpy(&__atexit_funcs[i], __tmp_atexit_buff, ((ATEXIT_MAX_FUNCS - i - 1) * sizeof(atexit_func_entry_t)));
+			memcpy(std::addressof(__atexit_funcs[i]), __tmp_atexit_buff, ((ATEXIT_MAX_FUNCS - i - 1) * sizeof(atexit_func_entry_t)));
 			memset(__tmp_atexit_buff, 0, ATEXIT_MAX_FUNCS * sizeof(atexit_func_entry_t));
 			__atexit_func_count--;
 		}

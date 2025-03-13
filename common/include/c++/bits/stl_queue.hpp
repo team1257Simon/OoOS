@@ -13,7 +13,7 @@ namespace std
             bool __enable_trim_stale{ false };
             // copy- and move-assign and construct functions implicitly inherit from base
         protected:
-            virtual void __q_on_modify() override { if(__enable_trim_stale) { this->__trim_stale(); } }
+            virtual void on_modify_queue() override { if(__enable_trim_stale) { this->__trim_stale(); } }
         public:
             typedef T value_type;
             typedef typename __base::__alloc_type allocator_type;

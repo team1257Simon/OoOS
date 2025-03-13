@@ -25,7 +25,7 @@ extern char __ehframe;
 qword get_flags();
 uintptr_t translate_vaddr(addr_t addr);
 addr_t translate_user_pointer(addr_t ptr);
-uint64_t syscall_time(uint64_t* tm_target);
+uint64_t sys_time(uint64_t* tm_target);
 paging_table kernel_cr3();
 uint32_t crc32c_x86_3way(uint32_t, const uint8_t*, size_t);
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = uint16_t(0));

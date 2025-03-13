@@ -33,8 +33,8 @@ struct elf64_sym_table
     size_t total_size;
     size_t entry_size;
     addr_t data;
-    constexpr elf64_sym const* operator+(size_t n) const { return static_cast<elf64_sym const*>(data.plus(entry_size * n)); }
-    constexpr elf64_sym const& operator[](size_t n) const { return *this->operator+(n); }
+    constexpr elf64_sym const* operator+(size_t n) const { return data.plus(entry_size * n); }
+    constexpr elf64_sym const& operator[](size_t n) const { return *operator+(n); }
 };
 struct elf64_dynsym_index
 {

@@ -9,7 +9,7 @@ fat32_regular_entry const *fat32_node::disk_entry() const noexcept { return &((p
 uint32_t fat32_node::start_cluster() const noexcept { return start_of(*disk_entry()); }
 uint32_t fat32_file_node::claim_next(uint32_t cl) { return claim_cluster(parent_fs->__the_table, cl); }
 uint64_t fat32_file_node::cl_to_s(uint32_t cl) { return parent_fs->cluster_to_sector(cl); }
-void fat32_file_node::on_open() { if(ahci_hda::is_initialized() && __on_disk_size) { __my_filebuf.__ddread(__on_disk_size); } if(!__on_disk_size) { __my_filebuf.__grow_buffer(physical_block_size); } }
+void fat32_file_node::on_open() { if(ahci_hda::is_initialized() && __on_disk_size) { __my_filebuf.read_dev(__on_disk_size); } if(!__on_disk_size) { __my_filebuf.__grow_buffer(physical_block_size); } }
 fat32_file_node::fat32_file_node(fat32* pfs, std::string const& real_name, fat32_directory_node* pdir, uint32_t cl_st, size_t dirent_idx) : file_node{ real_name, 0, uint64_t(cl_st) }, fat32_node{ pfs, pdir, dirent_idx }, __my_filebuf{ std::vector<uint32_t>{}, this }, __on_disk_size{ disk_entry()->size_bytes } { fat32_regular_entry* e = disk_entry(); create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; uint32_t cl = cl_st & fat32_cluster_mask; do { __my_filebuf.__my_clusters.push_back(cl); cl = parent_fs->__the_table[cl] & fat32_cluster_mask; } while(cl < fat32_cluster_eof); }
 uint64_t fat32_file_node::size() const noexcept { return __on_disk_size; }
 void fat32_file_node::set_fd(int i) { this->fd = i; }
@@ -18,7 +18,7 @@ fat32_file_node::pos_type fat32_file_node::tell() const { return pos_type(__my_f
 fat32_file_node::pos_type fat32_file_node::seek(pos_type pos) { return __my_filebuf.seekpos(pos); }
 fat32_file_node::pos_type fat32_file_node::seek(off_type off, std::ios_base::seekdir way) { return __my_filebuf.seekoff(off, way); }
 fat32_file_node::size_type fat32_file_node::read(pointer dest, size_type n) { return __my_filebuf.xsgetn(dest, n); }
-fat32_file_node::size_type fat32_file_node::write(const_pointer src, size_type n) { size_t result = __my_filebuf.xsputn(src, n); this->__my_filebuf.__cur()[0] = std::char_traits<char>::eof(); this->__my_filebuf.__dirty = true; this->__on_disk_size = size_t(this->tell()); syscall_time(std::addressof(this->modif_time)); parent_dir->mark_dirty(); return result; }
+fat32_file_node::size_type fat32_file_node::write(const_pointer src, size_type n) { size_t result = __my_filebuf.xsputn(src, n); this->__my_filebuf.__cur()[0] = std::char_traits<char>::eof(); this->__my_filebuf.is_dirty = true; this->__on_disk_size = size_t(this->tell()); sys_time(std::addressof(this->modif_time)); parent_dir->mark_dirty(); return result; }
 fat32_regular_entry *fat32_directory_node::find_dirent(std::string const& name) { if(tnode_dir::iterator i = __my_directory.find(name); i != __my_directory.end()) { if(fat32_node* n = dynamic_cast<fat32_node*>(i->ptr()); n && n->parent_dir) return n->disk_entry(); } return nullptr; }
 uint64_t fat32_directory_node::num_files() const noexcept { return __n_files; }
 uint64_t fat32_directory_node::num_subdirs() const noexcept { return __n_folders; }
@@ -82,7 +82,7 @@ void fat32_directory_node::__add_parsed_entry(fat32_regular_entry const& e, size
     uint32_t cl = start_of(e);
     if(e.attributes & 0x10)
     {
-        fat32_directory_node* n = parent_fs->put_folder_node(name, this, cl, j);
+        fat32_directory_node* n = parent_fs->put_directory_node(name, this, cl, j);
         if(!n) throw std::runtime_error{ "failed to create directory node " + name };
         __my_directory.emplace(n, name);
         if(!n->parse_dir_data()) throw std::runtime_error{ "parse failed on directory " + name};
@@ -129,12 +129,12 @@ void fat32_directory_node::get_short_name(std::string const& full, std::string& 
         result = std::string(trimmed.c_str(), j);
         result.append(tail);
         i++;
-    } while(this->__my_directory.contains(result) && i <= 999999);
-    if(this->__my_directory.contains(result)) throw std::logic_error{ "could not get a unique short name from " + upper };
+    } while(__my_directory.contains(result) && i <= 999999);
+    if(__my_directory.contains(result)) throw std::logic_error{ "could not get a unique short name from " + upper };
 }
 bool fat32_directory_node::fsync()
 {
-    if(!ahci_hda::is_initialized() || !this->parse_dir_data()) return false;
+    if(!ahci_hda::is_initialized() || !parse_dir_data()) return false;
     if(!__dirty) return true;
     if(parent_dir && dirent_index) update_times(*disk_entry());
     try

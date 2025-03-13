@@ -121,7 +121,7 @@ void map_tests()
 }
 void str_tests()
 {
-    srand(syscall_time(nullptr));
+    srand(sys_time(nullptr));
     startup_tty.print_line(std::to_string(42));
     startup_tty.print_line(std::to_string(sysinfo));
     startup_tty.print_line(std::to_string(3.14159265358L));

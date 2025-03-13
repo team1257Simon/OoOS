@@ -73,7 +73,7 @@ constexpr byte inb(uint16_t from) { return in(from); }
 constexpr void io_wait() { outb(0x80, 0); }
 constexpr void outbw(uint16_t to, byte value) { outb(to, value); io_wait(); }
 constexpr byte inbw(uint16_t from) { byte result = inb(from); io_wait(); return result; }
-constexpr void kb_wait() { for(uint8_t result ; ; ) { result = inb(0x64); if(!(result & 0x02)) return; } }
+constexpr void kb_wait() { for(uint8_t result = inb(0x64); result & 0x02; result = inb(0x64)); }
 constexpr void kb_put(byte b) { kb_wait(); outb(data_keybd, b); kb_wait(); }
 constexpr byte kb_get() { return inb(data_keybd); }
 constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7F); inb(data_rtc); }

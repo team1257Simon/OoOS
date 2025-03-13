@@ -11,13 +11,13 @@ static bool serial_empty_transmit() { line_status_byte b = inb(port_com1_line_st
 static constexpr void write_seq(const char* str) { for(const char* c = str; *c; c++) outb(port_com1, *c); }
 std::basic_streambuf<char>* get_kstio_stream() { return serial_driver_amd64::get_instance(); }
 serial_driver_amd64::serial_driver_amd64(size_t init_size) : __queue{ init_size }, __base{ init_size } {}
-std::streamsize serial_driver_amd64::__sect_size() { return std::streamsize(16uL); }
-std::streamsize serial_driver_amd64::__ddrem() { return this->__qrem(); }
+std::streamsize serial_driver_amd64::sector_size() { return std::streamsize(16uL); }
+std::streamsize serial_driver_amd64::unread_size() { return __qrem(); }
 void serial_driver_amd64::set_echo(bool mode) noexcept { __mode_echo = mode; }
 serial_driver_amd64* serial_driver_amd64::get_instance() { return std::addressof(__inst); }
 serial_driver_amd64::pos_type serial_driver_amd64::seekpos(pos_type pos, std::ios_base::openmode which) { return pos_type(off_type(-1)); }
 serial_driver_amd64::pos_type serial_driver_amd64::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) { return pos_type(off_type(-1)); }
-__isrcall void serial_driver_amd64::__q_on_modify() { ptrdiff_t n{ this->gptr() - this->eback() }; if(n > 0) this->__qsetn(size_t(n)); if(this->__qbeg()) this->setg(this->__qbeg(), this->__qcur(), this->__end()); }
+__isrcall void serial_driver_amd64::on_modify_queue() { ptrdiff_t n = gptr() - eback(); if(n > 0) __qsetn(static_cast<size_t>(n)); if(__qbeg()) setg(__qbeg(), __qcur(), __end()); }
 static void com1_set_baud_divisor(word value)
 {
     line_ctl_byte cur_ctl = inb(port_com1_line_ctl);
@@ -44,34 +44,34 @@ static bool com1_loopback_test()
 }
 void serial_driver_amd64::__do_echo()
 {
-    if(!this->__mode_echo) return;
-    char* ptr = this->__qbeg() + __pos_echo;
-    while(ptr < this->__end())
+    if(!__mode_echo) return;
+    char* ptr = __qbeg() + __pos_echo;
+    while(ptr < __end())
     {
-        for(size_t i = 0; i < 16 && ptr < this->__end(); i++, __pos_echo++, ++ptr)
+        for(size_t i = 0; i < 16 && ptr < __end(); i++, __pos_echo++, ++ptr)
         {
             if(*ptr == '\b' || *ptr == 127) { write_seq(seq_backspace); i += 5; }
-            else if(ptr + 3 < this->__end() && *ptr == '\033' && ptr[1] == '[' && ptr[2] == '2' && ptr[3] == '~') { write_seq(seq_ins); ptr += 3; __pos_echo += 3; i += 2; }
-            else if(ptr + 3 < this->__end() && *ptr == '\033' && ptr[1] == '[' && ptr[2] == '3' && ptr[3] == '~') { write_seq(seq_del); ptr += 3; __pos_echo += 3; i += 3; }
+            else if(ptr + 3 < __end() && *ptr == '\033' && ptr[1] == '[' && ptr[2] == '2' && ptr[3] == '~') { write_seq(seq_ins); ptr += 3; __pos_echo += 3; i += 2; }
+            else if(ptr + 3 < __end() && *ptr == '\033' && ptr[1] == '[' && ptr[2] == '3' && ptr[3] == '~') { write_seq(seq_del); ptr += 3; __pos_echo += 3; i += 3; }
             else if(*ptr == 13) outb(port_com1, '\n');
             else outb(port_com1, byte(*ptr));
             while(!serial_empty_transmit()) PAUSE;
         }
     }
 }
-int serial_driver_amd64::__ddwrite()
+int serial_driver_amd64::write_dev()
 {
-    char* ptr = this->__beg();
-    while(ptr != this->__cur()) { for(size_t i = 0; i < 16 && ptr != this->__cur(); i++, ++ptr) outb(port_com1, byte(*ptr)); while(!serial_empty_transmit()) PAUSE; }
-    this->__setc(this->__beg());
+    char* ptr = __beg();
+    while(ptr != __cur()) { for(size_t i = 0; i < 16 && ptr != __cur(); i++, ++ptr) outb(port_com1, byte(*ptr)); while(!serial_empty_transmit()) PAUSE; }
+    __setc(__beg());
     return 0;
 }
-__isrcall std::streamsize serial_driver_amd64::__ddread(std::streamsize cnt)
+__isrcall std::streamsize serial_driver_amd64::read_dev(std::streamsize cnt)
 {
     std::streamsize result;
-    for(result = 0; serial_have_input() && (cnt == 0 || result < cnt); result++) this->__push_elements(inb(port_com1)); 
+    for(result = 0; serial_have_input() && (cnt == 0 || result < cnt); result++) __push_elements(inb(port_com1));
     if(result) __do_echo();
-    __pos_echo -= this->__trim_stale();
+    __pos_echo -= __trim_stale();
     return result;
 }
 bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level, word baud_div)
@@ -87,7 +87,7 @@ bool serial_driver_amd64::init_instance(line_ctl_byte mode, trigger_level_t trig
         outb(port_com1_modem_ctl, modem_ctl_byte{ true, true, true, true, false });
         init_ier.receive_data = true;
         outb(port_com1_ier, init_ier);
-        if(interrupt_table::add_irq_handler(4, std::move(LAMBDA_ISR() { __inst.__ddread(0); }))) irq_clear_mask<4ui8>();
+        if(interrupt_table::add_irq_handler(4, std::move(LAMBDA_ISR() { __inst.read_dev(0); }))) irq_clear_mask<4ui8>();
         return true; 
     }
     else return false;

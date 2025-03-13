@@ -7,7 +7,7 @@
 #include "kdebug.hpp"
 constexpr size_t cl_offs_base{ 32uL * sizeof(hba_cmd_header) };
 constexpr size_t fis_offs_base{ 32uL * cl_offs_base };
-constexpr uint64_t table_offs_base{ fis_offs_base + 32uL * sizeof(hba_fis) };
+constexpr uint64_t table_offs_base{ fis_offs_base + 32UL * sizeof(hba_fis) };
 constexpr size_t prdt_size{ prdt_entries_count * sizeof(hba_prdt_entry) };
 ahci_driver ahci_driver::__instance{};
 bool ahci_driver::__has_init = false;
@@ -23,8 +23,8 @@ bool ahci_driver::__handoff_busy() { return (dword(__my_abar->bios_os_handoff)[b
 int8_t ahci_driver::which_port(ahci_device d) { for(int8_t i = 0; i < 32; i++) if(__my_devices[i] == d) return i; return -1; }
 ahci_device ahci_driver::get_device_type(uint8_t i) { return __my_devices[i]; }
 uint32_t ahci_driver::last_read_count(uint8_t i) { BARRIER; return __my_abar->ports[i].command_list[__last_command_on_port[i]].prd_count; }
-bool ahci_driver::is_busy(uint8_t i) { BARRIER; uint32_t c = __my_abar->ports[i].cmd; BARRIER; return __port_data_busy(&__my_abar->ports[i]) || (c & hba_command_cr) == 0; }
-bool ahci_driver::is_done(uint8_t i) { uint32_t st = __my_abar->ports[i].i_state; BARRIER; return !(st == 0 || __port_cmd_busy(&__my_abar->ports[i], __last_command_on_port[i])) && !is_busy(i); }
+bool ahci_driver::is_busy(uint8_t i) { BARRIER; uint32_t c = __my_abar->ports[i].cmd; BARRIER; return __port_data_busy(std::addressof(__my_abar->ports[i])) || (c & hba_command_cr) == 0; }
+bool ahci_driver::is_done(uint8_t i) { uint32_t st = __my_abar->ports[i].i_state; BARRIER; return !(st == 0 || __port_cmd_busy(std::addressof(__my_abar->ports[i]), __last_command_on_port[i])) && !is_busy(i); }
 static inline ahci_device check_type(hba_port const& p)
 {
     BARRIER;

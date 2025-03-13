@@ -492,8 +492,9 @@ struct ext_node_extent_tree
     ext_node_extent_tree();
     ~ext_node_extent_tree();
 };
-struct ext_vnode : public vfs_filebuf_base<char>
+struct ext_vnode : public std::ext::dynamic_streambuf<char>
 {
+    using base_buffer = std::ext::dynamic_streambuf<char>;
     std::vector<disk_block> block_data{}; // all the actual data blocks are recorded here
     std::vector<disk_block> cached_metadata{}; // all metadata blocks, such as extent / indirect block pointers, that are part of the node are cached here
     size_t last_checked_block_idx{};
@@ -505,7 +506,7 @@ struct ext_vnode : public vfs_filebuf_base<char>
     ext_vnode(extfs* parent, uint32_t inode_number);
     ext_vnode() = default;
     virtual ~ext_vnode();
-    virtual int __ddwrite() override;
+    virtual void on_modify() final override;
     virtual bool initialize();
     virtual std::streamsize xsputn(char const* s, std::streamsize n) override;
     void mark_write(void* pos);
@@ -534,7 +535,6 @@ struct jbd2 : public ext_vnode
     off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
     size_t desc_tag_size(bool same_uuid);
     size_t tags_per_block();
-    bool write_block(disk_block const& bl);
     bool execute_pending_txns();
     uint32_t calculate_sb_checksum();
     ~jbd2();
@@ -552,9 +552,7 @@ public:
     using file_node::off_type;
     using file_node::pointer;
     using file_node::const_pointer;
-    virtual std::streamsize __overflow(std::streamsize n) override;
-    virtual std::streamsize __ddread(std::streamsize n) override;
-    virtual std::streamsize __ddrem() override;
+    virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual size_type write(const_pointer src, size_type n) override;
     virtual size_type read(pointer dest, size_type n) override;
     virtual pos_type seek(off_type off, std::ios_base::seekdir way) override;
@@ -584,9 +582,7 @@ class ext_directory_vnode : public ext_vnode, public directory_node
     ext_dir_entry* __current_ent();
 public:
     bool add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
-    virtual std::streamsize __overflow(std::streamsize n) override;
-    virtual std::streamsize __ddread(std::streamsize n) override;
-    virtual std::streamsize __ddrem() override;
+    virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual tnode* find(std::string const&) override;
     virtual bool link(tnode* original, std::string const& target) override;
     virtual tnode* add(fs_node* n) override;

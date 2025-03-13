@@ -84,18 +84,18 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info *target,  void *
 		void *cast = ADD_TO_PTR(obj, offset);
 		if (info->__base_type == target || (info->__base_type->__do_upcast(target, &cast))) { *thrown_object = cast; return true; }
 	}
-	return 0;
+	return false;
 }
 /**
  * ABI function used to implement the dynamic_cast<> operator.  Some cases of
  * this operator are implemented entirely in the compiler (e.g. to void*).
  * This function implements the dynamic casts of the form dynamic_cast<T>(v).
  * This will be translated to a call to this function with the value v as the
- * first argument.  The type id of the static type of v is the second argument
+ * first argument. The type id of the static type of v is the second argument
  * and the type id of the destination type (T) is the third argument.
  *
  * The third argument is a hint about the compiler's guess at the correct
- * pointer offset.  If this value is negative, then -1 indicates no hint, -2
+ * pointer offset. If this value is negative, then -1 indicates no hint, -2
  * that src is not a public base of dst, and -3 that src is a multiple public
  * base type but never a virtual base type
  */

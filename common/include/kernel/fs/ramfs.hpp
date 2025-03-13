@@ -1,13 +1,13 @@
 #ifndef __RAMFS
 #define __RAMFS
 #include "kernel/fs/fs.hpp"
-#include "kernel/fs/generic_binary_buffer.hpp"
+#include "kernel/fs/fifo_buffer.hpp"
 constexpr dev_t ramfs_magic = 0xC001;
 class ramfs_directory_inode : public directory_node
 {
     tnode_dir __my_dir{};
-    size_t __my_file_cnt{};
-    size_t __my_subdir_cnt{};
+    size_t __file_count{};
+    size_t __subdir_count{};
 public:
     virtual tnode* find(std::string const& name) override;
     virtual bool link(tnode* original, std::string const& alias) override;
@@ -19,7 +19,7 @@ public:
     ramfs_directory_inode(std::string const& name);
     virtual bool fsync() override;
 };
-class ramfs_file_inode final : generic_binary_buffer<char>, public file_node
+class ramfs_file_inode final : fifo_buffer<char>, public file_node
 {
 	using file_node::traits_type;
 	using file_node::difference_type;

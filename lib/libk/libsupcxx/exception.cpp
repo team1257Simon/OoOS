@@ -204,11 +204,7 @@ static const uint32_t abi_exception_class = GENERIC_EXCEPTION_CLASS('C', '+', '+
 static bool isCXXException(uint64_t cls) { return (cls == exception_class) || (cls == dependent_exception_class); }
 static bool isDependentException(uint64_t cls) { return cls == dependent_exception_class; }
 static __cxa_exception *exceptionFromPointer(void *ex) { return reinterpret_cast<__cxa_exception*>(static_cast<char*>(ex) - offsetof(struct __cxa_exception, unwindHeader)); }
-static __cxa_exception *realExceptionFromException(__cxa_exception *ex)
-{
-	if (!isDependentException(ex->unwindHeader.exception_class)) { return ex; }
-	return reinterpret_cast<__cxa_exception*>((reinterpret_cast<__cxa_dependent_exception*>(ex))->primaryException)-1;
-}
+static __cxa_exception *realExceptionFromException(__cxa_exception *ex) { if (!isDependentException(ex->unwindHeader.exception_class)) { return ex; } return reinterpret_cast<__cxa_exception*>((reinterpret_cast<__cxa_dependent_exception*>(ex))->primaryException)-1; }
 namespace std { void terminate(void); }
 using namespace ABI_NAMESPACE;
 /** The global termination handler. */
@@ -616,8 +612,7 @@ static void pushCleanupException(_Unwind_Exception *exceptionObject, __cxa_excep
  * DWARF metadata and is called by the unwind library for each C++ stack frame
  * containing catch or cleanup code.
  */
-extern "C"
-_Unwind_Reason_Code __gxx_personality_v0(int version, _Unwind_Action actions, uint64_t exceptionClass, struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context) {
+extern "C" _Unwind_Reason_Code __gxx_personality_v0(int version, _Unwind_Action actions, uint64_t exceptionClass, struct _Unwind_Exception *exceptionObject, struct _Unwind_Context *context) {
 	// This personality function is for version 1 of the ABI.  If you use it
 	// with a future version of the ABI, it won't know what to do, so it
 	// reports a fatal error and give up before it breaks anything.
@@ -851,7 +846,7 @@ extern "C" std::type_info *__cxa_current_exception_type()
  * Cleanup, ensures that `__cxa_end_catch` is called to balance an explicit
  * `__cxa_begin_catch` call.
  */
-static void end_catch(char *) { __cxa_end_catch(); }
+static void end_catch(char*) { __cxa_end_catch(); }
 /**
  * ABI function, called when an exception specification is violated.
  *
@@ -920,23 +915,26 @@ namespace pathscale
 }
 namespace std
 {
+	void set_use_thread_local_handlers(bool flag) noexcept { thread_local_handlers = flag; }
 	/**
 	 * Sets the function that will be called when an exception specification is
 	 * violated.
 	 */
-	unexpected_handler set_unexpected(unexpected_handler f) noexcept
-	{
-		if (thread_local_handlers) { return pathscale::set_unexpected(f); }
-		return unexpectedHandler.exchange(f);
-	}
+	unexpected_handler set_unexpected(unexpected_handler f) noexcept { if (thread_local_handlers) { return pathscale::set_unexpected(f); } return unexpectedHandler.exchange(f); }
 	/**
 	 * Sets the function that is called to terminate the program.
 	 */
-	terminate_handler set_terminate(terminate_handler f) noexcept
-	{
-		if (thread_local_handlers) { return pathscale::set_terminate(f); }
-		return terminateHandler.exchange(f);
-	}
+	terminate_handler set_terminate(terminate_handler f) noexcept { if (thread_local_handlers) { return pathscale::set_terminate(f); } return terminateHandler.exchange(f); }
+	/**
+	 * Returns whether there are any exceptions currently being thrown that
+	 * have not been caught.  This can occur inside a nested catch statement.
+	 */
+	bool uncaught_exception() noexcept { __cxa_thread_info *info = thread_info(); return info->globals.uncaughtExceptions != 0; }
+	/**
+	 * Returns the number of exceptions currently being thrown that have not
+	 * been caught.  This can occur inside a nested catch statement.
+	 */
+	int uncaught_exceptions() noexcept { __cxa_thread_info *info = thread_info(); return info->globals.uncaughtExceptions; }
 	/**
 	 * Terminates the program, calling a custom terminate implementation if
 	 * required.
@@ -944,11 +942,7 @@ namespace std
 	void terminate()
 	{
 		static __cxa_thread_info *info = thread_info();
-		if (0 != info && 0 != info->terminateHandler)
-		{
-			info->terminateHandler();
-			__builtin_unreachable();
-		}
+		if (0 != info && 0 != info->terminateHandler) { info->terminateHandler(); __builtin_unreachable(); }
 		terminateHandler.load()();
 	}
 	/**
@@ -959,30 +953,8 @@ namespace std
 	void unexpected()
 	{
 		static __cxa_thread_info *info = thread_info();
-		if (0 != info && 0 != info->unexpectedHandler)
-		{
-			info->unexpectedHandler();
-			__builtin_unreachable();
-		}
+		if (0 != info && 0 != info->unexpectedHandler) { info->unexpectedHandler(); __builtin_unreachable(); }
 		unexpectedHandler.load()();
-	}
-	/**
-	 * Returns whether there are any exceptions currently being thrown that
-	 * have not been caught.  This can occur inside a nested catch statement.
-	 */
-	bool uncaught_exception() noexcept
-	{
-		__cxa_thread_info *info = thread_info();
-		return info->globals.uncaughtExceptions != 0;
-	}
-	/**
-	 * Returns the number of exceptions currently being thrown that have not
-	 * been caught.  This can occur inside a nested catch statement.
-	 */
-	int uncaught_exceptions() noexcept
-	{
-		__cxa_thread_info *info = thread_info();
-		return info->globals.uncaughtExceptions;
 	}
 	/**
 	 * Returns the current unexpected handler.

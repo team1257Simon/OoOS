@@ -8,7 +8,6 @@ bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db 
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
 size_t jbd2::tags_per_block() { return 1 + (parent_fs->block_size() - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
-bool jbd2::write_block(disk_block const &bl) { if(!parent_fs->write_to_disk(bl)) { panic("disk write failed"); return false; } return true; }  // TODO: better error handling :)
 off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first, bool is_last)
 {
     off_t result = static_cast<off_t>(desc_tag_size(true));
@@ -72,7 +71,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     total++;
     __setc(dblk_tar);
     disk_block ch_block(txn_st_block + total++, dblk_tar, false, 1U);
-    uint64_t timestamp = syscall_time(nullptr);
+    uint64_t timestamp = sys_time(nullptr);
     jbd2_commit_header* ch = ::new (static_cast<void*>(dblk_tar)) jbd2_commit_header
     { 
         .checksum_type = 4,
@@ -83,7 +82,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     mark_write(dblk_tar);
     uint32_t csum = crc32c_blk(uuid_checksum, ch_block, bs);
     BARRIER;
-    ch->checksum[0] = __be32(csum);
+    ch->checksum[0] = csum;
     first_open_block = txn_st_block + total;
     __bumpc(bs);
     if(!ddwrite()) return false;

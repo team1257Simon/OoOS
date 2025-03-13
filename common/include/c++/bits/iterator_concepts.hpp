@@ -217,8 +217,8 @@ namespace std
     template<typename FT, typename I1, typename I2 = I1> concept indirect_equivalence_relation = indirectly_readable<I1> && indirectly_readable<I2> && copy_constructible<FT> && equivalence_relation<FT&, iter_value_t<I1>&, iter_value_t<I2>&> && equivalence_relation<FT&, iter_value_t<I1>&, iter_reference_t<I2>> && equivalence_relation<FT&, iter_reference_t<I1>, iter_value_t<I2>&> && equivalence_relation<FT&, iter_reference_t<I1>, iter_reference_t<I2>> && equivalence_relation<FT&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
     template<typename FT, typename I1, typename I2 = I1> concept indirect_strict_weak_order = indirectly_readable<I1> && indirectly_readable<I2> && copy_constructible<FT> && strict_weak_order<FT&, iter_value_t<I1>&, iter_value_t<I2>&> && strict_weak_order<FT&, iter_value_t<I1>&, iter_reference_t<I2>> && strict_weak_order<FT&, iter_reference_t<I1>, iter_value_t<I2>&> && strict_weak_order<FT&, iter_reference_t<I1>, iter_reference_t<I2>> && strict_weak_order<FT&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
     template<typename FT, typename... ITs> requires (indirectly_readable<ITs> && ...) && invocable<FT, iter_reference_t<ITs>...> using indirect_result_t = invoke_result_t<FT, iter_reference_t<ITs>...>;
-    template<indirectly_readable IT, indirectly_regular_unary_invocable<IT> _Proj> struct projected { using value_type = remove_cvref_t<indirect_result_t<_Proj&, IT>>; indirect_result_t<_Proj&, IT> operator*() const; };
-    template<weakly_incrementable IT, typename _Proj> struct incrementable_traits<projected<IT, _Proj>> { using difference_type = iter_difference_t<IT>; };
+    template<indirectly_readable IT, indirectly_regular_unary_invocable<IT> PT> struct projected { using value_type = remove_cvref_t<indirect_result_t<PT&, IT>>; indirect_result_t<PT&, IT> operator*() const; };
+    template<weakly_incrementable IT, typename PT> struct incrementable_traits<projected<IT, PT>> { using difference_type = iter_difference_t<IT>; };
     template<typename I, typename O> concept indirectly_movable = indirectly_readable<I> && indirectly_writable<O, iter_rvalue_reference_t<I>>;
     template<typename I, typename O> concept indirectly_movable_storable = indirectly_movable<I, O> && indirectly_writable<O, iter_value_t<I>> && movable<iter_value_t<I>> && constructible_from<iter_value_t<I>, iter_rvalue_reference_t<I>> && assignable_from<iter_value_t<I>&, iter_rvalue_reference_t<I>>;
     template<typename I, typename O> concept indirectly_copyable = indirectly_readable<I> && indirectly_writable<O, iter_reference_t<I>>;
@@ -251,7 +251,7 @@ namespace std
     template<typename I1, typename I2, typename RT, typename P1 = identity, typename P2 = identity> concept indirectly_comparable = indirect_binary_predicate<RT, projected<I1, P1>, projected<I2, P2>>;
     template<typename IT> concept permutable = forward_iterator<IT> && indirectly_movable_storable<IT, IT> && indirectly_swappable<IT, IT>;
     template<typename I1, typename I2, typename O, typename RT = ranges::less, typename P1 = identity, typename P2 = identity> concept mergeable = input_iterator<I1> && input_iterator<I2> && weakly_incrementable<O> && indirectly_copyable<I1, O> && indirectly_copyable<I2, O> && indirect_strict_weak_order<RT, projected<I1, P1>, projected<I2, P2>>;
-    template<typename IT, typename RT = ranges::less, typename _Proj = identity> concept sortable = permutable<IT> && indirect_strict_weak_order<RT, projected<IT, _Proj>>;
+    template<typename IT, typename RT = ranges::less, typename PT = identity> concept sortable = permutable<IT> && indirect_strict_weak_order<RT, projected<IT, PT>>;
     struct unreachable_sentinel_t { template<weakly_incrementable IT> friend constexpr bool operator==(unreachable_sentinel_t, const IT&) noexcept { return false; } };
     inline constexpr unreachable_sentinel_t unreachable_sentinel{};
     struct default_sentinel_t {};

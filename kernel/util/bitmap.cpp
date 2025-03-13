@@ -33,9 +33,9 @@ void bitmap_set_cbits(unsigned long* bitmap, off_t bit_pos, size_t num_bits)
     off_t bit_off = bit_pos % ulsize;
     if(__builtin_expect(num_bits >= ulsize, false)) 
     { 
-        size_t actual = std::min(num_bits, size_t(ulsize - bit_off));
+        size_t actual = std::min(num_bits, static_cast<size_t>(ulsize - bit_off));
         bitmap[ulpos] |= (~0UL << bit_off); 
-        if(num_bits > actual) { bitmap_set_cbits(bitmap, bit_pos + actual, size_t(num_bits - actual)); }
+        if(num_bits > actual) { bitmap_set_cbits(bitmap, bit_pos + actual, static_cast<size_t>(num_bits - actual)); }
     }
     else
     {
@@ -51,9 +51,9 @@ void bitmap_clear_cbits(unsigned long *bitmap, off_t bit_pos, size_t num_bits)
     off_t bit_off = bit_pos % ulsize;
     if(__builtin_expect(num_bits >= ulsize, false))
     { 
-        size_t actual = std::min(num_bits, size_t(ulsize - bit_off)); 
+        size_t actual = std::min(num_bits, static_cast<size_t>(ulsize - bit_off)); 
         bitmap[ulpos] &= ~(~0UL << bit_off); 
-        if(num_bits > actual) { bitmap_set_cbits(bitmap, bit_pos + actual, size_t(num_bits - actual)); } 
+        if(num_bits > actual) { bitmap_set_cbits(bitmap, bit_pos + actual, static_cast<size_t>(num_bits - actual)); } 
     }
     else
     {
