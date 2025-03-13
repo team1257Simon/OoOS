@@ -62,7 +62,21 @@ void serial_driver_amd64::__do_echo()
 int serial_driver_amd64::write_dev()
 {
     char* ptr = __beg();
-    while(ptr != __cur()) { for(size_t i = 0; i < 16 && ptr != __cur(); i++, ++ptr) outb(port_com1, byte(*ptr)); while(!serial_empty_transmit()) PAUSE; }
+    while(ptr != __cur()) 
+    { 
+        for(size_t i = 0; i < 16 && ptr != __cur(); i++, ++ptr) 
+        { 
+            outb(port_com1, byte(*ptr)); 
+            if(*ptr == '\n') 
+            {
+                // newlines can take a while to process; give the console time to sync up or we might lose characters 
+                ptr++; 
+                goto buff_wait; 
+            } 
+        }
+    buff_wait:
+        while(!serial_empty_transmit()) PAUSE;
+    }
     __setc(__beg());
     return 0;
 }

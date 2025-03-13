@@ -34,7 +34,7 @@ void task_ctx::init_task_state()
         kernel_memory_mgr::get().exit_frame();
     }
 }
-task_ctx::task_ctx(task_ctx const &that) : 
+task_ctx::task_ctx(task_ctx const& that) : 
     task_ctx
     { 
         that.task_struct.saved_regs.rip, 
@@ -49,7 +49,7 @@ task_ctx::task_ctx(task_ctx const &that) :
         that.task_struct.task_ctl.prio_base, 
         that.task_struct.quantum_val 
     } 
-    { set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
+    { ctx_filesystem = that.ctx_filesystem; set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
 task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
     task_struct
     { 
@@ -71,7 +71,7 @@ void task_ctx::start_task(addr_t exit_fn)
 {
     if(env_vec.empty() || env_vec.back()) { env_vec.push_back(nullptr); }
     task_struct.saved_regs.rdx = uintptr_t(addr_t{ env_vec.data() });
-    this->exit_target = exit_fn;  
+    exit_target = exit_fn;  
     if(is_user())
     {
         kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
@@ -81,13 +81,13 @@ void task_ctx::start_task(addr_t exit_fn)
         interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
     }
     else *task_struct.saved_regs.rsp.as<uintptr_t>() = addr_t(std::addressof(sys_task_exit));
-    scheduler::get().register_task(this->task_struct.self);
-    this->current_state = execution_state::RUNNING;
+    scheduler::get().register_task(task_struct.self);
+    current_state = execution_state::RUNNING;
 }
 void task_ctx::set_exit(int n) 
 {
-    this->exit_code = n;    
-    if(this->exit_target) 
+    exit_code = n;    
+    if(exit_target) 
     {
         task_ctx* c = this, *p = nullptr;
         while(c->get_parent_pid() > 0 && task_list::get().contains(static_cast<uint64_t>(c->get_parent_pid())))
@@ -104,10 +104,10 @@ void task_ctx::set_exit(int n)
 }
 void task_ctx::terminate()
 {
-    this->current_state = execution_state::TERMINATED;
+    current_state = execution_state::TERMINATED;
     scheduler::get().unregister_task(task_struct.self);
-    for(task_ctx* c : this->child_tasks) { if(c->current_state == execution_state::RUNNING) { if(exit_code) c->exit_code = exit_code; c->terminate(); } }
-    if(is_user()) frame_manager::get().destroy_frame(*this->task_struct.frame_ptr.as<uframe_tag>());
+    for(task_ctx* c : child_tasks) { if(c->current_state == execution_state::RUNNING) { if(exit_code) { c->exit_code = exit_code; c->terminate(); } } }
+    if(is_user()) frame_manager::get().destroy_frame(*task_struct.frame_ptr.as<uframe_tag>());
 }
 tms task_ctx::get_times() const noexcept
 {
