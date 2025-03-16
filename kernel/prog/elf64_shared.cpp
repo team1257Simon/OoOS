@@ -22,12 +22,12 @@ bool elf64_shared_object::load_segments()
         {
             have_loads = true;
             addr_t blk = kernel_memory_mgr::get().allocate_user_block(phdr(n).p_memsz, nullptr, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
-            addr_t img_dat = segment_ptr(n);    
+            addr_t img_dat = segment_ptr(n); 
             if(!blk) { throw std::bad_alloc{}; }
             array_copy<uint8_t>(blk, img_dat, phdr(n).p_filesz);
             elf_segment_prot perms = static_cast<elf_segment_prot>(0b100 | (is_write(phdr(n)) ? 0b010 : 0) | (is_exec(phdr(n)) ? 0b001 : 0));
             if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(blk.plus(phdr(n).p_filesz), diff); }
-            new (std::addressof(segments[n])) program_segment_descriptor{ blk, static_cast<off_t>(phdr(n).p_vaddr), phdr(n).p_memsz, perms };
+            new (std::addressof(segments[n])) program_segment_descriptor{ blk, static_cast<off_t>(phdr(n).p_vaddr), phdr(n).p_memsz, phdr(n).p_align, perms };
         }
     }
     return have_loads;
@@ -36,6 +36,5 @@ addr_t elf64_shared_object::resolve(std::string const& symbol) const
 {
     if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return nullptr; }
     elf64_sym const* sym = symbol_index[symbol];
-    program_segment_descriptor const* sd = segment_of(sym);
-    return (sd && sym) ? sd->absolute_addr.plus(static_cast<ptrdiff_t>(sym->st_value - sd->obj_offset)) : nullptr;
+    return sym ? elf64_object::resolve(*sym) : nullptr;
 }

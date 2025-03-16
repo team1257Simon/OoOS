@@ -25,18 +25,21 @@ protected:
     constexpr addr_t segment_ptr(size_t n) const noexcept { return __image_start.plus(phdr(n).p_offset); }
     constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }
     void cleanup();
+    virtual void process_headers();
     virtual bool load_segments() = 0;
     virtual bool xload() = 0;
     virtual bool xvalidate() = 0;
+    addr_t resolve(uint64_t offs) const;
     bool load_syms();
     program_segment_descriptor const* segment_of(size_t offset) const;
     program_segment_descriptor const* segment_of(elf64_sym const* sym) const;
 public:
+    addr_t resolve(elf64_sym const& sym) const;
     elf64_object(file_node* n);
     virtual ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;
-    elf64_object(elf64_object const&) = delete;
-    elf64_object& operator=(elf64_object const&) = delete; 
+    elf64_object(elf64_object const&);
+    elf64_object(elf64_object&&);
 };
 #endif

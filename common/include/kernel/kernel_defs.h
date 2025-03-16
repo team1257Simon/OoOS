@@ -419,6 +419,7 @@ typedef struct __vaddr
     constexpr __vaddr plus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
     constexpr __vaddr minus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
     constexpr __vaddr page_aligned() const noexcept { return minus(full % PAGESIZE); }
+    constexpr __vaddr next_page_aligned() const noexcept { return plus(PAGESIZE).page_aligned(); }
     typedef const void* cvptr;
     typedef volatile void* vvptr;
     typedef const volatile void* cvvptr;

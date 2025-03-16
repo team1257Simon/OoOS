@@ -332,6 +332,7 @@ struct program_segment_descriptor
     addr_t absolute_addr;       // The global address of the segment's start. If the segment is not loaded (e.g. not a loadable segment) this will be zero.
     off_t obj_offset;           // The p_vaddr value from the segment's program header in the object file containing the segment's data.
     size_t size;                // The p_memsz from the segment's program header in the object file containing the segment's data.
+    size_t seg_align;           // The p_align value from the segment's program header in the object file containing the segment's data.
     elf_segment_prot perms;     // The permission values as determined from the program header's flags (the three lowest bits only)
 };
 struct elf64_gnu_htbl
@@ -356,5 +357,7 @@ struct elf64_dynsym_index
     elf64_sym const* operator[](std::string const& str) const;
     constexpr operator bool() const noexcept { return htbl.bloom_filter_words && htbl.buckets && htbl.hash_value_array; }
 };
+constexpr addr_t resegment_ptr(addr_t addr, program_segment_descriptor const& oseg, program_segment_descriptor const& nseg) { return nseg.absolute_addr.plus(addr - oseg.absolute_addr); }
+constexpr addr_t to_segment_ptr(uint64_t off, program_segment_descriptor const& seg) { return seg.absolute_addr.plus(off - seg.obj_offset); }
 #endif
 #endif
