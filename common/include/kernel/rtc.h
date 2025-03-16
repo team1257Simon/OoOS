@@ -19,18 +19,18 @@ struct rtc_time
 int syscall_gettimeofday(struct timeval* restrict tm, void* restrict tz);
 #ifdef __cplusplus
 }
-class rtc_driver
+class rtc
 {
     uint8_t __century_register{ 0u };
     std::atomic<rtc_time> __my_time{};
     bool __is_bcd{};
     bool __is_12h{};
-    rtc_driver() = default;
-    static rtc_driver __instance;
+    rtc() = default;
+    static rtc __instance;
 public:
     __isrcall void rtc_time_update() volatile noexcept;
     static void init_instance(uint8_t century_register = 0) noexcept;
-    static rtc_driver volatile& get_instance() noexcept;
+    static rtc volatile& get_instance() noexcept;
     rtc_time get_time() volatile;
     uint64_t get_timestamp() volatile;
 };

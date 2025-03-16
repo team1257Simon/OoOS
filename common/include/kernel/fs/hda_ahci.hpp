@@ -37,13 +37,13 @@ typedef struct __part_table_entry
     char16_t part_name[36];
 } __pack partition_entry_t;
 typedef std::vector<partition_entry_t> partition_table;
-class ahci_hda
+class hda_ahci
 {
     static bool __has_init;
-    static ahci_hda __instance;
+    static hda_ahci __instance;
     wide_binary_buffer __read_buffer;
     wide_binary_buffer __write_buffer;
-    ahci_driver* __drv{};
+    ahci* __drv{};
     int8_t __port{};
     partition_table __my_partitions{};
     constexpr static std::size_t __bytes_per_sector() noexcept { return physical_block_size; }
@@ -54,12 +54,12 @@ class ahci_hda
     bool __write_ahci(qword st, dword ct, uint16_t const* bf);
     bool __read_pt();
 protected:
-    ahci_hda();
+    hda_ahci();
     bool init();
 public:
     static bool init_instance();
     static bool is_initialized() noexcept;
-    static ahci_hda* get_instance();
+    static hda_ahci* get_instance();
     static bool read_direct(void* out, uint64_t start_sector, uint32_t count);
     static bool write_direct(uint64_t start_sector, const void* in, uint32_t count);
     static std::streamsize read(char* out, uint64_t start_sector, uint32_t count);

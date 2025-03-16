@@ -38,7 +38,7 @@ __isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
     next->run_split = ts;
     cur->run_time += (ts - cur->run_split);
 }
-bool scheduler::unregister_task(task_t *task) 
+bool scheduler::unregister_task(task_t* task) 
 {
     bool result = false;
     if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task, true); i != __my_queues[priority_val::PVSYS].end()) { result = __my_queues[priority_val::PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
@@ -46,7 +46,7 @@ bool scheduler::unregister_task(task_t *task)
     __sync_synchronize();
     return result;
 }
-bool scheduler::unregister_task_tree(task_t *task)
+bool scheduler::unregister_task_tree(task_t* task)
 {
     if(!task->num_child_procs || !task->child_procs) return unregister_task(task);
     bool result = true;

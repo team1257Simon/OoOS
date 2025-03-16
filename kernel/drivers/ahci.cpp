@@ -9,22 +9,22 @@ constexpr size_t cl_offs_base{ 32uL * sizeof(hba_cmd_header) };
 constexpr size_t fis_offs_base{ 32uL * cl_offs_base };
 constexpr uint64_t table_offs_base{ fis_offs_base + 32UL * sizeof(hba_fis) };
 constexpr size_t prdt_size{ prdt_entries_count * sizeof(hba_prdt_entry) };
-ahci_driver ahci_driver::__instance{};
-bool ahci_driver::__has_init = false;
-void ahci_driver::__init_irq() { for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __my_abar->i_status |= BIT(i); BARRIER; uint32_t s1 = __my_abar->ports[i].i_state; BARRIER; __my_abar->ports[i].i_state = s1; BARRIER; } }  if(interrupt_table::add_irq_handler(__my_ahci_controller->header_0x0.interrupt_line, std::move(LAMBDA_ISR() { this->handle_irq(); }))) irq_clear_mask(__my_ahci_controller->header_0x0.interrupt_line); }
+ahci ahci::__instance{};
+bool ahci::__has_init = false;
+void ahci::__init_irq() { for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __my_abar->i_status |= BIT(i); BARRIER; uint32_t s1 = __my_abar->ports[i].i_state; BARRIER; __my_abar->ports[i].i_state = s1; BARRIER; } }  if(interrupt_table::add_irq_handler(__my_ahci_controller->header_0x0.interrupt_line, std::move(LAMBDA_ISR() { this->handle_irq(); }))) irq_clear_mask(__my_ahci_controller->header_0x0.interrupt_line); }
 static inline bool __port_data_busy(hba_port* port) { BARRIER; dword i = port->task_file; BARRIER; return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /*drq*/ }
 static inline bool __port_cmd_busy(hba_port* port, int slot) { BARRIER; dword i = port->cmd_issue; BARRIER; dword j = port->i_state; BARRIER; return !j.lo.lo.b5 /* processed */ && i[slot]; }
 static inline bool __port_nack_stop(hba_port* port) { BARRIER; dword i = port->cmd; BARRIER; return i.lo.hi.b7 /* cr */ || i.lo.hi.b6; /* fr */ }
-ahci_driver *ahci_driver::get_instance() { return &__instance; }
-bool ahci_driver::is_initialized() { return __has_init; }
-bool ahci_driver::has_port(uint8_t i) { return __my_devices[i] != none; }
-void ahci_driver::hard_reset_fallback(uint8_t idx)  { xdirect_write("hard reset required for port " + std::to_string(idx) + "\n"); port_hard_reset(idx); }
-bool ahci_driver::__handoff_busy() { return (dword(__my_abar->bios_os_handoff)[bos_bit] || dword(__my_abar->bios_os_handoff)[bb_bit]); }
-int8_t ahci_driver::which_port(ahci_device d) { for(int8_t i = 0; i < 32; i++) if(__my_devices[i] == d) return i; return -1; }
-ahci_device ahci_driver::get_device_type(uint8_t i) { return __my_devices[i]; }
-uint32_t ahci_driver::last_read_count(uint8_t i) { BARRIER; return __my_abar->ports[i].command_list[__last_command_on_port[i]].prd_count; }
-bool ahci_driver::is_busy(uint8_t i) { BARRIER; uint32_t c = __my_abar->ports[i].cmd; BARRIER; return __port_data_busy(std::addressof(__my_abar->ports[i])) || (c & hba_command_cr) == 0; }
-bool ahci_driver::is_done(uint8_t i) { uint32_t st = __my_abar->ports[i].i_state; BARRIER; return !(st == 0 || __port_cmd_busy(std::addressof(__my_abar->ports[i]), __last_command_on_port[i])) && !is_busy(i); }
+ahci *ahci::get_instance() { return &__instance; }
+bool ahci::is_initialized() { return __has_init; }
+bool ahci::has_port(uint8_t i) { return __my_devices[i] != none; }
+void ahci::hard_reset_fallback(uint8_t idx)  { xdirect_write("hard reset required for port " + std::to_string(idx) + "\n"); port_hard_reset(idx); }
+bool ahci::__handoff_busy() { return (dword(__my_abar->bios_os_handoff)[bos_bit] || dword(__my_abar->bios_os_handoff)[bb_bit]); }
+int8_t ahci::which_port(ahci_device d) { for(int8_t i = 0; i < 32; i++) if(__my_devices[i] == d) return i; return -1; }
+ahci_device ahci::get_device_type(uint8_t i) { return __my_devices[i]; }
+uint32_t ahci::last_read_count(uint8_t i) { BARRIER; return __my_abar->ports[i].command_list[__last_command_on_port[i]].prd_count; }
+bool ahci::is_busy(uint8_t i) { BARRIER; uint32_t c = __my_abar->ports[i].cmd; BARRIER; return __port_data_busy(std::addressof(__my_abar->ports[i])) || (c & hba_command_cr) == 0; }
+bool ahci::is_done(uint8_t i) { uint32_t st = __my_abar->ports[i].i_state; BARRIER; return !(st == 0 || __port_cmd_busy(std::addressof(__my_abar->ports[i]), __last_command_on_port[i])) && !is_busy(i); }
 static inline ahci_device check_type(hba_port const& p)
 {
     BARRIER;
@@ -44,7 +44,7 @@ static inline ahci_device check_type(hba_port const& p)
         return none;
     }
 }
-void ahci_driver::__issue_command(uint8_t idx, int slot)
+void ahci::__issue_command(uint8_t idx, int slot)
 {
     hba_port* port = std::addressof(__my_abar->ports[idx]);
     unsigned spin{ 0 };
@@ -64,7 +64,7 @@ void ahci_driver::__issue_command(uint8_t idx, int slot)
     BARRIER;
     __last_command_on_port[idx] = slot;
 }
-void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l)
+void ahci::__build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l)
 {
     BARRIER;
     memset(cmdtbl, 0, sizeof(hba_cmd_table));
@@ -93,13 +93,13 @@ void ahci_driver::__build_h2d_fis(qword start, dword count, uint16_t* buffer, at
     fis->count = count.lo;
     BARRIER;
 }
-bool ahci_driver::init_instance(pci_device_list* ls) noexcept
+bool ahci::init_instance(pci_device_list* ls) noexcept
 {
     if(__has_init) return true;
     if(!ls) return false;
     return (__has_init = __instance.init(ls->find(dev_class_ahci, subclass_ahci_controller)));
 }
-bool ahci_driver::init(pci_config_space* ps) noexcept
+bool ahci::init(pci_config_space* ps) noexcept
 {
     if(!ps) return false;
     try
@@ -150,7 +150,7 @@ bool ahci_driver::init(pci_config_space* ps) noexcept
     panic("no devices");
     return false;
 }
-void ahci_driver::start_port(uint8_t i)
+void ahci::start_port(uint8_t i)
 {
     if(i > __num_ports) throw std::out_of_range("port " + std::to_string(i) + " is out of range ");
     uint64_t spin = 0;
@@ -162,7 +162,7 @@ void ahci_driver::start_port(uint8_t i)
     BARRIER;
     __my_abar->ports[i].cmd |= hba_cmd_start;
 }
-void ahci_driver::stop_port(uint8_t i)
+void ahci::stop_port(uint8_t i)
 {
     if(i > __num_ports) throw std::out_of_range("port " + std::to_string(i) + " is out of range");
     BARRIER;
@@ -175,7 +175,7 @@ void ahci_driver::stop_port(uint8_t i)
     BARRIER;
     if(__port_nack_stop(&__my_abar->ports[i])) throw std::runtime_error("Port number " + std::to_string(i) + " is hung");
 }
-void ahci_driver::port_rebase(uint8_t idx)
+void ahci::port_rebase(uint8_t idx)
 {
     stop_port(idx);
     addr_t cl_base = __my_block.plus(idx * cl_offs_base);
@@ -203,7 +203,7 @@ static int find_cmdslot(hba_port* port)
     for(int i = 0; i < 32; i++) if(!(dword(slots)[i])) return i;
     return -1;
 }
-void ahci_driver::port_soft_reset(uint8_t idx)
+void ahci::port_soft_reset(uint8_t idx)
 {
     hba_port* port = std::addressof(__my_abar->ports[idx]);
     unsigned spin = 0;
@@ -272,7 +272,7 @@ void ahci_driver::port_soft_reset(uint8_t idx)
     if(port->i_state & hba_error) { return hard_reset_fallback(idx); }
     BARRIER;
 }
-void ahci_driver::port_hard_reset(uint8_t idx)
+void ahci::port_hard_reset(uint8_t idx)
 {
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
     hba_port* port = std::addressof(__my_abar->ports[idx]);
@@ -300,7 +300,7 @@ void ahci_driver::port_hard_reset(uint8_t idx)
     BARRIER;
     start_port(idx);
 }
-void ahci_driver::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
+void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 {
     if(!has_port(idx)) { throw std::out_of_range("port " + std::to_string(idx) + " does not exist"); }
     hba_port* port = std::addressof(__my_abar->ports[idx]);
@@ -318,7 +318,7 @@ void ahci_driver::read_sectors(uint8_t idx, qword start, dword count, uint16_t* 
     unsigned spin = 0;
     while(!is_done(idx) && spin < max_wait) { BARRIER; spin++; }
 }
-void ahci_driver::write_sectors(uint8_t idx, qword start, dword count, const uint16_t *buffer)
+void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t *buffer)
 {
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
     hba_port* port = std::addressof(__my_abar->ports[idx]);
@@ -336,7 +336,7 @@ void ahci_driver::write_sectors(uint8_t idx, qword start, dword count, const uin
     unsigned spin = 0;
     while(is_busy(idx) && spin < max_wait) { BARRIER; spin++; }
 }
-__isrcall void ahci_driver::handle_irq()
+__isrcall void ahci::handle_irq()
 {
     uint32_t s = __my_abar->i_status;
 	BARRIER;
@@ -352,7 +352,7 @@ __isrcall void ahci_driver::handle_irq()
         BARRIER;
     }
 }
-void ahci_driver::p_identify(uint8_t idx, identify_data *data)
+void ahci::p_identify(uint8_t idx, identify_data *data)
 {
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " is out of range ");
     hba_port* port = std::addressof(__my_abar->ports[idx]);

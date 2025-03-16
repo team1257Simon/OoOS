@@ -398,7 +398,7 @@ typedef volatile struct tmem
 	// 0x100 - 0x10FF, Port control registers
 	hba_port ports[32];			// 1 ~ 32
 } __pack hba_mem;
-class ahci_driver
+class ahci
 {
     pci_config_space* __my_ahci_controller { nullptr };
     hba_mem* __my_abar{ nullptr }; // this will be stored in the BAR numbered 5
@@ -407,13 +407,13 @@ class ahci_driver
     addr_t __my_block{};
 	int __last_command_on_port[32]{};
 	static bool __has_init;
-	static ahci_driver __instance;
+	static ahci __instance;
 	void __issue_command(uint8_t port_idx, int slot);
 	void __build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l);
     bool __handoff_busy();
     void __init_irq();
 protected:
-    ahci_driver() = default;
+    ahci() = default;
     bool init(pci_config_space* ps) noexcept;
     void start_port(uint8_t i);
     void stop_port(uint8_t i);
@@ -424,9 +424,9 @@ protected:
 	bool has_port(uint8_t i);
     __isrcall void handle_irq();
 public:
-	ahci_driver(ahci_driver const&) = delete;
-	ahci_driver& operator=(ahci_driver const&) = delete;
-	static ahci_driver* get_instance();
+	ahci(ahci const&) = delete;
+	ahci& operator=(ahci const&) = delete;
+	static ahci* get_instance();
 	static bool init_instance(pci_device_list* ls) noexcept;
 	static bool is_initialized();
 	void read_sectors(uint8_t port_idx, qword start, dword count, uint16_t* buffer);

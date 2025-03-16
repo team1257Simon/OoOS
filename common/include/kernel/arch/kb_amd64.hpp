@@ -56,7 +56,7 @@ enum event_type : uint8_t
     KEYDN_SPECIAL = 0xE0,
     KEYUP_SPECIAL = 0xF0
 };
-class keyboard_driver_amd64 : public keyboard_driver_base
+class keyboard_driver_amd64 : public keyboard_driver
 {
     bool __skip = false;
     __isrcall kb_data __get_next(kb_state current_state, bool extd);

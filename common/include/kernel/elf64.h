@@ -7,6 +7,7 @@
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #ifdef __cplusplus
+#include "sys/types.h"
 #ifndef __may_alias
 #define __may_alias [[gnu::may_alias]]
 #endif
@@ -133,48 +134,57 @@ enum elf_dyn_tag : uint64_t
     // PC-specific 0x7000000D~0x7ffff000    ?         ?           ?
     DT_GNU_HASH         = 0x6FFFFEF5    // replaces DT_HASH entry
 };
-enum elf_rel_type
+enum elf_rel_type : uint32_t
 {
     // A:		Represents the addend used to compute the value of the relocatable field.
     // B:		Represents the base address at which a shared object has been loaded into memory during execution. Generally, a shared object is built with a 0 base virtual address, but the execution address will be different.
-    // G:		Represents the offset into the global offset table at which the relocation entry’s symbol will reside during execution.
-    // GOT:	    Represents the address of the global offset table.
+    // O:		Represents the offset into the global offset table at which the relocation entry’s symbol will reside during execution.
+    // G:	    Represents the address of the global offset table.
     // L:		Represents the place (section offset or address) of the Procedure Linkage Table entry for a symbol.
     // P:		Represents the place (section offset or address) of the storage unit being relocated (computed using r_offset).
     // S:		Represents the value of the symbol whose index resides in the relocation entry.
+    // M:       Represents the module TLS block pointer table
+    // T:       Represents the TLS block containing the symbol
+    // D:       Represents the TLS descriptor corresponding to the symbol
+    // Q:       Represents the thread pointer   
+    // Z:       Represents the size of the symbol
+    // I(...):  Represents a program-counter-relative offset
+    // [...]:   Represents a table entry containing a pointer to something
     // Name 				Value	Field 	Calculation
     R_X86_64_NONE		=	0, // 	none 	none
     R_X86_64_64			=	1, // 	word64 	S + A
     R_X86_64_PC32		=	2, // 	word32 	S + A - P
-    R_X86_64_GOT32		=	3, // 	word32 	G + A
+    R_X86_64_GOT32		=	3, // 	word32 	O + A
     R_X86_64_PLT32		=	4, // 	word32	L + A - P
     R_X86_64_COPY		=	5, // 	none	none
     R_X86_64_GLOB_DAT	=	6, // 	word64 	S
     R_X86_64_JUMP_SLOT	=	7, // 	word64 	S
     R_X86_64_RELATIVE	=	8, // 	word64 	B + A
-    R_X86_64_GOTPCREL	=	9, // 	word32 	G + GOT + A - P
+    R_X86_64_GOTPCREL	=	9, // 	word32 	O + G + A - P
     R_X86_64_32			=	10, // 	word32 	S + A
     R_X86_64_32S		=	11, // 	word32 	S + A
     R_X86_64_16			=	12, // 	word16	S + A
     R_X86_64_PC16		=	13, // 	word16 	S + A - P
     R_X86_64_8			=	14, // 	word8 	S + A
     R_X86_64_PC8		=	15, // 	word8 	S + A - P
-    R_X86_64_DPTMOD64	=	16, // 	word64
-    R_X86_64_DTPOFF64	=	17, // 	word64
-    R_X86_64_TPOFF64	=	18, // 	word64
-    R_X86_64_TLSGD		=	19, // 	word32
-    R_X86_64_TLSLD		=	20, // 	word32
-    R_X86_64_DTPOFF32	=	21, // 	word32
-    R_X86_64_GOTTPOFF	=	22, // 	word32
-    R_X86_64_TPOFF32	=	23, // 	word32
+    R_X86_64_DPTMOD64	=	16, // 	word64  M[T]
+    R_X86_64_DTPOFF64	=	17, // 	word64  S - T
+    R_X86_64_TPOFF64	=	18, // 	word64  S - Q
+    R_X86_64_TLSGD		=	19, // 	word32  I(G[S - T])
+    R_X86_64_TLSLD		=	20, // 	word32  I(G[T])
+    R_X86_64_DTPOFF32	=	21, // 	word32  I(D)
+    R_X86_64_GOTTPOFF	=	22, // 	word32  I(G[S - Q])
+    R_X86_64_TPOFF32	=	23, // 	word32  S - Q
     R_X86_64_PC64		=	24, // 	word64 	S + A - P
-    R_X86_64_GOTOFF64	=	25, // 	word64 	S + A - GOT
-    R_X86_64_GOTPC32	=	26, // 	word32 	GOT + A - P
-    R_X86_64_GOT64 		= 	27, //  word64 	G + A
-    R_X86_64_GOTPCREL64 = 	28, //  word64 	G + GOT - P + A
-    R_X86_64_GOTPC64 	= 	29, //  word64 	GOT - P + A
-    R_X86_64_GOTPLT64 	=	30, //  word64 	G + A
-    R_X86_64_PLTOFF64 	= 	31  //  word64 	L - GOT + A
+    R_X86_64_GOTOFF64	=	25, // 	word64 	S + A - T
+    R_X86_64_GOTPC32	=	26, // 	word32 	G + A - P
+    R_X86_64_GOT64 		= 	27, //  word64 	O + A
+    R_X86_64_GOTPCREL64 = 	28, //  word64 	O + T - P + A
+    R_X86_64_GOTPC64 	= 	29, //  word64 	G - P + A
+    R_X86_64_GOTPLT64 	=	30, //  word64 	O + A
+    R_X86_64_PLTOFF64 	= 	31, //  word64 	L - T + A
+    R_X86_64_SIZE32     =   32, //  word32  Z + A
+    R_X86_64_SIZE64     =   33, //  word64  Z + A
 };
 constexpr unsigned phdr_flag_execute = 0x1U;
 constexpr unsigned phdr_flag_write = 0x2U;
@@ -203,6 +213,7 @@ enum elf_segment_prot : uint8_t
 #else
 typedef unsigned char elf_sym_bind;
 typedef unsigned char elf_sym_type;
+typedef unsigned int elf_rel_type;
 #ifndef __may_alias
 #define __may_alias
 #endif
@@ -261,16 +272,21 @@ typedef struct __elf64_sym
     uint64_t  st_value;                 /* Symbol value */
     uint64_t  st_size;                  /* Symbol size */
 } elf64_sym;
+typedef struct __elf64_rel_info
+{
+    elf_rel_type type;
+    uint32_t sym_index;
+} elf64_rel_info;
 typedef struct __elf64_rel
 {
-	uintptr_t   r_offset;
-	uint64_t    r_info;
+	uintptr_t           r_offset;
+	elf64_rel_info      r_info;
 } elf64_rel;
 typedef struct __elf64_rela
 {
-	uintptr_t   r_offset;
-	uint64_t    r_info;
-	int64_t	    r_addend;
+	uintptr_t       r_offset;
+	elf64_rel_info    r_info;
+	int64_t	        r_addend;
 } elf64_rela;
 typedef struct __elf64_dyn
 {
@@ -291,4 +307,54 @@ typedef struct __elf64_program_desc
     size_t tls_size;
     void* entry;
 } elf64_program_descriptor;
+#ifdef __cplusplus
+#include "string"
+constexpr bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
+constexpr bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
+constexpr bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
+constexpr bool is_dynamic(elf64_phdr const& seg) { return seg.p_type == PT_DYNAMIC; }
+struct elf64_string_table
+{
+    size_t total_size;
+    addr_t data;
+    constexpr const char* operator[](size_t n) const { return data.plus(n); }
+};
+struct elf64_sym_table
+{
+    size_t total_size;
+    size_t entry_size;
+    addr_t data;
+    constexpr elf64_sym const* operator+(size_t n) const { return data.plus(entry_size * n); }
+    constexpr elf64_sym const& operator[](size_t n) const { return *operator+(n); }
+};
+struct program_segment_descriptor
+{
+    addr_t absolute_addr;       // The global address of the segment's start. If the segment is not loaded (e.g. not a loadable segment) this will be zero.
+    off_t obj_offset;           // The p_vaddr value from the segment's program header in the object file containing the segment's data.
+    size_t size;                // The p_memsz from the segment's program header in the object file containing the segment's data.
+    elf_segment_prot perms;     // The permission values as determined from the program header's flags (the three lowest bits only)
+};
+struct elf64_gnu_htbl
+{
+    struct hdr
+    {
+        uint32_t nbucket;
+        uint32_t symndx;
+        uint32_t maskwords;
+        uint32_t shift2;
+    } header;
+    uint64_t* bloom_filter_words;
+    uint32_t* buckets;
+    uint32_t* hash_value_array;
+};
+struct elf64_dynsym_index
+{
+    elf64_string_table& strtab;
+    elf64_sym_table& symtab;
+    elf64_gnu_htbl htbl;
+    void destroy_if_present();
+    elf64_sym const* operator[](std::string const& str) const;
+    constexpr operator bool() const noexcept { return htbl.bloom_filter_words && htbl.buckets && htbl.hash_value_array; }
+};
+#endif
 #endif

@@ -239,7 +239,7 @@ namespace std
         inline std::string __fptocs_conv(float f, int digits)
         {
             int dp = 0, sign = 0;
-            char *rve = NULL, *result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
+            char *rve = nullptr, *result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
             std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
@@ -249,7 +249,7 @@ namespace std
         inline std::string __fptocs_conv(double d, int digits)
         {
             int dp = 0, sign = 0;
-            char *rve = NULL, *result = __dtoa(d, 0, digits, &dp, &sign, &rve);
+            char *rve = nullptr, *result = __dtoa(d, 0, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
             std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
@@ -259,7 +259,7 @@ namespace std
         inline std::string __fptocs_conv(long double ld, int digits)
         {
             int dp = 0, sign = 0;
-            char *rve = NULL, *result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
+            char *rve = nullptr, *result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
             std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
@@ -269,7 +269,7 @@ namespace std
         inline std::string __fptohs_conv(float f, int digits)
         {
             int dp = 0, sign = 0;
-            char *rve = NULL, *result = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            char *rve = nullptr, *result = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
             std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
@@ -279,7 +279,7 @@ namespace std
         inline std::string __fptohs_conv(double d, int digits)
         {
             int dp = 0, sign = 0;
-            char *rve = NULL, *result = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            char *rve = nullptr, *result = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
             std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
@@ -289,7 +289,7 @@ namespace std
         inline std::string __fptohs_conv(long double ld, int digits)
         {
             int dp = 0, sign = 0;
-            char *rve = NULL, *result = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            char *rve = nullptr, *result = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
             std::string str{ result, rve };
             if(sign) str.insert(str.cbegin(), '-');
@@ -444,9 +444,9 @@ extern "C"
     int isxdigit(int c)    { return std::__impl::__isxdigit(static_cast<char>(c)) ? 1 : 0; }
     int tolower(int c)     { return static_cast<int>(std::__impl::__tolower(static_cast<char>(c))); }
     int toupper(int c)     { return static_cast<int>(std::__impl::__toupper(static_cast<char>(c))); }
-    int atoi(const char *str) { char* tmp = NULL; return std::__impl::ston<int>(str, tmp); }
-    double atof(const char *str) { char* tmp = NULL; return strtod(str, &tmp); }
-    long atol(const char *str) { char* tmp = NULL; return std::__impl::ston<long>(str, tmp); }
+    int atoi(const char *str) { char* tmp = nullptr; return std::__impl::ston<int>(str, tmp); }
+    double atof(const char *str) { char* tmp = nullptr; return strtod(str, std::addressof(tmp)); }
+    long atol(const char *str) { char* tmp = nullptr; return std::__impl::ston<long>(str, tmp); }
     long strtol(const char *str, char **endptr, int base) { return std::__impl::ston<long>(str, *endptr, base); }
     long long strtoll(const char *str, char **endptr, int base) { return std::__impl::ston<long long>(str, *endptr, base); }
     unsigned long strtoul(const char *str, char **endptr, int base) { return std::__impl::ston<unsigned long>(str, *endptr, base); }
@@ -473,24 +473,24 @@ extern "C"
         if(!out) return -1;
         std::strncpy(*out, s.c_str(), s.size());
         (*out)[s.size()] = 0;
-        return int(s.size());
+        return static_cast<int>(s.size());
     }
     int __cfcvt(char* buffer, size_t len, float f)
     {
         std::string s = std::ext::fcvt(f, len - 2); // one for the decimal point or exponent "e", one for the sign
         std::strncpy(buffer, s.c_str(), s.size());
-        return int(s.size());
+        return static_cast<int>(s.size());
     }
     int __cdcvt(char* buffer, size_t len, double d)
     {
         std::string s = std::ext::fcvtd(d, len - 2);
         std::strncpy(buffer, s.c_str(), s.size());
-        return int(s.size());
+        return static_cast<int>(s.size());
     }
     int __cldcvt(char* buffer, size_t len, long double ld)
     {
         std::string s = std::ext::fcvtl(ld, len - 2);
         std::strncpy(buffer, s.c_str(), s.size());
-        return int(s.size());
+        return static_cast<int>(s.size());
     }
 }

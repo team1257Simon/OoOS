@@ -22,11 +22,11 @@ size_t extfs::sectors_per_block() { return (1024UL / physical_block_size) << sb-
 uint64_t extfs::block_to_lba(uint64_t block) { return static_cast<uint64_t>(superblock_lba - sb_off) + sectors_per_block() * static_cast<uint64_t>(block); }
 directory_node *extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
-bool extfs::read_hd(void* dest, uint64_t lba_src, size_t sectors) { return ahci_hda::is_initialized() && ahci_hda::read(static_cast<char*>(dest), lba_src, sectors); }
-bool extfs::write_hd(uint64_t lba_dest, const void* src, size_t sectors) { return ahci_hda::is_initialized() && ahci_hda::write(lba_dest, static_cast<char const*>(src), sectors); }
-bool extfs::read_unbuffered(disk_block& bl) { if(bl.data_buffer && bl.block_number) return ahci_hda::read_direct(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::read_hd(void* dest, uint64_t lba_src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::read(static_cast<char*>(dest), lba_src, sectors); }
+bool extfs::write_hd(uint64_t lba_dest, const void* src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::write(lba_dest, static_cast<char const*>(src), sectors); }
+bool extfs::read_unbuffered(disk_block& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::read_direct(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
 bool extfs::read_from_disk(disk_block& bl) { if(bl.data_buffer && bl.block_number) return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
-bool extfs::write_unbuffered(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return ahci_hda::write_direct(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::write_unbuffered(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::write_direct(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 bool extfs::write_to_disk(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }

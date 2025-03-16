@@ -7,7 +7,7 @@ namespace std
     extension namespace ext
     {
         template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>, std::allocator_object<CT> AT = std::allocator<CT>>
-        class dynamic_streambuf : public std::basic_streambuf<CT, TT>, protected std::__impl::__dynamic_buffer<CT, AT>
+        class dynamic_streambuf : public virtual std::basic_streambuf<CT, TT>, protected std::__impl::__dynamic_buffer<CT, AT>
         {
             using __dynamic_base = typename std::__impl::__dynamic_buffer<CT, AT>;
         public:
@@ -19,7 +19,7 @@ namespace std
         protected:
             using typename std::basic_streambuf<CT, TT>::__sb_type;
             using typename std::basic_streambuf<CT, TT>::__ptr_container;
-             bool is_dirty { false };
+            bool is_dirty { false };
             virtual std::basic_string<CT, TT, AT> __str() const& { return std::basic_string<CT, TT, AT>{ this->__beg(), this->__max() }; }
             virtual std::basic_string<CT, TT, AT> __str() && { size_t s = this->__capacity(); std::basic_string<CT, TT, AT> result{ this->__beg(), this->__max() }; this->__clear(); this->__allocate_storage(s); this->on_modify(); return result; }
             virtual void __str(std::basic_string<CT, TT, AT> const& that) { this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->__beg(), that.data(), that.size()); this->__advance(that.size()); this->on_modify(); }
@@ -32,7 +32,7 @@ namespace std
             virtual std::streamsize on_overflow(std::streamsize n) { if(this->__grow_buffer(n)) return n; return 0; }
             /**
              * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.
-             * Inheritors can override to add functionality that needs to be invoked whenever these pointers move. The default implementation does nothing.
+             * Inheritors can override to add functionality that needs to be invoked whenever these pointers move.
              */
             virtual void on_modify() { if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); is_dirty = true; } }
             virtual int sync() override { if(this->__beg()) this->__fullsetp(this->__beg(), this->__cur(), this->__max()); if(is_dirty) { int result = write_dev(); is_dirty = (result >= 0); return result; } return 0; }
@@ -42,7 +42,7 @@ namespace std
             virtual int_type pbackfail(int_type c = traits_type::eof()) override { if(!traits_type::eq_int_type(c, traits_type::eof())) { this->gbump(-1); *this->gptr() = traits_type::to_char_type(c); this->on_modify(); return c; } return traits_type::eof(); }
             virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
             virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
-            virtual std::streamsize xsgetn(char_type *s, std::streamsize n) override;
+            virtual std::streamsize xsgetn(char_type* s, std::streamsize n) override;
             virtual std::streamsize xsputn(char_type const* s, std::streamsize n) override;
         public:
             dynamic_streambuf(AT const& alloc = AT{}) : __sb_type{}, __dynamic_base{ alloc } {};

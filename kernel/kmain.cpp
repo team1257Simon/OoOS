@@ -21,7 +21,7 @@
 #include "map"
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
-static serial_driver_amd64* com;
+static com_amd64* com;
 static sysinfo_t* sysinfo;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
@@ -319,7 +319,7 @@ void run_tests()
     startup_tty.print_line("serial test...");
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
     startup_tty.print_line("ahci test...");
-    if(ahci_hda::is_initialized()) descr_pt(ahci_hda::get_partition_table());
+    if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_partition_table());
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();   
@@ -375,16 +375,16 @@ extern "C"
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
         if(sysinfo->xsdt) fadt = find_fadt(sysinfo->xsdt);
-        if(fadt) rtc_driver::init_instance(fadt->century_register);
-        else rtc_driver::init_instance();
+        if(fadt) rtc::init_instance(fadt->century_register);
+        else rtc::init_instance();
         // The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
         new (&startup_tty) direct_text_render{ si, __startup_font, 0x00FFFFFF, 0 };
         startup_tty.cls();
         // The base keyboard driver object abstracts out low-level initialization code that could theoretically change for different implementations of keyboards.
-        keyboard_driver_base* kb = get_kb_driver();
+        keyboard_driver* kb = get_kb_driver();
         kb->initialize();
         kb->add_listener([&](kb_data d) -> void { if(!(d.event_code & KEY_UP)) dbg_hold = false; });
-        if(serial_driver_amd64::init_instance()) com = serial_driver_amd64::get_instance();
+        if(com_amd64::init_instance()) com = com_amd64::get_instance();
         nmi_enable();
         sti();
         // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running
@@ -394,7 +394,7 @@ extern "C"
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         fx_enable = true;
         scheduler::init_instance();
-        startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci_driver::init_instance(pci_device_list::get_instance()) ? (ahci_hda::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
+        startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
         direct_print_enable = true;
         try
         {

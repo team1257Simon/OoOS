@@ -60,8 +60,8 @@ namespace std
     {
         __node_base* &root = trunk.__my_parent;
         x->__my_parent = p;
-        x->__my_left = NULL;
-        x->__my_right = NULL;
+        x->__my_left = nullptr;
+        x->__my_right = nullptr;
         x->__my_color = RED;
         if(dir == LEFT)
         {
@@ -115,8 +115,8 @@ namespace std
         __node_base* &leftmost = trunk.__my_left;
         __node_base* &rightmost = trunk.__my_right;
         __node_base* y = z;
-        __node_base* x = NULL;
-        __node_base* x_parent = NULL;
+        __node_base* x = nullptr;
+        __node_base* x_parent = nullptr;
         if(!y->__my_left) x = y->__my_right;
         else if(!y->__my_right) x = y->__my_left;
         else { y = __node_base::__min(y->__my_right); x = y->__my_right; }

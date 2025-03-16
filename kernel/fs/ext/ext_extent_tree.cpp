@@ -119,7 +119,7 @@ size_t cached_extent_node::nl_recurse_legacy(ext_node_extent_tree* parent, uint6
         if(!blk_ptrs[i]) return 0; // if we hit an empty pointer we're done
         disk_block* blk = depth == 1 ? tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block, std::move(disk_block{ blk_ptrs[i], nullptr, false, 1U })).base() : std::addressof(tracked_node->cached_metadata.emplace_back(blk_ptrs[i], tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
         if(blk->data_buffer && !tracked_node->parent_fs->read_from_disk(*blk)) { throw std::runtime_error{ "failed to read disk block" }; }
-        cached_extent_node* base = std::addressof(parent->tracked_extents.emplace_back(blk, tracked_node, uint16_t(depth - 1)));
+        cached_extent_node* base = std::addressof(parent->tracked_extents.emplace_back(blk, tracked_node, static_cast<uint16_t>(depth - 1)));
         auto exnode = next_level_extents.insert_or_assign(cur_file_block, parent->cached_node_pos(base)).first;
         cur_file_block = base->nl_recurse_legacy(parent, exnode->first);
         if(!cur_file_block) return 0;
@@ -169,7 +169,7 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
         if(!tracked_node->on_disk_node->block_info.legacy_extent.direct_blocks[i])
         {
             tracked_node->on_disk_node->block_info.legacy_extent.direct_blocks[i] = static_cast<uint32_t>(blk->block_number);
-            tracked_extents.emplace_back(blk, tracked_node, uint16_t(0));
+            tracked_extents.emplace_back(blk, tracked_node, static_cast<uint16_t>(0));
             total_extent++;
             return tracked_node->parent_fs->persist_inode(tracked_node->inode_number);
         }
@@ -180,7 +180,7 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
         disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(this);
         if(nl_blk) 
         { 
-            cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, uint16_t(1)));
+            cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, static_cast<uint16_t>(1)));
             base_extent_level.insert_or_assign(total_extent, cached_node_pos(base));
             return base->push_extent_recurse_legacy(this, blk);
         }
@@ -219,7 +219,7 @@ bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
         {
             uint16_t idx = tracked_node->on_disk_node->block_info.ext4_extent.header.entries++;
             populate_leaf(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[idx].leaf, blk, total_extent);
-            base_extent_level.insert_or_assign(total_extent, cached_node_pos(tracked_extents.emplace_back(blk, tracked_node, uint16_t(0))));
+            base_extent_level.insert_or_assign(total_extent, cached_node_pos(tracked_extents.emplace_back(blk, tracked_node, static_cast<uint16_t>(0))));
             total_extent += blk->chain_len;
             return true;
         }
@@ -289,7 +289,7 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent
             if(!bptrs[i]) 
             { 
                 bptrs[i] = static_cast<uint32_t>(blk->block_number); 
-                next_level_extents.insert_or_assign(parent->total_extent++, parent->cached_node_pos(parent->tracked_extents.emplace_back(blk, tracked_node, uint16_t(0)))); 
+                next_level_extents.insert_or_assign(parent->total_extent++, parent->cached_node_pos(parent->tracked_extents.emplace_back(blk, tracked_node, static_cast<uint16_t>(0)))); 
                 my_blk->dirty = true;
                 return true;
             }

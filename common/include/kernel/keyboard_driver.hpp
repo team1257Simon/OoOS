@@ -30,7 +30,7 @@ struct kb_data
     char        k_char;
 } __pack;
 typedef std::function<void(kb_data)> kb_listener;
-class keyboard_driver_base
+class keyboard_driver
 {
     std::vector<kb_listener> __listeners{};
     kb_state __current_state{};
@@ -44,5 +44,5 @@ public:
     virtual void clear_listeners() final;
     virtual void initialize() final;
 };
-keyboard_driver_base* get_kb_driver();
+keyboard_driver* get_kb_driver();
 #endif

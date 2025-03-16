@@ -43,7 +43,7 @@ task_ctx::task_ctx(task_ctx const& that) :
         static_cast<ptrdiff_t>(that.stack_allocated_size), 
         that.tls, 
         that.tls_size, 
-        std::addressof(frame_manager::get().duplicate_frame(*(static_cast<uframe_tag*>(that.task_struct.frame_ptr)))), 
+        std::addressof(frame_manager::get().duplicate_frame(that.task_struct.frame_ptr.ref<uframe_tag>())),
         task_list::get().__mk_pid(),
         static_cast<int64_t>(that.get_pid()), 
         that.task_struct.task_ctl.prio_base, 
@@ -93,7 +93,7 @@ void task_ctx::set_exit(int n)
         while(c->get_parent_pid() > 0 && task_list::get().contains(static_cast<uint64_t>(c->get_parent_pid())))
         {
             p = std::addressof(*task_list::get().find(static_cast<uint64_t>(c->get_parent_pid())));
-            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && scheduler::get().interrupt_wait(p->task_struct.self) && p->notif_target) *p->notif_target.as<int>() = n;
+            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && scheduler::get().interrupt_wait(p->task_struct.self) && p->notif_target) p->notif_target.ref<int>() = n;
             p->last_notified = this;
             c = p;
         }
@@ -107,7 +107,7 @@ void task_ctx::terminate()
     current_state = execution_state::TERMINATED;
     scheduler::get().unregister_task(task_struct.self);
     for(task_ctx* c : child_tasks) { if(c->current_state == execution_state::RUNNING) { if(exit_code) { c->exit_code = exit_code; c->terminate(); } } }
-    if(is_user()) frame_manager::get().destroy_frame(*task_struct.frame_ptr.as<uframe_tag>());
+    if(is_user()) frame_manager::get().destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
 }
 tms task_ctx::get_times() const noexcept
 {

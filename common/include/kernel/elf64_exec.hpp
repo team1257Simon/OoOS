@@ -15,6 +15,7 @@ class elf64_executable : public elf64_object
     uframe_tag* __process_frame_tag{ nullptr };
     elf64_program_descriptor __descr{};
 protected:    
+    virtual bool load_segments() override;
     virtual bool xload() override;
     virtual bool xvalidate() override;
 public:

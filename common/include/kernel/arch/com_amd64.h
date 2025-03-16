@@ -154,7 +154,7 @@ typedef struct __line_status_reg
 #ifdef __cplusplus
 #include "ext/dynamic_streambuf.hpp"
 #include "bits/dynamic_queue.hpp"
-class serial_driver_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual std::__impl::__dynamic_queue<char, std::allocator<char>>
+class com_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual std::__impl::__dynamic_queue<char, std::allocator<char>>
 {
     using __base = std::ext::dynamic_streambuf<char>;
     using __queue = typename std::__impl::__dynamic_queue<char, std::allocator<char>>;
@@ -175,13 +175,13 @@ protected:
     __isrcall virtual void on_modify_queue() override;
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
-    static serial_driver_amd64 __inst;
-    serial_driver_amd64(size_t init_size);
+    static com_amd64 __inst;
+    com_amd64(size_t init_size);
 public:
     static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12ui16);
-    static serial_driver_amd64* get_instance();
-    serial_driver_amd64(serial_driver_amd64 const&) = delete;
-    serial_driver_amd64& operator=(serial_driver_amd64 const&) = delete;
+    static com_amd64* get_instance();
+    com_amd64(com_amd64 const&) = delete;
+    com_amd64& operator=(com_amd64 const&) = delete;
     void set_echo(bool mode) noexcept;
 };
 #endif
