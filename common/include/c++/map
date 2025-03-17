@@ -60,7 +60,7 @@ namespace std
         constexpr map(std::initializer_list<value_type> ilist) : __base{ ilist.begin(), ilist.end() } {}
         constexpr void clear() { this->__clear(); }
         template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { __res_t res = this->__emplace_unique(std::forward<Args>(args)...); return pair{ iterator{ res.first }, res.second }; }
-        template<typename ... Args> requires constructible_from<value_type, Args...> iterator emplace_hint(const_iterator hint, Args&& ... args) { return iterator{ this->__hint_emplace_unique(hint.__my_node, std::forward<Args>(args)...) }; }
+        template<typename ... Args> requires constructible_from<value_type, Args...> iterator emplace_hint(const_iterator hint, Args&& ... args) { return iterator{ this->__hint_emplace_unique(hint.get_node(), std::forward<Args>(args)...) }; }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr bool contains(U const& u) const noexcept { return this->__contains(u); }
@@ -68,14 +68,14 @@ namespace std
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) iterator upper_bound(U const& u) { return iterator{ this->__upper_bound(this->__get_root(), this->__end(), u) }; }
         pair<iterator, bool> insert(value_type && vt) { __res_t res = this->__insert_unique(std::forward<value_type>(vt)); return pair{ iterator{ res.first }, res.second }; }
         pair<iterator, bool> insert(value_type const& vt) { __res_t res = this->__insert_unique(vt); return pair{ iterator{ res.first }, res.second }; }
-        iterator insert(const_iterator pos, value_type const& value) { return iterator{ this->__hint_insert_unique(pos.__my_node, value) }; }
-        iterator insert(const_iterator pos, value_type && value) { return iterator{ this->__hint_insert_unique(pos.__my_node, forward<value_type>(value)) }; }
+        iterator insert(const_iterator pos, value_type const& value) { return iterator{ this->__hint_insert_unique(pos.get_node(), value) }; }
+        iterator insert(const_iterator pos, value_type && value) { return iterator{ this->__hint_insert_unique(pos.get_node(), forward<value_type>(value)) }; }
         template<std::matching_input_iterator<value_type> IT> void insert(IT first, IT last) { this->__insert_range_unique(first, last); }
         void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
-        iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.__my_node) }; }
-        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__node_base*>(pos.__my_node)) }; }
-        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.__my_node, end.__my_node) }; }
+        iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.get_node()) }; }
+        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__node_base*>(pos.get_node())) }; }
+        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.get_node(), end.get_node()) }; }
         iterator max() noexcept { __link_t r = this->__l_rightmost(); if(r) return iterator(r); return end(); }
         const_iterator max() const noexcept { __clink_t r = this->__l_rightmost(); if(r) return const_iterator(r); return cend(); }
         constexpr void swap(map& that) noexcept { this->__swap(that); }

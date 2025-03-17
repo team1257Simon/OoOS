@@ -140,7 +140,7 @@ static addr_t __copy_kernel_page_mapping(addr_t start, size_t pages, paging_tabl
     for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
     {
         if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
-        __builtin_memcpy(std::addressof(upt[curr.page_idx]), std::addressof(pt[curr.page_idx]), sizeof(pt_entry)); // should be optimized out
+        __builtin_memcpy(std::addressof(upt[curr.page_idx]), std::addressof(pt[curr.page_idx]), sizeof(pt_entry));
         upt[curr.page_idx].write = false;
         upt[curr.page_idx].user_access = true;
     }

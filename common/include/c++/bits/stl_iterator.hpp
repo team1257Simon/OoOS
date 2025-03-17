@@ -20,8 +20,7 @@ namespace std
 		typedef RT  reference;
 	};
 	template<typename IT> struct iterator_traits;
-	template<typename IT, typename = __void_t<>> struct __iterator_traits {};
-	template<typename IT> struct iterator_traits : public __iterator_traits<IT> {};
+	template<typename IT> struct iterator_traits : public __iterator_traits<IT, __void_t<IT>> {};
 	template<typename T>
 	requires is_object_v<T>
 	struct iterator_traits<T*>

@@ -268,8 +268,8 @@ namespace std
     }
     namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); }
 #pragma region nonstandard useful concepts
-    template<typename IT, typename T2> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, T2>;
-    template<typename IT, typename T2> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, T2>;
+    extension template<typename IT, typename T2> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, T2>;
+    extension template<typename IT, typename T2> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, T2>;
 #pragma endregion
 }
 #endif

@@ -5,7 +5,6 @@
 #endif
 #include "stddef.h"
 #include "bits/ptr_traits.hpp"
-#include "type_traits"
 #include "new"
 namespace std
 {

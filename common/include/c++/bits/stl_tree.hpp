@@ -144,7 +144,7 @@ namespace std
     public:
         constexpr __node() : __my_data{} {}
         constexpr T* __get_ptr() { return __my_data.__get_ptr(); }
-        constexpr const T* __get_ptr() const { return __my_data.__get_ptr(); }
+        constexpr T const* __get_ptr() const { return __my_data.__get_ptr(); }
         constexpr T& __get_ref() { return *__get_ptr(); }
         constexpr T const& __get_ref() const { return *__get_ptr(); }
     };
@@ -152,53 +152,55 @@ namespace std
     struct __tree_iterator
     {
         typedef T value_type;
-        typedef T& reference;
-        typedef T* pointer;
+        typedef add_lvalue_reference_t<T> reference;
+        typedef add_pointer_t<T> pointer;
         typedef ptrdiff_t difference_type;
-        typedef __tree_iterator<T> __it_t;
-        typedef __node_base::__ptr __bp_t;
-        typedef __node<T>* __lp_t;
-        __bp_t __my_node;
+    private:
+        typedef __tree_iterator<T> __iterator_type;
+        typedef __node_base::__ptr __base_ptr;
+        typedef __node<T>* __node_ptr;
+        __base_ptr __my_node;
+    public:
         constexpr __tree_iterator() noexcept : __my_node{} {}
-        constexpr explicit __tree_iterator(__bp_t x) noexcept : __my_node{ x } {}
-        constexpr reference operator*() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ref(); }
-        constexpr pointer operator->() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
-        constexpr pointer base() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
-        constexpr __it_t& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
-        constexpr __it_t operator++(int) noexcept { __it_t tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
-        constexpr __it_t& operator--() noexcept { __my_node = __decrement_node(__my_node); return *this; }
-        constexpr __it_t operator--(int) noexcept { __it_t tmp = *this; __my_node = __decrement_node(__my_node); return tmp; }
+        constexpr explicit __tree_iterator(__base_ptr x) noexcept : __my_node{ x } {}
+        extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
+        constexpr pointer base() const noexcept { return get_node()->__get_ptr(); }
+        constexpr pointer operator->() const noexcept { return base(); }
+        constexpr reference operator*() const noexcept { return *base(); }
+        constexpr __iterator_type& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
+        constexpr __iterator_type operator++(int) noexcept { __iterator_type tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
+        constexpr __iterator_type& operator--() noexcept { __my_node = __decrement_node(__my_node); return *this; }
+        constexpr __iterator_type operator--(int) noexcept { __iterator_type tmp = *this; __my_node = __decrement_node(__my_node); return tmp; }
         friend constexpr bool operator==(__tree_iterator<T> const& x, __tree_iterator<T> const& y) { return x.__my_node == y.__my_node; }
-        friend constexpr bool operator!=(__tree_iterator<T> const& x, __tree_iterator<T> const& y) { return x.__my_node != y.__my_node; }
-        constexpr operator bool() const { return __my_node != NULL; }
-        constexpr bool operator!() const { return __my_node == NULL; }
+        constexpr operator bool() const { return __my_node != nullptr; }
     };
     template<typename T>
     struct __tree_const_iterator
     {
         typedef T value_type;
-        typedef T const& reference;
-        typedef T const* pointer;
+        typedef add_lvalue_reference_t<add_const_t<T>> reference;
+        typedef add_pointer_t<add_const_t<T>> pointer;
         typedef ptrdiff_t difference_type;
-        typedef __tree_iterator<T> __it_t;
-        typedef __tree_const_iterator<T> __ci_t;
-        typedef __node_base::__const_ptr __bp_t;
-        typedef __node<T> const* __lp_t;
-        __bp_t __my_node;
+    private:
+        typedef __tree_iterator<T> __iterator_type;
+        typedef __tree_const_iterator<T> __const_iterator_type;
+        typedef __node_base::__const_ptr __base_ptr;
+        typedef __node<T> const* __node_ptr;
+        __base_ptr __my_node;
+    public:
         constexpr __tree_const_iterator() noexcept : __my_node{} {}
-        constexpr explicit __tree_const_iterator(__bp_t x) noexcept : __my_node{ x } {}
-        constexpr __tree_const_iterator(__it_t const& i) noexcept : __my_node{ i.__my_node } {}
-        constexpr reference operator*() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ref(); }
-        constexpr pointer operator->() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
-        constexpr pointer base() const noexcept { return static_cast<__lp_t>(__my_node)->__get_ptr(); }
-        constexpr __ci_t& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
-        constexpr __ci_t operator++(int) noexcept { __ci_t tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
-        constexpr __ci_t& operator--() noexcept { __my_node = __decrement_node(__my_node); return *this; }
-        constexpr __ci_t operator--(int) noexcept { __ci_t tmp = *this; __my_node = __decrement_node(__my_node); return tmp; }
+        constexpr explicit __tree_const_iterator(__base_ptr x) noexcept : __my_node{ x } {}
+        constexpr __tree_const_iterator(__iterator_type const& i) noexcept : __my_node{ i.get_node() } {}
+        extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
+        constexpr pointer base() const noexcept { return get_node()->__get_ptr(); }
+        constexpr pointer operator->() const noexcept { return base(); }
+        constexpr reference operator*() const noexcept { return *base(); }
+        constexpr __const_iterator_type& operator++() noexcept { __my_node = __increment_node(__my_node); return *this; }
+        constexpr __const_iterator_type operator++(int) noexcept { __const_iterator_type tmp = *this; __my_node = __increment_node(__my_node); return tmp; }
+        constexpr __const_iterator_type& operator--() noexcept { __my_node = __decrement_node(__my_node); return *this; }
+        constexpr __const_iterator_type operator--(int) noexcept { __const_iterator_type tmp = *this; __my_node = __decrement_node(__my_node); return tmp; }
         friend constexpr bool operator==(__tree_const_iterator<T> const& x, __tree_const_iterator<T> const& y) noexcept { return x.__my_node == y.__my_node; }
-        friend constexpr bool operator!=(__tree_const_iterator<T> const& x, __tree_const_iterator<T> const& y) noexcept { return x.__my_node != y.__my_node; }
-        constexpr operator bool() const noexcept { return __my_node != NULL; }
-        constexpr bool operator!() const noexcept { return __my_node == NULL; }
+        constexpr operator bool() const noexcept { return __my_node != nullptr; }
     };
     [[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base* x, __node_base* p, __node_base& trunk) throw();
     [[gnu::nonnull]][[gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk) throw();
@@ -248,7 +250,7 @@ namespace std
         constexpr __const_link __l_begin() const noexcept { return static_cast<__const_link>(this->__trunk.__my_left); }
         constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(this->__trunk.__my_right); }
         constexpr __const_iterator __begin() const noexcept { return __const_iterator { __l_begin() }; }
-        template<typename ... Args> requires constructible_from<T, Args...> constexpr __link __construct_node(Args&& ... args) { __link l = __alloc.allocate(1); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
+        template<typename ... Args> requires constructible_from<T, Args...> constexpr __link __construct_node(Args&& ... args) { __link l = construct_at(__alloc.allocate(1UL)); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
         constexpr void __destroy_node(__b_ptr n) { if(n) { __alloc.deallocate(static_cast<__link>(n), 1); } }
         constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { bool left = (x || p == __end() || __compare_l(l->__get_ref(), p)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; } 
         template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U const& u) { return __insert_node(x, p, __construct_node(u)); }
@@ -295,8 +297,8 @@ namespace std
         while(x) { y = x; comp = __compare_l(u, x); x = comp ? __left_of(x) : __right_of(x); }
         __iterator j { y };
         if(comp) { if(j == __begin()) return __pos_pair{ x, y }; else --j; }
-        if(__compare_r(j.__my_node, u)) return __pos_pair{ x, y };
-        return __pos_pair{ static_cast<__link>(j.__my_node), nullptr };
+        if(__compare_r(j.get_node(), u)) return __pos_pair{ x, y };
+        return __pos_pair{ static_cast<__link>(j.get_node()), nullptr };
     }
     template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
     template<typename U>

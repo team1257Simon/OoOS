@@ -181,7 +181,9 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
     if(got_entry_ptrs) { for(size_t i = 0; i < (that.symtab.total_size / that.symtab.entry_size); i++) { if(that.got_entry_ptrs[i]) { this->got_entry_ptrs[i] = resegment_ptr(that.got_entry_ptrs[i], that.segments[that.got_seg_index], this->segments[this->got_seg_index]); } } }
-    for(elf64_relocation const& r : that.relocations) { this->relocations.emplace_back(r.symbol, r.rela_entry, std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2), std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1)); }
+    reloc_tar_resolve tres = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
+    reloc_sym_resolve sres = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
+    for(elf64_relocation const& r : that.relocations) { this->relocations.emplace_back(r.symbol, r.rela_entry, sres, tres); }
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object && that) : 
     elf64_object    { std::move(that) },
@@ -195,5 +197,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object && that) :
     that.symbol_index.htbl.bloom_filter_words = nullptr;
     that.symbol_index.htbl.buckets = nullptr;
     that.symbol_index.htbl.hash_value_array = nullptr;
-    for(elf64_relocation const& r : that.relocations) { this->relocations.emplace_back(r.symbol, r.rela_entry, std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2), std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1)); }
+    reloc_tar_resolve tres = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
+    reloc_sym_resolve sres = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
+    for(elf64_relocation const& r : that.relocations) { this->relocations.emplace_back(r.symbol, r.rela_entry, sres, tres); }
 }
