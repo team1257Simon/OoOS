@@ -48,7 +48,7 @@ $(LOG_DIR):
 $(SUBDIRS):
 	$(MAKE) -C $@
 clean:
-	rm -rf $(OUT_IMG) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
+	rm -rf $(OUT_IMG) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) $(IMAGE_FILE_DIR)/*.so || true
 	for dir in $(SUBDIRS); do \
 		cd $$dir;\
 		make clean ; \

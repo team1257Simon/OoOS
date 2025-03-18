@@ -36,14 +36,14 @@ struct block_tag
     uint64_t magic{ block_magic };
     size_t block_size;
     size_t held_size;
-    int32_t index;
+    int64_t index;
     block_tag* left_split{ nullptr };
     block_tag* right_split{ nullptr };
     block_tag* previous{ nullptr };
     block_tag* next{ nullptr };
     size_t align_bytes{ 0 };
     constexpr block_tag() = default;
-    constexpr block_tag(size_t size, size_t held, int32_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
+    constexpr block_tag(size_t size, size_t held, int64_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
         block_size      { size },
         held_size       { held },
         index           { idx },
@@ -53,7 +53,7 @@ struct block_tag
         next            { nxt },
         align_bytes     { align }
                         {}
-    constexpr block_tag(size_t size, size_t held, int32_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
+    constexpr block_tag(size_t size, size_t held, int64_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
     constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
     constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
     constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }

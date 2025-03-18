@@ -13,6 +13,7 @@
 #include "fs/ramfs.hpp"
 #include "fs/ext.hpp"
 #include "elf64_exec.hpp"
+#include "elf64_shared.hpp"
 #include "bits/icxxabi.h"
 #include "bits/dragon.hpp"
 #include "stdlib.h"
@@ -43,15 +44,17 @@ extern "C"
     extern unsigned char kernel_stack_base;
     extern unsigned char kernel_stack_top;
     extern unsigned char kernel_isr_stack_top;
+    extern bool debug_stop_flag;
     extern void test_fault();
     task_t kproc{};
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
-filesystem* create_task_vfs() { return &testramfs; /* TODO */ }
+filesystem* create_task_vfs() { return std::addressof(testramfs); /* TODO */ }
 void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory"); }
 void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "memory"); }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
+void xklog(std::string const& str) { klog(str.c_str()); }
 static int __xdigits(uintptr_t num) { return num ? div_roundup((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
@@ -178,11 +181,11 @@ void map_tests_hash()
 void str_tests()
 {
     srand(sys_time(nullptr));
-    startup_tty.print_line(std::to_string(42));
-    startup_tty.print_line(std::to_string(sysinfo));
-    startup_tty.print_line(std::to_string(3.14159265358L));
-    startup_tty.print_line(std::to_string(rand()));
-    startup_tty.print_line(std::string(10UL, 'e'));
+    startup_tty.print_text(std::to_string(42) + " ");
+    startup_tty.print_text(std::to_string(sysinfo) + " ");
+    startup_tty.print_text(std::to_string(3.14159265358L) + " ");
+    startup_tty.print_text(std::to_string(rand()) + " ");
+    startup_tty.print_text(std::string(10UL, 'e') + " ");
     std::string test_str{ "I/like/to/eat/apples/and/bananas" };
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
     startup_tty.endl();
@@ -226,7 +229,7 @@ void vfs_tests()
     catch(std::exception& e)
     {
         panic(e.what());
-        startup_tty.print_line("NOTE: made it to the catch block; the above error was intentional!");
+        klog("I: made it to the catch block; the above error was intentional!");
     }
 }
 int test_task_1(int argc, char** argv)
@@ -243,7 +246,6 @@ int test_task_2(int argc, char** argv)
 }
 void test_landing_pad()
 {
-    direct_writeln("Landed!");
     cli();
     task_ctx* ctx = get_gs_base<task_ctx>();
     long retv = ctx->exit_code;
@@ -267,11 +269,27 @@ void extfs_tests()
     try
     {
         test_extfs.initialize();
-        startup_tty.print_line("init complete");
         test_extfs.get_dir("files");
         file_node* fn = test_extfs.open_file("files/memes.txt");
         fn->write("derple blerple", 14);
         test_extfs.close_file(fn);
+        startup_tty.print_line("Wrote files/memes.txt");
+    }
+    catch(std::exception& e) { panic(e.what()); }
+}
+void dyn_elf_tests()
+{
+    if(test_extfs.has_init()) try
+    {
+        file_node* n = test_extfs.open_file("dyntest.so");
+        elf64_shared_object test_so(n);
+        test_extfs.close_file(n);
+        if(test_so.load())
+        {
+            startup_tty.print_line("Symbol printf: " + std::to_string(test_so.resolve("printf").as()));
+            startup_tty.print_line("Symbol fgets: " + std::to_string(test_so.resolve("fgets").as()));
+            startup_tty.print_line("Symbol malloc: " + std::to_string(test_so.resolve("malloc").as()));
+        }
     }
     catch(std::exception& e) { panic(e.what()); }
 }
@@ -280,7 +298,6 @@ void elf64_tests()
     if(test_extfs.has_init()) try
     {
         file_node* tst = test_extfs.open_file("test.elf");
-        startup_tty.print_line("test.elf size: " + std::to_string(tst->size()));
         elf64_executable test_exec(tst);
         test_extfs.close_file(tst);
         if(test_exec.load())
@@ -288,7 +305,7 @@ void elf64_tests()
             elf64_program_descriptor const* desc = std::addressof(test_exec.describe());
             startup_tty.print_line("Entry at " + std::to_string(desc->entry));
             startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
-            task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "TEST.ELF" });
+            task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "test.elf" });
             file_node* c = task->get_vfs_ptr()->lndev("com", com, 0);
             task->set_stdio_ptrs(c, c, c);
             task->start_task();
@@ -333,12 +350,13 @@ static const char* codes[] =
     "#SX [Security Exception]",
     "[RESERVED INTERRUPT 0x1F]"
 };
-constexpr auto test_dbg_callback = [] [[gnu::target("general-regs-only")]] (byte idx, qword ecode) -> void
+constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
 {
     if(idx < 0x20) 
     {
         startup_tty.print_text(codes[idx]);
         if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, __xdigits(ecode)); startup_tty.print_text(")"); }
+        if(svinst && !errinst) { errinst = addr_t(svinst); }
         if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
         if(idx == 0x0E) 
         {
@@ -347,10 +365,7 @@ constexpr auto test_dbg_callback = [] [[gnu::target("general-regs-only")]] (byte
             startup_tty.print_text("; page fault address = ");
             __dbg_num(fault_addr, __xdigits(fault_addr));
         }
-        addr_t target = errinst ? addr_t(errinst) : addr_t(svinst);
-        uint8_t* bytes = target;
-        bytes[0] = 0xEB;
-        bytes[1] = 0xFE;
+        debug_stop_flag = true;
     }
     else
     {
@@ -377,9 +392,15 @@ void run_tests()
     vfs_tests();   
     startup_tty.print_line("extfs tests...");
     extfs_tests();
-    if(test_extfs.has_init()) { startup_tty.print_line("elf64 tests..."); elf64_tests(); }
+    if(test_extfs.has_init()) 
+    { 
+        startup_tty.print_line("SO loader tests...");
+        dyn_elf_tests();
+        startup_tty.print_line("elf64 tests..."); 
+        elf64_tests(); 
+    }
     startup_tty.print_line("task tests...");
-    task_tests(); 
+    task_tests();
     startup_tty.print_line("complete");
 }
 extern "C"
@@ -394,7 +415,7 @@ extern "C"
     void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_roundup((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
     void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
     [[noreturn]] void abort() { if(com) { com->sputn("KERNEL ABORT\n", 13); com->pubsync(); } startup_tty.print_line("abort() called in kernel"); while(1); }
-    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("ERROR: "); startup_tty.print_line(msg); if(com) { com->sputn("[KPANIC] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
+    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("E: "); startup_tty.print_line(msg); if(com) { com->sputn("[KERNEL] E: ", 12); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     __isrcall void klog(const char* msg) noexcept { startup_tty.print_line(msg); if(com) { com->sputn("[KERNEL] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
@@ -439,7 +460,9 @@ extern "C"
         if(com_amd64::init_instance()) com = com_amd64::get_instance();
         nmi_enable();
         sti();
-        // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running
+        // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
+        // It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
+        // If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
         set_gs_base(&kproc);
         asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
         __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));

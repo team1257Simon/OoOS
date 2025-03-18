@@ -426,8 +426,8 @@ typedef struct __vaddr
     template<non_void T> using ctptr = const T*;
     template<non_void T> using vtptr = volatile T*;
     template<non_void T> using cvtptr = const volatile T*;
-    template<non_void T> constexpr T* as() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(full); }
-    template<non_void T> constexpr vtptr<T> as() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
+    template<typename T = void> constexpr T* as() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(full); }
+    template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
     template<non_void T> constexpr T& ref() const { return *as<T>(); }
     template<typename T, typename ... Args> using functor_t = T(*)(Args...);
     constexpr operator void*() const noexcept { return std::bit_cast<void*>(full); }

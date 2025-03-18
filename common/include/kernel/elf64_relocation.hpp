@@ -10,10 +10,8 @@ struct elf64_relocation
 {
     elf64_sym symbol{};
     elf64_rela rela_entry;
-    reloc_sym_resolve sym_resolve;
-    reloc_tar_resolve target_resolve;
-    elf64_relocation(elf64_sym const& sym, elf64_rela const& relaent, reloc_sym_resolve const& sres, reloc_tar_resolve const& tres);
-    elf64_relocation(elf64_rela const& relaent, reloc_sym_resolve const& sres, reloc_tar_resolve const& tres);
-    reloc_result operator()() const;
+    elf64_relocation(elf64_sym const& sym, elf64_rela const& relaent);
+    elf64_relocation(elf64_rela const& relaent);
+    reloc_result operator()(reloc_sym_resolve const& sym_resolve, reloc_tar_resolve const& target_resolve) const;
 };
 #endif

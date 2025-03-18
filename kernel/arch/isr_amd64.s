@@ -9,12 +9,14 @@
     .global     task_change_flag
     .global     kernel_isr_stack_top
     .global     kernel_isr_stack_base
-    .type       kernel_isr_stack_base,  @object
-    .type       kernel_isr_stack_top,   @object
-    .type       task_change_flag,       @object
+    .global     debug_stop_flag
     .type       ecode,                  @object
     .type       errinst,                @object
     .type       svinst,                 @object
+    .type       task_change_flag,       @object
+    .type       kernel_isr_stack_top,   @object
+    .type       kernel_isr_stack_base,  @object
+    .type       debug_stop_flag,        @object
     .align  4096
 kernel_isr_stack_base:
     .zero   16384
@@ -33,6 +35,9 @@ svinst:
 task_change_flag:
     .byte 0
     .size       task_change_flag,   .-task_change_flag
+debug_stop_flag:
+    .byte 0
+    .size       debug_stop_flag,    .-debug_stop_flag
     .section    .text
     # The one time exponential growth actually comes in handy...
     # Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
@@ -93,6 +98,8 @@ task_change_flag:
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
+            cmpb    $0,         debug_stop_flag
+            jnz     debug_stop
             cmpb    $0,         task_change_flag
             jz      1f
             movb    $0,         task_change_flag
@@ -115,6 +122,11 @@ test_fault:
     divq    %rcx
     ret
     .size   test_fault, .-test_fault
+    .type   debug_stop, @function
+debug_stop:
+    # stop here in case of a fault; register state will be mostly intact, and the faulting instruction's address will have been displayed
+1:  jmp 1b
+    .size   debug_stop, .-debug_stop
     .section    .data
     .global     isr_table
     .type       isr_table,      @object    

@@ -212,9 +212,9 @@ uintptr_t kernel_memory_mgr::__find_and_claim_available_region(size_t sz)
     uintptr_t addr = up_to_nearest(__physical_open_watermark, region_size);
     if(sz > S256)
     {
-        size_t num_regions = div_roundup(sz, S512);
+        size_t num_regions = div_roundup(sz, region_size);
         uintptr_t result = addr;
-        for(size_t n = num_regions; status_byte::gb_of(addr) < __num_status_bytes && n > 0; addr += S512) { if(__status(addr)[S512]) { n--; if(!n) { for(uintptr_t i = result; i < addr; i += S512) __status(i).set_used(ALL); return result; } }  else { n = num_regions; result = addr + S512; } }
+        for(size_t n = num_regions; status_byte::gb_of(addr) < __num_status_bytes && n > 0; addr += region_size) { if(__status(addr)[ALL]) { n--; if(!n) { for(uintptr_t i = result; i <= addr; i += S512) __status(i).set_used(ALL); return result; } } else { n = num_regions; result = addr + S512; } }
     }
     else 
     {
@@ -249,7 +249,7 @@ uintptr_t kernel_memory_mgr::__find_and_claim_available_region(size_t sz)
 void kernel_memory_mgr::__release_claimed_region(size_t sz, uintptr_t start)
 {
     block_size bs = nearest(sz);
-    if(sz > S256) { size_t n = div_roundup(sz, S512); for(size_t i = 0; i < n; i++, start += S512) { __status(start).set_free(ALL); } }
+    if(sz > S256) { uintptr_t addr = start; size_t n = div_roundup(sz, region_size); for(size_t i = 0; i < n; i++, addr += region_size) { __status(addr).set_free(ALL); } }
     else
     {
         switch(bs)
@@ -370,12 +370,11 @@ block_tag *kframe_tag::__create_tag(size_t size, size_t align)
     size_t actual_size = std::max(size + bt_offset, align) + align;
     addr_t allocated = kernel_memory_mgr::get().allocate_kernel_block(actual_size);
     if(!allocated) return nullptr;
-    return new (allocated) block_tag(region_size_for(actual_size), size, -1, add_align_size(allocated, align));
+    return new (allocated) block_tag(region_size_for(actual_size), size, -1L, add_align_size(allocated, align));
 }
 block_tag *kframe_tag::__melt_left(block_tag* tag) noexcept
 {
-    if(!tag->left_split) return tag;
-    block_tag* left{ tag->left_split };
+    block_tag* left = tag->left_split;
     left->block_size += tag->block_size;
     left->right_split = tag->right_split;
     if(tag->right_split) tag->right_split->left_split = left;
@@ -384,11 +383,11 @@ block_tag *kframe_tag::__melt_left(block_tag* tag) noexcept
 }
 block_tag *kframe_tag::__melt_right(block_tag* tag) noexcept
 {
-    block_tag* right{ tag->right_split };
+    block_tag* right = tag->right_split;
+    remove_block(right);
     tag->block_size += right->block_size;
     tag->right_split = right->right_split;
     if(right->right_split) right->right_split->left_split = tag;
-    remove_block(right);
     return tag;
 }
 void kframe_tag::remove_block(block_tag* blk)
@@ -398,13 +397,13 @@ void kframe_tag::remove_block(block_tag* blk)
     if(blk->next) blk->next->previous = blk->previous;
     blk->next = nullptr;
     blk->previous = nullptr;
-    blk->index = -1;
+    blk->index = -1L;
 }
 addr_t kframe_tag::allocate(size_t size, size_t align)
 {
     if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     __lock();
-    uint32_t idx = get_block_exp(size) - MIN_BLOCK_EXP;
+    int64_t idx = get_block_exp(size) - MIN_BLOCK_EXP;
     block_tag* tag = nullptr;
     for(tag = available_blocks[idx]; bool(tag); tag = tag->next)
     {
@@ -418,7 +417,6 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
         }
     }
     if(!tag) { if(!(tag = __create_tag(size, align))) { __unlock(); panic("allocation failed"); debug_print_num(size); direct_writeln("bytes were requested"); return nullptr; } idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP; }
-    tag->index = idx;
     if(tag->available_size() >= (1 << MIN_BLOCK_EXP) + bt_offset) insert_block(tag->split(), -1);
     __unlock();
     return tag->actual_start();
@@ -437,8 +435,9 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
             tag->align_bytes = 0;
             while(tag->left_split && (tag->left_split->index >= 0)) tag = __melt_left(tag);
             while(tag->right_split && (tag->right_split->index >= 0)) tag = __melt_right(tag);
-            unsigned int idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP;
-            if((!tag->left_split && !tag->right_split) && complete_pages[idx] >= MAX_COMPLETE_PAGES) { kernel_memory_mgr::get().deallocate_block(tag, tag->block_size); __unlock(); return; }
+            int64_t idx = get_block_exp(tag->allocated_size()) - MIN_BLOCK_EXP;
+            if(!tag->left_split && !tag->right_split && complete_pages[idx] >= MAX_COMPLETE_PAGES) { kernel_memory_mgr::get().deallocate_block(tag, tag->block_size, false); __unlock(); return; }
+            if(!tag->left_split && !tag->right_split) complete_pages[idx]++;
             insert_block(tag, idx);
         }
         else { direct_write("W: attempted to deallocate an invalid tag; check for memory corruption at or near address "); debug_print_num(ptr); direct_write("\n"); }

@@ -1,13 +1,21 @@
 #include "elf64_dynamic.hpp"
 #include "kernel_mm.hpp"
 #include "stdlib.h"
+#include "kdebug.hpp"
 static std::allocator<program_segment_descriptor> sd_alloc{};
 static std::allocator<uint32_t> w_alloc{};
 static std::allocator<uint64_t> q_alloc{};
 static std::allocator<addr_t> p_alloc{};
 static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
-elf64_dynamic_object::elf64_dynamic_object(file_node *n) : elf64_object{ n }, symbol_index{ symstrtab, symtab } {}
+elf64_dynamic_object::elf64_dynamic_object(file_node *n) : 
+    elf64_object    { n },
+    num_dyn_entries { 0UL },
+    dyn_entries     { nullptr },
+    got_entry_ptrs  { nullptr },
+    got_seg_index   { 0UL },
+    symbol_index    { symstrtab, symtab } 
+                    {}
 elf64_dynamic_object::~elf64_dynamic_object()
 {
     symbol_index.destroy_if_present();
@@ -23,10 +31,12 @@ bool elf64_dynamic_object::recognize_rela_type(elf64_rela const& r)
 }
 void elf64_dynamic_object::apply_relocations()
 {
+    reloc_sym_resolve reloc_symbol_fn = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
+    reloc_tar_resolve reloc_target_fn = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
     // Assuming everything works as planned, the relocation value will be calculated here for each relocation.
     for(elf64_relocation const& r : relocations)
     {
-        reloc_result result = r();
+        reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
         if(result.target && result.value) result.target.ref<uint64_t>() = result.value;
         else klog("W: invalid relocation");
     }
@@ -64,6 +74,7 @@ bool elf64_dynamic_object::xload()
 void elf64_dynamic_object::process_dynamic_relas()
 {
     size_t rela_offs = 0, rela_sz = 0;
+    size_t unrec_rela_ct = 0;
     for(size_t i = 0; i < num_dyn_entries; i++)
     {
         if(dyn_entries[i].d_tag == DT_RELA) rela_offs = dyn_entries[i].d_ptr;
@@ -74,15 +85,14 @@ void elf64_dynamic_object::process_dynamic_relas()
     {
         elf64_rela* rela = img_ptr(rela_offs);
         size_t n = rela_sz / sizeof(elf64_rela);
-        reloc_tar_resolve tres = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
-        reloc_sym_resolve sres = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
         for(size_t i = 0; i < n; i++)
         {
-            if(!recognize_rela_type(rela[i])) { klog("W: unrecognized rela type"); continue; }
-            if(rela[i].r_info.sym_index) { relocations.emplace_back(symtab[rela[i].r_info.sym_index], rela[i], sres, tres); }
-            else relocations.emplace_back(rela[i], sres, tres);
+            if(!recognize_rela_type(rela[i])) { unrec_rela_ct++; }
+            else if(rela[i].r_info.sym_index) { elf64_sym const* s = symtab + rela[i].r_info.sym_index; if(s) relocations.emplace_back(*s, rela[i]); }
+            else relocations.emplace_back(rela[i]);
         }
     }
+    if(unrec_rela_ct) { xklog("W: " + std::to_string(unrec_rela_ct) + " unrecognized relocation types"); }
 }
 bool elf64_dynamic_object::load_dynamic_syms()
 {
@@ -151,15 +161,13 @@ bool elf64_dynamic_object::process_got()
     if(!got_seg) { panic("got is in an invalid segment"); return false; }
     size_t n_entries = rela_sz / sizeof(elf64_rela);
     elf64_rela* rela_entries = img_ptr(rela_offs);
-    reloc_tar_resolve tres = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
-    reloc_sym_resolve sres = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
     for(size_t i = 0; i < n_entries; i++)
     { 
         if(rela_entries[i].r_info.type == R_X86_64_GLOB_DAT || rela_entries[i].r_info.type == R_X86_64_JUMP_SLOT)
         { 
             got_entry_ptrs[rela_entries[i].r_info.sym_index] = to_segment_ptr(rela_entries[i].r_offset, *got_seg);
             elf64_sym const* s = symtab + rela_entries[i].r_info.sym_index;
-            if(s) relocations.emplace_back(*s, rela_entries[i], sres, tres);
+            if(s) relocations.emplace_back(*s, rela_entries[i]);
         }
     }
     return true;
@@ -170,7 +178,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     dyn_entries     { dynseg_alloc.allocate(num_dyn_entries) },
     got_entry_ptrs  { that.got_entry_ptrs ? p_alloc.allocate(that.symtab.total_size / that.symtab.entry_size) : nullptr },
     got_seg_index   { that.got_seg_index },
-    relocations     { that.relocations.size() },
+    relocations     { that.relocations },
     symbol_index    { symstrtab, symtab, elf64_gnu_htbl{ .header{ that.symbol_index.htbl.header } } }
 {
     symbol_index.htbl.bloom_filter_words = q_alloc.allocate(symbol_index.htbl.header.maskwords);
@@ -181,9 +189,6 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
     if(got_entry_ptrs) { for(size_t i = 0; i < (that.symtab.total_size / that.symtab.entry_size); i++) { if(that.got_entry_ptrs[i]) { this->got_entry_ptrs[i] = resegment_ptr(that.got_entry_ptrs[i], that.segments[that.got_seg_index], this->segments[this->got_seg_index]); } } }
-    reloc_tar_resolve tres = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
-    reloc_sym_resolve sres = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
-    for(elf64_relocation const& r : that.relocations) { this->relocations.emplace_back(r.symbol, r.rela_entry, sres, tres); }
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object && that) : 
     elf64_object    { std::move(that) },
@@ -191,13 +196,10 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object && that) :
     dyn_entries     { that.dyn_entries },
     got_entry_ptrs  { that.got_entry_ptrs },
     got_seg_index   { that.got_seg_index },
-    relocations     { that.relocations.size() },
+    relocations     { std::move(that.relocations) },
     symbol_index    { symstrtab, symtab, elf64_gnu_htbl{ std::move(that.symbol_index.htbl) } }
 {
     that.symbol_index.htbl.bloom_filter_words = nullptr;
     that.symbol_index.htbl.buckets = nullptr;
     that.symbol_index.htbl.hash_value_array = nullptr;
-    reloc_tar_resolve tres = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
-    reloc_sym_resolve sres = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
-    for(elf64_relocation const& r : that.relocations) { this->relocations.emplace_back(r.symbol, r.rela_entry, sres, tres); }
 }
