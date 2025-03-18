@@ -87,26 +87,26 @@ namespace std
         constexpr static int_type not_eof(int_type e) noexcept { return e > 0 ? e : (e * -1); }
     };
     typedef char_traits<char>::pos_type streampos;
-    extension template<typename TT, typename CT> concept char_traits_type = std::char_type<CT> && requires(CT& c1, CT const& c2, CT* p1, CT* p2, size_t n)
+    extension template<typename TT, typename CT> concept char_traits_type = std::char_type<CT> && requires
     {
-        { typename TT::char_type{} } -> std::same_as<CT>;
-        { typename TT::int_type{} } -> std::integral;
-        { typename TT::off_type{} } -> std::signed_integral;
-        { TT::compare(p1, p2, n) } -> std::same_as<typename TT::int_type>;
-        { TT::assign(p1, c2, n) } -> std::same_as<CT*>;
-        { TT::move(p1, p2, n) } -> std::same_as<CT*>;
-        { TT::copy(p1, p2, n) } -> std::same_as<CT*>;
-        { TT::find(p1, c2, n) } -> std::same_as<const CT*>;
-        { TT::to_int_type(c2) } -> std::same_as<typename TT::int_type>;
-        { TT::to_char_type(0) } -> std::same_as<CT>;
-        { TT::eq_int_type(0, 0) } -> std::__detail::__boolean_testable;
-        { TT::find(p1, p2) } -> std::same_as<const CT*>; 
-        { TT::length(p1) } -> std::same_as<decltype(sizeof(CT))>;
-        { TT::lt(c1, c2) } -> std::__detail::__boolean_testable;
-        { TT::eq(c1, c2) } -> std::__detail::__boolean_testable;
-        { TT::not_eof(0) } -> std::integral;
+        { typename TT::char_type() } -> std::same_as<CT>;
+        { typename TT::int_type() } -> std::integral;
+        { typename TT::off_type() } -> std::signed_integral;
+        { TT::compare(declval<CT*>(), declval<CT*>(), declval<size_t>()) } -> std::same_as<typename TT::int_type>;
+        { TT::assign(declval<CT*>(), declval<CT>(), declval<size_t>()) } -> std::same_as<CT*>;
+        { TT::move(declval<CT*>(), declval<CT*>(), declval<size_t>()) } -> std::same_as<CT*>;
+        { TT::copy(declval<CT*>(), declval<CT*>(), declval<size_t>()) } -> std::same_as<CT*>;
+        { TT::find(declval<CT*>(), declval<CT>(), declval<size_t>()) } -> std::same_as<const CT*>;
+        { TT::to_int_type(declval<CT>()) } -> std::same_as<typename TT::int_type>;
+        { TT::to_char_type(declval<typename TT::int_type>()) } -> std::same_as<CT>;
+        { TT::eq_int_type(declval<typename TT::int_type>(), declval<typename TT::int_type>()) } -> std::__detail::__boolean_testable;
+        { TT::find(declval<CT*>(),declval<CT*>()) } -> std::same_as<const CT*>; 
+        { TT::length(declval<CT*>()) } -> std::same_as<decltype(sizeof(CT))>;
+        { TT::lt(declval<CT>(), declval<CT>()) } -> std::__detail::__boolean_testable;
+        { TT::eq(declval<CT>(), declval<CT>()) } -> std::__detail::__boolean_testable;
+        { TT::not_eof(declval<typename TT::int_type>()) } -> std::integral;
         { TT::eof() } -> std::signed_integral;
-        TT::assign(c1, c2);
+        TT::assign(declval<CT&>(), declval<CT>());
         typename TT::state_type;
         typename TT::pos_type;
     };

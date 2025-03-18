@@ -12,7 +12,7 @@
 #include "bits/aligned_buffer.hpp"
 namespace std
 {
-    template<typename CT, typename T, typename U = T> concept __valid_comparator = is_default_constructible_v<CT> && requires(CT c, T t, U u) { { c(t, u) } -> __detail::__boolean_testable; { c(u, t) } -> __detail::__boolean_testable; };
+    template<typename CT, typename T, typename U = T> concept __valid_comparator = is_default_constructible_v<CT> && requires { { declval<CT>()(declval<T>(), declval<U>()) } -> __detail::__boolean_testable; { declval<CT>()(declval<U>(), declval<T>()) } -> __detail::__boolean_testable; };
     // Couldn't not make the Les Mis reference
     enum node_color
     {

@@ -17,6 +17,7 @@
 #include "bits/dragon.hpp"
 #include "stdlib.h"
 #include "bits/stl_queue.hpp"
+#include "bits/hashtable.hpp"
 #include "algorithm"
 #include "map"
 extern psf2_t* __startup_font;
@@ -119,6 +120,61 @@ void map_tests()
     }
     startup_tty.endl();
 }
+void map_tests_hash()
+{
+    using map_type = std::hash_map<std::string, int, std::ext::dragon<std::string>>;
+    map_type m{};
+    m.insert(std::move(std::make_pair("meep", 21)));
+    m.insert_or_assign("bweep", 42);
+    m.insert(std::move(std::make_pair("gyeep", 63)));
+    m["dreep"] = 105;
+    m.emplace("fweep", 84);
+    startup_tty.print_text("initial map values: ");
+    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_text(std::to_string(i->second));
+        startup_tty.print_text("; ");
+    }
+    startup_tty.endl();
+    m.erase("gyeep");
+    startup_tty.print_text("map values after erase: ");
+    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_text(std::to_string(i->second));
+        startup_tty.print_text("; ");
+    }
+    startup_tty.endl();
+    m["dreep"] = 45;
+    m.insert_or_assign("fweep", 37);
+    startup_tty.print_text("map values after reassign: ");
+    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_text(std::to_string(i->second));
+        startup_tty.print_text("; ");
+    }
+    startup_tty.endl();
+    m.clear();
+    m.insert(std::move(std::make_pair("meep", 21)));
+    m["gyeep"] = 63;
+    m.insert_or_assign("bweep", 42);
+    m["fweep"] = 84;
+    m.insert_or_assign("dreep", 105);
+    startup_tty.print_text("map values after reset: ");
+    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    {
+        startup_tty.print_text(i->first);
+        startup_tty.print_text(": ");
+        startup_tty.print_text(std::to_string(i->second));
+        startup_tty.print_text("; ");
+    }
+    startup_tty.endl();
+}
 void str_tests()
 {
     srand(sys_time(nullptr));
@@ -212,12 +268,8 @@ void extfs_tests()
     {
         test_extfs.initialize();
         startup_tty.print_line("init complete");
-        directory_node* dn = test_extfs.get_dir("files");
-        startup_tty.print_text("dirnode addr: ");
-        startup_tty.print_line(std::to_string(dn));
+        test_extfs.get_dir("files");
         file_node* fn = test_extfs.open_file("files/memes.txt");
-        startup_tty.print_text("filenode addr: ");
-        startup_tty.print_line(std::to_string(fn));
         fn->write("derple blerple", 14);
         test_extfs.close_file(fn);
     }
@@ -314,7 +366,7 @@ void run_tests()
     startup_tty.print_line("string test...");
     str_tests();
     startup_tty.print_line("map test...");
-    map_tests();
+    map_tests_hash();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }

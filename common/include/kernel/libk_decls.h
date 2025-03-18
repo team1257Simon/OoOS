@@ -67,7 +67,7 @@ constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit =
 template<typename T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); array_zero(src, n); }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
-    if constexpr(std::is_default_constructible_v<T> && !std::integral<T>) for(std::size_t i = 0; i < n; i++, dest++) { std::construct_at(std::addressof(dest[i])); }
+    if constexpr(std::is_default_constructible_v<T> && !std::integral<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) == 8) array_fill<uint64_t>(dest, 0UL, n);
     else if constexpr(sizeof(T) == 4) array_fill<uint32_t>(dest, 0U, n);
     else if constexpr(sizeof(T) == 2) array_fill<uint16_t>(dest, 0U, n);
@@ -75,7 +75,7 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void ar
 }
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
 {
-    if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++, dest++) { std::construct_at(std::addressof(dest[i])); }
+    if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) % 8 == 0) array_fill<uint64_t>(dest, 0UL, n * sizeof(T) / 8);
     else if constexpr(sizeof(T) % 4 == 0) array_fill<uint32_t>(dest, 0U, n * sizeof(T) / 4);
     else if constexpr(sizeof(T) % 2 == 0) array_fill<uint16_t>(dest, 0U, n * sizeof(T) / 2);
