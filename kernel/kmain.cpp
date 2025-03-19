@@ -71,14 +71,15 @@ static void descr_pt(partition_table const& pt)
 }
 void map_tests()
 {
-    std::map<std::string, int> m{};
+    using map_type = std::map<std::string, int>;
+    map_type m{};
     m.insert(std::make_pair("meep", 21));
     m["gyeep"] = 63;
     m.insert_or_assign("bweep", 42);
     m["fweep"] = 84;
     m.insert_or_assign("dreep", 105);
     startup_tty.print_text("initial map values: ");
-    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -88,7 +89,7 @@ void map_tests()
     startup_tty.endl();
     m.erase("gyeep");
     startup_tty.print_text("map values after erase: ");
-    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -99,7 +100,7 @@ void map_tests()
     m["dreep"] = 45;
     m.insert_or_assign("fweep", 37);
     startup_tty.print_text("map values after reassign: ");
-    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -114,7 +115,7 @@ void map_tests()
     m["fweep"] = 84;
     m.insert_or_assign("dreep", 105);
     startup_tty.print_text("map values after reset: ");
-    for(std::map<std::string, int>::iterator i = m.begin(); i != m.end(); ++i)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -127,13 +128,13 @@ void hash_map_tests()
 {
     using map_type = std::unordered_map<std::string, int>;
     map_type m{};
-    m.insert(std::move(std::make_pair("meep", 21)));
+    m.insert(std::make_pair("meep", 21));
+    m["gyeep"] = 63;
     m.insert_or_assign("bweep", 42);
-    m.insert(std::move(std::make_pair("gyeep", 63)));
-    m["dreep"] = 105;
-    m.emplace("fweep", 84);
+    m["fweep"] = 84;
+    m.insert_or_assign("dreep", 105);
     startup_tty.print_text("initial map values: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -143,7 +144,7 @@ void hash_map_tests()
     startup_tty.endl();
     m.erase("gyeep");
     startup_tty.print_text("map values after erase: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -154,7 +155,7 @@ void hash_map_tests()
     m["dreep"] = 45;
     m.insert_or_assign("fweep", 37);
     startup_tty.print_text("map values after reassign: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
@@ -163,13 +164,13 @@ void hash_map_tests()
     }
     startup_tty.endl();
     m.clear();
-    m.insert(std::move(std::make_pair("meep", 21)));
+    m.insert(std::make_pair("meep", 21));
     m["gyeep"] = 63;
     m.insert_or_assign("bweep", 42);
     m["fweep"] = 84;
     m.insert_or_assign("dreep", 105);
     startup_tty.print_text("map values after reset: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); i++)
+    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
     {
         startup_tty.print_text(i->first);
         startup_tty.print_text(": ");
