@@ -1,10 +1,10 @@
 #ifndef __FRAME_MGR
 #define __FRAME_MGR
 #include "kernel/kernel_mm.hpp"
-#include "vector"
-class frame_manager : std::vector<uframe_tag>
+#include "set"
+class frame_manager : std::set<uframe_tag>
 {
-    typedef std::vector<uframe_tag> __base;
+    typedef std::set<uframe_tag> __base;
     static frame_manager __inst;
     constexpr frame_manager() = default;
 public:    
