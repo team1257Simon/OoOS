@@ -18,7 +18,7 @@
 #include "bits/dragon.hpp"
 #include "stdlib.h"
 #include "bits/stl_queue.hpp"
-#include "bits/hashtable.hpp"
+#include "unordered_map"
 #include "algorithm"
 #include "map"
 extern psf2_t* __startup_font;
@@ -123,9 +123,9 @@ void map_tests()
     }
     startup_tty.endl();
 }
-void map_tests_hash()
+void hash_map_tests()
 {
-    using map_type = std::hash_map<std::string, int, std::ext::dragon<std::string>>;
+    using map_type = std::unordered_map<std::string, int>;
     map_type m{};
     m.insert(std::move(std::make_pair("meep", 21)));
     m.insert_or_assign("bweep", 42);
@@ -381,7 +381,7 @@ void run_tests()
     startup_tty.print_line("string test...");
     str_tests();
     startup_tty.print_line("map test...");
-    map_tests_hash();
+    hash_map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }

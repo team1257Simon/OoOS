@@ -17,7 +17,7 @@ namespace std
     size_type			__len;
     constexpr initializer_list(const_iterator __a, size_type __l) : __my_array(__a), __len(__l) {}
   public:
-    constexpr initializer_list() noexcept : __my_array(0), __len(0) {}
+    constexpr initializer_list() noexcept : __my_array(nullptr), __len(0UL) {}
     constexpr size_type size() const noexcept { return __len; }
     constexpr const_iterator begin() const noexcept { return __my_array; }
     constexpr const_iterator end() const noexcept { return begin() + size(); }
