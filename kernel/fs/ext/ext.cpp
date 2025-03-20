@@ -328,7 +328,7 @@ void extfs::dlfilenode(file_node* fd)
     for(size_t i = 0; i < exfn.block_data.size(); i++) { release_blocks(exfn.block_data[i].block_number, exfn.block_data[i].chain_len); }
     file_nodes.erase(cid);
 }
-disk_block *extfs::claim_blocks(ext_vnode *requestor, size_t how_many)
+disk_block *extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 {
     if(!how_many) return nullptr;
     for(size_t i = 0; i < block_groups.size(); i++)
@@ -353,7 +353,7 @@ disk_block *extfs::claim_blocks(ext_vnode *requestor, size_t how_many)
     }
     return nullptr;
 }
-disk_block *extfs::claim_metadata_block(ext_node_extent_tree *requestor)
+disk_block *extfs::claim_metadata_block(ext_node_extent_tree* requestor)
 {
     for(size_t i = 0; i < block_groups.size(); i++)
     {

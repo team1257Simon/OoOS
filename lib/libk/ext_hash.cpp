@@ -11,12 +11,12 @@ template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static 
 template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_t len);
 static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in);
 static void apply_md4_half_transform(hash_buffer& buf, hash_buffer const& in);
-uint64_t std::ext_legacy_hash_signed::operator()(const void *data, size_t n) { return apply_legacy_hash<true>(data, n); }
-uint64_t std::ext_legacy_hash_unsigned::operator()(const void *data, size_t n) { return apply_legacy_hash<false>(data, n); }
-uint64_t std::half_md4_hash_signed::operator()(const void *data, size_t n) { return gen_ext_hash<true, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
-uint64_t std::half_md4_hash_unsigned::operator()(const void *data, size_t n) { return gen_ext_hash<false, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
-uint64_t std::tea_hash_signed::operator()(const void *data, size_t n) { return gen_ext_hash<true, &apply_tea_transform, 4, 0U>(seed, data, n); }
-uint64_t std::tea_hash_unsigned::operator()(const void *data, size_t n) { return gen_ext_hash<false, &apply_tea_transform, 4, 0U>(seed, data, n); }
+uint64_t std::ext_legacy_hash_signed::operator()(const void* data, size_t n) { return apply_legacy_hash<true>(data, n); }
+uint64_t std::ext_legacy_hash_unsigned::operator()(const void* data, size_t n) { return apply_legacy_hash<false>(data, n); }
+uint64_t std::half_md4_hash_signed::operator()(const void* data, size_t n) { return gen_ext_hash<true, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
+uint64_t std::half_md4_hash_unsigned::operator()(const void* data, size_t n) { return gen_ext_hash<false, &apply_md4_half_transform, 8, 1U>(seed, data, n); }
+uint64_t std::tea_hash_signed::operator()(const void* data, size_t n) { return gen_ext_hash<true, &apply_tea_transform, 4, 0U>(seed, data, n); }
+uint64_t std::tea_hash_unsigned::operator()(const void* data, size_t n) { return gen_ext_hash<false, &apply_tea_transform, 4, 0U>(seed, data, n); }
 template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num)
 {
     using data_t = typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;

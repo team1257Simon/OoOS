@@ -318,7 +318,7 @@ void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
     unsigned spin = 0;
     while(!is_done(idx) && spin < max_wait) { BARRIER; spin++; }
 }
-void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t *buffer)
+void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t* buffer)
 {
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
     hba_port* port = std::addressof(__my_abar->ports[idx]);
@@ -352,7 +352,7 @@ __isrcall void ahci::handle_irq()
         BARRIER;
     }
 }
-void ahci::p_identify(uint8_t idx, identify_data *data)
+void ahci::p_identify(uint8_t idx, identify_data* data)
 {
     if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " is out of range ");
     hba_port* port = std::addressof(__my_abar->ports[idx]);

@@ -36,22 +36,22 @@ extern "C"
 #endif
 void _exit(int code);
 int close(int file);
-int execve(char *name, char **argv, char **env);
+int execve(char* name, char** argv, char** env);
 int fork();
-int fstat(int file, struct stat *st);
+int fstat(int file, struct stat* st);
 int stat(const char* restrict name, struct stat* restrict st);
 int getpid();
 int isatty(int file);
 int kill(int pid, int sig);
 int link(char* restrict old, char* restrict new);
 int lseek(int file, int ptr, int dir);
-int open(const char *name, int flags, ...);
-int read(int file, char *ptr, int len);
+int open(const char* name, int flags, ...);
+int read(int file, char* ptr, int len);
 void* sbrk(int incr);
-clock_t times(struct tms *buf);
-int unlink(char *name);
-int wait(int *status);
-int write(int file, char *ptr, int len);
+clock_t times(struct tms* buf);
+int unlink(char* name);
+int wait(int* status);
+int write(int file, char* ptr, int len);
 int gettimeofday(struct timeval* restrict p, void* restrict z);
 #define SYSCVEC_ARG(name) "0"(SYSCVEC_N_##name)
 #define XSYSCALL0(name, ret) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name) : "memory")

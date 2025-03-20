@@ -3,7 +3,7 @@
 std::streamsize fat32_filebuf::unread_size() { if(__next_cluster_idx < __my_clusters.size()) { return (static_cast<size_t>(__my_clusters.size() - (__next_cluster_idx + 1)) * physical_block_size) + 1UL; /* The minimum nuber of bytes remaining, if there are any unread clusters, is 1 (for a cluster with only 1 written byte) */ } else return 0UL; }
 int fat32_filebuf::write_dev() { size_t n = 0; for(size_t i = 0; i < __my_clusters.size() && n < __size(); i++, n += physical_block_size) { if(!__parent->parent_fs->write_clusters(__my_clusters[i], this->__get_ptr(n))) { return -1; } } return 0; }
 int fat32_filebuf::sync() { if(is_dirty) { int result = write_dev(); is_dirty = (result >= 0); return result; } return 0; }
-fat32_filebuf::fat32_filebuf(std::vector<uint32_t> &&covered_clusters, fat32_file_node* pn) : 
+fat32_filebuf::fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_file_node* pn) : 
     __base                  {}, 
     __my_clusters           { covered_clusters }, 
     __next_cluster_idx      { 0UL },

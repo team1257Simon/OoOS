@@ -21,7 +21,7 @@ void filesystem::link_stdio(device_node::device_buffer* target) { current_open_f
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink(this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent = this->get_parent(what, false); return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
-device_node* filesystem::mkdevnode(directory_node *parent, std::string const& name, device_node::device_buffer* dev, int fd_hint)
+device_node* filesystem::mkdevnode(directory_node* parent, std::string const& name, device_node::device_buffer* dev, int fd_hint)
 {
     device_node* result = device_nodes.emplace(name, fd_hint, dev).first.base();
     parent->add(result);
@@ -57,7 +57,7 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
         if(pathspec[i].empty()) continue;
         tnode* cur = node->find(pathspec[i]);
         if(!cur) 
-        { 
+        {
             if(create) 
             {
                 directory_node* created = this->mkdirnode(node, pathspec[i]);

@@ -1,12 +1,12 @@
 #include "fs/ext.hpp"
 #include "kdebug.hpp"
-ext_node_extent_tree::ext_node_extent_tree(ext_vnode *tracked) : tracked_node{ tracked } {}
+ext_node_extent_tree::ext_node_extent_tree(ext_vnode* tracked) : tracked_node{ tracked } {}
 ext_node_extent_tree::ext_node_extent_tree() = default;
 ext_node_extent_tree::~ext_node_extent_tree() = default;
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const* n) { return n - tracked_extents.begin().base(); }
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const& n) { return cached_node_pos(std::addressof(n)); }
 cached_extent_node *ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
-cached_extent_node::cached_extent_node(disk_block *bptr, ext_vnode *node, uint16_t d) : blk_offset{ bptr - (d ? node->cached_metadata.data() : node->block_data.data()) }, tracked_node{ node }, depth{ d } {}
+cached_extent_node::cached_extent_node(disk_block* bptr, ext_vnode* node, uint16_t d) : blk_offset{ bptr - (d ? node->cached_metadata.data() : node->block_data.data()) }, tracked_node{ node }, depth{ d } {}
 disk_block *cached_extent_node::block() { return ((depth ? tracked_node->cached_metadata.begin() : tracked_node->block_data.begin()) + blk_offset).base(); }
 static void populate_leaf(ext_extent_leaf& leaf, disk_block* blk, uint64_t fn_start)
 {
@@ -161,7 +161,7 @@ bool cached_extent_node::nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t 
     }
     return tracked_node->parent_fs->persist_inode(tracked_node->inode_number);
 }
-bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
+bool ext_node_extent_tree::push_extent_legacy(disk_block* blk)
 {
     if(!has_init && !parse_legacy()) return false;
     for(int i = 0; i < 12; i++)
@@ -210,7 +210,7 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block *blk)
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
-bool ext_node_extent_tree::push_extent_ext4(disk_block *blk)
+bool ext_node_extent_tree::push_extent_ext4(disk_block* blk)
 {
     if(!has_init && !parse_ext4()) return false;
     if(tracked_node->on_disk_node->block_info.ext4_extent.header.depth == 0)
@@ -276,7 +276,7 @@ bool ext_node_extent_tree::ext4_root_overflow()
     tracked_node->on_disk_node->block_info.ext4_extent.header.entries = 1;
     return true;
 }
-bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent, disk_block *blk)
+bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree* parent, disk_block* blk)
 {
     disk_block* my_blk = block();
     size_t bs = tracked_node->parent_fs->block_size();
@@ -314,7 +314,7 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree *parent
     }
     return true;
 }
-bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree *parent, disk_block *blk)
+bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree* parent, disk_block* blk)
 {
     disk_block* my_blk = block();
     ext_extent_header* hdr = reinterpret_cast<ext_extent_header*>(my_blk->data_buffer);

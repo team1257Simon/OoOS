@@ -3,7 +3,7 @@
 #include "bits/stl_allocator.h"
 __int128_t md5_hash(const void* input, size_t len);
 void md5_step(uint32_t* buffer, uint32_t* input);
-__int128_t md5::operator()(const void *input, size_t len) const noexcept { return md5_hash(input, len); }
+__int128_t md5::operator()(const void* input, size_t len) const noexcept { return md5_hash(input, len); }
 constexpr static uint32_t lrotate(uint32_t x, uint32_t n) { return (x << n) | (x >> (32 - n)); }
 struct md5_ctx
 {

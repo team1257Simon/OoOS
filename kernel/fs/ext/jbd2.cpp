@@ -20,7 +20,7 @@ off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, boo
     if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16; array_copy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
     return result;
 }
-bool jbd2::create_txn(ext_vnode *changed_node)
+bool jbd2::create_txn(ext_vnode* changed_node)
 {
     std::vector<disk_block> dirty_blocks{};
     for(std::vector<disk_block>::iterator i = changed_node->block_data.begin(); i != changed_node->block_data.end(); i++) { if(i->dirty && i->data_buffer) { i->dirty = false; dirty_blocks.push_back(*i); } }

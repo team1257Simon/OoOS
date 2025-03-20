@@ -307,7 +307,7 @@ unsigned char* getpacket(void)
 	}
 }
 /* send the packet in buffer. */
-void putpacket(unsigned char *buffer)
+void putpacket(unsigned char* buffer)
 {
 	unsigned char checksum;
 	int count;
@@ -335,8 +335,8 @@ static void (*volatile mem_fault_routine)() = NULL;
 static volatile int mem_err = 0;
 void set_mem_err(void) { mem_err = 1; }
 /* These are separate functions so that they are so short and sweet that the compiler won't save any registers (if there is a fault to mem_fault, they won't get restored, so there better not be any saved).  */
-int get_char(char *addr) { return *addr; }
-void set_char(char *addr, int val) { *addr = val; }
+int get_char(char* addr) { return *addr; }
+void set_char(char* addr, int val) { *addr = val; }
 /* convert the memory pointed to by mem into hex, placing result in buf */
 /* return a pointer to the last char put in buf (null) */
 /* If MAY_FAULT is non-zero, then we should set mem_err in response to a fault; if zero treat a fault like any other fault in the stub. */
@@ -433,7 +433,7 @@ int compute_signal(int exception_vector)
 /* WHILE WE FIND NICE HEX CHARS, BUILD AN INT */
 /* RETURN NUMBER OF CHARS PROCESSED           */
 /**********************************************/
-int hex_to_int(char **ptr, long int *int_value)
+int hex_to_int(char** ptr, long int* int_value)
 {
 	int num_chars = 0;
 	int hex_value;
