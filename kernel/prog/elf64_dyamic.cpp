@@ -8,12 +8,13 @@ static std::allocator<uint64_t> q_alloc{};
 static std::allocator<addr_t> p_alloc{};
 static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
-elf64_dynamic_object::elf64_dynamic_object(file_node *n) : 
+elf64_dynamic_object::elf64_dynamic_object(file_node* n) : 
     elf64_object    { n },
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
     got_entry_ptrs  { nullptr },
     got_seg_index   { 0UL },
+    relocations     {},
     symbol_index    { symstrtab, symtab } 
                     {}
 elf64_dynamic_object::~elf64_dynamic_object()
@@ -199,7 +200,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
     if(got_entry_ptrs) { for(size_t i = 0; i < (that.symtab.total_size / that.symtab.entry_size); i++) { if(that.got_entry_ptrs[i]) { this->got_entry_ptrs[i] = resegment_ptr(that.got_entry_ptrs[i], that.segments[that.got_seg_index], this->segments[this->got_seg_index]); } } }
 }
-elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object && that) : 
+elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) : 
     elf64_object    { std::move(that) },
     num_dyn_entries { that.num_dyn_entries },
     dyn_entries     { that.dyn_entries },

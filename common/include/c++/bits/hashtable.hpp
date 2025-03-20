@@ -2,6 +2,7 @@
 #define __HASHTABLE
 #include "bits/aligned_buffer.hpp"
 #include "bits/stl_iterator.hpp"
+#include "bits/stl_algobase.hpp"
 #include "bits/functional_compare.hpp"  // equal_to
 #include "memory"                       // construct_at
 #include "tuple"                        // piecewise_construct, pair
@@ -133,13 +134,13 @@ namespace std
         private:            
 			typedef __hashtable_iterator<T> __iterator_type;
             typedef __hashtable_const_iterator<T> __const_iterator_type;
-            typedef __hash_node_base* __base_ptr;
+            typedef __hash_node_base const* __base_ptr;
             typedef __hash_node<T> const* __node_ptr;
             __base_ptr __my_node;
         public:
             constexpr __hashtable_const_iterator() noexcept : __my_node() {}
             constexpr explicit __hashtable_const_iterator(__base_ptr n) noexcept : __my_node(n) {}
-            constexpr __hashtable_const_iterator(__iterator_type const& i) noexcept : __my_node(i.__my_node) {}
+            constexpr __hashtable_const_iterator(__iterator_type const& i) noexcept : __my_node(i.get_node()) {}
             extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
             constexpr pointer base() const noexcept { return get_node()->__ptr(); }
             constexpr pointer operator->() const noexcept { return base(); }
@@ -198,6 +199,7 @@ namespace std
             constexpr __base_ptr __get_before(size_type idx, __const_node_ptr n) { __base_ptr prev = this->__my_buckets[idx]; for(__node_ptr p = __advance_chain(prev); p; prev = p, p = p->__get_next()) { if(n == p) return prev; } return nullptr; }
             constexpr __node_ptr __find(key_type const& what) { return __advance_chain(__find_before(what)); }
             constexpr __const_node_ptr __find(key_type const& what) const { return __advance_chain(__find_before(what)); }
+            constexpr bool __contains(key_type const& what) const { return __find(what) != nullptr; }
             constexpr void __run_rehash(size_type target_count);
             constexpr iterator __insert_node(size_type hash, __base_ptr n, size_type added) { if(this->__need_rehash(added)) { __run_rehash(this->__next_bucket_ct(added)); } this->__insert_at(this->__range(hash), n); this->__element_count++; return iterator(n); }
             constexpr iterator __erase_node(size_type idx, __base_ptr prev, __node_ptr n);
@@ -208,7 +210,7 @@ namespace std
             template<input_iterator IT> requires constructible_from<value_type, decltype(*declval<IT>())> constexpr void __insert(IT first, IT last) { size_type n = static_cast<size_type>(distance(first, last)); for(size_type i = 0; i < n; i++, ++first) { __insert_node(__create_node(*first), static_cast<size_type>(n - i)); } }
             constexpr void __insert(initializer_list<value_type> ini) requires copy_constructible<value_type> { __insert(ini.begin(), ini.end()); }
             template<typename ... Args> requires constructible_from<value_type, Args...> constexpr pair<iterator, bool> __emplace(Args&& ... args) { return __insert_node(__create_node(forward<Args>(args)...)); }
-            constexpr iterator __erase(const_iterator what) { __base_ptr prev = __get_before(what.get_node()); __node_ptr n = __advance_chain(prev); return __erase_node(__index(n), prev, n); }
+            constexpr iterator __erase(const_iterator what) { __base_ptr prev = __get_before(__index(what.get_node()), const_cast<__node_ptr>(what.get_node())); __node_ptr n = __advance_chain(prev); return __erase_node(__index(n), prev, n); }
             constexpr size_type __erase(key_type const& what) { __base_ptr prev = __find_before(what); if(__node_ptr n = __advance_chain(prev)) { __erase_node(__index(n), prev, n); return 1UL; } return 0UL; }
             constexpr float __get_max_load() const noexcept { return this->__max_load; }
             constexpr void __set_max_load(float val) noexcept { this->__max_load = val; }

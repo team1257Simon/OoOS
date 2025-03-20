@@ -21,7 +21,6 @@ protected:
     constexpr addr_t img_ptr(size_t offs = 0UL) const noexcept { return __image_start.plus(offs); }
     constexpr addr_t segment_ptr(size_t n) const noexcept { return __image_start.plus(phdr(n).p_offset); }
     constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }
-    void cleanup();
     virtual void process_headers();
     virtual bool load_segments() = 0;
     virtual bool xload() = 0;
@@ -29,14 +28,15 @@ protected:
     bool load_syms();
     off_t segment_index(size_t offset) const;
     off_t segment_index(elf64_sym const* sym) const;
+    void cleanup();
 public:
     elf64_object(file_node* n);
+    elf64_object(elf64_object const&);
+    elf64_object(elf64_object&&);
     virtual addr_t resolve(uint64_t offs) const;    
     virtual addr_t resolve(elf64_sym const& sym) const;
     virtual ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;
-    elf64_object(elf64_object const&);
-    elf64_object(elf64_object&&);
 };
 #endif

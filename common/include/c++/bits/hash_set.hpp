@@ -3,10 +3,11 @@
 #include "bits/hashtable.hpp"
 namespace std
 {
-    template<typename T, __detail::__hash_ftor<T> HT, __detail::__predicate<T> ET, allocator_object<__impl::__hash_node<T>> AT>
-    class hash_set : __impl::__hashtable<T, T, HT, __detail::__identity_key<T>, ET, AT>
+    template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<__impl::__hash_node<T>> AT, __detail::__key_extract<KT, T> XT>
+    class hash_set : protected __impl::__hashtable<KT, T, HT, XT, ET, AT>
     {
-        using __base = __impl::__hashtable<T, T, HT, __detail::__identity_key<T>, ET, AT>;
+        using __base = __impl::__hashtable<KT, T, HT, XT, ET, AT>;
+    protected:
         using typename __base::__node_ptr;
         using typename __base::__const_node_ptr;
     public:
@@ -52,6 +53,7 @@ namespace std
         template<std::convertible_to<value_type> WT> requires copy_constructible<value_type> constexpr pair<iterator, bool> insert(WT const& wt) { return this->__insert(wt); }
         template<std::convertible_to<value_type> WT> requires move_constructible<value_type> constexpr pair<iterator, bool> insert(WT && wt) { return this->__insert(move(wt)); }
         template<std::convertible_to<key_type> JT> constexpr size_type erase(JT const& what) { return this->__erase(what); }
+        template<std::convertible_to<key_type> JT> constexpr bool contains(JT const& what) const { return this->__contains(what); }
         constexpr iterator erase(const_iterator what) { return this->__erase(what); }
         constexpr void clear() { this->__clear(); }
     };

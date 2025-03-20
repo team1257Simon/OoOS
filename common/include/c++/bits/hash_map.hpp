@@ -4,9 +4,10 @@
 namespace std
 {
     template<typename KT, typename MT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<__impl::__hash_node<pair<const KT, MT>>> AT>
-    class hash_map : __impl::__hashtable<KT, pair<const KT, MT>, HT, __detail::__pair_key_extract<const KT, MT>, ET, AT>
+    class hash_map : protected __impl::__hashtable<KT, pair<const KT, MT>, HT, __detail::__pair_key_extract<const KT, MT>, ET, AT>
     {
         using __base = __impl::__hashtable<KT, pair<const KT, MT>, HT, __detail::__pair_key_extract<const KT, MT>, ET, AT>;
+    protected:
         using typename __base::__node_ptr;
         using typename __base::__const_node_ptr;
     public:
@@ -56,6 +57,7 @@ namespace std
         template<convertible_to<key_type> JT, convertible_to<mapped_type> NT> constexpr pair<iterator, bool> insert(pair<JT, NT> && p) { return this->__emplace(piecewise_construct, forward_as_tuple(move(p.first)), forward_as_tuple(move(p.second))); }
         template<convertible_to<key_type> JT, convertible_to<mapped_type> NT> constexpr pair<iterator, bool> insert(pair<JT, NT> const& p) { return this->__emplace(piecewise_construct, tuple<JT const&>(p.first), tuple<NT const&>(p.second)); }
         template<std::convertible_to<key_type> JT> constexpr size_type erase(JT const& what) { return this->__erase(what); }
+        template<std::convertible_to<key_type> JT> constexpr bool contains(JT const& what) const { return this->__contains(what); }
         constexpr iterator erase(const_iterator what) { return this->__erase(what); }
         constexpr void clear() { this->__clear(); }
         template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT && key) { return this->__emplace(piecewise_construct, forward_as_tuple(move(key)), tuple<>()).first->second; }

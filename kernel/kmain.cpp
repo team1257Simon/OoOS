@@ -15,6 +15,7 @@
 #include "frame_manager.hpp"
 #include "elf64_exec.hpp"
 #include "elf64_shared.hpp"
+#include "shared_object_map.hpp"
 #include "bits/icxxabi.h"
 #include "bits/dragon.hpp"
 #include "stdlib.h"
@@ -281,20 +282,16 @@ void extfs_tests()
 }
 void dyn_elf_tests()
 {
-    constexpr addr_t dynframe_test_base = addr_t(0x80000000000);
     if(test_extfs.has_init()) try
     {
+        shared_object_map sm{};
         file_node* n = test_extfs.open_file("dyntest.so");
-        uframe_tag* f = std::addressof(frame_manager::get().create_frame(dynframe_test_base, dynframe_test_base));
-        elf64_shared_object test_so(n, f);
+        shared_object_map::iterator test_so = sm.add(n);
         test_extfs.close_file(n);
-        if(test_so.load())
-        {
-            startup_tty.print_line("Symbol printf: " + std::to_string(test_so.resolve_by_name("printf").as()));
-            startup_tty.print_line("Symbol fgets: " + std::to_string(test_so.resolve_by_name("fgets").as()));
-            startup_tty.print_line("Symbol malloc: " + std::to_string(test_so.resolve_by_name("malloc").as()));
-        }
-        frame_manager::get().destroy_frame(*f);
+        startup_tty.print_line("SO name: " + test_so->get_soname());
+        startup_tty.print_line("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").as()));
+        startup_tty.print_line("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").as()));
+        startup_tty.print_line("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").as()));
     }
     catch(std::exception& e) { panic(e.what()); }
 }

@@ -12,7 +12,7 @@ elf64_object::elf64_object(file_node* n) : __image_start{ elf_alloc.allocate(n->
 bool elf64_object::validate() noexcept { if(__validated) return true; if(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0) { panic("missing identifier; invalid object"); return false; } try { return (__validated = xvalidate()); } catch(std::exception& e) { panic(e.what()); return false; } }
 bool elf64_object::load() noexcept { try { if(__loaded) return true; if(!validate()) { panic("invalid executable"); return false; } return (__loaded = xload()); } catch(std::exception& e) { panic(e.what()); return false; } }
 off_t elf64_object::segment_index(size_t offset) const { for(size_t i = 0; i < num_seg_descriptors; i++) { if(static_cast<uintptr_t>(segments[i].obj_offset) <= offset && offset < static_cast<uintptr_t>(segments[i].obj_offset + segments[i].size)) return static_cast<off_t>(i); } return -1L; }
-off_t elf64_object::segment_index(elf64_sym const *sym) const { return segment_index(sym->st_value); }
+off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
 addr_t elf64_object::resolve(uint64_t offs) const { off_t idx = segment_index(offs); if(idx < 0) return nullptr; return to_segment_ptr(offs, segments[idx]); }
 addr_t elf64_object::resolve(elf64_sym const& sym) const { return resolve(sym.st_value); }
 bool elf64_object::load_syms()

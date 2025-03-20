@@ -4,7 +4,7 @@
 static std::allocator<program_segment_descriptor> sd_alloc{};
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return __descr; }
 elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) : elf64_object{ n }, __tgt_stack_size{ stack_sz }, __tgt_tls_size{ tls_sz } {}
-elf64_executable::elf64_executable(elf64_executable &&) = default; // we can inherit the nontrivial move constructor from the parent as the remainder is trivial (same reason as destructor)
+elf64_executable::elf64_executable(elf64_executable&&) = default; // we can inherit the nontrivial move constructor from the parent as the remainder is trivial (same reason as destructor)
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 bool elf64_executable::xvalidate()
 {

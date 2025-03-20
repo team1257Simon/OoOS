@@ -2,5 +2,5 @@
 #define __UNORDERED_SET
 #include "bits/hash_set.hpp"
 #include "bits/stl_hash.hpp"
-namespace std { template<typename T, __detail::__hash_ftor<T> HT = hash<T>, __detail::__predicate<T> ET = equal_to<void>, allocator_object<__impl::__hash_node<T>> AT = allocator<__impl::__hash_node<T>>> using unordered_set = hash_set<T, HT, ET, AT>; }
+namespace std { template<typename T, __detail::__hash_ftor<T> HT = hash<T>, __detail::__predicate<T> ET = equal_to<void>, allocator_object<__impl::__hash_node<T>> AT = allocator<__impl::__hash_node<T>>> using unordered_set = hash_set<T, T, HT, ET, AT, __detail::__identity_key<T>>; }
 #endif

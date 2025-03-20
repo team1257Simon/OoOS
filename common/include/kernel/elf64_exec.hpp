@@ -24,7 +24,7 @@ public:
     elf64_executable(file_node* n, size_t stack_sz = S04, size_t tls_sz = S04);
     elf64_program_descriptor const& describe() const noexcept;
     elf64_executable(elf64_executable const&) = delete;
-    elf64_executable(elf64_executable&&);
+    elf64_executable(elf64_executable&& that);
     elf64_executable operator=(elf64_executable const&) = delete;
 };
 #endif

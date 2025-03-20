@@ -10,7 +10,7 @@ protected:
     elf64_dyn* dyn_entries;
     addr_t* got_entry_ptrs;
     size_t got_seg_index;
-    std::vector<elf64_relocation> relocations{};
+    std::vector<elf64_relocation> relocations;
     elf64_dynsym_index symbol_index;
     virtual bool xload() override;
     virtual bool load_dynamic_syms();
