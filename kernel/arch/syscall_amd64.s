@@ -28,6 +28,12 @@ syscall_vec:
     .quad syscall_mmap          # 22
     .quad syscall_munmap        # 23
     .size syscall_vec,      .-syscall_vec
+    #   OoOS system call ABI:
+    #   System calls are performed using the x86-64 fast system call instruction (SYSCALL).
+    #   The caller places arguments in registers DI, SI, D, 8, 9, and 10, and the syscall number in register A.
+    #   Important note: the argument order above differs from the Linux ABI, which places register 10 before 8 for some ungodly reason.
+    #   The kernel zeroes the argument registers after the call. Registers C and 11 are destroyed by the SYSCALL instruction.
+    #   The result of the call is stored in the A register. Error codes are returned as minus values (between -4095 and -1) as per the Linux syscall ABI.
     .section .text
     .global do_syscall
     .type   do_syscall,     @function
