@@ -15,12 +15,9 @@ protected:
     elf64_sym_table symtab{};
     elf64_string_table symstrtab{};
     elf64_string_table shstrtab{};
-    constexpr elf64_ehdr const* ehdr_ptr() const noexcept { return __image_start; }
-    constexpr elf64_ehdr const& ehdr() const noexcept { return *ehdr_ptr(); }
-    constexpr elf64_phdr const* phdr_ptr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize); }
-    constexpr elf64_phdr const& phdr(size_t n) const noexcept { return *phdr_ptr(n); }
-    constexpr elf64_shdr const* shdr_ptr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize); }
-    constexpr elf64_shdr const& shdr(size_t n) const noexcept { return *shdr_ptr(n); }
+    constexpr elf64_ehdr const& ehdr() const noexcept { return __image_start.ref<elf64_ehdr>(); }
+    constexpr elf64_phdr const& phdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize).ref<elf64_phdr>(); }
+    constexpr elf64_shdr const& shdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize).ref<elf64_shdr>(); }
     constexpr addr_t img_ptr(size_t offs = 0UL) const noexcept { return __image_start.plus(offs); }
     constexpr addr_t segment_ptr(size_t n) const noexcept { return __image_start.plus(phdr(n).p_offset); }
     constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }
@@ -29,13 +26,13 @@ protected:
     virtual bool load_segments() = 0;
     virtual bool xload() = 0;
     virtual bool xvalidate() = 0;
-    addr_t resolve(uint64_t offs) const;
     bool load_syms();
-    program_segment_descriptor const* segment_of(size_t offset) const;
-    program_segment_descriptor const* segment_of(elf64_sym const* sym) const;
+    off_t segment_index(size_t offset) const;
+    off_t segment_index(elf64_sym const* sym) const;
 public:
-    addr_t resolve(elf64_sym const& sym) const;
     elf64_object(file_node* n);
+    virtual addr_t resolve(uint64_t offs) const;    
+    virtual addr_t resolve(elf64_sym const& sym) const;
     virtual ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;

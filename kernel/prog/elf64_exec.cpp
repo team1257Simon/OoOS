@@ -8,10 +8,10 @@ elf64_executable::elf64_executable(elf64_executable &&) = default; // we can inh
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 bool elf64_executable::xvalidate()
 {
-    if(ehdr_ptr()->e_machine != EM_AMD64 || ehdr_ptr()->e_ident[elf_ident_encoding_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
-    if(ehdr_ptr()->e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit executables are not yet supported"); return false; }
-    if(ehdr_ptr()->e_type != ET_EXEC) { panic("object is not an executable"); return false; }
-    if(!ehdr_ptr()->e_phnum) { panic("no program headers present"); return false; }
+    if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_encoding_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
+    if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit executables are not yet supported"); return false; }
+    if(ehdr().e_type != ET_EXEC) { panic("object is not an executable"); return false; }
+    if(!ehdr().e_phnum) { panic("no program headers present"); return false; }
     return true;
 }
 void elf64_executable::process_headers()
@@ -20,9 +20,10 @@ void elf64_executable::process_headers()
     __process_entry_ptr = addr_t(ehdr().e_entry);
     for(size_t n = 0; n < ehdr().e_phnum; n++)
     {
-        if(!is_load(phdr(n))) continue;
-        if(!__process_frame_base || __process_frame_base > phdr(n).p_vaddr) __process_frame_base = addr_t(phdr(n).p_vaddr);
-        if(!__process_frame_extent || phdr(n).p_vaddr + phdr(n).p_memsz > __process_frame_extent) __process_frame_extent = addr_t(phdr(n).p_vaddr + phdr(n).p_memsz);
+        elf64_phdr const& h = phdr(n);
+        if(!is_load(h)) continue;
+        if(!__process_frame_base || __process_frame_base > h.p_vaddr) __process_frame_base = addr_t(h.p_vaddr);
+        if(!__process_frame_extent || h.p_vaddr + h.p_memsz > __process_frame_extent) __process_frame_extent = addr_t(h.p_vaddr + h.p_memsz);
     }
     __process_frame_base = __process_frame_base.page_aligned();
     __process_frame_extent = __process_frame_extent.next_page_aligned();
@@ -38,16 +39,17 @@ bool elf64_executable::load_segments()
         kernel_memory_mgr::get().enter_frame(__process_frame_tag);
         for(size_t n = 0; n < ehdr().e_phnum; n++)
         {
-            if(!is_load(phdr(n)) || !phdr(n).p_memsz) continue;
-            addr_t addr{ phdr(n).p_vaddr };
-            addr_t blk = kernel_memory_mgr::get().allocate_user_block(phdr(n).p_memsz, addr, phdr(n).p_align, is_write(phdr(n)), is_exec(phdr(n)));
+            elf64_phdr const& h = phdr(n);
+            if(!is_load(h) || !h.p_memsz) continue;
+            addr_t addr{ h.p_vaddr };
+            addr_t blk = kernel_memory_mgr::get().allocate_user_block(h.p_memsz, addr, h.p_align, is_write(h), is_exec(h));
             addr_t idmap{ kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr) };
-            addr_t img_dat = segment_ptr(n);    
+            addr_t img_dat = segment_ptr(n);
             if(!blk) { panic("could not allocate blocks for executable"); return false; }
-            __process_frame_tag->usr_blocks.emplace_back(blk, kernel_memory_mgr::page_aligned_region_size(addr, phdr(n).p_memsz));
-            array_copy<uint8_t>(idmap, img_dat, phdr(n).p_filesz);
-            if(phdr(n).p_memsz > phdr(n).p_filesz) { size_t diff = static_cast<size_t>(phdr(n).p_memsz - phdr(n).p_filesz); array_zero<uint8_t>(addr_t(kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr_t(phdr(n).p_vaddr + phdr(n).p_filesz))), diff); }
-            new (std::addressof(segments[n])) program_segment_descriptor{ idmap, static_cast<off_t>(phdr(n).p_offset), phdr(n).p_memsz, phdr(n).p_align, static_cast<elf_segment_prot>(0b100 | (is_write(phdr(n)) ? 0b010 : 0) | (is_exec(phdr(n)) ? 0b001 : 0)) };
+            __process_frame_tag->usr_blocks.emplace_back(blk, kernel_memory_mgr::page_aligned_region_size(addr, h.p_memsz));
+            array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
+            if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
+            new (std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
         }
         addr_t stkblk = kernel_memory_mgr::get().allocate_user_block(__tgt_stack_size, __process_stack_base, PAGESIZE, true, false);
         addr_t tlsblk = kernel_memory_mgr::get().allocate_user_block(__tgt_tls_size, __process_tls_base, PAGESIZE, true, false);

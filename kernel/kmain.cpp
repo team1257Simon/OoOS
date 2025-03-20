@@ -12,6 +12,7 @@
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
 #include "fs/ext.hpp"
+#include "frame_manager.hpp"
 #include "elf64_exec.hpp"
 #include "elf64_shared.hpp"
 #include "bits/icxxabi.h"
@@ -280,17 +281,20 @@ void extfs_tests()
 }
 void dyn_elf_tests()
 {
+    constexpr addr_t dynframe_test_base = addr_t(0x80000000000);
     if(test_extfs.has_init()) try
     {
         file_node* n = test_extfs.open_file("dyntest.so");
-        elf64_shared_object test_so(n);
+        uframe_tag* f = std::addressof(frame_manager::get().create_frame(dynframe_test_base, dynframe_test_base));
+        elf64_shared_object test_so(n, f);
         test_extfs.close_file(n);
         if(test_so.load())
         {
-            startup_tty.print_line("Symbol printf: " + std::to_string(test_so.resolve("printf").as()));
-            startup_tty.print_line("Symbol fgets: " + std::to_string(test_so.resolve("fgets").as()));
-            startup_tty.print_line("Symbol malloc: " + std::to_string(test_so.resolve("malloc").as()));
+            startup_tty.print_line("Symbol printf: " + std::to_string(test_so.resolve_by_name("printf").as()));
+            startup_tty.print_line("Symbol fgets: " + std::to_string(test_so.resolve_by_name("fgets").as()));
+            startup_tty.print_line("Symbol malloc: " + std::to_string(test_so.resolve_by_name("malloc").as()));
         }
+        frame_manager::get().destroy_frame(*f);
     }
     catch(std::exception& e) { panic(e.what()); }
 }

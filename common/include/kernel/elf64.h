@@ -329,8 +329,9 @@ struct elf64_sym_table
 };
 struct program_segment_descriptor
 {
-    addr_t absolute_addr;       // The global address of the segment's start. If the segment is not loaded (e.g. not a loadable segment) this will be zero.
-    off_t obj_offset;           // The p_vaddr value from the segment's program header in the object file containing the segment's data.
+    addr_t absolute_addr;       // The global, physical address of the segment's start. If the segment is not loaded (e.g. not a loadable segment) this will be zero.
+    addr_t virtual_addr;        // The p_vaddr value from the segment's program header modified based on where the segment was actually loaded if applicable.
+    off_t obj_offset;           // The p_offset value from the segment's program header in the object file containing the segment's data.
     size_t size;                // The p_memsz from the segment's program header in the object file containing the segment's data.
     size_t seg_align;           // The p_align value from the segment's program header in the object file containing the segment's data.
     elf_segment_prot perms;     // The permission values as determined from the program header's flags (the three lowest bits only)

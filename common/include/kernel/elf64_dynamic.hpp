@@ -16,7 +16,6 @@ protected:
     virtual bool load_dynamic_syms();
     virtual bool process_got();
     void process_dynamic_relas();
-    static bool recognize_rela_type(elf64_rela const& r);
     addr_t resolve_rela_target(elf64_rela const& r) const;
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
 public:

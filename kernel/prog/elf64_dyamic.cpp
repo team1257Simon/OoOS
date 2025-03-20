@@ -19,11 +19,17 @@ elf64_dynamic_object::elf64_dynamic_object(file_node *n) :
 elf64_dynamic_object::~elf64_dynamic_object()
 {
     symbol_index.destroy_if_present();
-    if(segments && num_seg_descriptors) { for(size_t i = 0; i < num_seg_descriptors; i++) { kernel_memory_mgr::get().deallocate_block(segments[i].absolute_addr, segments[i].size); } sd_alloc.deallocate(segments, num_seg_descriptors); } 
+    if(segments && num_seg_descriptors) { sd_alloc.deallocate(segments, num_seg_descriptors); } 
     if(dyn_entries) dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
     if(got_entry_ptrs) free(got_entry_ptrs);
 }
-bool elf64_dynamic_object::recognize_rela_type(elf64_rela const& r)
+static bool is_tls_relocation(elf64_rela const& r) 
+{ 
+    elf_rel_type t = r.r_info.type;
+    if(t == R_X86_64_TPOFF64 || t == R_X86_64_TPOFF32 || t == R_X86_64_DPTMOD64 || t == R_X86_64_DTPOFF64 || t == R_X86_64_DTPOFF32) return true;
+    else return false;
+}
+static bool recognize_rela_type(elf64_rela const& r)
 {
     elf_rel_type t = r.r_info.type;
     if(t == R_X86_64_64 || t == R_X86_64_RELATIVE || t == R_X86_64_DTPOFF64 || t == R_X86_64_JUMP_SLOT || t == R_X86_64_GLOB_DAT) return true;
@@ -33,11 +39,12 @@ void elf64_dynamic_object::apply_relocations()
 {
     reloc_sym_resolve reloc_symbol_fn = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
     reloc_tar_resolve reloc_target_fn = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
-    // Assuming everything works as planned, the relocation value will be calculated here for each relocation.
+    // Assuming everything works as planned (decently tall ask), the relocation value will be calculated here for each relocation.
     for(elf64_relocation const& r : relocations)
     {
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
-        if(result.target && result.value) result.target.ref<uint64_t>() = result.value;
+        addr_t phys_target(kernel_memory_mgr::get().translate_vaddr_in_current_frame(result.target));
+        if(phys_target && result.value) phys_target.ref<uint64_t>() = result.value;
         else klog("W: invalid relocation");
     }
 }
@@ -87,6 +94,7 @@ void elf64_dynamic_object::process_dynamic_relas()
         size_t n = rela_sz / sizeof(elf64_rela);
         for(size_t i = 0; i < n; i++)
         {
+            if(is_tls_relocation(rela[i])) continue; // these are computed / applied much later
             if(!recognize_rela_type(rela[i])) { unrec_rela_ct++; }
             else if(rela[i].r_info.sym_index) { elf64_sym const* s = symtab + rela[i].r_info.sym_index; if(s) relocations.emplace_back(*s, rela[i]); }
             else relocations.emplace_back(rela[i]);
@@ -99,9 +107,10 @@ bool elf64_dynamic_object::load_dynamic_syms()
     bool have_dyn = false;
     for(size_t n = 0; n < ehdr().e_phnum && !have_dyn; n++)
     {
-        if(is_dynamic(phdr(n)))
+        elf64_phdr const& ph = phdr(n);
+        if(is_dynamic(ph))
         {
-            this->num_dyn_entries = phdr(n).p_filesz / sizeof(elf64_dyn);
+            this->num_dyn_entries = ph.p_filesz / sizeof(elf64_dyn);
             this->dyn_entries = dynseg_alloc.allocate(num_dyn_entries);
             array_copy<elf64_dyn>(dyn_entries, segment_ptr(n), num_dyn_entries);
             have_dyn = true;
@@ -156,16 +165,16 @@ bool elf64_dynamic_object::process_got()
     }
     if(!(got_offs && rela_offs && rela_sz)) { panic("missing got info"); return false; }
     got_entry_ptrs = p_alloc.allocate(symtab.total_size / symtab.entry_size);
-    program_segment_descriptor const* got_seg = segment_of(got_offs);
-    got_seg_index = static_cast<size_t>(got_seg - segments);
-    if(!got_seg) { panic("got is in an invalid segment"); return false; }
+    off_t idx_result = segment_index(got_offs);
+    if(idx_result < 0) { panic("got is in an invalid segment"); return false; }
+    got_seg_index = static_cast<size_t>(idx_result);
     size_t n_entries = rela_sz / sizeof(elf64_rela);
     elf64_rela* rela_entries = img_ptr(rela_offs);
     for(size_t i = 0; i < n_entries; i++)
     { 
         if(rela_entries[i].r_info.type == R_X86_64_GLOB_DAT || rela_entries[i].r_info.type == R_X86_64_JUMP_SLOT)
         { 
-            got_entry_ptrs[rela_entries[i].r_info.sym_index] = to_segment_ptr(rela_entries[i].r_offset, *got_seg);
+            got_entry_ptrs[rela_entries[i].r_info.sym_index] = resolve(rela_entries[i].r_offset);
             elf64_sym const* s = symtab + rela_entries[i].r_info.sym_index;
             if(s) relocations.emplace_back(*s, rela_entries[i]);
         }
