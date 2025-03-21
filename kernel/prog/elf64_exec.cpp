@@ -46,7 +46,7 @@ bool elf64_executable::load_segments()
             addr_t idmap{ kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr) };
             addr_t img_dat = segment_ptr(n);
             if(!blk) { panic("could not allocate blocks for executable"); return false; }
-            __process_frame_tag->usr_blocks.emplace_back(blk, kernel_memory_mgr::page_aligned_region_size(addr, h.p_memsz));
+            __process_frame_tag->usr_blocks.emplace_back(blk, addr, kernel_memory_mgr::page_aligned_region_size(addr, h.p_memsz));
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
@@ -54,8 +54,8 @@ bool elf64_executable::load_segments()
         addr_t stkblk = kernel_memory_mgr::get().allocate_user_block(__tgt_stack_size, __process_stack_base, PAGESIZE, true, false);
         addr_t tlsblk = kernel_memory_mgr::get().allocate_user_block(__tgt_tls_size, __process_tls_base, PAGESIZE, true, false);
         if(!stkblk || !tlsblk) { panic("could not allocate blocks for stack");  return false; }
-        __process_frame_tag->usr_blocks.emplace_back(stkblk, __tgt_stack_size);
-        __process_frame_tag->usr_blocks.emplace_back(tlsblk, __tgt_tls_size);
+        __process_frame_tag->usr_blocks.emplace_back(stkblk, __process_stack_base, __tgt_stack_size);
+        __process_frame_tag->usr_blocks.emplace_back(tlsblk, __process_tls_base, __tgt_tls_size);
         kernel_memory_mgr::get().exit_frame();
         new (std::addressof(__descr)) elf64_program_descriptor 
         { 

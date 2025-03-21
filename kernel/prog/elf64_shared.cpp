@@ -64,7 +64,7 @@ bool elf64_shared_object::load_segments()
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, target, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
-            frame_tag->usr_blocks.emplace_back(blk, actual_size, is_write(h), is_exec(h));
+            frame_tag->usr_blocks.emplace_back(blk, target, actual_size, is_write(h), is_exec(h));
             frame_tag->extent = std::max(frame_tag->extent, target.plus(actual_size));
             have_loads = true;
         }

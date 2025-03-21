@@ -49,7 +49,7 @@ void kframe_tag::__lock() { lock(std::addressof(__my_mutex)); }
 void kframe_tag::__unlock() { release(std::addressof(__my_mutex)); }
 void uframe_tag::__lock() { lock(std::addressof(__my_mutex)); }
 void uframe_tag::__unlock() { release(std::addressof(__my_mutex)); }
-uframe_tag::~uframe_tag() { for(block_descr blk : usr_blocks) kernel_memory_mgr::get().deallocate_block(blk.start, blk.size, true); for(addr_t addr : pt_blocks) __kernel_frame_tag->deallocate(addr); }
+uframe_tag::~uframe_tag() { kernel_memory_mgr::get().enter_frame(this); for(block_descr& blk : usr_blocks) kernel_memory_mgr::get().deallocate_block(blk.virtual_start, blk.size, true); kernel_memory_mgr::get().exit_frame(); for(addr_t addr : pt_blocks) __kernel_frame_tag->deallocate(addr); }
 void kframe_tag::insert_block(block_tag* blk, int idx) { blk->index = idx < 0 ? (get_block_exp(blk->block_size) - MIN_BLOCK_EXP) : idx; if (available_blocks[blk->index]) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
 static paging_table __get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
 static uintptr_t block_offset(uintptr_t addr, block_idx idx) 
@@ -485,17 +485,17 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         {
             addr_t target = extent + amount;
             std::vector<block_descr>::reverse_iterator i;
-            for(i = usr_blocks.rend(); i->start >= target; i++) { kernel_memory_mgr::get().deallocate_block(i->start, i->size, true); }
+            for(i = usr_blocks.rend(); i->physical_start >= target; i++) { kernel_memory_mgr::get().deallocate_block(i->physical_start, i->size, true); }
             usr_blocks.erase(std::vector<block_descr>::const_iterator((--i).base()), usr_blocks.end());
             if(usr_blocks.empty()) return false;
-            extent = usr_blocks.back().start.plus(usr_blocks.back().size);
+            extent = usr_blocks.back().physical_start.plus(usr_blocks.back().size);
             return true; 
         }
         else return false;
     }
     size_t added = region_size_for(static_cast<size_t>(amount));
     addr_t allocated = kernel_memory_mgr::get().allocate_user_block(added, extent);
-    if(allocated) { usr_blocks.emplace_back(allocated, added); extent += added; if(mapped_max < extent) mapped_max = extent; return true; }
+    if(allocated) { usr_blocks.emplace_back(allocated, extent, added); extent += added; if(mapped_max < extent) mapped_max = extent; return true; }
     return false;
 }
 addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
@@ -503,7 +503,7 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
     if(addr_t result = kernel_memory_mgr::get().allocate_user_block(len, addr.page_aligned(), PAGESIZE, write, exec)) 
     {
         if(!addr) addr = result;
-        usr_blocks.emplace_back(result, kernel_memory_mgr::page_aligned_region_size(addr, len));
+        usr_blocks.emplace_back(result, addr, kernel_memory_mgr::page_aligned_region_size(addr, len));
         array_zero<uint8_t>(result, len);
         if(result.plus(len )> mapped_max) mapped_max = result.plus(len).page_aligned().plus((result.plus(len) % PAGESIZE) ? PAGESIZE : 0L);
         return result;

@@ -10,7 +10,7 @@
 static inline addr_t __pml4_of(addr_t frame_ptr) { if(frame_ptr.as<uframe_tag>()->magic == uframe_magic) return frame_ptr.as<uframe_tag>()->pml4; else return get_cr3(); }
 filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller->is_system() || static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true; for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } return false; }
-task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->init_task_state(); result->start_task(t.exit_target); return result; }
+task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->init_task_state(t); result->start_task(t.exit_target); return result; }
 void task_ctx::add_child(task_ctx* that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx* that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
 void sys_task_exit() { int retv; asm volatile("movl %%eax, %0" : "=r"(retv) :: "memory"); get_gs_base<task_ctx>()->set_exit(retv); }
@@ -27,6 +27,20 @@ void task_ctx::init_task_state()
     {
         task_struct.saved_regs.cs = 0x23;
         task_struct.saved_regs.ds = task_struct.saved_regs.ss = 0x1B;
+        kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
+        kernel_memory_mgr::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
+        kernel_memory_mgr::get().identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL) * sizeof(char*), true, false);
+        for(const char* str : arg_vec) { if(str) kernel_memory_mgr::get().identity_map_to_user(str, std::strlen(str), true, false); }
+        kernel_memory_mgr::get().exit_frame();
+    }
+}
+void task_ctx::init_task_state(task_ctx const& that)
+{
+    this->task_struct.saved_regs = that.task_struct.saved_regs;
+    this->task_struct.saved_regs.cr3 = __pml4_of(this->task_struct.frame_ptr);
+    this->task_struct.fxsv = that.task_struct.fxsv;
+    if(is_user())
+    {
         kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
         kernel_memory_mgr::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
         kernel_memory_mgr::get().identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL) * sizeof(char*), true, false);

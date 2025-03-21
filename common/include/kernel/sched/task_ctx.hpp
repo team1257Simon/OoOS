@@ -49,6 +49,7 @@ struct task_ctx
     void terminate();
     tms get_times() const noexcept;
     void init_task_state();
+    void init_task_state(task_ctx const& that);
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 inline task_ctx* active_task_context() { return current_active_task()->self; }

@@ -83,7 +83,8 @@ private:
 } __pack;
 struct block_descr
 {
-    addr_t start;
+    addr_t physical_start;
+    addr_t virtual_start;
     size_t size;
     bool write{ true };
     bool execute{ true };
