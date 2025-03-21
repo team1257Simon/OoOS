@@ -90,7 +90,7 @@ bool ext_file_vnode::initialize()
     {
         if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
         update_block_ptrs();
-        for(disk_block& db : block_data) { if(!parent_fs->read_from_disk(db)) { panic("block read failed"); return false; } }   
+        for(disk_block& db : block_data) { if(!parent_fs->read_unbuffered(db)) { panic("block read failed"); return false; } }   
     }
     return true;
 }
@@ -199,7 +199,7 @@ bool ext_directory_vnode::initialize()
     if(!init_extents()) return false;
     if(!__grow_buffer(extents.total_extent * bs)) { panic("failed to allocate buffer for directory data"); return false; }
     update_block_ptrs();
-    for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_from_disk(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
+    for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_unbuffered(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
     return (__initialized = __parse_entries(bs));
 }
 bool ext_directory_vnode::__parse_entries(size_t bs)
