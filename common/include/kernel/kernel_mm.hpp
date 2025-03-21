@@ -113,6 +113,8 @@ public:
     ~uframe_tag();
     bool shift_extent(ptrdiff_t amount);
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
+    void accept_block(block_descr&& desc);
+    void transfer_block(uframe_tag& that, block_descr const& which);
     friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
 };
 enum block_idx : uint8_t

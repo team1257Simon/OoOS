@@ -130,6 +130,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
             pd[current_idx.idx.pd_idx].present = 1;
             pd[current_idx.idx.pd_idx].write = 1;
             pd[current_idx.idx.pd_idx].user_access = 1;
+            pd[current_idx.idx.pd_idx].page_size = 0;
             pd[current_idx.idx.pd_idx].physical_address = (uintptr_t)pt >> 12;
             boot_page_frame->tables[pt_num] = pt;
             pt_num++;
