@@ -14,8 +14,10 @@ _start:
     movq        %rsp,       %rbp
     pushq       %rdi
     pushq       %rsi
+    pushq       %rdx
     call        _init
     call        _init_signal
+    popq        %rdx    
     popq        %rsi
     popq        %rdi
     call        main
