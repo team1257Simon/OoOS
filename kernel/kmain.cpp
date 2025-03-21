@@ -57,7 +57,7 @@ void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 void xklog(std::string const& str) { klog(str.c_str()); }
-static int __xdigits(uintptr_t num) { return num ? div_roundup((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
+static int __xdigits(uintptr_t num) { return num ? div_roundup((sizeof(uintptr_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 static void descr_pt(partition_table const& pt)
@@ -213,7 +213,7 @@ void vfs_tests()
         n = testramfs.open_file("test/files/memes.txt");
         char teststr[32](0);
         // test device and file inodes
-        n->read(teststr, 31);
+        n->read(&teststr[0], 31);
         testout->write(teststr, 31);
         testout->fsync();
         testramfs.close_file(n);
@@ -253,6 +253,8 @@ void test_landing_pad()
     task_ctx* ctx = get_gs_base<task_ctx>();
     long retv = ctx->exit_code;
     ctx->terminate();
+    free(ctx->allocated_stack);
+    free(ctx->tls);
     task_list::get().destroy_task(ctx->get_pid());
     startup_tty.print_line("returned " + std::to_string(retv));
     sti();

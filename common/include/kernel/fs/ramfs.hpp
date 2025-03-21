@@ -1,7 +1,7 @@
 #ifndef __RAMFS
 #define __RAMFS
 #include "kernel/fs/fs.hpp"
-#include "kernel/fs/fifo_buffer.hpp"
+#include "ext/dynamic_queue_streambuf.hpp"
 constexpr dev_t ramfs_magic = 0xC001;
 class ramfs_directory_inode : public directory_node
 {
@@ -19,7 +19,7 @@ public:
     ramfs_directory_inode(std::string const& name);
     virtual bool fsync() override;
 };
-class ramfs_file_inode final : fifo_buffer<char>, public file_node
+class ramfs_file_inode final : std::ext::dynamic_queue_streambuf<char>, public file_node
 {
 	using file_node::traits_type;
 	using file_node::difference_type;

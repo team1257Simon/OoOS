@@ -1,6 +1,7 @@
 #include "fs/fat32.hpp"
 #include "fs/hda_ahci.hpp"
 #include "rtc.h"
+#include "stdexcept"
 constexpr size_t dirent_size = sizeof(fat32_directory_entry);
 static void update_times(fat32_regular_entry& e) { rtc_time t = rtc::get_instance().get_time(); new (std::addressof(e.modified_date)) fat_filedate{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) }; new (std::addressof(e.modified_time)) fat_filetime{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr }; new (std::addressof(e.accessed_date)) fat_filedate{ e.modified_date }; }
 fat32_node::fat32_node(fat32* pfs, fat32_directory_node* pdir, size_t didx) noexcept : parent_fs{ pfs }, parent_dir{ pdir }, dirent_index{ didx } {}

@@ -1,6 +1,7 @@
 #include "fs/fat32.hpp"
 #include "fs/hda_ahci.hpp"
 #include "rtc.h"
+#include "stdexcept"
 bool fat32::__has_init{ false };
 fat32* fat32::__instance;
 static std::alignas_allocator<fat32, filesystem> fat_alloc{};

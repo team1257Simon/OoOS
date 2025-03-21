@@ -288,11 +288,13 @@ typedef volatile struct tfis
 } __pack hba_fis;
 struct hba_prdt_entry
 {
-	uint32_t data_base;	// Data base address, little-endian, low
-	uint32_t data_upper;
-	uint32_t rsv0;		// Reserved
+	uint32_t data_base;		// Data base address, little-endian, low
+	uint32_t data_base_hi;
+	uint32_t rsv0;			// Reserved
 	// DW3
-	uint32_t byte_count;	
+	uint32_t byte_count 			: 22;
+	uint32_t rsv1 					: 9;
+	bool interrupt_on_completion 	: 1;
 } __pack;
 struct hba_cmd_table
 {
@@ -409,7 +411,7 @@ class ahci
 	static bool __has_init;
 	static ahci __instance;
 	void __issue_command(uint8_t port_idx, int slot);
-	void __build_h2d_fis(qword start, dword count, uint16_t* buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l);
+	void __build_h2d_fis(qword start, dword count, addr_t buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l);
     bool __handoff_busy();
     void __init_irq();
 protected:

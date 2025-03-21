@@ -23,11 +23,8 @@ uint64_t extfs::block_to_lba(uint64_t block) { return static_cast<uint64_t>(supe
 directory_node *extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
 bool extfs::read_hd(void* dest, uint64_t lba_src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::read(static_cast<char*>(dest), lba_src, sectors); }
-bool extfs::write_hd(uint64_t lba_dest, const void* src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::write(lba_dest, static_cast<char const*>(src), sectors); }
-bool extfs::read_unbuffered(disk_block& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::read_direct(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
-bool extfs::read_from_disk(disk_block& bl) { if(bl.data_buffer && bl.block_number) return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
-bool extfs::write_unbuffered(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::write_direct(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
-bool extfs::write_to_disk(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::read_hd(disk_block& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::read(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::write_hd(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::write(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
 char *extfs::allocate_block_buffer() { size_t bs = block_size(); char* result = buff_alloc.allocate(bs); array_zero(result, bs); return result; }
@@ -119,7 +116,7 @@ void extfs::initialize()
     size_t inode_blocks_per_group = div_roundup(sb->inodes_per_group, inodes_per_block());
     bg_table_block.data_buffer = bg_buffer;
     bg_table_block.chain_len = div_roundup(bgsz, block_size());
-    if(!(num_blk_groups && blk_group_descs && read_from_disk(bg_table_block))) throw std::runtime_error{ "failed to read block group table" };
+    if(!(num_blk_groups && blk_group_descs && read_hd(bg_table_block))) throw std::runtime_error{ "failed to read block group table" };
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
     for(size_t i = 0; i < num_blk_groups; i++)
     {
@@ -130,8 +127,8 @@ void extfs::initialize()
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);
         allocate_block_buffer(bg.inode_block);
-        if(!read_unbuffered(bg.inode_usage_bmp) || !read_unbuffered(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
-        if(!read_unbuffered(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
+        if(!read_hd(bg.inode_usage_bmp) || !read_hd(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
+        if(!read_hd(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
         uint16_t cs = blk_group_descs[i].group_checksum;
         blk_group_descs[i].group_checksum = 0;
         dword dw_i(i);
@@ -380,7 +377,7 @@ bool extfs::persist(ext_vnode* n)
     for(disk_block& db : n->block_data) 
     {
 		if(!(db.dirty && db.block_number && db.data_buffer)) { continue; }
-        if(!write_unbuffered(db)) { panic("write failed"); sb->last_errno = EPIPE; return false; }
+        if(!write_hd(db)) { panic("write failed"); sb->last_errno = EPIPE; return false; }
         db.dirty = false;
     }
     std::vector<disk_block> dirty_metadata{};

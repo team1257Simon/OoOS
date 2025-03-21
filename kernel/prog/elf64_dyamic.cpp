@@ -5,14 +5,14 @@
 static std::allocator<program_segment_descriptor> sd_alloc{};
 static std::allocator<uint32_t> w_alloc{};
 static std::allocator<uint64_t> q_alloc{};
-static std::allocator<addr_t> p_alloc{};
+static std::allocator<elf64_rela> r_alloc{};
 static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
 elf64_dynamic_object::elf64_dynamic_object(file_node* n) : 
     elf64_object    { n },
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
-    got_entry_ptrs  { nullptr },
+    plt_got_slots   { nullptr },
     got_seg_index   { 0UL },
     relocations     {},
     symbol_index    { symstrtab, symtab } 
@@ -22,12 +22,12 @@ elf64_dynamic_object::~elf64_dynamic_object()
     symbol_index.destroy_if_present();
     if(segments && num_seg_descriptors) { sd_alloc.deallocate(segments, num_seg_descriptors); } 
     if(dyn_entries) dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
-    if(got_entry_ptrs) free(got_entry_ptrs);
+    if(plt_got_slots) free(plt_got_slots);
 }
-static bool is_tls_relocation(elf64_rela const& r) 
-{ 
+static bool is_dynamic_relocation(elf64_rela const& r)
+{
     elf_rel_type t = r.r_info.type;
-    if(t == R_X86_64_TPOFF64 || t == R_X86_64_TPOFF32 || t == R_X86_64_DPTMOD64 || t == R_X86_64_DTPOFF64 || t == R_X86_64_DTPOFF32) return true;
+    if(t == R_X86_64_JUMP_SLOT || t == R_X86_64_GLOB_DAT || t == R_X86_64_TPOFF64 || t == R_X86_64_TPOFF32 || t == R_X86_64_DPTMOD64 || t == R_X86_64_DTPOFF64 || t == R_X86_64_DTPOFF32 || t >= R_X86_64_GOTPC32_TLSDESC) return true;
     else return false;
 }
 static bool recognize_rela_type(elf64_rela const& r)
@@ -43,6 +43,7 @@ void elf64_dynamic_object::apply_relocations()
     // Assuming everything works as planned (decently tall ask), the relocation value will be calculated here for each relocation.
     for(elf64_relocation const& r : relocations)
     {
+        if(is_dynamic_relocation(r.rela_entry)) continue; // these will be resolved by the dynamic linker
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
         addr_t phys_target(kernel_memory_mgr::get().translate_vaddr_in_current_frame(result.target));
         if(phys_target && result.value) phys_target.ref<uint64_t>() = result.value;
@@ -59,9 +60,6 @@ uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela c
         return resolve(r.r_addend);
     case R_X86_64_DTPOFF64:
         return r.r_addend + s.st_value;
-    case R_X86_64_JUMP_SLOT:
-    case R_X86_64_GLOB_DAT:
-        return resolve(s.st_value);
     default:
         return 0UL;
     }
@@ -95,7 +93,7 @@ void elf64_dynamic_object::process_dynamic_relas()
         size_t n = rela_sz / sizeof(elf64_rela);
         for(size_t i = 0; i < n; i++)
         {
-            if(is_tls_relocation(rela[i])) continue; // these are computed / applied much later
+            if(is_dynamic_relocation(rela[i])) continue; // these are computed / applied by the dynamic linker
             if(!recognize_rela_type(rela[i])) { unrec_rela_ct++; }
             else if(rela[i].r_info.sym_index) { elf64_sym const* s = symtab + rela[i].r_info.sym_index; if(s) relocations.emplace_back(*s, rela[i]); }
             else relocations.emplace_back(rela[i]);
@@ -165,31 +163,25 @@ bool elf64_dynamic_object::process_got()
         if(got_offs && rela_offs && rela_sz) break;
     }
     if(!(got_offs && rela_offs && rela_sz)) { panic("missing got info"); return false; }
-    got_entry_ptrs = p_alloc.allocate(symtab.total_size / symtab.entry_size);
+    num_plt_got_slots = rela_sz / sizeof(elf64_rela);
+    plt_got_slots = r_alloc.allocate(num_plt_got_slots);
+    elf64_rela* rela = img_ptr(rela_offs);
+    array_copy(plt_got_slots, rela, num_plt_got_slots);
     off_t idx_result = segment_index(got_offs);
     if(idx_result < 0) { panic("got is in an invalid segment"); return false; }
     got_seg_index = static_cast<size_t>(idx_result);
-    size_t n_entries = rela_sz / sizeof(elf64_rela);
-    elf64_rela* rela_entries = img_ptr(rela_offs);
-    for(size_t i = 0; i < n_entries; i++)
-    { 
-        if(rela_entries[i].r_info.type == R_X86_64_GLOB_DAT || rela_entries[i].r_info.type == R_X86_64_JUMP_SLOT)
-        { 
-            got_entry_ptrs[rela_entries[i].r_info.sym_index] = resolve(rela_entries[i].r_offset);
-            elf64_sym const* s = symtab + rela_entries[i].r_info.sym_index;
-            if(s) relocations.emplace_back(*s, rela_entries[i]);
-        }
-    }
+    for(size_t i = 0; i < num_plt_got_slots; i++) { if(recognize_rela_type(rela[i])) { if(size_t sym_idx = rela[i].r_info.sym_index; sym_idx && sym_idx < symtab.entries()) relocations.emplace_back(symtab[sym_idx], rela[i]); } }
     return true;
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
-    elf64_object    { that },
-    num_dyn_entries { that.num_dyn_entries },
-    dyn_entries     { dynseg_alloc.allocate(num_dyn_entries) },
-    got_entry_ptrs  { that.got_entry_ptrs ? p_alloc.allocate(that.symtab.total_size / that.symtab.entry_size) : nullptr },
-    got_seg_index   { that.got_seg_index },
-    relocations     { that.relocations },
-    symbol_index    { symstrtab, symtab, elf64_gnu_htbl{ .header{ that.symbol_index.htbl.header } } }
+    elf64_object        { that },
+    num_dyn_entries     { that.num_dyn_entries },
+    dyn_entries         { dynseg_alloc.allocate(num_dyn_entries) },
+    num_plt_got_slots   { that.num_plt_got_slots },
+    plt_got_slots       { that.plt_got_slots ? r_alloc.allocate(that.num_plt_got_slots) : nullptr },
+    got_seg_index       { that.got_seg_index },
+    relocations         { that.relocations },
+    symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ .header{ that.symbol_index.htbl.header } } }
 {
     symbol_index.htbl.bloom_filter_words = q_alloc.allocate(symbol_index.htbl.header.maskwords);
     symbol_index.htbl.buckets = w_alloc.allocate(symbol_index.htbl.header.nbucket);
@@ -198,18 +190,20 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     array_copy(symbol_index.htbl.bloom_filter_words, that.symbol_index.htbl.bloom_filter_words, symbol_index.htbl.header.maskwords);
     array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
-    if(got_entry_ptrs) { for(size_t i = 0; i < (that.symtab.total_size / that.symtab.entry_size); i++) { if(that.got_entry_ptrs[i]) { this->got_entry_ptrs[i] = resegment_ptr(that.got_entry_ptrs[i], that.segments[that.got_seg_index], this->segments[this->got_seg_index]); } } }
+    array_copy(this->plt_got_slots, that.plt_got_slots, num_plt_got_slots);
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) : 
-    elf64_object    { std::move(that) },
-    num_dyn_entries { that.num_dyn_entries },
-    dyn_entries     { that.dyn_entries },
-    got_entry_ptrs  { that.got_entry_ptrs },
-    got_seg_index   { that.got_seg_index },
-    relocations     { std::move(that.relocations) },
-    symbol_index    { symstrtab, symtab, elf64_gnu_htbl{ std::move(that.symbol_index.htbl) } }
+    elf64_object        { std::move(that) },
+    num_dyn_entries     { that.num_dyn_entries },
+    dyn_entries         { that.dyn_entries },
+    num_plt_got_slots   { that.num_plt_got_slots },
+    plt_got_slots       { that.plt_got_slots },
+    got_seg_index       { that.got_seg_index },
+    relocations         { std::move(that.relocations) },
+    symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ std::move(that.symbol_index.htbl) } }
 {
     that.symbol_index.htbl.bloom_filter_words = nullptr;
     that.symbol_index.htbl.buckets = nullptr;
     that.symbol_index.htbl.hash_value_array = nullptr;
+    that.plt_got_slots = nullptr;
 }

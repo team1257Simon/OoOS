@@ -4,7 +4,7 @@
 std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2(extfs *parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
-bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_to_disk(db)) { panic("write failed"); return false; } } return true; }
+bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_hd(db)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
 size_t jbd2::tags_per_block() { return 1 + (parent_fs->block_size() - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
@@ -93,13 +93,13 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 bool jbd2::ddread()
 {
     disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-    if(!parent_fs->read_unbuffered(full_blk)) { panic("failed to read journal"); return false; }
+    if(!parent_fs->read_hd(full_blk)) { panic("failed to read journal"); return false; }
     return true;
 }
 bool jbd2::ddwrite()
 {
     disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-    if(!parent_fs->write_unbuffered(full_blk)) { panic("failed to write journal"); return false; }
+    if(!parent_fs->write_hd(full_blk)) { panic("failed to write journal"); return false; }
     return true;
 }
 bool jbd2::clear_log()
@@ -189,7 +189,7 @@ void jbd2::parse_next_log_entry(std::vector<disk_block>::iterator& i)
                     }
                     if(++j == i->chain_len) { i++; j = 0; if(i == block_data.end()) break; pos = i->data_buffer; }
                 }
-                if(!inval) active_transactions.push(jbd2_transaction(txn_data_blocks, static_cast<transaction_id>(ch->header.sequence)));
+                if(!inval) { active_transactions.push(jbd2_transaction(txn_data_blocks, static_cast<transaction_id>(ch->header.sequence))); __setc(addr_t(ch).plus(bs).as<char>()); }
             }
             else if(h->blocktype == revocation)
             {

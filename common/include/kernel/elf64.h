@@ -185,6 +185,11 @@ enum elf_rel_type : uint32_t
     R_X86_64_PLTOFF64 	= 	31, //  word64 	L - T + A
     R_X86_64_SIZE32     =   32, //  word32  Z + A
     R_X86_64_SIZE64     =   33, //  word64  Z + A
+    // Special dynamic relocations...
+    R_X86_64_GOTPC32_TLSDESC    = 34,
+    R_X86_64_TLSDESC_CALL       = 35,
+    R_X86_64_TLSDESC            = 36,
+    R_X86_64_IRELATIVE          = 37
 };
 constexpr unsigned phdr_flag_execute = 0x1U;
 constexpr unsigned phdr_flag_write = 0x2U;
@@ -326,6 +331,7 @@ struct elf64_sym_table
     addr_t data;
     constexpr elf64_sym const* operator+(size_t n) const { return data.plus(entry_size * n); }
     constexpr elf64_sym const& operator[](size_t n) const { return *operator+(n); }
+    constexpr size_t entries() const { return total_size / entry_size; }
 };
 struct program_segment_descriptor
 {
@@ -338,13 +344,7 @@ struct program_segment_descriptor
 };
 struct elf64_gnu_htbl
 {
-    struct hdr
-    {
-        uint32_t nbucket;
-        uint32_t symndx;
-        uint32_t maskwords;
-        uint32_t shift2;
-    } header;
+    struct hdr { uint32_t nbucket; uint32_t symndx; uint32_t maskwords; uint32_t shift2; } header;
     uint64_t* bloom_filter_words;
     uint32_t* buckets;
     uint32_t* hash_value_array;

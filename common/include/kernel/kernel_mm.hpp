@@ -8,8 +8,8 @@
 #ifndef MIN_BLOCK_EXP
 #define MIN_BLOCK_EXP 8U // This times 2^(index) is the full size of a block at that index in a frame 
 #endif
-#ifndef MAX_COMPLETE_PAGES
-#define MAX_COMPLETE_PAGES 5U
+#ifndef MAX_COMPLETE_REGIONS
+#define MAX_COMPLETE_REGIONS 5U
 #endif
 #define PROT_READ	0x1		/* Page can be read.  */
 #define PROT_WRITE	0x2		/* Page can be written.  */
@@ -22,15 +22,21 @@
 #define MAP_FIXED	    0x10
 #define MAP_FILE	    0x00
 #define MAP_ANONYMOUS   0x20
+constexpr unsigned region_cap = MAX_COMPLETE_REGIONS;
+constexpr unsigned min_exponent = MIN_BLOCK_EXP;
+constexpr unsigned max_exponent = MAX_BLOCK_EXP;
 // 64 bits means new levels of l33tpuns! Now featuring Pokemon frustrations using literal suffixes.
 constexpr uint64_t block_magic = 0xB1600FBA615FULL;
 // Of course, we wouldn't want to offend anyone, so... (the 7s are T's...don't judge me >.<)
 constexpr uint64_t kframe_magic = 0xD0BE7AC7FUL;
 // Oh yea we did...
 constexpr uint64_t uframe_magic = 0xACED17C001B012;
-constexpr inline uint64_t region_size = PAGESIZE * PT_LEN;
+constexpr size_t page_size = PAGESIZE;
+constexpr size_t page_table_length = PT_LEN;
+constexpr size_t region_size = page_size * page_table_length;
 constexpr uintptr_t mmap_min_addr = 0x500000UL;
-constexpr size_t block_exp_range = MAX_BLOCK_EXP - MIN_BLOCK_EXP;
+constexpr size_t block_index_range = max_exponent - min_exponent;
+constexpr size_t max_block_index = block_index_range - 1;
 struct block_tag
 {
     uint64_t magic{ block_magic };
@@ -62,8 +68,8 @@ struct block_tag
 struct kframe_tag
 {
     uint64_t magic{ kframe_magic };
-    uint16_t complete_pages[block_exp_range]{};
-    block_tag* available_blocks[block_exp_range]{};
+    uint16_t complete_regions[block_index_range]{};
+    block_tag* available_blocks[block_index_range]{};
 private:
     spinlock_t __my_mutex{};
 public:

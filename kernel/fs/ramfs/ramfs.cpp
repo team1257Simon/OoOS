@@ -1,4 +1,5 @@
 #include "fs/ramfs.hpp"
+#include "stdexcept"
 ramfs::ramfs() : filesystem(), __root_dir{ "" }, __file_nodes{}, __directory_nodes{} {}
 directory_node *ramfs::get_root_directory() { return std::addressof(__root_dir); }
 void ramfs::dlfilenode(file_node* fd) { fd->prune_refs(); __file_nodes.erase(*fd); syncdirs(); }

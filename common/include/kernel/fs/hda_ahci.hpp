@@ -2,11 +2,8 @@
 #define __AHCI_HARD_DISK_ACCESS
 #include "kernel/arch/ahci.hpp"
 #include "kernel/libk_decls.h"
-#include "kernel/fs/fifo_buffer.hpp"
 #include "ext/dynamic_streambuf.hpp"
 #include "vector"
-typedef fifo_buffer<uint8_t> binary_buffer;
-typedef fifo_buffer<uint16_t> wide_binary_buffer;
 constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (which is usually LBA 1)
 constexpr size_t max_op_sectors = (prdt_entries_count * 16);
 typedef struct __pt_header
@@ -41,8 +38,6 @@ class hda_ahci
 {
     static bool __has_init;
     static hda_ahci __instance;
-    wide_binary_buffer __read_buffer;
-    wide_binary_buffer __write_buffer;
     ahci* __drv{};
     int8_t __port{};
     partition_table __my_partitions{};
@@ -60,10 +55,8 @@ public:
     static bool init_instance();
     static bool is_initialized() noexcept;
     static hda_ahci* get_instance();
-    static bool read_direct(void* out, uint64_t start_sector, uint32_t count);
-    static bool write_direct(uint64_t start_sector, const void* in, uint32_t count);
-    static std::streamsize read(char* out, uint64_t start_sector, uint32_t count);
-    static std::streamsize write(uint64_t start_sector, const char* in, uint32_t count);
+    static bool read(void* out, uint64_t start_sector, uint32_t count);
+    static bool write(uint64_t start_sector, const void* in, uint32_t count);
     static partition_table& get_partition_table();
     template<trivial_copy T> static size_t read_objects(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, div_roundup(num_objs * sizeof(T), __bytes_per_sector())); }
     template<trivial_copy T> static bool read_object(T& out, uint64_t from) { return read_objects(std::addressof(out), from, 1U); }

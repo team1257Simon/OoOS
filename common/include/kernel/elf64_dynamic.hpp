@@ -8,7 +8,8 @@ class elf64_dynamic_object : public elf64_object
 protected:
     size_t num_dyn_entries;
     elf64_dyn* dyn_entries;
-    addr_t* got_entry_ptrs;
+    size_t num_plt_got_slots;
+    elf64_rela* plt_got_slots;
     size_t got_seg_index;
     std::vector<elf64_relocation> relocations;
     elf64_dynsym_index symbol_index;

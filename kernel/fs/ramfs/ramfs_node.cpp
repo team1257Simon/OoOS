@@ -12,7 +12,7 @@ tnode *ramfs_directory_inode::find(std::string const& name) { tnode_dir::iterato
 ramfs_file_inode::ramfs_file_inode(std::string const& name, int fd) : file_node{ name, fd, addr_t(this) } {}
 ramfs_file_inode::size_type ramfs_file_inode::write(const_pointer src, size_type n) { size_t result = sputn(src, n); if(result) sys_time(std::addressof(modif_time)); return result; }
 ramfs_file_inode::size_type ramfs_file_inode::read(pointer dest, size_type n) { return sgetn(dest, n); }
-ramfs_file_inode::pos_type ramfs_file_inode::tell() const { return fifo_buffer<char>::tell(); }
+ramfs_file_inode::pos_type ramfs_file_inode::tell() const { return std::ext::dynamic_queue_streambuf<char>::tell(); }
 ramfs_file_inode::pos_type ramfs_file_inode::seek(off_type off, std::ios_base::seekdir way) { return seekoff(off, way); }
 ramfs_file_inode::pos_type ramfs_file_inode::seek(pos_type pos) { return seekpos(pos); }
 bool ramfs_file_inode::fsync() { on_modify_queue(); return true; }

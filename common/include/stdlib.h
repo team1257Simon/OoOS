@@ -17,7 +17,7 @@ extern "C"
 void* malloc(size_t);
 void* realloc(void*, size_t);
 void* calloc(size_t, size_t);
-void free(void *);
+void free(void*);
 [[noreturn]] void abort();
 long atol(const char* str);
 long strtol(const char* str, char** endptr, int base);
