@@ -39,8 +39,8 @@ namespace std
     private:
         typedef __array_traits<T, N> __trait_type;
         typedef typename __trait_type::__type __mem_type;
+    public:    
         __mem_type __my_array;
-    public:
         /* Implicit constructors, copy/assign and destructor */
         constexpr pointer data() noexcept { return __trait_type::__ptr(__my_array); }
         constexpr const_pointer data() const noexcept { return __trait_type::__ptr(__my_array);}
@@ -68,5 +68,6 @@ namespace std
         constexpr reference back() noexcept { return __trait_type::__ref(__my_array, N ? N - 1 : 0); }
         constexpr const_reference back() const noexcept { return __trait_type::__ref(__my_array, N ? N - 1 : 0); }
     };
+    template<typename T, typename ... Us> array(T, Us...) -> array<enable_if_t<(is_same_v<T, Us> && ...), T>, 1 + sizeof...(Us)>;
 }
 #endif

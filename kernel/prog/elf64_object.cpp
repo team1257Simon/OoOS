@@ -7,6 +7,8 @@ static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 static std::allocator<program_segment_descriptor> sd_alloc{};
 elf64_object::~elf64_object() { if(__image_start) elf_alloc.deallocate(__image_start, __image_size); if(symtab.data) free(symtab.data); if(symstrtab.data) free(symstrtab.data); if(shstrtab.data) free(shstrtab.data); }
 void elf64_object::cleanup() { if(__image_start) elf_alloc.deallocate(__image_start, __image_size); __image_start = nullptr; }
+void elf64_object::release_segments() { xrelease(); }
+void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
 void elf64_object::process_headers() { num_seg_descriptors = ehdr().e_phnum; segments = sd_alloc.allocate(num_seg_descriptors); }
 elf64_object::elf64_object(file_node* n) : __image_start{ elf_alloc.allocate(n->size()) }, __image_size{ n->size() } { n->read(__image_start, __image_size); }
 bool elf64_object::validate() noexcept { if(__validated) return true; if(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0) { panic("missing identifier; invalid object"); return false; } try { return (__validated = xvalidate()); } catch(std::exception& e) { panic(e.what()); return false; } }

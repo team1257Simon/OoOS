@@ -3,7 +3,7 @@
 #include "kdebug.hpp"
 bool hda_ahci::__has_init = false;
 hda_ahci hda_ahci::__instance{};
-bool hda_ahci::__await_disk() { for(size_t i = 0; !__drv->is_done(__port); __sync_synchronize()) { BARRIER; i++; } return __drv->is_done(__port); }
+bool hda_ahci::__await_disk() { for(size_t i = 0; !__drv->is_done(__port); __sync_synchronize(), barrier(), i++); return __drv->is_done(__port); }
 bool hda_ahci::__read_ahci(qword st, dword ct, uint16_t* bf) { try { __drv->read_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
 bool hda_ahci::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __drv->write_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
 hda_ahci::hda_ahci() {}
@@ -54,7 +54,7 @@ bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
         s_write += sct;
         rem -= sct;
     }
-    FENCE();
+    fence();
     return true;
 }
 bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
@@ -64,7 +64,7 @@ bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
     size_t rem = count;
     size_t t_read = 0;
     size_t s_read = 0;
-    FENCE();
+    fence();
     while(rem)
     {
         size_t sct = std::min(rem, max_op_sectors);
@@ -73,6 +73,6 @@ bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
         s_read += sct;
         rem -= sct;
     }
-    FENCE();
+    fence();
     return true;
 }

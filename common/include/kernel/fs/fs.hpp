@@ -255,6 +255,7 @@ public:
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* get_file(std::string const& path);
     directory_node* get_dir(std::string const& path, bool create = true);
+    directory_node* get_dir_nothrow(std::string const& path, bool create = true) noexcept;
     void close_file(file_node* fd);
     dev_t get_dev_id() const noexcept;
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);

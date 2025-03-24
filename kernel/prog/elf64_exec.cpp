@@ -64,7 +64,9 @@ bool elf64_executable::load_segments()
             .stack_size = __tgt_stack_size,
             .prg_tls = __process_tls_base, 
             .tls_size = __tgt_tls_size, 
-            .entry = __process_entry_ptr 
+            .entry = __process_entry_ptr,
+            .ld_path = nullptr,
+            .ld_path_count = 0
         };
         return true;
     }

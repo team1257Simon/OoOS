@@ -27,6 +27,9 @@ syscall_vec:
     .quad syscall_kill          # 21
     .quad syscall_mmap          # 22
     .quad syscall_munmap        # 23
+    .quad syscall_dlopen        # 24; WIP
+    .quad syscall_dlclose       # 25; WIP
+    .quad syscall_dlsym         # 26; WIP
     .size syscall_vec,      .-syscall_vec
     #   OoOS system call ABI:
     #   System calls are performed using the x86-64 fast system call instruction (SYSCALL).

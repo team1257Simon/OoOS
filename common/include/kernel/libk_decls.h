@@ -16,7 +16,7 @@ typedef struct spinlock_t { volatile bool : 8; } __pack *mutex_t;
 typedef const spinlock_t* cmutex_t;
 constexpr bool acquire(mutex_t m) { return __atomic_test_and_set(m, __ATOMIC_SEQ_CST); }
 constexpr void release(mutex_t m) { __atomic_clear(m, __ATOMIC_SEQ_CST); }
-constexpr void lock(mutex_t m) { while(acquire(m)) PAUSE; }
+constexpr void lock(mutex_t m) { while(acquire(m)) { pause(); } }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, std::addressof(b), __ATOMIC_SEQ_CST); return b; }
 __isrcall void panic(const char* msg) noexcept;
 __isrcall void klog(const char* msg) noexcept;

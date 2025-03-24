@@ -222,7 +222,7 @@ namespace std
             constexpr __hashtable(initializer_list<value_type> ini) requires copy_constructible<value_type> : __hashtable(ini.size()) { __insert(ini); }
             template<input_iterator IT> requires constructible_from<value_type, decltype(*declval<IT>())> constexpr __hashtable(IT first, IT last) : __hashtable(static_cast<size_type>(distance(first, last))) { __insert(first, last); }
             constexpr __hashtable(__hashtable&&) = default; // inherit super
-            constexpr __hashtable(__hashtable const& that) : __hashtable(iterator(that.__begin()), iterator(nullptr)) {}
+            constexpr __hashtable(__hashtable const& that) : __hashtable(const_iterator(that.__begin()), const_iterator(nullptr)) {}
             constexpr __hashtable& operator=(__hashtable&& that) { __clear(); this->__move_assign(move(that)); that.__reset(); that.__init_buckets(2UL); }
             constexpr __hashtable& operator=(__hashtable const& that) { __clear(); __insert(iterator(that.__begin()), iterator(nullptr)); }
             constexpr ~__hashtable() { __deallocate_nodes(); __deallocate_buckets(); }

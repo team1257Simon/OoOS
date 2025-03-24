@@ -311,6 +311,8 @@ typedef struct __elf64_program_desc
     void* prg_tls;
     size_t tls_size;
     void* entry;
+    const char** ld_path;
+    size_t ld_path_count;
 } elf64_program_descriptor;
 #ifdef __cplusplus
 #include "string"

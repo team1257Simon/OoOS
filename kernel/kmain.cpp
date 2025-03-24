@@ -286,8 +286,7 @@ void dyn_elf_tests()
 {
     if(test_extfs.has_init()) try
     {
-        shared_object_map sm{};
-        shared_object_map sm2{};
+        shared_object_map& sm = shared_object_map::get_globals();
         file_node* n = test_extfs.open_file("dyntest.so");
         shared_object_map::iterator test_so = sm.add(n);
         test_extfs.close_file(n);
@@ -299,17 +298,8 @@ void dyn_elf_tests()
         startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets")))) + ")");
         startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").as()) + " (");
         startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc")))) + ")");
-        test_so = sm.transfer(sm2, test_so);
         kernel_memory_mgr::get().exit_frame();
-        kernel_memory_mgr::get().enter_frame(sm2.shared_frame);
-        startup_tty.print_line("Transferred SO name: " + test_so->get_soname());
-        startup_tty.print_text("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("printf")))) + ")");
-        startup_tty.print_text("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets")))) + ")");
-        startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc")))) + ")");
-        kernel_memory_mgr::get().exit_frame();
+        sm.remove(test_so);
     }
     catch(std::exception& e) { panic(e.what()); }
 }
@@ -322,14 +312,10 @@ void elf64_tests()
         test_extfs.close_file(tst);
         if(test_exec.load())
         {
-            elf64_program_descriptor const* desc = std::addressof(test_exec.describe());
-            startup_tty.print_line("Entry at " + std::to_string(desc->entry));
-            startup_tty.print_line("Stack at " + std::to_string(desc->prg_stack));
-            task_ctx* task = task_list::get().create_user_task(*desc, std::vector<const char*>{ "test.elf" });
-            file_node* c = task->get_vfs_ptr()->lndev("com", com, 0);
-            task->set_stdio_ptrs(c, c, c);
-            task->start_task();
-            user_entry(task->task_struct.self);
+            file_node* c = testramfs.lndev("com", com, 0);
+            elf64_program_descriptor const& desc = test_exec.describe();
+            startup_tty.print_line("Entry at " + std::to_string(desc.entry));
+            task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
         }
         else startup_tty.print_line("Executable failed to validate");
     }

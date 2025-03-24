@@ -335,9 +335,9 @@ constexpr size_t physical_block_size = 512UL;
 template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
 template<class T> concept non_void = !std::is_void_v<T>;
 #endif
-#define PAUSE asm volatile ("pause" ::: "memory")
-#define BARRIER asm volatile ("" ::: "memory")
-#define FENCE() asm volatile("mfence" ::: "memory")
+inline void pause() { asm volatile("pause" ::: "memory"); }
+inline void barrier() { asm volatile("" ::: "memory"); }
+inline void fence() { asm volatile("mfence" ::: "memory"); }
 typedef enum mem_type
 {
     AVAILABLE = 1,

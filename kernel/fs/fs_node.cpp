@@ -11,13 +11,13 @@ const char *fs_node::name() const { return concrete_name.c_str(); }
 bool fs_node::is_file() const noexcept { return false; }
 bool fs_node::is_directory() const noexcept { return false; }
 bool fs_node::is_device() const noexcept { return false; }
-void fs_node::add_reference(tnode *ref) { refs.insert(ref); }
-void fs_node::rm_reference(tnode *ref) { if(refs.erase(ref)) { ref->invlnode(); } }
+void fs_node::add_reference(tnode* ref) { refs.insert(ref); }
+void fs_node::rm_reference(tnode* ref) { if(refs.erase(ref)) { ref->invlnode(); } }
 void fs_node::prune_refs() { for(tnode* ref : refs) ref->invlnode(); refs.clear(); }
 bool fs_node::has_refs() const noexcept { return refs.size() != 0; }
 size_t fs_node::num_refs() const noexcept { return refs.size(); }
 fs_node::~fs_node() { prune_refs(); }
-file_node::file_node(std::string const &name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
+file_node::file_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 bool file_node::is_file() const noexcept { return true; }
 bool file_node::chk_lock() const noexcept { return !test_lock(std::addressof(__my_lock)); }
 void file_node::acq_lock() { acquire(std::addressof(__my_lock)); }

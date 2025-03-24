@@ -175,7 +175,7 @@ protected:
     __isrcall virtual void on_modify_queue() override;
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
-    static com_amd64 __inst;
+    static com_amd64 __instance;
     com_amd64(size_t init_size);
 public:
     static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12ui16);

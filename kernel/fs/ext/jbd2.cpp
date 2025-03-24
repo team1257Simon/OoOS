@@ -81,12 +81,12 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     };
     mark_write(dblk_tar);
     uint32_t csum = crc32c_blk(uuid_checksum, ch_block, bs);
-    BARRIER;
+    barrier();
     ch->checksum[0] = csum;
     first_open_block = txn_st_block + total;
     __bumpc(bs);
     if(!ddwrite()) return false;
-    BARRIER;
+    barrier();
     active_transactions.emplace(actual_blocks, static_cast<int>(seq));
     return true;
 }

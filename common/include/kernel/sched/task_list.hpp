@@ -6,7 +6,7 @@
 class task_list : std::set<task_ctx>
 {
     using __base = std::set<task_ctx>;
-    static task_list __inst;
+    static task_list __instance;
     uint64_t __mk_pid() const noexcept;
     constexpr task_list() : __base{} {}
     friend class task_ctx;

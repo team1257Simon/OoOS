@@ -7,25 +7,35 @@ static const char* find_so_name(addr_t image_start);
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
 bool is_valid_handle(elf64_shared_object const& so) { return so.so_handle_magic == shared_magic; }
-elf64_shared_object::~elf64_shared_object() = default;
+void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descr& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
+elf64_shared_object::~elf64_shared_object() = default; // TODO: call the destructors for loaded objects if applicable
 elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) : 
-    elf64_dynamic_object    (n),
-    so_handle_magic         (shared_magic),
-    soname                  (find_so_name(img_ptr())),
+    elf64_dynamic_object    ( n ),
+    so_handle_magic         { shared_magic },
+    soname                  ( find_so_name(img_ptr()) ),
     virtual_load_base       { frame->extent },
     frame_tag               { frame },
     ref_count               { 1UL },
     sticky                  { false }
                             {}
 elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : 
-    elf64_dynamic_object    (std::move(that)),
-    so_handle_magic         (shared_magic),
-    soname                  (std::move(that.soname)),
+    elf64_dynamic_object    ( std::move(that) ),
+    so_handle_magic         { shared_magic },
+    soname                  ( std::move(that.soname) ),
     virtual_load_base       { that.virtual_load_base },
     frame_tag               { that.frame_tag },
     ref_count               { that.ref_count },
     sticky                  { that.sticky }
-                            {}
+                            { that.frame_tag = nullptr; }
+elf64_shared_object::elf64_shared_object(elf64_shared_object const& that, uframe_tag* nframe) :
+    elf64_dynamic_object    ( that ),
+    so_handle_magic         { shared_magic },
+    soname                  ( that.soname ),
+    virtual_load_base       { that.virtual_load_base },
+    frame_tag               { nframe },
+    ref_count               { that.ref_count },
+    sticky                  { that.sticky }
+{ for(block_descr const& d : that.segment_blocks()) { frame_tag->accept_block(d); } }
 static const char* find_so_name(addr_t image_start)
 {
     elf64_ehdr const& eh = image_start.ref<elf64_ehdr>();

@@ -15,6 +15,7 @@ protected:
     virtual bool load_segments() override;
     virtual bool xvalidate() override;
     virtual bool xload() override;
+    virtual void xrelease() override;
 public:
     virtual addr_t resolve(uint64_t offs) const override;
     virtual addr_t resolve(elf64_sym const& sym) const override;
@@ -30,6 +31,7 @@ public:
     std::vector<block_descr> segment_blocks() const;
     elf64_shared_object(file_node* n, uframe_tag* frame);
     elf64_shared_object(elf64_shared_object&& that);
+    elf64_shared_object(elf64_shared_object const& that, uframe_tag* nframe);
     virtual ~elf64_shared_object();
     friend bool is_valid_handle(elf64_shared_object const& so);
 };

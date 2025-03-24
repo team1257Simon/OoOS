@@ -120,7 +120,7 @@ namespace std::__impl
         constexpr __size_type __ediff(__const_ptr pos) const noexcept { return __size_type(__cur() - pos); }
         constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize<T>(__beg(), __capacity(), num_elements), num_elements, num_elements); this->__post_modify_check_nt(); }
         constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize<T>(__beg(), __capacity(), n), std::min(n, num_elements), n); this->__post_modify_check_nt(); }
-        constexpr void __allocate_storage(__size_type n) { __setn(__allocator.allocate(n), n); }
+        constexpr void __allocate_storage(__size_type n) { if(n) __setn(__allocator.allocate(n), n); }
         constexpr void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
         constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__post_modify_check_nt(); return __cur(); }
         constexpr __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__post_modify_check_nt(); return __cur(); }
@@ -141,7 +141,7 @@ namespace std::__impl
         template<std::matching_input_iterator<T> IT> constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }
         constexpr __dynamic_buffer(__size_type sz) : __allocator{}, __my_data{} { __allocate_storage(sz); }
         constexpr __dynamic_buffer(__size_type sz, A const& alloc) : __allocator{ alloc }, __my_data{} { __allocate_storage(sz); }
-        constexpr __dynamic_buffer(__size_type sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { __set(__beg(), val, sz); __advance(sz); }
+        constexpr __dynamic_buffer(__size_type sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { if(sz) { __set(__beg(), val, sz); __advance(sz); } }
         constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __dynamic_buffer{ __ils.begin(), __ils.end(), alloc } {}
         constexpr __dynamic_buffer(__dynamic_buffer const& that) : __dynamic_buffer{ that.__beg(), that.__cur(), that.__allocator } {}
         constexpr __dynamic_buffer(__dynamic_buffer const& that, A const& alloc) : __dynamic_buffer{ that.__beg(), that.__cur(), alloc } {}

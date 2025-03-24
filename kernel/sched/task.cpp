@@ -7,14 +7,26 @@
 #include "elf64_exec.hpp"
 #include "arch/com_amd64.h"
 #include "isr_table.hpp"
+static std::allocator<shared_object_map> sm_alloc{};
 static inline addr_t __pml4_of(addr_t frame_ptr) { if(frame_ptr.as<uframe_tag>()->magic == uframe_magic) return frame_ptr.as<uframe_tag>()->pml4; else return get_cr3(); }
 filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller->is_system() || static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true; for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } return false; }
-task_list::iterator ctx_fork(task_ctx const& t) { task_list::iterator result = task_list::get().emplace(t).first; result->init_task_state(t); result->start_task(t.exit_target); return result; }
 void task_ctx::add_child(task_ctx* that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx* that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
 void sys_task_exit() { int retv; asm volatile("movl %%eax, %0" : "=r"(retv) :: "memory"); get_gs_base<task_ctx>()->set_exit(retv); }
-void task_ctx::set_stdio_ptrs(file_node* stdin, file_node* stdout, file_node* stderr) { stdio_ptrs[0] = stdin; stdio_ptrs[1] = stdout; stdio_ptrs[2] = stderr; }
+void task_ctx::set_stdio_ptrs(std::array<file_node*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
+void task_ctx::set_stdio_ptrs(file_node* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
+task_ctx::~task_ctx()
+{ 
+    if(local_so_map)
+    { 
+        shared_object_map& globals = shared_object_map::get_globals();
+        std::vector<shared_object_map::iterator> stickies{};
+        for(shared_object_map::iterator i = local_so_map->begin(); i != local_so_map->end(); i++) { if(i->is_sticky()) { stickies.push_back(i); } }
+        for(shared_object_map::iterator i : stickies) { local_so_map->transfer(globals, i); }
+        sm_alloc.deallocate(local_so_map, 1); 
+    }
+}
 void task_ctx::init_task_state()
 {
     task_struct.saved_regs.rsi = std::bit_cast<register_t>(arg_vec.data());   
@@ -48,22 +60,6 @@ void task_ctx::init_task_state(task_ctx const& that)
         kernel_memory_mgr::get().exit_frame();
     }
 }
-task_ctx::task_ctx(task_ctx const& that) : 
-    task_ctx
-    { 
-        that.task_struct.saved_regs.rip, 
-        std::vector<const char*>{ that.arg_vec }, 
-        that.allocated_stack, 
-        static_cast<ptrdiff_t>(that.stack_allocated_size), 
-        that.tls, 
-        that.tls_size, 
-        std::addressof(frame_manager::get().duplicate_frame(that.task_struct.frame_ptr.ref<uframe_tag>())),
-        task_list::get().__mk_pid(),
-        static_cast<int64_t>(that.get_pid()), 
-        that.task_struct.task_ctl.prio_base, 
-        that.task_struct.quantum_val 
-    } 
-    { ctx_filesystem = that.ctx_filesystem; set_stdio_ptrs(that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2]); }
 task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
     task_struct
     { 
@@ -79,8 +75,28 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
     stack_allocated_size    { static_cast<size_t>(stack_size) }, 
     tls                     { tls_base }, 
     tls_size                { tls_len }, 
-    ctx_filesystem          { create_task_vfs() } 
-                            {}
+    ctx_filesystem          { create_task_vfs() },
+    local_so_map            { is_user() ? sm_alloc.allocate(1) : nullptr }
+                            { if(local_so_map) { std::construct_at(local_so_map, frame_ptr); } }
+task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char *>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) :
+    task_struct
+    {
+        .self               { std::addressof(task_struct) },
+        .frame_ptr          { desc.frame_ptr },
+        .saved_regs         { .rbp{ addr_t(desc.prg_stack).plus(desc.stack_size) }, .rsp{ addr_t(desc.prg_stack).plus(desc.stack_size)}, .rip{ desc.entry }, .rflags{ 0x202UL }, .cr3{ __pml4_of(desc.frame_ptr) } },
+        .quantum_val        { quantum }, 
+        .task_ctl           { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid },
+        .tls_block          { desc.prg_tls }
+    },
+    arg_vec                 { std::move(args) },
+    dl_search_paths         ( desc.ld_path_count ),
+    allocated_stack         { desc.prg_stack },
+    stack_allocated_size    { desc.stack_size },
+    tls                     { desc.prg_tls },
+    tls_size                { desc.tls_size },
+    ctx_filesystem          { create_task_vfs() },
+    local_so_map            { sm_alloc.allocate(1) }
+{ std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.frame_ptr)); if(desc.ld_path && desc.ld_path_count) { dl_search_paths.push_back(desc.ld_path, desc.ld_path + desc.ld_path_count); } }
 void task_ctx::start_task(addr_t exit_fn)
 {
     if(env_vec.empty() || env_vec.back()) { env_vec.push_back(nullptr); }
@@ -111,7 +127,7 @@ void task_ctx::set_exit(int n)
             p->last_notified = this;
             c = p;
         }
-        static_cast<void(*)()>(exit_target)();
+        exit_target.ref<void()>()();
     }
     else handle_exit();
     __builtin_unreachable();    
@@ -121,7 +137,8 @@ void task_ctx::terminate()
     current_state = execution_state::TERMINATED;
     scheduler::get().unregister_task(task_struct.self);
     for(task_ctx* c : child_tasks) { if(c->current_state == execution_state::RUNNING) { if(exit_code) { c->exit_code = exit_code; c->terminate(); } } }
-    if(is_user()) frame_manager::get().destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
+    if(is_user()) {frame_manager::get().destroy_frame(task_struct.frame_ptr.ref<uframe_tag>()); }
+    if(local_so_map) { local_so_map->shared_frame = nullptr; } 
 }
 tms task_ctx::get_times() const noexcept
 {
@@ -134,16 +151,26 @@ tms task_ctx::get_times() const noexcept
     }
     return result;
 }
+void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
+{
+    task_ctx* ctx = task_list::get().create_user_task(prg, std::move(args), parent_pid, pv, quantum);
+    ctx->env_vec = std::move(env);
+    ctx->init_task_state();
+    ctx->set_stdio_ptrs(std::move(stdio_ptrs));
+    if(exit_fn) { ctx->start_task(exit_fn); }
+    else { ctx->start_task(); }
+    user_entry(ctx->task_struct.self);
+}
 extern "C"
 {
     [[noreturn]] void handle_exit() { cli(); if(task_ctx* task = active_task_context(); task->is_user()) { task->terminate(); task_list::get().destroy_task(task->get_pid()); } sti(); kernel_reentry(); __builtin_unreachable(); }
     clock_t syscall_times(tms *out) { out = translate_user_pointer(out); if(task_ctx* task = active_task_context(); task->is_user() && out) { new (out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -EINVAL; }
     long syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
-    long syscall_fork() { try { if(task_ctx* task = active_task_context()) { if(task_list::iterator result = ctx_fork(*task); result != task_list::get().end()) { return static_cast<long>(result->get_pid()); } else return -EAGAIN; } } catch(std::exception& e) { panic(e.what()); return -ENOMEM; } return -EINVAL; }
+    long syscall_fork() { return -ENOSYS; /* NYI */ }
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
     int syscall_kill(unsigned long pid, unsigned long sig) { if(task_ctx* task = active_task_context()) { if(task_list::iterator target = task_list::get().find(pid); !target->is_system()) { if(!check_kill(task, target)) return -EPERM; target->task_struct.task_ctl.sigkill = true; target->task_struct.task_ctl.signal_num = sig; target->set_exit(static_cast<int>(sig)); return 0; } } return -EINVAL; }
-    pid_t syscall_wait(int* sc_out) { task_ctx* task = active_task_context(); sc_out = translate_user_pointer(sc_out); if(task->last_notified) { *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } else if(scheduler::get().set_wait_untimed(task->task_struct.self)) { task->notif_target = sc_out; task->task_struct.task_ctl.notify_cterm = true; while(task->task_struct.task_ctl.block) { PAUSE; } return task->last_notified ? task->last_notified->get_pid() : -EINTR; } return -EINVAL; }
-    int syscall_sleep(unsigned long seconds) { if(task_ctx* task = active_task_context(); scheduler::get().set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { PAUSE; } return 0; } return -ENOSYS; }
+    pid_t syscall_wait(int* sc_out) { task_ctx* task = active_task_context(); sc_out = translate_user_pointer(sc_out); if(task->last_notified) { *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } else if(scheduler::get().set_wait_untimed(task->task_struct.self)) { task->notif_target = sc_out; task->task_struct.task_ctl.notify_cterm = true; while(task->task_struct.task_ctl.block) { pause(); } return task->last_notified ? task->last_notified->get_pid() : -EINTR; } return -EINVAL; }
+    int syscall_sleep(unsigned long seconds) { if(task_ctx* task = active_task_context(); scheduler::get().set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { pause(); } return 0; } return -ENOSYS; }
     int syscall_execve(char* name, char** argv, char** env) 
     { 
         task_ctx* task = get_gs_base<task_ctx>();
@@ -159,13 +186,17 @@ extern "C"
             if(!(n->mode.exec_group || n->mode.exec_owner || n->mode.exec_others)) { fs_ptr->close_file(n); return -EPERM; }
             elf64_executable exec{ n };
             if(!exec.load()) { fs_ptr->close_file(n); return -ENOEXEC; }
-            task_ctx* i = task_list::get().create_user_task(exec.describe(), std::vector<const char*>{}, task->get_pid(), task->task_struct.task_ctl.prio_base, task->task_struct.quantum_val);
-            for(char** c = env; *c; c++) i->env_vec.push_back(*c);
-            for(char** c = argv; *c; c++) i->arg_vec.push_back(*c);
-            i->init_task_state();
-            i->env_vec.push_back(nullptr);
-            i->start_task(task->exit_target);
             fs_ptr->close_file(n);
+            std::vector<const char*> xargv{};
+            std::vector<const char*> xenv{};
+            for(char** c = argv; *c; c++) xargv.push_back(*c);
+            for(char** c = env; *c; c++) xenv.push_back(*c);
+            xenv.push_back(nullptr);
+            task_ctx* ctx = task_list::get().create_user_task(exec.describe(), std::move(xargv), task->get_pid(), task->task_struct.task_ctl.prio_base, task->task_struct.quantum_val);
+            ctx->env_vec = std::move(xenv);
+            ctx->set_stdio_ptrs(task->stdio_ptrs);
+            ctx->init_task_state();
+            ctx->start_task(task->exit_target);
             return 0;
         }
         catch(std::exception& e) { panic(e.what()); if(n) { fs_ptr->close_file(n); return -EPIPE; } else return -EAGAIN; } 

@@ -1,8 +1,8 @@
 #include "frame_manager.hpp"
 #include "stdexcept"
-frame_manager frame_manager::__inst{};
+frame_manager frame_manager::__instance{};
 void frame_manager::destroy_frame(uframe_tag& ft) { if(!contains(ft)) throw std::out_of_range{ "invalid frame tag" }; erase(ft); }
-frame_manager& frame_manager::get() { return __inst; }
+frame_manager& frame_manager::get() { return __instance; }
 uframe_tag& frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 {
     paging_table pt = kernel_memory_mgr::get().allocate_pt();

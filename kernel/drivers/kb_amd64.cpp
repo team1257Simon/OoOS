@@ -1,5 +1,5 @@
 #include "arch/kb_amd64.hpp"
-keyboard_driver_amd64 __inst{};
+keyboard_driver_amd64 __instance{};
 constexpr static char sc_lower[] = { '\0', '\0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', '\0', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '"', '`', '\0', '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', '\0', '*', '\0', ' ', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.', '\0', '\0', '\0', '\0', '\0' };
 constexpr static char sc_shift[] = { '\0', '\0', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b', '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n', '\0', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '\'', '~', '\0', '|', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', '\0', '*', '\0', ' ', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\r', '\0', '\0', '-', '\0', '5', '\0', '+', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0' };
 constexpr char case_diff = ('a' - 'A');
@@ -49,4 +49,4 @@ __isrcall kb_data keyboard_driver_amd64::__get_last(kb_state current_state) { re
 __isrcall bool keyboard_driver_amd64::__skip_send() { if(__skip) { __skip = false; return true; } return false; }
 void keyboard_driver_amd64::__on_init() { kb_put(0xF4ui8); kb_get(); irq_clear_mask<1ui8>(); }
 byte keyboard_driver_amd64::__get_irq_index() { return 1ui8; }
-keyboard_driver* get_kb_driver() { return static_cast<keyboard_driver*>(std::addressof(__inst)); }
+keyboard_driver* get_kb_driver() { return static_cast<keyboard_driver*>(std::addressof(__instance)); }

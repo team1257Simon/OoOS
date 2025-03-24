@@ -20,7 +20,7 @@ elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
 elf64_dynamic_object::~elf64_dynamic_object()
 {
     symbol_index.destroy_if_present();
-    if(segments && num_seg_descriptors) { sd_alloc.deallocate(segments, num_seg_descriptors); } 
+    if(segments && num_seg_descriptors) { release_segments(); sd_alloc.deallocate(segments, num_seg_descriptors); }
     if(dyn_entries) dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
     if(plt_got_slots) free(plt_got_slots);
 }

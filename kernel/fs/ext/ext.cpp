@@ -87,11 +87,11 @@ void ext_block_group::compute_checksums(size_t group_num)
         descr->inode_usage_bmp_checksum = ibmp_cs.lo;
         descr->inode_usage_bmp_checksum_hi = ibmp_cs.hi;
         descr->group_checksum = 0;
-        BARRIER;
+        barrier();
         dword cs_full = crc32c(parent_fs->sb->fs_uuid);
         cs_full = crc32c(cs_full, static_cast<uint32_t>(group_num));
         cs_full = crc32c(cs_full, *descr);
-        BARRIER;
+        barrier();
         descr->group_checksum = cs_full.lo;
     }
     else if(parent_fs->sb->read_only_optional_features & gdt_csum)
