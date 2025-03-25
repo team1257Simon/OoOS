@@ -21,7 +21,7 @@ struct task_ctx
     std::vector<task_ctx*> child_tasks{};   //  The array in task_struct will be redirected here.
     std::vector<const char*> arg_vec;       //  Argv will be this vector's data() member; argc is its size()
     std::vector<const char*> env_vec{};     //  Environment variables will go here
-    std::vector<const char*> dl_search_paths{};
+    std::vector<std::string> dl_search_paths{};
     addr_t allocated_stack;
     size_t stack_allocated_size;
     addr_t tls;
@@ -33,6 +33,7 @@ struct task_ctx
     addr_t exit_target{ nullptr };
     addr_t notif_target{ nullptr };
     task_ctx* last_notified{ nullptr };
+    elf64_object* object_handle{ nullptr };
     shared_object_map* local_so_map{ nullptr };
     task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);

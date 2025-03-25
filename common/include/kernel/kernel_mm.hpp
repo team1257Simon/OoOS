@@ -37,6 +37,7 @@ constexpr size_t region_size = page_size * page_table_length;
 constexpr uintptr_t mmap_min_addr = 0x500000UL;
 constexpr size_t block_index_range = max_exponent - min_exponent;
 constexpr size_t max_block_index = block_index_range - 1;
+constexpr addr_t sysres_base{ 0xFFFF800000000000 };
 struct block_tag
 {
     uint64_t magic{ block_magic };
@@ -102,14 +103,25 @@ struct uframe_tag
     addr_t base;
     addr_t extent;
     addr_t mapped_max;
-    std::vector<addr_t> pt_blocks{};
+    addr_t sysres_wm;
+    addr_t sysres_extent;
+    addr_t dynamic_extent;
+    std::vector<addr_t> kernel_allocated_blocks{};
     std::vector<block_descr> usr_blocks{};
 private:
     spinlock_t __my_mutex{};
     void __lock();
     void __unlock();
 public:
-    constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : pml4{ cr3 }, base{ st_base }, extent{ st_extent }, mapped_max{ st_extent } {}
+    constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : 
+        pml4            { cr3 },
+        base            { st_base },
+        extent          { st_extent },
+        mapped_max      { st_extent },
+        sysres_wm       { sysres_base },
+        sysres_extent   { sysres_base },
+        dynamic_extent  { nullptr }
+                        {}
     ~uframe_tag();
     bool shift_extent(ptrdiff_t amount);
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);

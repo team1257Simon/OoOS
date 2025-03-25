@@ -19,7 +19,6 @@ protected:
 public:
     virtual addr_t resolve(uint64_t offs) const override;
     virtual addr_t resolve(elf64_sym const& sym) const override;
-    addr_t resolve_by_name(std::string const& symbol) const;
     constexpr std::string const& get_soname() const { return soname; }
     constexpr void incref() noexcept { ref_count++; }
     constexpr void decref() noexcept { ref_count--; }

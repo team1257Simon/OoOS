@@ -258,6 +258,7 @@ public:
     directory_node* get_dir_nothrow(std::string const& path, bool create = true) noexcept;
     void close_file(file_node* fd);
     dev_t get_dev_id() const noexcept;
+    std::string get_path_separator() const noexcept;
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     filesystem();

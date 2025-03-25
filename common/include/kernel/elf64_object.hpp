@@ -26,8 +26,8 @@ protected:
     virtual bool load_segments() = 0;
     virtual bool xload() = 0;
     virtual bool xvalidate() = 0;
+    virtual bool load_syms();
     void release_segments();
-    bool load_syms();
     off_t segment_index(size_t offset) const;
     off_t segment_index(elf64_sym const* sym) const;
     void cleanup();

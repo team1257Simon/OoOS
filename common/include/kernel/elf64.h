@@ -313,6 +313,7 @@ typedef struct __elf64_program_desc
     void* entry;
     const char** ld_path;
     size_t ld_path_count;
+    void* object_handle;
 } elf64_program_descriptor;
 #ifdef __cplusplus
 #include "string"

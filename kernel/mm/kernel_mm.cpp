@@ -51,7 +51,7 @@ void kframe_tag::__lock() { lock(std::addressof(__my_mutex)); }
 void kframe_tag::__unlock() { release(std::addressof(__my_mutex)); }
 void uframe_tag::__lock() { lock(std::addressof(__my_mutex)); }
 void uframe_tag::__unlock() { release(std::addressof(__my_mutex)); }
-uframe_tag::~uframe_tag() { kernel_memory_mgr::get().enter_frame(this); for(block_descr& blk : usr_blocks) kernel_memory_mgr::get().deallocate_block(blk.virtual_start, blk.size, true); kernel_memory_mgr::get().exit_frame(); for(addr_t addr : pt_blocks) __kernel_frame_tag->deallocate(addr); }
+uframe_tag::~uframe_tag() { kernel_memory_mgr::get().enter_frame(this); for(block_descr& blk : usr_blocks) kernel_memory_mgr::get().deallocate_block(blk.virtual_start, blk.size, blk.virtual_start != blk.physical_start); kernel_memory_mgr::get().exit_frame(); for(addr_t addr : kernel_allocated_blocks) __kernel_frame_tag->deallocate(addr); }
 void kframe_tag::insert_block(block_tag* blk, int idx) { blk->index = idx < 0 ? (calculate_block_index(blk->block_size)) : idx; if (available_blocks[blk->index]) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
 static paging_table __get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
 static uintptr_t block_offset(uintptr_t addr, block_idx idx)
@@ -338,7 +338,7 @@ paging_table kernel_memory_mgr::allocate_pt()
     addr_t result = tag->actual_start();
     __builtin_memset(result, 0, page_size);
     if(tag->available_size() >= minimum_block_size + bt_offset) __kernel_frame_tag->insert_block(tag->split(), -1);
-    if(result && __active_frame) { bool lk = test_lock(std::addressof(__heap_mutex)); if(lk) __unlock(); __active_frame->pt_blocks.push_back(result); if(lk) __lock(); }
+    if(result && __active_frame) { bool lk = test_lock(std::addressof(__heap_mutex)); if(lk) __unlock(); __active_frame->kernel_allocated_blocks.push_back(result); if(lk) __lock(); }
     return result;
 }
 addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz)

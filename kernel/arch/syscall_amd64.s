@@ -2,6 +2,7 @@
     .section .data
     .global syscall_vec
     .type   syscall_vec,    @object
+    .type   syscv_end,      @object
 syscall_vec:
     .quad syscall_exit          # 0
     .quad syscall_sleep         # 1
@@ -30,7 +31,13 @@ syscall_vec:
     .quad syscall_dlopen        # 24; WIP
     .quad syscall_dlclose       # 25; WIP
     .quad syscall_dlsym         # 26; WIP
+    .quad syscall_getsym        # 27; WIP / ldso-specific
+    .quad syscall_dlpath        # 28; WIP / ldso-specific
+    .quad syscall_dlorigin      # 29; WIP / ldso-specific
     .size syscall_vec,      .-syscall_vec
+syscv_end:
+    .quad 0
+    .size syscv_end,        .-syscv_end
     #   OoOS system call ABI:
     #   System calls are performed using the x86-64 fast system call instruction (SYSCALL).
     #   The caller places arguments in registers DI, SI, D, 8, 9, and 10, and the syscall number in register A.
@@ -39,7 +46,9 @@ syscall_vec:
     #   The result of the call is stored in the A register. Error codes are returned as minus values (between -4095 and -1) as per the Linux syscall ABI.
     .section .text
     .global do_syscall
-    .type   do_syscall,     @function
+    .extern on_invalid_syscall
+    .type   do_syscall,         @function
+    .type   on_invalid_syscall, @function
 do_syscall:
     cli
     movq    %rsp,                   %gs:0x088
@@ -51,7 +60,7 @@ do_syscall:
     movq    %r13,                   %gs:0x068
     movq    %r14,                   %gs:0x070
     movq    %r15,                   %gs:0x078
-    incq    %gs:0x2F0                       # subject to change, but for now just count all syscalls as 1 on system timers (offset 0x2F0 into the task struct)
+    incq    %gs:0x2E0
     movq    %gs:0x000,              %rcx
     fxsave  %gs:0x0D0    
     swapgs
@@ -63,11 +72,16 @@ do_syscall:
     movq    %r8,                    %rcx
     movq    %r9,                    %r8
     movq    %r10,                   %r9
-    leaq    syscall_vec,            %r10
-    movq    (%r10, %rax, 8),        %rax    # TODO: bounds check this!
     fxrstor %gs:0x0D0
     pushq   %rbp
-    movq    %rsp,                   %rbp   
+    movq    %rsp,                   %rbp
+    cmpl    $0,                     %eax
+    jl      on_invalid_syscall
+    leaq    syscall_vec,            %r10
+    leaq    (%r10, %rax, 8),        %rax
+    cmpq    $syscv_end,             %rax
+    jg      on_invalid_syscall
+    movq    (%rax),                 %rax
     sti
     call    *%rax
     cli

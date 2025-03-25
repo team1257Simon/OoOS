@@ -14,10 +14,11 @@ void filesystem::close_file(file_node* fd) { this->close_fd(fd); fd->rel_lock();
 void filesystem::close_fd(file_node* fd) { if(fd->is_device()) return; fd->seek(0); int id = fd->vid(); if(static_cast<size_t>(id) < current_open_files.size()) { current_open_files[id] = nullptr; next_fd = id; } }
 file_node* filesystem::open_fd(tnode* node) { return node->as_file(); }
 void filesystem::dldevnode(device_node* n) { n->prune_refs(); current_open_files[n->vid()] = nullptr; device_nodes.erase(*n); this->syncdirs(); }
-file_node *filesystem::open_file(const char* path, std::ios_base::openmode mode) { return open_file(std::string(path), mode); }
+file_node* filesystem::open_file(const char* path, std::ios_base::openmode mode) { return open_file(std::string(path), mode); }
 file_node* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) { return current_open_files[fd]; } else return nullptr; }
 device_node* filesystem::lndev(std::string const& where, device_node::device_buffer* what, int fd_hint, bool create_parents) { target_pair parent = this->get_parent(where, create_parents); if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; device_node* result = this->mkdevnode(parent.first, parent.second, what, fd_hint); this->__put_fd(result); return result; }
 void filesystem::link_stdio(device_node::device_buffer* target) { current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdin", target, 0)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stdout", target, 1)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stderr", target, 2)); }
+std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return this->xlink(this->get_parent(ogpath, false), this->get_parent(tgpath, create_parents)); }
 bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent = this->get_parent(what, false); return this->xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
 dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }

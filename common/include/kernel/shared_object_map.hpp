@@ -16,6 +16,7 @@ class shared_object_map : protected std::hash_set<elf64_shared_object, std::stri
     using typename __base::__node_ptr;
     using typename __base::__const_node_ptr;
     static shared_object_map __global_shared_objects;
+    std::unordered_map<iterator, std::string> __obj_paths;
 public:
     uframe_tag* shared_frame;
     using typename __base::iterator;
@@ -46,13 +47,17 @@ public:
     iterator get_if_resident(file_node* so_file);
     bool remove(iterator so_handle);
     iterator transfer(shared_object_map& that, iterator handle);
+    void set_path(iterator obj, std::string const& path);
+    const char* get_path(iterator obj) const;
     static shared_object_map& get_globals();
 };
-// hashtable iterators can be passed/returned in registers (the assembly simply sees the integer value of the iterator's pointer); this means they're fine as handles.
 extern "C"
 {
-    shared_object_map::iterator syscall_dlopen(const char* name, int flags);
-    int syscall_dlclose(shared_object_map::iterator handle);
-    addr_t syscall_dlsym(shared_object_map::iterator handle, const char* name);
+    addr_t syscall_dlopen(const char* name, int flags);
+    int syscall_dlclose(addr_t handle);
+    addr_t syscall_dlsym(addr_t handle, const char* name);
+    addr_t syscall_getsym(const char* name);    // shortcut to syscall_dlsym(syscall_dlopen(0, RTLD_NOW), name)
+    int syscall_dlpath(const char* path_str);   // add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
+    int syscall_dlorigin(addr_t handle, const char** str_out, size_t* sz_out);    // write the full absolute path of the given SO to the file given by fdout; if sz_out is nonnull, it receives the total number of characters written
 }
 #endif

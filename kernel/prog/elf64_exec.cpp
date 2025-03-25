@@ -66,7 +66,8 @@ bool elf64_executable::load_segments()
             .tls_size = __tgt_tls_size, 
             .entry = __process_entry_ptr,
             .ld_path = nullptr,
-            .ld_path_count = 0
+            .ld_path_count = 0,
+            .object_handle = this
         };
         return true;
     }

@@ -13,7 +13,7 @@ elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     elf64_dynamic_object    ( n ),
     so_handle_magic         { shared_magic },
     soname                  ( find_so_name(img_ptr()) ),
-    virtual_load_base       { frame->extent },
+    virtual_load_base       { frame->dynamic_extent },
     frame_tag               { frame },
     ref_count               { 1UL },
     sticky                  { false }
@@ -94,18 +94,12 @@ bool elf64_shared_object::load_segments()
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, target, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
             frame_tag->usr_blocks.emplace_back(blk, target, actual_size, is_write(h), is_exec(h));
-            frame_tag->extent = std::max(frame_tag->extent, target.plus(actual_size));
+            frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size));
             have_loads = true;
         }
     }
     kernel_memory_mgr::get().exit_frame();
     return have_loads;
-}
-addr_t elf64_shared_object::resolve_by_name(std::string const& symbol) const
-{
-    if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return nullptr; }
-    elf64_sym const* sym = symbol_index[symbol];
-    return sym ? resolve(*sym) : nullptr;
 }
 bool elf64_shared_object::xload()
 {

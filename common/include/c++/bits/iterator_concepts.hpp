@@ -18,7 +18,7 @@ namespace std
         template<typename T> using __with_ref = T&;
         template<typename T> concept __can_reference = requires { typename __with_ref<T>; };
         template<typename T> concept __dereferenceable = requires(T& __t) { { *__t } -> __can_reference; };
-        template<typename IT, typename T2> concept __points_to = requires(T2* p, IT i, size_t n) { { ::new (p) T2 {*i} } -> std::same_as<T2*>; { *i } -> __can_reference; { i[n] } -> __can_reference; };
+        template<typename IT, typename T2> concept __points_to = requires(T2* p, IT i, size_t n) { { ::new (p) T2 { *i } } -> std::same_as<T2*>; { *i } -> __can_reference; { i[n] } -> __can_reference; };
     }
     template<__detail::__dereferenceable T> using iter_reference_t = decltype(*std::declval<T&>());
     namespace ranges

@@ -97,7 +97,7 @@ typedef struct __task_info
     fx_state fxsv CXX_INI();           // %gs:0x0D0 - %gs:0x2D0; stored state for floating-point registers
     uint64_t run_split CXX_INI(0UL);   // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
     uint64_t run_time CXX_INI(0UL);    // %gs:0x2D8; total runtime
-    uint64_t sys_time CXX_INI(0UL);    // %gs:0x2E0; approximate time in syscalls
+    uint64_t sys_time CXX_INI(0UL);    // %gs:0x2E0; approximate time in syscalls (for the moment, all syscalls simply count as 1)
     addr_t tls_block;                  // %gs:0x2E8; location for TLS 
     size_t num_child_procs;            // %gs:0x2F0; how many children are in the array below
     addr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)

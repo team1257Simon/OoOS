@@ -69,11 +69,9 @@ bool elf64_dynamic_object::xload()
         // allocate the array to have enough space for all indices, but the non-load segments will be zeroed
         bool success = true;
         process_headers();
-        if(!load_syms()) { panic("no symbol table links present"); success = false; goto end; }
-        if(!load_segments()) { panic("object contains no loadable segments"); success = false; goto end; }
-        if(!load_dynamic_syms()) { panic("failed to load dynamic symbol index"); success = false; goto end; }
+        if(!load_segments()) { panic("object contains no loadable segments"); success = false; }
+        else if(!load_syms()) { panic("failed to load symbols"); success = false; }
         // other segments and sections, if/when needed, can be handled here; free the rest up
-    end:
         cleanup();
         return success;
 }
@@ -101,8 +99,9 @@ void elf64_dynamic_object::process_dynamic_relas()
     }
     if(unrec_rela_ct) { xklog("W: " + std::to_string(unrec_rela_ct) + " unrecognized relocation types"); }
 }
-bool elf64_dynamic_object::load_dynamic_syms()
+bool elf64_dynamic_object::load_syms()
 {
+    if(!elf64_object::load_syms()) { panic("no symbol table present"); return false; }
     bool have_dyn = false;
     for(size_t n = 0; n < ehdr().e_phnum && !have_dyn; n++)
     {
@@ -151,6 +150,12 @@ bool elf64_dynamic_object::load_dynamic_syms()
     }
     panic("required data missing"); 
     return false; 
+}
+addr_t elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
+{
+    if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return nullptr; }
+    elf64_sym const* sym = symbol_index[symbol];
+    return sym ? this->resolve(*sym) : nullptr;
 }
 bool elf64_dynamic_object::process_got()
 {

@@ -14,7 +14,7 @@ protected:
     std::vector<elf64_relocation> relocations;
     elf64_dynsym_index symbol_index;
     virtual bool xload() override;
-    virtual bool load_dynamic_syms();
+    virtual bool load_syms();
     virtual bool process_got();
     void process_dynamic_relas();
     addr_t resolve_rela_target(elf64_rela const& r) const;
@@ -25,5 +25,6 @@ public:
     elf64_dynamic_object(elf64_dynamic_object&& that);
     virtual ~elf64_dynamic_object();
     virtual void apply_relocations();
+    addr_t resolve_by_name(std::string const& symbol) const;
 };
 #endif
