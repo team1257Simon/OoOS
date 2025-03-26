@@ -368,13 +368,13 @@ dig_done:
   e1 = e -= nf;
   rd = 0;
   switch (fpi->rounding & 3) {
-  case FPI_Round_up:
+  case fpi_round_up:
     rd = 2 - sign;
     break;
-  case FPI_Round_zero:
+  case fpi_round_zero:
     rd = 1;
     break;
-  case FPI_Round_down:
+  case fpi_round_down:
     rd = 1 + sign;
   }
   if (!nd0)
@@ -819,13 +819,13 @@ rv_notOK:
   __bfree_d2a(delta);
   if (rve > fpi->emax) {
     switch (fpi->rounding & 3) {
-    case FPI_Round_near:
+    case fpi_round_near:
       goto huge;
-    case FPI_Round_up:
+    case fpi_round_up:
       if (!sign)
         goto huge;
       break;
-    case FPI_Round_down:
+    case fpi_round_down:
       if (sign)
         goto huge;
     }

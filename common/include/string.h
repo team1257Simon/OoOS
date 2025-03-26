@@ -5,7 +5,8 @@
 #ifndef restrict
 #define restrict
 #endif
-extern "C" {
+extern "C" 
+{
 #endif
 void* memcpy(void* restrict src, const void* restrict dst, size_t n);
 int memcmp(const void* restrict a, const void* restrict b, size_t n);

@@ -10,7 +10,6 @@ class task_list : std::set<task_ctx>
     uint64_t __mk_pid() const noexcept;
     constexpr task_list() : __base{} {}
     friend class task_ctx;
-    friend iterator ctx_fork(task_ctx const&);
 public:
     using __base::iterator;
     using __base::const_iterator;

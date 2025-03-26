@@ -77,11 +77,11 @@ pcheck:
   if (big) {
     if (esign) {
       switch (fpi->rounding) {
-      case FPI_Round_up:
+      case fpi_round_up:
         if (sign)
           break;
         goto ret_tiny;
-      case FPI_Round_down:
+      case fpi_round_down:
         if (!sign)
           break;
         goto ret_tiny;
@@ -96,13 +96,13 @@ pcheck:
       goto dret;
     }
     switch (fpi->rounding) {
-    case FPI_Round_near:
+    case fpi_round_near:
       goto ovfl1;
-    case FPI_Round_up:
+    case fpi_round_up:
       if (!sign)
         goto ovfl1;
       goto ret_big;
-    case FPI_Round_down:
+    case fpi_round_down:
       if (sign)
         goto ovfl1;
       goto ret_big;
@@ -185,15 +185,15 @@ pcheck:
     n = fpi->emin - e;
     if (n >= nbits) {
       switch (fpi->rounding) {
-      case FPI_Round_near:
+      case fpi_round_near:
         if (n == nbits && (n < 2 || __any_on_d2a(b, n - 1)))
           goto one_bit;
         break;
-      case FPI_Round_up:
+      case fpi_round_up:
         if (!sign)
           goto one_bit;
         break;
-      case FPI_Round_down:
+      case fpi_round_down:
         if (sign) {
         one_bit:
           x[0] = b->wds = 1;
@@ -223,16 +223,16 @@ pcheck:
   if (lostbits) {
     up = 0;
     switch (fpi->rounding) {
-    case FPI_Round_zero:
+    case fpi_round_zero:
       break;
-    case FPI_Round_near:
+    case fpi_round_near:
       if (lostbits & 2 && (lostbits | x[0]) & 1)
         up = 1;
       break;
-    case FPI_Round_up:
+    case fpi_round_up:
       up = 1 - sign;
       break;
-    case FPI_Round_down:
+    case fpi_round_down:
       up = sign;
     }
     if (up) {

@@ -10,10 +10,9 @@ namespace std
         template<typename T> struct __is_totally_ordered : false_type {};
         template<std::totally_ordered T> struct __is_totally_ordered<T> : true_type {};
         template<typename CT> struct __is_char_type : __and_<__or_<is_trivial<CT>, is_standard_layout<CT>>, __not_<is_array<CT>>, __is_totally_ordered<CT>> {};
-        template<typename CT> constexpr inline bool __is_char_type_v = __is_char_type<CT>::value;
         template<typename CT, typename VT = remove_cvref_t<CT>> struct __basic_char_type : __or_<is_same<VT, char>, is_same<VT, wchar_t>, is_same<VT, char8_t>, is_same<VT, char16_t>, is_same<VT, char32_t>> {};
     }
-    extension template<typename CT> concept char_type = __detail::__is_char_type_v<CT>;
+    extension template<typename CT> concept char_type = __detail::__is_char_type<CT>::value;
     extension template<typename CT> concept basic_char_type = __detail::__basic_char_type<CT>::value;
     template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return const_cast<CT*>(ptr); }
     extension template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
@@ -100,7 +99,7 @@ namespace std
         { TT::to_int_type(declval<CT>()) } -> std::same_as<typename TT::int_type>;
         { TT::to_char_type(declval<typename TT::int_type>()) } -> std::same_as<CT>;
         { TT::eq_int_type(declval<typename TT::int_type>(), declval<typename TT::int_type>()) } -> std::__detail::__boolean_testable;
-        { TT::find(declval<CT*>(),declval<CT*>()) } -> std::same_as<const CT*>; 
+        { TT::find(declval<CT*>(),declval<CT*>()) } -> std::same_as<const CT*>;
         { TT::length(declval<CT*>()) } -> std::same_as<decltype(sizeof(CT))>;
         { TT::lt(declval<CT>(), declval<CT>()) } -> std::__detail::__boolean_testable;
         { TT::eq(declval<CT>(), declval<CT>()) } -> std::__detail::__boolean_testable;
@@ -112,10 +111,10 @@ namespace std
     };
     namespace __detail
     {
-        template<typename TT>
-        constexpr auto __char_traits_cmp_cat(int __cmp) noexcept
+        template<typename TT> concept __has_comparison_category = requires { typename TT::comparison_category; };
+        template<typename TT> constexpr auto __char_traits_cmp_cat(int __cmp) noexcept
         { 
-            if constexpr (requires { typename TT::comparison_category; })
+            if constexpr(__has_comparison_category<TT>)
             {
                 using CT = typename TT::comparison_category;
                 static_assert( !is_void_v<common_comparison_category_t<CT>> );

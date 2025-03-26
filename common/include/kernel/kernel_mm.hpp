@@ -125,6 +125,7 @@ public:
     ~uframe_tag();
     bool shift_extent(ptrdiff_t amount);
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
+    bool mmap_remove(addr_t addr, size_t len);
     void accept_block(block_descr&& desc);
     void accept_block(block_descr const& desc);
     void transfer_block(uframe_tag& that, block_descr const& which);

@@ -42,7 +42,7 @@ int __strtor_q(const char* s, char** sp, int rounding, void* u_l)
   int exp;
   int k;
   fpi = &fpi0;
-  if (rounding != FPI_Round_near) {
+  if (rounding != fpi_round_near) {
     fpi1 = fpi0;
     fpi1.rounding = rounding;
     fpi = &fpi1;

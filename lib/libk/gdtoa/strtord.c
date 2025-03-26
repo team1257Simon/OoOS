@@ -37,7 +37,7 @@ int __strtord(const char* s, char** sp, int rounding, double* d)
   int exp;
   int k;
   fpi = &fpi0;
-  if (rounding != FPI_Round_near)
+  if (rounding != fpi_round_near)
   {
     fpi1 = fpi0;
     fpi1.rounding = rounding;

@@ -583,63 +583,16 @@ void uframe_tag::drop_block(block_descr const& which)
     }
     __unlock();
 }
+bool uframe_tag::mmap_remove(addr_t addr, size_t len)
+{
+    if(addr > mapped_max) return false;
+    len = std::min(len, static_cast<size_t>(mapped_max - addr));
+    __unmap_pages(addr, truncate(len, page_size), pml4);
+    return true;
+}
 extern "C"
 {
     void *aligned_malloc(size_t size, size_t align) { return __kernel_frame_tag->allocate(size, align); }
     uintptr_t translate_vaddr(addr_t addr) { if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
     addr_t translate_user_pointer(addr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != uframe_magic) return nullptr; kernel_memory_mgr::get().enter_frame(ctask_frame); addr_t result(kernel_memory_mgr::get().translate_vaddr_in_current_frame(ptr)); kernel_memory_mgr::get().exit_frame(); return result; }
-    addr_t syscall_sbrk(ptrdiff_t incr)
-    {
-        uframe_tag* ctask_frame = current_active_task()->frame_ptr;
-        if(ctask_frame->magic != uframe_magic) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        kernel_memory_mgr::get().enter_frame(ctask_frame);
-        addr_t result = ctask_frame->extent;
-        bool success = ctask_frame->shift_extent(incr);
-        kernel_memory_mgr::get().exit_frame();
-        if(success) { return result; }
-        else return addr_t(static_cast<uintptr_t>(-ENOMEM));
-    }
-    addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset)
-    {
-        uframe_tag* ctask_frame = current_active_task()->frame_ptr;
-        if(ctask_frame->magic != uframe_magic || !len || size_t(offset) > len || offset % page_size) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        if(!prot) return nullptr;
-        addr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.full));
-        if(min != min.page_aligned()) min = min.plus(page_size).page_aligned();
-        if(!(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
-        else if(addr && (addr < min || addr != addr.page_aligned())) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        kernel_memory_mgr::get().enter_frame(ctask_frame);
-        addr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
-        kernel_memory_mgr::get().exit_frame();
-        if(!(flags & MAP_ANONYMOUS))
-        {
-            filesystem* fsptr = get_fs_instance();
-            if(!fsptr) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-            else try
-            {
-                file_node* n = get_by_fd(fsptr,current_active_task()->self, fd);
-                if(n)
-                {
-                    size_t data_len = std::min(size_t(len - offset), n->size());
-                    file_node::pos_type pos = n->tell();
-                    n->seek(offset, std::ios_base::beg);
-                    n->read(result, data_len);
-                    n->seek(pos);
-                    return result;
-                }
-            }
-            catch(std::exception& e) { panic(e.what()); }
-            return addr_t(static_cast<uintptr_t>(-EBADF));
-        }
-        return result;
-    }
-    int syscall_munmap(addr_t addr, size_t len)
-    {
-        uframe_tag* ctask_frame = current_active_task()->frame_ptr;
-        if(ctask_frame->magic != uframe_magic) return -EINVAL;
-        if(addr > ctask_frame->mapped_max) return 0;
-        len = std::min(len, size_t(ctask_frame->mapped_max - addr));
-        __unmap_pages(addr, truncate(len, page_size), ctask_frame->pml4);
-        return 0;
-    }
 }

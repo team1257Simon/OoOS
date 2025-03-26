@@ -51,7 +51,7 @@ struct task_ctx
     filesystem* get_vfs_ptr();
     void add_child(task_ctx* that);
     bool remove_child(task_ctx* that);
-    void start_task(addr_t exit_fn = addr_t{ &handle_exit });
+    void start_task(addr_t exit_fn = addr_t(&handle_exit));
     void set_exit(int n);
     void terminate();
     tms get_times() const noexcept;

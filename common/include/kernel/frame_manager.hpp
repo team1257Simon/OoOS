@@ -7,7 +7,7 @@ class frame_manager : std::set<uframe_tag>
     typedef std::set<uframe_tag> __base;
     static frame_manager __instance;
     constexpr frame_manager() = default;
-public:    
+public:
     using __base::iterator;
     using __base::const_iterator;
     uframe_tag& create_frame(addr_t start_base, addr_t start_extent);

@@ -81,7 +81,7 @@ namespace std
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
         template<std::matching_input_iterator<value_type> IT> constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         constexpr iterator insert(const_iterator pos, basic_string const& that) { return insert(pos, that.begin(), that.end()); }
-        constexpr iterator insert(const_iterator pos, const_pointer value) { return insert(pos, basic_string { value }); }
+        constexpr iterator insert(const_iterator pos, const_pointer value) { return insert(pos, basic_string(value)); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
         constexpr void pop_back() { this->__erase_at_end(1); }
         constexpr iterator erase(const_iterator pos) { return iterator { this->__erase(pos.base()) }; }
@@ -106,10 +106,10 @@ namespace std
         constexpr basic_string& operator+=(const_pointer str) { return append(str); }
         constexpr basic_string& operator+=(value_type val) { return append(val); }
         constexpr void swap(basic_string& that) { this->__swap(that); }
-        constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { if(this->__out_of_range(this->__get_ptr(pos))) { return npos; } const_pointer result = traits_type::find(data() + pos, str); if(result) { return size_type(result - data()); } return npos; }
+        constexpr size_type find(const_pointer str, size_type pos = 0) const noexcept { if(this->__out_of_range(this->__get_ptr(pos))) { return npos; } const_pointer result = traits_type::find(data() + pos, str); if(result) { return static_cast<size_type>(result - data()); } return npos; }
         constexpr size_type find(basic_string const& that, size_type pos = 0) const noexcept { return find(that.data(), pos); }
         constexpr size_type find(const_pointer str, size_type pos, size_type count) const noexcept { return find(basic_string{ str, count }, pos); }
-        constexpr size_type find(value_type value, size_type pos = 0) const noexcept { if(this->__out_of_range(this->__get_ptr(pos))) { return npos; } const_pointer result = traits_type::find(data() + pos, size() - pos, value); if(result)  { return size_type(result - data()); } return npos; }
+        constexpr size_type find(value_type value, size_type pos = 0) const noexcept { if(this->__out_of_range(this->__get_ptr(pos))) { return npos; } const_pointer result = traits_type::find(data() + pos, size() - pos, value); if(result)  { return static_cast<size_type>(result - data()); } return npos; }
         extension constexpr const_iterator find(const_pointer str, const_iterator pos) const noexcept { size_type result = find(str, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
         extension constexpr const_iterator find(basic_string const& that, const_iterator pos) const noexcept { size_type result = find(that, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
         extension constexpr const_iterator find(value_type val, const_iterator pos) const noexcept { size_type result = find(val, size_type(pos - begin())); return result == npos ? end() : (begin() + result); }
