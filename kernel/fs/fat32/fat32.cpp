@@ -58,12 +58,12 @@ file_node* fat32::mkfilenode(directory_node* parent, std::string const& name)
     rtc_time t = rtc::get_instance().get_time();
     new (std::addressof(avail->regular_entry)) fat32_regular_entry
     {
-        .created_time{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-        .created_date{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-        .first_cluster_hi{ cl.hi },
-        .modified_time{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-        .modified_date{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-        .first_cluster_lo{ cl.lo }
+        .created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+        .created_date       { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+        .first_cluster_hi   { cl.hi },
+        .modified_time      { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+        .modified_date      { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+        .first_cluster_lo   { cl.lo }
     };
     set_filename(avail->regular_entry.filename, sfname);
     size_t idx = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
@@ -82,13 +82,13 @@ directory_node* fat32::mkdirnode(directory_node* parent, std::string const& name
     rtc_time t = rtc::get_instance().get_time();
     new (std::addressof(avail->regular_entry)) fat32_regular_entry
     {
-        .attributes{ 0x10 },
-        .created_time{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-        .created_date{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-        .first_cluster_hi{ cl.hi },
-        .modified_time{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-        .modified_date{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-        .first_cluster_lo{ cl.lo }
+        .attributes         { 0x10 },
+        .created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+        .created_date       { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+        .first_cluster_hi   { cl.hi },
+        .modified_time      { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+        .modified_date      { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+        .first_cluster_lo   { cl.lo }
     };
     set_filename(avail->regular_entry.filename, sfname);
     size_t idx = static_cast<size_t>(avail - fparent.__my_dir_data.begin());

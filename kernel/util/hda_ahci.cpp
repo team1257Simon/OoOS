@@ -3,9 +3,9 @@
 #include "kdebug.hpp"
 bool hda_ahci::__has_init = false;
 hda_ahci hda_ahci::__instance{};
-bool hda_ahci::__await_disk() { for(size_t i = 0; !__drv->is_done(__port); __sync_synchronize(), barrier(), i++); return __drv->is_done(__port); }
-bool hda_ahci::__read_ahci(qword st, dword ct, uint16_t* bf) { try { __drv->read_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
-bool hda_ahci::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __drv->write_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
+bool hda_ahci::__await_disk() { for(size_t i = 0; !__driver->is_done(__port); __sync_synchronize(), barrier(), i++); return __driver->is_done(__port); }
+bool hda_ahci::__read_ahci(qword st, dword ct, uint16_t* bf) { try { __driver->read_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
+bool hda_ahci::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __driver->write_sectors(__port, st, ct, bf); return __await_disk(); } catch(std::exception& e) { panic(e.what()); return false; } }
 hda_ahci::hda_ahci() {}
 bool hda_ahci::init_instance() { if(__has_init) return true; return (__has_init = __instance.init()); }
 bool hda_ahci::is_initialized() noexcept { return __has_init; }
@@ -34,14 +34,14 @@ bool hda_ahci::__read_pt()
 bool hda_ahci::init()
 {
    if(!ahci::is_initialized()) { panic("no AHCI driver available"); return false; }
-   __drv = ahci::get_instance();
-   __port = __drv->which_port(sata);
+   __driver = ahci::get_instance();
+   __port = __driver->which_port(sata);
    if(__port < 0) return false;
    return __read_pt();
 }
 bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
 {
-    if(!__instance.__drv) { panic("cannot write disk before initializing write accessor"); return false; }
+    if(!__instance.__driver) { panic("cannot write disk before initializing write accessor"); return false; }
     uint16_t const* src = static_cast<uint16_t const*>(in);
     size_t t_write = 0;
     size_t s_write = 0;
@@ -59,7 +59,7 @@ bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
 }
 bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
 {
-    if(!__instance.__drv) { panic("cannot read disk before initializing read accessor"); return false; }
+    if(!__instance.__driver) { panic("cannot read disk before initializing read accessor"); return false; }
     uint16_t* target = static_cast<uint16_t*>(out);
     size_t rem = count;
     size_t t_read = 0;

@@ -144,12 +144,7 @@ void task_ctx::terminate()
 tms task_ctx::get_times() const noexcept
 {
     tms result{ task_struct.run_time, task_struct.sys_time, 0UL, 0UL };
-    for(task_ctx* child : child_tasks)
-    {
-        tms add_ct = child->get_times();
-        result.tms_cstime += (add_ct.tms_cstime + add_ct.tms_stime);
-        result.tms_cutime += (add_ct.tms_cutime + add_ct.tms_utime);
-    }
+    for(task_ctx* child : child_tasks) { result += child->get_times(); }
     return result;
 }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)

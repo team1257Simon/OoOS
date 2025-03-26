@@ -43,13 +43,13 @@ bool elf64_object::load_syms()
 }
 // Copy and move constructors are nontrivial. Executables and the like delete the copy constructor and can inherit the move constructor (dynamic objects will have to extend the nontrivial constructors)
 elf64_object::elf64_object(elf64_object const& that) : 
-    __image_start{ nullptr }, 
-    __image_size{ that.__image_size }, 
-    num_seg_descriptors{ that.num_seg_descriptors }, 
-    segments{ sd_alloc.allocate(num_seg_descriptors) },
-    symtab{ .total_size = that.symtab.total_size, .entry_size = that.symtab.entry_size, .data = ch_alloc.allocate(that.symtab.total_size) },
-    symstrtab{ .total_size = that.symstrtab.total_size, .data = ch_alloc.allocate(that.symstrtab.total_size) },
-    shstrtab{ .total_size = that.symstrtab.total_size, .data = ch_alloc.allocate(that.shstrtab.total_size) }
+    __image_start       { nullptr }, 
+    __image_size        { that.__image_size }, 
+    num_seg_descriptors { that.num_seg_descriptors }, 
+    segments            { sd_alloc.allocate(num_seg_descriptors) },
+    symtab              { .total_size = that.symtab.total_size, .entry_size = that.symtab.entry_size, .data = ch_alloc.allocate(that.symtab.total_size) },
+    symstrtab           { .total_size = that.symstrtab.total_size, .data = ch_alloc.allocate(that.symstrtab.total_size) },
+    shstrtab            { .total_size = that.symstrtab.total_size, .data = ch_alloc.allocate(that.shstrtab.total_size) }
 {
     array_copy<char>(symtab.data, that.symtab.data, that.symtab.total_size);
     array_copy<char>(symstrtab.data, that.symstrtab.data, that.symstrtab.total_size);
@@ -57,13 +57,13 @@ elf64_object::elf64_object(elf64_object const& that) :
     array_copy<program_segment_descriptor>(segments, that.segments, num_seg_descriptors); // based generic memcpy routine
 }
 elf64_object::elf64_object(elf64_object&& that) : 
-    __image_start{ that.__image_start }, 
-    __image_size{ that.__image_size }, 
-    num_seg_descriptors{ that.num_seg_descriptors }, 
-    segments{ that.segments },
-    symtab{ std::move(that.symtab) },
-    symstrtab{ std::move(that.symstrtab) },
-    shstrtab{ std::move(that.shstrtab) }
+    __image_start       { that.__image_start }, 
+    __image_size        { that.__image_size }, 
+    num_seg_descriptors { that.num_seg_descriptors }, 
+    segments            { that.segments },
+    symtab              { std::move(that.symtab) },
+    symstrtab           { std::move(that.symstrtab) },
+    shstrtab            { std::move(that.shstrtab) }
 {
     that.__image_start = nullptr;
     that.segments = nullptr;

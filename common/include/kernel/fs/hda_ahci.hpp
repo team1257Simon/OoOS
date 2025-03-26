@@ -38,7 +38,7 @@ class hda_ahci
 {
     static bool __has_init;
     static hda_ahci __instance;
-    ahci* __drv{};
+    ahci* __driver{};
     int8_t __port{};
     partition_table __my_partitions{};
     constexpr static std::size_t __bytes_per_sector() noexcept { return physical_block_size; }

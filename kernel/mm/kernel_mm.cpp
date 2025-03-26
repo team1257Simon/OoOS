@@ -82,32 +82,41 @@ static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thr
     paging_table result = kernel_memory_mgr::get().allocate_pt();
     if(result)
     {
-        in[idx].present = true;
-        in[idx].write = true;
-        in[idx].user_access = true;
-        if(write_thru) in[idx].write_thru = true;
-        in[idx].physical_address = std::bit_cast<uintptr_t>(result) >> 12;
+        new (std::addressof(in[idx])) pt_entry
+        {
+            .present = true,
+            .write = true,
+            .user_access = true,
+            .write_thru = write_thru,
+            .physical_address = std::bit_cast<uintptr_t>(result) >> 12,
+        };
     }
     return result;
 }
 static paging_table __get_table(addr_t of_page, bool write_thru, paging_table pml4)
 {
-    if(pml4[of_page.pml4_idx].present)
+    uint16_t pml4_idx = of_page.pml4_idx;
+    uint16_t pdp_idx = of_page.pdp_idx;
+    uint16_t pd_idx = of_page.pd_idx;
+    pt_entry& entry_pml4 = pml4[pml4_idx];
+    if(entry_pml4.present)
     {
-        if(write_thru) pml4[of_page.pml4_idx].write_thru = true;
-        pml4[of_page.pml4_idx].user_access = true;
-        paging_table pdp = addr_t(pml4[of_page.pml4_idx].physical_address << 12);
-        if(pdp[of_page.pdp_idx].present)
+        entry_pml4.write_thru = write_thru;
+        entry_pml4.user_access = true;
+        paging_table pdp = addr_t(entry_pml4.physical_address << 12);
+        pt_entry& entry_pdp = pdp[pdp_idx];
+        if(entry_pdp.present)
         {
-            if(write_thru) pdp[of_page.pdp_idx].write_thru = true;
-            pdp[of_page.pdp_idx].user_access = true; // this bit is controlled at the page-level only
-            paging_table pd = addr_t(pdp[of_page.pdp_idx].physical_address << 12);
-            if(pd[of_page.pd_idx].present) { if(write_thru) pd[of_page.pd_idx].write_thru = true; pd[of_page.pd_idx].user_access = true; return addr_t(pd[of_page.pd_idx].physical_address << 12); }
-            else return __build_new_pt(pd, of_page.pd_idx, write_thru);
+            entry_pdp.write_thru = write_thru;
+            entry_pdp.user_access = true;
+            paging_table pd = addr_t(entry_pdp.physical_address << 12);
+            pt_entry& entry_pd = pd[pd_idx];
+            if(entry_pd.present) { entry_pd.write_thru = write_thru; entry_pd.user_access = true; return addr_t(entry_pd.physical_address << 12); }
+            else return __build_new_pt(pd, pd_idx, write_thru);
         }
-        else { paging_table pd = __build_new_pt(pdp, of_page.pdp_idx, write_thru); if(pd) return __build_new_pt(pd, of_page.pd_idx, write_thru); }
+        else { paging_table pd = __build_new_pt(pdp, pdp_idx, write_thru); if(pd) return __build_new_pt(pd, pd_idx, write_thru); }
     }
-    else { paging_table pdp = __build_new_pt(pml4, of_page.pml4_idx, write_thru); if(pdp) { paging_table pd = __build_new_pt(pdp, of_page.pdp_idx, write_thru); if(pd) return __build_new_pt(pd, of_page.pd_idx, write_thru); } }
+    else { paging_table pdp = __build_new_pt(pml4, pml4_idx, write_thru); if(pdp) { paging_table pd = __build_new_pt(pdp, pdp_idx, write_thru); if(pd) return __build_new_pt(pd, pd_idx, write_thru); } }
     return nullptr;
 }
 static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
@@ -120,13 +129,18 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
     bool modified = false;
     for(size_t i = 0; i < pages; i++, curr += page_size, phys += page_size)
     {
-        if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, false);
-        if(pt[curr.page_idx].present && (pt[curr.page_idx].global || pt[curr.page_idx].physical_address == phys >> 12)) continue;
-        pt[curr.page_idx].present = true;
-        pt[curr.page_idx].global = global;
-        pt[curr.page_idx].write = true;
-        pt[curr.page_idx].user_access = true; // userland access to pages will be controlled by having only the necessary pages mapped into the userland page frame
-        pt[curr.page_idx].physical_address = phys >> 12;
+        uint16_t p_idx = curr.page_idx;
+        if(i != 0 && p_idx == 0) pt = __get_table(curr, false);
+        pt_entry& entry = pt[p_idx];
+        if(entry.present && (entry.global || entry.physical_address == phys >> 12)) continue;
+        new (std::addressof(entry)) pt_entry
+        {
+            .present = true,
+            .write = true,
+            .user_access = true, // userland access to pages will be controlled by having only the necessary pages mapped into the userland page frame
+            .global = global,
+            .physical_address = phys >> 12,
+        };
         modified = true;
     }
     if(modified) tlb_flush();
@@ -141,10 +155,13 @@ static addr_t __copy_kernel_page_mapping(addr_t start, size_t pages, paging_tabl
     if(!upt) return nullptr;
     for(size_t i = 0; i < pages; i++, curr += page_size)
     {
-        if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
-        __builtin_memcpy(std::addressof(upt[curr.page_idx]), std::addressof(pt[curr.page_idx]), sizeof(pt_entry));
-        upt[curr.page_idx].write = false;
-        upt[curr.page_idx].user_access = true;
+        uint16_t p_idx = curr.page_idx;
+        if(i != 0 && p_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
+        pt_entry& u_entry = upt[p_idx];
+        pt_entry& k_entry = pt[p_idx];
+        array_copy<uint64_t>(std::addressof(u_entry), addr_t(std::addressof(k_entry)), sizeof(pt_entry) / sizeof(uint64_t));
+        u_entry.write = false;
+        u_entry.user_access = true;
     }
     return start;
 }
@@ -157,12 +174,15 @@ static addr_t __map_mmio_pages(addr_t start, size_t pages)
     for(size_t i = 0; i < pages; i++, curr += page_size)
     {
         if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, true);
-        pt[curr.page_idx].present = true;
-        pt[curr.page_idx].global = true;
-        pt[curr.page_idx].write = true;
-        pt[curr.page_idx].write_thru = true;
-        pt[curr.page_idx].user_access = true;
-        pt[curr.page_idx].physical_address = uint64_t(curr) >> 12;
+        new (std::addressof(pt[curr.page_idx])) pt_entry
+        {
+            .present = true,
+            .write = true,
+            .user_access = true,
+            .write_thru = true,
+            .global = true,
+            .physical_address = curr.full >> 12,
+        };
     }
     tlb_flush();
     return start;
@@ -178,11 +198,14 @@ static addr_t __map_user_pages(addr_t start_vaddr, uintptr_t start_paddr, size_t
         for(size_t i = 0; i < pages; i++, curr += page_size, phys += page_size)
         {
             if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, false, pml4);
-            pt[curr.page_idx].present = true;
-            pt[curr.page_idx].user_access = true;
-            pt[curr.page_idx].write = write;
-            pt[curr.page_idx].execute_disable = !execute;
-            pt[curr.page_idx].physical_address = phys >> 12;
+            new (std::addressof(pt[curr.page_idx])) pt_entry
+            {
+                .present = true,
+                .write = write,
+                .user_access = true,
+                .physical_address = phys >> 12,
+                .execute_disable = !execute
+            };
         }
         tlb_flush();
         return start_vaddr;
@@ -198,12 +221,11 @@ static void __unmap_pages(addr_t start, size_t pages, addr_t pml4)
         for(size_t i = 0; i < pages; i++, curr += PAGESIZE)
         {
             if(!pt || curr.page_idx == 0) pt = __find_table(curr, pml4);
-            if(pt && !pt[curr.page_idx].global)
+            if(pt)
             {
-                pt[curr.page_idx].present = false;
-                pt[curr.page_idx].user_access = false;
-                pt[curr.page_idx].execute_disable = false;
-                pt[curr.page_idx].physical_address = 0U;
+                pt_entry& entry = pt[curr.page_idx];
+                if(entry.global) continue;
+                array_zero<uint64_t>(addr_t(std::addressof(entry)), 1);
                 asm volatile("invlpg (%0)" :: "r"(curr.full) : "memory");
             }
         }
@@ -510,7 +532,7 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
     {
         if(!addr) addr = result;
         usr_blocks.emplace_back(result, addr, kernel_memory_mgr::page_aligned_region_size(addr, len));
-        array_zero<uint8_t>(result, len);
+        __builtin_memset(result, 0, len);
         if(result.plus(len) > mapped_max) mapped_max = result.plus(len).page_aligned().plus((result.plus(len) % page_size) ? page_size : 0L);
         __unlock();
         return result;
