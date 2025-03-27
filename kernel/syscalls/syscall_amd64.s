@@ -34,9 +34,9 @@ syscall_vec:
     .quad syscall_getsym        # 27; WIP / ldso-specific
     .quad syscall_dlpath        # 28; WIP / ldso-specific
     .quad syscall_dlorigin      # 29; WIP / ldso-specific
-    .size syscall_vec,      .-syscall_vec
 syscv_end:
-    .quad 0
+    .quad on_invalid_syscall    # handler for out-of-range syscalls
+    .size syscall_vec,      .-syscall_vec    
     .size syscv_end,        .-syscv_end
     #   OoOS system call ABI:
     #   System calls are performed using the x86-64 fast system call instruction (SYSCALL).
@@ -46,9 +46,7 @@ syscv_end:
     #   The result of the call is stored in the A register. Error codes are returned as minus values (between -4095 and -1) as per the Linux syscall ABI.
     .section .text
     .global do_syscall
-    .extern on_invalid_syscall
     .type   do_syscall,         @function
-    .type   on_invalid_syscall, @function
 do_syscall:
     cli
     movq    %rsp,                   %gs:0x088

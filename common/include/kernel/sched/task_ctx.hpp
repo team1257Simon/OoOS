@@ -8,6 +8,7 @@
 #include "compare"
 #include "vector"
 #include "array"
+extern "C" [[noreturn]] void handle_exit();
 enum class execution_state
 {
     STOPPED     = 0,
@@ -62,7 +63,6 @@ inline task_ctx* active_task_context() { return current_active_task()->self; }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);
 extern "C"
 {
-    [[noreturn]] void handle_exit();
     clock_t syscall_times(struct tms* out);
     long syscall_getpid();
     long syscall_fork();
