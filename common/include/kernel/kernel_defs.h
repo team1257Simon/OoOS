@@ -456,8 +456,16 @@ typedef struct __vaddr
     uint16_t ext        : 16;
 #endif
 } __pack __align(1) addr_t;
+#ifndef __cplusplus
+typedef union __may_alias __idx_addr
+{
+    addr_t idx;
+    uintptr_t addr;
+} __pack indexed_address;
+#endif
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #define CXX_INI(val) { val }
 #else 
 #define CXX_INI(val)
@@ -499,7 +507,7 @@ typedef struct __generic_address_structure
   uint8_t bit_offset;
   uint8_t access_size;
   uint64_t address;
-}__attribute__ ((packed)) generic_address_structure;
+} __pack generic_address_structure;
 struct dsdt
 {
     struct acpi_header h;
@@ -713,11 +721,6 @@ typedef madt_record<nmi_source_override_data> nmi_override;
 typedef madt_record<local_apic_addr_override> apic_override;
 typedef madt_record<local_apic_nmi_data> lapic_nmi;
 #endif
-typedef union __may_alias __idx_addr
-{
-    addr_t idx;
-    uintptr_t addr;
-} __pack indexed_address;
 typedef union __may_alias __guid
 {
     struct

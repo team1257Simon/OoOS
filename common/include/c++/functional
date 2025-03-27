@@ -7,8 +7,7 @@
 #include "tuple"
 namespace std
 {
-    template<typename MFT,
-	bool __is_mem_fn = is_member_function_pointer<MFT>::value>
+    template<typename MFT, bool __is_mem_fn = is_member_function_pointer<MFT>::value>
     class __mem_fn_base : public __mem_fn_traits<MFT>::__maybe_type
     {
         using __traits = __mem_fn_traits<MFT>;

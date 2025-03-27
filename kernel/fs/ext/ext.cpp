@@ -152,9 +152,9 @@ uint32_t extfs::claim_inode(bool dir)
         if(block_groups[i].has_available_inode())
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_sz(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
+            off_t avail = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
             uint32_t result = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
-            bitmap_set_cbits(bmp, avail, 1UL);
+            bitmap_set_chain_bits(bmp, avail, 1UL);
             block_groups[i].decrement_inode_ct();
             if(dir) block_groups[i].increment_dir_ct();
             if(!persist_group_metadata(i)) return 0U;
@@ -169,7 +169,7 @@ bool extfs::release_inode(uint32_t num, bool dir)
     size_t i = num / sb->inodes_per_group;
     off_t bit_off = static_cast<off_t>(num % sb->inodes_per_group);
     unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
-    bitmap_clear_cbits(bmp, bit_off, 1UL);
+    bitmap_clear_chain_bits(bmp, bit_off, 1UL);
     block_groups[i].increment_inode_ct();
     if(dir) block_groups[i].decrement_dir_ct();
     return persist_group_metadata(i);
@@ -179,7 +179,7 @@ void extfs::release_blocks(uint64_t start, size_t num)
     size_t i = start / sb->blocks_per_group;
     off_t off = static_cast<off_t>(start % sb->blocks_per_group);
     unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-    bitmap_clear_cbits(bmp, off, num);
+    bitmap_clear_chain_bits(bmp, off, num);
     block_groups[i].alter_available_blocks(num);
     persist_group_metadata(i);
 }
@@ -333,9 +333,9 @@ disk_block *extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
         if(block_groups[i].has_available_blocks(how_many))
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_cz(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
+            off_t avail = bitmap_scan_chain_zeroes(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
             if(avail < 0) continue;
-            bitmap_set_cbits(bmp, avail, how_many);
+            bitmap_set_chain_bits(bmp, avail, how_many);
             block_groups[i].alter_available_blocks(-how_many);
             if(!persist_group_metadata(i)) return nullptr;
             uint64_t result = i * sb->blocks_per_group + avail;
@@ -357,8 +357,8 @@ disk_block *extfs::claim_metadata_block(ext_node_extent_tree* requestor)
         if(block_groups[i].has_available_blocks())
         {
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_sz(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
-            bitmap_set_cbits(bmp, avail, 1);
+            off_t avail = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
+            bitmap_set_chain_bits(bmp, avail, 1);
             block_groups[i].alter_available_blocks(-1L);
             if(!persist_group_metadata(i)) return nullptr;
             uint64_t result = i * sb->blocks_per_group + avail;
