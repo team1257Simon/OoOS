@@ -24,11 +24,5 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdlib.h>
-namespace std
-{
-	/**
-	 * Stub implementation of std::terminate.  Used when the STL implementation
-	 * doesn't provide one.
-	 */
-	__attribute__((weak)) void terminate() { abort(); }
-}
+#include "kernel/libk_decls.h"
+namespace std { attribute(weak) void terminate() { abort(); } /**  Stub implementation of std::terminate.  Used when the STL implementation doesn't provide one. */ }

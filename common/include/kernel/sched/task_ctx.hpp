@@ -71,6 +71,6 @@ extern "C"
     int syscall_kill(unsigned long pid, unsigned long sig);
     pid_t syscall_wait(int* sc_out);
     int syscall_sleep(unsigned long seconds);
-    int syscall_execve(char *name, char **argv, char **env);
+    int syscall_execve(char* name, char** argv, char** env);
 }
 #endif
