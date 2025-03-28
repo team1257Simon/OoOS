@@ -326,6 +326,9 @@ struct elf64_string_table
     size_t total_size;
     addr_t data;
     constexpr const char* operator[](size_t n) const { return data.plus(n); }
+    constexpr elf64_string_table() = default;
+    constexpr elf64_string_table(size_t size, addr_t data_ptr) : total_size{ size }, data{ data_ptr } {}
+    constexpr elf64_string_table(elf64_string_table&& that) : total_size{ that.total_size }, data(std::move(that.data)) { that.data = nullptr; that.total_size = 0; } 
 };
 struct elf64_sym_table
 {
@@ -335,6 +338,9 @@ struct elf64_sym_table
     constexpr elf64_sym const* operator+(size_t n) const { return data.plus(entry_size * n); }
     constexpr elf64_sym const& operator[](size_t n) const { return *operator+(n); }
     constexpr size_t entries() const { return total_size / entry_size; }
+    constexpr elf64_sym_table() = default;
+    constexpr elf64_sym_table(size_t size, size_t entsz, addr_t data_ptr) : total_size{ size }, entry_size{ entsz }, data{ data_ptr } {}
+    constexpr elf64_sym_table(elf64_sym_table&& that) : total_size{ that.total_size }, entry_size{ that.entry_size }, data{ std::move(that.data) } { that.data = nullptr; that.entry_size = 0; that.total_size = 0; }
 };
 struct program_segment_descriptor
 {

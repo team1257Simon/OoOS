@@ -3,16 +3,17 @@
 #include "elf64_object.hpp"
 #include "elf64_relocation.hpp"
 #include "vector"
-class elf64_dynamic_object : public elf64_object
+class elf64_dynamic_object : public virtual elf64_object
 {
 protected:
     size_t num_dyn_entries;
     elf64_dyn* dyn_entries;
-    size_t num_plt_got_slots;
-    elf64_rela* plt_got_slots;
-    size_t got_seg_index;
+    size_t num_plt_relas;
+    elf64_rela* plt_relas;
+    size_t got_vaddr;
     std::vector<elf64_relocation> relocations;
     std::vector<const char*> dependencies;
+    std::vector<std::string> ld_paths;
     std::vector<addr_t> init_array;
     std::vector<addr_t> fini_array;
     uintptr_t init_fn;
@@ -23,9 +24,10 @@ protected:
     size_t fini_array_size;
     elf64_dynsym_index symbol_index;
     virtual bool xload() override;
-    virtual bool load_syms();
     virtual bool process_got();
     virtual bool post_load_init() = 0;
+    virtual void process_dyn_entry(size_t i);
+    bool load_syms();
     void process_dynamic_relas();
     addr_t resolve_rela_target(elf64_rela const& r) const;
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
@@ -39,6 +41,7 @@ public:
     constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
     constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
     constexpr std::vector<const char*> const& get_dependencies() const noexcept { return dependencies; }
+    constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
 };
 extern "C"
 {

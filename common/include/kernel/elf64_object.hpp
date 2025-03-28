@@ -5,16 +5,16 @@
 #include "kernel/fs/fs.hpp"
 class elf64_object
 {
-    bool __validated{ false };
-    bool __loaded{ false };
+    bool __validated;
+    bool __loaded;
     addr_t __image_start;
     size_t __image_size;
 protected:
-    size_t num_seg_descriptors{ 0UL };
-    program_segment_descriptor* segments{ nullptr };
-    elf64_sym_table symtab{};
-    elf64_string_table symstrtab{};
-    elf64_string_table shstrtab{};
+    size_t num_seg_descriptors;
+    program_segment_descriptor* segments;
+    elf64_sym_table symtab;
+    elf64_string_table symstrtab;
+    elf64_string_table shstrtab;
     constexpr elf64_ehdr const& ehdr() const noexcept { return __image_start.ref<elf64_ehdr>(); }
     constexpr elf64_phdr const& phdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize).ref<elf64_phdr>(); }
     constexpr elf64_shdr const& shdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize).ref<elf64_shdr>(); }
@@ -23,10 +23,11 @@ protected:
     constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }
     virtual void process_headers();
     virtual void xrelease();
-    virtual bool load_segments() = 0;
-    virtual bool xload() = 0;
-    virtual bool xvalidate() = 0;
+    virtual bool xload();
     virtual bool load_syms();
+    virtual void on_load_failed();
+    virtual bool load_segments() = 0;
+    virtual bool xvalidate() = 0;
     void release_segments();
     off_t segment_index(size_t offset) const;
     off_t segment_index(elf64_sym const* sym) const;

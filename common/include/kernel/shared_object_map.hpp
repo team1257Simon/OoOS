@@ -15,10 +15,15 @@ class shared_object_map : protected std::hash_set<elf64_shared_object, std::stri
     using __base = std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<std::__impl::__hash_node<elf64_shared_object>>, __key_extract>;
     using typename __base::__node_ptr;
     using typename __base::__const_node_ptr;
+    using typename __base::__node_type;
     static shared_object_map __global_shared_objects;
     std::unordered_map<iterator, std::string> __obj_paths;
 public:
     uframe_tag* shared_frame;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+    constexpr static off_t node_offset = offsetof(__node_type, __data.__my_storage);
+#pragma GCC diagnostic pop
     using typename __base::iterator;
     using typename __base::const_iterator;
     using typename __base::reference;

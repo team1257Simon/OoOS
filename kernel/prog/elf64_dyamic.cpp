@@ -1,6 +1,7 @@
 #include "elf64_dynamic.hpp"
 #include "kernel_mm.hpp"
 #include "stdlib.h"
+#include "algorithm"
 #include "kdebug.hpp"
 static std::allocator<program_segment_descriptor> sd_alloc{};
 static std::allocator<uint32_t> w_alloc{};
@@ -12,18 +13,19 @@ elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
     elf64_object    { n },
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
-    plt_got_slots   { nullptr },
-    got_seg_index   { 0UL },
+    plt_relas       { nullptr },
+    got_vaddr       { 0UL },
     relocations     {},
     dependencies    {},
+    ld_paths        {},
     init_array      {},
     fini_array      {},
-    init_fn         {},
-    fini_fn         {},
-    init_array_ptr  {},
-    fini_array_ptr  {},
-    init_array_size {},
-    fini_array_size {},
+    init_fn         { 0UL },
+    fini_fn         { 0UL },
+    init_array_ptr  { 0UL },
+    fini_array_ptr  { 0UL },
+    init_array_size { 0UL },
+    fini_array_size { 0UL },
     symbol_index    { symstrtab, symtab } 
                     {}
 elf64_dynamic_object::~elf64_dynamic_object()
@@ -31,7 +33,7 @@ elf64_dynamic_object::~elf64_dynamic_object()
     symbol_index.destroy_if_present();
     if(segments && num_seg_descriptors) { release_segments(); sd_alloc.deallocate(segments, num_seg_descriptors); }
     if(dyn_entries) dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
-    if(plt_got_slots) free(plt_got_slots);
+    if(plt_relas) free(plt_relas);
 }
 static bool is_dynamic_relocation(elf64_rela const& r)
 {
@@ -109,6 +111,38 @@ void elf64_dynamic_object::process_dynamic_relas()
     }
     if(unrec_rela_ct) { xklog("W: " + std::to_string(unrec_rela_ct) + " unrecognized relocation types"); }
 }
+void elf64_dynamic_object::process_dyn_entry(size_t i)
+{
+    switch(dyn_entries[i].d_tag)
+    {
+    case DT_INIT:
+        init_fn = dyn_entries[i].d_ptr;
+        break;
+    case DT_FINI:
+        fini_fn = dyn_entries[i].d_ptr;
+        break;
+    case DT_INIT_ARRAY:
+        init_array_ptr = dyn_entries[i].d_ptr;
+        break;
+    case DT_FINI_ARRAY:
+        fini_array_ptr = dyn_entries[i].d_ptr;
+        break;
+    case DT_INIT_ARRAYSZ:
+        init_array_size = dyn_entries[i].d_val;
+        break;
+    case DT_FINI_ARRAYSZ:
+        fini_array_size = dyn_entries[i].d_val;
+        break;
+    case DT_NEEDED:
+        dependencies.push_back(symstrtab[dyn_entries[i].d_val]);
+        break;
+    case DT_RUNPATH:
+        ld_paths = std::move(std::ext::split(std::forward<std::string>(symstrtab[dyn_entries[i].d_val]), ':'));
+        break;
+    default:
+        break;
+    }
+}
 bool elf64_dynamic_object::load_syms()
 {
     if(!elf64_object::load_syms()) { panic("no symbol table present"); return false; }
@@ -158,32 +192,7 @@ bool elf64_dynamic_object::load_syms()
             };
             have_ht = true;
         }
-        else switch(dyn_entries[i].d_tag)
-        {
-        case DT_INIT:
-            init_fn = dyn_entries[i].d_ptr;
-            break;
-        case DT_FINI:
-            fini_fn = dyn_entries[i].d_ptr;
-            break;
-        case DT_INIT_ARRAY:
-            init_array_ptr = dyn_entries[i].d_ptr;
-            break;
-        case DT_FINI_ARRAY:
-            fini_array_ptr = dyn_entries[i].d_ptr;
-            break;
-        case DT_INIT_ARRAYSZ:
-            init_array_size = dyn_entries[i].d_val;
-            break;
-        case DT_FINI_ARRAYSZ:
-            fini_array_size = dyn_entries[i].d_val;
-            break;
-        case DT_NEEDED:
-            dependencies.push_back(symstrtab[dyn_entries[i].d_val]);
-            break;
-        default:
-            break;
-        }
+        else process_dyn_entry(i);
     }
     if((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size)) { panic("init and/or fini array entries invalid"); return false; }
     if(have_ht) return process_got();
@@ -206,26 +215,24 @@ bool elf64_dynamic_object::process_got()
         else if(dyn_entries[i].d_tag == DT_PLTRELSZ) rela_sz = dyn_entries[i].d_val;
         if(got_offs && rela_offs && rela_sz) break;
     }
-    if(!(got_offs && rela_offs && rela_sz)) { panic("missing got info"); return false; }
-    num_plt_got_slots = rela_sz / sizeof(elf64_rela);
-    plt_got_slots = r_alloc.allocate(num_plt_got_slots);
+    if(!(got_offs && rela_offs && rela_sz)) { panic("missing GOT info"); return false; }
+    got_vaddr = got_offs;
+    num_plt_relas = rela_sz / sizeof(elf64_rela);
+    plt_relas = r_alloc.allocate(num_plt_relas);
     elf64_rela* rela = img_ptr(rela_offs);
-    array_copy(plt_got_slots, rela, num_plt_got_slots);
-    off_t idx_result = segment_index(got_offs);
-    if(idx_result < 0) { panic("got is in an invalid segment"); return false; }
-    got_seg_index = static_cast<size_t>(idx_result);
-    for(size_t i = 0; i < num_plt_got_slots; i++) { if(recognize_rela_type(rela[i])) { if(size_t sym_idx = rela[i].r_info.sym_index; sym_idx && sym_idx < symtab.entries()) relocations.emplace_back(symtab[sym_idx], rela[i]); } }
+    array_copy(plt_relas, rela, num_plt_relas);
     return true;
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
     elf64_object        { that },
     num_dyn_entries     { that.num_dyn_entries },
     dyn_entries         { dynseg_alloc.allocate(num_dyn_entries) },
-    num_plt_got_slots   { that.num_plt_got_slots },
-    plt_got_slots       { that.plt_got_slots ? r_alloc.allocate(that.num_plt_got_slots) : nullptr },
-    got_seg_index       { that.got_seg_index },
+    num_plt_relas       { that.num_plt_relas },
+    plt_relas           { that.plt_relas ? r_alloc.allocate(that.num_plt_relas) : nullptr },
+    got_vaddr           { that.got_vaddr },
     relocations         { that.relocations },
     dependencies        { that.dependencies },
+    ld_paths            { that.ld_paths },
     init_array          { that.init_array },
     fini_array          { that.fini_array },
     init_fn             { that.init_fn },
@@ -243,17 +250,18 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     array_copy(symbol_index.htbl.bloom_filter_words, that.symbol_index.htbl.bloom_filter_words, symbol_index.htbl.header.maskwords);
     array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
-    array_copy(this->plt_got_slots, that.plt_got_slots, num_plt_got_slots);
+    array_copy(this->plt_relas, that.plt_relas, num_plt_relas);
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) : 
     elf64_object        { std::move(that) },
     num_dyn_entries     { that.num_dyn_entries },
     dyn_entries         { that.dyn_entries },
-    num_plt_got_slots   { that.num_plt_got_slots },
-    plt_got_slots       { that.plt_got_slots },
-    got_seg_index       { that.got_seg_index },
+    num_plt_relas       { that.num_plt_relas },
+    plt_relas           { that.plt_relas },
+    got_vaddr           { that.got_vaddr },
     relocations         { std::move(that.relocations) },
     dependencies        { std::move(that.dependencies) },
+    ld_paths            { std::move(that.ld_paths) },
     init_array          { std::move(that.init_array) },
     fini_array          { std::move(that.fini_array) },
     init_fn             { that.init_fn },
@@ -267,5 +275,5 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
     that.symbol_index.htbl.bloom_filter_words = nullptr;
     that.symbol_index.htbl.buckets = nullptr;
     that.symbol_index.htbl.hash_value_array = nullptr;
-    that.plt_got_slots = nullptr;
+    that.plt_relas = nullptr;
 }

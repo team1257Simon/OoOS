@@ -5,9 +5,15 @@
 #include "algorithm"
 #include "kdebug.hpp"
 #include "sys/errno.h"
-static addr_t global_search(const char* name) { for(elf64_shared_object& so : shared_object_map::get_globals()) { if(addr_t result = so.resolve_by_name(name)) return result; } return nullptr; }
-static addr_t full_search(task_ctx* task, const char* name) { addr_t result; if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle); dyn && (result = dyn->resolve_by_name(name))) return result; for(elf64_shared_object& so : *task->local_so_map) { if((result = so.resolve_by_name(name))) return result; } return global_search(name); }
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
+static addr_t global_search(const char* name) { for(elf64_shared_object const& so : shared_object_map::get_globals()) { if(addr_t result = so.resolve_by_name(name)) return result; } return nullptr; }
+static addr_t full_search(task_ctx* task, const char* name)
+{ 
+    addr_t result; 
+    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle); dyn && (result = dyn->resolve_by_name(name))) return result; 
+    for(elf64_shared_object& so : *task->local_so_map) { if((result = so.resolve_by_name(name))) return result; } 
+    return global_search(name);
+}
 extern "C"
 {
     addr_t syscall_dlinit(elf64_dynamic_object* obj_handle)
@@ -45,21 +51,21 @@ extern "C"
             shared_object_map::iterator so = task->local_so_map->get_if_resident(n);
             if(so != task->local_so_map->end() && (flags & RTLD_GLOBAL)) { so = task->local_so_map->transfer(shared_object_map::get_globals(), so); }
             if(so && (flags & RTLD_NODELETE)) { so->set_sticky(); }
-            return so.get_node();
+            return so.base();
         }
         shared_object_map& sm = flags & RTLD_GLOBAL ? shared_object_map::get_globals() : *task->local_so_map;
         shared_object_map::iterator result = sm.add(n);
         std::string full_path = *found_path + fs_ptr->get_path_separator() + xname;
         sm.set_path(result, full_path);
         if(flags & RTLD_NODELETE) result->set_sticky();
-        return result.get_node();
+        return result.base();
     }
     int syscall_dlclose(addr_t handle)
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return -ENOSYS;
         if(handle == addr_t(task)) return 0; // dlclose on the "self" handle does nothing (UB)
-        shared_object_map::iterator so(handle);
+        shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
         if(!is_valid_handle(*so)) { return -EINVAL; }
         if(!task->local_so_map) return -ENOSYS;
         if(task->local_so_map->contains(so->get_soname())) { task->local_so_map->remove(so); }
@@ -74,7 +80,7 @@ extern "C"
         if(handle == addr_t(task)) { if(addr_t result = full_search(task, name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         if(!handle) { if(addr_t result = global_search(name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
-        shared_object_map::iterator so(handle);
+        shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
         if(!is_valid_handle(*so)) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
         addr_t result = so->resolve_by_name(name);
         if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
@@ -111,7 +117,7 @@ extern "C"
         if(path_out) path_out = translate_user_pointer(path_out);
         if(!path_out) return -EINVAL;
         if(sz_out) { sz_out = translate_user_pointer(sz_out); if(!sz_out) return -EINVAL; }
-        shared_object_map::iterator so(handle);
+        shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
         if(!is_valid_handle(*so)) return -EINVAL;
         const char* path;
         if(!((path = task->local_so_map->get_path(so)) || (path = shared_object_map::get_globals().get_path(so)))) return -ENOENT;
