@@ -15,6 +15,15 @@ elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
     plt_got_slots   { nullptr },
     got_seg_index   { 0UL },
     relocations     {},
+    dependencies    {},
+    init_array      {},
+    fini_array      {},
+    init_fn         {},
+    fini_fn         {},
+    init_array_ptr  {},
+    fini_array_ptr  {},
+    init_array_size {},
+    fini_array_size {},
     symbol_index    { symstrtab, symtab } 
                     {}
 elf64_dynamic_object::~elf64_dynamic_object()
@@ -71,6 +80,7 @@ bool elf64_dynamic_object::xload()
         process_headers();
         if(!load_segments()) { panic("object contains no loadable segments"); success = false; }
         else if(!load_syms()) { panic("failed to load symbols"); success = false; }
+        else if(!post_load_init()) { panic("failed to initialize program image"); success = false; }
         // other segments and sections, if/when needed, can be handled here; free the rest up
         cleanup();
         return success;
@@ -116,6 +126,7 @@ bool elf64_dynamic_object::load_syms()
     }
     if(!have_dyn) { panic("no dynamic segment present"); return false; }
     process_dynamic_relas();
+    bool have_ht = false;
     for(size_t i = 0; i < num_dyn_entries; i++)
     {
         if(dyn_entries[i].d_tag == DT_GNU_HASH)
@@ -145,9 +156,37 @@ bool elf64_dynamic_object::load_syms()
                     .buckets            { buckets }, 
                     .hash_value_array   { hval_array } 
             };
-            return process_got();
+            have_ht = true;
+        }
+        else switch(dyn_entries[i].d_tag)
+        {
+        case DT_INIT:
+            init_fn = dyn_entries[i].d_ptr;
+            break;
+        case DT_FINI:
+            fini_fn = dyn_entries[i].d_ptr;
+            break;
+        case DT_INIT_ARRAY:
+            init_array_ptr = dyn_entries[i].d_ptr;
+            break;
+        case DT_FINI_ARRAY:
+            fini_array_ptr = dyn_entries[i].d_ptr;
+            break;
+        case DT_INIT_ARRAYSZ:
+            init_array_size = dyn_entries[i].d_val;
+            break;
+        case DT_FINI_ARRAYSZ:
+            fini_array_size = dyn_entries[i].d_val;
+            break;
+        case DT_NEEDED:
+            dependencies.push_back(symstrtab[dyn_entries[i].d_val]);
+            break;
+        default:
+            break;
         }
     }
+    if((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size)) { panic("init and/or fini array entries invalid"); return false; }
+    if(have_ht) return process_got();
     panic("required data missing"); 
     return false; 
 }
@@ -186,6 +225,15 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     plt_got_slots       { that.plt_got_slots ? r_alloc.allocate(that.num_plt_got_slots) : nullptr },
     got_seg_index       { that.got_seg_index },
     relocations         { that.relocations },
+    dependencies        { that.dependencies },
+    init_array          { that.init_array },
+    fini_array          { that.fini_array },
+    init_fn             { that.init_fn },
+    fini_fn             { that.fini_fn },
+    init_array_ptr      { that.init_array_ptr },
+    fini_array_ptr      { that.fini_array_ptr },
+    init_array_size     { that.init_array_size },
+    fini_array_size     { that.fini_array_size },
     symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ .header{ that.symbol_index.htbl.header } } }
 {
     symbol_index.htbl.bloom_filter_words = q_alloc.allocate(symbol_index.htbl.header.maskwords);
@@ -205,6 +253,15 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
     plt_got_slots       { that.plt_got_slots },
     got_seg_index       { that.got_seg_index },
     relocations         { std::move(that.relocations) },
+    dependencies        { std::move(that.dependencies) },
+    init_array          { std::move(that.init_array) },
+    fini_array          { std::move(that.fini_array) },
+    init_fn             { that.init_fn },
+    fini_fn             { that.fini_fn },
+    init_array_ptr      { that.init_array_ptr },
+    fini_array_ptr      { that.fini_array_ptr },
+    init_array_size     { that.init_array_size },
+    fini_array_size     { that.fini_array_size },
     symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ std::move(that.symbol_index.htbl) } }
 {
     that.symbol_index.htbl.bloom_filter_words = nullptr;

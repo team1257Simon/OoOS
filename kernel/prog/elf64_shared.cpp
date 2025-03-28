@@ -101,16 +101,38 @@ bool elf64_shared_object::load_segments()
     kernel_memory_mgr::get().exit_frame();
     return have_loads;
 }
-bool elf64_shared_object::xload()
+bool elf64_shared_object::post_load_init()
 {
-    if(elf64_dynamic_object::xload()) 
+    kernel_memory_mgr::get().enter_frame(frame_tag);
+    apply_relocations();
+    kernel_memory_mgr::get().exit_frame();
+    try
     {
-        kernel_memory_mgr::get().enter_frame(frame_tag);
-        apply_relocations();
-        kernel_memory_mgr::get().exit_frame();
+        std::vector<addr_t> fini_reverse_array{};
+        if(init_fn) { init_array.push_back(resolve(init_fn)); }
+        if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
+        if(init_array_size && init_array_ptr) 
+        {
+            addr_t init_ptrs_vaddr = resolve(init_array_ptr);
+            kernel_memory_mgr::get().enter_frame(frame_tag);
+            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(init_ptrs_vaddr)); 
+            kernel_memory_mgr::get().exit_frame();
+            for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
+        }
+        if(fini_array_size && fini_array_ptr) 
+        {
+            addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
+            kernel_memory_mgr::get().enter_frame(frame_tag);
+            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
+            kernel_memory_mgr::get().exit_frame();
+            for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
+        }
+        if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
+        init_array.push_back(nullptr);
+        fini_array.push_back(nullptr);
         return true;
     }
-    else return false;
+    catch(std::exception& e) { panic(e.what()); return false; }
 }
 std::vector<block_descr> elf64_shared_object::segment_blocks() const
 {

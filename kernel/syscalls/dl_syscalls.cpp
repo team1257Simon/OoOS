@@ -7,8 +7,25 @@
 #include "sys/errno.h"
 static addr_t global_search(const char* name) { for(elf64_shared_object& so : shared_object_map::get_globals()) { if(addr_t result = so.resolve_by_name(name)) return result; } return nullptr; }
 static addr_t full_search(task_ctx* task, const char* name) { addr_t result; if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle); dyn && (result = dyn->resolve_by_name(name))) return result; for(elf64_shared_object& so : *task->local_so_map) { if((result = so.resolve_by_name(name))) return result; } return global_search(name); }
+static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
 extern "C"
 {
+    addr_t syscall_dlinit(elf64_dynamic_object* obj_handle)
+    {
+        size_t len = obj_handle->get_init().size();
+        addr_t result = sysres_add(len * sizeof(addr_t));
+        if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+        array_copy(translate_user_pointer(result), obj_handle->get_init().data(), len);
+        return result;
+    }
+    addr_t syscall_dlfini(elf64_dynamic_object* obj_handle)
+    {
+        size_t len = obj_handle->get_fini().size();
+        addr_t result = sysres_add(len * sizeof(addr_t));
+        if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+        array_copy(translate_user_pointer(result), obj_handle->get_fini().data(), len);
+        return result;
+    }
     addr_t syscall_dlopen(const char* name, int flags)
     {
         task_ctx* task = get_gs_base<task_ctx>();
@@ -67,6 +84,8 @@ extern "C"
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        name = translate_user_pointer(name);
+        if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         if(addr_t result = full_search(task, name)) return result;
         return addr_t(static_cast<uintptr_t>(-ENOENT));
     }
@@ -97,22 +116,33 @@ extern "C"
         const char* path;
         if(!((path = task->local_so_map->get_path(so)) || (path = shared_object_map::get_globals().get_path(so)))) return -ENOENT;
         size_t len = std::strlen(path);
-        uframe_tag* tag = task->task_struct.frame_ptr;
-        if(static_cast<size_t>(tag->sysres_extent - tag->sysres_wm) < len)
+        if(char* result = sysres_add(len))
         {
-            kernel_memory_mgr::get().enter_frame(tag);
-            addr_t mapping_target = tag->sysres_extent;
-            addr_t allocated = kernel_memory_mgr::get().allocate_user_block(len, mapping_target, 0UL, false, false);
-            if(!allocated) { kernel_memory_mgr::get().exit_frame(); return -ENOMEM; }
-            tag->kernel_allocated_blocks.push_back(allocated);
-            tag->sysres_extent += kernel_memory_mgr::get().page_aligned_region_size(mapping_target, len);
-            kernel_memory_mgr::get().exit_frame();
+            array_copy(translate_user_pointer(result), path, len);
+            *path_out = result;
+            if(sz_out) *sz_out = len;
+            return 0;
         }
-        char* result = tag->sysres_wm;
-        tag->sysres_wm += len;
-        array_copy(result, path, len);
-        *path_out = result;
-        if(sz_out) *sz_out = len;
-        return 0;
+        else return -ENOMEM;
+    }
+    addr_t syscall_depends(elf64_dynamic_object* obj_handle)
+    {
+        char** result = sysres_add((obj_handle->get_dependencies().size() + 1) * sizeof(char*));
+        char** result_real = translate_user_pointer(result);
+        if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+        if(!result_real) return addr_t(static_cast<uintptr_t>(-EINVAL));
+        size_t n = 0;
+        for(const char* str : obj_handle->get_dependencies())
+        {
+            size_t len = std::strlen(str) + 1;
+            char* target = sysres_add(len);
+            if(!target) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+            char* target_real = translate_user_pointer(target);
+            array_copy(target_real, str, len - 1);
+            target_real[len] = '\0';
+            result_real[n++] = target;
+        }
+        result_real[n] = nullptr;
+        return result;
     }
 }

@@ -13,8 +13,8 @@ protected:
     size_t ref_count;
     bool sticky;
     virtual bool load_segments() override;
+    virtual bool post_load_init() override;
     virtual bool xvalidate() override;
-    virtual bool xload() override;
     virtual void xrelease() override;
 public:
     virtual addr_t resolve(uint64_t offs) const override;

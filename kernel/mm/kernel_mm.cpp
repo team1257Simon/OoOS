@@ -590,6 +590,22 @@ bool uframe_tag::mmap_remove(addr_t addr, size_t len)
     __unmap_pages(addr, truncate(len, page_size), pml4);
     return true;
 }
+addr_t uframe_tag::sysres_add(size_t n)
+{
+    if(static_cast<size_t>(sysres_extent - sysres_wm) < n)
+    {
+        kernel_memory_mgr::get().enter_frame(this);
+        addr_t mapping_target = sysres_extent;
+        addr_t allocated = kernel_memory_mgr::get().allocate_user_block(n, mapping_target, 0UL, false, false);
+        if(!allocated) { kernel_memory_mgr::get().exit_frame(); return nullptr; }
+        kernel_allocated_blocks.push_back(allocated);
+        sysres_extent += kernel_memory_mgr::get().page_aligned_region_size(mapping_target, n);
+        kernel_memory_mgr::get().exit_frame();
+    }
+    addr_t result = sysres_wm;
+    sysres_wm += n;
+    return result;
+}
 extern "C"
 {
     void *aligned_malloc(size_t size, size_t align) { return __kernel_frame_tag->allocate(size, align); }

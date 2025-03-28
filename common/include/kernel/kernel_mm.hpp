@@ -125,6 +125,7 @@ public:
     ~uframe_tag();
     bool shift_extent(ptrdiff_t amount);
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
+    addr_t sysres_add(size_t n);
     bool mmap_remove(addr_t addr, size_t len);
     void accept_block(block_descr&& desc);
     void accept_block(block_descr const& desc);
@@ -254,7 +255,7 @@ public:
     addr_t copy_kernel_mappings(paging_table target);
 };
 extern "C" void* aligned_malloc(size_t size, size_t align);
-extern "C" addr_t syscall_sbrk(ptrdiff_t incr);
-extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);
-extern "C" int syscall_munmap(addr_t addr, size_t len);
+extern "C" addr_t syscall_sbrk(ptrdiff_t incr);                                                             // void* sbrk(ptrdiff_t incr);
+extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);     // void* mmap(void* addr, size_t len, int prot, int flags, ptrdiff_t offset);
+extern "C" int syscall_munmap(addr_t addr, size_t len);                                                     // int munmap(void* addr, size_t len);
 #endif

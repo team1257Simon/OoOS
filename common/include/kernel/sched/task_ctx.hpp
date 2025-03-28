@@ -64,13 +64,13 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 extern "C"
 {
     [[noreturn]] void handle_exit();
-    clock_t syscall_times(struct tms* out);
-    long syscall_getpid();
-    long syscall_fork();
-    void syscall_exit(int n);
-    int syscall_kill(unsigned long pid, unsigned long sig);
-    pid_t syscall_wait(int* sc_out);
-    int syscall_sleep(unsigned long seconds);
-    int syscall_execve(char* name, char** argv, char** env);
+    clock_t syscall_times(struct tms* out);                     // clock_t times(struct tms* out);
+    long syscall_getpid();                                      // pid_t getpid();
+    long syscall_fork();                                        // pid_t fork();
+    void syscall_exit(int n);                                   // void exit(int code) __attribute__((noreturn));
+    int syscall_kill(unsigned long pid, unsigned long sig);     // int kill(pid_t pid, int sig);
+    pid_t syscall_wait(int* sc_out);                            // pid_t wait(int* sc_out);
+    int syscall_sleep(unsigned long seconds);                   // int sleep(time_t seconds);
+    int syscall_execve(char* name, char** argv, char** env);    // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
 }
 #endif
