@@ -389,6 +389,13 @@ addr_t kernel_memory_mgr::identity_map_to_user(addr_t what, size_t sz, bool writ
     __unlock();
     return result;
 }
+void kernel_memory_mgr::map_to_current_frame(std::vector<block_descr> const& blocks)
+{
+    addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
+    __lock();
+    for(block_descr const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_roundup(blk.size, page_size), pml4, blk.write, blk.execute); }
+    __unlock();
+}
 block_tag *kframe_tag::__create_tag(size_t size, size_t align)
 {
     size_t actual_size = std::max(size + bt_offset, align) + align;
@@ -547,13 +554,6 @@ void uframe_tag::accept_block(block_descr&& desc)
     __map_user_pages(blk.virtual_start, blk.physical_start, div_roundup(blk.size, page_size), pml4, blk.write, blk.execute);
     __unlock();
 }
-void uframe_tag::accept_block(block_descr const& desc)
-{
-    __lock();
-    block_descr& blk = usr_blocks.emplace_back(desc);
-    __map_user_pages(blk.virtual_start, blk.physical_start, div_roundup(blk.size, page_size), pml4, blk.write, blk.execute);
-    __unlock();
-}
 void uframe_tag::transfer_block(uframe_tag& that, block_descr const& which)
 {
     __lock();
@@ -561,9 +561,8 @@ void uframe_tag::transfer_block(uframe_tag& that, block_descr const& which)
     { 
         if(which.physical_start == i->physical_start) 
         {
-            __unmap_pages(i->virtual_start, div_roundup(i->size, page_size), pml4);
             that.accept_block(std::move(*i));
-            usr_blocks.erase(i); 
+            usr_blocks.erase(i);
             break;
         }
     }
@@ -608,7 +607,7 @@ addr_t uframe_tag::sysres_add(size_t n)
 }
 extern "C"
 {
-    void *aligned_malloc(size_t size, size_t align) { return __kernel_frame_tag->allocate(size, align); }
+    void* aligned_malloc(size_t size, size_t align) { return __kernel_frame_tag->allocate(size, align); }
     uintptr_t translate_vaddr(addr_t addr) { if(paging_table pt = __find_table(addr)) return (pt[addr.page_idx].physical_address << 12) | addr.offset; else return 0; }
     addr_t translate_user_pointer(addr_t ptr) { uframe_tag* ctask_frame = current_active_task()->frame_ptr; if(ctask_frame->magic != uframe_magic) return nullptr; kernel_memory_mgr::get().enter_frame(ctask_frame); addr_t result(kernel_memory_mgr::get().translate_vaddr_in_current_frame(ptr)); kernel_memory_mgr::get().exit_frame(); return result; }
 }

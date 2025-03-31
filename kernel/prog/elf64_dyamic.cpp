@@ -9,7 +9,8 @@ static std::allocator<uint64_t> q_alloc{};
 static std::allocator<elf64_rela> r_alloc{};
 static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
-elf64_dynamic_object::elf64_dynamic_object(file_node* n) : 
+addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_vaddr); }
+elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
     elf64_object    { n },
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },

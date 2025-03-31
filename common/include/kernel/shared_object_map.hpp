@@ -33,7 +33,6 @@ public:
     using typename __base::size_type;
     using typename __base::difference_type;
     shared_object_map(uframe_tag* frame = nullptr, size_type init_ct = 128UL);
-    shared_object_map(shared_object_map const& that, uframe_tag* nframe);
     ~shared_object_map();
     elf64_shared_object& operator[](std::string const& name);
     elf64_shared_object const& operator[](std::string const& name) const;
@@ -61,8 +60,9 @@ extern "C"
     addr_t syscall_dlopen(const char* name, int flags);                             // void* dlopen(const char* name, int flags);
     int syscall_dlclose(addr_t handle);                                             // int dlclose(void* hadle);
     addr_t syscall_dlsym(addr_t handle, const char* name);                          // void* dlsym(void* restrict handle, const char* restrict name);
-    addr_t syscall_getsym(const char* name);                                        // void* getsym(const char* name); shortcut to syscall_dlsym(syscall_dlopen(0, RTLD_NOW), name)
+    addr_t syscall_dlresolve(uint32_t sym_idx);                                     // void* dlresolve(int sym_idx); 
     int syscall_dlpath(const char* path_str);                                       // int dlpath(const char* path_str); add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
     int syscall_dlorigin(addr_t handle, const char** str_out, size_t* sz_out);      // int dlorigin(void* restrict handle, const char** restrict str_out, size_t* restrict sz_out); write the full absolute path of the given SO to the file given by fdout; if sz_out is nonnull, it receives the total number of characters written
+    void dl_transfer();                                                             // dynamic linker "exit" will return here, which will transfer control to the program proper
 }
 #endif

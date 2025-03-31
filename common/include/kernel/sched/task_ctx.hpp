@@ -21,6 +21,7 @@ struct task_ctx
     std::vector<const char*> arg_vec;       //  Argv will be this vector's data() member; argc is its size()
     std::vector<const char*> env_vec{};     //  Environment variables will go here
     std::vector<std::string> dl_search_paths{};
+    addr_t entry;
     addr_t allocated_stack;
     size_t stack_allocated_size;
     addr_t tls;
@@ -41,6 +42,8 @@ struct task_ctx
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
     constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == kframe_magic; }
     constexpr bool is_user() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == uframe_magic; }
+    constexpr static uint16_t code_segment(uint64_t fmagic) noexcept { return fmagic == kframe_magic ? 0x08 : 0x23; }
+    constexpr static uint16_t data_segment(uint64_t fmagic) noexcept { return fmagic == kframe_magic ? 0x10 : 0x1B; }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.get_pid() <=> __that.get_pid(); }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
@@ -52,11 +55,14 @@ struct task_ctx
     bool remove_child(task_ctx* that);
     void start_task(addr_t exit_fn);
     void start_task();
+    void restart_task(addr_t exit_fn);
+    void restart_task();
     void set_exit(int n);
     void terminate();
     tms get_times() const noexcept;
     void init_task_state();
-    void init_task_state(task_ctx const& that);
+    void init_task_state(register_t rdi, register_t rsi);
+    void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 inline task_ctx* active_task_context() { return current_active_task()->self; }

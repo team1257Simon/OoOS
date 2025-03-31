@@ -32,9 +32,10 @@ syscall_vec:
     .quad syscall_dlopen        # 25; WIP
     .quad syscall_dlclose       # 26; WIP
     .quad syscall_dlsym         # 27; WIP
-    .quad syscall_getsym        # 28; WIP / ldso-specific
+    .quad syscall_dlresolve     # 28; WIP / ldso-specific
     .quad syscall_dlpath        # 29; WIP / ldso-specific
     .quad syscall_dlorigin      # 30; WIP / ldso-specific
+    .quad syscall_depends       # 31; WIP / ldso-specific
     .quad syscall_dlfini        # 32; WIP / ldso-specific
 syscv_end:
     .quad on_invalid_syscall    # handler for out-of-range syscalls
@@ -44,7 +45,7 @@ syscv_end:
     #   System calls are performed using the x86-64 fast system call instruction (SYSCALL).
     #   The caller places arguments in registers DI, SI, D, 8, 9, and 10, and the syscall number in register A.
     #   Important note: the argument order above differs from the Linux ABI, which places register 10 before 8 for some ungodly reason.
-    #   The kernel zeroes the argument registers after the call. Registers C and 11 are destroyed by the SYSCALL instruction.
+    #   Registers C and 11 are destroyed by the SYSCALL instruction.
     #   The result of the call is stored in the A register. Error codes are returned as minus values (between -4095 and -1) as per the Linux syscall ABI.
     .section .text
     .global do_syscall
@@ -55,6 +56,12 @@ do_syscall:
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
     movq    %rbx,                   %gs:0x018
+    movq    %rdx,                   %gs:0x028
+    movq    %rdi,                   %gs:0x030
+    movq    %rsi,                   %gs:0x038
+    movq    %r8,                    %gs:0x040
+    movq    %r9,                    %gs:0x048
+    movq    %r10,                   %gs:0x050
     movq    %r11,                   %gs:0x098    
     movq    %r12,                   %gs:0x060
     movq    %r13,                   %gs:0x068
@@ -86,14 +93,14 @@ do_syscall:
     call    *%rax
     cli
     fxsave  %gs:0x0D0
-    xorq    %rdi,                   %rdi
-    xorq    %rsi,                   %rsi
-    xorq    %rdx,                   %rdx
-    xorq    %r8,                    %r8
-    xorq    %r9,                    %r9
-    xorq    %r10,                   %r10
     swapgs
     fxrstor %gs:0x0D0
+    movq    %gs:0x028,              %rdx
+    movq    %gs:0x030,              %rdi
+    movq    %gs:0x038,              %rsi
+    movq    %gs:0x040,              %r8
+    movq    %gs:0x048,              %r9
+    movq    %gs:0x050,              %r10
     movq    %gs:0x098,              %r11    
     movq    %gs:0x060,              %r12
     movq    %gs:0x068,              %r13
@@ -103,7 +110,7 @@ do_syscall:
     movq    %gs:0x088,              %rsp
     movq    %gs:0x018,              %rbx
     movq    %gs:0x0A6,              %rcx
-    movq    %rcx,                   %cr3    
+    movq    %rcx,                   %cr3
     movq    %gs:0x090,              %rcx
     sysretq
     .size do_syscall, .-do_syscall

@@ -8,9 +8,9 @@ bool scheduler::init_instance() { return has_init() || (__has_init = __instance.
 scheduler &scheduler::get() noexcept { return __instance; }
 scheduler::scheduler() = default;
 bool scheduler::__set_untimed_wait(task_t *task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
-void scheduler::register_task(task_t *task) { __my_queues[task->task_ctl.prio_base].push(task); }
-bool scheduler::interrupt_wait(task_t *waiting) { if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } else return false; }
-bool scheduler::__set_wait_time(task_t *task, unsigned int time, bool can_interrupt)
+void scheduler::register_task(task_t* task) { __my_queues[task->task_ctl.prio_base].push(task); }
+bool scheduler::interrupt_wait(task_t* waiting) { if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } else return false; }
+bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interrupt)
 {
     task->task_ctl.block = true;
     task->task_ctl.can_interrupt = can_interrupt;

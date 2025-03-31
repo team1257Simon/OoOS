@@ -41,5 +41,6 @@ public:
     virtual ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;
+    constexpr elf64_sym const& get_sym(size_t idx) const noexcept { return symtab[idx]; }
 };
 #endif

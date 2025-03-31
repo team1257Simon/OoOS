@@ -22,5 +22,5 @@ _start:
     popq        %rdi
     call        main
     movq        %rax,       %rdi
-    jmp         _exit
+    jmp         exit
     .size       _start,     .-_start

@@ -2,6 +2,10 @@ AS := $(TARGET_BARE)-as
 CXX := $(TARGET_BARE)-g++
 AR := $(TARGET_BARE)-ar
 CC := $(TARGET_BARE)-gcc
+CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32 
+CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=c++20
+CCFLAGS := $(CFLAGS) -std=gnu23
+ARFLAGS := -rcs
 OUT_A := $(OUTDIR)/libk.a
 OBJDIR := $(OBJ_BASE_DIR)/libk
 SUBDIRS = $(sort $(dir $(wildcard */*.*)))

@@ -46,6 +46,9 @@ bool elf64_dynamic_executable::post_load_init()
 {
     kernel_memory_mgr::get().enter_frame(frame_tag);
     apply_relocations();
+    addr_t* got = reinterpret_cast<addr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(global_offset_table()));
+    got[1] = global_offset_table();
+    // TODO: also put the address of the resolve-symbol function in the GOT
     kernel_memory_mgr::get().exit_frame();
     try
     {
@@ -68,7 +71,7 @@ bool elf64_dynamic_executable::post_load_init()
             kernel_memory_mgr::get().exit_frame();
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
-        if(fini_array_size && fini_array_ptr) 
+        if(fini_array_size && fini_array_ptr)
         {
             addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
             kernel_memory_mgr::get().enter_frame(frame_tag);

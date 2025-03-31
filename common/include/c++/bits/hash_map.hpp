@@ -48,6 +48,9 @@ namespace std
         constexpr iterator end(size_type bucket) noexcept { return iterator(this->__end(bucket)); }
         constexpr const_iterator cend(size_type bucket) const noexcept { return const_iterator(this->__end(bucket)); }
         constexpr const_iterator end(size_type bucket) const noexcept { return cend(bucket); }
+        extension iterator before(iterator what) { return this->__before(what); }
+        extension const_iterator cbefore(const_iterator what) const { return this->__before(what); }
+        extension const_iterator before(const_iterator what) const { return cbefore(what); }
         constexpr float max_load_factor() const noexcept { return this->__get_max_load(); }
         constexpr void max_load_factor(float f) noexcept { this->__set_max_load(f); }
         constexpr float load_factor() const noexcept { return this->__current_load(); }

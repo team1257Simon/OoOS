@@ -5,6 +5,7 @@
 #include "algorithm"
 #include "kdebug.hpp"
 #include "sys/errno.h"
+#include "arch/arch_amd64.h"
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
 static addr_t global_search(const char* name) { for(elf64_shared_object const& so : shared_object_map::get_globals()) { if(addr_t result = so.resolve_by_name(name)) return result; } return nullptr; }
 static addr_t full_search(task_ctx* task, const char* name)
@@ -41,22 +42,36 @@ extern "C"
         name = translate_user_pointer(name);
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         std::string xname(name, std::strnlen(name, 256UL));
-        std::vector<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
-        file_node* n = nullptr;
-        std::string const* found_path = nullptr;
-        for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_dir_nothrow(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = tn->as_file(); found_path = std::addressof(path); break; } } }
-        if(!n) { return addr_t(static_cast<uintptr_t>(-ENOENT)); }
-        if(flags & RTLD_NOLOAD)
+        shared_object_map::iterator result;
+        if(shared_object_map::iterator cached = shared_object_map::get_globals().find(xname); cached != shared_object_map::get_globals().end()) { result = cached; }
+        else 
         {
-            shared_object_map::iterator so = task->local_so_map->get_if_resident(n);
-            if(so != task->local_so_map->end() && (flags & RTLD_GLOBAL)) { so = task->local_so_map->transfer(shared_object_map::get_globals(), so); }
-            if(so && (flags & RTLD_NODELETE)) { so->set_sticky(); }
-            return so.base();
+            std::vector<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
+            file_node* n = nullptr;
+            std::string const* found_path = nullptr;
+            for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_dir_nothrow(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = tn->as_file(); found_path = std::addressof(path); break; } } }
+            if(!n) { return addr_t(static_cast<uintptr_t>(-ENOENT)); }
+            if(flags & RTLD_NOLOAD)
+            {
+                shared_object_map::iterator so = task->local_so_map->get_if_resident(n);
+                if(so == task->local_so_map->end()) return nullptr;
+                if(flags & RTLD_GLOBAL) { result = task->local_so_map->transfer(shared_object_map::get_globals(), so); }
+                else result = so;
+            }
+            else
+            {
+                shared_object_map& sm = flags & RTLD_GLOBAL ? shared_object_map::get_globals() : *task->local_so_map;
+                result = sm.add(n);
+                std::string full_path = *found_path + fs_ptr->get_path_separator() + xname;
+                sm.set_path(result, full_path);
+            }
         }
-        shared_object_map& sm = flags & RTLD_GLOBAL ? shared_object_map::get_globals() : *task->local_so_map;
-        shared_object_map::iterator result = sm.add(n);
-        std::string full_path = *found_path + fs_ptr->get_path_separator() + xname;
-        sm.set_path(result, full_path);
+        if(flags & RTLD_GLOBAL && !(flags & RTLD_NOLOAD)) 
+        { 
+            kernel_memory_mgr::get().enter_frame(task->task_struct.frame_ptr); 
+            kernel_memory_mgr::get().map_to_current_frame(result->segment_blocks());
+            kernel_memory_mgr::get().exit_frame();
+        }
         if(flags & RTLD_NODELETE) result->set_sticky();
         return result.base();
     }
@@ -86,14 +101,20 @@ extern "C"
         if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
         return result;
     }
-    addr_t syscall_getsym(const char* name)
+    addr_t syscall_dlresolve(uint32_t sym_idx)
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-        name = translate_user_pointer(name);
-        if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        if(addr_t result = full_search(task, name)) return result;
-        return addr_t(static_cast<uintptr_t>(-ENOENT));
+        if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(task->object_handle))
+        {
+            elf64_rela const& rela = obj->get_plt_rela(sym_idx);
+            if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-EINVAL));
+            addr_t target_pos = translate_user_pointer(obj->resolve_rela_target(rela));
+            addr_t result = obj->resolve(obj->get_sym(rela.r_info.sym_index));
+            target_pos.ref<void*>() = result;
+            return result;
+        }
+        else return addr_t(static_cast<uintptr_t>(-ENOSYS));
     }
     int syscall_dlpath(const char* path_str)
     {
@@ -151,4 +172,5 @@ extern "C"
         result_real[n] = nullptr;
         return result;
     }
+    void dl_transfer() { cli(); task_ctx* task = active_task_context(); if(task->exit_code != 0) { panic("dynamic linker failed to load program"); handle_exit(); } task->restart_task(); sti(); }
 }

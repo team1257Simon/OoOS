@@ -196,7 +196,10 @@ namespace std
             constexpr __const_node_ptr __end(size_type idx) const noexcept { __const_node_ptr n; for(n = __begin(idx); n && __index(n) == idx; n = __advance_chain(n)); return n; }
             constexpr __base_ptr __find_before(key_type const& what) { size_type idx = __index(what); __base_ptr prev = this->__my_buckets[idx]; for(__node_ptr n = __advance_chain(prev); n && idx == __index(n); prev = n, n = n->__get_next()) { if(__is_equal(what, __key_of(n))) return prev; } return nullptr; }
             constexpr __const_base_ptr __find_before(key_type const& what) const { size_type idx = __index(what); __const_base_ptr prev = this->__my_buckets[idx]; for(__const_node_ptr n = __advance_chain(prev); n && idx == __index(n); prev = n, n = n->__get_next()) { if(__is_equal(what, __key_of(n))) return prev; } return nullptr; }
-            constexpr __base_ptr __get_before(size_type idx, __const_node_ptr n) { __base_ptr prev = this->__my_buckets[idx]; for(__node_ptr p = __advance_chain(prev); p; prev = p, p = p->__get_next()) { if(n == p) return prev; } return nullptr; }
+            constexpr __base_ptr __get_before(size_type idx, __const_node_ptr n) { __base_ptr prev = this->__my_buckets[idx]; for(__node_ptr p = __advance_chain(prev); p && idx == __index(p); prev = p, p = p->__get_next()) { if(n == p) return prev; } return nullptr; }
+            constexpr __const_base_ptr __get_before(size_type idx, __const_node_ptr n) const { __const_base_ptr prev = this->__my_buckets[idx]; for(__const_node_ptr p = __advance_chain(prev); p && idx == __index(p); prev = p, p = p->__get_next()) { if(n == p) return prev; } return nullptr; }
+            constexpr __base_ptr __get_before(__node_ptr n) { return __get_before(__index(n), n); }
+            constexpr __const_base_ptr __get_before(__const_node_ptr n) const { return __get_before(__index(n), n); }
             constexpr __node_ptr __find(key_type const& what) { return __advance_chain(__find_before(what)); }
             constexpr __const_node_ptr __find(key_type const& what) const { return __advance_chain(__find_before(what)); }
             constexpr bool __contains(key_type const& what) const { return __find(what) != nullptr; }
@@ -206,12 +209,14 @@ namespace std
             constexpr pair<iterator, bool> __insert_node(__node_ptr n, size_type added = 1UL) { if(__node_ptr p = __find(__key_of(n))) { __destroy_node(n); return make_pair(iterator(p), false); } return make_pair(__insert_node(__hash_code(n), n, added), true); }
             constexpr iterator __insert(__node_ptr n, size_type added = 1UL) { return __insert_node(__hash_code(n), n, added); }
             constexpr pair<iterator, bool> __insert(value_type const& val) requires copy_constructible<value_type> { return __insert_node(__create_node(val)); }
-            constexpr pair<iterator, bool> __insert(value_type && val) requires move_constructible<value_type> { return __insert_node(__create_node(move(val))); }
+            constexpr pair<iterator, bool> __insert(value_type&& val) requires move_constructible<value_type> { return __insert_node(__create_node(move(val))); }
             template<input_iterator IT> requires constructible_from<value_type, decltype(*declval<IT>())> constexpr void __insert(IT first, IT last) { size_type n = static_cast<size_type>(distance(first, last)); for(size_type i = 0; i < n; i++, ++first) { __insert_node(__create_node(*first), static_cast<size_type>(n - i)); } }
             constexpr void __insert(initializer_list<value_type> ini) requires copy_constructible<value_type> { __insert(ini.begin(), ini.end()); }
             template<typename ... Args> requires constructible_from<value_type, Args...> constexpr pair<iterator, bool> __emplace(Args&& ... args) { return __insert_node(__create_node(forward<Args>(args)...)); }
             constexpr iterator __erase(const_iterator what) { __base_ptr prev = __get_before(__index(what.get_node()), what.get_node()); __node_ptr n = __advance_chain(prev); return __erase_node(__index(n), prev, n); }
             constexpr size_type __erase(key_type const& what) { __base_ptr prev = __find_before(what); if(__node_ptr n = __advance_chain(prev)) { __erase_node(__index(n), prev, n); return 1UL; } return 0UL; }
+            constexpr iterator __before(iterator what) { if(__base_ptr p = __get_before(what.get_node()); p != std::addressof(this->__root)) return iterator(p); else return iterator(nullptr); }
+            constexpr const_iterator __before(const_iterator what) const { if(__const_base_ptr p = __get_before(what.get_node()); p != std::addressof(this->__root)) return const_iterator(p); else return const_iterator(nullptr); }
             constexpr float __get_max_load() const noexcept { return this->__max_load; }
             constexpr void __set_max_load(float val) noexcept { this->__max_load = val; }
             constexpr size_type __target_count_at_least(size_type cnt) const noexcept { return max(cnt, static_cast<size_type>(__builtin_ceilf(this->__element_count / this->__max_load))); }

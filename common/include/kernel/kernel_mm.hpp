@@ -128,7 +128,6 @@ public:
     addr_t sysres_add(size_t n);
     bool mmap_remove(addr_t addr, size_t len);
     void accept_block(block_descr&& desc);
-    void accept_block(block_descr const& desc);
     void transfer_block(uframe_tag& that, block_descr const& which);
     void drop_block(block_descr const& which);
     friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
@@ -244,6 +243,7 @@ public:
     kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
     void enter_frame(uframe_tag* ft) noexcept;
     void exit_frame() noexcept;
+    void map_to_current_frame(std::vector<block_descr> const& blocks);
     paging_table allocate_pt();
     uintptr_t translate_vaddr_in_current_frame(addr_t addr);
     addr_t allocate_kernel_block(size_t sz);

@@ -29,16 +29,6 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) :
     ref_count               { that.ref_count },
     sticky                  { that.sticky }
                             { that.frame_tag = nullptr; }
-elf64_shared_object::elf64_shared_object(elf64_shared_object const& that, uframe_tag* nframe) :
-    elf64_object            ( that ),
-    elf64_dynamic_object    ( that ),
-    so_handle_magic         { shared_magic },
-    soname                  ( that.soname ),
-    virtual_load_base       { that.virtual_load_base },
-    frame_tag               { nframe },
-    ref_count               { that.ref_count },
-    sticky                  { that.sticky }
-{ for(block_descr const& d : that.segment_blocks()) { frame_tag->accept_block(d); } }
 static const char* find_so_name(addr_t image_start)
 {
     elf64_ehdr const& eh = image_start.ref<elf64_ehdr>();
@@ -108,6 +98,9 @@ bool elf64_shared_object::post_load_init()
 {
     kernel_memory_mgr::get().enter_frame(frame_tag);
     apply_relocations();
+    addr_t* got = reinterpret_cast<addr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(global_offset_table()));
+    got[1] = global_offset_table();
+    // TODO: also put the address of the resolve-symbol function in the GOT
     kernel_memory_mgr::get().exit_frame();
     try
     {
@@ -118,7 +111,7 @@ bool elf64_shared_object::post_load_init()
         {
             addr_t init_ptrs_vaddr = resolve(init_array_ptr);
             kernel_memory_mgr::get().enter_frame(frame_tag);
-            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(init_ptrs_vaddr)); 
+            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(init_ptrs_vaddr));
             kernel_memory_mgr::get().exit_frame();
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }

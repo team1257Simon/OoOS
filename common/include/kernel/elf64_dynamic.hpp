@@ -29,19 +29,21 @@ protected:
     virtual void process_dyn_entry(size_t i);
     bool load_syms();
     void process_dynamic_relas();
-    addr_t resolve_rela_target(elf64_rela const& r) const;
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
 public:
+    addr_t resolve_rela_target(elf64_rela const& r) const;
     elf64_dynamic_object(file_node* n);
     elf64_dynamic_object(elf64_dynamic_object const& that);
     elf64_dynamic_object(elf64_dynamic_object&& that);
     virtual ~elf64_dynamic_object();
     virtual void apply_relocations();
     addr_t resolve_by_name(std::string const& symbol) const;
+    addr_t global_offset_table() const;
     constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
     constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
     constexpr std::vector<const char*> const& get_dependencies() const noexcept { return dependencies; }
     constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
+    constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
 };
 extern "C"
 {
