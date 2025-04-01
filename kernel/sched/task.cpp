@@ -9,7 +9,7 @@
 #include "isr_table.hpp"
 static std::allocator<shared_object_map> sm_alloc{};
 static inline addr_t __pml4_of(addr_t frame_ptr) { if(frame_ptr.as<uframe_tag>()->magic == uframe_magic) return frame_ptr.as<uframe_tag>()->pml4; else return get_cr3(); }
-filesystem *task_ctx::get_vfs_ptr() { return ctx_filesystem; }
+filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 constexpr static uint64_t get_frame_magic(addr_t tag) { return tag.ref<uint64_t>(); }
 void task_ctx::add_child(task_ctx* that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx* that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
@@ -162,6 +162,14 @@ void task_ctx::set_exit(int n)
     if(exit_target) exit_target.ref<void()>()();
     else handle_exit();
     __builtin_unreachable();    
+}
+void task_ctx::attach_object(elf64_object* obj)
+{
+    std::vector<block_descr> blocks = obj->segment_blocks();
+    kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
+    kernel_memory_mgr::get().map_to_current_frame(blocks);
+    kernel_memory_mgr::get().exit_frame();
+    if(elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj)) { attached_so_handles.push_back(so); }
 }
 void task_ctx::terminate()
 {

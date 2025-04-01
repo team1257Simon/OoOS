@@ -5,7 +5,7 @@ elf64_dynamic_executable::~elf64_dynamic_executable() { if(program_descriptor.ld
 addr_t elf64_dynamic_executable::segment_vaddr(size_t n) const { return virtual_load_base.plus(phdr(n).p_vaddr); }
 addr_t elf64_dynamic_executable::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
-elf64_dynamic_executable::elf64_dynamic_executable(file_node *n, uintptr_t base_offset, size_t stack_sz, size_t tls_sz) :
+elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, uintptr_t base_offset, size_t stack_sz, size_t tls_sz) :
     elf64_object            ( n ),
     elf64_executable        ( n, stack_sz, tls_sz ),
     elf64_dynamic_object    ( n ),

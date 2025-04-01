@@ -21,6 +21,7 @@ struct task_ctx
     std::vector<const char*> arg_vec;       //  Argv will be this vector's data() member; argc is its size()
     std::vector<const char*> env_vec{};     //  Environment variables will go here
     std::vector<std::string> dl_search_paths{};
+    std::vector<elf64_shared_object*> attached_so_handles{};
     addr_t entry;
     addr_t allocated_stack;
     size_t stack_allocated_size;
@@ -59,6 +60,7 @@ struct task_ctx
     void restart_task();
     void set_exit(int n);
     void terminate();
+    void attach_object(elf64_object* obj);
     tms get_times() const noexcept;
     void init_task_state();
     void init_task_state(register_t rdi, register_t rsi);

@@ -17,5 +17,6 @@ extern "C"
     void (**dlinit(void* handle))();
     void (**dlfini(void* handle))();
     char** depends(void* handle);
+    int dlpath(const char* path_str);
 }
 #endif

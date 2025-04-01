@@ -27,7 +27,6 @@ public:
     constexpr void set_sticky(bool value = true) noexcept { sticky = value; }
     constexpr bool is_sticky() const noexcept { return sticky; }
     program_segment_descriptor const* segment_of(addr_t symbol_vaddr) const;
-    std::vector<block_descr> segment_blocks() const;
     elf64_shared_object(file_node* n, uframe_tag* frame);
     elf64_shared_object(elf64_shared_object&& that);
     virtual ~elf64_shared_object();

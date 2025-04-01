@@ -130,9 +130,3 @@ bool elf64_shared_object::post_load_init()
     }
     catch(std::exception& e) { panic(e.what()); return false; }
 }
-std::vector<block_descr> elf64_shared_object::segment_blocks() const
-{
-    std::vector<block_descr> result(num_seg_descriptors);
-    for(size_t i = 0; i < num_seg_descriptors; i++) { result.emplace_back(segments[i].absolute_addr, segments[i].virtual_addr, segments[i].size, segments[i].perms & PV_WRITE, segments[i].perms & PV_EXEC); }
-    return result;
-}

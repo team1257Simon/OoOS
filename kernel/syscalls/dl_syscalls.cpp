@@ -66,13 +66,8 @@ extern "C"
                 sm.set_path(result, full_path);
             }
         }
-        if(flags & RTLD_GLOBAL && !(flags & RTLD_NOLOAD)) 
-        { 
-            kernel_memory_mgr::get().enter_frame(task->task_struct.frame_ptr); 
-            kernel_memory_mgr::get().map_to_current_frame(result->segment_blocks());
-            kernel_memory_mgr::get().exit_frame();
-        }
         if(flags & RTLD_NODELETE) result->set_sticky();
+        task->attach_object(result.base());
         return result.base();
     }
     int syscall_dlclose(addr_t handle)

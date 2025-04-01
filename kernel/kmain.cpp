@@ -51,7 +51,7 @@ extern "C"
     task_t kproc{};
 }
 filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
-filesystem* create_task_vfs() { return std::addressof(testramfs); /* TODO */ }
+filesystem* create_task_vfs() { return std::addressof(test_extfs); /* TODO */ }
 void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory"); }
 void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "memory"); }
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }

@@ -25,4 +25,11 @@ extern "C"
         if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); return nullptr; }
         return reinterpret_cast<char**>(result);
     }
+    int dlpath(const char* path_str)
+    {
+        int result;
+        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLPATH), "D"(path_str) : "memory, %r11, %rcx");
+        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        return result;
+    }
 }

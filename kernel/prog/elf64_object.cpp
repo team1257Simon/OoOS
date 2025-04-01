@@ -20,7 +20,7 @@ void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if 
 elf64_object::elf64_object(file_node* n) :
     __validated         { false },
     __loaded            { false },
-    __image_start       { elf_alloc.allocate(n->size()) }, 
+    __image_start       { elf_alloc.allocate(n->size()) },
     __image_size        { n->size() },
     num_seg_descriptors { 0UL },
     segments            { nullptr },
@@ -69,12 +69,18 @@ bool elf64_object::xload()
     cleanup();
     return success;
 }
+std::vector<block_descr> elf64_object::segment_blocks() const
+{
+    std::vector<block_descr> result(num_seg_descriptors);
+    for(size_t i = 0; i < num_seg_descriptors; i++) { result.emplace_back(segments[i].absolute_addr, segments[i].virtual_addr, segments[i].size, segments[i].perms & PV_WRITE, segments[i].perms & PV_EXEC); }
+    return result;
+}
 // Copy and move constructors are nontrivial. Executables and the like delete the copy constructor and can inherit the move constructor (dynamic objects will have to extend the nontrivial constructors)
 elf64_object::elf64_object(elf64_object const& that) :
     __validated         { that.__validated },
     __loaded            { that.__loaded },
     __image_start       { that.__image_start }, 
-    __image_size        { that.__image_size }, 
+    __image_size        { that.__image_size },
     num_seg_descriptors { that.num_seg_descriptors }, 
     segments            { sd_alloc.allocate(num_seg_descriptors) },
     symtab              { that.symtab.total_size, that.symtab.entry_size, ch_alloc.allocate(that.symtab.total_size) },

@@ -1,6 +1,7 @@
 #ifndef __ELF64_OBJ
 #define __ELF64_OBJ
 #include "kernel/kernel_defs.h"
+#include "kernel/kernel_mm.hpp"
 #include "kernel/elf64.h"
 #include "kernel/fs/fs.hpp"
 class elf64_object
@@ -41,6 +42,7 @@ public:
     virtual ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;
+    std::vector<block_descr> segment_blocks() const;
     constexpr elf64_sym const& get_sym(size_t idx) const noexcept { return symtab[idx]; }
 };
 #endif
