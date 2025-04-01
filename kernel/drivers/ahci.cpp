@@ -108,7 +108,7 @@ bool ahci::init(pci_config_space* ps) noexcept
     {
         __my_ahci_controller = ps;
         __my_abar = compute_base(ps->header_0x0.bar[5]);
-        __my_block = kernel_memory_mgr::get().allocate_mmio_block(S128);
+        __my_block = kmm.allocate_mmio_block(S128);
         barrier();
         __my_ahci_controller->command.bus_master = true;
         __my_ahci_controller->command.memory_space = true;

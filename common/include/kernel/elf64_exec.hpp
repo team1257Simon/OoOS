@@ -5,8 +5,8 @@
 class elf64_executable : public virtual elf64_object
 {
 protected:
-    size_t stack_target_size;
-    size_t tls_target_size;
+    size_t stack_size;
+    size_t tls_size;
     addr_t frame_base;
     addr_t frame_extent;
     addr_t stack_base;

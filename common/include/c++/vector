@@ -78,7 +78,7 @@ namespace std
         constexpr void swap(vector& that) { this->__swap(that); }
         extension constexpr vector reverse() const { return vector{ this->crend(), this->crbegin(), this->__allocator }; }
         extension constexpr void expand_to_size() noexcept { this->__setc(this->__max()); }
-        extension template<typename ... Args> requires constructible_from<T, Args...> constexpr bool set_at(size_t i, Args && ... args) { if(i < capacity()) { std::construct_at(this->__get_ptr(i), std::forward<Args>(args)...); if(i >= size()) this->__setc(i); return true; } return false; }
+        extension template<typename ... Args> requires constructible_from<T, Args...> constexpr bool set_at(size_t i, Args&& ... args) { if(i < capacity()) { std::construct_at(this->__get_ptr(i), std::forward<Args>(args)...); if(i >= size()) this->__setc(i); return true; } return false; }
     };
 }
 #endif

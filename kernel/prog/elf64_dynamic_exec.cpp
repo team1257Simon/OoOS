@@ -44,21 +44,21 @@ void elf64_dynamic_executable::process_dyn_entry(size_t i)
 }
 bool elf64_dynamic_executable::post_load_init()
 {
-    kernel_memory_mgr::get().enter_frame(frame_tag);
+    kmm.enter_frame(frame_tag);
     apply_relocations();
-    addr_t* got = reinterpret_cast<addr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(global_offset_table()));
+    addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
     got[1] = global_offset_table();
     // TODO: also put the address of the resolve-symbol function in the GOT
-    kernel_memory_mgr::get().exit_frame();
+    kmm.exit_frame();
     try
     {
         std::vector<addr_t> fini_reverse_array{};
         if(preinit_array_ptr && preinit_array_ptr)
         {
             addr_t preinit_ptrs_vaddr = resolve(preinit_array_ptr);
-            kernel_memory_mgr::get().enter_frame(frame_tag);
-            uintptr_t* preinit_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(preinit_ptrs_vaddr));
-            kernel_memory_mgr::get().exit_frame();
+            kmm.enter_frame(frame_tag);
+            uintptr_t* preinit_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(preinit_ptrs_vaddr));
+            kmm.exit_frame();
             for(size_t i = 0; i < preinit_array_size; i++) { preinit_array.push_back(addr_t(preinit_ptrs[i])); }
         }
         if(init_fn) { init_array.push_back(resolve(init_fn)); }
@@ -66,17 +66,17 @@ bool elf64_dynamic_executable::post_load_init()
         if(init_array_size && init_array_ptr) 
         {
             addr_t init_ptrs_vaddr = resolve(init_array_ptr);
-            kernel_memory_mgr::get().enter_frame(frame_tag);
-            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(init_ptrs_vaddr)); 
-            kernel_memory_mgr::get().exit_frame();
+            kmm.enter_frame(frame_tag);
+            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(init_ptrs_vaddr)); 
+            kmm.exit_frame();
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
         if(fini_array_size && fini_array_ptr)
         {
             addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
-            kernel_memory_mgr::get().enter_frame(frame_tag);
-            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
-            kernel_memory_mgr::get().exit_frame();
+            kmm.enter_frame(frame_tag);
+            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
+            kmm.exit_frame();
             for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
         }
         if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }

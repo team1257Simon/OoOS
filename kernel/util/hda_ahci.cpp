@@ -10,7 +10,7 @@ hda_ahci::hda_ahci() {}
 bool hda_ahci::init_instance() { if(__has_init) return true; return (__has_init = __instance.init()); }
 bool hda_ahci::is_initialized() noexcept { return __has_init; }
 partition_table& hda_ahci::get_partition_table() { return __instance.__my_partitions; }
-hda_ahci *hda_ahci::get_instance() { return __has_init ? std::addressof(__instance) : nullptr; }
+hda_ahci* hda_ahci::get_instance() { return __has_init ? std::addressof(__instance) : nullptr; }
 bool hda_ahci::__read_pt()
 {
     std::allocator<pt_header_t> alloc_hdr{};

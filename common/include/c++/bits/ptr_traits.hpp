@@ -9,8 +9,7 @@ namespace std
     template<template<typename, typename...> class TCT, typename U, typename T, typename... Ts> struct __replace_first_arg<TCT<T, Ts...>, U> { using type = TCT<U, Ts...>; };
     template<typename T, typename U> using __replace_first_arg_t = typename __replace_first_arg<T, U>::type;
     template<typename T> using __make_not_void = typename conditional<is_void<T>::value, __undefined, T>::type;
-    template<typename PT>
-    struct __ptr_traits_elem_1 {};
+    template<typename PT> struct __ptr_traits_elem_1 {};
     template<template<typename, typename...> class PT, typename T, typename... Args>
     struct __ptr_traits_elem_1<PT<T, Args...>>
     {

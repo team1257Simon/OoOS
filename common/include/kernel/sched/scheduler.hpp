@@ -15,7 +15,7 @@ class scheduler
     static bool __has_init;
     bool __set_wait_time(task_t* task, unsigned int time, bool can_interrupt);
     bool __set_untimed_wait(task_t* task);
-    __isrcall void __exec_chg(task_t* cur, task_t* next);
+    __isrcall void __do_task_change(task_t* cur, task_t* next);
 protected:
     __isrcall task_t* select_next();
     __isrcall void on_tick();
@@ -37,4 +37,5 @@ public:
     static bool has_init() noexcept;
     static scheduler& get() noexcept;
 };
+#define sch scheduler::get()
 #endif

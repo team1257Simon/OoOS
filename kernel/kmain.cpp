@@ -255,19 +255,19 @@ void test_landing_pad()
     ctx->terminate();
     free(ctx->allocated_stack);
     free(ctx->tls);
-    task_list::get().destroy_task(ctx->get_pid());
+    tl.destroy_task(ctx->get_pid());
     startup_tty.print_line("returned " + std::to_string(retv));
     sti();
     while(1);
 }
 void task_tests()
 {
-    addr_t exit_test_fn{ &test_landing_pad };
-    task_ctx* tt1 = task_list::get().create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVHIGH);
-    task_ctx* tt2 = task_list::get().create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
+    addr_t exit_test_fn(std::addressof(test_landing_pad));
+    task_ctx* tt1 = tl.create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVHIGH);
+    task_ctx* tt2 = tl.create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
     tt1->start_task(exit_test_fn);
     tt2->start_task(exit_test_fn);
-    scheduler::get().start();
+    sch.start();
 }
 void extfs_tests()
 {
@@ -291,15 +291,15 @@ void dyn_elf_tests()
         shared_object_map::iterator test_so = sm.add(n);
         sm.set_path(test_so, std::move("dyntest.so"));
         test_extfs.close_file(n);
-        kernel_memory_mgr::get().enter_frame(sm.shared_frame);
+        kmm.enter_frame(sm.shared_frame);
         startup_tty.print_line("SO name: " + test_so->get_soname());
         startup_tty.print_text("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("printf")))) + ")");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("printf")))) + ")");
         startup_tty.print_text("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets")))) + ")");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets")))) + ")");
         startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc")))) + ")");
-        kernel_memory_mgr::get().exit_frame();
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc")))) + ")");
+        kmm.exit_frame();
         sm.remove(test_so);
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -442,15 +442,15 @@ extern "C"
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
         _init();
         // Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
-        __register_frame(&__ehframe);
-        init_tss(&kernel_isr_stack_top);
+        __register_frame(std::addressof(__ehframe));
+        init_tss(std::addressof(kernel_isr_stack_top));
         enable_fs_gs_insns();
-        set_kernel_gs_base(&kproc);
+        set_kernel_gs_base(std::addressof(kproc));
         kproc.saved_regs.cr3 = get_cr3();
-        kproc.saved_regs.rsp = &kernel_stack_top;
-        kproc.saved_regs.rbp = &kernel_stack_base;
+        kproc.saved_regs.rsp = std::addressof(kernel_stack_top);
+        kproc.saved_regs.rbp = std::addressof(kernel_stack_base);
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(addr_t(&do_syscall), 0UL, 0x08ui16, 0x10ui16);     
+        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0UL, 0x08ui16, 0x10ui16);     
         sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
@@ -458,7 +458,7 @@ extern "C"
         if(fadt) rtc::init_instance(fadt->century_register);
         else rtc::init_instance();
         // The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
-        new (&startup_tty) direct_text_render{ si, __startup_font, 0x00FFFFFF, 0 };
+        new (std::addressof(startup_tty)) direct_text_render{ si, __startup_font, 0x00FFFFFF, 0 };
         startup_tty.cls();
         // The base keyboard driver object abstracts out low-level initialization code that could theoretically change for different implementations of keyboards.
         keyboard_driver* kb = get_kb_driver();
@@ -470,7 +470,7 @@ extern "C"
         // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
         // It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
         // If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
-        set_gs_base(&kproc);
+        set_gs_base(std::addressof(kproc));
         asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
         __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;

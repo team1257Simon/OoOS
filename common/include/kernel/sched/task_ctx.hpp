@@ -63,7 +63,6 @@ struct task_ctx
     void attach_object(elf64_object* obj);
     tms get_times() const noexcept;
     void init_task_state();
-    void init_task_state(register_t rdi, register_t rsi);
     void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);

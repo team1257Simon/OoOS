@@ -8,10 +8,10 @@ extern "C"
     {
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != uframe_magic) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        kernel_memory_mgr::get().enter_frame(ctask_frame);
+        kmm.enter_frame(ctask_frame);
         addr_t result = ctask_frame->extent;
         bool success = ctask_frame->shift_extent(incr);
-        kernel_memory_mgr::get().exit_frame();
+        kmm.exit_frame();
         if(success) { return result; }
         else return addr_t(static_cast<uintptr_t>(-ENOMEM));
     }
@@ -24,9 +24,9 @@ extern "C"
         if(min != min.page_aligned()) min = min.plus(page_size).page_aligned();
         if(!(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
         else if(addr && (addr < min || addr != addr.page_aligned())) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        kernel_memory_mgr::get().enter_frame(ctask_frame);
+        kmm.enter_frame(ctask_frame);
         addr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
-        kernel_memory_mgr::get().exit_frame();
+        kmm.exit_frame();
         if(!(flags & MAP_ANONYMOUS))
         {
             filesystem* fsptr = get_fs_instance();

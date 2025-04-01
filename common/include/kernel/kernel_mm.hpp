@@ -254,6 +254,8 @@ public:
     void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
     addr_t copy_kernel_mappings(paging_table target);
 };
+#define use_kmm(name)
+#define kmm kernel_memory_mgr::get()
 extern "C" void* aligned_malloc(size_t size, size_t align);
 extern "C" addr_t syscall_sbrk(ptrdiff_t incr);                                                             // void* sbrk(ptrdiff_t incr);
 extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);     // void* mmap(void* addr, size_t len, int prot, int flags, ptrdiff_t offset);

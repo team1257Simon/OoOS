@@ -70,7 +70,7 @@ bool elf64_shared_object::xvalidate()
 bool elf64_shared_object::load_segments()
 {
     bool have_loads = false;
-    kernel_memory_mgr::get().enter_frame(frame_tag);
+    kmm.enter_frame(frame_tag);
     for(size_t n = 0; n < ehdr().e_phnum; n++)
     {
         elf64_phdr const& h = phdr(n);
@@ -78,9 +78,9 @@ bool elf64_shared_object::load_segments()
         if(is_load(h))
         {
             addr_t target = virtual_load_base.plus(h.p_vaddr);
-            addr_t blk = kernel_memory_mgr::get().allocate_user_block(h.p_memsz, target, h.p_align, is_write(h), is_exec(h));
-            if(!blk) { kernel_memory_mgr::get().exit_frame(); throw std::bad_alloc{}; }
-            addr_t idmap(kernel_memory_mgr::get().translate_vaddr_in_current_frame(target));
+            addr_t blk = kmm.allocate_user_block(h.p_memsz, target, h.p_align, is_write(h), is_exec(h));
+            if(!blk) { kmm.exit_frame(); throw std::bad_alloc{}; }
+            addr_t idmap(kmm.translate_vaddr_in_current_frame(target));
             size_t actual_size = kernel_memory_mgr::page_aligned_region_size(target, h.p_memsz);
             addr_t img_dat = segment_ptr(n);
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
@@ -91,17 +91,17 @@ bool elf64_shared_object::load_segments()
             have_loads = true;
         }
     }
-    kernel_memory_mgr::get().exit_frame();
+    kmm.exit_frame();
     return have_loads;
 }
 bool elf64_shared_object::post_load_init()
 {
-    kernel_memory_mgr::get().enter_frame(frame_tag);
+    kmm.enter_frame(frame_tag);
     apply_relocations();
-    addr_t* got = reinterpret_cast<addr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(global_offset_table()));
+    addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
     got[1] = global_offset_table();
     // TODO: also put the address of the resolve-symbol function in the GOT
-    kernel_memory_mgr::get().exit_frame();
+    kmm.exit_frame();
     try
     {
         std::vector<addr_t> fini_reverse_array{};
@@ -110,17 +110,17 @@ bool elf64_shared_object::post_load_init()
         if(init_array_size && init_array_ptr) 
         {
             addr_t init_ptrs_vaddr = resolve(init_array_ptr);
-            kernel_memory_mgr::get().enter_frame(frame_tag);
-            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(init_ptrs_vaddr));
-            kernel_memory_mgr::get().exit_frame();
+            kmm.enter_frame(frame_tag);
+            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(init_ptrs_vaddr));
+            kmm.exit_frame();
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
         if(fini_array_size && fini_array_ptr) 
         {
             addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
-            kernel_memory_mgr::get().enter_frame(frame_tag);
-            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kernel_memory_mgr::get().translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
-            kernel_memory_mgr::get().exit_frame();
+            kmm.enter_frame(frame_tag);
+            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
+            kmm.exit_frame();
             for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
         }
         if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }

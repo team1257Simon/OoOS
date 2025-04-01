@@ -106,7 +106,7 @@ namespace std
         constexpr tuple(ETs const& ... elements) noexcept(__nothrow_constructible<ETs const&...>()) requires(__implicit_ctor<__not_empty, ETs const&...>()) : __base{ elements... } {}
         constexpr explicit tuple(ETs const& ... elements) noexcept(__nothrow_constructible<ETs const&...>()) requires(__explicit_ctor<__not_empty, ETs const&...>()) : __base{ elements... } {}
         template<typename ... FTs> requires (__implicit_ctor<__valid<FTs...>, FTs...>()) constexpr tuple(FTs&& ... elements) : __base{ forward<FTs>(elements)... } {}
-        constexpr tuple(const tuple&) = default;
+        constexpr tuple(tuple const&) = default;
         constexpr tuple(tuple&&) = default;
         constexpr tuple& operator=(tuple const& that) noexcept(__nothrow_assignable<ETs const&...>()) requires(__assignable<ETs const&...>()) { this->__assign(that); return *this; }
         constexpr tuple& operator=(tuple&& that) noexcept(__nothrow_assignable<ETs...>()) requires(__assignable<ETs const&...>()) { this->__assign(std::move(that)); return *this; }
@@ -140,7 +140,7 @@ namespace std
     template<typename T1, typename T2>
     template<typename... Args1, typename... Args2, size_t... Indx1, size_t... Indx2>
     requires (constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) 
-    constexpr pair<T1, T2>::pair(tuple<Args1...> &t1, tuple<Args2...> &t2, __index_tuple<Indx1...>, __index_tuple<Indx2...>) : first(std::forward<Args1>(std::get<Indx1>(t1))...), second(std::forward<Args2>(std::get<Indx2>(t2))...) {}
+    constexpr pair<T1, T2>::pair(tuple<Args1...>& t1, tuple<Args2...>& t2, __index_tuple<Indx1...>, __index_tuple<Indx2...>) : first(std::forward<Args1>(std::get<Indx1>(t1))...), second(std::forward<Args2>(std::get<Indx2>(t2))...) {}
     template<typename T1, typename T2>
     template<typename ... Args1, typename ... Args2> 
     requires (constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) 

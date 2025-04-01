@@ -11,11 +11,19 @@
 #define SCV_DLORIGIN    30
 #define SCV_DEPENDS     31
 #define SCV_DLFINI      32
+#define RTLD_LAZY       0x0001
+#define RTLD_NOW        0x0002
+#define RTLD_NOLOAD	    0x0004
+#define RTLD_DEEPBIND   0x0008
+#define RTLD_GLOBAL	    0x0100
+#define RTLD_NODELETE   0x1000
 #define exit(code) asm volatile("syscall" :: "a"(0), "D"(code) : "memory")
+typedef void(*init_fn)(int argc, char** argv, char** env);
+typedef void(*fini_fn)();
 extern "C"
 {
-    void (**dlinit(void* handle))();
-    void (**dlfini(void* handle))();
+    init_fn* dlinit(void* handle);
+    fini_fn* dlfini(void* handle);
     char** depends(void* handle);
     int dlpath(const char* path_str);
 }

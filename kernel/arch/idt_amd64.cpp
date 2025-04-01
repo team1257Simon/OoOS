@@ -15,7 +15,7 @@ namespace interrupt_table
     void __unlock() { release(std::addressof(__itable_mutex)); }
     bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(std::move(handler)); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
     void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(std::move(cb)); }
-    void map_interrupt_callbacks(addr_t frame) { kernel_memory_mgr::get().enter_frame(frame); kernel_memory_mgr::get().identity_map_to_user(__registered_callbacks.data(), __registered_callbacks.size() * 8, false, true); for(int i = 0; i < 16; i++) { kernel_memory_mgr::get().identity_map_to_user(__handler_tables[i].data(), __handler_tables[i].size() * 8, false, true); } kernel_memory_mgr::get().exit_frame(); }
+    void map_interrupt_callbacks(addr_t frame) { kmm.enter_frame(frame); kmm.identity_map_to_user(__registered_callbacks.data(), __registered_callbacks.size() * 8, false, true); for(int i = 0; i < 16; i++) { kmm.identity_map_to_user(__handler_tables[i].data(), __handler_tables[i].size() * 8, false, true); } kmm.exit_frame(); }
 }
 inline void pic_eoi(byte irq) { if (irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
 extern "C"

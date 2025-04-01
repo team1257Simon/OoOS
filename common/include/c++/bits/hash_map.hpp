@@ -57,17 +57,17 @@ namespace std
         constexpr void rehash(size_type target) { this->__rehash_to_size(target); }
         constexpr void reserve(size_type target) { this->__reserve(target); }
         template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { return this->__emplace(forward<Args>(args)...); }
-        template<convertible_to<key_type> JT, convertible_to<mapped_type> NT> constexpr pair<iterator, bool> insert(pair<JT, NT> && p) { return this->__emplace(piecewise_construct, forward_as_tuple(move(p.first)), forward_as_tuple(move(p.second))); }
+        template<convertible_to<key_type> JT, convertible_to<mapped_type> NT> constexpr pair<iterator, bool> insert(pair<JT, NT>&& p) { return this->__emplace(piecewise_construct, forward_as_tuple(move(p.first)), forward_as_tuple(move(p.second))); }
         template<convertible_to<key_type> JT, convertible_to<mapped_type> NT> constexpr pair<iterator, bool> insert(pair<JT, NT> const& p) { return this->__emplace(piecewise_construct, tuple<JT const&>(p.first), tuple<NT const&>(p.second)); }
         template<std::convertible_to<key_type> JT> constexpr size_type erase(JT const& what) { return this->__erase(what); }
         template<std::convertible_to<key_type> JT> constexpr bool contains(JT const& what) const { return this->__contains(what); }
         constexpr iterator erase(const_iterator what) { return this->__erase(what); }
         constexpr void clear() { this->__clear(); }
-        template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT && key) { return this->__emplace(piecewise_construct, forward_as_tuple(move(key)), tuple<>()).first->second; }
+        template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT&& key) { return this->__emplace(piecewise_construct, forward_as_tuple(move(key)), tuple<>()).first->second; }
         template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT const& key) {  return this->__emplace(piecewise_construct, tuple<JT const&>(key), tuple<>()).first->second; }    
-        constexpr pair<iterator, bool> insert_or_assign(key_type && kt, mapped_type && mt) { return __insert_or_assign(this->__create_node(piecewise_construct, forward_as_tuple(move(kt)), forward_as_tuple(move(mt)))); }
-        constexpr pair<iterator, bool> insert_or_assign(key_type const& kt, mapped_type && mt) { return __insert_or_assign(this->__create_node(piecewise_construct, tuple<key_type const&>(kt), forward_as_tuple(move(mt)))); }
-        template<not_self<value_type> PT> requires constructible_from<value_type, PT&&> constexpr pair<iterator, bool> insert(PT && pt) { return this->__emplace(move(pt)); }
+        constexpr pair<iterator, bool> insert_or_assign(key_type&& kt, mapped_type&& mt) { return __insert_or_assign(this->__create_node(piecewise_construct, forward_as_tuple(move(kt)), forward_as_tuple(move(mt)))); }
+        constexpr pair<iterator, bool> insert_or_assign(key_type const& kt, mapped_type&& mt) { return __insert_or_assign(this->__create_node(piecewise_construct, tuple<key_type const&>(kt), forward_as_tuple(move(mt)))); }
+        template<not_self<value_type> PT> requires constructible_from<value_type, PT&&> constexpr pair<iterator, bool> insert(PT&& pt) { return this->__emplace(move(pt)); }
     };
     template <typename KT, typename MT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<__impl::__hash_node<pair<const KT, MT>>> AT>
     constexpr pair<typename hash_map<KT, MT, HT, ET, AT>::iterator, bool> hash_map<KT, MT, HT, ET, AT>::__insert_or_assign(__node_ptr n) 
@@ -77,7 +77,7 @@ namespace std
         { 
             p->__ref().second = move(n->__ref().second); 
             this->__destroy_node(n); 
-            return make_pair(iterator(p), false); 
+            return make_pair(iterator(p), false);
         } 
         return make_pair(this->__insert(n), true); 
     }

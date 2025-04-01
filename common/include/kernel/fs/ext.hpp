@@ -508,7 +508,7 @@ struct ext_vnode : public std::ext::dynamic_streambuf<char>
     virtual ~ext_vnode();
     virtual void on_modify() final override;
     virtual bool initialize();
-    virtual std::streamsize xsputn(char const* s, std::streamsize n) override;
+    virtual std::streamsize xsputn(const char* s, std::streamsize n) override;
     void mark_write(void* pos);
     void update_block_ptrs();
     bool expand_buffer(size_t added_bytes);

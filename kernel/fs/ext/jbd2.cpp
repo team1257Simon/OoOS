@@ -2,7 +2,7 @@
 #include "sys/errno.h"
 #include "kdebug.hpp"
 std::allocator<jbd2_superblock> sb_alloc{};
-jbd2::jbd2(extfs *parent, uint32_t inode) : ext_vnode{ parent, inode } {}
+jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
 bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_hd(db)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
@@ -105,7 +105,7 @@ bool jbd2::ddwrite()
 bool jbd2::clear_log()
 {
     size_t bs = parent_fs->block_size();
-    array_zero(__beg() + bs, static_cast<size_t>(this->__capacity() - bs));
+    array_zero(__beg() + bs, static_cast<size_t>(__capacity() - bs));
     replay_blocks.clear();
     return ddwrite();
 }
@@ -245,7 +245,7 @@ bool jbd2::initialize()
     if(!__grow_buffer(s_req)) { panic("failed to allocate buffer"); return false; }
     update_block_ptrs();
     if(!ddread()) return false;
-    this->__bumpc(bs);
+    __bumpc(bs);
     sb = reinterpret_cast<jbd2_superblock*>(block_data[0].data_buffer);
     if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
     uuid_checksum = crc32c(sb->uuid);

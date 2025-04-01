@@ -33,7 +33,7 @@ off_t extfs::inode_block_offset(uint32_t inode) { return static_cast<off_t>(inod
 uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group); }
 uint32_t extfs::inode_pos_in_group(uint32_t inode_num) { return (inode_num - 1) % (sb->inodes_per_group); }
 dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
-void extfs::syncdirs() { if(!this->fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
+void extfs::syncdirs() { if(!fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
 extfs::extfs(uint64_t volume_start_lba) : 
     filesystem          {}, 
     file_nodes          {}, 
@@ -195,13 +195,13 @@ ext_inode* extfs::get_inode(uint32_t inode_num)
     if(grp >= block_groups.size()) throw std::out_of_range{ "invalid inode group" };
     return reinterpret_cast<ext_inode*>(block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num));
 }
-file_node *extfs::open_fd(tnode* fd)
+file_node* extfs::open_fd(tnode* fd)
 {
     file_node* n = fd->as_file();
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) { exfn->initialize(); }
     return n;
 }
-directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name)
+directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
     if(uint32_t inode_num = claim_inode(true)) try
@@ -250,7 +250,7 @@ directory_node *extfs::mkdirnode(directory_node* parent, std::string const& name
     else panic("failed to get inode");
     return nullptr;
 }
-file_node *extfs::mkfilenode(directory_node* parent, std::string const& name)
+file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
     if(uint32_t inode_num = claim_inode(false)) try
@@ -325,7 +325,7 @@ void extfs::dlfilenode(file_node* fd)
     for(size_t i = 0; i < exfn.block_data.size(); i++) { release_blocks(exfn.block_data[i].block_number, exfn.block_data[i].chain_len); }
     file_nodes.erase(cid);
 }
-disk_block *extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
+disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 {
     if(!how_many) return nullptr;
     for(size_t i = 0; i < block_groups.size(); i++)
@@ -350,7 +350,7 @@ disk_block *extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
     }
     return nullptr;
 }
-disk_block *extfs::claim_metadata_block(ext_node_extent_tree* requestor)
+disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
 {
     for(size_t i = 0; i < block_groups.size(); i++)
     {

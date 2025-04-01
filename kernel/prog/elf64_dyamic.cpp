@@ -57,7 +57,7 @@ void elf64_dynamic_object::apply_relocations()
     {
         if(is_dynamic_relocation(r.rela_entry)) continue; // these will be resolved by the dynamic linker
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
-        addr_t phys_target(kernel_memory_mgr::get().translate_vaddr_in_current_frame(result.target));
+        addr_t phys_target(kmm.translate_vaddr_in_current_frame(result.target));
         if(phys_target && result.value) phys_target.ref<uint64_t>() = result.value;
         else klog("W: invalid relocation");
     }
@@ -153,8 +153,8 @@ bool elf64_dynamic_object::load_syms()
         elf64_phdr const& ph = phdr(n);
         if(is_dynamic(ph))
         {
-            this->num_dyn_entries = ph.p_filesz / sizeof(elf64_dyn);
-            this->dyn_entries = dynseg_alloc.allocate(num_dyn_entries);
+            num_dyn_entries = ph.p_filesz / sizeof(elf64_dyn);
+            dyn_entries = dynseg_alloc.allocate(num_dyn_entries);
             array_copy<elf64_dyn>(dyn_entries, segment_ptr(n), num_dyn_entries);
             have_dyn = true;
         }
@@ -204,7 +204,7 @@ addr_t elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
     if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return nullptr; }
     elf64_sym const* sym = symbol_index[symbol];
-    return sym ? this->resolve(*sym) : nullptr;
+    return sym ? resolve(*sym) : nullptr;
 }
 bool elf64_dynamic_object::process_got()
 {

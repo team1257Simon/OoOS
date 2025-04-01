@@ -132,8 +132,6 @@ namespace std
         constexpr __tree_trunk(__tree_trunk const& that) noexcept : __tree_trunk{} { if(that.__trunk.__my_parent) __copy(that); }
         constexpr __tree_trunk& operator=(__tree_trunk const& that) noexcept { if(that.__trunk.__my_parent) __copy(that); return *this; }
         constexpr __tree_trunk& operator=(__tree_trunk&& that) noexcept { if(that.__trunk.__my_parent) __move(forward<__tree_trunk>(that)); return *this; }
-        constexpr bool __have_left() const noexcept { return (&__trunk != __trunk.__my_left)&& __trunk.__my_left; }
-        constexpr bool __have_right() const noexcept { return (&__trunk != __trunk.__my_right) && __trunk.__my_right; }
     };
     template<typename T>
     struct __node : public __node_base
@@ -266,7 +264,7 @@ namespace std
         template<typename U> requires __valid_comparator<CP, T, U> __link __upper_bound(__link x, __link y, U const& u) noexcept { while(x) if(__compare_l(u, x)) y = x, x = __left_of(x);  else x = __right_of(x); return y; }
         template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U const& u) { __pos_pair r = __insert_unique_hint_pos(hint, u); if(r.second) return __insert(r.first, r.second, u); return r.first; }
         template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U && u) { __pos_pair r = __insert_unique_hint_pos(hint, u); if(r.second) return __insert(r.first, r.second, forward<U>(u)); return r.first; }
-        template<matching_input_iterator<T> IT> constexpr void __insert_range_unique(IT st, IT ed) { for(; st != ed; st++) __insert_unique(*st); }
+        template<matching_input_iterator<T> IT> constexpr void __insert_range_unique(IT st, IT ed) { for(IT i = st; i != ed; i++) __insert_unique(*i); }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __link __find_node(U const& u) noexcept { __link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr __const_link __find_node(U const& u) const noexcept { __const_link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
         template<typename U> requires __valid_comparator<CP, T, U> constexpr bool __contains(U const& u) const noexcept { return (this->__find_node(u) != this->__end()); }
@@ -295,7 +293,7 @@ namespace std
         __link y = __end();
         bool comp = true;
         while(x) { y = x; comp = __compare_l(u, x); x = comp ? __left_of(x) : __right_of(x); }
-        __iterator j { y };
+        __iterator j(y);
         if(comp) { if(j == __begin()) return __pos_pair{ x, y }; else --j; }
         if(__compare_r(j.get_node(), u)) return __pos_pair{ x, y };
         return __pos_pair{ static_cast<__link>(j.get_node()), nullptr };
@@ -319,7 +317,7 @@ namespace std
         if(!hint || pos == __end()) { if(this->__count > 0 && __compare_r(__rightmost(), u)) return __pos_pair{ nullptr, __l_rightmost() }; else return __pos_for_unique(u); }
         else if(__compare_l(u, pos))
         {
-            __link before =static_cast<__link>(__decrement_node(pos)); 
+            __link before = static_cast<__link>(__decrement_node(pos)); 
             if(pos == __l_begin()) return __pos_pair{ __l_begin(), __l_begin() };
             else if(__compare_r(before, u)) { if(!before->__my_right) return __pos_pair{ nullptr, before }; else return __pos_pair{ pos, pos }; } 
             else return __pos_for_unique(u);
@@ -334,9 +332,9 @@ namespace std
         return __pos_pair{ pos, nullptr };
     }
     template <typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
-    template <typename... Args> 
+    template <typename ... Args> 
     requires constructible_from<T, Args...>
-    constexpr typename __tree_base<T, CP, A>::__res_pair __tree_base<T, CP, A>::__emplace_unique(Args &&...args)
+    constexpr typename __tree_base<T, CP, A>::__res_pair __tree_base<T, CP, A>::__emplace_unique(Args&& ...args)
     {
         __link l = __construct_node(forward<Args>(args)...);
         __pos_pair r = __pos_for_unique(l->__get_ref());

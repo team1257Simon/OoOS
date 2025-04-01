@@ -1,12 +1,12 @@
 #include "fs/ext.hpp"
 #include "kdebug.hpp"
 static inline size_t unused_dirent_space(ext_dir_entry const& de) { return static_cast<size_t>(static_cast<size_t>(de.entry_size) - static_cast<size_t>(de.name_len + 8UL)); }
-ext_dir_entry *ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(__cur()); }
-char *ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
+ext_dir_entry* ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(__cur()); }
+char* ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
 uint64_t ext_directory_vnode::num_files() const noexcept { return __n_files; }
 uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs; }
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode const& tn : __my_dir) result.push_back(tn.name()); return result; }
-tnode *ext_directory_vnode::find(std::string const& name) { if(!initialize()) return nullptr; if(tnode_dir::iterator i = __my_dir.find(name); i != __my_dir.end()) { return i.base(); } else return nullptr; }
+tnode* ext_directory_vnode::find(std::string const& name) { if(!initialize()) return nullptr; if(tnode_dir::iterator i = __my_dir.find(name); i != __my_dir.end()) { return i.base(); } else return nullptr; }
 bool ext_directory_vnode::fsync() { return parent_fs->persist(this); }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number) : ext_vnode(parent, inode_number), directory_node(std::move(""), inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), inode_number) { mode = on_disk_node->mode; }
@@ -28,7 +28,7 @@ ext_vnode::~ext_vnode() = default;
 void ext_vnode::on_modify() { if(__beg()) { __fullsetp(__beg(), __cur(), __max()); setg(__beg(), __cur(), __max()); } }
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
-ext_vnode::ext_vnode(extfs* parent, uint32_t inode_num, ext_inode *inode) :
+ext_vnode::ext_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode) :
     base_buffer                 {}, 
     inode_number                { inode_num },
     parent_fs                   { parent }, 
@@ -64,7 +64,7 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
     size_t bs = parent_fs->block_size();
     size_t needed = div_roundup(n, bs);
     size_t ccap = __capacity();
-    if(disk_block *blk = parent_fs->claim_blocks(this, needed)) 
+    if(disk_block* blk = parent_fs->claim_blocks(this, needed)) 
     { 
         if(!expand_buffer(bs * blk->chain_len)) return 0;
         array_zero(__get_ptr(ccap), bs * blk->chain_len);
@@ -72,7 +72,7 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
     }
     return 0;
 }
-std::streamsize ext_vnode::xsputn(char const* s, std::streamsize n)
+std::streamsize ext_vnode::xsputn(const char* s, std::streamsize n)
 {
     if(n > __capacity() && !on_overflow(static_cast<std::streamsize>(n - __capacity()))) return 0;
     uint64_t sblk = block_of_data_ptr(__size());

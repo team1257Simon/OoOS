@@ -2,14 +2,15 @@
 #include "frame_manager.hpp"
 #include "stdexcept"
 static std::allocator<program_segment_descriptor> sd_alloc{};
+use_kmm(kmm);
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return program_descriptor; }
 addr_t elf64_executable::segment_vaddr(size_t n) const { return addr_t(phdr(n).p_vaddr); }
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
-void elf64_executable::on_load_failed() { frame_manager::get().destroy_frame(*frame_tag); frame_tag = nullptr; kernel_memory_mgr::get().exit_frame(); }
+void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
 elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) : 
     elf64_object        { n },
-    stack_target_size   { stack_sz },
-    tls_target_size     { tls_sz },
+    stack_size          { stack_sz },
+    tls_size            { tls_sz },
     frame_base          { nullptr },
     frame_extent        { nullptr },
     stack_base          { nullptr },
@@ -17,21 +18,21 @@ elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz)
     entry               ( ehdr().e_entry ),
     frame_tag           { nullptr },
     program_descriptor  {}
-    {}
+                        {}
 elf64_executable::elf64_executable(elf64_executable&& that) :
     elf64_object        ( std::move(that) ),
-    stack_target_size   { that.stack_target_size },
-    tls_target_size     { that.tls_target_size },
+    stack_size          { that.stack_size },
+    tls_size            { that.tls_size },
     frame_base          { std::move(that.frame_base) },
     frame_extent        { std::move(that.frame_extent) },
     stack_base          { std::move(that.stack_base) },
-    tls_base            { std::move(that.tls_base )},
+    tls_base            { std::move(that.tls_base)},
     entry               { std::move(that.entry) },
     frame_tag           { that.frame_tag },
     program_descriptor  { std::move(that.program_descriptor) }
     {
-        that.stack_target_size = 0;
-        that.tls_target_size = 0;
+        that.stack_size = 0;
+        that.tls_size = 0;
         that.frame_base = nullptr;
         that.frame_extent = nullptr;
         that.stack_base = nullptr;
@@ -72,42 +73,42 @@ void elf64_executable::process_headers()
     frame_base = frame_base.page_aligned();
     frame_extent = frame_extent.next_page_aligned();
     stack_base = frame_extent;
-    frame_extent += stack_target_size;
+    frame_extent += stack_size;
     tls_base = frame_extent;
-    frame_extent += tls_target_size;
+    frame_extent += tls_size;
 }
 bool elf64_executable::load_segments()
 {
-    if((frame_tag = std::addressof(frame_manager::get().create_frame(frame_base, frame_extent))))
+    if((frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent))))
     {
-        kernel_memory_mgr::get().enter_frame(frame_tag);
+        kmm.enter_frame(frame_tag);
         for(size_t n = 0; n < ehdr().e_phnum; n++)
         {
             elf64_phdr const& h = phdr(n);
             if(!is_load(h) || !h.p_memsz) continue;
             addr_t addr = segment_vaddr(n);
             addr_t img_dat = segment_ptr(n);
-            addr_t blk = kernel_memory_mgr::get().allocate_user_block(h.p_memsz, addr, h.p_align, is_write(h), is_exec(h));
-            addr_t idmap(kernel_memory_mgr::get().translate_vaddr_in_current_frame(addr));
+            addr_t blk = kmm.allocate_user_block(h.p_memsz, addr, h.p_align, is_write(h), is_exec(h));
+            addr_t idmap(kmm.translate_vaddr_in_current_frame(addr));
             if(!blk) { panic("could not allocate blocks for executable"); return false; }
             frame_tag->usr_blocks.emplace_back(blk, addr, kernel_memory_mgr::page_aligned_region_size(addr, h.p_memsz));
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
         }
-        addr_t stkblk = kernel_memory_mgr::get().allocate_user_block(stack_target_size, stack_base, page_size, true, false);
-        addr_t tlsblk = kernel_memory_mgr::get().allocate_user_block(tls_target_size, tls_base, page_size, true, false);
+        addr_t stkblk = kmm.allocate_user_block(stack_size, stack_base, page_size, true, false);
+        addr_t tlsblk = kmm.allocate_user_block(tls_size, tls_base, page_size, true, false);
         if(!stkblk || !tlsblk) { panic("could not allocate blocks for stack");  return false; }
-        frame_tag->usr_blocks.emplace_back(stkblk, stack_base, stack_target_size);
-        frame_tag->usr_blocks.emplace_back(tlsblk, tls_base, tls_target_size);
-        kernel_memory_mgr::get().exit_frame();
+        frame_tag->usr_blocks.emplace_back(stkblk, stack_base, stack_size);
+        frame_tag->usr_blocks.emplace_back(tlsblk, tls_base, tls_size);
+        kmm.exit_frame();
         new (std::addressof(program_descriptor)) elf64_program_descriptor 
         { 
             .frame_ptr = frame_tag, 
             .prg_stack = stack_base, 
-            .stack_size = stack_target_size,
+            .stack_size = stack_size,
             .prg_tls = tls_base, 
-            .tls_size = tls_target_size, 
+            .tls_size = tls_size, 
             .entry = entry,
             .ld_path = nullptr,
             .ld_path_count = 0,

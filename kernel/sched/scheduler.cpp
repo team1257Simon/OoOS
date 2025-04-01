@@ -7,7 +7,7 @@ bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
 scheduler &scheduler::get() noexcept { return __instance; }
 scheduler::scheduler() = default;
-bool scheduler::__set_untimed_wait(task_t *task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
+bool scheduler::__set_untimed_wait(task_t* task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
 void scheduler::register_task(task_t* task) { __my_queues[task->task_ctl.prio_base].push(task); }
 bool scheduler::interrupt_wait(task_t* waiting) { if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } else return false; }
 bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interrupt)
@@ -29,7 +29,7 @@ bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interr
     __my_sleepers.push(task);
     return true;
 }
-__isrcall void scheduler::__exec_chg(task_t *cur, task_t *next)
+__isrcall void scheduler::__do_task_change(task_t* cur, task_t* next)
 {
     next->quantum_rem = next->quantum_val;
     cur->next = next;
@@ -93,7 +93,7 @@ __isrcall void scheduler::on_tick()
     if(!__my_sleepers.at_end()) { task_t* front_sleeper = __my_sleepers.next(); while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta == 0) { __my_queues[front_sleeper->task_ctl.prio_base].push(__my_sleepers.pop()); front_sleeper = __my_sleepers.next(); } }
     task_t* cur = get_gs_base<task_t>();
     if(cur->quantum_rem) { cur->quantum_rem--; }
-    if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __exec_chg(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
+    if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
 }
 bool scheduler::init()
 {

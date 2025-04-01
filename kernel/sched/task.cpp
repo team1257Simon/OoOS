@@ -31,30 +31,21 @@ task_ctx::~task_ctx()
 }
 void task_ctx::init_task_state()
 {
-    init_task_state(arg_vec.size(), reinterpret_cast<register_t>(arg_vec.data()));
-    if(is_user())
-    {
-        kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
-        kernel_memory_mgr::get().identity_map_to_user(this, sizeof(task_ctx), true, false);
-        kernel_memory_mgr::get().identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL) * sizeof(char*), true, false);
-        for(const char* str : arg_vec) { if(str) kernel_memory_mgr::get().identity_map_to_user(str, std::strlen(str), true, false); }
-        kernel_memory_mgr::get().exit_frame();
-    }
-}
-void task_ctx::init_task_state(register_t rdi, register_t rsi)
-{
-    if(env_vec.empty() || env_vec.back()) { env_vec.push_back(nullptr); }
-    set_arg_registers(rdi, rsi, reinterpret_cast<register_t>(env_vec.data()));
+    if(arg_vec.empty() || arg_vec.back()) arg_vec.push_back(nullptr);
+    set_arg_registers(arg_vec.size() - 1, reinterpret_cast<register_t>(arg_vec.data()), reinterpret_cast<register_t>(env_vec.data()));
     task_struct.saved_regs.rip = entry;
     fx_save(std::addressof(task_struct));
     __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
     if(is_user())
     {
-        kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
-        kernel_memory_mgr::get().identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
-        for(const char* str : env_vec) { if(str) kernel_memory_mgr::get().identity_map_to_user(str, std::strlen(str), true, false); }
-        kernel_memory_mgr::get().exit_frame();
+        kmm.enter_frame(task_struct.frame_ptr);
+        kmm.identity_map_to_user(this, sizeof(task_ctx), true, false);
+        kmm.identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL) * sizeof(char*), true, false);
+        kmm.identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
+        for(const char* str : env_vec) { if(str) kmm.identity_map_to_user(str, std::strlen(str), true, false); }
+        for(const char* str : arg_vec) { if(str) kmm.identity_map_to_user(str, std::strlen(str), true, false); }
+        kmm.exit_frame();
         interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
     }
     else task_struct.saved_regs.rsp.ref<uintptr_t>() = addr_t(std::addressof(sys_task_exit));
@@ -82,7 +73,7 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
         }, 
         .quantum_val        { quantum }, 
         .task_ctl           { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid },
-        .tls_block          { tls_base }
+        .tls_block          { tls_base.plus(tls_len) }
     },
     arg_vec                 { std::move(args) },
     entry                   { task },
@@ -110,7 +101,7 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
         },
         .quantum_val        { quantum }, 
         .task_ctl           { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid },
-        .tls_block          { desc.prg_tls }
+        .tls_block          { addr_t(desc.prg_tls).plus(desc.tls_size) }
     },
     arg_vec                 { std::move(args) },
     dl_search_paths         ( desc.ld_path_count ),
@@ -127,7 +118,7 @@ void task_ctx::start_task(addr_t exit_fn)
 {
     exit_target = exit_fn;
     task_struct.saved_regs.rip = entry;
-    scheduler::get().register_task(task_struct.self);
+    sch.register_task(task_struct.self);
     current_state = execution_state::RUNNING;
 }
 void task_ctx::restart_task(addr_t exit_fn)
@@ -150,10 +141,10 @@ void task_ctx::set_exit(int n)
     if(current_state == execution_state::RUNNING)
     {
         task_ctx* c = this, *p = nullptr;
-        while(c->get_parent_pid() > 0 && task_list::get().contains(static_cast<uint64_t>(c->get_parent_pid())))
+        while(c->get_parent_pid() > 0 && tl.contains(static_cast<uint64_t>(c->get_parent_pid())))
         {
-            p = std::addressof(*task_list::get().find(static_cast<uint64_t>(c->get_parent_pid())));
-            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && scheduler::get().interrupt_wait(p->task_struct.self) && p->notif_target) p->notif_target.ref<int>() = n;
+            p = std::addressof(*tl.find(static_cast<uint64_t>(c->get_parent_pid())));
+            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target) p->notif_target.ref<int>() = n;
             p->last_notified = this;
             c = p;
         }
@@ -166,15 +157,15 @@ void task_ctx::set_exit(int n)
 void task_ctx::attach_object(elf64_object* obj)
 {
     std::vector<block_descr> blocks = obj->segment_blocks();
-    kernel_memory_mgr::get().enter_frame(task_struct.frame_ptr);
-    kernel_memory_mgr::get().map_to_current_frame(blocks);
-    kernel_memory_mgr::get().exit_frame();
+    kmm.enter_frame(task_struct.frame_ptr);
+    kmm.map_to_current_frame(blocks);
+    kmm.exit_frame();
     if(elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj)) { attached_so_handles.push_back(so); }
 }
 void task_ctx::terminate()
 {
     current_state = execution_state::TERMINATED;
-    scheduler::get().unregister_task(task_struct.self);
+    sch.unregister_task(task_struct.self);
     for(task_ctx* c : child_tasks) { if(c->current_state == execution_state::RUNNING) { if(exit_code) { c->exit_code = exit_code; c->terminate(); } } }
     if(is_user()) { frame_manager::get().destroy_frame(task_struct.frame_ptr.ref<uframe_tag>()); }
     if(local_so_map) { local_so_map->shared_frame = nullptr; }
@@ -187,7 +178,7 @@ tms task_ctx::get_times() const noexcept
 }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
 {
-    task_ctx* ctx = task_list::get().create_user_task(prg, std::move(args), parent_pid, pv, quantum);
+    task_ctx* ctx = tl.create_user_task(prg, std::move(args), parent_pid, pv, quantum);
     ctx->env_vec = std::move(env);
     ctx->init_task_state();
     ctx->set_stdio_ptrs(std::move(stdio_ptrs));

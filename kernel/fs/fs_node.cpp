@@ -1,6 +1,6 @@
 #include "fs/fs.hpp"
 #include "rtc.h"
-fs_node::fs_node(std::string const &name, int vfd, uint64_t cid) : fd{ vfd }, real_id{ cid }, create_time{ sys_time(nullptr) }, modif_time{ create_time }, concrete_name{ name } {}
+fs_node::fs_node(std::string const& name, int vfd, uint64_t cid) : fd{ vfd }, real_id{ cid }, create_time{ sys_time(nullptr) }, modif_time{ create_time }, concrete_name{ name } {}
 int fs_node::vid() const noexcept { return fd; }
 void fs_node::vid(int id) noexcept { fd = id; }
 uint64_t fs_node::cid() const noexcept { return real_id; }
@@ -32,7 +32,7 @@ bool device_node::fsync() { return __my_device->pubsync() == 0; }
 bool device_node::is_device() const noexcept { return true; }
 uint64_t device_node::size() const noexcept { return __my_device->in_avail(); }
 device_node::pos_type device_node::tell() const { return __my_device->tell(); }
-device_node::size_type device_node::write(const_pointer src, size_type n) { size_type result = __my_device->sputn(src, n); if(result) sys_time(&this->modif_time); return result; }
+device_node::size_type device_node::write(const_pointer src, size_type n) { size_type result = __my_device->sputn(src, n); if(result) sys_time(std::addressof(modif_time)); return result; }
 device_node::size_type device_node::read(pointer dest, size_type n) { return __my_device->sgetn(dest, n); }
 device_node::pos_type device_node::seek(off_type off, std::ios_base::seekdir way) { return __my_device->pubseekoff(off, way); }
 device_node::pos_type device_node::seek(pos_type pos) { return __my_device->pubseekpos(pos); }
@@ -41,7 +41,7 @@ tnode::tnode(fs_node* node, const char* name) : __my_node{ node }, __my_name{ na
 tnode::tnode(std::string name) : __my_node { nullptr }, __my_name{ name } {}
 tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
 void tnode::rename(std::string const& n) { __my_name = n; }
-void tnode::rename(const char* n) { this->rename(std::string(n, std::strlen(n))); }
+void tnode::rename(const char* n) { rename(std::string(n, std::strlen(n))); }
 const char *tnode::name() const { return __my_name.c_str(); }
 fs_node* tnode::ptr() noexcept { return __my_node; }
 fs_node const* tnode::ptr() const noexcept { return __my_node; }
@@ -51,12 +51,12 @@ fs_node &tnode::operator*() noexcept { return *__my_node; }
 fs_node const &tnode::operator*() const noexcept { return *__my_node; }
 fs_node *tnode::operator->() noexcept { return __my_node; }
 fs_node const *tnode::operator->() const noexcept { return __my_node; }
-bool tnode::if_file(std::function<bool(file_node&)> const& action) { return this->is_file() && action(dynamic_cast<file_node&>(*__my_node)); }
-bool tnode::if_folder(std::function<bool(directory_node&)> const& action) { return this->is_directory() && action(dynamic_cast<directory_node&>(*__my_node)); }
-bool tnode::if_device(std::function<bool(device_node&)> const& action) { return this->is_device() && action(dynamic_cast<device_node&>(*__my_node)); }
-bool tnode::if_file(std::function<bool(file_node const&)> const& action) const { return  this->is_file() && action(dynamic_cast<file_node const&>(*__my_node)); }
-bool tnode::if_folder(std::function<bool(directory_node const&)> const& action) const { return this->is_directory() && action(dynamic_cast<directory_node const&>(*__my_node)); }
-bool tnode::if_device(std::function<bool(device_node const&)> const& action) const { return this->is_device() && action(dynamic_cast<device_node const&>(*__my_node)); }
+bool tnode::if_file(std::function<bool(file_node&)> const& action) { return is_file() && action(dynamic_cast<file_node&>(*__my_node)); }
+bool tnode::if_folder(std::function<bool(directory_node&)> const& action) { return is_directory() && action(dynamic_cast<directory_node&>(*__my_node)); }
+bool tnode::if_device(std::function<bool(device_node&)> const& action) { return is_device() && action(dynamic_cast<device_node&>(*__my_node)); }
+bool tnode::if_file(std::function<bool(file_node const&)> const& action) const { return  is_file() && action(dynamic_cast<file_node const&>(*__my_node)); }
+bool tnode::if_folder(std::function<bool(directory_node const&)> const& action) const { return is_directory() && action(dynamic_cast<directory_node const&>(*__my_node)); }
+bool tnode::if_device(std::function<bool(device_node const&)> const& action) const { return is_device() && action(dynamic_cast<device_node const&>(*__my_node)); }
 file_node* tnode::as_file() { return dynamic_cast<file_node*>(__my_node); }
 file_node const* tnode::as_file() const { return dynamic_cast<file_node const*>(__my_node); }
 directory_node* tnode::as_directory() { return dynamic_cast<directory_node*>(__my_node); }

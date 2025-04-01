@@ -15,4 +15,5 @@ public:
     void destroy_frame(uframe_tag& ft);
     static frame_manager& get();
 };
+#define fm frame_manager::get()
 #endif

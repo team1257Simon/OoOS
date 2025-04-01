@@ -59,14 +59,14 @@ typedef struct __reg_state
     register_t  r13;    // BASE+0x58=0x68
     register_t  r14;    // BASE+0x60=0x70
     register_t  r15;    // BASE+0x68=0x78
-    addr_t     rbp;     // BASE+0x70=0x80
-    addr_t     rsp;     // BASE+0x78=0x88
-    addr_t     rip;     // BASE+0x80=0x90
+    addr_t      rbp;    // BASE+0x70=0x80
+    addr_t      rsp;    // BASE+0x78=0x88
+    addr_t      rip;    // BASE+0x80=0x90
     register_t  rflags; // BASE+0x88=0x98
     uint16_t    ds;     // BASE+0x90=0xA0
     uint16_t    ss;     // BASE+0x92=0xA2
     uint16_t    cs;     // BASE+0x94=0xA4
-    addr_t     cr3;     // BASE+0x96=0xA6
+    addr_t      cr3;    // BASE+0x96=0xA6
                         // BASE+0x9E=0xAE
 } __pack __align(2) regstate_t;
 typedef struct __task_control
@@ -98,7 +98,7 @@ typedef struct __task_info
     uint64_t run_split CXX_INI(0UL);   // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
     uint64_t run_time CXX_INI(0UL);    // %gs:0x2D8; total runtime
     uint64_t sys_time CXX_INI(0UL);    // %gs:0x2E0; approximate time in syscalls (for the moment, all syscalls simply count as 1)
-    addr_t tls_block;                  // %gs:0x2E8; location for TLS 
+    addr_t tls_block;                  // %gs:0x2E8; location for TLS (represents the end of the block)
     size_t num_child_procs;            // %gs:0x2F0; how many children are in the array below
     addr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
     addr_t next CXX_INI(nullptr);      // %gs:0x300; updated when scheduling event fires.

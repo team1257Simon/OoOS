@@ -20,7 +20,7 @@ extern "C"
 	extern "C" void _fini();	
 	void __cxa_pure_virtual() { panic("Call to pure virtual"); abort(); __builtin_unreachable(); }
 	[[noreturn]] void __on_fail_assert(const char* text, const char* fname, const char* filename, int line) { const char* etxt = __assert_fail_text(text, fname, filename, line); panic(etxt); delete[] etxt; abort(); __builtin_unreachable(); }
-	int __cxa_atexit(void (*f)(void *), void* objptr, void* dso)
+	int __cxa_atexit(void (*f)(void*), void* objptr, void* dso)
 	{
 		__cxxabiv1::__cxa_guard_acquire(std::addressof(__atexit_guard));
 		if (__atexit_func_count >= ATEXIT_MAX_FUNCS) {return -1;};

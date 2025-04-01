@@ -36,9 +36,9 @@ extern "C"
     addr_t syscall_dlopen(const char* name, int flags)
     {
         task_ctx* task = get_gs_base<task_ctx>();
-        if(!name) return addr_t(task); // other calls using these pointers will check for this special handle, which is the "self" handle
         filesystem* fs_ptr = task->get_vfs_ptr();
         if(!fs_ptr || !task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        if(!name) return task->object_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
         name = translate_user_pointer(name);
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         std::string xname(name, std::strnlen(name, 256UL));
@@ -74,9 +74,9 @@ extern "C"
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return -ENOSYS;
-        if(handle == addr_t(task)) return 0; // dlclose on the "self" handle does nothing (UB)
+        if(handle == addr_t(task->object_handle)) return 0; // dlclose on the "self" handle does nothing (UB)
+        if(!is_valid_handle(handle.ref<elf64_shared_object>())) { return -EINVAL; }
         shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
-        if(!is_valid_handle(*so)) { return -EINVAL; }
         if(!task->local_so_map) return -ENOSYS;
         if(task->local_so_map->contains(so->get_soname())) { task->local_so_map->remove(so); }
         else shared_object_map::get_globals().remove(so);
@@ -87,11 +87,11 @@ extern "C"
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
-        if(handle == addr_t(task)) { if(addr_t result = full_search(task, name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
+        if(handle == addr_t(task->object_handle)) { if(addr_t result = full_search(task, name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         if(!handle) { if(addr_t result = global_search(name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
+        if(!is_valid_handle(handle.ref<elf64_shared_object>())) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
         shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
-        if(!is_valid_handle(*so)) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
         addr_t result = so->resolve_by_name(name);
         if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
         return result;
@@ -133,8 +133,8 @@ extern "C"
         if(path_out) path_out = translate_user_pointer(path_out);
         if(!path_out) return -EINVAL;
         if(sz_out) { sz_out = translate_user_pointer(sz_out); if(!sz_out) return -EINVAL; }
+        if(!is_valid_handle(handle.ref<elf64_shared_object>())) return -EINVAL;
         shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
-        if(!is_valid_handle(*so)) return -EINVAL;
         const char* path;
         if(!((path = task->local_so_map->get_path(so)) || (path = shared_object_map::get_globals().get_path(so)))) return -ENOENT;
         size_t len = std::strlen(path);
@@ -151,8 +151,7 @@ extern "C"
     {
         char** result = sysres_add((obj_handle->get_dependencies().size() + 1) * sizeof(char*));
         char** result_real = translate_user_pointer(result);
-        if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-        if(!result_real) return addr_t(static_cast<uintptr_t>(-EINVAL));
+        if(!result || !result_real) return addr_t(static_cast<uintptr_t>(-ENOMEM));
         size_t n = 0;
         for(const char* str : obj_handle->get_dependencies())
         {

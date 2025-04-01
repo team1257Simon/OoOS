@@ -25,4 +25,5 @@ public:
     bool destroy_task(uint64_t pid);
     static task_list& get();
 };
+#define tl task_list::get()
 #endif

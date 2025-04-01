@@ -54,7 +54,7 @@ namespace std
         constexpr void reserve(size_type target) { this->__reserve(target); }
         template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { return this->__emplace(forward<Args>(args)...); }
         template<std::convertible_to<value_type> WT> requires copy_constructible<value_type> constexpr pair<iterator, bool> insert(WT const& wt) { return this->__insert(wt); }
-        template<std::convertible_to<value_type> WT> requires move_constructible<value_type> constexpr pair<iterator, bool> insert(WT && wt) { return this->__insert(move(wt)); }
+        template<std::convertible_to<value_type> WT> requires move_constructible<value_type> constexpr pair<iterator, bool> insert(WT&& wt) { return this->__insert(move(wt)); }
         template<std::convertible_to<key_type> JT> constexpr size_type erase(JT const& what) { return this->__erase(what); }
         template<std::convertible_to<key_type> JT> constexpr bool contains(JT const& what) const { return this->__contains(what); }
         constexpr iterator erase(const_iterator what) { return this->__erase(what); }

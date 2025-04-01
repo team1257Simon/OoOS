@@ -42,7 +42,7 @@ namespace std
         virtual int_type pbackfail(int_type c = traits_type::eof()) { return traits_type::eof(); }
         virtual int_type overflow(int_type c = traits_type::eof()) { return traits_type::eof(); }
         void swap(basic_streambuf& that) { __in_region.__swap_ptrs(that.__in_region); __out_region.__swap_ptrs(that.__out_region); }
-        virtual streamsize xsgetn(char_type *s, streamsize n);
+        virtual streamsize xsgetn(char_type* s, streamsize n);
         virtual streamsize xsputn(char_type const* s, streamsize n);
     public:
         virtual ~basic_streambuf() {}
@@ -54,7 +54,7 @@ namespace std
         int_type sbumpc() { int_type result; if(__builtin_expect(this->gptr() < this->egptr(), true)) { result = traits_type::to_int_type(*this->gptr()); this->gbump(1); } else result = this->uflow(); return result; }
         int_type sgetc() { int_type result; if(__builtin_expect(this->gptr() < this->egptr(), true)) { result = traits_type::to_int_type(*this->gptr()); } else result = this->underflow(); return result; }
         int_type snextc() { int_type result = traits_type::eof(); if(__builtin_expect(!traits_type::eq_int_type(this->sbumpc(), result), true)) result = this->sgetc(); return result; }
-        streamsize sgetn(char_type *s, streamsize n) { return this->xsgetn(s, n); }
+        streamsize sgetn(char_type* s, streamsize n) { return this->xsgetn(s, n); }
         int_type sputbackc(char_type c) { int_type result; const bool testpos = this->eback() < this->gptr(); if (__builtin_expect(!testpos || !traits_type::eq(c, this->gptr()[-1]), false)) result = this->pbackfail(traits_type::to_int_type(c)); else { this->gbump(-1); result = traits_type::to_int_type(*this->gptr()); } return result; }
         int_type sungetc() { int_type result; if (__builtin_expect(this->eback() < this->gptr(), true)) { this->gbump(-1); result = traits_type::to_int_type(*this->gptr()); } else result = this->pbackfail(); return result; }
         int_type sputc(char_type c) { int_type result; if (__builtin_expect(this->pptr() < this->epptr(), true)) { *this->pptr() = c; this->pbump(1); result = traits_type::to_int_type(c); } else result = this->overflow(traits_type::to_int_type(c)); return result; }

@@ -1,8 +1,8 @@
 #include "bits/stl_tree.hpp"
 namespace std
 {
-    static void __local_lrotate(__node_base* const x, __node_base* &root);
-    static void __local_rrotate(__node_base* const x, __node_base* &root);
+    static void __local_lrotate(__node_base* const x, __node_base*& root);
+    static void __local_rrotate(__node_base* const x, __node_base*& root);
     static inline __node_base* __next(__node_base* x, const node_direction dir) { return (dir == RIGHT ? x->__my_right : x->__my_left); }
     __node_base::__ptr __node_base::__min(__ptr x) { while(x->__my_left) x = x->__my_left; return x; }
     __node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left) x = x->__my_left; return x; }
@@ -58,7 +58,7 @@ namespace std
     }
     [[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base* x, __node_base* p, __node_base& trunk)
     {
-        __node_base* &root = trunk.__my_parent;
+        __node_base*& root = trunk.__my_parent;
         x->__my_parent = p;
         x->__my_left = nullptr;
         x->__my_right = nullptr;
@@ -111,9 +111,9 @@ namespace std
     }
     [[gnu::nonnull]] [[gnu::returns_nonnull]] __node_base *__rebalance_for_erase(__node_base* const z, __node_base& trunk)
     {
-        __node_base* &root = trunk.__my_parent;
-        __node_base* &leftmost = trunk.__my_left;
-        __node_base* &rightmost = trunk.__my_right;
+        __node_base*& root = trunk.__my_parent;
+        __node_base*& leftmost = trunk.__my_left;
+        __node_base*& rightmost = trunk.__my_right;
         __node_base* y = z;
         __node_base* x = nullptr;
         __node_base* x_parent = nullptr;

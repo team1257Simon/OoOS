@@ -7,10 +7,10 @@ constexpr static byte read_rtc_register_dyn(byte r) { byte prev = inbw(command_r
 constexpr static uint8_t day_of_week(uint16_t year, uint8_t month, uint16_t day) { uint32_t dy = day_of_year(month, day, (year % 4U == 0U)); dy += years_to_days(year, 1800U); return ((dy + 3U) % 7U) + 1U; /* 1800 started on a Wednesday */ }
 constexpr static uint64_t to_unix_timestamp(rtc_time const& t) { return static_cast<uint64_t>(t.sec + static_cast<uint64_t>(t.min) * 60UL + static_cast<uint64_t>(t.hr) * 3600UL + static_cast<uint64_t>(day_of_year(t.month, t.day, (t.year % 4U == 0U)) + years_to_days(t.year, 1970U)) * 86400UL) * 1000UL; }
 void rtc::init_instance(uint8_t century_register) noexcept { __instance.__century_register = century_register; __instance.__is_12h = !(read_rtc_register<0x0Bui8>().b1); __instance.__is_bcd = !(read_rtc_register<0x0Bui8>().b2); if(interrupt_table::add_irq_handler(0ui8, std::move(LAMBDA_ISR() { __instance.rtc_time_update(); }))) irq_clear_mask<0ui8>(); }
-rtc volatile &rtc::get_instance() noexcept { return __instance; }
+rtc volatile& rtc::get_instance() noexcept { return __instance; }
 rtc_time rtc::get_time() volatile { return __my_time; }
 uint64_t rtc::get_timestamp() volatile { return to_unix_timestamp(get_time()); }
-fadt_t *find_fadt(xsdt_t* xsdt) { return static_cast<fadt_t*>(find_system_table(xsdt, "FACP")); }
+fadt_t* find_fadt(xsdt_t* xsdt) { return static_cast<fadt_t*>(find_system_table(xsdt, "FACP")); }
 extern "C" { uint64_t sys_time(uint64_t* tm_target) { uint64_t t = rtc::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; } }
 __isrcall void rtc::rtc_time_update() volatile noexcept
 {
