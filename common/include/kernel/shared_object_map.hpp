@@ -8,6 +8,7 @@
 #define RTLD_NOW 0x0002
 #define RTLD_NOLOAD	0x0004
 #define RTLD_DEEPBIND 0x0008
+#define RTLD_PREINIT 0x0010
 #define RTLD_GLOBAL	0x0100
 #define RTLD_NODELETE 0x1000
 class shared_object_map : protected std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<std::__impl::__hash_node<elf64_shared_object>>, decltype([](elf64_shared_object const& o) -> std::string const& { return o.get_soname(); })>
@@ -61,8 +62,7 @@ extern "C"
     int syscall_dlclose(addr_t handle);                                             // int dlclose(void* hadle);
     addr_t syscall_dlsym(addr_t handle, const char* name);                          // void* dlsym(void* restrict handle, const char* restrict name);
     addr_t syscall_dlresolve(uint32_t sym_idx);                                     // void* dlresolve(int sym_idx); 
+    int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent);           // int dlmap(void* restrict handle, struct link_map* restrict ent);
     int syscall_dlpath(const char* path_str);                                       // int dlpath(const char* path_str); add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
-    int syscall_dlorigin(addr_t handle, const char** str_out, size_t* sz_out);      // int dlorigin(void* restrict handle, const char** restrict str_out, size_t* restrict sz_out); write the full absolute path of the given SO to the file given by fdout; if sz_out is nonnull, it receives the total number of characters written
-    void dl_transfer();                                                             // dynamic linker "exit" will return here, which will transfer control to the program proper
 }
 #endif

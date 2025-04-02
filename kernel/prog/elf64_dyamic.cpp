@@ -10,12 +10,14 @@ static std::allocator<elf64_rela> r_alloc{};
 static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
 addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_vaddr); }
+addr_t elf64_dynamic_object::dyn_segment_ptr() const { return resolve(phdr(dyn_segment_idx).p_vaddr); }
 elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
     elf64_object    { n },
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
     plt_relas       { nullptr },
     got_vaddr       { 0UL },
+    dyn_segment_idx { 0UL },
     relocations     {},
     dependencies    {},
     ld_paths        {},
@@ -157,6 +159,7 @@ bool elf64_dynamic_object::load_syms()
             dyn_entries = dynseg_alloc.allocate(num_dyn_entries);
             array_copy<elf64_dyn>(dyn_entries, segment_ptr(n), num_dyn_entries);
             have_dyn = true;
+            dyn_segment_idx = n;
         }
     }
     if(!have_dyn) { panic("no dynamic segment present"); return false; }
@@ -231,6 +234,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     num_plt_relas       { that.num_plt_relas },
     plt_relas           { that.plt_relas ? r_alloc.allocate(that.num_plt_relas) : nullptr },
     got_vaddr           { that.got_vaddr },
+    dyn_segment_idx     { that.dyn_segment_idx },
     relocations         { that.relocations },
     dependencies        { that.dependencies },
     ld_paths            { that.ld_paths },
@@ -260,6 +264,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
     num_plt_relas       { that.num_plt_relas },
     plt_relas           { that.plt_relas },
     got_vaddr           { that.got_vaddr },
+    dyn_segment_idx     { that.dyn_segment_idx },
     relocations         { std::move(that.relocations) },
     dependencies        { std::move(that.dependencies) },
     ld_paths            { std::move(that.ld_paths) },

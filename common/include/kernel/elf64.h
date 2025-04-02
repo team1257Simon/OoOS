@@ -367,6 +367,16 @@ struct elf64_dynsym_index
     elf64_sym const* operator[](std::string const& str) const;
     constexpr operator bool() const noexcept { return htbl.bloom_filter_words && htbl.buckets && htbl.hash_value_array; }
 };
+struct elf64_dlmap_entry
+{
+    uintptr_t vaddr_offset;
+    char* absolute_pathname;
+    elf64_dyn* dynamic_section;
+    elf64_dlmap_entry* next;
+    elf64_dlmap_entry* prev;
+    size_t dynamic_section_length;
+    void* object_handle;
+};
 constexpr addr_t resegment_ptr(addr_t addr, program_segment_descriptor const& oseg, program_segment_descriptor const& nseg) { return nseg.absolute_addr.plus(addr - oseg.absolute_addr); }
 constexpr addr_t to_segment_ptr(uint64_t off, program_segment_descriptor const& seg) { return seg.absolute_addr.plus(off - seg.obj_offset); }
 #endif

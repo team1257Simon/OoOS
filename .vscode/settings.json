@@ -110,6 +110,9 @@
         "typeindex": "cpp",
         "valarray": "cpp",
         "stdio.h": "c",
-        "task.h": "c"
+        "task.h": "c",
+        "mman.h": "c",
+        "time.h": "c",
+        "string.h": "c"
     }
 }

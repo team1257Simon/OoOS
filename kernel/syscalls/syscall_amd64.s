@@ -34,7 +34,7 @@ syscall_vec:
     .quad syscall_dlsym         # 27; WIP
     .quad syscall_dlresolve     # 28; WIP / ldso-specific
     .quad syscall_dlpath        # 29; WIP / ldso-specific
-    .quad syscall_dlorigin      # 30; WIP / ldso-specific
+    .quad syscall_dlmap         # 30; WIP / ldso-specific
     .quad syscall_depends       # 31; WIP / ldso-specific
     .quad syscall_dlfini        # 32; WIP / ldso-specific
 syscv_end:

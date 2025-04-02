@@ -26,6 +26,7 @@ public:
     constexpr uint64_t magic() const noexcept { return so_handle_magic; }
     constexpr void set_sticky(bool value = true) noexcept { sticky = value; }
     constexpr bool is_sticky() const noexcept { return sticky; }
+    constexpr uintptr_t get_load_offset() const noexcept { return virtual_load_base; }
     program_segment_descriptor const* segment_of(addr_t symbol_vaddr) const;
     elf64_shared_object(file_node* n, uframe_tag* frame);
     elf64_shared_object(elf64_shared_object&& that);

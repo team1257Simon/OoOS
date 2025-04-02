@@ -22,7 +22,7 @@ extern "C"
         if(!prot) return nullptr;
         addr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.full));
         if(min != min.page_aligned()) min = min.plus(page_size).page_aligned();
-        if(!(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
+        if(addr && !(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
         else if(addr && (addr < min || addr != addr.page_aligned())) return addr_t(static_cast<uintptr_t>(-EINVAL));
         kmm.enter_frame(ctask_frame);
         addr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
@@ -36,10 +36,11 @@ extern "C"
                 file_node* n = get_by_fd(fsptr,current_active_task()->self, fd);
                 if(n)
                 {
-                    size_t data_len = std::min(size_t(len - offset), n->size());
                     file_node::pos_type pos = n->tell();
                     n->seek(offset, std::ios_base::beg);
-                    n->read(result, data_len);
+                    kmm.enter_frame(ctask_frame);
+                    n->read(addr_t(kmm.translate_vaddr_in_current_frame(result)), std::min(size_t(len - offset), n->size()));
+                    kmm.exit_frame();
                     n->seek(pos);
                     return result;
                 }

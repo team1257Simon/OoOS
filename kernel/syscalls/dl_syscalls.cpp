@@ -62,24 +62,26 @@ extern "C"
             {
                 shared_object_map& sm = flags & RTLD_GLOBAL ? shared_object_map::get_globals() : *task->local_so_map;
                 result = sm.add(n);
-                std::string full_path = *found_path + fs_ptr->get_path_separator() + xname;
-                sm.set_path(result, full_path);
+                sm.set_path(result, *found_path);
             }
         }
         if(flags & RTLD_NODELETE) result->set_sticky();
-        task->attach_object(result.base());
-        return result.base();
+        elf64_dynamic_object* handle = result.base();
+        task->attach_object(handle);
+        return handle;
     }
     int syscall_dlclose(addr_t handle)
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return -ENOSYS;
         if(handle == addr_t(task->object_handle)) return 0; // dlclose on the "self" handle does nothing (UB)
-        if(!is_valid_handle(handle.ref<elf64_shared_object>())) { return -EINVAL; }
-        shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
+        elf64_dynamic_object* obj = handle;
+        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
+        if(!so || !is_valid_handle(*so)) { return -EINVAL; }
+        shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
         if(!task->local_so_map) return -ENOSYS;
-        if(task->local_so_map->contains(so->get_soname())) { task->local_so_map->remove(so); }
-        else shared_object_map::get_globals().remove(so);
+        if(task->local_so_map->contains(so->get_soname())) { task->local_so_map->remove(it); }
+        else shared_object_map::get_globals().remove(it);
         return 0;
     }
     addr_t syscall_dlsym(addr_t handle, const char* name)
@@ -90,8 +92,9 @@ extern "C"
         if(handle == addr_t(task->object_handle)) { if(addr_t result = full_search(task, name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         if(!handle) { if(addr_t result = global_search(name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
-        if(!is_valid_handle(handle.ref<elf64_shared_object>())) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
-        shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
+        elf64_dynamic_object* obj = handle;
+        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
+        if(!so || !is_valid_handle(*so)) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
         addr_t result = so->resolve_by_name(name);
         if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
         return result;
@@ -126,26 +129,33 @@ extern "C"
         catch(...) { return -ENOMEM; }
         return 0;
     }
-    int syscall_dlorigin(addr_t handle, const char** path_out, size_t* sz_out)
+    int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent)
     {
         task_ctx* task = get_gs_base<task_ctx>();
-        if(!task->local_so_map || !task->ctx_filesystem) return -ENOSYS;
-        if(path_out) path_out = translate_user_pointer(path_out);
-        if(!path_out) return -EINVAL;
-        if(sz_out) { sz_out = translate_user_pointer(sz_out); if(!sz_out) return -EINVAL; }
-        if(!is_valid_handle(handle.ref<elf64_shared_object>())) return -EINVAL;
-        shared_object_map::iterator so(handle.minus(shared_object_map::node_offset));
-        const char* path;
-        if(!((path = task->local_so_map->get_path(so)) || (path = shared_object_map::get_globals().get_path(so)))) return -ENOENT;
-        size_t len = std::strlen(path);
-        if(char* result = sysres_add(len))
+        if(!task->local_so_map) return -ENOSYS;
+        ent = translate_user_pointer(ent);
+        if(!ent) return -EINVAL;
+        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
+        if(!so || !is_valid_handle(*so)) return -EINVAL;
+        ent->dynamic_section = so->dyn_segment_ptr();
+        ent->dynamic_section_length = so->dyn_segment_len();
+        shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
+        const char* fp;
+        if(task->local_so_map->contains(so->get_soname())) fp = task->local_so_map->get_path(it);
+        else fp = shared_object_map::get_globals().get_path(it);
+        if(fp)
         {
-            array_copy(translate_user_pointer(result), path, len);
-            *path_out = result;
-            if(sz_out) *sz_out = len;
-            return 0;
+            size_t len = std::strlen(fp) + 1;
+            ent->absolute_pathname = sysres_add(len);
+            if(!ent->absolute_pathname) return -ENOMEM;
+            char* target_real = translate_user_pointer(ent->absolute_pathname);
+            array_copy(target_real, fp, len - 1);
+            target_real[len] = '\0';
         }
-        else return -ENOMEM;
+        else ent->absolute_pathname = nullptr;
+        ent->vaddr_offset = so->get_load_offset();
+        ent->object_handle = obj;
+        return 0;
     }
     addr_t syscall_depends(elf64_dynamic_object* obj_handle)
     {
@@ -166,5 +176,4 @@ extern "C"
         result_real[n] = nullptr;
         return result;
     }
-    void dl_transfer() { cli(); task_ctx* task = active_task_context(); if(task->exit_code != 0) { panic("dynamic linker failed to load program"); handle_exit(); } task->restart_task(); sti(); }
 }

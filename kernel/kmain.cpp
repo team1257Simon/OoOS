@@ -289,7 +289,6 @@ void dyn_elf_tests()
         shared_object_map& sm = shared_object_map::get_globals();
         file_node* n = test_extfs.open_file("dyntest.so");
         shared_object_map::iterator test_so = sm.add(n);
-        sm.set_path(test_so, std::move("dyntest.so"));
         test_extfs.close_file(n);
         kmm.enter_frame(sm.shared_frame);
         startup_tty.print_line("SO name: " + test_so->get_soname());

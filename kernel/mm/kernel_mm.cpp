@@ -534,15 +534,16 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
 }
 addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
 {
+    addr = addr.page_aligned();
     __lock();
-    if(addr_t result = kmm.allocate_user_block(len, addr.page_aligned(), page_size, write, exec)) 
+    if(addr_t result = kmm.allocate_user_block(len, addr, page_size, write, exec)) 
     {
         if(!addr) addr = result;
         usr_blocks.emplace_back(result, addr, kernel_memory_mgr::page_aligned_region_size(addr, len));
         __builtin_memset(result, 0, len);
         if(result.plus(len) > mapped_max) mapped_max = result.plus(len).page_aligned().plus((result.plus(len) % page_size) ? page_size : 0L);
         __unlock();
-        return result;
+        return addr;
     }
     __unlock();
     return addr_t(static_cast<uintptr_t>(-ENOMEM));

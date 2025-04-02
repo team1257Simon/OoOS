@@ -11,6 +11,7 @@ protected:
     size_t num_plt_relas;
     elf64_rela* plt_relas;
     size_t got_vaddr;
+    size_t dyn_segment_idx;
     std::vector<elf64_relocation> relocations;
     std::vector<const char*> dependencies;
     std::vector<std::string> ld_paths;
@@ -39,6 +40,8 @@ public:
     virtual void apply_relocations();
     addr_t resolve_by_name(std::string const& symbol) const;
     addr_t global_offset_table() const;
+    addr_t dyn_segment_ptr() const;
+    constexpr size_t dyn_segment_len() const noexcept { return num_dyn_entries; }
     constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
     constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
     constexpr std::vector<const char*> const& get_dependencies() const noexcept { return dependencies; }
