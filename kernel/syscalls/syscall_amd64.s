@@ -37,6 +37,7 @@ syscall_vec:
     .quad syscall_dlmap         # 30; WIP / ldso-specific
     .quad syscall_depends       # 31; WIP / ldso-specific
     .quad syscall_dlfini        # 32; WIP / ldso-specific
+    .quad syscall_dlpreinit     # 33; WIP / ldso-specific
 syscv_end:
     .quad on_invalid_syscall    # handler for out-of-range syscalls
     .size syscall_vec,      .-syscall_vec    

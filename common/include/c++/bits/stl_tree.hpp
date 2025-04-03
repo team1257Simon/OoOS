@@ -201,10 +201,11 @@ namespace std
         constexpr operator bool() const noexcept { return __my_node != nullptr; }
     };
     [[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base* x, __node_base* p, __node_base& trunk);
-    [[gnu::nonnull]][[gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk);
-    template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
+    [[gnu::nonnull, gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk);
+    template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
     class __tree_base : protected __tree_trunk
     {
+        using __rebind_alloc = typename A::template rebind<__node<T>>;
     protected: 
         typedef __node_base* __b_ptr;
         typedef __node_base const* __cb_ptr;
@@ -215,7 +216,7 @@ namespace std
         typedef __tree_iterator<T> __iterator;
         typedef __tree_const_iterator<T> __const_iterator;
         typedef T __value_type;
-        typedef A __alloc_type;
+        typedef typename __rebind_alloc::other __alloc_type;
         typedef CP __compare_type;
         typedef __tree_trunk __trunk_type;
         __alloc_type __alloc{};
@@ -284,7 +285,7 @@ namespace std
         constexpr __tree_base& operator=(__tree_base const& that) { __clear();  this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
         constexpr __tree_base& operator=(__tree_base&& that) { __clear(); this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
     };
-    template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
+    template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
     template<typename U>
     requires __valid_comparator<CP, T, U> 
     constexpr typename __tree_base<T, CP, A>::__pos_pair __tree_base<T, CP, A>::__pos_for_unique(U const& u) 
@@ -298,7 +299,7 @@ namespace std
         if(__compare_r(j.get_node(), u)) return __pos_pair{ x, y };
         return __pos_pair{ static_cast<__link>(j.get_node()), nullptr };
     }
-    template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
+    template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
     template<typename U>
     requires __valid_comparator<CP, T, U> 
     constexpr typename __tree_base<T, CP, A>::__pos_pair __tree_base<T, CP, A>::__pos_for_equal(U && u)
@@ -308,7 +309,7 @@ namespace std
         while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); }
         return __pos_pair{ x, y };
     }
-    template<typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
+    template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
     template<typename U> 
     requires __valid_comparator<CP, T, U> 
     constexpr typename __tree_base<T, CP, A>::__pos_pair __tree_base<T, CP, A>::__insert_unique_hint_pos(__const_link hint, U const& u) 
@@ -331,7 +332,7 @@ namespace std
         }
         return __pos_pair{ pos, nullptr };
     }
-    template <typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
+    template <typename T, __valid_comparator<T> CP, allocator_object<T> A>
     template <typename ... Args> 
     requires constructible_from<T, Args...>
     constexpr typename __tree_base<T, CP, A>::__res_pair __tree_base<T, CP, A>::__emplace_unique(Args&& ...args)
@@ -342,7 +343,7 @@ namespace std
         else __destroy_node(l);
         return __res_pair{ r.first, false};
     }
-    template <typename T, __valid_comparator<T> CP, allocator_object<__node<T>> A>
+    template <typename T, __valid_comparator<T> CP, allocator_object<T> A>
     template <typename... Args> 
     requires constructible_from<T, Args...>
     constexpr typename __tree_base<T, CP, A>::__res_pair __tree_base<T, CP, A>::__hint_emplace_unique(__const_link hint, Args&& ... args) 

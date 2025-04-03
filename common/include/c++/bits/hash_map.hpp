@@ -3,7 +3,7 @@
 #include "bits/hashtable.hpp"
 namespace std
 {
-    template<typename KT, typename MT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<__impl::__hash_node<pair<const KT, MT>>> AT>
+    extension template<typename KT, typename MT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<pair<const KT, MT>> AT>
     class hash_map : protected __impl::__hashtable<KT, pair<const KT, MT>, HT, __detail::__pair_key_extract<const KT, MT>, ET, AT>
     {
         using __base = __impl::__hashtable<KT, pair<const KT, MT>, HT, __detail::__pair_key_extract<const KT, MT>, ET, AT>;
@@ -32,6 +32,7 @@ namespace std
         constexpr hash_map(hash_map const&) = default;
         constexpr hash_map& operator=(hash_map&&) = default;
         constexpr hash_map& operator=(hash_map const&) = default;
+        constexpr allocator_type get_allocator() const noexcept { return allocator_type(this->__alloc); }
         constexpr size_type size() const noexcept { return this->__size(); }
         constexpr size_type bucket(key_type const& k) const noexcept { return this->__index(k); }
         constexpr iterator find(key_type const& k) { return iterator(this->__find(k)); }
@@ -69,7 +70,7 @@ namespace std
         constexpr pair<iterator, bool> insert_or_assign(key_type const& kt, mapped_type&& mt) { return __insert_or_assign(this->__create_node(piecewise_construct, tuple<key_type const&>(kt), forward_as_tuple(move(mt)))); }
         template<not_self<value_type> PT> requires constructible_from<value_type, PT&&> constexpr pair<iterator, bool> insert(PT&& pt) { return this->__emplace(move(pt)); }
     };
-    template <typename KT, typename MT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<__impl::__hash_node<pair<const KT, MT>>> AT>
+    template <typename KT, typename MT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<pair<const KT, MT>> AT>
     constexpr pair<typename hash_map<KT, MT, HT, ET, AT>::iterator, bool> hash_map<KT, MT, HT, ET, AT>::__insert_or_assign(__node_ptr n) 
     { 
         __node_ptr p = this->__find(n->__ref().first);

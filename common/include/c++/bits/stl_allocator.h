@@ -13,7 +13,7 @@ namespace std
     struct __allocator_traits_base
     {
         template<typename T, typename U, typename = void> struct __rebind : __replace_first_arg<T, U> {};
-        template<typename T, typename U> struct __rebind<T, U, __void_t<typename T::template rebind<U>::other>> { using type = typename T::template rebind<U>::other; };
+        template<typename T, typename U> struct __rebind<T, U, __void_t<typename T::template rebind<U>::other>> { using other = typename T::template rebind<U>::other; };
     protected:
         template<typename T> using __pointer = typename T::pointer;
         template<typename T> using __c_pointer = typename T::const_pointer;
@@ -24,7 +24,7 @@ namespace std
         template<typename T> using __pocs = typename T::propagate_on_container_swap;
         template<typename T> using __equal = typename T::is_always_equal;
     };
-    template<typename AT, typename U> using __alloc_rebind = typename __allocator_traits_base::template __rebind<AT, U>::type;
+    template<typename AT, typename U> using __alloc_rebind = typename __allocator_traits_base::template __rebind<AT, U>::other;
     template<typename T, std::size_t A = alignof(T)>
     struct __base_allocator
     {
@@ -67,7 +67,7 @@ namespace std
         typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
-        template<typename U> using rebind = std::allocator<U>;
+        template<typename U> struct rebind { typedef allocator<U> other; };
         typedef true_type propagate_on_container_move_assignment;
         typedef decltype(sizeof(T)) size_type;
         typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
@@ -87,7 +87,7 @@ namespace std
         typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
         typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
-        template<typename V, typename W = U> using rebind = std::alignas_allocator<V, W>;
+        template<typename V, typename W = U> struct rebind { typedef std::alignas_allocator<V, W> other; };
         typedef true_type propagate_on_container_move_assignment;
         typedef decltype(sizeof(T)) size_type;
         typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
@@ -108,6 +108,7 @@ namespace std
         typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
         typedef decltype(sizeof(T)) size_type;
         typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
+        template<typename U> struct rebind { typedef alignval_allocator<U, A> other; };
     private:
         constexpr static size_type __size_val = sizeof(T);
         constexpr static std::align_val_t __align = A;

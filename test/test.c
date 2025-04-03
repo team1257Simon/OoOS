@@ -10,7 +10,7 @@ int main(int argc, char** argv)
     uint64_t tm = time(NULL);
     printf("The timestamp is %lu\n", tm);
     char* test_str = (char*)mmap(NULL, 4096, PROT_WRITE | PROT_READ, MAP_ANONYMOUS, 0, 0);
-    if(test_str)
+    if((void*)test_str != (void*)-1)
     {
         int len = snprintf(test_str, 4096, "Address of buffer: %p; number of arguments is %i\n", (void*)test_str, argc);
         char* copied = (char*)malloc(len + 1);
@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     }
     else
     {
-        printf("failed to get mmap; error code %i\n", errno);
+        printf("mmap failed; error code %i\n", errno);
         return errno;
     }
     return 0;

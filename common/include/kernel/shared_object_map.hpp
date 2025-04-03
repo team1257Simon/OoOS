@@ -4,16 +4,16 @@
 #include "unordered_map"
 #include "elf64_shared.hpp"
 /* The MODE argument to `dlopen' contains one of the following: */
-#define RTLD_LAZY 0x0001
-#define RTLD_NOW 0x0002
-#define RTLD_NOLOAD	0x0004
-#define RTLD_DEEPBIND 0x0008
-#define RTLD_PREINIT 0x0010
-#define RTLD_GLOBAL	0x0100
-#define RTLD_NODELETE 0x1000
-class shared_object_map : protected std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<std::__impl::__hash_node<elf64_shared_object>>, decltype([](elf64_shared_object const& o) -> std::string const& { return o.get_soname(); })>
+#define RTLD_LAZY       0x0001
+#define RTLD_NOW        0x0002
+#define RTLD_NOLOAD	    0x0004
+#define RTLD_DEEPBIND   0x0008
+#define RTLD_PREINIT    0x0010
+#define RTLD_GLOBAL	    0x0100
+#define RTLD_NODELETE   0x1000
+class shared_object_map : protected std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<elf64_shared_object>, decltype([](elf64_shared_object const& o) -> std::string const& { return o.get_soname(); })>
 {
-    using __base = std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<std::__impl::__hash_node<elf64_shared_object>>, __key_extract>;
+    using __base = std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<elf64_shared_object>, __key_extract>;
     using typename __base::__node_ptr;
     using typename __base::__const_node_ptr;
     using typename __base::__node_type;

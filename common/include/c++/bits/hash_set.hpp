@@ -3,7 +3,7 @@
 #include "bits/hashtable.hpp"
 namespace std
 {
-    template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<__impl::__hash_node<T>> AT, __detail::__key_extract<KT, T> XT>
+    extension template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<T> AT, __detail::__key_extract<KT, T> XT>
     class hash_set : protected __impl::__hashtable<KT, T, HT, XT, ET, AT>
     {
         using __base = __impl::__hashtable<KT, T, HT, XT, ET, AT>;
@@ -28,6 +28,7 @@ namespace std
         constexpr hash_set(hash_set&&) = default;
         constexpr hash_set& operator=(hash_set const&) = default;
         constexpr hash_set& operator=(hash_set&&) = default;
+        constexpr allocator_type get_allocator() const noexcept { return allocator_type(this->__alloc); }
         constexpr size_type bucket(key_type const& k) const noexcept { return this->__index(k); }
         constexpr size_type size() const noexcept { return this->__size(); }
         constexpr iterator find(key_type const& k) { return iterator(this->__find(k)); }

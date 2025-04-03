@@ -19,5 +19,6 @@ public:
     virtual addr_t resolve(elf64_sym const& sym) const override;
     virtual ~elf64_dynamic_executable();
     elf64_dynamic_executable(file_node* n, uintptr_t base_offset, size_t stack_sz = S04, size_t tls_sz = S04);
+    constexpr std::vector<addr_t> const& get_preinit() const noexcept { return preinit_array; }
 };
 #endif

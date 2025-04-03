@@ -1,4 +1,5 @@
 #include "shared_object_map.hpp"
+#include "elf64_dynamic_exec.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"
 #include "sched/task_ctx.hpp"
@@ -32,6 +33,24 @@ extern "C"
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
         array_copy(translate_user_pointer(result), obj_handle->get_fini().data(), len);
         return result;
+    }
+    addr_t syscall_dlpreinit(elf64_dynamic_object* obj_handle)
+    {
+        if(elf64_dynamic_executable* x = dynamic_cast<elf64_dynamic_executable*>(obj_handle))
+        {
+            size_t len = x->get_preinit().size();
+            addr_t result = sysres_add(len * sizeof(addr_t));
+            if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+            array_copy(translate_user_pointer(result), x->get_preinit().data(), len);
+            return result;
+        }
+        else
+        {
+            addr_t result = sysres_add(sizeof(addr_t));
+            if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+            result.ref<addr_t>() = nullptr;
+            return result;
+        }
     }
     addr_t syscall_dlopen(const char* name, int flags)
     {

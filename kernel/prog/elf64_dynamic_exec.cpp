@@ -82,6 +82,7 @@ bool elf64_dynamic_executable::post_load_init()
         if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
         init_array.push_back(nullptr);
         fini_array.push_back(nullptr);
+        preinit_array.push_back(nullptr);
         return true;
     }
     catch(std::exception& e) { panic(e.what()); return false; }

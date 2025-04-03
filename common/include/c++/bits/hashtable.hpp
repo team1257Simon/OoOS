@@ -150,7 +150,7 @@ namespace std
             friend constexpr bool operator==(__hashtable_const_iterator<T> const& __this, __hashtable_const_iterator<T> const& __that) noexcept { return __this.__my_node == __that.__my_node; }
             constexpr operator bool() const noexcept { return __my_node != nullptr; }
         };
-        template<typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<__hash_node<VT>> AT>
+        template<typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
         struct __hashtable : __hashtable_base
         {
             typedef KT key_type;
@@ -170,11 +170,13 @@ namespace std
             using typename __hashtable_base::__base_ptr;
             using typename __hashtable_base::__const_base_ptr;
             using typename __hashtable_base::__buckets_ptr;
+            using __alloc_rebind = typename allocator_type::template rebind<__hash_node<VT>>;
             typedef __hash_node<value_type> __node_type;
             typedef __node_type* __node_ptr;
             typedef __node_type const* __const_node_ptr;
             typedef XT __key_extract;
-            allocator_type __alloc{};
+            typedef typename __alloc_rebind::other __node_alloc;
+            __node_alloc __alloc{};
             constexpr static key_type const& __key_of(__const_node_ptr n) { return __key_extract()(n->__ref()); }
             constexpr static bool __is_equal(key_type const& k1, key_type const& k2) { return key_equal()(k1, k2); }
             constexpr size_type __hash_code(__const_node_ptr n) const { return hasher()(__key_extract()(n->__ref())); }
@@ -237,7 +239,7 @@ namespace std
             // TODO (if needed): void __run_rehash_multi(size_type target_count);
             // TODO (if needed): iterator __insert_node_multi(__node_ptr n, size_type added);
         };
-        template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<__hash_node<VT>> AT>
+        template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
         constexpr void __hashtable<KT, VT, HT, XT, ET, AT>::__run_rehash(size_type target_count) 
         {
             if(__builtin_expect(target_count < 2UL, false)) target_count = 2UL;
@@ -250,7 +252,7 @@ namespace std
             this->__my_buckets = nbkts;
             this->__bucket_count = target_count;
         }
-        template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<__hash_node<VT>> AT>
+        template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
         constexpr typename __hashtable<KT, VT, HT, XT, ET, AT>::iterator __hashtable<KT, VT, HT, XT, ET, AT>::__erase_node(size_type idx, __base_ptr prev, __node_ptr n)
         {
             if(!n) return iterator(nullptr);
