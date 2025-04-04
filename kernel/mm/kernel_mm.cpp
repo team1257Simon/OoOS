@@ -52,7 +52,7 @@ void kframe_tag::__unlock() { release(std::addressof(__my_mutex)); }
 void uframe_tag::__lock() { lock(std::addressof(__my_mutex)); }
 void uframe_tag::__unlock() { release(std::addressof(__my_mutex)); }
 uframe_tag::~uframe_tag() { kmm.enter_frame(this); for(block_descr& blk : usr_blocks) kmm.deallocate_block(blk.virtual_start, blk.size, blk.virtual_start != blk.physical_start); kmm.exit_frame(); for(addr_t addr : kernel_allocated_blocks) __kernel_frame_tag->deallocate(addr); }
-void kframe_tag::insert_block(block_tag* blk, int idx) { blk->index = idx < 0 ? (calculate_block_index(blk->block_size)) : idx; if (available_blocks[blk->index]) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
+void kframe_tag::insert_block(block_tag* blk, int idx) { blk->index = idx < 0 ? (calculate_block_index(blk->block_size)) : idx; if(available_blocks[blk->index]) { blk->next = available_blocks[blk->index]; available_blocks[blk->index]->previous = blk; } available_blocks[blk->index] = blk; }
 static paging_table __get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
 static uintptr_t block_offset(uintptr_t addr, block_idx idx)
 {
@@ -396,14 +396,14 @@ void kernel_memory_mgr::map_to_current_frame(std::vector<block_descr> const& blo
     for(block_descr const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_roundup(blk.size, page_size), pml4, blk.write, blk.execute); }
     __unlock();
 }
-block_tag *kframe_tag::__create_tag(size_t size, size_t align)
+block_tag* kframe_tag::__create_tag(size_t size, size_t align)
 {
     size_t actual_size = std::max(size + bt_offset, align) + align;
     addr_t allocated = kmm.allocate_kernel_block(actual_size);
     if(!allocated) return nullptr;
     return new (allocated) block_tag(region_size_for(actual_size), size, -1L, add_align_size(allocated, align));
 }
-block_tag *kframe_tag::__melt_left(block_tag* tag) noexcept
+block_tag* kframe_tag::__melt_left(block_tag* tag) noexcept
 {
     block_tag* left = tag->left_split;
     left->block_size += tag->block_size;
@@ -412,7 +412,7 @@ block_tag *kframe_tag::__melt_left(block_tag* tag) noexcept
     remove_block(tag);
     return left;
 }
-block_tag *kframe_tag::__melt_right(block_tag* tag) noexcept
+block_tag* kframe_tag::__melt_right(block_tag* tag) noexcept
 {
     block_tag* right = tag->right_split;
     remove_block(right);
@@ -438,11 +438,12 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
     block_tag* tag = nullptr;
     for(tag = available_blocks[idx]; bool(tag); tag = tag->next)
     {
-        if(tag->available_size() >= size + add_align_size(tag, align))
+        size_t align_add = add_align_size(tag, align);
+        if(tag->available_size() >= size + align_add)
         {
             remove_block(tag);
             tag->held_size = size;
-            tag->align_bytes = add_align_size(tag, align);
+            tag->align_bytes = align_add;
             if(!tag->left_split && !tag->right_split) complete_regions[idx]--;
             break;
         }
@@ -498,7 +499,7 @@ addr_t kframe_tag::array_allocate(size_t num, size_t size)
     if(result) __builtin_memset(result, 0, num * size);
     return result;
 }
-block_tag *block_tag::split()
+block_tag* block_tag::split()
 {
     block_tag* that = new (actual_start().plus(held_size)) block_tag(available_size(), 0, -1, this, right_split);
     if(that->right_split) that->right_split->left_split = that;
@@ -508,7 +509,7 @@ block_tag *block_tag::split()
 }
 bool uframe_tag::shift_extent(ptrdiff_t amount)
 {
-    if(amount == 0) return true; // nothing to do, vacuous success
+    if(amount == 0) return true; // nothing to do, vacuous success; sbrk(0) is useful to get the initial value of the break/extent
     __lock();
     if(amount < 0)
     {

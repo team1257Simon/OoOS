@@ -15,3 +15,4 @@ lib/asm_test/*
 */*.txt
 syms/*.*
 img/usr/*
+img/lib/*

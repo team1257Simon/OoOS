@@ -7,7 +7,7 @@ READ = $(TARGET_HOSTED)-readelf
 CFLAGS = -O2 -Wall
 CCFLAGS = $(CFLAGS) -std=gnu23
 CXXFLAGS = $(CFLAGS) -std=c++20
-LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -lc -lg -lm -lnosys
+LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -lc -lg -lm -lnosys -static
 OUTDIR = $(IMAGE_FILE_DIR)
 TARGET = $(OUTDIR)/test.elf
 CSRC = test.c
@@ -20,7 +20,7 @@ SYM_LOG := $(LOG_DIR)/test_elf.txt
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(TARGET): $(OBJECTS) 
-	$(LD) $(SYS_LIB)/crt0.o $(SYS_LIB)/crti.o $(LIB_GCC)/crtbegin.o $(OBJECTS) $(LDFLAGS) $(LIB_GCC)/crtend.o $(SYS_LIB)/crtn.o -o $@ 
+	$(LD) $(SYS_LIB)/crt0.o $(LIB_GCC)/crti.o $(LIB_GCC)/crtbegin.o $(OBJECTS) $(LDFLAGS) $(LIB_GCC)/crtend.o $(LIB_GCC)/crtn.o -o $@ 
 	@mkdir -p $(LOG_DIR)
 	$(TARGET_HOSTED)-readelf $(READFLAGS) $@ > $(SYM_LOG)
 all: $(OBJECTS) $(OUTDIR) $(TARGET)

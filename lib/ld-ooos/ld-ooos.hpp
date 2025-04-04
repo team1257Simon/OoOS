@@ -2,10 +2,6 @@
 #define __LD_OOOS
 #include <stdint.h>
 #include <stddef.h>
-#include <vector>
-#include <string>
-#include <set>
-#include <unordered_map>
 #define SCV_DLINIT      24
 #define SCV_DLOPEN      25
 #define SCV_DLCLOSE     26
@@ -43,14 +39,32 @@ struct link_map
     link_map* l_next;
     link_map* l_prev;
     size_t __ld_len;
+    void* __so_handle;
+};
+enum dl_action : int
+{
+    DLA_NONE    = 0,
+    DLA_GETDEP  = 1,
+    DLA_SETPATH = 2,
+    DLA_PREINIT = 3,
+    DLA_OPEN    = 4,
+    DLA_INIT    = 5,
+    DLA_RESOLVE = 6,
+    DLA_LMAP    = 7,
+    DLA_FINI    = 8,
+    DLA_CLOSE   = 9
 };
 extern "C"
 {
+    extern dl_action last_error_action;
+    extern int errno;
     init_fn* dlinit(void* handle);
     init_fn* dlpreinit(void* handle);
     fini_fn* dlfini(void* handle);
     char** depends(void* handle);
     int dlpath(const char* path_str);
     int dlmap(void* handle, link_map* lm);
+    void* __copy(void* dest, const void* src, size_t n);
+    void __zero(void*, size_t);
 }
 #endif

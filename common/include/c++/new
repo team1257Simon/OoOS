@@ -9,7 +9,7 @@ namespace std
     new_handler set_new_handler(new_handler handler);
     new_handler get_new_handler();
 }
-[[nodiscard]] void* operator new(std::size_t count)__visible;
+[[nodiscard]] void* operator new(std::size_t count) __visible;
 [[nodiscard]] void* operator new[](std::size_t count) __visible;
 [[nodiscard]] void* operator new(std::size_t count, std::align_val_t al) __visible;
 [[nodiscard]] void* operator new[](std::size_t count, std::align_val_t al) __visible;
