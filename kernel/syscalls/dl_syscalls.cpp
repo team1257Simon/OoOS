@@ -8,13 +8,45 @@
 #include "sys/errno.h"
 #include "arch/arch_amd64.h"
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
-static addr_t global_search(const char* name) { for(elf64_shared_object const& so : shared_object_map::get_globals()) { if(addr_t result = so.resolve_by_name(name)) return result; } return nullptr; }
+static addr_t global_search(const char* name)
+{
+    addr_t result = nullptr;
+    for(elf64_shared_object const& so : shared_object_map::get_globals())
+    {
+        std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
+        if(!result_pair.second) continue;
+        if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
+        else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+    }
+    return result;
+}
 static addr_t full_search(task_ctx* task, const char* name)
 { 
     addr_t result; 
-    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle); dyn && (result = dyn->resolve_by_name(name))) return result; 
-    for(elf64_shared_object& so : *task->local_so_map) { if((result = so.resolve_by_name(name))) return result; } 
-    return global_search(name);
+    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle))
+    {   
+        if(std::pair<elf64_sym, addr_t> result_pair = dyn->resolve_by_name(name); result_pair.second)
+        {
+            if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
+            else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+            else result = nullptr;
+        }
+    }
+    for(elf64_shared_object& so : *task->local_so_map)
+    {
+        std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
+        if(!result_pair.second) continue;
+        if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
+        else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+    }
+    for(elf64_shared_object const& so : shared_object_map::get_globals())
+    {
+        std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
+        if(!result_pair.second) continue;
+        if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
+        else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+    }
+    return result;
 }
 extern "C"
 {
@@ -114,7 +146,7 @@ extern "C"
         elf64_dynamic_object* obj = handle;
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
         if(!so || !is_valid_handle(*so)) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
-        addr_t result = so->resolve_by_name(name);
+        addr_t result = so->resolve_by_name(name).second;
         if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
         return result;
     }
@@ -127,8 +159,10 @@ extern "C"
             elf64_rela const& rela = obj->get_plt_rela(sym_idx);
             if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-EINVAL));
             addr_t target_pos = translate_user_pointer(obj->resolve_rela_target(rela));
-            addr_t result = obj->resolve(obj->get_sym(rela.r_info.sym_index));
-            target_pos.ref<void*>() = result;
+            elf64_sym const& sym = obj->get_sym(rela.r_info.sym_index);
+            addr_t result = full_search(task, obj->symbol_name(sym));
+            if(!result) return addr_t(static_cast<uintptr_t>(-ENOENT));
+            target_pos.ref<addr_t>() = result;
             return result;
         }
         else return addr_t(static_cast<uintptr_t>(-ENOSYS));

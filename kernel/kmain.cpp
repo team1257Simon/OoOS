@@ -292,12 +292,12 @@ void dyn_elf_tests()
         test_extfs.close_file(n);
         kmm.enter_frame(sm.shared_frame);
         startup_tty.print_line("SO name: " + test_so->get_soname());
-        startup_tty.print_text("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("printf")))) + ")");
-        startup_tty.print_text("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets")))) + ")");
-        startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc")))) + ")");
+        startup_tty.print_text("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").second.as()) + " (");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("printf").second))) + ")");
+        startup_tty.print_text("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").second.as()) + " (");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets").second))) + ")");
+        startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").second.as()) + " (");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc").second))) + ")");
         kmm.exit_frame();
         sm.remove(test_so);
     }

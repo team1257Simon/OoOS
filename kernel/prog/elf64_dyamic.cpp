@@ -203,11 +203,11 @@ bool elf64_dynamic_object::load_syms()
     panic("required data missing"); 
     return false; 
 }
-addr_t elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
+std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
-    if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return nullptr; }
+    if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
     elf64_sym const* sym = symbol_index[symbol];
-    return sym ? resolve(*sym) : nullptr;
+    return sym ? std::make_pair(*sym, resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
 bool elf64_dynamic_object::process_got()
 {
