@@ -1,15 +1,13 @@
 #include "ld-ooos.hpp"
-#include <string.h>
-#include <tuple>
 const char path_var_str[] = "LD_LIBRARY_PATH=";
 constexpr size_t name_str_size = sizeof(path_var_str);
 extern "C"
 {
-    int argc;
-    int errno;
-    char** argv;
-    char** env;
-    dl_action last_error_action;
+    __local int argc;
+    __local int errno;
+    __local char** argv;
+    __local char** env;
+    __local dl_action last_error_action;
 }
 static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept { const char* cdata = static_cast<const char*>(data); uint32_t h = 5381; for(size_t i = 0; i < n; i++) h += static_cast<uint8_t>(cdata[i]) + (h << 5); return h; }
 constexpr bool operator==(link_map const& a, link_map const& b) noexcept { return a.__so_handle == b.__so_handle; }
@@ -17,7 +15,8 @@ constexpr bool operator==(link_map const& a, void* b) noexcept { return a.__so_h
 constexpr bool operator==(void* a, link_map const& b) noexcept { return a == b.__so_handle; }
 static uint64_t __hash(link_map const& l) noexcept { return elf64_gnu_hash(&l.__so_handle, sizeof(void*)); }
 struct node : link_map { node* chain_next; };
-struct
+struct res_pair { node* first; bool second; };
+static struct
 {
     using node_ptr = node*;
     using node_const_ptr = node const*;
@@ -27,7 +26,7 @@ struct
     buckets_ptr buckets;
     node root;
     size_t after_root_idx;
-    buckets_ptr allocate_buckets(size_t count) { return new node_ptr[count]; }
+    buckets_ptr allocate_buckets(size_t count) { return static_cast<buckets_ptr>(allocate(count * sizeof(node_ptr), alignof(node_ptr))); }
     node_ptr advance(node_ptr n) { return n ? n->chain_next : nullptr; }
     node_const_ptr advance(node_const_ptr n) { return n ? n->chain_next : nullptr; }
     size_t idx(node_const_ptr n) const { return bucket_count ? __hash(*n) % bucket_count : 0; }
@@ -37,11 +36,11 @@ struct
         if(!n) return;
         if(n->l_next) n->l_next->l_prev = n->l_prev;
         if(n->l_prev) n->l_prev->l_next = n->l_next;
-        delete n;
+        deallocate(n, alignof(node));
     }
     node_ptr create_node(void* handle) 
     { 
-        node_ptr result = new node; 
+        node_ptr result = static_cast<node_ptr>(allocate(sizeof(node), alignof(node))); 
         if(result) 
         { 
             result->__so_handle = handle; 
@@ -80,7 +79,7 @@ struct
         for(node_ptr n = advance(prev); n && idx(n) == index; prev = n, n = advance(n)) { if(handle == *n) return prev; }
         return nullptr;
     }
-    std::pair<node_ptr, bool> add(void* handle)
+    res_pair add(void* handle)
     {
         if(node_ptr p = find_before(handle)) { return { p, false }; }
         if(node_ptr result = create_node(handle)) { insert_at(idx(result), result); element_count++; return { result, true }; }

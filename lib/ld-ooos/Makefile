@@ -2,10 +2,11 @@ AS := $(TARGET_HOSTED)-gcc
 CXX := $(TARGET_HOSTED)-g++
 CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-gcc
+ST := $(TARGET_HOSTED)-strip
 READ = $(TARGET_HOSTED)-readelf
 CFLAGS = -O2 -fPIC 
 CCFLAGS = $(CFLAGS) -std=gnu23 -Wall
-CXXFLAGS = $(CFLAGS) -std=c++20 -Wall -fno-exceptions -fcheck-new
+CXXFLAGS = $(CFLAGS) -std=c++20 -Wall -fno-exceptions -fcheck-new -nostdinc++
 LDFLAGS = $(CFLAGS) -L$(SYS_LIB) -L$(LIB_GCC) -L$(SYSROOT)/usr/x86_64-ooos/lib -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -shared
 OUTDIR = $(IMAGE_FILE_DIR)/lib
 OBJDIR := $(OBJ_BASE_DIR)/ld-ooos
@@ -39,6 +40,7 @@ $(SYM_LOG): $(OUT_SO)
 	$(READ) $(READFLAGS) $< > $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
+	$(ST) -s $@
 	@mkdir -p $(LOG_DIR)
 	$(TARGET_HOSTED)-readelf $(READFLAGS) $@ > $(SYM_LOG)
 asmtest: $(ASMT_DIR) $(ASM_TEST)

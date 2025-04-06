@@ -6,7 +6,6 @@
 _start:
     pushq       %rbp
     movq        %rsp,       %rbp
-    pushq       %r8
     pushq       %rsi
     pushq       %rdx
     call        dlbegin
@@ -14,7 +13,7 @@ _start:
     jnz         1f
     popq        %rdx
     popq        %rsi
-    popq        %rdi
+    movq        argc(%rip), %rdi
     popq        %rbp
     movq        %rbx,       %rax
     leaq        _end(%rip), %rbx

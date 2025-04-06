@@ -5,7 +5,10 @@
  * Any calls to sbrk by user code will allocate memory after whatever this allocates (specifically for the link_map structures)
 */
 #include "ld-ooos.hpp"
-#include <new>
+constexpr void* operator new(size_t, void* ptr) noexcept { return ptr; }
+constexpr void* operator new[](size_t, void* ptr) noexcept { return ptr; }
+constexpr void operator delete(void*, void*) noexcept {}
+constexpr void operator delete[](void*, void*) noexcept {}
 constexpr unsigned min_exponent = 8U;
 constexpr unsigned max_block_index = 32U;
 constexpr unsigned alloc_magic = 0xC001C0DE;
@@ -53,11 +56,11 @@ struct [[gnu::may_alias]] block_tag
 	constexpr void* actual_end() const noexcept { return static_cast<char*>(actual_start()) + held_size; }
     constexpr size_t get_align(size_t al) const noexcept { if(!al) return 0; char* st = static_cast<char*>(start()); return static_cast<size_t>(static_cast<char*>(__alignup(st, al)) - st); }
     constexpr block_tag* set_align(size_t al) noexcept { align_bytes = get_align(al); return this; }
-    block_tag* split() noexcept { block_tag* that = new(actual_end()) block_tag(available_size(), 0, -1, this, right_split); if(that->right_split) that->right_split->left_split = that; right_split = that; this->block_size -= that->block_size; return that; }
-    void insert_at(int idx);
-    void remove();
-    bool absorb_right();
-    block_tag* melt_left();
+    __local block_tag* split() noexcept { block_tag* that = new(actual_end()) block_tag(available_size(), 0, -1, this, right_split); if(that->right_split) that->right_split->left_split = that; right_split = that; this->block_size -= that->block_size; return that; }
+    __local void insert_at(int idx);
+    __local void remove();
+    __local bool absorb_right();
+    __local block_tag* melt_left();
 };
 static block_tag* available_blocks[max_block_index - min_exponent]{};
 static void* __min_sbrk(ptrdiff_t amt) { void* result; asm volatile("syscall" : "=a"(result) : "0"(6), "D"(amt) : "%r11", "%rcx", "memory"); if(long test = reinterpret_cast<long>(result); test < 0 && test > -4096) { errno = static_cast<int>(test); return nullptr; } return result; }
@@ -67,7 +70,6 @@ static void alloc_unlock() { __atomic_clear(&__mutex, __ATOMIC_SEQ_CST); }
 static void* allocate_pages(size_t pages) { return __min_sbrk(static_cast<ptrdiff_t>(page_size * pages)); }
 static block_tag* locate_tag(void* ptr, size_t align)
 {
-    if(!ptr) return nullptr;
     char* cptr = static_cast<char*>(ptr) - sizeof(block_tag);
     for(size_t i = 0; i < __max(align, 8) && i < reinterpret_cast<uintptr_t>(cptr); i++) { if(block_tag* tag = reinterpret_cast<block_tag*>(cptr - i); tag->magic == alloc_magic) return tag; }
     return nullptr;
@@ -110,22 +112,28 @@ static block_tag* find_tag(size_t size, size_t al)
     }
     return nullptr;
 }
-static void* allocate(size_t count, std::align_val_t al)
+__local void deallocate(void* ptr, size_t al) 
+{
+    if(!ptr) return;
+    block_tag* tag = locate_tag(ptr, al);
+    if(tag) replace_tag(tag);
+}
+__local void* allocate(size_t count, size_t al)
 {
     if(!count) return nullptr;
     alloc_lock();
-    block_tag* tag = find_tag(count, static_cast<size_t>(al));
-    if(!tag) tag = create_tag(count, static_cast<size_t>(al));
+    block_tag* tag = find_tag(count, al);
+    if(!tag) tag = create_tag(count, al);
     alloc_unlock();
     return tag ? tag->actual_start() : nullptr;
 }
-void block_tag::insert_at(int idx)
+__local void block_tag::insert_at(int idx)
 {
     index = idx < 0 ? calculate_block_index(block_size) : idx;
     if(available_blocks[index]) { next = available_blocks[index]; available_blocks[index]->previous = this; }
     available_blocks[index] = this;
 }
-void block_tag::remove()
+__local void block_tag::remove()
 {
     if(available_blocks[index] == this) available_blocks[index] = next;
     if(previous) previous->next = next;
@@ -134,7 +142,7 @@ void block_tag::remove()
     previous = nullptr;
     index = -1;
 }
-bool block_tag::absorb_right()
+__local bool block_tag::absorb_right()
 {
     block_tag* that = right_split;
     if(that && that->index >= 0)
@@ -147,7 +155,7 @@ bool block_tag::absorb_right()
     }
     return false;
 }
-block_tag* block_tag::melt_left()
+__local block_tag* block_tag::melt_left()
 {
     block_tag* that = left_split;
     if(that && that->index >= 0)
@@ -160,15 +168,3 @@ block_tag* block_tag::melt_left()
     }
     return this;
 }
-[[gnu::externally_visible]] void operator delete(void* ptr) { replace_tag(locate_tag(ptr, 0)); }
-[[gnu::externally_visible]] void operator delete(void* ptr, std::size_t) { replace_tag(locate_tag(ptr, 0)); }
-[[gnu::externally_visible]] void operator delete(void* ptr, std::align_val_t al) { replace_tag(locate_tag(ptr, static_cast<size_t>(al))); }
-[[gnu::externally_visible]] void operator delete(void* ptr, std::size_t, std::align_val_t al) { replace_tag(locate_tag(ptr, static_cast<size_t>(al))); }
-[[gnu::externally_visible]] void operator delete[](void* ptr) { replace_tag(locate_tag(ptr, 0)); }
-[[gnu::externally_visible]] void operator delete[](void* ptr, std::size_t) { replace_tag(locate_tag(ptr, 0)); }
-[[gnu::externally_visible]] void operator delete[](void* ptr, std::align_val_t al) { replace_tag(locate_tag(ptr, static_cast<size_t>(al))); }
-[[gnu::externally_visible]] void operator delete[](void* ptr, std::size_t, std::align_val_t al) { replace_tag(locate_tag(ptr, static_cast<size_t>(al))); }
-[[nodiscard, gnu::externally_visible]] void* operator new(std::size_t count) throw() { return allocate(count, std::align_val_t(0)); }
-[[nodiscard, gnu::externally_visible]] void* operator new(std::size_t count, std::align_val_t al) throw() { return allocate(count, al); }
-[[nodiscard, gnu::externally_visible]] void* operator new[](std::size_t count) throw() { return allocate(count, std::align_val_t(0)); }
-[[nodiscard, gnu::externally_visible]] void* operator new[](std::size_t count, std::align_val_t al) throw() { return allocate(count, al); }

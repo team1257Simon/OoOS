@@ -49,7 +49,7 @@ cp -lRf $OOOS_DIR/lib/binutils-gdb $BUILD_DIR
 cd ld
 $GCC_AM
 cd $BUILD_DIR/build-binutils
-../binutils-gdb/configure --target=x86_64-ooos --with-sysroot=$SYSROOT --prefix=$PREFIX --disable-nls --disable-werror
+../binutils-gdb/configure --target=x86_64-ooos --with-sysroot=$SYSROOT --prefix=$PREFIX --disable-nls --disable-werror --enable-shared
 make && make install
 cd $BUILD_DIR
 if [ ! -e "$PREFIX/bin/x86_64-ooos-gcc" ] then
@@ -79,7 +79,7 @@ cp -lRf $OOOS_DIR/lib/gcc $BUILD_DIR/gcc
 cd libstdc++-v3
 $GCC_AC
 cd $BUILD_DIR/build-gcc
-../gcc/configure --target=x86_64-ooos --enable-languages=c,c++ --with-sysroot=$SYSROOT --prefix=$PREFIX --with-newlib
+../gcc/configure --target=x86_64-ooos --enable-languages=c,c++ --with-sysroot=$SYSROOT --prefix=$PREFIX --with-newlib --enable-shared
 make all-gcc all-target-libgcc
 make install-gcc install-target-libgcc
 make all-target-libstdc++-v3

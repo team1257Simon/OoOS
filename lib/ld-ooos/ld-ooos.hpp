@@ -2,6 +2,7 @@
 #define __LD_OOOS
 #include <stdint.h>
 #include <stddef.h>
+#define __local __attribute__((visibility("hidden")))
 #define SCV_DLINIT      24
 #define SCV_DLOPEN      25
 #define SCV_DLCLOSE     26
@@ -67,4 +68,6 @@ extern "C"
     void* __copy(void* dest, const void* src, size_t n);
     void __zero(void*, size_t);
 }
+__local void deallocate(void* ptr, size_t al);
+__local void* allocate(size_t count, size_t al);
 #endif

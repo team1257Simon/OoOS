@@ -2,6 +2,8 @@
     .section    .text
     .global     __copy
     .global     __zero
+    .hidden     __copy
+    .hidden     __zero
     .type       __copy,     @function
     .type       __zero,     @function
 __copy:
