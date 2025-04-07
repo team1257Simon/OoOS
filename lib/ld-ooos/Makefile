@@ -36,7 +36,7 @@ $(ASMT_DIR)/%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
 $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
-$(SYM_LOG): $(LOG_DIR) $(OUT_SO)
+$(SYM_LOG): $(OUT_SO) $(LOG_DIR) 
 	$(READ) $(READFLAGS) $< > $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@

@@ -100,9 +100,12 @@ bool elf64_shared_object::post_load_init()
     elf64_phdr const& dyn_ph = phdr(dyn_segment_idx);
     kmm.map_to_current_frame(std::forward<std::vector<block_descr>>({ { dyn_entries, addr_t(dyn_ph.p_vaddr), num_dyn_entries * sizeof(elf64_dyn), is_write(dyn_ph), is_exec(dyn_ph) } }));
     apply_relocations();
-    addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
-    got[1] = global_offset_table();
-    // TODO: also put the address of the resolve-symbol function in the GOT
+    if(got_vaddr)
+    {
+        addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
+        got[1] = global_offset_table();
+        // TODO: also put the address of the resolve-symbol function in the GOT
+    }
     kmm.exit_frame();
     try
     {
