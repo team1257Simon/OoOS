@@ -1,5 +1,5 @@
 #include "gdtoa.h"
-char *__dtoa_result_D2A;
+char *__dtoa_result_d2a;
 char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve)
 {
     int bbits, b2, b5, be, dig, i, ieps, ilim, ilim0, ilim1, j, j1, k, k0, k_check, leftright, m2, m5, s2, s5, spec_case, try_quick;
@@ -10,17 +10,17 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     udouble d, d2, eps;
     double ds;
     char *s, *s0;
-    if (__dtoa_result_D2A) { __freedtoa(__dtoa_result_D2A); __dtoa_result_D2A = 0; }
+    if (__dtoa_result_d2a) { __freedtoa(__dtoa_result_d2a); __dtoa_result_d2a = 0; }
     d.d = d0;
     if ((&d)->u_l[1] & 0x80000000) { *sign = 1; (&d)->u_l[1] &= ~0x80000000; } 
     else *sign = 0;
     if (((&d)->u_l[1] & 0x7FF00000) == 0x7FF00000) 
     {
         *decpt = 9999;
-        if (!(&d)->u_l[0] && !((&d)->u_l[1] & 0xFFFFF)) return __nrv_alloc_D2A("Infinity", rve, 8);
-        return __nrv_alloc_D2A("NaN", rve, 3);
+        if (!(&d)->u_l[0] && !((&d)->u_l[1] & 0xFFFFF)) return __nrv_alloc_d2a("Infinity", rve, 8);
+        return __nrv_alloc_d2a("NaN", rve, 3);
     }
-    if (!(&d)->d) { *decpt = 1; return __nrv_alloc_D2A("0", rve, 1); }
+    if (!(&d)->d) { *decpt = 1; return __nrv_alloc_d2a("0", rve, 1); }
     b = __d2b_d2a((&d)->d, &be, &bbits);
     if (b == NULL) return (NULL);
     if ((i = (int)((&d)->u_l[1] >> 20 & (0x7FF00000 >> 20))) != 0) 
@@ -102,13 +102,13 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
             if (j & 0x10) 
             {
                 j &= 0x10 - 1;
-                (&d)->d /= __bigtens_D2A[5 - 1];
+                (&d)->d /= __bigtens_d2a[5 - 1];
                 ieps++;
             }
-            for ( ; j; j >>= 1, i++) if (j & 1) { ieps++; ds *= __bigtens_D2A[i]; }
+            for ( ; j; j >>= 1, i++) if (j & 1) { ieps++; ds *= __bigtens_d2a[i]; }
             (&d)->d /= ds;
         } 
-        else if ((j1 = -k) != 0) { (&d)->d *= __tens_d2a[j1 & 0xf]; for (j = j1 >> 4; j; j >>= 1, i++) if (j & 1) { ieps++; (&d)->d *= __bigtens_D2A[i]; } }
+        else if ((j1 = -k) != 0) { (&d)->d *= __tens_d2a[j1 & 0xf]; for (j = j1 >> 4; j; j >>= 1, i++) if (j & 1) { ieps++; (&d)->d *= __bigtens_d2a[i]; } }
         if (k_check && (&d)->d < 1. && ilim > 0) 
         {
             if (ilim1 <= 0) goto fast_failed;

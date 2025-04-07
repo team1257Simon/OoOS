@@ -242,7 +242,7 @@ namespace std
             char* rve = nullptr;
             char* result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str{ result, rve };
+            std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -253,7 +253,7 @@ namespace std
             char* rve = nullptr;
             char* result = __dtoa(d, 0, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str{ result, rve };
+            std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -264,7 +264,7 @@ namespace std
             char* rve = nullptr;
             char* result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str{ result, rve };
+            std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -275,7 +275,7 @@ namespace std
             char* rve = nullptr;
             char* result = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str{ result, rve };
+            std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -286,7 +286,7 @@ namespace std
             char* rve = nullptr;
             char* result = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str{ result, rve };
+            std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
             return str;
@@ -297,7 +297,7 @@ namespace std
             char* rve = nullptr;
             char* result = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
             if(!result) { return "ERROR"; }
-            std::string str{ result, rve };
+            std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
             return str;

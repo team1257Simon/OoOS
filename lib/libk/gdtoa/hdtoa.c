@@ -34,17 +34,17 @@ char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, c
     break;
   case 0x10:
     *decpt = 1;
-    return (__nrv_alloc_D2A("0", rve, 1));
+    return (__nrv_alloc_d2a("0", rve, 1));
   case 0x08:
     d *= 0x1p514;
     *decpt = p->dbl_exp - (514 + (1024 - 2 + ((53 - 1) % 4)));
     break;
   case 0x01:
     *decpt = 0x7fffffff;
-    return (__nrv_alloc_D2A("Infinity", rve, sizeof("Infinity") - 1));
+    return (__nrv_alloc_d2a("Infinity", rve, sizeof("Infinity") - 1));
   case 0x02:
     *decpt = 0x7fffffff;
-    return (__nrv_alloc_D2A("NaN", rve, sizeof("NaN") - 1));
+    return (__nrv_alloc_d2a("NaN", rve, sizeof("NaN") - 1));
   default:
     panic("hdtoa: classify error");
     abort();
@@ -94,17 +94,17 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
     break;
   case 0x10:
     *decpt = 1;
-    return (__nrv_alloc_D2A("0", rve, 1));
+    return (__nrv_alloc_d2a("0", rve, 1));
   case 0x08:
     e *= 0x1p514L;
     *decpt = p->ext_exp - (514 + (16384 - 2 + ((64 - 1) % 4)));
     break;
   case 0x01:
     *decpt = 0x7fffffff;
-    return (__nrv_alloc_D2A("Infinity", rve, sizeof("Infinity") - 1));
+    return (__nrv_alloc_d2a("Infinity", rve, sizeof("Infinity") - 1));
   case 0x02:
     *decpt = 0x7fffffff;
-    return (__nrv_alloc_D2A("NaN", rve, sizeof("NaN") - 1));
+    return (__nrv_alloc_d2a("NaN", rve, sizeof("NaN") - 1));
   default:
     panic("hldtoa: classify error");
     abort();

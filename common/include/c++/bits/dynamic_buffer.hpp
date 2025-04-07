@@ -208,7 +208,7 @@ namespace std::__impl
             {
                 if(pos < __cur())
                 {
-                    __size_type n = __rem();
+                    __size_type n = __ediff(pos);
                     __ptr temp = __allocator.allocate(n);
                     __copy(temp, pos, n);
                     __transfer(__get_ptr(offs), start_ptr, end_ptr);
@@ -224,7 +224,7 @@ namespace std::__impl
                 __buf_ptrs nwdat{ __allocator.allocate(target_cap), target_cap };
                 if(pos < __cur())
                 {
-                    __size_type rem = __rem();
+                    __size_type rem = __ediff(pos);
                     __copy(nwdat.__begin, __beg(), offs);
                     __copy(nwdat.__get_ptr(offs + range_size), pos, rem);
                     nwdat.__setc(__size() + range_size);

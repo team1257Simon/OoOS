@@ -74,7 +74,7 @@ big_int* __set_ones_d2a(big_int* b, int n)
     x[-1] >>= 32 - n;
   return b;
 }
-static int rvOK(udouble* d, fpi* fpi, int* exp, uilong* bits, int exact, int rd, int* irv)
+static int rv_ok(udouble* d, fpi* fpi, int* exp, uilong* bits, int exact, int rd, int* irv)
 {
   big_int* b;
   uilong carry, inex, lostbits;
@@ -93,12 +93,7 @@ static int rvOK(udouble* d, fpi* fpi, int* exp, uilong* bits, int exact, int rd,
     goto ret;
   }
   if (53 == nb) {
-    if (exact
-        && fpi->rounding ==
-
-            1
-
-    )
+    if (exact && fpi->rounding == 1)
       goto trunc;
     goto ret;
   }
@@ -386,7 +381,7 @@ dig_done:
   bd0 = 0;
   if (nbits <= 53 && nd <= 15) {
     if (!e) {
-      if (rvOK(&rv, fpi, exp, bits, 1, rd, &irv)) {
+      if (rv_ok(&rv, fpi, exp, bits, 1, rd, &irv)) {
         if (irv == strtog_nomemory)
           return (strtog_nomemory);
         goto ret;
@@ -395,7 +390,7 @@ dig_done:
       if (e <= 22) {
         i = fivesbits[e] + mantbits(&rv) <= 53;
         (&rv)->d *= __tens_d2a[e];
-        if (rvOK(&rv, fpi, exp, bits, i, rd, &irv)) {
+        if (rv_ok(&rv, fpi, exp, bits, i, rd, &irv)) {
           if (irv == strtog_nomemory)
             return (strtog_nomemory);
           goto ret;
@@ -409,7 +404,7 @@ dig_done:
         e1 -= i;
         (&rv)->d *= __tens_d2a[i];
         (&rv)->d *= __tens_d2a[e2];
-        if (rvOK(&rv, fpi, exp, bits, 0, rd, &irv)) {
+        if (rv_ok(&rv, fpi, exp, bits, 0, rd, &irv)) {
           if (irv == strtog_nomemory)
             return (strtog_nomemory);
           goto ret;
@@ -418,7 +413,7 @@ dig_done:
       }
     } else if (e >= -22) {
       (&rv)->d /= __tens_d2a[-e];
-      if (rvOK(&rv, fpi, exp, bits, 0, rd, &irv)) {
+      if (rv_ok(&rv, fpi, exp, bits, 0, rd, &irv)) {
         if (irv == strtog_nomemory)
           return (strtog_nomemory);
         goto ret;
@@ -438,7 +433,7 @@ rv_notOK:
         e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
         (&rv)->u_l[1] &= ~0x7ff00000;
         (&rv)->u_l[1] |= 1023 << 20;
-        (&rv)->d *= __bigtens_D2A[5 - 1];
+        (&rv)->d *= __bigtens_d2a[5 - 1];
         e1 -= 1 << (5 - 1);
       }
       e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
@@ -446,7 +441,7 @@ rv_notOK:
       (&rv)->u_l[1] |= 1023 << 20;
       for (j = 0; e1 > 0; j++, e1 >>= 1)
         if (e1 & 1)
-          (&rv)->d *= __bigtens_D2A[j];
+          (&rv)->d *= __bigtens_d2a[j];
     }
   } else if (e1 < 0) {
     e1 = -e1;
@@ -458,7 +453,7 @@ rv_notOK:
         e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
         (&rv)->u_l[1] &= ~0x7ff00000;
         (&rv)->u_l[1] |= 1023 << 20;
-        (&rv)->d *= __tinytens_D2A[5 - 1];
+        (&rv)->d *= __tinytens_d2a[5 - 1];
         e1 -= 1 << (5 - 1);
       }
       e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
@@ -466,7 +461,7 @@ rv_notOK:
       (&rv)->u_l[1] |= 1023 << 20;
       for (j = 0; e1 > 0; j++, e1 >>= 1)
         if (e1 & 1)
-          (&rv)->d *= __tinytens_D2A[j];
+          (&rv)->d *= __tinytens_d2a[j];
     }
   }
   rvb = __d2b_d2a((&rv)->d, &rve, &rvbits);

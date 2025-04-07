@@ -22,7 +22,7 @@ OUT_SO = $(OUTDIR)/ld-ooos.so
 SYM_LOG := $(LOG_DIR)/ld-ooos-syms.txt
 .PHONY: all
 all: $(OBJDIR) $(OUTDIR) $(OUT_SO) $(SYM_LOG)
-$(OUTDIR) $(OBJDIR) $(ASMT_DIR):
+$(OUTDIR) $(OBJDIR) $(ASMT_DIR) $(LOG_DIR):
 	@mkdir -p $@
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -36,11 +36,9 @@ $(ASMT_DIR)/%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
 $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
-$(SYM_LOG): $(OUT_SO)
+$(SYM_LOG): $(LOG_DIR) $(OUT_SO)
 	$(READ) $(READFLAGS) $< > $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
 	$(ST) -s $@
-	@mkdir -p $(LOG_DIR)
-	$(TARGET_HOSTED)-readelf $(READFLAGS) $@ > $(SYM_LOG)
 asmtest: $(ASMT_DIR) $(ASM_TEST)

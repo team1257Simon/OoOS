@@ -15,7 +15,7 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
   uilong c, h, *x, *x1, *xe;
   const char* s;
   int havedig, hd0, i, nbits;
-  if (!__hexdig_D2A['0'])
+  if (!__hexdig_d2a['0'])
     __hexdig_init_d2a();
   nbits = fpi->nbits;
   x = x0 + (nbits >> 5);
@@ -30,7 +30,7 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
   if (s[1] == '0' && (s[2] == 'x' || s[2] == 'X') && *(const unsigned char*)(s + 3) > ' ')
     s += 2;
   while ((c = *(const unsigned char*)++s)) {
-    if (!(h = __hexdig_D2A[c])) {
+    if (!(h = __hexdig_d2a[c])) {
       if (c <= ' ') {
         if (hd0 < havedig) {
           if (x < x1 && i < 8)

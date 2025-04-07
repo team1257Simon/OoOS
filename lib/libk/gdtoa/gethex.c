@@ -6,7 +6,7 @@ int __gethex_d2a(const char** sp, fpi* fpi, int* exp, big_int** bp, int sign)
   int big, esign, havedig, irv, j, k, n, n0, nbits, up, zret;
   uilong u_l, lostbits, *x;
   int e, e1;
-  if (!__hexdig_D2A['0'])
+  if (!__hexdig_d2a['0'])
     __hexdig_init_d2a();
   *bp = 0;
   havedig = 0;
@@ -18,27 +18,27 @@ int __gethex_d2a(const char** sp, fpi* fpi, int* exp, big_int** bp, int sign)
   decpt = 0;
   zret = 0;
   e = 0;
-  if (__hexdig_D2A[*s])
+  if (__hexdig_d2a[*s])
     havedig++;
   else {
     zret = 1;
     if (*s != '.')
       goto pcheck;
     decpt = ++s;
-    if (!__hexdig_D2A[*s])
+    if (!__hexdig_d2a[*s])
       goto pcheck;
     while (*s == '0')
       s++;
-    if (__hexdig_D2A[*s])
+    if (__hexdig_d2a[*s])
       zret = 0;
     havedig = 1;
     s0 = s;
   }
-  while (__hexdig_D2A[*s])
+  while (__hexdig_d2a[*s])
     s++;
   if (*s == '.' && !decpt) {
     decpt = ++s;
-    while (__hexdig_D2A[*s])
+    while (__hexdig_d2a[*s])
       s++;
   }
   if (decpt)
@@ -55,12 +55,12 @@ pcheck:
     case '+':
       s++;
     }
-    if ((n = __hexdig_D2A[*s]) == 0 || n > 0x19) {
+    if ((n = __hexdig_d2a[*s]) == 0 || n > 0x19) {
       s = s1;
       break;
     }
     e1 = n - 0x10;
-    while ((n = __hexdig_D2A[*++s]) != 0 && n <= 0x19) {
+    while ((n = __hexdig_d2a[*++s]) != 0 && n <= 0x19) {
       if (e1 & 0xf8000000)
         big = 1;
       e1 = 10 * e1 + n - 0x10;
@@ -142,7 +142,7 @@ pcheck:
       u_l = 0;
       n = 0;
     }
-    u_l |= (__hexdig_D2A[*s1] & 0x0f) << n;
+    u_l |= (__hexdig_d2a[*s1] & 0x0f) << n;
     n += 4;
   }
   *x++ = u_l;

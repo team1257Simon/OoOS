@@ -243,9 +243,9 @@ dig_done:
       e1 >>= 4;
       for (j = 0; e1 > 1; j++, e1 >>= 1)
         if (e1 & 1)
-          (&rv)->d *= __bigtens_D2A[j];
+          (&rv)->d *= __bigtens_d2a[j];
       (&rv)->u_l[1] -= 53 * 0x100000;
-      (&rv)->d *= __bigtens_D2A[j];
+      (&rv)->d *= __bigtens_d2a[j];
       if ((z = (&rv)->u_l[1] & 0x7ff00000) > 0x100000 * (1024 + 1023 - 53))
         goto ovfl;
       if (z > 0x100000 * (1024 + 1023 - 1 - 53)) {

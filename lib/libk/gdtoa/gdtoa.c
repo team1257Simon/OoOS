@@ -29,7 +29,7 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
     double d2, ds;
     char *s, *s0;
     udouble d, eps;
-    if (__dtoa_result_D2A) { __freedtoa(__dtoa_result_D2A); __dtoa_result_D2A = 0; }
+    if (__dtoa_result_d2a) { __freedtoa(__dtoa_result_d2a); __dtoa_result_d2a = 0; }
     inex = 0;
     kind = *kindp &= ~strtog_inexact;
     switch (kind & strtog_retmask) 
@@ -41,10 +41,10 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
         break;
     case strtog_infinite:
         *decpt = -32768;
-        return __nrv_alloc_D2A("Infinity", rve, 8);
+        return __nrv_alloc_d2a("Infinity", rve, 8);
     case strog_nan:
         *decpt = -32768;
-        return __nrv_alloc_D2A("NaN", rve, 3);
+        return __nrv_alloc_d2a("NaN", rve, 3);
     default:
         return 0;
     }
@@ -62,7 +62,7 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
         __bfree_d2a(b);
     ret_zero:
         *decpt = 1;
-        return __nrv_alloc_D2A("0", rve, 1);
+        return __nrv_alloc_d2a("0", rve, 1);
     }
     (&d)->d = __b2d_d2a(b, &i);
     i = be + bbits - 1;
@@ -126,15 +126,15 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
             if (j & 0x10) 
             {
                 j &= 0x10 - 1;
-                (&d)->d /= __bigtens_D2A[5 - 1];
+                (&d)->d /= __bigtens_d2a[5 - 1];
                 ieps++;
             }
-            for ( ; j; j >>= 1, i++) if (j & 1) { ieps++; ds *= __bigtens_D2A[i]; }
+            for ( ; j; j >>= 1, i++) if (j & 1) { ieps++; ds *= __bigtens_d2a[i]; }
         } 
         else 
         {
             ds = 1.;
-            if ((j1 = -k) != 0) { (&d)->d *= __tens_d2a[j1 & 0xf]; for (j = j1 >> 4; j; j >>= 1, i++) if (j & 1) { ieps++; (&d)->d *= __bigtens_D2A[i]; } }
+            if ((j1 = -k) != 0) { (&d)->d *= __tens_d2a[j1 & 0xf]; for (j = j1 >> 4; j; j >>= 1, i++) if (j & 1) { ieps++; (&d)->d *= __bigtens_d2a[i]; } }
         }
         if (k_check && (&d)->d < 1. && ilim > 0)
         {

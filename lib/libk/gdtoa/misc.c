@@ -6,7 +6,6 @@ big_int* __balloc_d2a(int k)
   int x;
   big_int* rv;
   unsigned int len;
-  ;
   if (k <= 9 && (rv = freelist[k]) != 0) {
     freelist[k] = rv->next;
   } else {
@@ -32,10 +31,8 @@ void __bfree_d2a(big_int* v)
     if (v->k > 9)
       free(v);
     else {
-      ;
       v->next = freelist[v->k];
       freelist[v->k] = v;
-      ;
     }
   }
 }
@@ -93,7 +90,6 @@ big_int* __multadd_d2a(big_int* b, int m, int a)
     y = *x * (unsigned long long)m + carry;
     carry = y >> 32;
     *x++ = y & 0xffffffffUL;
-
   } while (++i < wds);
   if (carry) {
     if (wds >= b->maxwds) {
@@ -187,8 +183,7 @@ big_int* __mult_d2a(big_int* a, big_int* b)
     }
   }
 
-  for (xc0 = c->x, xc = xc0 + wc; wc > 0 && !*--xc; --wc)
-    ;
+  for (xc0 = c->x, xc = xc0 + wc; wc > 0 && !*--xc; --wc);
   c->wds = wc;
   return c;
 }
@@ -226,9 +221,7 @@ big_int* __pow5mult_d2a(big_int* b, int k)
 
       p51 = p5->next = __mult_d2a(p5, p5);
       if (p51 == NULL)
-        return (
-
-            NULL);
+        return (NULL);
       p51->next = 0;
     }
     p5 = p51;
@@ -262,7 +255,6 @@ big_int* __lshift_d2a(big_int* b, int k)
     } while (x < xe);
     if ((*x1 = z) != 0)
       ++n1;
-
   } else
     do
       *x1++ = *x++;
@@ -335,7 +327,6 @@ big_int* __diff_d2a(big_int* a, big_int* b)
     borrow = y >> 32 & 1UL;
     *xc++ = y & 0xffffffffUL;
   }
-
   while (!*--xc)
     wa--;
   c->wds = wa;
@@ -366,7 +357,6 @@ double __b2d_d2a(big_int* a, int* e)
     (&d)->u_l[1] = 0x3ff00000 | y;
     (&d)->u_l[0] = z;
   }
-
 ret_d:
   return (&d)->d;
 }
@@ -408,7 +398,6 @@ big_int* __d2b_d2a(double dd, int* e, int* bits)
   }
   return b;
 }
-const double __bigtens_D2A[] = { 1e16, 1e32, 1e64, 1e128, 1e256 };
-const double __tinytens_D2A[] = { 1e-16, 1e-32, 1e-64, 1e-128, 1e-256 };
-
+const double __bigtens_d2a[] = { 1e16, 1e32, 1e64, 1e128, 1e256 };
+const double __tinytens_d2a[] = { 1e-16, 1e-32, 1e-64, 1e-128, 1e-256 };
 const double __tens_d2a[] = { 1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22 };

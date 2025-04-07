@@ -34,7 +34,7 @@ void __ul_to_q_d2a(uilong* u_l, uilong* bits, int exp, int k)
   if (k & strtog_neg)
     u_l[3] |= 0x80000000L;
 }
-int __strtor_q(const char* s, char** sp, int rounding, void* u_l)
+int __strtorq(const char* s, char** sp, int rounding, void* u_l)
 {
   static fpi fpi0 = { 113, 1 - 16383 - 113 + 1, 32766 - 16383 - 113 + 1, 1, 0 };
   fpi *fpi, fpi1;
