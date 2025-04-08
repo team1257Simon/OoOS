@@ -43,4 +43,11 @@ extern "C"
         if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); return nullptr; }
         return reinterpret_cast<init_fn*>(result);
     }
+    int dladdr(const void* addr, dl_info* info)
+    {
+        int result;
+        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLADDR), "D"(addr), "S"(info) : "memory", "%r11", "%rcx");
+        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        return result;
+    }
 }

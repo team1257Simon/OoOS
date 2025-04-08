@@ -6,7 +6,7 @@ resolve:
     xchgq   8(%rsp),        %rdi
     xchgq   (%rsp),         %rsi
     pushq   %rcx
-    movq    $28,            %rax
+    movq    $29,            %rax
     syscall
     cmpq    $0,             %rax
     jge     1f

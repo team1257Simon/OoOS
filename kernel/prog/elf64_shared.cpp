@@ -15,6 +15,7 @@ elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     so_handle_magic         { shared_magic },
     soname                  ( find_so_name(img_ptr()) ),
     virtual_load_base       { frame->dynamic_extent },
+    total_segment_size      { 0UL },
     frame_tag               { frame },
     ref_count               { 1UL },
     sticky                  { false }
@@ -25,6 +26,7 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) :
     so_handle_magic         { shared_magic },
     soname                  ( std::move(that.soname) ),
     virtual_load_base       { that.virtual_load_base },
+    total_segment_size      { that.total_segment_size },
     frame_tag               { that.frame_tag },
     ref_count               { that.ref_count },
     sticky                  { that.sticky }
@@ -52,6 +54,18 @@ static const char* find_so_name(addr_t image_start)
         }
     }
     return empty_name;
+}
+const char* elf64_shared_object::sym_lookup(addr_t addr) const
+{
+    if(!could_contain(addr)) return nullptr;
+    size_t nsym = symtab.entries();
+    for(size_t i = 0; i < nsym; i++) 
+    {
+        elf64_sym const& sym = symtab[i];
+        addr_t sym_base = resolve(sym);
+        if(addr >= sym_base && sym_base.plus(sym.st_size) > addr) return symstrtab[sym.st_name];
+    }
+    return nullptr;
 }
 program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_vaddr) const
 {
@@ -88,6 +102,7 @@ bool elf64_shared_object::load_segments()
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, target, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
             frame_tag->usr_blocks.emplace_back(blk, target, actual_size, is_write(h), is_exec(h));
             frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size));
+            total_segment_size += actual_size;
             have_loads = true;
         }
     }

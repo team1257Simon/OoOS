@@ -229,4 +229,35 @@ extern "C"
         result_real[n] = nullptr;
         return result;
     }
+    int syscall_dladdr(addr_t sym_addr, dl_addr_info* info)
+    {
+        task_ctx* task = get_gs_base<task_ctx>();
+        if(!task->local_so_map) return -ENOSYS;
+        info = translate_user_pointer(info);
+        if(!info) return -EINVAL;
+        array_zero<uint64_t>(addr_t(info), sizeof(dl_addr_info) / sizeof(uint64_t));
+        size_t n = task->attached_so_handles.size();
+        for(size_t i = 0; i < n; i++)
+        {
+            elf64_shared_object* so = task->attached_so_handles[i];
+            if(!so->could_contain(sym_addr)) continue;
+            info->so_vbase = so->get_load_offset();
+            std::string const& oname = so->get_soname();
+            size_t len = oname.size() + 1;
+            info->so_name = sysres_add(len);
+            if(!info->so_name) return -ENOMEM;
+            array_copy(translate_user_pointer(info->so_name), oname.data(), len);
+            const char* sname = so->sym_lookup(sym_addr);
+            if(sname) 
+            {
+                info->actual_addr = so->resolve_by_name(sname).second;
+                len = std::strlen(sname) + 1;
+                info->symbol_name = sysres_add(len);
+                if(!info->symbol_name) return -ENOMEM;
+                array_copy(translate_user_pointer(info->symbol_name), sname, len);
+            }
+            return i;
+        }
+        return 0;
+    }
 }

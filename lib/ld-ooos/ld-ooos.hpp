@@ -3,16 +3,17 @@
 #include <stdint.h>
 #include <stddef.h>
 #define __local __attribute__((visibility("hidden")))
-#define SCV_DLINIT      24
-#define SCV_DLOPEN      25
-#define SCV_DLCLOSE     26
-#define SCV_DLSYM       27
-#define SCV_DLRESOLVE   28
-#define SCV_DLPATH      29
-#define SCV_DLMAP       30
-#define SCV_DEPENDS     31
-#define SCV_DLFINI      32
-#define SCV_DLPREINIT   33
+#define SCV_DLPREINIT   24
+#define SCV_DLINIT      25
+#define SCV_DLOPEN      26
+#define SCV_DLCLOSE     27
+#define SCV_DLSYM       28
+#define SCV_DLRESOLVE   29
+#define SCV_DLPATH      30
+#define SCV_DLMAP       31
+#define SCV_DEPENDS     32
+#define SCV_DLADDR      33
+#define SCV_DLFINI      34
 #define RTLD_LAZY       0x0001
 #define RTLD_NOW        0x0002
 #define RTLD_NOLOAD	    0x0004
@@ -31,6 +32,13 @@ struct elf64_dyn
         uint64_t d_val;
         uintptr_t d_ptr;
     };
+};
+struct dl_info // I refuse to use the ugly caps-with-underscores in my internal headers, sue me
+{
+    const char* dli_fname;
+    void*       dli_fbase;
+    const char* dli_sname;
+    void*       dli_saddr;
 };
 struct link_map
 {
@@ -52,8 +60,23 @@ enum dl_action : int
     DLA_INIT    = 5,
     DLA_RESOLVE = 6,
     DLA_LMAP    = 7,
-    DLA_FINI    = 8,
-    DLA_CLOSE   = 9
+    DLA_GETINFO = 8,
+    DLA_FINI    = 9,
+    DLA_CLOSE   = 10
+};
+enum dlinfo_req : int
+{
+    RTLD_DI_LMID        = 1,
+    RTLD_DI_LINKMAP     = 2,
+    RTLD_DI_CONFIGADDR  = 3,
+    RTLD_DI_SERINFO     = 4,
+    RTLD_DI_SERINFOSIZE = 5,
+    RTLD_DI_ORIGIN      = 6,
+    RTLD_DI_PROFILENAME = 7,
+    RTLD_DI_PROFILEOUT  = 8,
+    RTLD_DI_TLS_MODID   = 9,
+    RTLD_DI_TLS_DATA    = 10,
+    RTLD_DI_MAX         = 10
 };
 extern "C"
 {
@@ -67,6 +90,7 @@ extern "C"
     int dlmap(void* handle, link_map* lm);
     void* __copy(void* dest, const void* src, size_t n);
     void __zero(void*, size_t);
+    char* __strterm(const char*);
 }
 __local void deallocate(void* ptr, size_t al);
 __local void* allocate(size_t count, size_t al);

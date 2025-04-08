@@ -113,6 +113,7 @@
         "task.h": "c",
         "mman.h": "c",
         "time.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "errno.h": "c"
     }
 }

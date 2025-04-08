@@ -9,7 +9,8 @@ protected:
     uint64_t so_handle_magic;
     std::string soname;
     addr_t virtual_load_base;
-    uframe_tag* frame_tag; // Shared address spaces (for SOs and the like) will have their own frames; dynamic linking will map those segments to the process as well
+    size_t total_segment_size;
+    uframe_tag* frame_tag;
     size_t ref_count;
     bool sticky;
     virtual bool load_segments() override;
@@ -26,7 +27,9 @@ public:
     constexpr uint64_t magic() const noexcept { return so_handle_magic; }
     constexpr void set_sticky(bool value = true) noexcept { sticky = value; }
     constexpr bool is_sticky() const noexcept { return sticky; }
-    constexpr uintptr_t get_load_offset() const noexcept { return virtual_load_base; }
+    constexpr addr_t get_load_offset() const noexcept { return virtual_load_base; }
+    constexpr bool could_contain(addr_t addr) const noexcept { return addr >= virtual_load_base && virtual_load_base.plus(total_segment_size) > addr; }
+    const char* sym_lookup(addr_t addr) const;
     program_segment_descriptor const* segment_of(addr_t symbol_vaddr) const;
     elf64_shared_object(file_node* n, uframe_tag* frame);
     elf64_shared_object(elf64_shared_object&& that);

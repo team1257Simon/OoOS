@@ -153,6 +153,7 @@ static bool __load_deps(void* handle)
 extern "C"
 {
     static int __strncmp(const char* lhs, const char* rhs, size_t n) { size_t i; for(i = 0; i < n && lhs[i] == rhs[i]; i++); return lhs[i] < rhs[i] ? -1 : lhs[i] > rhs[i] ? 1 : 0; }
+    static size_t __strlen(const char* str) { return static_cast<size_t>(__strterm(str) - str); } // behaves like strnlen(str, 256) in this implementation
     int dlbegin(void* phandle, char** __argv, char** __env)
     {
         for(argc = 0; __argv[argc]; argc++);
@@ -188,5 +189,38 @@ extern "C"
         if(__so_close(handle)) return 0;
         if(last_error_action == DLA_FINI) return 1;
         return -1;
+    }
+    int dlinfo(void* handle, int request, void* info)
+    {
+        link_map* lm;
+        switch(request)
+        {
+        case RTLD_DI_LMID:
+            // namespaces are NYI so just return the default
+            *static_cast<long*>(info) = 0L;
+            break;
+        case RTLD_DI_LINKMAP:
+            if(!(lm = rtld_map.find(handle)))
+            {
+                errno = 22; // EINVAL
+                last_error_action = DLA_GETINFO;
+                return -1;
+            }
+            *static_cast<link_map**>(info) = lm;
+            break;
+        case RTLD_DI_ORIGIN:
+            if(!(lm = rtld_map.find(handle)))
+            {
+                errno = 22; // EINVAL
+                last_error_action = DLA_GETINFO;
+                return -1;
+            }
+            __copy(info, lm->l_name, __strlen(lm->l_name));
+            break;
+        default:
+            errno = 88; // ENOSYS; NYI or unsupported
+            return -1;
+        }
+        return 0;
     }
 }
