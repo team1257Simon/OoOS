@@ -89,7 +89,6 @@ int* __errno();
 #endif
 #define EBADMSG 77	/* Bad message */
 #define EFTYPE 79	/* Inappropriate file type or format */
-#ifdef __LINUX_ERRNO_EXTENSIONS__
 #define ENOTUNIQ 80	/* Given log. name not unique */
 #define EBADFD 81	/* f.d. invalid for this operation */
 #define EREMCHG 82	/* Remote address changed */
@@ -98,7 +97,6 @@ int* __errno();
 #define ELIBSCN 85	/* .lib section in a.out corrupted */
 #define ELIBMAX 86	/* Attempting to link in too many libs */
 #define ELIBEXEC 87	/* Attempting to exec a shared library */
-#endif
 #define ENOSYS 88	/* Function not implemented */
 #ifdef __CYGWIN__
 #define ENMFILE 89      /* No more files */

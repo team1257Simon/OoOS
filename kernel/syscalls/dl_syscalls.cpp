@@ -156,16 +156,17 @@ extern "C"
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(task->object_handle))
         {
+            if(!obj->has_plt_relas()) { return addr_t(static_cast<uintptr_t>(-ENOEXEC)); }
             elf64_rela const& rela = obj->get_plt_rela(sym_idx);
-            if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-EINVAL));
+            if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-ELIBSCN));
             addr_t target_pos = translate_user_pointer(obj->resolve_rela_target(rela));
             elf64_sym const& sym = obj->get_sym(rela.r_info.sym_index);
             addr_t result = full_search(task, obj->symbol_name(sym));
-            if(!result) return addr_t(static_cast<uintptr_t>(-ENOENT));
+            if(!result) return addr_t(static_cast<uintptr_t>(-ELIBACC));
             target_pos.ref<addr_t>() = result;
             return result;
         }
-        else return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        else return addr_t(static_cast<uintptr_t>(-EINVAL));
     }
     int syscall_dlpath(const char* path_str)
     {

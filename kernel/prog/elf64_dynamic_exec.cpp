@@ -46,9 +46,12 @@ bool elf64_dynamic_executable::post_load_init()
 {
     kmm.enter_frame(frame_tag);
     apply_relocations();
-    addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
-    got[1] = global_offset_table();
-    // TODO: also put the address of the resolve-symbol function in the GOT
+    if(got_vaddr)
+    {
+        addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
+        got[1] = global_offset_table();
+        // TODO: also put the address of the resolve-symbol function in the GOT
+    }
     kmm.exit_frame();
     try
     {

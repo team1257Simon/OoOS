@@ -15,6 +15,7 @@ elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
     elf64_object    { n },
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
+    num_plt_relas   { 0UL },
     plt_relas       { nullptr },
     got_vaddr       { 0UL },
     dyn_segment_idx { 0UL },
@@ -219,12 +220,15 @@ bool elf64_dynamic_object::process_got()
         else if(dyn_entries[i].d_tag == DT_PLTRELSZ) rela_sz = dyn_entries[i].d_val;
         if(got_offs && rela_offs && rela_sz) break;
     }
-    if(!(got_offs && rela_offs && rela_sz)) { panic("missing GOT info"); return false; }
-    got_vaddr = got_offs;
-    num_plt_relas = rela_sz / sizeof(elf64_rela);
-    plt_relas = r_alloc.allocate(num_plt_relas);
-    elf64_rela* rela = img_ptr(rela_offs);
-    array_copy(plt_relas, rela, num_plt_relas);
+    if(got_offs && rela_offs && rela_sz) 
+    {
+        got_vaddr = got_offs;
+        num_plt_relas = rela_sz / sizeof(elf64_rela);
+        plt_relas = r_alloc.allocate(num_plt_relas);
+        if(!plt_relas) { panic("failed to allocate rela array"); return false; }
+        elf64_rela* rela = img_ptr(rela_offs);
+        array_copy(plt_relas, rela, num_plt_relas);
+    }
     return true;
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
@@ -255,7 +259,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     array_copy(symbol_index.htbl.bloom_filter_words, that.symbol_index.htbl.bloom_filter_words, symbol_index.htbl.header.maskwords);
     array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
-    array_copy(this->plt_relas, that.plt_relas, num_plt_relas);
+    if(that.plt_relas) array_copy(this->plt_relas, that.plt_relas, num_plt_relas);
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) : 
     elf64_object        { std::move(that) },

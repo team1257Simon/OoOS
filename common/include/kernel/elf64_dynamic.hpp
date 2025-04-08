@@ -47,6 +47,7 @@ public:
     constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
     constexpr std::vector<const char*> const& get_dependencies() const noexcept { return dependencies; }
     constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
+    constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
     constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
     constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
 };
