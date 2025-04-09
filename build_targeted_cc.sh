@@ -59,7 +59,7 @@ fi
 git clone https://github.com/reswitched/newlib.git
 cd newlib
 git apply $OOOS_DIR/lib/patches/newlib-3.0.0.diff
-cp -lRf $OOOS_DIR/lib/newlib $BUILD_DIR/newlib
+cp -lRf $OOOS_DIR/lib/newlib/libc/sys/ooos $BUILD_DIR/newlib/newlib/libc/sys
 cd newlib/libc/sys/ooos
 $NL_RC
 cd ..
