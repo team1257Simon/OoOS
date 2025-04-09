@@ -25,4 +25,4 @@ do {                                \
 } while(0);
 
 #undef  LINK_SPEC
-#define LINK_SPEC "-z max-page-size=4096 %{shared:-shared} %{static:-static} %{!shared: %{!static: %{rdynamic:-export-dynamic}}}"
+#define LINK_SPEC "-z max-page-size=4096 %{shared:-shared} %{static:-static} %{!shared: %{!static: %{rdynamic:-export-dynamic}}} %{!static:--hash-style=both}"
