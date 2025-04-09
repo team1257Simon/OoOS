@@ -9,6 +9,7 @@ addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 bool is_valid_handle(elf64_shared_object const& so) { return so.so_handle_magic == shared_magic; }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descr& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
+void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && dyn_entries[i].d_val & 0x02)) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
 elf64_shared_object::~elf64_shared_object() = default; // TODO: call the destructors for loaded objects if applicable
 elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     elf64_object            ( n ),
@@ -19,7 +20,8 @@ elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     total_segment_size      { 0UL },
     frame_tag               { frame },
     ref_count               { 1UL },
-    sticky                  { false }
+    sticky                  { false },
+    symbolic                { false }
                             {}
 elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : 
     elf64_object            ( std::move(that) ),
@@ -30,7 +32,8 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) :
     total_segment_size      { that.total_segment_size },
     frame_tag               { that.frame_tag },
     ref_count               { that.ref_count },
-    sticky                  { that.sticky }
+    sticky                  { that.sticky },
+    symbolic                { that.symbolic }
                             { that.frame_tag = nullptr; }
 static const char* find_so_name(addr_t image_start)
 {

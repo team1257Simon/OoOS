@@ -13,10 +13,12 @@ protected:
     uframe_tag* frame_tag;
     size_t ref_count;
     bool sticky;
+    bool symbolic;
     virtual bool load_segments() override;
     virtual bool xvalidate() override;
     virtual void xrelease() override;
     virtual void frame_enter() override;
+    virtual void process_dyn_entry(size_t i) override;
 public:
     virtual addr_t resolve(uint64_t offs) const override;
     virtual addr_t resolve(elf64_sym const& sym) const override;
@@ -27,6 +29,7 @@ public:
     constexpr uint64_t magic() const noexcept { return so_handle_magic; }
     constexpr void set_sticky(bool value = true) noexcept { sticky = value; }
     constexpr bool is_sticky() const noexcept { return sticky; }
+    constexpr bool is_symbolic() const noexcept { return symbolic; }
     constexpr addr_t get_load_offset() const noexcept { return virtual_load_base; }
     constexpr bool could_contain(addr_t addr) const noexcept { return addr >= virtual_load_base && virtual_load_base.plus(total_segment_size) > addr; }
     const char* sym_lookup(addr_t addr) const;

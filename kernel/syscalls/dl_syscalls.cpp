@@ -161,7 +161,9 @@ extern "C"
             if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-ELIBSCN));
             addr_t target_pos = translate_user_pointer(obj->resolve_rela_target(rela));
             elf64_sym const& sym = obj->get_sym(rela.r_info.sym_index);
-            addr_t result = full_search(task, obj->symbol_name(sym));
+            addr_t result = nullptr;
+            if(elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj); so && so->is_symbolic()) { result = so->resolve_by_name(so->symbol_name(sym)).second; }
+            if(!result) result = full_search(task, obj->symbol_name(sym));
             if(!result) return addr_t(static_cast<uintptr_t>(-ELIBACC));
             target_pos.ref<addr_t>() = result;
             return result;
