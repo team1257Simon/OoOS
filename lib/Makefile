@@ -6,9 +6,10 @@ export OBJ_BASE_DIR
 export TARGET_BARE
 export TARGET_HOSTED
 export ASMT_DIR
-SUBDIRS = libk ld-ooos
+SUBDIRS = libk ld-ooos newlib/libm newlib/libc
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
+newlib/libc: newlib/libm
 $(SUBDIRS):
 	$(MAKE) -C $@
 clean:

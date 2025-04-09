@@ -1,0 +1,187 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+typedef signed char __int8_t;
+
+typedef unsigned char __uint8_t;
+typedef short int __int16_t;
+
+typedef short unsigned int __uint16_t;
+typedef int __int32_t;
+
+typedef unsigned int __uint32_t;
+typedef long int __int64_t;
+
+typedef long unsigned int __uint64_t;
+typedef signed char __int_least8_t;
+
+typedef unsigned char __uint_least8_t;
+typedef short int __int_least16_t;
+
+typedef short unsigned int __uint_least16_t;
+typedef int __int_least32_t;
+
+typedef unsigned int __uint_least32_t;
+typedef long int __int_least64_t;
+
+typedef long unsigned int __uint_least64_t;
+typedef long int __intmax_t;
+
+
+
+
+
+
+
+typedef long unsigned int __uintmax_t;
+
+
+
+
+
+
+
+typedef long int __intptr_t;
+
+typedef long unsigned int __uintptr_t;
+typedef unsigned long __blkcnt_t;
+typedef unsigned long __blksize_t;
+typedef unsigned long __fsblkcnt_t;
+typedef unsigned int __fsfilcnt_t;
+typedef long _off_t;
+typedef int __pid_t;
+typedef int __dev_t;
+typedef unsigned long __uid_t;
+typedef unsigned long __gid_t;
+typedef unsigned int __id_t;
+typedef unsigned long __ino_t;
+typedef unsigned int __mode_t;
+__extension__ typedef long long _off64_t;
+typedef _off_t __off_t;
+typedef _off64_t __loff_t;
+typedef long __key_t;
+typedef long _fpos_t;
+
+typedef unsigned long __size_t;
+
+typedef signed long _ssize_t;
+struct __lock;
+typedef struct __lock *_flock_t;
+typedef void *_iconv_t;
+typedef unsigned long __clock_t;
+typedef long __time_t;
+
+
+typedef unsigned long __clockid_t;
+typedef unsigned long __timer_t;
+typedef unsigned char __sa_family_t;
+typedef unsigned int __socklen_t;
+typedef int __nl_item;
+typedef unsigned long __nlink_t;
+typedef long __suseconds_t;
+typedef unsigned long __useconds_t;
+
+
+
+typedef char * __va_list;
+
+
+typedef unsigned int wint_t;
+
+typedef struct
+{
+  int __count;
+  union
+  {
+    unsigned int __wch;
+    unsigned char __wchb[4];
+  } __value;
+} _mbstate_t;
+
+
+
+
+struct __locale_t;
+typedef struct __locale_t *locale_t;
+
+
+
+
+
+
+
+
+
+
+typedef int wctype_t;
+
+
+
+
+typedef int wctrans_t;
+
+
+int iswalpha (wint_t);
+int iswalnum (wint_t);
+
+int iswblank (wint_t);
+
+int iswcntrl (wint_t);
+int iswctype (wint_t, wctype_t);
+int iswdigit (wint_t);
+int iswgraph (wint_t);
+int iswlower (wint_t);
+int iswprint (wint_t);
+int iswpunct (wint_t);
+int iswspace (wint_t);
+int iswupper (wint_t);
+int iswxdigit (wint_t);
+wint_t towctrans (wint_t, wctrans_t);
+wint_t towupper (wint_t);
+wint_t towlower (wint_t);
+wctrans_t wctrans (const char *);
+wctype_t wctype (const char *);
+
+
+extern int iswalpha_l (wint_t, locale_t);
+extern int iswalnum_l (wint_t, locale_t);
+extern int iswblank_l (wint_t, locale_t);
+extern int iswcntrl_l (wint_t, locale_t);
+extern int iswctype_l (wint_t, wctype_t, locale_t);
+extern int iswdigit_l (wint_t, locale_t);
+extern int iswgraph_l (wint_t, locale_t);
+extern int iswlower_l (wint_t, locale_t);
+extern int iswprint_l (wint_t, locale_t);
+extern int iswpunct_l (wint_t, locale_t);
+extern int iswspace_l (wint_t, locale_t);
+extern int iswupper_l (wint_t, locale_t);
+extern int iswxdigit_l (wint_t, locale_t);
+extern wint_t towctrans_l (wint_t, wctrans_t, locale_t);
+extern wint_t towupper_l (wint_t, locale_t);
+extern wint_t towlower_l (wint_t, locale_t);
+extern wctrans_t wctrans_l (const char *, locale_t);
+extern wctype_t wctype_l (const char *, locale_t);
+
+
+
+
+
+int
+iswdigit (wint_t c)
+{
+  return c >= (wint_t)'0' && c <= (wint_t)'9';
+
+}
