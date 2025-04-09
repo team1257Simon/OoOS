@@ -49,8 +49,8 @@ bool elf64_dynamic_executable::post_load_init()
     if(got_vaddr)
     {
         addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
-        got[1] = global_offset_table();
-        // TODO: also put the address of the resolve-symbol function in the GOT
+        if(got) got[1] = static_cast<elf64_dynamic_object*>(this);
+        else { panic("GOT address was not null but is invalid"); return false; }
     }
     kmm.exit_frame();
     try

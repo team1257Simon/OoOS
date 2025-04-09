@@ -150,14 +150,12 @@ extern "C"
         if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
         return result;
     }
-    addr_t syscall_dlresolve(uint32_t sym_idx, addr_t got_offset_1)
+    addr_t syscall_dlresolve(uint32_t sym_idx, addr_t got_loaded_id)
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-        if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(task->object_handle))
+        if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(got_loaded_id.as<elf64_dynamic_object>()))
         {
-            // If we're already in shared code, the PLT will be that of the SO in question.
-            for(elf64_shared_object* so : task->attached_so_handles) { if(so->could_contain(got_offset_1)) { obj = so; break; } }
             if(!obj->has_plt_relas()) { return addr_t(static_cast<uintptr_t>(-ENOEXEC)); }
             elf64_rela const& rela = obj->get_plt_rela(sym_idx);
             if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-ELIBSCN));
@@ -211,6 +209,7 @@ extern "C"
         else ent->absolute_pathname = nullptr;
         ent->vaddr_offset = so->get_load_offset();
         ent->object_handle = obj;
+        ent->global_offset_table_start = obj->global_offset_table();
         return 0;
     }
     addr_t syscall_depends(elf64_dynamic_object* obj_handle)

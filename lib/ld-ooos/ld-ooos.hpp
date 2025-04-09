@@ -49,6 +49,7 @@ struct link_map
     link_map* l_prev;
     size_t __ld_len;
     void* __so_handle;
+    void** __global_offset_table;
 };
 enum dl_action : int
 {

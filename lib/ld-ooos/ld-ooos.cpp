@@ -8,6 +8,7 @@ extern "C"
     __local char** argv;
     __local char** env;
     __local dl_action last_error_action;
+    [[noreturn]] void resolve(...);
 }
 static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept { const char* cdata = static_cast<const char*>(data); uint32_t h = 5381; for(size_t i = 0; i < n; i++) h += static_cast<uint8_t>(cdata[i]) + (h << 5); return h; }
 constexpr bool operator==(link_map const& a, link_map const& b) noexcept { return a.__so_handle == b.__so_handle; }
@@ -139,9 +140,10 @@ static bool __load_deps(void* handle)
         {
             void* so = __so_open(deps[i], RTLD_LAZY | RTLD_PREINIT);
             if(!so) return false;
-            auto result = rtld_map.add(so);
+            res_pair result = rtld_map.add(so);
             if(!result.second) continue;
             if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
+            else { result.first->__global_offset_table[2] = &resolve; }
             if(!__load_deps(handle)) return false;
         }
     }
