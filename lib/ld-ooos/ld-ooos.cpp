@@ -143,7 +143,7 @@ static bool __load_deps(void* handle)
             res_pair result = rtld_map.add(so);
             if(!result.second) continue;
             if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
-            else { result.first->__global_offset_table[2] = &resolve; }
+            else { result.first->__global_offset_table[2] = reinterpret_cast<void*>(&resolve); }
             if(!__load_deps(handle)) return false;
         }
     }
