@@ -19,6 +19,7 @@ protected:
     virtual bool xvalidate() override;
     virtual void on_load_failed() override;
     virtual addr_t segment_vaddr(size_t n) const;
+    virtual void frame_enter() override;
 public:
     virtual ~elf64_executable();
     elf64_executable(file_node* n, size_t stack_sz = S04, size_t tls_sz = S04);

@@ -4,6 +4,7 @@
 static std::allocator<program_segment_descriptor> sd_alloc{};
 use_kmm(kmm);
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return program_descriptor; }
+void elf64_executable::frame_enter() { kmm.enter_frame(frame_tag); }
 addr_t elf64_executable::segment_vaddr(size_t n) const { return addr_t(phdr(n).p_vaddr); }
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
@@ -81,7 +82,7 @@ bool elf64_executable::load_segments()
 {
     if((frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent))))
     {
-        kmm.enter_frame(frame_tag);
+        frame_enter();
         for(size_t n = 0; n < ehdr().e_phnum; n++)
         {
             elf64_phdr const& h = phdr(n);

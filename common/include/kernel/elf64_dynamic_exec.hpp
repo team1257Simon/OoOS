@@ -9,7 +9,7 @@ protected:
     std::vector<addr_t> preinit_array;
     uintptr_t preinit_array_ptr;
     uintptr_t preinit_array_size;
-    virtual bool post_load_init() override;
+    virtual bool load_preinit() override;
     virtual void process_dyn_entry(size_t i) override;
     virtual addr_t segment_vaddr(size_t n) const override;
     virtual bool load_segments() override;

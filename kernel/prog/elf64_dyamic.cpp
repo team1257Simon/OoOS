@@ -8,6 +8,7 @@ static std::allocator<uint32_t> w_alloc{};
 static std::allocator<uint64_t> q_alloc{};
 static std::allocator<elf64_rela> r_alloc{};
 static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
+bool elf64_dynamic_object::load_preinit() { return true; /* stub; only applicable to executables */ }
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
 addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_vaddr); }
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return resolve(phdr(dyn_segment_idx).p_vaddr); }
@@ -55,6 +56,7 @@ void elf64_dynamic_object::apply_relocations()
 {
     reloc_sym_resolve reloc_symbol_fn = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
     reloc_tar_resolve reloc_target_fn = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
+    frame_enter();
     // Assuming everything works as planned (decently tall ask), the relocation value will be calculated here for each relocation.
     for(elf64_relocation const& r : relocations)
     {
@@ -64,6 +66,7 @@ void elf64_dynamic_object::apply_relocations()
         if(phys_target && result.value) phys_target.ref<uint64_t>() = result.value;
         else klog("W: invalid relocation");
     }
+    kmm.exit_frame();
 }
 uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const
 {
@@ -114,6 +117,48 @@ void elf64_dynamic_object::process_dynamic_relas()
         }
     }
     if(unrec_rela_ct) { xklog("W: " + std::to_string(unrec_rela_ct) + " unrecognized relocation types"); }
+}
+bool elf64_dynamic_object::post_load_init()
+{
+    apply_relocations();
+    if(got_vaddr)
+    {
+        frame_enter();
+        addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
+        if(got) got[1] = this;
+        else { panic("GOT pointer is non-null but is invalid"); return false; }
+        kmm.exit_frame();
+    }
+    try
+    {
+        std::vector<addr_t> fini_reverse_array{};
+        if(!load_preinit()) return false;
+        if(init_fn) { init_array.push_back(resolve(init_fn)); }
+        if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
+        if(init_array_size && init_array_ptr) 
+        {
+            addr_t init_ptrs_vaddr = resolve(init_array_ptr);
+            frame_enter();
+            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(init_ptrs_vaddr)); 
+            kmm.exit_frame();
+            if(!init_ptrs) { panic("initialization array pointer is non-null but is invalid"); return false; }
+            for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
+        }
+        if(fini_array_size && fini_array_ptr)
+        {
+            addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
+            frame_enter();
+            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
+            kmm.exit_frame();
+            if(!fini_ptrs) { panic("finalization array pointer is non-null but is invalid"); return false; }
+            for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
+        }
+        if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
+        init_array.push_back(nullptr);
+        fini_array.push_back(nullptr);
+        return true;
+    }
+    catch(std::exception& e) { panic(e.what()); return false; }
 }
 void elf64_dynamic_object::process_dyn_entry(size_t i)
 {
@@ -199,10 +244,10 @@ bool elf64_dynamic_object::load_syms()
         }
         else process_dyn_entry(i);
     }
-    if((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size)) { panic("init and/or fini array entries invalid"); return false; }
+    if((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size)) { panic("mismatched init and/or fini array entries"); return false; }
     if(have_ht) return process_got();
-    panic("required data missing"); 
-    return false; 
+    panic("Symbol hash data missing"); 
+    return false;
 }
 std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {

@@ -6,6 +6,7 @@ const char* empty_name = "";
 static const char* find_so_name(addr_t image_start);
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
+void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 bool is_valid_handle(elf64_shared_object const& so) { return so.so_handle_magic == shared_magic; }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descr& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
 elf64_shared_object::~elf64_shared_object() = default; // TODO: call the destructors for loaded objects if applicable
@@ -84,7 +85,7 @@ bool elf64_shared_object::xvalidate()
 bool elf64_shared_object::load_segments()
 {
     bool have_loads = false;
-    kmm.enter_frame(frame_tag);
+    frame_enter();
     for(size_t n = 0; n < ehdr().e_phnum; n++)
     {
         elf64_phdr const& h = phdr(n);
@@ -108,45 +109,4 @@ bool elf64_shared_object::load_segments()
     }
     kmm.exit_frame();
     return have_loads;
-}
-bool elf64_shared_object::post_load_init()
-{
-    kmm.enter_frame(frame_tag);
-    elf64_phdr const& dyn_ph = phdr(dyn_segment_idx);
-    kmm.map_to_current_frame(std::forward<std::vector<block_descr>>({ { dyn_entries, addr_t(dyn_ph.p_vaddr), num_dyn_entries * sizeof(elf64_dyn), is_write(dyn_ph), is_exec(dyn_ph) } }));
-    apply_relocations();
-    if(got_vaddr)
-    {
-        addr_t* got = reinterpret_cast<addr_t*>(kmm.translate_vaddr_in_current_frame(global_offset_table()));
-        if(got) got[1] = static_cast<elf64_dynamic_object*>(this);
-        else { panic("GOT address was not null but is invalid"); return false; }
-    }
-    kmm.exit_frame();
-    try
-    {
-        std::vector<addr_t> fini_reverse_array{};
-        if(init_fn) { init_array.push_back(resolve(init_fn)); }
-        if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
-        if(init_array_size && init_array_ptr) 
-        {
-            addr_t init_ptrs_vaddr = resolve(init_array_ptr);
-            kmm.enter_frame(frame_tag);
-            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(init_ptrs_vaddr));
-            kmm.exit_frame();
-            for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
-        }
-        if(fini_array_size && fini_array_ptr) 
-        {
-            addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
-            kmm.enter_frame(frame_tag);
-            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(fini_ptrs_vaddr)); 
-            kmm.exit_frame();
-            for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
-        }
-        if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
-        init_array.push_back(nullptr);
-        fini_array.push_back(nullptr);
-        return true;
-    }
-    catch(std::exception& e) { panic(e.what()); return false; }
 }

@@ -29,6 +29,7 @@ protected:
     virtual void on_load_failed();
     virtual bool load_segments() = 0;
     virtual bool xvalidate() = 0;
+    virtual void frame_enter() = 0;
     void release_segments();
     off_t segment_index(size_t offset) const;
     off_t segment_index(elf64_sym const* sym) const;

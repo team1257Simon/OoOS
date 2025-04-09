@@ -27,10 +27,11 @@ protected:
     elf64_dynsym_index symbol_index;
     virtual bool xload() override;
     virtual bool process_got();
-    virtual bool post_load_init() = 0;
+    virtual bool load_preinit();
     virtual void process_dyn_entry(size_t i);
     bool load_syms();
     void process_dynamic_relas();
+    bool post_load_init();
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
 public:
     addr_t resolve_rela_target(elf64_rela const& r) const;
