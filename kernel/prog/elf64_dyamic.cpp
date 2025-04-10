@@ -94,7 +94,7 @@ bool elf64_dynamic_object::xload()
         cleanup();
         return success;
 }
-void elf64_dynamic_object::process_dynamic_relas()
+void elf64_dynamic_object::process_dt_relas()
 {
     size_t rela_offs = 0, rela_sz = 0;
     size_t unrec_rela_ct = 0;
@@ -209,7 +209,7 @@ bool elf64_dynamic_object::load_syms()
         }
     }
     if(!have_dyn) { panic("no dynamic segment present"); return false; }
-    process_dynamic_relas();
+    process_dt_relas();
     bool have_ht = false;
     for(size_t i = 0; i < num_dyn_entries; i++)
     {

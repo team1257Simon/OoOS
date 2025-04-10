@@ -30,7 +30,7 @@ protected:
     virtual bool load_preinit();
     virtual void process_dyn_entry(size_t i);
     bool load_syms();
-    void process_dynamic_relas();
+    void process_dt_relas();
     bool post_load_init();
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
 public:
@@ -51,6 +51,7 @@ public:
     constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
     constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
     constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
+    constexpr std::vector<elf64_rela> get_object_relas() const noexcept { std::vector<elf64_rela> result; for(size_t i = 0; i < num_plt_relas; i++) { if(plt_relas[i].r_info.type == R_X86_64_GLOB_DAT) result.push_back(plt_relas[i]); } return result; }
 };
 extern "C"
 {

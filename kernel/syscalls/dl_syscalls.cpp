@@ -48,10 +48,27 @@ static addr_t full_search(task_ctx* task, const char* name)
     }
     return result;
 }
+static addr_t full_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
+{
+    elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
+    if(so && so->is_symbolic()) { if(addr_t result = so->resolve_by_name(name).second) return result; }
+    return full_search(task, name);
+}
 extern "C"
 {
     addr_t syscall_dlinit(elf64_dynamic_object* obj_handle)
     {
+        task_ctx* task = get_gs_base<task_ctx>();
+        if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        // References to objects in the GOT must be resolved now
+        for(elf64_rela const& r : obj_handle->get_object_relas()) 
+        {
+            addr_t sym_addr = full_search(obj_handle, task, obj_handle->symbol_name(obj_handle->get_sym(r.r_info.sym_index)));
+            if(!sym_addr) return addr_t(static_cast<uintptr_t>(-ENOENT));
+            addr_t target = translate_user_pointer(obj_handle->resolve_rela_target(r));
+            if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
+            target.ref<addr_t>() = sym_addr;
+        }
         size_t len = obj_handle->get_init().size();
         addr_t result = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
@@ -113,6 +130,7 @@ extern "C"
             {
                 shared_object_map& sm = flags & RTLD_GLOBAL ? shared_object_map::get_globals() : *task->local_so_map;
                 result = sm.add(n);
+                if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
                 sm.set_path(result, *found_path);
             }
         }
@@ -161,9 +179,7 @@ extern "C"
             if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-ELIBSCN));
             addr_t target_pos = translate_user_pointer(obj->resolve_rela_target(rela));
             elf64_sym const& sym = obj->get_sym(rela.r_info.sym_index);
-            addr_t result = nullptr;
-            if(elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj); so && so->is_symbolic()) { result = so->resolve_by_name(so->symbol_name(sym)).second; }
-            if(!result) result = full_search(task, obj->symbol_name(sym));
+            addr_t result = full_search(obj, task, obj->symbol_name(sym));
             if(!result) return addr_t(static_cast<uintptr_t>(-ELIBACC));
             target_pos.ref<addr_t>() = result;
             return result;
