@@ -12,6 +12,7 @@ resolve:
     jge     1f
     cmpq    $-4096,         %rax
     jng     1f
+    movq    $6,             last_error_action(%rip)
     negq    %rax
     movq    %rax,           %rdi
     xorq    %rax,           %rax
