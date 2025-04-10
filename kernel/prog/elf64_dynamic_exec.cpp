@@ -48,7 +48,7 @@ bool elf64_dynamic_executable::load_preinit()
     {
         addr_t preinit_ptrs_vaddr = resolve(preinit_array_ptr);
         frame_enter();
-        uintptr_t* preinit_ptrs = reinterpret_cast<uintptr_t*>(kmm.translate_vaddr_in_current_frame(preinit_ptrs_vaddr));
+        uintptr_t* preinit_ptrs = reinterpret_cast<uintptr_t*>(kmm.frame_translate(preinit_ptrs_vaddr));
         kmm.exit_frame();
         if(!preinit_ptrs) { panic("pre-initialization array pointer is non-null but is invalid"); return false; }
         for(size_t i = 0; i < preinit_array_size; i++) { preinit_array.push_back(addr_t(preinit_ptrs[i])); }

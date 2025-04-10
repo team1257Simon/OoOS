@@ -58,7 +58,7 @@ public:
     static bool read(void* out, uint64_t start_sector, uint32_t count);
     static bool write(uint64_t start_sector, const void* in, uint32_t count);
     static partition_table& get_partition_table();
-    template<trivial_copy T> static size_t read_objects(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, div_roundup(num_objs * sizeof(T), __bytes_per_sector())); }
+    template<trivial_copy T> static size_t read_objects(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, div_round_up(num_objs * sizeof(T), __bytes_per_sector())); }
     template<trivial_copy T> static bool read_object(T& out, uint64_t from) { return read_objects(std::addressof(out), from, 1U); }
 };
 #endif

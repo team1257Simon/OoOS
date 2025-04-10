@@ -98,8 +98,8 @@ bool elf64_shared_object::load_segments()
             addr_t target = virtual_load_base.plus(h.p_vaddr);
             addr_t blk = kmm.allocate_user_block(h.p_memsz, target, h.p_align, is_write(h), is_exec(h));
             if(!blk) { kmm.exit_frame(); throw std::bad_alloc{}; }
-            addr_t idmap(kmm.translate_vaddr_in_current_frame(target));
-            size_t actual_size = kernel_memory_mgr::page_aligned_region_size(target, h.p_memsz);
+            addr_t idmap(kmm.frame_translate(target));
+            size_t actual_size = kernel_memory_mgr::aligned_size(target, h.p_memsz);
             addr_t img_dat = segment_ptr(n);
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }

@@ -106,23 +106,23 @@ void extfs::initialize()
     if(initialized) return;
     if(!(sb && read_hd(sb, superblock_lba, sb_sectors))) throw std::runtime_error{ "failed to read superblock" };
     uint64_t block_cnt = qword(sb->block_count, sb->block_count_hi);
-    uint64_t group_count_by_blocks = div_roundup(block_cnt, sb->blocks_per_group);
-    uint64_t group_count_by_inodes = div_roundup(sb->inode_count, sb->inodes_per_group);
+    uint64_t group_count_by_blocks = div_round_up(block_cnt, sb->blocks_per_group);
+    uint64_t group_count_by_inodes = div_round_up(sb->inode_count, sb->inodes_per_group);
     if(group_count_by_blocks != group_count_by_inodes) { throw std::logic_error{ "inode block group count of " + std::to_string(group_count_by_inodes) + " does not match block group count of " + std::to_string(group_count_by_blocks) }; }
     num_blk_groups = group_count_by_blocks;
     blk_group_descs = bg_alloc.allocate(num_blk_groups);
     size_t bgsz = up_to_nearest(num_blk_groups * sizeof(block_group_descriptor), block_size());
     char* bg_buffer = buff_alloc.allocate(bgsz);
-    size_t inode_blocks_per_group = div_roundup(sb->inodes_per_group, inodes_per_block());
+    size_t inode_blocks_per_group = div_round_up(sb->inodes_per_group, inodes_per_block());
     bg_table_block.data_buffer = bg_buffer;
-    bg_table_block.chain_len = div_roundup(bgsz, block_size());
+    bg_table_block.chain_len = div_round_up(bgsz, block_size());
     if(!(num_blk_groups && blk_group_descs && read_hd(bg_table_block))) throw std::runtime_error{ "failed to read block group table" };
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
     for(size_t i = 0; i < num_blk_groups; i++)
     {
         ext_block_group& bg = block_groups.emplace_back(this, blk_group_descs + i);
-        bg.inode_usage_bmp.chain_len = div_roundup(sb->blocks_per_group, block_size() * CHAR_BIT);
-        bg.blk_usage_bmp.chain_len = div_roundup(sb->inodes_per_group, block_size() * CHAR_BIT);
+        bg.inode_usage_bmp.chain_len = div_round_up(sb->blocks_per_group, block_size() * CHAR_BIT);
+        bg.blk_usage_bmp.chain_len = div_round_up(sb->inodes_per_group, block_size() * CHAR_BIT);
         bg.inode_block.chain_len = inode_blocks_per_group;
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);

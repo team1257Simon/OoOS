@@ -61,7 +61,7 @@ inline static bool validate_elf(elf64_ehdr * elf)
 }
 inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
 inline static size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000; }
-inline static uint64_t div_roundup(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
+inline static uint64_t div_round_up(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
 static bool guid_equals(efi_guid_t a, efi_guid_t b)
 {
     if(a.Data1 != b.Data1 || a.Data2 != b.Data2 || a.Data3 != b.Data3) return 0;
@@ -83,9 +83,9 @@ static bool xsdt_checksum(struct xsdt_t* xsdt)
 }
 inline static size_t required_tables(size_t num_pages_to_map)
 {
-    size_t num_page_tables = div_roundup(num_pages_to_map, PT_LEN);
-    size_t num_page_dirs = div_roundup(num_page_tables, PT_LEN);
-    size_t num_page_dir_tables = div_roundup(num_page_dirs, PT_LEN);
+    size_t num_page_tables = div_round_up(num_pages_to_map, PT_LEN);
+    size_t num_page_dirs = div_round_up(num_page_tables, PT_LEN);
+    size_t num_page_dir_tables = div_round_up(num_page_dirs, PT_LEN);
     return num_page_dir_tables + num_page_dirs + num_page_tables + 1; // Additional 1 for the PML4; each table itself fills one page of memory
 }
 size_t required_tables_postinit(size_t num_pages_to_map)

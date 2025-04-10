@@ -268,7 +268,7 @@ extern "C"
         }
         return 0;
     }
-    char* dlerror()
+    const char* dlerror()
     {
         if(!errno) return nullptr;
         if(errno == ENOMEM) return "not enough memory";

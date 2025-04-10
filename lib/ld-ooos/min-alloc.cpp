@@ -12,8 +12,8 @@ constexpr void operator delete[](void*, void*) noexcept {}
 constexpr unsigned min_exponent = 8U;
 constexpr unsigned max_block_index = 32U;
 constexpr unsigned alloc_magic = 0xC001C0DE;
-constexpr size_t minimum_block_size = 1UL << min_exponent;
-constexpr size_t maximum_block_size = 1UL << max_block_index;
+constexpr size_t min_block_size = 1UL << min_exponent;
+constexpr size_t max_block_size = 1UL << max_block_index;
 constexpr static size_t page_size = 4096UL;
 constexpr size_t st_bits = __CHAR_BIT__ * sizeof(size_t);
 constexpr static size_t __max(size_t a, size_t b) noexcept { return a > b ? a : b; }
@@ -64,7 +64,7 @@ struct [[gnu::may_alias]] block_tag
 };
 static block_tag* available_blocks[max_block_index - min_exponent]{};
 static void* __min_sbrk(ptrdiff_t amt) { void* result; asm volatile("syscall" : "=a"(result) : "0"(6), "D"(amt) : "%r11", "%rcx", "memory"); if(long test = reinterpret_cast<long>(result); test < 0 && test > -4096) { errno = static_cast<int>(test); return nullptr; } return result; }
-constexpr static uint32_t calculate_block_index(size_t size) { if(size < minimum_block_size) return 0; if(size > maximum_block_size) return max_block_index; return (st_bits - __builtin_clzl(size)) - min_exponent; }
+constexpr static uint32_t calculate_block_index(size_t size) { if(size < min_block_size) return 0; if(size > max_block_size) return max_block_index; return (st_bits - __builtin_clzl(size)) - min_exponent; }
 static void alloc_lock() { while(__atomic_test_and_set(&__mutex, __ATOMIC_SEQ_CST)) { asm volatile("pause" ::: "memory"); } }
 static void alloc_unlock() { __atomic_clear(&__mutex, __ATOMIC_SEQ_CST); }
 static void* allocate_pages(size_t pages) { return __min_sbrk(static_cast<ptrdiff_t>(page_size * pages)); }
@@ -93,7 +93,7 @@ static block_tag* create_tag(size_t size, size_t align)
     void* allocated = allocate_pages(__pages(actual));
     if(!allocated) return nullptr;
     block_tag* tag = (new(allocated) block_tag(__pages(actual) * page_size, size))->set_align(align);
-    if(tag->available_size() >= minimum_block_size + sizeof(block_tag)) tag->split()->insert_at(-1);
+    if(tag->available_size() >= min_block_size + sizeof(block_tag)) tag->split()->insert_at(-1);
     return tag;
 }
 static block_tag* find_tag(size_t size, size_t al)
@@ -106,7 +106,7 @@ static block_tag* find_tag(size_t size, size_t al)
             tag->remove();
             tag->held_size = size;
             tag->set_align(al);
-            if(tag->available_size() >= minimum_block_size + sizeof(block_tag)) tag->split()->insert_at(-1);
+            if(tag->available_size() >= min_block_size + sizeof(block_tag)) tag->split()->insert_at(-1);
             return tag;
         }
     }

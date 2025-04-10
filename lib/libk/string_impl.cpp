@@ -205,7 +205,7 @@ namespace std
             using __trait_type = std::char_traits<CT>;
             constexpr static size_t __max_dec = __max_dec_digits<IT>();
             constexpr static size_t __max_hex = 2 * sizeof(IT);
-            constexpr static size_t __xdigits(IT i) noexcept { using UIT = typename std::make_unsigned<IT>::type; return div_roundup(sizeof(IT) * CHAR_BIT - __clzg(static_cast<UIT>(i)), 4); }
+            constexpr static size_t __xdigits(IT i) noexcept { using UIT = typename std::make_unsigned<IT>::type; return div_round_up(sizeof(IT) * CHAR_BIT - __clzg(static_cast<UIT>(i)), 4); }
             constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
             constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
             constexpr static IT __get_dec_digit_v(IT num, size_t idx) noexcept { if(idx < __max_dec - 1) return (num % __get_pow10(idx + 1)) / __get_pow10(idx); else return num / __get_pow10(idx); }

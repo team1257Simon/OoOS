@@ -297,7 +297,7 @@ void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 		.cmd_fis_len = (sizeof(fis_reg_h2d) / sizeof(uint32_t)),
 		.atapi = false,
 		.w_direction = false, // d2h write
-		.prdt_length = static_cast<uint16_t>(div_roundup(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
+		.prdt_length = static_cast<uint16_t>(div_round_up(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
         .command_table = port->command_list[slot].command_table
 	};
     barrier();
@@ -317,7 +317,7 @@ void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t* 
 		.cmd_fis_len = (sizeof(fis_reg_h2d) / sizeof(uint32_t)),
 		.atapi = false,
 		.w_direction = true, // h2d write
-		.prdt_length = static_cast<uint16_t>(div_roundup(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
+		.prdt_length = static_cast<uint16_t>(div_round_up(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
         .command_table = port->command_list[slot].command_table
 	};
     barrier();

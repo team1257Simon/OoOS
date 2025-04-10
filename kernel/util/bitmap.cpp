@@ -9,7 +9,7 @@ off_t bitmap_scan_chain_zeroes(const unsigned long* bitmap, size_t num_ulongs, s
     if(num_zeroes == 1) return bitmap_scan_single_zero(bitmap, num_ulongs);
     if(__builtin_expect(num_zeroes > ulsize, false)) 
     {
-        size_t num_needed_ulongs = div_roundup(num_zeroes, ulsize);
+        size_t num_needed_ulongs = div_round_up(num_zeroes, ulsize);
         for(size_t i = 0; i < num_ulongs; )
         {
             size_t n = std::strnlen<unsigned long>(bitmap + i, num_needed_ulongs);

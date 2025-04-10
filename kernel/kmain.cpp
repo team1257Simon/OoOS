@@ -57,7 +57,7 @@ void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "
 void xdirect_write(std::string const& str) { direct_write(str.c_str()); }
 void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 void xklog(std::string const& str) { klog(str.c_str()); }
-static int __xdigits(uintptr_t num) { return num ? div_roundup((sizeof(uintptr_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
+static int __xdigits(uintptr_t num) { return num ? div_round_up((sizeof(uintptr_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
 static void descr_pt(partition_table const& pt)
@@ -293,11 +293,11 @@ void dyn_elf_tests()
         kmm.enter_frame(sm.shared_frame);
         startup_tty.print_line("SO name: " + test_so->get_soname());
         startup_tty.print_text("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").second.as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("printf").second))) + ")");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.frame_translate(test_so->resolve_by_name("printf").second))) + ")");
         startup_tty.print_text("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").second.as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("fgets").second))) + ")");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.frame_translate(test_so->resolve_by_name("fgets").second))) + ")");
         startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").second.as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.translate_vaddr_in_current_frame(test_so->resolve_by_name("malloc").second))) + ")");
+        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.frame_translate(test_so->resolve_by_name("malloc").second))) + ")");
         kmm.exit_frame();
         sm.remove(test_so);
     }
@@ -418,7 +418,7 @@ extern "C"
     paging_table kernel_cr3() { return kproc.saved_regs.cr3; }
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
-    void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_roundup((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
+    void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
     void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
     [[noreturn]] void abort() { if(com) { com->sputn("KERNEL ABORT\n", 13); com->pubsync(); } startup_tty.print_line("abort() called in kernel"); while(1); }
     __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("E: "); startup_tty.print_line(msg); if(com) { com->sputn("[KERNEL] E: ", 12); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }

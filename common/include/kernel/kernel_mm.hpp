@@ -208,7 +208,7 @@ class kernel_memory_mgr
     size_t const __num_status_bytes;            // Length of said array
     uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
     addr_t __kernel_cr3;                        // The location of the kernel's top-level paging structure
-    uintptr_t __physical_open_watermark{ 0 };   // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+    uintptr_t __watermark{ 0 };   // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
     addr_t __suspended_cr3{ nullptr };          // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame{ nullptr };
     static kernel_memory_mgr* __instance;
@@ -222,8 +222,8 @@ class kernel_memory_mgr
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
     void __mark_used(uintptr_t addr_start, size_t num_regions);
     uintptr_t __claim_region(uintptr_t addr, block_idx idx);
-    uintptr_t __find_and_claim_available_region(size_t sz);
-    void __release_claimed_region(size_t sz, uintptr_t start);
+    uintptr_t __find_and_claim(size_t sz);
+    void __release_region(size_t sz, uintptr_t start);
     void __lock();
     void __unlock();
     void __userlock();
@@ -233,10 +233,10 @@ class kernel_memory_mgr
 public:
     static void init_instance(mmap_t* mmap);
     static kernel_memory_mgr& get();
-    static size_t page_aligned_region_size(addr_t start, size_t requested);
+    static size_t aligned_size(addr_t start, size_t requested);
     static void suspend_user_frame();
     static void resume_user_frame();
-    constexpr uintptr_t open_wm() const { return __physical_open_watermark; }
+    constexpr uintptr_t open_wm() const { return __watermark; }
     kernel_memory_mgr(kernel_memory_mgr const&) = delete;
     kernel_memory_mgr(kernel_memory_mgr&&) = delete;
     kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;
@@ -245,7 +245,7 @@ public:
     void exit_frame() noexcept;
     void map_to_current_frame(std::vector<block_descr> const& blocks);
     paging_table allocate_pt();
-    uintptr_t translate_vaddr_in_current_frame(addr_t addr);
+    uintptr_t frame_translate(addr_t addr);
     addr_t allocate_kernel_block(size_t sz);
     addr_t allocate_mmio_block(size_t sz);
     addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);

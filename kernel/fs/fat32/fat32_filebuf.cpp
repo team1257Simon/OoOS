@@ -11,7 +11,7 @@ fat32_filebuf::fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_fil
                             {}
 std::streamsize fat32_filebuf::read_dev(std::streamsize n)
 {
-    size_t s = div_roundup(n, physical_block_size);
+    size_t s = div_round_up(n, physical_block_size);
     size_t k = 0;
     if(!__grow_buffer(s * physical_block_size)) return 0;
     if(!gptr()) { setg(__beg(), __cur(), __max()); }
@@ -21,7 +21,7 @@ std::streamsize fat32_filebuf::read_dev(std::streamsize n)
 }
 std::streamsize fat32_filebuf::on_overflow(std::streamsize n)
 {
-    size_t s = div_roundup(n, physical_block_size);
+    size_t s = div_round_up(n, physical_block_size);
     size_t k = 0;
     for(size_t i = 0; i < s; i++, k += physical_block_size) { if(uint32_t cl = __parent->claim_next(__my_clusters.back())) { __my_clusters.push_back(cl); } else break; }
     if(!__grow_buffer(k)) return 0;

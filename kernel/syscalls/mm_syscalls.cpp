@@ -39,7 +39,7 @@ extern "C"
                     file_node::pos_type pos = n->tell();
                     n->seek(offset, std::ios_base::beg);
                     kmm.enter_frame(ctask_frame);
-                    n->read(addr_t(kmm.translate_vaddr_in_current_frame(result)), std::min(size_t(len - offset), n->size()));
+                    n->read(addr_t(kmm.frame_translate(result)), std::min(size_t(len - offset), n->size()));
                     kmm.exit_frame();
                     n->seek(pos);
                     return result;

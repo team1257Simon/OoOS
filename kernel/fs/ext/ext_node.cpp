@@ -62,7 +62,7 @@ bool ext_vnode::expand_buffer(size_t added_bytes)
 std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
 {
     size_t bs = parent_fs->block_size();
-    size_t needed = div_roundup(n, bs);
+    size_t needed = div_round_up(n, bs);
     size_t ccap = __capacity();
     if(disk_block* blk = parent_fs->claim_blocks(this, needed)) 
     { 
@@ -76,7 +76,7 @@ std::streamsize ext_vnode::xsputn(const char* s, std::streamsize n)
 {
     if(n > __capacity() && !on_overflow(static_cast<std::streamsize>(n - __capacity()))) return 0;
     uint64_t sblk = block_of_data_ptr(__size());
-    size_t nblk = div_roundup(n, parent_fs->block_size());
+    size_t nblk = div_round_up(n, parent_fs->block_size());
     array_copy(__cur(), s, n);
     __advance(n);
     for(size_t i = 0; i < nblk; i++) block_data[sblk + i].dirty = true;

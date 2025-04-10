@@ -90,9 +90,9 @@ bool elf64_executable::load_segments()
             addr_t addr = segment_vaddr(n);
             addr_t img_dat = segment_ptr(n);
             addr_t blk = kmm.allocate_user_block(h.p_memsz, addr, h.p_align, is_write(h), is_exec(h));
-            addr_t idmap(kmm.translate_vaddr_in_current_frame(addr));
+            addr_t idmap(kmm.frame_translate(addr));
             if(!blk) { panic("could not allocate blocks for executable"); return false; }
-            frame_tag->usr_blocks.emplace_back(blk, addr, kernel_memory_mgr::page_aligned_region_size(addr, h.p_memsz));
+            frame_tag->usr_blocks.emplace_back(blk, addr, kernel_memory_mgr::aligned_size(addr, h.p_memsz));
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };

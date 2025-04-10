@@ -20,7 +20,7 @@ static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st)
         .st_mtim = timestamp_to_timespec(n->modif_time), 
         .st_ctim = timestamp_to_timespec(n->modif_time), 
         .st_blksize = physical_block_size,
-        .st_blocks = div_roundup(n->size(), physical_block_size) 
+        .st_blocks = div_round_up(n->size(), physical_block_size) 
     };  
 }
 extern "C"
