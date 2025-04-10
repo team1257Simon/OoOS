@@ -1,180 +1,87 @@
 
-
-
-
-
-
-
-
-typedef signed char __int8_t;
-
-typedef unsigned char __uint8_t;
-typedef short int __int16_t;
-
+typedef signed char        __int8_t;
+typedef unsigned char      __uint8_t;
+typedef short int          __int16_t;
 typedef short unsigned int __uint16_t;
-typedef int __int32_t;
-
-typedef unsigned int __uint32_t;
-typedef long int __int64_t;
-
-typedef long unsigned int __uint64_t;
-typedef signed char __int_least8_t;
-
-typedef unsigned char __uint_least8_t;
-typedef short int __int_least16_t;
-
+typedef int                __int32_t;
+typedef unsigned int       __uint32_t;
+typedef long int           __int64_t;
+typedef long unsigned int  __uint64_t;
+typedef signed char        __int_least8_t;
+typedef unsigned char      __uint_least8_t;
+typedef short int          __int_least16_t;
 typedef short unsigned int __uint_least16_t;
-typedef int __int_least32_t;
-
-typedef unsigned int __uint_least32_t;
-typedef long int __int_least64_t;
-
-typedef long unsigned int __uint_least64_t;
-typedef long int __intmax_t;
-
-
-
-
-
-
-
-typedef long unsigned int __uintmax_t;
-
-
-
-
-
-
-
-typedef long int __intptr_t;
-
-typedef long unsigned int __uintptr_t;
-
-typedef long int ptrdiff_t;
-typedef long unsigned int size_t;
-typedef int wchar_t;
-typedef struct {
-  long long __max_align_ll __attribute__((__aligned__(__alignof__(long long))));
-  long double __max_align_ld __attribute__((__aligned__(__alignof__(long double))));
+typedef int                __int_least32_t;
+typedef unsigned int       __uint_least32_t;
+typedef long int           __int_least64_t;
+typedef long unsigned int  __uint_least64_t;
+typedef long int           __intmax_t;
+typedef long unsigned int  __uintmax_t;
+typedef long int           __intptr_t;
+typedef long unsigned int  __uintptr_t;
+typedef long int           ptrdiff_t;
+typedef long unsigned int  size_t;
+typedef int                wchar_t;
+typedef struct
+{
+    long long   __max_align_ll __attribute__((__aligned__(__alignof__(long long))));
+    long double __max_align_ld __attribute__((__aligned__(__alignof__(long double))));
 } max_align_t;
-
-
-
-
-
 double _Complex cacos(double _Complex);
 float _Complex cacosf(float _Complex);
-
-
 double _Complex casin(double _Complex);
 float _Complex casinf(float _Complex);
 long double _Complex casinl(long double _Complex);
-
-
 double _Complex catan(double _Complex);
 float _Complex catanf(float _Complex);
 long double _Complex catanl(long double _Complex);
-
-
 double _Complex ccos(double _Complex);
 float _Complex ccosf(float _Complex);
-
-
 double _Complex csin(double _Complex);
 float _Complex csinf(float _Complex);
-
-
 double _Complex ctan(double _Complex);
 float _Complex ctanf(float _Complex);
-
-
-
 double _Complex cacosh(double _Complex);
 float _Complex cacoshf(float _Complex);
-
-
 double _Complex casinh(double _Complex);
 float _Complex casinhf(float _Complex);
-
-
 double _Complex catanh(double _Complex);
 float _Complex catanhf(float _Complex);
-
-
 double _Complex ccosh(double _Complex);
 float _Complex ccoshf(float _Complex);
-
-
 double _Complex csinh(double _Complex);
 float _Complex csinhf(float _Complex);
-
-
 double _Complex ctanh(double _Complex);
 float _Complex ctanhf(float _Complex);
-
-
-
 double _Complex cexp(double _Complex);
 float _Complex cexpf(float _Complex);
-
-
 double _Complex clog(double _Complex);
 float _Complex clogf(float _Complex);
 long double _Complex clogl(long double _Complex);
-long double cabsl(long double _Complex) ;
-double cabs(double _Complex) ;
-float cabsf(float _Complex) ;
-
-
+long double cabsl(long double _Complex);
+double      cabs(double _Complex);
+float       cabsf(float _Complex);
 double _Complex cpow(double _Complex, double _Complex);
 float _Complex cpowf(float _Complex, float _Complex);
-
-
 double _Complex csqrt(double _Complex);
 float _Complex csqrtf(float _Complex);
 long double _Complex csqrtl(long double _Complex);
-
-
-
-double carg(double _Complex);
-float cargf(float _Complex);
+double      carg(double _Complex);
+float       cargf(float _Complex);
 long double cargl(long double _Complex);
-
-
-double cimag(double _Complex);
-float cimagf(float _Complex);
+double      cimag(double _Complex);
+float       cimagf(float _Complex);
 long double cimagl(long double _Complex);
-
-
 double _Complex conj(double _Complex);
 float _Complex conjf(float _Complex);
-
-
 double _Complex cproj(double _Complex);
 float _Complex cprojf(float _Complex);
-
-
-double creal(double _Complex);
-float crealf(float _Complex);
+double      creal(double _Complex);
+float       crealf(float _Complex);
 long double creall(long double _Complex);
-
-
-
-float 
-     _Complex
-
-casinhf(float 
-             _Complex 
-                     z)
+float _Complex casinhf(float _Complex z)
 {
- float 
-      _Complex 
-              w;
-
- w = -1.0f * 
-            1.0fi 
-              * casinf(z * 
-                           1.0fi
-                            );
- return w;
+    float _Complex w;
+    w = -1.0f * 1.0fi * casinf(z * 1.0fi);
+    return w;
 }

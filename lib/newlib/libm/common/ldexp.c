@@ -1,0 +1,1 @@
+__attribute__((weak)) double    ldexp(double d, int i) { return __builtin_ldexp(d, i); }

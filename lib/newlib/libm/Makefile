@@ -7,7 +7,7 @@ READ = $(TARGET_HOSTED)-readelf
 CFLAGS = -O2 -fPIC -ffreestanding
 CCFLAGS = $(CFLAGS) -std=gnu23 -w
 CXXFLAGS = $(CFLAGS) -std=c++20 -w
-LDFLAGS = $(CFLAGS) -ffreestanding -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -shared -lgcc
+ARFLAGS := -rcs
 OUTDIR = $(IMAGE_FILE_DIR)/lib
 OBJDIR := $(OBJ_BASE_DIR)/libc/libm
 SUBDIRS = $(sort $(dir $(wildcard */*.*)))
@@ -18,10 +18,10 @@ CPPSRC = $(wildcard *.cpp */*.cpp)
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES)) 
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
-OUT_SO = $(OUTDIR)/libm.so
+OUT_A = $(OUTDIR)/libm.so
 SYM_LOG := $(LOG_DIR)/libm_syms.txt
 .PHONY: all
-all: $(OBJDIR) $(OSUBDIRS) $(OUTDIR) $(OUT_SO) $(SYM_LOG)
+all: $(OBJDIR) $(OSUBDIRS) $(OUTDIR) $(OUT_A) $(SYM_LOG)
 $(OUTDIR) $(OBJDIR) $(OSUBDIRS) $(ASMT_DIR) $(LOG_DIR):
 	@mkdir -p $@
 $(OBJDIR)/%.o: %.cpp
@@ -34,9 +34,8 @@ $(ASMT_DIR)/%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
 $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
-$(SYM_LOG): $(OUT_SO) $(LOG_DIR) 
+$(SYM_LOG): $(OUT_A) $(LOG_DIR) 
 	$(READ) $(READFLAGS) $< > $@
-$(OUT_SO): $(OBJECTS)
-	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
-	$(ST) -s $@
+$(OUT_A): $(OBJECTS)
+	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 asmtest: $(ASMT_DIR) $(ASM_TEST)
