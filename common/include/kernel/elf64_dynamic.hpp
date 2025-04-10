@@ -55,9 +55,9 @@ public:
 };
 extern "C"
 {
-    addr_t syscall_dlinit(elf64_dynamic_object* obj_handle);    // void (**dlinit(void* handle))(int argc, char** argv, char** env);
-    addr_t syscall_dlpreinit(elf64_dynamic_object* obj_handle); // void (**dlpreinit(void* handle))(int argc, char** argv, char** env);
-    addr_t syscall_dlfini(elf64_dynamic_object* obj_handle);    // void (**dlfini(void* handle))();
-    addr_t syscall_depends(elf64_dynamic_object* obj_handle);   // char** depends(void* handle);
+    addr_t syscall_dlinit(addr_t handle);    // void (**dlinit(void* handle))(int argc, char** argv, char** env);
+    addr_t syscall_dlpreinit(addr_t handle); // void (**dlpreinit(void* handle))(int argc, char** argv, char** env);
+    addr_t syscall_dlfini(addr_t handle);    // void (**dlfini(void* handle))();
+    addr_t syscall_depends(addr_t handle);   // char** depends(void* handle);
 }
 #endif

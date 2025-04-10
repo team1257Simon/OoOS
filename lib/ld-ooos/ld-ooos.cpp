@@ -1,13 +1,14 @@
 #include "ld-ooos.hpp"
-const char       path_var_str[] = "LD_LIBRARY_PATH=";
-constexpr size_t name_str_size  = sizeof(path_var_str);
+static const char path_var_str[]    { "LD_LIBRARY_PATH=" };
+constexpr size_t  name_str_size     { sizeof(path_var_str) };
+static char       dl_error_str[54]  {};
 extern "C"
 {
-    __local int       argc;
-    __local int       errno;
-    __local char**    argv;
-    __local char**    env;
-    __local dl_action last_error_action;
+    __hidden int       argc;
+    __hidden int       errno;
+    __hidden char**    argv;
+    __hidden char**    env;
+    __hidden dl_action last_error_action;
     [[noreturn]] void resolve(...);
 }
 static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept
@@ -175,8 +176,50 @@ static bool __load_deps(void* handle)
     }
     init_fn* ini = dlinit(handle);
     if(!ini) { last_error_action = DLA_INIT; return false; }
-    if(*ini) { for(size_t i = 0; ini[i]; i++) ini[i](argc, argv, env); }
+    if(*ini) { for(size_t i = 0; ini[i]; i++) { ini[i](argc, argv, env); } }
     return true;
+}
+static const char* __get_dl_error() 
+{
+    if(errno == ENOMEM) return "not enough memory";
+    if(errno == EINVAL) return "a pointer argument was invalid";
+    if(errno == EBADF) return "a handle argument was invalid";
+    switch(last_error_action)
+    {
+        case DLA_INIT:
+            switch(errno)
+            {
+                case ENOENT:
+                    return "the system cound not resolve a required object symbol";
+                case ELIBBAD:
+                    return "a relocation entry in a required library is corrupted";
+                default:
+                    break;
+            }
+            break;
+        case DLA_OPEN:
+            if(errno == ENOENT) { return "shared object could not be found"; }
+            break;
+        case DLA_RESOLVE:
+            switch(errno)
+            {
+                case ENOEXEC:
+                    return "the current process is missing relocation info";
+                case ELIBSCN:
+                    return "the relocation entry for a symbol is missing or incorrect";
+                case ELIBACC:
+                    return "the system could not resolve a required function symbol";
+                case ENOENT:
+                    return "the system could not find the requested symbol";
+                break;
+            }
+            break;
+        default:
+            if(errno == ENOENT) { return "the symbol requested does not exist"; }
+            break;
+    }
+    if(errno == ENOSYS) return "libdl functions not supported with static executables";
+    return "unknown error or invalid error code";
 }
 extern "C"
 {
@@ -187,7 +230,7 @@ extern "C"
         for(i = 0; i < n && lhs[i] == rhs[i]; i++);
         return lhs[i] < rhs[i] ? -1 : lhs[i] > rhs[i] ? 1 : 0;
     }
-    int dlbegin(void* phandle, char** __argv, char** __env)
+    __hidden int dlbegin(void* phandle, char** __argv, char** __env)
     {
         // The kernel will call this function to invoke the dynamic linker.
         // The handle is the program handle to pass to syscalls as part of the setup.
@@ -214,7 +257,7 @@ extern "C"
         if(__load_deps(phandle)) return 0;
         else return errno;
     }
-    int dlend(void* phandle)
+    __hidden int dlend(void* phandle)
     {
         // The kernel will call this function to invoke the dynamic linker.
         // The handle is the program handle to pass to syscalls as part of the cleanup.
@@ -228,6 +271,14 @@ extern "C"
         void* result = __so_open(name, flags);
         if(result && __load_deps(result)) return result;
         else return nullptr;
+    }
+    void* dlsym(void* handle, const char* symbol)
+    {
+        long result;
+        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLSYM), "D"(handle), "S"(symbol) : "memory", "%r11", "%rcx");
+        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); last_error_action = DLA_RESOLVE; }
+        else return reinterpret_cast<void*>(result);
+        return nullptr;
     }
     int dlclose(void* handle)
     {
@@ -268,44 +319,21 @@ extern "C"
         }
         return 0;
     }
-    const char* dlerror()
+    int dladdr(const void* addr, dl_info* info)
     {
-        if(!errno) return nullptr;
-        if(errno == ENOMEM) return "not enough memory";
-        if(errno == EINVAL) return "a pointer argument was invalid";
-        switch(last_error_action)
-        {
-            case DLA_INIT:
-                switch(errno)
-                {
-                    case ENOENT:
-                        return "the system cound not resolve a required object symbol";
-                    case ELIBBAD:
-                        return "a relocation entry in a required library is corrupted";
-                    default:
-                        break;
-                }
-                break;
-            case DLA_OPEN:
-                if(errno == ENOENT) { return "shared object could not be found"; }
-                break;
-            case DLA_RESOLVE:
-                switch(errno)
-                {
-                    case ENOEXEC:
-                        return "the current process is missing relocation info";
-                    case ELIBSCN:
-                        return "the relocation entry for a symbol is missing or incorrect";
-                    case ELIBACC:
-                        return "the system could not resolve a required function symbol";
-                    break;
-                }
-                break;
-            default:
-                if(errno == ENOENT) { return "the symbol requested does not exist"; }
-                break;
-        }
-        if(errno == ENOSYS) return "libdl functions not supported with static executables";
-        return "unknown error or invalid error code";
+        int result;
+        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLADDR), "D"(addr), "S"(info) : "memory", "%r11", "%rcx");
+        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        return result;
+    }
+    char* dlerror()
+    {
+        __zero(dl_error_str, sizeof(dl_error_str));
+        if(!errno || !last_error_action) return nullptr;
+        const char* err_str = __get_dl_error();
+        last_error_action = DLA_NONE;
+        errno = 0;
+        __copy(dl_error_str, err_str, __strlen(err_str));
+        return dl_error_str;
     }
 }

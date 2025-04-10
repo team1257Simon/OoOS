@@ -33,11 +33,11 @@ syscall_vec:
     .quad syscall_dlopen        # 26; WIP
     .quad syscall_dlclose       # 27; WIP
     .quad syscall_dlsym         # 28; WIP
-    .quad syscall_dlresolve     # 29; WIP / ldso-specific
+    .quad syscall_resolve       # 29; WIP / ldso-specific
     .quad syscall_dlpath        # 30; WIP / ldso-specific
     .quad syscall_dlmap         # 31; WIP / ldso-specific
     .quad syscall_depends       # 32; WIP / ldso-specific
-    .quad syscall_dladdr        # 33; WIP / ldso-specific
+    .quad syscall_dladdr        # 33; WIP
     .quad syscall_dlfini        # 34; WIP / ldso-specific
 syscv_end:
     .quad on_invalid_syscall    # handler for out-of-range syscalls

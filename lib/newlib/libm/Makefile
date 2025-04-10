@@ -18,7 +18,7 @@ CPPSRC = $(wildcard *.cpp */*.cpp)
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES)) 
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
-OUT_A = $(OUTDIR)/libm.so
+OUT_A = $(OUTDIR)/libm.a
 SYM_LOG := $(LOG_DIR)/libm_syms.txt
 .PHONY: all
 all: $(OBJDIR) $(OSUBDIRS) $(OUTDIR) $(OUT_A) $(SYM_LOG)

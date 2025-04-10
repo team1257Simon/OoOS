@@ -56,11 +56,11 @@ struct [[gnu::may_alias]] block_tag
 	constexpr void* actual_end() const noexcept { return static_cast<char*>(actual_start()) + held_size; }
     constexpr size_t get_align(size_t al) const noexcept { if(!al) return 0; char* st = static_cast<char*>(start()); return static_cast<size_t>(static_cast<char*>(__alignup(st, al)) - st); }
     constexpr block_tag* set_align(size_t al) noexcept { align_bytes = get_align(al); return this; }
-    __local block_tag* split() noexcept { block_tag* that = new(actual_end()) block_tag(available_size(), 0, -1, this, right_split); if(that->right_split) that->right_split->left_split = that; right_split = that; this->block_size -= that->block_size; return that; }
-    __local void insert_at(int idx);
-    __local void remove();
-    __local bool absorb_right();
-    __local block_tag* melt_left();
+    __hidden block_tag* split() noexcept { block_tag* that = new(actual_end()) block_tag(available_size(), 0, -1, this, right_split); if(that->right_split) that->right_split->left_split = that; right_split = that; this->block_size -= that->block_size; return that; }
+    __hidden void insert_at(int idx);
+    __hidden void remove();
+    __hidden bool absorb_right();
+    __hidden block_tag* melt_left();
 };
 static block_tag* available_blocks[max_block_index - min_exponent]{};
 static void* __min_sbrk(ptrdiff_t amt) { void* result; asm volatile("syscall" : "=a"(result) : "0"(6), "D"(amt) : "%r11", "%rcx", "memory"); if(long test = reinterpret_cast<long>(result); test < 0 && test > -4096) { errno = static_cast<int>(test); return nullptr; } return result; }
@@ -112,13 +112,13 @@ static block_tag* find_tag(size_t size, size_t al)
     }
     return nullptr;
 }
-__local void deallocate(void* ptr, size_t al) 
+__hidden void deallocate(void* ptr, size_t al) 
 {
     if(!ptr) return;
     block_tag* tag = locate_tag(ptr, al);
     if(tag) replace_tag(tag);
 }
-__local void* allocate(size_t count, size_t al)
+__hidden void* allocate(size_t count, size_t al)
 {
     if(!count) return nullptr;
     alloc_lock();
@@ -127,13 +127,13 @@ __local void* allocate(size_t count, size_t al)
     alloc_unlock();
     return tag ? tag->actual_start() : nullptr;
 }
-__local void block_tag::insert_at(int idx)
+__hidden void block_tag::insert_at(int idx)
 {
     index = idx < 0 ? calculate_block_index(block_size) : idx;
     if(available_blocks[index]) { next = available_blocks[index]; available_blocks[index]->previous = this; }
     available_blocks[index] = this;
 }
-__local void block_tag::remove()
+__hidden void block_tag::remove()
 {
     if(available_blocks[index] == this) available_blocks[index] = next;
     if(previous) previous->next = next;
@@ -142,7 +142,7 @@ __local void block_tag::remove()
     previous = nullptr;
     index = -1;
 }
-__local bool block_tag::absorb_right()
+__hidden bool block_tag::absorb_right()
 {
     block_tag* that = right_split;
     if(that && that->index >= 0)
@@ -155,7 +155,7 @@ __local bool block_tag::absorb_right()
     }
     return false;
 }
-__local block_tag* block_tag::melt_left()
+__hidden block_tag* block_tag::melt_left()
 {
     block_tag* that = left_split;
     if(that && that->index >= 0)

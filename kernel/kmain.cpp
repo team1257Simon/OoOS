@@ -287,7 +287,7 @@ void dyn_elf_tests()
     if(test_extfs.has_init()) try
     {
         shared_object_map& sm = shared_object_map::get_globals();
-        file_node* n = test_extfs.open_file("dyntest.so");
+        file_node* n = test_extfs.open_file("lib/libc.so");
         shared_object_map::iterator test_so = sm.add(n);
         test_extfs.close_file(n);
         kmm.enter_frame(sm.shared_frame);

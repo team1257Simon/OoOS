@@ -1,6 +1,7 @@
     .code64
     .section    .text
     .global     _start
+    .hidden     _start
     .type       _start,     @function
     .type       _end,       @function
 _start:

@@ -1,5 +1,4 @@
 #!/bin/sh
-cp -f /usr/lib/x86_64-linux-gnu/libc.so.6 $3/dyntest.so
 dd if=/dev/zero of=$1 bs=512 count=750000
 parted $1 -s -a minimal mklabel gpt \
     mkpart EFI FAT32 2048s 93716s \

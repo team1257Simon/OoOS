@@ -13,7 +13,7 @@ TARGET = $(OUTDIR)/test.elf
 CSRC = test.c
 CPPSRC = $(wildcard *.cpp)
 OBJECTS = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)
-SYM_LOG := $(LOG_DIR)/test_elf.txt
+SYM_LOG := $(LOG_DIR)/test-syms.txt
 .PHONY: all
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@

@@ -1,6 +1,7 @@
     .code64
     .section    .text
     .global     resolve
+    .hidden     resolve
     .type       resolve,        @function
 resolve:
     xchgq   8(%rsp),        %rdi

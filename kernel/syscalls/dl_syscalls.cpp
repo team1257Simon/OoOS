@@ -7,28 +7,32 @@
 #include "kdebug.hpp"
 #include "sys/errno.h"
 #include "arch/arch_amd64.h"
+typedef std::pair<addr_t, bool> search_result;
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
-static addr_t global_search(const char* name)
+static elf64_dynamic_object* validate_handle(addr_t handle) { return dynamic_cast<elf64_dynamic_object*>(handle.as<elf64_dynamic_object>()); }
+static search_result global_search(const char* name)
 {
     addr_t result = nullptr;
+    bool have_weak = false;
     for(elf64_shared_object const& so : shared_object_map::get_globals())
     {
         std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
         if(!result_pair.second) continue;
-        if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
-        else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+        if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+        else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
     }
-    return result;
+    return { result, have_weak };
 }
-static addr_t full_search(task_ctx* task, const char* name)
+static search_result full_search(task_ctx* task, const char* name)
 { 
-    addr_t result; 
+    addr_t result;
+    bool have_weak = false;
     if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle))
     {   
         if(std::pair<elf64_sym, addr_t> result_pair = dyn->resolve_by_name(name); result_pair.second)
         {
-            if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
-            else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+            if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+            else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
             else result = nullptr;
         }
     }
@@ -36,38 +40,48 @@ static addr_t full_search(task_ctx* task, const char* name)
     {
         std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
         if(!result_pair.second) continue;
-        if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
-        else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+        if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+        else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
     }
     for(elf64_shared_object const& so : shared_object_map::get_globals())
     {
         std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
         if(!result_pair.second) continue;
-        if(result_pair.first.st_info.bind == SB_GLOBAL) return result_pair.second;
-        else if(result_pair.first.st_info.bind == SB_WEAK) result = result_pair.second;
+        if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+        else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
     }
-    return result;
+    return { result, have_weak };
 }
-static addr_t full_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
+static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
 {
     elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
-    if(so && so->is_symbolic()) { if(addr_t result = so->resolve_by_name(name).second) return result; }
-    return full_search(task, name);
+    bool have_weak = false;
+    if(so && so->is_symbolic()) 
+    {
+        std::pair<elf64_sym, addr_t> result_pair = so->resolve_by_name(name);
+        if(result_pair.second) return { result_pair.second, true };
+        else if(result_pair.first.st_info.bind == SB_WEAK) have_weak = true;
+    }
+    search_result res = full_search(task, name);
+    if(have_weak && !res.second) res.second = true;
+    return res;
 }
 extern "C"
 {
-    addr_t syscall_dlinit(elf64_dynamic_object* obj_handle)
+    addr_t syscall_dlinit(addr_t handle)
     {
+        elf64_dynamic_object* obj_handle = validate_handle(handle);
+        if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         // References to objects in the GOT must be resolved now
         for(elf64_rela const& r : obj_handle->get_object_relas()) 
         {
-            addr_t sym_addr = full_search(obj_handle, task, obj_handle->symbol_name(obj_handle->get_sym(r.r_info.sym_index)));
-            if(!sym_addr) return addr_t(static_cast<uintptr_t>(-ENOENT));
             addr_t target = translate_user_pointer(obj_handle->resolve_rela_target(r));
             if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
-            target.ref<addr_t>() = sym_addr;
+            search_result sr = full_search(obj_handle, task, obj_handle->symbol_name(obj_handle->get_sym(r.r_info.sym_index)));
+            if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
+            target.ref<addr_t>() = sr.first;
         }
         size_t len = obj_handle->get_init().size();
         addr_t result = sysres_add(len * sizeof(addr_t));
@@ -75,16 +89,20 @@ extern "C"
         array_copy(translate_user_pointer(result), obj_handle->get_init().data(), len);
         return result;
     }
-    addr_t syscall_dlfini(elf64_dynamic_object* obj_handle)
+    addr_t syscall_dlfini(addr_t handle)
     {
+        elf64_dynamic_object* obj_handle = validate_handle(handle);
+        if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         size_t len = obj_handle->get_fini().size();
         addr_t result = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
         array_copy(translate_user_pointer(result), obj_handle->get_fini().data(), len);
         return result;
     }
-    addr_t syscall_dlpreinit(elf64_dynamic_object* obj_handle)
+    addr_t syscall_dlpreinit(addr_t handle)
     {
+        elf64_dynamic_object* obj_handle = validate_handle(handle);
+        if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         if(elf64_dynamic_executable* x = dynamic_cast<elf64_dynamic_executable*>(obj_handle))
         {
             size_t len = x->get_preinit().size();
@@ -143,10 +161,9 @@ extern "C"
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return -ENOSYS;
-        if(handle == addr_t(task->object_handle)) return 0; // dlclose on the "self" handle does nothing (UB)
-        elf64_dynamic_object* obj = handle;
-        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
-        if(!so || !is_valid_handle(*so)) { return -EINVAL; }
+        if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->object_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
+        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
+        if(!so) { return -EINVAL; }
         shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
         if(!task->local_so_map) return -ENOSYS;
         if(task->local_so_map->contains(so->get_soname())) { task->local_so_map->remove(it); }
@@ -158,17 +175,27 @@ extern "C"
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
-        if(handle == addr_t(task->object_handle)) { if(addr_t result = full_search(task, name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        if(!handle) { if(addr_t result = global_search(name)) return result; else return addr_t(static_cast<uintptr_t>(-ENOENT)); }
-        elf64_dynamic_object* obj = handle;
-        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
-        if(!so || !is_valid_handle(*so)) { return addr_t(static_cast<uintptr_t>(-EINVAL)); }
-        addr_t result = so->resolve_by_name(name).second;
-        if(!result) addr_t(static_cast<uintptr_t>(-ENOENT));
-        return result;
+        if(!handle)
+        {
+            search_result sr = global_search(name);
+            if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
+            return sr.first;
+        }
+        if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->object_handle)
+        {
+            search_result sr = full_search(task, name);
+            if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
+            return sr.first;
+        }
+        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
+        if(!so) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
+        std::pair<elf64_sym, addr_t> result_pair = so->resolve_by_name(name);
+        if(!result_pair.second && result_pair.first.st_info.bind == SB_WEAK) return nullptr;
+        else if(!result_pair.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
+        return result_pair.second;
     }
-    addr_t syscall_dlresolve(uint32_t sym_idx, addr_t got_loaded_id)
+    addr_t syscall_resolve(uint32_t sym_idx, addr_t got_loaded_id)
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
@@ -179,10 +206,10 @@ extern "C"
             if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-ELIBSCN));
             addr_t target_pos = translate_user_pointer(obj->resolve_rela_target(rela));
             elf64_sym const& sym = obj->get_sym(rela.r_info.sym_index);
-            addr_t result = full_search(obj, task, obj->symbol_name(sym));
-            if(!result) return addr_t(static_cast<uintptr_t>(-ELIBACC));
-            target_pos.ref<addr_t>() = result;
-            return result;
+            search_result result = full_search(obj, task, obj->symbol_name(sym));
+            if(!result.second || !result.first) return addr_t(static_cast<uintptr_t>(-ELIBACC));
+            target_pos.ref<addr_t>() = result.first;
+            return result.first;
         }
         else return addr_t(static_cast<uintptr_t>(-EINVAL));
     }
@@ -205,10 +232,10 @@ extern "C"
     {
         task_ctx* task = get_gs_base<task_ctx>();
         if(!task->local_so_map) return -ENOSYS;
+        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
+        if(!so) return -EBADF;
         ent = translate_user_pointer(ent);
         if(!ent) return -EINVAL;
-        elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
-        if(!so || !is_valid_handle(*so)) return -EINVAL;
         ent->dynamic_section = so->dyn_segment_ptr();
         ent->dynamic_section_length = so->dyn_segment_len();
         shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
@@ -230,8 +257,10 @@ extern "C"
         ent->global_offset_table_start = obj->global_offset_table();
         return 0;
     }
-    addr_t syscall_depends(elf64_dynamic_object* obj_handle)
+    addr_t syscall_depends(addr_t handle)
     {
+        elf64_dynamic_object* obj_handle = validate_handle(handle);
+        if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         char** result = sysres_add((obj_handle->get_dependencies().size() + 1) * sizeof(char*));
         char** result_real = translate_user_pointer(result);
         if(!result || !result_real) return addr_t(static_cast<uintptr_t>(-ENOMEM));

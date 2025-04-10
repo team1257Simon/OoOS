@@ -2,7 +2,7 @@
 #define __LD_OOOS
 #include <stddef.h>
 #include <stdint.h>
-#define __local       __attribute__((visibility("hidden")))
+#define __hidden       __attribute__((visibility("hidden")))
 #define SCV_DLPREINIT 24
 #define SCV_DLINIT    25
 #define SCV_DLOPEN    26
@@ -23,6 +23,7 @@
 #define RTLD_NODELETE 0x1000
 #define	ENOENT 2
 #define	ENOEXEC 8
+#define EBADF 9
 #define	ENOMEM 12
 #define	EINVAL 22
 #define ELIBACC 83
@@ -102,6 +103,6 @@ extern "C"
     void             __zero(void*, size_t);
     char*            __strterm(const char*);
 }
-__local void  deallocate(void* ptr, size_t al);
-__local void* allocate(size_t count, size_t al);
+__hidden void  deallocate(void* ptr, size_t al);
+__hidden void* allocate(size_t count, size_t al);
 #endif

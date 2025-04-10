@@ -1,22 +1,21 @@
 #include "elf64_shared.hpp"
 #include "stdexcept"
 constexpr size_t mw_bits = sizeof(uint64_t) * CHAR_BIT;
-constexpr uint64_t shared_magic = 0x420B1A2E17;
 const char* empty_name = "";
-static const char* find_so_name(addr_t image_start);
+static const char* find_so_name(addr_t, file_node*);
+constexpr static addr_t& align_start(addr_t& orig) { return (orig = addr_t(up_to_nearest(orig, page_size))); }
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
-bool is_valid_handle(elf64_shared_object const& so) { return so.so_handle_magic == shared_magic; }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descr& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
 void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && dyn_entries[i].d_val & 0x02)) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
-elf64_shared_object::~elf64_shared_object() = default; // TODO: call the destructors for loaded objects if applicable
+addr_t elf64_shared_object::entry_point() const { uintptr_t entry_offs = ehdr().e_entry; return entry_offs ? resolve(entry_offs) : nullptr; }
+elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     elf64_object            ( n ),
     elf64_dynamic_object    ( n ),
-    so_handle_magic         { shared_magic },
-    soname                  ( find_so_name(img_ptr()) ),
-    virtual_load_base       { frame->dynamic_extent },
+    soname                  ( find_so_name(img_ptr(), n) ),
+    virtual_load_base       { align_start(frame->dynamic_extent) },
     total_segment_size      { 0UL },
     frame_tag               { frame },
     ref_count               { 1UL },
@@ -26,7 +25,6 @@ elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
 elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : 
     elf64_object            ( std::move(that) ),
     elf64_dynamic_object    ( std::move(that) ),
-    so_handle_magic         { shared_magic },
     soname                  ( std::move(that.soname) ),
     virtual_load_base       { that.virtual_load_base },
     total_segment_size      { that.total_segment_size },
@@ -35,7 +33,7 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) :
     sticky                  { that.sticky },
     symbolic                { that.symbolic }
                             { that.frame_tag = nullptr; }
-static const char* find_so_name(addr_t image_start)
+static const char* find_so_name(addr_t image_start, file_node* so_file)
 {
     elf64_ehdr const& eh = image_start.ref<elf64_ehdr>();
     for(size_t i = 0; i < eh.e_phnum; i++)
@@ -53,7 +51,7 @@ static const char* find_so_name(addr_t image_start)
                 else if(dyn_ent[j].d_tag == DT_SONAME) name_off = dyn_ent[j].d_val;
                 if(strtab_off && name_off) break;
             }
-            if(!(strtab_off && name_off)) return empty_name;
+            if(!(strtab_off && name_off)) return so_file->name();
             else return image_start.plus(strtab_off + name_off);
         }
     }
@@ -80,8 +78,8 @@ program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_
 bool elf64_shared_object::xvalidate()
 {
     if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_encoding_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
-    if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit object files are not yet supported"); return false; }
-    if(ehdr().e_type != ET_DYN) { panic("object is not a shared library"); return false; }
+    if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit object files are not supported"); return false; }
+    if(ehdr().e_type != ET_DYN) { panic("not a shared object"); return false; }
     if(!ehdr().e_phnum) { panic("no program headers present"); return false; }
     return true;
 }
