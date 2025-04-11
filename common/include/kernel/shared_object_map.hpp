@@ -17,8 +17,10 @@ class shared_object_map : protected std::hash_set<elf64_shared_object, std::stri
     using typename __base::__node_ptr;
     using typename __base::__const_node_ptr;
     using typename __base::__node_type;
-    static shared_object_map __global_shared_objects;
+    static shared_object_map __globals;
+    static iterator __ld_so;
     std::unordered_map<iterator, std::string> __obj_paths;
+    static addr_t __global_dynamic_extent();
 public:
     uframe_tag* shared_frame;
 #pragma GCC diagnostic push
@@ -55,6 +57,7 @@ public:
     void set_path(iterator obj, std::string const& path);
     const char* get_path(iterator obj) const;
     static shared_object_map& get_globals();
+    static iterator get_ldso_object(filesystem* fs);
 };
 struct dl_addr_info
 {

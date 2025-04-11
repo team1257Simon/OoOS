@@ -12,6 +12,27 @@ bool elf64_dynamic_object::load_preinit() { return true; /* stub; only applicabl
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
 addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_vaddr); }
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return resolve(phdr(dyn_segment_idx).p_vaddr); }
+elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :
+    elf64_object( start, size ),
+    num_dyn_entries { 0UL },
+    dyn_entries     { nullptr },
+    num_plt_relas   { 0UL },
+    plt_relas       { nullptr },
+    got_vaddr       { 0UL },
+    dyn_segment_idx { 0UL },
+    relocations     {},
+    dependencies    {},
+    ld_paths        {},
+    init_array      {},
+    fini_array      {},
+    init_fn         { 0UL },
+    fini_fn         { 0UL },
+    init_array_ptr  { 0UL },
+    fini_array_ptr  { 0UL },
+    init_array_size { 0UL },
+    fini_array_size { 0UL },
+    symbol_index    { symstrtab, symtab }
+                    {}
 elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
     elf64_object    { n },
     num_dyn_entries { 0UL },

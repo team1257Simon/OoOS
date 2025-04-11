@@ -12,7 +12,8 @@ enum class execution_state
 {
     STOPPED     = 0,
     RUNNING     = 1,
-    TERMINATED  = 2  
+    TERMINATED  = 2,
+    IN_DYN_EXIT = 3
 };
 struct task_ctx
 {

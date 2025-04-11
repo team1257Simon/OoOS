@@ -3,6 +3,7 @@
 #include "arch/com_amd64.h"
 #include "arch/kb_amd64.hpp"
 #include "kernel_mm.hpp"
+#include "prog_manager.hpp"
 #include "kdebug.hpp"
 #include "rtc.h"
 #include "keyboard_driver.hpp"
@@ -124,6 +125,37 @@ void map_tests()
         startup_tty.print_text(std::to_string(i->second));
         startup_tty.print_text("; ");
     }
+    startup_tty.endl();
+}
+void list_tests()
+{
+    typedef std::list<std::string> list_type;
+    list_type l;
+    l.push_back("meep");
+    l.push_back("bweep");
+    l.push_front("fweep");
+    list_type::iterator i = l.insert(l.begin(), "gyeep");
+    i = l.insert(i, "dreep");
+    startup_tty.print_text("initial list values: ");
+    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
+    startup_tty.endl();
+    i++;
+    i = l.erase(i);
+    startup_tty.print_text("list values after erase: ");
+    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
+    startup_tty.endl();
+    *i = "kweep";
+    startup_tty.print_text("list values after reassign: ");
+    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
+    startup_tty.endl();
+    l.clear();
+    l.push_back("meep");
+    l.push_back("bweep");
+    l.push_front("fweep");
+    i = l.insert(l.begin(), "gyeep");
+    i = l.insert(i, "dreep");
+    startup_tty.print_text("list values after reset: ");
+    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
     startup_tty.endl();
 }
 void hash_map_tests()
@@ -286,20 +318,38 @@ void dyn_elf_tests()
 {
     if(test_extfs.has_init()) try
     {
-        shared_object_map& sm = shared_object_map::get_globals();
         file_node* n = test_extfs.open_file("lib/libc.so");
+        shared_object_map& sm = shared_object_map::get_globals();
         shared_object_map::iterator test_so = sm.add(n);
         test_extfs.close_file(n);
         kmm.enter_frame(sm.shared_frame);
         startup_tty.print_line("SO name: " + test_so->get_soname());
-        startup_tty.print_text("Symbol printf: " + std::to_string(test_so->resolve_by_name("printf").second.as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.frame_translate(test_so->resolve_by_name("printf").second))) + ")");
-        startup_tty.print_text("Symbol fgets: " + std::to_string(test_so->resolve_by_name("fgets").second.as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.frame_translate(test_so->resolve_by_name("fgets").second))) + ")");
-        startup_tty.print_text("Symbol malloc: " + std::to_string(test_so->resolve_by_name("malloc").second.as()) + " (");
-        startup_tty.print_line(std::to_string(reinterpret_cast<void*>(kmm.frame_translate(test_so->resolve_by_name("malloc").second))) + ")");
+        addr_t sym = test_so->resolve_by_name("printf").second;
+        startup_tty.print_text("Symbol printf: " + std::to_string(sym.as()) + " (");
+        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+        sym = test_so->resolve_by_name("fgets").second;
+        startup_tty.print_text("Symbol fgets: " + std::to_string(sym.as()) + " (");
+        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+        sym = test_so->resolve_by_name("malloc").second;
+        startup_tty.print_text("Symbol malloc: " + std::to_string(sym.as()) + " (");
+        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
         kmm.exit_frame();
         sm.remove(test_so);
+        test_so = shared_object_map::get_ldso_object(nullptr);
+        kmm.enter_frame(sm.shared_frame);
+        sym = test_so->get_load_offset();
+        startup_tty.print_line("Dynamic Linker load base: " + std::to_string(sym.as()));
+        startup_tty.print_line("Dynamic Linker SO name: " + test_so->get_soname());
+        sym = test_so->entry_point();
+        startup_tty.print_text("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");
+        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+        sym = test_so->resolve_by_name("dlopen").second;
+        startup_tty.print_text("Symbol dlopen: " + std::to_string(sym.as()) + " (");
+        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+        sym = test_so->resolve_by_name("dlclose").second;
+        startup_tty.print_text("Symbol dlclose: " + std::to_string(sym.as()) + " (");
+        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+        kmm.exit_frame();
     }
     catch(std::exception& e) { panic(e.what()); }
 }
@@ -308,14 +358,15 @@ void elf64_tests()
     if(test_extfs.has_init()) try
     {
         file_node* tst = test_extfs.open_file("test.elf");
-        elf64_executable test_exec(tst);
+        elf64_executable* test_exec = prog_manager::get_instance().add(tst);
         test_extfs.close_file(tst);
-        if(test_exec.load())
+        if(test_exec)
         {
             file_node* c = testramfs.lndev("com", com, 0);
-            elf64_program_descriptor const& desc = test_exec.describe();
+            elf64_program_descriptor const& desc = test_exec->describe();
             startup_tty.print_line("Entry at " + std::to_string(desc.entry));
             task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
+            prog_manager::get_instance().remove(test_exec);
         }
         else startup_tty.print_line("Executable failed to validate");
     }
@@ -388,6 +439,8 @@ void run_tests()
     str_tests();
     startup_tty.print_line("map test...");
     hash_map_tests();
+    startup_tty.print_line("list test...");
+    list_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
@@ -400,6 +453,7 @@ void run_tests()
     extfs_tests();
     if(test_extfs.has_init()) 
     { 
+        shared_object_map::get_ldso_object(std::addressof(test_extfs));
         startup_tty.print_line("SO loader tests...");
         dyn_elf_tests();
         startup_tty.print_line("elf64 tests..."); 

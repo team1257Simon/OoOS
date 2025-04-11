@@ -32,8 +32,23 @@ task_ctx::~task_ctx()
 void task_ctx::init_task_state()
 {
     if(arg_vec.empty() || arg_vec.back()) arg_vec.push_back(nullptr);
-    set_arg_registers(arg_vec.size() - 1, reinterpret_cast<register_t>(arg_vec.data()), reinterpret_cast<register_t>(env_vec.data()));
-    task_struct.saved_regs.rip = entry;
+    register_t rdi_val;
+    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle))
+    {
+        rdi_val = reinterpret_cast<register_t>(dyn);
+        task_struct.saved_regs.rbx = static_cast<register_t>(entry.full);
+        shared_object_map::iterator ldso = shared_object_map::get_ldso_object(ctx_filesystem);
+        if(addr_t ldso_entry = ldso->entry_point()) { task_struct.saved_regs.rip = ldso_entry; }
+        else { throw std::runtime_error{ "ldso object has no entry point" }; }
+        attach_object(ldso.base());
+    }
+    else
+    {
+        // Static executables go directly to the entry point
+        rdi_val = arg_vec.size() - 1;
+        task_struct.saved_regs.rip = entry;
+    }
+    set_arg_registers(rdi_val, reinterpret_cast<register_t>(arg_vec.data()), reinterpret_cast<register_t>(env_vec.data()));
     fx_save(std::addressof(task_struct));
     __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
@@ -117,7 +132,6 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 void task_ctx::start_task(addr_t exit_fn)
 {
     exit_target = exit_fn;
-    task_struct.saved_regs.rip = entry;
     sch.register_task(task_struct.self);
     current_state = execution_state::RUNNING;
 }
@@ -148,7 +162,14 @@ void task_ctx::set_exit(int n)
             p->last_notified = this;
             c = p;
         }
-        // TODO: invoke the dynamic linker to call the destructors if applicable
+        if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle))
+        {
+            task_struct.saved_regs.rdi = reinterpret_cast<register_t>(dyn);
+            addr_t dl_end_fn(task_struct.saved_regs.rbx);
+            task_struct.saved_regs.rip = dl_end_fn;
+            current_state = execution_state::IN_DYN_EXIT;
+            return;
+        }
     }
     if(exit_target) exit_target.ref<void()>()();
     else handle_exit();

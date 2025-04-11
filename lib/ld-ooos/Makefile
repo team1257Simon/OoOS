@@ -4,10 +4,16 @@ CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-gcc
 ST := $(TARGET_HOSTED)-strip
 READ = $(TARGET_HOSTED)-readelf
+VERSION_MAJOR = 0
+VERSION_MINOR = 0.0
+FILE_EXTENSION = so
+BASE_NAME = ld-ooos.$(FILE_EXTENSION)
+SO_NAME = $(BASE_NAME).$(VERSION_MAJOR)
+FULL_NAME = $(SO_NAME).$(VERSION_MINOR)
 CFLAGS = -O2 -fPIC 
 CCFLAGS = $(CFLAGS) -std=gnu23 -Wall
 CXXFLAGS = $(CFLAGS) -std=c++20 -Wall -fno-exceptions -fcheck-new -nostdinc++
-LDFLAGS = $(CFLAGS) -L$(SYS_LIB) -L$(LIB_GCC) -L$(SYSROOT)/usr/x86_64-ooos/lib -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -shared
+LDFLAGS = $(CFLAGS) -L$(SYS_LIB) -L$(LIB_GCC) -L$(SYSROOT)/usr/x86_64-ooos/lib -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -Wl,-soname,$(SO_NAME) -shared
 OUTDIR = $(IMAGE_FILE_DIR)/lib
 OBJDIR := $(OBJ_BASE_DIR)/ld-ooos
 SSRC = $(wildcard *.S */*.S)
@@ -18,7 +24,7 @@ ARCH_OBJECTS = $(addprefix $(OBJDIR)/,$(ARCH_OBJECT_NAMES))
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) arch-ldso.o
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES)) 
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
-OUT_SO = $(OUTDIR)/ld-ooos.so
+OUT_SO = $(OUTDIR)/$(BASE_NAME)
 SYM_LOG := $(LOG_DIR)/ld-ooos-syms.txt
 .PHONY: all
 all: $(OBJDIR) $(OUTDIR) $(OUT_SO) $(SYM_LOG)

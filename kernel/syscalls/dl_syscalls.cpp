@@ -10,6 +10,7 @@
 typedef std::pair<addr_t, bool> search_result;
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
 static elf64_dynamic_object* validate_handle(addr_t handle) { return dynamic_cast<elf64_dynamic_object*>(handle.as<elf64_dynamic_object>()); }
+static shared_object_map::iterator global_object_search(std::string const& name, int flags) { return (flags & RTLD_GLOBAL) ? shared_object_map::get_globals().find(name) : shared_object_map::get_globals().end(); }
 static search_result global_search(const char* name)
 {
     addr_t result = nullptr;
@@ -129,14 +130,23 @@ extern "C"
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         std::string xname(name, std::strnlen(name, 256UL));
         shared_object_map::iterator result;
-        if(shared_object_map::iterator cached = shared_object_map::get_globals().find(xname); cached != shared_object_map::get_globals().end()) { result = cached; }
+        if(shared_object_map::iterator cached = global_object_search(xname, flags); cached != shared_object_map::get_globals().end()) { result = cached; }
         else 
         {
             std::vector<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
+            paths.push_back("lib");
+            paths.push_back("usr/lib");
             file_node* n = nullptr;
             std::string const* found_path = nullptr;
             for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_dir_nothrow(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = tn->as_file(); found_path = std::addressof(path); break; } } }
             if(!n) { return addr_t(static_cast<uintptr_t>(-ENOENT)); }
+            struct __guard
+            {
+                file_node* __my_file;
+                filesystem* __fs_ptr;
+                __guard(file_node* n, filesystem* fs) : __my_file{ n }, __fs_ptr{ fs } {}
+                ~__guard() { if(__my_file) __fs_ptr->close_file(__my_file); }
+            } g(n, fs_ptr);
             if(flags & RTLD_NOLOAD)
             {
                 shared_object_map::iterator so = task->local_so_map->get_if_resident(n);
@@ -151,6 +161,8 @@ extern "C"
                 if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
                 sm.set_path(result, *found_path);
             }
+            fs_ptr->close_file(n);
+            g.__my_file = nullptr;
         }
         if(flags & RTLD_NODELETE) result->set_sticky();
         elf64_dynamic_object* handle = result.base();

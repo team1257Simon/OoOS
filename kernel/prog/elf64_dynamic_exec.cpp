@@ -5,7 +5,16 @@ elf64_dynamic_executable::~elf64_dynamic_executable() { if(program_descriptor.ld
 addr_t elf64_dynamic_executable::segment_vaddr(size_t n) const { return virtual_load_base.plus(phdr(n).p_vaddr); }
 addr_t elf64_dynamic_executable::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
-elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, uintptr_t base_offset, size_t stack_sz, size_t tls_sz) :
+elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
+    elf64_object            ( start, size ),
+    elf64_executable        ( start, size, stack_size, tls_size ),
+    elf64_dynamic_object    ( start, size ),
+    virtual_load_base       ( base_offset ),
+    preinit_array           {},
+    preinit_array_ptr       { 0UL },
+    preinit_array_size      { 0UL }
+                            {}
+elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
     elf64_object            ( n ),
     elf64_executable        ( n, stack_sz, tls_sz ),
     elf64_dynamic_object    ( n ),
@@ -17,12 +26,15 @@ elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, uintptr_t base_
 void elf64_dynamic_executable::process_headers()
 {
     elf64_executable::process_headers();
-    off_t diff = static_cast<off_t>(virtual_load_base.full);
-    frame_base += diff;
-    frame_extent += diff;
-    stack_base += diff;
-    tls_base += diff;
-    entry += diff;
+    if(virtual_load_base)
+    {
+        off_t diff = static_cast<off_t>(virtual_load_base.full);
+        frame_base += diff;
+        frame_extent += diff;
+        stack_base += diff;
+        tls_base += diff;
+        entry += diff;
+    }
 }
 bool elf64_dynamic_executable::load_segments()
 {

@@ -3,24 +3,23 @@
 constexpr size_t mw_bits = sizeof(uint64_t) * CHAR_BIT;
 const char* empty_name = "";
 static const char* find_so_name(addr_t, file_node*);
-constexpr static addr_t& align_start(addr_t& orig) { return (orig = addr_t(up_to_nearest(orig, page_size))); }
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descr& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
 void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && dyn_entries[i].d_val & 0x02)) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
-addr_t elf64_shared_object::entry_point() const { uintptr_t entry_offs = ehdr().e_entry; return entry_offs ? resolve(entry_offs) : nullptr; }
 elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     elf64_object            ( n ),
     elf64_dynamic_object    ( n ),
     soname                  ( find_so_name(img_ptr(), n) ),
-    virtual_load_base       { align_start(frame->dynamic_extent) },
+    virtual_load_base       { frame->dynamic_extent },
     total_segment_size      { 0UL },
     frame_tag               { frame },
     ref_count               { 1UL },
     sticky                  { false },
-    symbolic                { false }
+    symbolic                { false },
+    entry                   { nullptr }
                             {}
 elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : 
     elf64_object            ( std::move(that) ),
@@ -31,7 +30,8 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) :
     frame_tag               { that.frame_tag },
     ref_count               { that.ref_count },
     sticky                  { that.sticky },
-    symbolic                { that.symbolic }
+    symbolic                { that.symbolic },
+    entry                   { that.entry }
                             { that.frame_tag = nullptr; }
 static const char* find_so_name(addr_t image_start, file_node* so_file)
 {
@@ -86,6 +86,7 @@ bool elf64_shared_object::xvalidate()
 bool elf64_shared_object::load_segments()
 {
     bool have_loads = false;
+    if(ehdr().e_entry) { entry = virtual_load_base.plus(ehdr().e_entry); }
     frame_enter();
     for(size_t n = 0; n < ehdr().e_phnum; n++)
     {
@@ -103,10 +104,11 @@ bool elf64_shared_object::load_segments()
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, target, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
             frame_tag->usr_blocks.emplace_back(blk, target, actual_size, is_write(h), is_exec(h));
-            frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size));
+            frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
             total_segment_size += actual_size;
             have_loads = true;
         }
+        else new (std::addressof(segments[n])) program_segment_descriptor();
     }
     kmm.exit_frame();
     return have_loads;

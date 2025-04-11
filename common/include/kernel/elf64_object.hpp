@@ -36,6 +36,7 @@ protected:
     void cleanup();
 public:
     elf64_object(file_node* n);
+    elf64_object(addr_t start, size_t size);
     elf64_object(elf64_object const&);
     elf64_object(elf64_object&&);
     virtual addr_t resolve(uint64_t offs) const;    

@@ -23,6 +23,7 @@ protected:
 public:
     virtual ~elf64_executable();
     elf64_executable(file_node* n, size_t stack_sz = S04, size_t tls_sz = S04);
+    elf64_executable(addr_t start, size_t size, size_t stack_sz = S04, size_t tls_sz = S04);
     elf64_program_descriptor const& describe() const noexcept;
     elf64_executable(elf64_executable const&) = delete;
     elf64_executable(elf64_executable&& that);

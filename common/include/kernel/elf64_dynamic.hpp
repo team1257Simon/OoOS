@@ -36,6 +36,7 @@ protected:
 public:
     addr_t resolve_rela_target(elf64_rela const& r) const;
     elf64_dynamic_object(file_node* n);
+    elf64_dynamic_object(addr_t start, size_t size);
     elf64_dynamic_object(elf64_dynamic_object const& that);
     elf64_dynamic_object(elf64_dynamic_object&& that);
     virtual ~elf64_dynamic_object();

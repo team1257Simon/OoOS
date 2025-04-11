@@ -1,0 +1,5 @@
+#ifndef __CXX_LIST
+#define __CXX_LIST
+#include "bits/dynamic_list.hpp"
+namespace std { template<typename T, allocator_object<T> AT = allocator<T>> using list = __impl::__dynamic_list<T, AT>; }
+#endif
