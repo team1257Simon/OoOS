@@ -10,7 +10,6 @@ ST := $(TARGET_HOSTED)-strip
 READ = $(TARGET_HOSTED)-readelf
 BASE_NAME = $(LIB_NAME).$(FILE_EXTENSION)
 SO_NAME = $(BASE_NAME).$(NEWLIB_VERSION_MAJOR)
-FULL_NAME = $(SO_NAME).$(NEWLIB_VERSION_MINOR)
 CFLAGS = -O2 -fPIC -I$(SYSROOT)/usr/include
 CCFLAGS = $(CFLAGS) -std=gnu23 -w
 CXXFLAGS = $(CFLAGS) -std=c++20 -w
@@ -59,6 +58,7 @@ $(CRTI): sys/ooos/crti.s
 $(CRTN): sys/ooos/crtn.s
 	$(AS) -fPIC -c $< -o $@
 $(OUT_SO): $(OBJECTS)
-	$(LD) $(OBJECTS) $(MATH_LIB) $(LDFLAGS) -o $@
-	$(ST) -s $@
+	$(LD) $(OBJECTS) $(MATH_LIB) $(LDFLAGS) -o $(OUTDIR)/$(SO_NAME)
+	$(ST) -s $(OUTDIR)/$(SO_NAME)
+	ln -s $(OUTDIR)/$(SO_NAME) $@
 asmtest: $(ASMT_DIR) $(ASM_TEST)

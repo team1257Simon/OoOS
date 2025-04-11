@@ -318,7 +318,7 @@ void dyn_elf_tests()
 {
     if(test_extfs.has_init()) try
     {
-        file_node* n = test_extfs.open_file("lib/libc.so");
+        file_node* n = test_extfs.open_file("lib/libc.so.3");
         shared_object_map& sm = shared_object_map::get_globals();
         shared_object_map::iterator test_so = sm.add(n);
         test_extfs.close_file(n);
@@ -338,7 +338,6 @@ void dyn_elf_tests()
         test_so = shared_object_map::get_ldso_object(nullptr);
         kmm.enter_frame(sm.shared_frame);
         sym = test_so->get_load_offset();
-        startup_tty.print_line("Dynamic Linker load base: " + std::to_string(sym.as()));
         startup_tty.print_line("Dynamic Linker SO name: " + test_so->get_soname());
         sym = test_so->entry_point();
         startup_tty.print_text("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");

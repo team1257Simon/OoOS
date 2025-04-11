@@ -45,6 +45,7 @@ $(BUILD_DIR):
 	@mkdir -p $@
 $(LOG_DIR):
 	@mkdir -p $@
+test: lib
 $(SUBDIRS):
 	$(MAKE) -C $@
 clean:
