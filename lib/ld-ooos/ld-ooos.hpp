@@ -96,12 +96,14 @@ extern "C"
     init_fn*         dlinit(void* handle);
     init_fn*         dlpreinit(void* handle);
     fini_fn*         dlfini(void* handle);
+    __hidden [[noreturn]] void dlend(void* phandle);
     char**           depends(void* handle);
     int              dlpath(const char* path_str);
     int              dlmap(void* handle, link_map* lm);
     void*            __copy(void* dest, const void* src, size_t n);
     void             __zero(void*, size_t);
     char*            __strterm(const char*);
+    [[noreturn]]    void resolve(...);
 }
 __hidden void  deallocate(void* ptr, size_t al);
 __hidden void* allocate(size_t count, size_t al);

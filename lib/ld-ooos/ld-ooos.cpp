@@ -9,7 +9,6 @@ extern "C"
     __hidden char**    argv;
     __hidden char**    env;
     __hidden dl_action last_error_action;
-    [[noreturn]] void resolve(...);
 }
 static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept
 {
@@ -139,7 +138,7 @@ static void* __so_open(char* name, int flags)
 static bool __finalize(void* handle)
 {
     fini_fn* fini = dlfini(handle);
-    if(fini) { if(*fini) { for(size_t i = 0; fini[i]; i++) fini[i](); } }
+    if(fini) { for(size_t i = 0; fini[i]; i++) fini[i](); }
     else { last_error_action = DLA_FINI; return false; }
     return true;
 }
@@ -171,7 +170,6 @@ static bool __load_deps(void* handle)
             res_pair result = rtld_map.add(so);
             if(!result.second) continue;
             if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
-            else if(void** got = result.first->__global_offset_table) { got[2] = reinterpret_cast<void*>(&resolve); }
             if(!__load_deps(so)) return false;
         }
     }
@@ -259,14 +257,15 @@ extern "C"
         if(__load_deps(phandle)) return 0;
         else return errno;
     }
-    __hidden int dlend(void* phandle)
+    __hidden [[noreturn]] void dlend(void* phandle)
     {
         // The kernel will call this function to invoke the dynamic linker.
         // The handle is the program handle to pass to syscalls as part of the cleanup.
         // Here we will call the destructors for the object (per dlfini()) before returning to the kernel.
         for(node* l = rtld_map.begin(); l; l = l->chain_next) { __finalize(l->__so_handle); }
-        if(!__finalize(phandle)) { last_error_action = DLA_FINI; return errno; }
-        return 0;
+        if(!__finalize(phandle)) { last_error_action = DLA_FINI; exit(errno); }
+        exit(0);
+        __builtin_unreachable();
     }
     void* dlopen(char* name, int flags)
     {

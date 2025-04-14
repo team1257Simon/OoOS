@@ -4,7 +4,7 @@ extern "C"
     __hidden init_fn* dlinit(void* handle)
     {
         long result;
-        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLINIT), "D"(handle) : "memory", "%r11", "%rcx");
+        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLINIT), "D"(handle), "S"(resolve) : "memory", "%r11", "%rcx");
         if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
         else { return reinterpret_cast<init_fn*>(result); }
         return nullptr;
@@ -42,7 +42,7 @@ extern "C"
     __hidden init_fn* dlpreinit(void* handle)
     {
         long result;
-        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLPREINIT), "D"(handle) : "memory", "%r11", "%rcx");
+        asm volatile("syscall" : "=a"(result) : "0"(SCV_DLPREINIT), "D"(handle), "S"(dlend) : "memory", "%r11", "%rcx");
         if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
         else { return reinterpret_cast<init_fn*>(result); }
         return nullptr;

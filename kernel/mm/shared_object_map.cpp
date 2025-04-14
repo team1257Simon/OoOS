@@ -60,9 +60,7 @@ shared_object_map::iterator shared_object_map::transfer(shared_object_map& that,
     iterator result = that.emplace(std::move(*handle)).first; 
     __obj_paths.erase(handle); 
     erase(result->get_soname()); 
-    kmm.enter_frame(that.shared_frame); 
     for(block_descr& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); } 
-    kmm.exit_frame(); 
     result->frame_tag = that.shared_frame; 
     that.set_path(result, xhpath); 
     return result; 

@@ -54,13 +54,13 @@ void task_ctx::init_task_state()
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
     if(is_user())
     {
-        kmm.enter_frame(task_struct.frame_ptr);
         uframe_tag* tag = task_struct.frame_ptr.as<uframe_tag>();
         addr_t old_ext = tag->extent;
         size_t total_len = (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
         for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
         for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
         if(!tag->shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
+        kmm.enter_frame(task_struct.frame_ptr);
         rt_argv_ptr = old_ext;
         char** argv_real = addr_t(kmm.frame_translate(rt_argv_ptr));
         old_ext += (arg_vec.size() + 1) * sizeof(char*);
@@ -198,14 +198,13 @@ void task_ctx::set_exit(int n)
             p->last_notified = this;
             c = p;
         }
-        if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle))
+        if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle); dyn && dynamic_exit)
         {
             if(n != 0) xklog(std::to_string(n));
             else
             {
                 task_struct.saved_regs.rdi = reinterpret_cast<register_t>(dyn);
-                addr_t dl_end_fn(task_struct.saved_regs.rbx);
-                task_struct.saved_regs.rip = dl_end_fn;
+                task_struct.saved_regs.rip = dynamic_exit;
                 current_state = execution_state::IN_DYN_EXIT;
                 return;
             }

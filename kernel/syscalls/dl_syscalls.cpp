@@ -70,10 +70,11 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 }
 extern "C"
 {
-    addr_t syscall_dlinit(addr_t handle)
+    addr_t syscall_dlinit(addr_t handle, addr_t resolve)
     {
         elf64_dynamic_object* obj_handle = validate_handle(handle);
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
+        obj_handle->set_resolver(resolve);
         task_ctx* task = get_task();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         // References to objects in the GOT must be resolved now
@@ -88,7 +89,7 @@ extern "C"
         size_t len = obj_handle->get_init().size() + 1;
         addr_t result = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-        addr_t res_real = translate_user_pointer(result);        
+        addr_t res_real = translate_user_pointer(result);
         if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
         res_real.as<addr_t>()[len - 1] = nullptr;
         return result;
@@ -100,17 +101,18 @@ extern "C"
         size_t len = obj_handle->get_fini().size() + 1;
         addr_t result = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-        addr_t res_real = translate_user_pointer(result);        
+        addr_t res_real = translate_user_pointer(result);
         if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
         res_real.as<addr_t>()[len - 1] = nullptr;
         return result;
     }
-    addr_t syscall_dlpreinit(addr_t handle)
+    addr_t syscall_dlpreinit(addr_t handle, addr_t endfn)
     {
         elf64_dynamic_object* obj_handle = validate_handle(handle);
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         if(elf64_dynamic_executable* x = dynamic_cast<elf64_dynamic_executable*>(obj_handle))
         {
+            get_task()->dynamic_exit = endfn;
             size_t len = x->get_preinit().size() + 1;
             addr_t result = sysres_add(len * sizeof(addr_t));
             if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));

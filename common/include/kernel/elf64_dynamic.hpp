@@ -46,6 +46,7 @@ public:
     std::pair<elf64_sym, addr_t> resolve_by_name(std::string const& symbol) const;
     addr_t global_offset_table() const;
     addr_t dyn_segment_ptr() const;
+    void set_resolver(addr_t ptr);
     constexpr size_t dyn_segment_len() const noexcept { return num_dyn_entries; }
     constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
     constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
@@ -58,9 +59,9 @@ public:
 };
 extern "C"
 {
-    addr_t syscall_dlinit(addr_t handle);    // void (**dlinit(void* handle))(int argc, char** argv, char** env);
-    addr_t syscall_dlpreinit(addr_t handle); // void (**dlpreinit(void* handle))(int argc, char** argv, char** env);
-    addr_t syscall_dlfini(addr_t handle);    // void (**dlfini(void* handle))();
-    addr_t syscall_depends(addr_t handle);   // char** depends(void* handle);
+    addr_t syscall_dlinit(addr_t handle, addr_t resolve);    // void (**dlinit(void* handle))(int argc, char** argv, char** env); "resolve" will be passed by the dynamic linker
+    addr_t syscall_dlpreinit(addr_t handle, addr_t endfn);   // void (**dlpreinit(void* handle))(int argc, char** argv, char** env); "endfn" will be passed by the dynamic linker
+    addr_t syscall_dlfini(addr_t handle);                    // void (**dlfini(void* handle))();
+    addr_t syscall_depends(addr_t handle);                   // char** depends(void* handle);
 }
 #endif

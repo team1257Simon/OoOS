@@ -6,6 +6,7 @@ addr_t elf64_dynamic_executable::segment_vaddr(size_t n) const { return virtual_
 addr_t elf64_dynamic_executable::resolve(uintptr_t offs) const { return virtual_load_base ? virtual_load_base.plus(offs) : addr_t(offs); }
 addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base ? virtual_load_base.plus(sym.st_value) : addr_t(sym.st_value); }
 bool elf64_dynamic_executable::xload() { return elf64_dynamic_object::xload(); }
+bool elf64_dynamic_executable::load_syms() { return elf64_dynamic_object::load_syms(); }
 elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
     elf64_object            ( start, size ),
     elf64_executable        ( start, size, stack_size, tls_size ),

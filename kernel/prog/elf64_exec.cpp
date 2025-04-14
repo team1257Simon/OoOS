@@ -105,8 +105,10 @@ bool elf64_executable::load_segments()
             addr_t img_dat = segment_ptr(n);
             addr_t blk = kmm.allocate_user_block(full_size, target, h.p_align, is_write(h), is_exec(h));
             addr_t idmap(kmm.frame_translate(addr));
+            kmm.exit_frame();
             if(!blk) { panic("could not allocate blocks for executable"); return false; }
             frame_tag->usr_blocks.emplace_back(blk, target, kernel_memory_mgr::aligned_size(target, full_size));
+            frame_enter();
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
             new (std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
@@ -114,9 +116,9 @@ bool elf64_executable::load_segments()
         addr_t stkblk = kmm.allocate_user_block(stack_size, stack_base, page_size, true, false);
         addr_t tlsblk = kmm.allocate_user_block(tls_size, tls_base, page_size, true, false);
         if(!stkblk || !tlsblk) { panic("could not allocate blocks for stack");  return false; }
+        kmm.exit_frame();
         frame_tag->usr_blocks.emplace_back(stkblk, stack_base, stack_size);
         frame_tag->usr_blocks.emplace_back(tlsblk, tls_base, tls_size);
-        kmm.exit_frame();
         new (std::addressof(program_descriptor)) elf64_program_descriptor 
         { 
             .frame_ptr = frame_tag, 

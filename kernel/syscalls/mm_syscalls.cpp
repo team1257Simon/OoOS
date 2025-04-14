@@ -8,10 +8,8 @@ extern "C"
     {
         uframe_tag* ctask_frame = current_active_task()->frame_ptr;
         if(ctask_frame->magic != uframe_magic) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        kmm.enter_frame(ctask_frame);
         addr_t result = ctask_frame->extent;
         bool success = ctask_frame->shift_extent(incr);
-        kmm.exit_frame();
         if(success) { return result; }
         else return addr_t(static_cast<uintptr_t>(-ENOMEM));
     }
@@ -24,9 +22,7 @@ extern "C"
         if(min != min.page_aligned()) min = min.plus(page_size).page_aligned();
         if(addr && !(flags & MAP_FIXED)) addr = std::max(min, addr).page_aligned();
         else if(addr && (addr < min || addr != addr.page_aligned())) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        kmm.enter_frame(ctask_frame);
         addr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
-        kmm.exit_frame();
         if(!(flags & MAP_ANONYMOUS))
         {
             filesystem* fsptr = get_fs_instance();
@@ -38,9 +34,7 @@ extern "C"
                 {
                     file_node::pos_type pos = n->tell();
                     n->seek(offset, std::ios_base::beg);
-                    kmm.enter_frame(ctask_frame);
-                    n->read(addr_t(kmm.frame_translate(result)), std::min(size_t(len - offset), n->size()));
-                    kmm.exit_frame();
+                    n->read(translate_user_pointer(result), std::min(size_t(len - offset), n->size()));
                     n->seek(pos);
                     return result;
                 }

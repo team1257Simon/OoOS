@@ -33,6 +33,7 @@ struct task_ctx
     execution_state current_state{ execution_state::STOPPED };
     int exit_code{ 0 };
     addr_t exit_target{ nullptr };
+    addr_t dynamic_exit{ nullptr };
     addr_t notif_target{ nullptr };
     task_ctx* last_notified{ nullptr };
     elf64_object* object_handle{ nullptr };

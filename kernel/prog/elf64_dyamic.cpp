@@ -285,7 +285,7 @@ bool elf64_dynamic_object::process_got()
     for(size_t i = 0; i < num_dyn_entries; i++)
     {
         if(dyn_entries[i].d_tag == DT_JMPREL) rela_offs = dyn_entries[i].d_ptr;
-        else if(dyn_entries[i].d_tag == DT_PLTGOT) got_offs = static_cast<size_t>(dyn_entries[i].d_ptr - 8);
+        else if(dyn_entries[i].d_tag == DT_PLTGOT) got_offs = dyn_entries[i].d_ptr;
         else if(dyn_entries[i].d_tag == DT_PLTRELSZ) rela_sz = dyn_entries[i].d_val;
         if(got_offs && rela_offs && rela_sz) break;
     }
@@ -297,6 +297,7 @@ bool elf64_dynamic_object::process_got()
         if(!plt_relas) { panic("failed to allocate rela array"); return false; }
         elf64_rela* rela = img_ptr(to_image_offset(rela_offs));
         array_copy(plt_relas, rela, num_plt_relas);
+        return true;
     }
     else
     {
@@ -305,12 +306,21 @@ bool elf64_dynamic_object::process_got()
             const char* name = shstrtab[shdr(i).sh_name];
             if(std::strncmp(name, ".got", 4) != 0) continue;
             got_vaddr = shdr(i).sh_addr;
-            if(std::strncmp(name, ".got.plt", 8) == 0) { got_vaddr -= 8; }
             return true; 
         }
     }
     got_vaddr = 0UL;
     return true;
+}
+void elf64_dynamic_object::set_resolver(addr_t ptr)
+{
+    if(got_vaddr)
+    {
+        frame_enter();
+        addr_t got_table(kmm.frame_translate(global_offset_table()));
+        got_table.as<addr_t>()[2] = ptr;
+        kmm.exit_frame();
+    }
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
     elf64_object        { that },

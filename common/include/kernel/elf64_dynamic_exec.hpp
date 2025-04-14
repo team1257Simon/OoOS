@@ -14,6 +14,7 @@ protected:
     virtual void process_dyn_entry(size_t i) override;
     virtual addr_t segment_vaddr(size_t n) const override;
     virtual bool load_segments() override;
+    virtual bool load_syms() override;
     virtual void process_headers() override;
 public:
     virtual addr_t resolve(uint64_t offs) const override;    

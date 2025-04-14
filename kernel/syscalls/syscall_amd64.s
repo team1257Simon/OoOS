@@ -66,7 +66,6 @@ do_syscall:
     movq    kernel_cr3,             %rbx
     movq    %rbx,                   %cr3
     movq    __held_rbx,             %rbx
-    movq    %rcx,                   __held_pc
     movq    %rsp,                   %gs:0x088
     movq    %rbp,                   %gs:0x080
     movq    %rcx,                   %gs:0x090
@@ -122,6 +121,8 @@ do_syscall:
     movq    %gs:0x080,              %rbp
     movq    %gs:0x088,              %rsp
     movq    %gs:0x018,              %rbx
+    movq    %gs:0x090,              %rcx
+    movq    %rcx,                   __held_pc
     movq    %gs:0x0A6,              %rcx
     movq    %rcx,                   %cr3
     movq    __held_pc,              %rcx
