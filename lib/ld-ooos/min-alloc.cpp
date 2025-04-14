@@ -9,8 +9,8 @@ constexpr void* operator new(size_t, void* ptr) noexcept { return ptr; }
 constexpr void* operator new[](size_t, void* ptr) noexcept { return ptr; }
 constexpr void operator delete(void*, void*) noexcept {}
 constexpr void operator delete[](void*, void*) noexcept {}
-constexpr unsigned min_exponent = 8U;
-constexpr unsigned max_block_index = 32U;
+constexpr unsigned min_exponent = 4U;
+constexpr unsigned max_block_index = 5U;
 constexpr unsigned alloc_magic = 0xC001C0DE;
 constexpr size_t min_block_size = 1UL << min_exponent;
 constexpr size_t max_block_size = 1UL << max_block_index;
@@ -62,7 +62,8 @@ struct [[gnu::may_alias]] block_tag
     __hidden bool absorb_right();
     __hidden block_tag* melt_left();
 };
-static block_tag* available_blocks[max_block_index - min_exponent]{};
+static block_tag* available_blocks[max_block_index - min_exponent];
+__hidden void alloc_init() { __zero(available_blocks, sizeof(available_blocks)); }
 static void* __min_sbrk(ptrdiff_t amt) { void* result; asm volatile("syscall" : "=a"(result) : "0"(6), "D"(amt) : "%r11", "%rcx", "memory"); if(long test = reinterpret_cast<long>(result); test < 0 && test > -4096) { errno = static_cast<int>(test); return nullptr; } return result; }
 constexpr static uint32_t calculate_block_index(size_t size) { if(size < min_block_size) return 0; if(size > max_block_size) return max_block_index; return (st_bits - __builtin_clzl(size)) - min_exponent; }
 static void alloc_lock() { while(__atomic_test_and_set(&__mutex, __ATOMIC_SEQ_CST)) { asm volatile("pause" ::: "memory"); } }

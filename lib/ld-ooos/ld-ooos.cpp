@@ -251,6 +251,7 @@ extern "C"
                 break;
             }
         }
+        alloc_init();
         init_fn* preinit = dlpreinit(phandle);
         if(!preinit) { last_error_action = DLA_PREINIT; return errno; }
         if(*preinit) { for(size_t i = 0; preinit[i]; i++) preinit[i](argc, argv, env); }

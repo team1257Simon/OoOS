@@ -105,4 +105,5 @@ extern "C"
 }
 __hidden void  deallocate(void* ptr, size_t al);
 __hidden void* allocate(size_t count, size_t al);
+void alloc_init();
 #endif
