@@ -49,22 +49,57 @@ void task_ctx::init_task_state()
         rdi_val = arg_vec.size() - 1;
         task_struct.saved_regs.rip = entry;
     }
-    set_arg_registers(rdi_val, reinterpret_cast<register_t>(arg_vec.data()), reinterpret_cast<register_t>(env_vec.data()));
     fx_save(std::addressof(task_struct));
     __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
     if(is_user())
     {
         kmm.enter_frame(task_struct.frame_ptr);
-        kmm.identity_map_to_user(this, sizeof(task_ctx), true, false);
-        kmm.identity_map_to_user(arg_vec.data(), (arg_vec.size() + 1UL) * sizeof(char*), true, false);
-        kmm.identity_map_to_user(env_vec.data(), (env_vec.size() + 1UL) * sizeof(char*), true, false);
-        for(const char* str : env_vec) { if(str) kmm.identity_map_to_user(str, std::strlen(str), true, false); }
-        for(const char* str : arg_vec) { if(str) kmm.identity_map_to_user(str, std::strlen(str), true, false); }
+        uframe_tag* tag = task_struct.frame_ptr.as<uframe_tag>();
+        addr_t old_ext = tag->extent;
+        size_t total_len = (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
+        for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
+        for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
+        if(!tag->shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
+        rt_argv_ptr = old_ext;
+        char** argv_real = addr_t(kmm.frame_translate(rt_argv_ptr));
+        old_ext += (arg_vec.size() + 1) * sizeof(char*);
+        rt_env_ptr = old_ext;
+        char** env_real = addr_t(kmm.frame_translate(rt_env_ptr));
+        old_ext += (env_vec.size() + 1) * sizeof(char*);
+        for(const char* str : arg_vec)
+        {
+            addr_t target_ptr = old_ext;
+            char* target_real = addr_t(kmm.frame_translate(target_ptr));
+            size_t len = std::strlen(str);
+            array_copy(target_real, str, len);
+            target_real[len] = 0;
+            *argv_real = target_ptr;
+            argv_real++;
+            old_ext += len + 1;
+        }
+        *argv_real = nullptr;
+        for(const char* str : env_vec)
+        {
+            addr_t target_ptr = old_ext;
+            char* target_real = addr_t(kmm.frame_translate(target_ptr));
+            size_t len = std::strlen(str);
+            array_copy(target_real, str, len);
+            target_real[len] = 0;
+            *env_real = target_ptr;
+            env_real++;
+            old_ext += len + 1;
+        }
+        *env_real = nullptr;
         kmm.exit_frame();
-        interrupt_table::map_interrupt_callbacks(task_struct.frame_ptr);
     }
-    else task_struct.saved_regs.rsp.ref<uintptr_t>() = addr_t(std::addressof(sys_task_exit));
+    else
+    {
+        task_struct.saved_regs.rsp.ref<uintptr_t>() = addr_t(std::addressof(sys_task_exit));
+        rt_argv_ptr = arg_vec.data();
+        rt_env_ptr = env_vec.data();
+    }
+    set_arg_registers(rdi_val, rt_argv_ptr.full, rt_env_ptr.full);
 }
 void task_ctx::set_arg_registers(register_t rdi, register_t rsi, register_t rdx)
 {

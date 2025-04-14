@@ -11,6 +11,12 @@
     .type       kernel_reentry,         @function
     .type       enable_fs_gs_insns,     @function
 task_change:
+    pushq       %rax
+    movq        %cr3,           %rax
+    movq        %rax,           __held_cr3
+    movq        kernel_cr3,     %rax
+    movq        %rax,           %cr3
+    popq        %rax
     movq        %rax,           %gs:0x010
     popq        %rax    
     movq        %rax,           %gs:0x090
@@ -38,7 +44,7 @@ task_change:
     movq        %r14,           %gs:0x070
     movq        %r15,           %gs:0x078
     movq        %rbp,           %gs:0x080
-    movq        %cr3,           %rax
+    movq        __held_cr3,     %rax
     movq        %rax,           %gs:0x0A6
     fxsave      %gs:0x0D0
     movq        %gs:0x300,      %rax
@@ -73,9 +79,11 @@ task_change:
     movw        %gs:0x0A0,      %ax       
     movw        %ax,            %ds
     movw        %ax,            %es
+    movq        %gs:0x010,      %rax
+    pushq       %rax
     movq        %gs:0x0A6,      %rax
     movq        %rax,           %cr3
-    movq        %gs:0x010,      %rax
+    popq        %rax
     iretq
     .size       task_change,    .-task_change
 user_entry:
@@ -131,11 +139,11 @@ user_entry:
     movq        %gs:0x068,      %r13
     movq        %gs:0x080,      %rbp
     movq        %gs:0x088,      %rsp
-    movq        %gs:0x0A6,      %rax
-    movq        %rax,           %cr3
     movq        %gs:0x070,      %r14
     movq        %gs:0x078,      %r15
     movq        %gs:0x010,      %rax
+    movq        %gs:0x0A6,      %rax
+    movq        %rax,           %cr3
     sysretq
     .size       user_entry,     .-user_entry
 kernel_reentry:
@@ -180,3 +188,8 @@ enable_fs_gs_insns:
     movq        %rax,       %cr4
     ret
     .size       enable_fs_gs_insns,     .-enable_fs_gs_insns
+    .section    .data
+    .type       __held_cr3,             @object
+__held_cr3:
+    .quad 0
+    .size       __held_cr3,             .-__held_cr3

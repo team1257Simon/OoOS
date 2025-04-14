@@ -9,6 +9,7 @@ extern "C"
     extern unsigned char __start;
     extern unsigned char __end;
     kframe_tag*          __kernel_frame_tag = reinterpret_cast<kframe_tag*>(addressof(__end));
+    paging_table         kernel_cr3;
 }
 constexpr ptrdiff_t  bt_offset          = sizeof(block_tag);
 constexpr size_t     min_block_size = 1UL << min_exponent;
@@ -175,7 +176,7 @@ static addr_t __copy_kernel_mappings(addr_t start, size_t pages, paging_table pm
         pt_entry& k_entry = pt[p_idx];
         array_copy<uint64_t>(addressof(u_entry), addr_t(addressof(k_entry)), sizeof(pt_entry) / sizeof(uint64_t));
         u_entry.write       = false;
-        u_entry.user_access = true;
+        u_entry.user_access = false;
     }
     return start;
 }
@@ -375,6 +376,7 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
     new(__the_status_bytes) gb_status[num_status_bytes];
     new(__kernel_frame_tag) kframe_tag();
     new(__instance) kernel_memory_mgr(__the_status_bytes, num_status_bytes, heap, get_cr3());
+    kernel_cr3 = __instance->__kernel_cr3;
     __instance->__mark_used(0, div_round_up(heap, region_size));
     for(size_t i = 0; i < mmap->num_entries; i++)
     {
@@ -647,12 +649,14 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
 {
     addr = addr.page_aligned();
     __lock();
+    bool use_extent = !addr;
+    if(use_extent) addr = extent;
     if(addr_t result = kmm.allocate_user_block(len, addr, page_size, write, exec))
     {
-        if(!addr) addr = result;
         usr_blocks.emplace_back(result, addr, kernel_memory_mgr::aligned_size(addr, len));
         __builtin_memset(result, 0, len);
         if(result.plus(len) > mapped_max) mapped_max = result.plus(len).page_aligned().plus((result.plus(len) % page_size) ? page_size : 0L);
+        if(use_extent) extent += kernel_memory_mgr::aligned_size(addr, len);
         __unlock();
         return addr;
     }

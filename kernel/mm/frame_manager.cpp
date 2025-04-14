@@ -8,11 +8,7 @@ uframe_tag& frame_manager::create_frame(addr_t start_base, addr_t start_extent)
     paging_table pt = kmm.allocate_pt();
     if(!pt) throw std::runtime_error{ "could not initialize paging tables" };
     else if(!kmm.copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
-    uframe_tag* result = emplace(pt, start_base, start_extent).first.base();
-    kmm.enter_frame(result);
-    if(!kmm.identity_map_to_user(pt, PT_LEN, true, false)) { destroy_frame(*result); throw std::runtime_error{ "could not initialize page mappings" }; }
-    kmm.exit_frame();
-    return *result;
+    return *emplace(pt, start_base, start_extent).first;
 }
 uframe_tag& frame_manager::duplicate_frame(uframe_tag const& t)
 {

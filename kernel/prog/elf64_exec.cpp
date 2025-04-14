@@ -9,7 +9,7 @@ addr_t elf64_executable::segment_vaddr(size_t n) const { return addr_t(phdr(n).p
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
 elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz) :
-    elf64_object( start, size ),
+    elf64_object        ( start, size ),
     stack_size          { stack_sz },
     tls_size            { tls_sz },
     frame_base          { nullptr },

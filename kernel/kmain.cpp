@@ -453,7 +453,7 @@ extern "C"
     extern void gdt_setup();
     extern void do_syscall();
     extern void enable_fs_gs_insns();
-    paging_table kernel_cr3() { return kproc.saved_regs.cr3; }
+    paging_table get_kernel_cr3() { return kproc.saved_regs.cr3; }
     void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }

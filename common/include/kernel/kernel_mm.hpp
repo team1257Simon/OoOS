@@ -212,11 +212,11 @@ class kernel_memory_mgr
     addr_t __suspended_cr3{ nullptr };          // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame{ nullptr };
     static kernel_memory_mgr* __instance;
-    constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t kernel_cr3) noexcept :
+    constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t get_kernel_cr3) noexcept :
         __status_bytes              { status_bytes },
         __num_status_bytes          { num_status_bytes },
         __kernel_heap_begin         { kernel_heap_addr },
-        __kernel_cr3                { kernel_cr3 }
+        __kernel_cr3                { get_kernel_cr3 }
                                     {}
     constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
