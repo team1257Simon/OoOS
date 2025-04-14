@@ -10,15 +10,15 @@ typedef __int128_t int128_t;
 #define DEFR(r) DEFS(r, saved_regs.r)
 int main()
 {
-    std::cout << std::hex;
+    std::cout << std::hex << std::uppercase;
     DEF(self);
     DEF(frame_ptr);
     DEFR(rax);
     DEFR(rbx);
     DEFR(rcx);
     DEFR(rdx);
-    DEFR(rsi);
     DEFR(rdi);
+    DEFR(rsi);
     DEFR(r8);
     DEFR(r9);
     DEFR(r10);
