@@ -703,18 +703,18 @@ bool uframe_tag::mmap_remove(addr_t addr, size_t len)
 }
 addr_t uframe_tag::sysres_add(size_t n)
 {
-    if(static_cast<size_t>(sysres_extent - sysres_wm) < n)
+    if(sysres_wm.plus(n).alignup(8) > sysres_extent)
     {
         kmm.enter_frame(this);
         addr_t mapping_target = sysres_extent;
-        addr_t allocated      = kmm.allocate_user_block(n, mapping_target, 0UL, false, false);
+        addr_t allocated      = kmm.allocate_user_block(up_to_nearest(n, 8), mapping_target, 0UL, false, false);
         if(!allocated) { kmm.exit_frame(); return nullptr; }
         kernel_allocated_blocks.push_back(allocated);
         sysres_extent += kernel_memory_mgr::aligned_size(mapping_target, n);
         kmm.exit_frame();
     }
     addr_t result = sysres_wm;
-    sysres_wm += n;
+    sysres_wm = sysres_wm.plus(n).alignup(8);
     return result;
 }
 extern "C"

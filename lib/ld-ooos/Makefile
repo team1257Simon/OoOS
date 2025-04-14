@@ -46,5 +46,5 @@ $(SYM_LOG): $(OUT_SO) $(LOG_DIR)
 	$(READ) $(READFLAGS) $< > $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
-	$(ST) -s $@
+#	$(ST) -s $@
 asmtest: $(ASMT_DIR) $(ASM_TEST)

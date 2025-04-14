@@ -14,7 +14,8 @@ protected:
     size_t got_vaddr;
     size_t dyn_segment_idx;
     std::vector<elf64_relocation> relocations;
-    std::vector<const char*> dependencies;
+    std::vector<elf64_rela> object_relas;
+    std::vector<std::string> dependencies;
     std::vector<std::string> ld_paths;
     std::vector<addr_t> init_array;
     std::vector<addr_t> fini_array;
@@ -33,6 +34,7 @@ protected:
     void process_dt_relas();
     bool post_load_init();
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
+    size_t to_image_offset(size_t offs);
 public:
     addr_t resolve_rela_target(elf64_rela const& r) const;
     elf64_dynamic_object(file_node* n);
@@ -47,12 +49,12 @@ public:
     constexpr size_t dyn_segment_len() const noexcept { return num_dyn_entries; }
     constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
     constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
-    constexpr std::vector<const char*> const& get_dependencies() const noexcept { return dependencies; }
+    constexpr std::vector<std::string> const& get_dependencies() const noexcept { return dependencies; }
     constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
     constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
     constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
     constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
-    constexpr std::vector<elf64_rela> get_object_relas() const noexcept { std::vector<elf64_rela> result; for(size_t i = 0; i < num_plt_relas; i++) { if(plt_relas[i].r_info.type == R_X86_64_GLOB_DAT) result.push_back(plt_relas[i]); } return result; }
+    constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }
 };
 extern "C"
 {

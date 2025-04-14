@@ -8,6 +8,7 @@
 #include "sys/errno.h"
 #include "arch/arch_amd64.h"
 typedef std::pair<addr_t, bool> search_result;
+static task_ctx* get_task() { return  current_active_task()->self; }
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
 static elf64_dynamic_object* validate_handle(addr_t handle) { return dynamic_cast<elf64_dynamic_object*>(handle.as<elf64_dynamic_object>()); }
 static shared_object_map::iterator global_object_search(std::string const& name, int flags) { return (flags & RTLD_GLOBAL) ? shared_object_map::get_globals().find(name) : shared_object_map::get_globals().end(); }
@@ -73,10 +74,10 @@ extern "C"
     {
         elf64_dynamic_object* obj_handle = validate_handle(handle);
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         // References to objects in the GOT must be resolved now
-        for(elf64_rela const& r : obj_handle->get_object_relas()) 
+        for(elf64_rela const& r : obj_handle->get_object_relas())
         {
             addr_t target = translate_user_pointer(obj_handle->resolve_rela_target(r));
             if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
@@ -84,20 +85,24 @@ extern "C"
             if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
             target.ref<addr_t>() = sr.first;
         }
-        size_t len = obj_handle->get_init().size();
+        size_t len = obj_handle->get_init().size() + 1;
         addr_t result = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-        array_copy(translate_user_pointer(result), obj_handle->get_init().data(), len);
+        addr_t res_real = translate_user_pointer(result);        
+        if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
+        res_real.as<addr_t>()[len - 1] = nullptr;
         return result;
     }
     addr_t syscall_dlfini(addr_t handle)
     {
         elf64_dynamic_object* obj_handle = validate_handle(handle);
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
-        size_t len = obj_handle->get_fini().size();
+        size_t len = obj_handle->get_fini().size() + 1;
         addr_t result = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-        array_copy(translate_user_pointer(result), obj_handle->get_fini().data(), len);
+        addr_t res_real = translate_user_pointer(result);        
+        if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
+        res_real.as<addr_t>()[len - 1] = nullptr;
         return result;
     }
     addr_t syscall_dlpreinit(addr_t handle)
@@ -106,23 +111,25 @@ extern "C"
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         if(elf64_dynamic_executable* x = dynamic_cast<elf64_dynamic_executable*>(obj_handle))
         {
-            size_t len = x->get_preinit().size();
+            size_t len = x->get_preinit().size() + 1;
             addr_t result = sysres_add(len * sizeof(addr_t));
             if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-            array_copy(translate_user_pointer(result), x->get_preinit().data(), len);
+            addr_t res_real = translate_user_pointer(result);        
+            if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
+            res_real.as<addr_t>()[len - 1] = nullptr;
             return result;
         }
         else
         {
             addr_t result = sysres_add(sizeof(addr_t));
             if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-            result.ref<addr_t>() = nullptr;
+            translate_user_pointer(result).ref<addr_t>() = nullptr;
             return result;
         }
     }
     addr_t syscall_dlopen(const char* name, int flags)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         filesystem* fs_ptr = task->get_vfs_ptr();
         if(!fs_ptr || !task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(!name) return task->object_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
@@ -138,7 +145,7 @@ extern "C"
             paths.push_back("usr/lib");
             file_node* n = nullptr;
             std::string const* found_path = nullptr;
-            for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_dir_nothrow(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = tn->as_file(); found_path = std::addressof(path); break; } } }
+            for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_dir_nothrow(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = fs_ptr->open_fd(tn); found_path = std::addressof(path); break; } } }
             if(!n) { return addr_t(static_cast<uintptr_t>(-ENOENT)); }
             struct __guard
             {
@@ -171,7 +178,7 @@ extern "C"
     }
     int syscall_dlclose(addr_t handle)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return -ENOSYS;
         if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->object_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
@@ -184,7 +191,7 @@ extern "C"
     }
     addr_t syscall_dlsym(addr_t handle, const char* name)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
@@ -209,7 +216,7 @@ extern "C"
     }
     addr_t syscall_resolve(uint32_t sym_idx, addr_t got_loaded_id)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(got_loaded_id.as<elf64_dynamic_object>()))
         {
@@ -227,7 +234,7 @@ extern "C"
     }
     int syscall_dlpath(const char* path_str)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return -ENOSYS;
         path_str = translate_user_pointer(path_str);
         if(!path_str) return -EINVAL;
@@ -242,7 +249,7 @@ extern "C"
     }
     int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return -ENOSYS;
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
         if(!so) return -EBADF;
@@ -267,32 +274,36 @@ extern "C"
         ent->vaddr_offset = so->get_load_offset();
         ent->object_handle = obj;
         ent->global_offset_table_start = obj->global_offset_table();
+        debug_print_addr(obj->global_offset_table());
         return 0;
     }
     addr_t syscall_depends(addr_t handle)
     {
         elf64_dynamic_object* obj_handle = validate_handle(handle);
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
-        char** result = sysres_add((obj_handle->get_dependencies().size() + 1) * sizeof(char*));
+        std::vector<std::string> const& deps = obj_handle->get_dependencies();
+        size_t ndep = deps.size();
+        char** result = sysres_add((ndep + 1) * sizeof(char*));
         char** result_real = translate_user_pointer(result);
         if(!result || !result_real) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-        size_t n = 0;
-        for(const char* str : obj_handle->get_dependencies())
+        size_t n;
+        for(n = 0; n < ndep; n++)
         {
-            size_t len = std::strlen(str) + 1;
+            std::string const& str = deps[n];
+            size_t len = str.size() + 1;
             char* target = sysres_add(len);
             if(!target) return addr_t(static_cast<uintptr_t>(-ENOMEM));
             char* target_real = translate_user_pointer(target);
-            array_copy(target_real, str, len - 1);
-            target_real[len] = '\0';
-            result_real[n++] = target;
+            array_copy(target_real, str.data(), len - 1);
+            target_real[len - 1] = '\0';
+            result_real[n] = target;
         }
-        result_real[n] = nullptr;
+        result_real[ndep] = nullptr;
         return result;
     }
     int syscall_dladdr(addr_t sym_addr, dl_addr_info* info)
     {
-        task_ctx* task = get_gs_base<task_ctx>();
+        task_ctx* task = get_task();
         if(!task->local_so_map) return -ENOSYS;
         info = translate_user_pointer(info);
         if(!info) return -EINVAL;

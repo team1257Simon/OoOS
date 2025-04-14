@@ -418,6 +418,8 @@ typedef struct __vaddr
     constexpr __vaddr& operator-=(ptrdiff_t value) { full -= value; return *this; }
     constexpr __vaddr plus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
     constexpr __vaddr minus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
+    constexpr __vaddr trunc(size_t alignval) const { return minus(full % alignval); }
+    constexpr __vaddr alignup(size_t alignval) const { return full % alignval ? plus(alignval).trunc(alignval) : *this; }
     constexpr __vaddr page_aligned() const noexcept { return minus(full % PAGESIZE); }
     constexpr __vaddr next_page_aligned() const noexcept { return full % PAGESIZE ? plus(PAGESIZE).page_aligned() : *this; }
     typedef const void* cvptr;

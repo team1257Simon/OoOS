@@ -10,7 +10,7 @@ elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t 
     if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) { panic("missing identifier; invalid object"); return nullptr; }
     if(is_dynamic_object(img_start.ref<elf64_ehdr>()))
     {
-        __dynamic_base::iterator result = __dynamic_base::emplace_back(img_start, img_size, stack_sz, tls_sz);
+        __dynamic_base::iterator result = __dynamic_base::emplace_back(img_start, img_size, stack_sz, tls_sz, 0UL);
         if(!result->load()) { __dynamic_base::erase(result); return nullptr; }
         return result.base();
     }

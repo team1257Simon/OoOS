@@ -5,11 +5,11 @@ CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-ld
 READ = $(TARGET_HOSTED)-readelf
 OUTDIR = $(IMAGE_FILE_DIR)
-# SYS_LIB = $(IMAGE_FILE_DIR)/lib
-CFLAGS = -O2 -Wall # -fPIC
+SYS_LIB = $(IMAGE_FILE_DIR)/lib
+CFLAGS = -O2 -Wall -fPIC
 CCFLAGS = $(CFLAGS) -std=gnu23
 CXXFLAGS = $(CFLAGS) -std=c++20
-LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -lc -lgcc -static -lg -lm
+LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -lc -lgcc --hash-style=both # -static -lg -lm
 TARGET = $(OUTDIR)/test.elf
 CSRC = test.c
 CPPSRC = $(wildcard *.cpp)

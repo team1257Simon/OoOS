@@ -240,7 +240,6 @@ protected:
     virtual void syncdirs() = 0;
     virtual dev_t xgdevid() const noexcept = 0;
     virtual const char* path_separator() const noexcept;
-    virtual file_node* open_fd(tnode*);
     virtual void close_fd(file_node*);
     virtual bool xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
@@ -249,6 +248,7 @@ protected:
     virtual device_node* mkdevnode(directory_node*, std::string const&, device_node::device_buffer*, int fd_number_hint);
 public:
     virtual device_node* lndev(std::string const& where, device_node::device_buffer* what, int fd_number_hint, bool create_parents = true);
+    virtual file_node* open_fd(tnode*);
     void link_stdio(device_node::device_buffer* target);
     file_node* get_fd(int fd);      
     file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);

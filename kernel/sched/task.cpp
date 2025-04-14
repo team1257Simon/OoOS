@@ -2,6 +2,7 @@
 #include "sched/task_list.hpp"
 #include "frame_manager.hpp"
 #include "kernel_mm.hpp"
+#include "kdebug.hpp"
 #include "errno.h"
 #include "fs/fat32.hpp"
 #include "elf64_exec.hpp"
@@ -126,7 +127,7 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
     tls                     { desc.prg_tls },
     tls_size                { desc.tls_size },
     ctx_filesystem          { create_task_vfs() },
-    object_handle           { static_cast<elf64_object*>(desc.object_handle) },
+    object_handle           { static_cast<elf64_executable*>(desc.object_handle) },
     local_so_map            { sm_alloc.allocate(1) }
 { std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.frame_ptr)); if(desc.ld_path && desc.ld_path_count) { dl_search_paths.push_back(desc.ld_path, desc.ld_path + desc.ld_path_count); } }
 void task_ctx::start_task(addr_t exit_fn)
@@ -164,11 +165,15 @@ void task_ctx::set_exit(int n)
         }
         if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle))
         {
-            task_struct.saved_regs.rdi = reinterpret_cast<register_t>(dyn);
-            addr_t dl_end_fn(task_struct.saved_regs.rbx);
-            task_struct.saved_regs.rip = dl_end_fn;
-            current_state = execution_state::IN_DYN_EXIT;
-            return;
+            if(n != 0) xklog(std::to_string(n));
+            else
+            {
+                task_struct.saved_regs.rdi = reinterpret_cast<register_t>(dyn);
+                addr_t dl_end_fn(task_struct.saved_regs.rbx);
+                task_struct.saved_regs.rip = dl_end_fn;
+                current_state = execution_state::IN_DYN_EXIT;
+                return;
+            }
         }
     }
     if(exit_target) exit_target.ref<void()>()();

@@ -3,8 +3,9 @@
 std::allocator<const char*> strptr_alloc{};
 elf64_dynamic_executable::~elf64_dynamic_executable() { if(program_descriptor.ld_path) strptr_alloc.deallocate(program_descriptor.ld_path, program_descriptor.ld_path_count); }
 addr_t elf64_dynamic_executable::segment_vaddr(size_t n) const { return virtual_load_base.plus(phdr(n).p_vaddr); }
-addr_t elf64_dynamic_executable::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
-addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
+addr_t elf64_dynamic_executable::resolve(uintptr_t offs) const { return virtual_load_base ? virtual_load_base.plus(offs) : addr_t(offs); }
+addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base ? virtual_load_base.plus(sym.st_value) : addr_t(sym.st_value); }
+bool elf64_dynamic_executable::xload() { return elf64_dynamic_object::xload(); }
 elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
     elf64_object            ( start, size ),
     elf64_executable        ( start, size, stack_size, tls_size ),
@@ -51,12 +52,12 @@ bool elf64_dynamic_executable::load_segments()
 void elf64_dynamic_executable::process_dyn_entry(size_t i)
 {
     if(dyn_entries[i].d_tag == DT_PREINIT_ARRAY) preinit_array_ptr = dyn_entries[i].d_ptr;
-    else if(dyn_entries[i].d_tag == DT_PREINIT_ARRAYSZ) preinit_array_size = dyn_entries[i].d_val;
+    else if(dyn_entries[i].d_tag == DT_PREINIT_ARRAYSZ) preinit_array_size = (dyn_entries[i].d_val / sizeof(addr_t));
     else elf64_dynamic_object::process_dyn_entry(i);
 }
 bool elf64_dynamic_executable::load_preinit()
 {
-    if(preinit_array_ptr && preinit_array_ptr)
+    if(preinit_array_ptr && preinit_array_size)
     {
         addr_t preinit_ptrs_vaddr = resolve(preinit_array_ptr);
         frame_enter();
@@ -65,6 +66,5 @@ bool elf64_dynamic_executable::load_preinit()
         if(!preinit_ptrs) { panic("pre-initialization array pointer is non-null but is invalid"); return false; }
         for(size_t i = 0; i < preinit_array_size; i++) { preinit_array.push_back(addr_t(preinit_ptrs[i])); }
     }
-    preinit_array.push_back(nullptr);
     return true;
 }

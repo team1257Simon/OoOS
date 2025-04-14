@@ -94,15 +94,17 @@ bool elf64_shared_object::load_segments()
         if(!h.p_memsz) continue;
         if(is_load(h))
         {
-            addr_t target = virtual_load_base.plus(h.p_vaddr);
-            addr_t blk = kmm.allocate_user_block(h.p_memsz, target, h.p_align, is_write(h), is_exec(h));
+            addr_t addr = virtual_load_base.plus(h.p_vaddr);
+            addr_t target = addr.trunc(h.p_align);
+            size_t full_size = h.p_memsz + (addr - target);
+            addr_t blk = kmm.allocate_user_block(full_size, target, h.p_align, is_write(h), is_exec(h));
             if(!blk) { kmm.exit_frame(); throw std::bad_alloc{}; }
-            addr_t idmap(kmm.frame_translate(target));
-            size_t actual_size = kernel_memory_mgr::aligned_size(target, h.p_memsz);
+            addr_t idmap(kmm.frame_translate(addr));
+            size_t actual_size = kernel_memory_mgr::aligned_size(target, full_size);
             addr_t img_dat = segment_ptr(n);
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
-            new (std::addressof(segments[n])) program_segment_descriptor{ idmap, target, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
+            new (std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
             frame_tag->usr_blocks.emplace_back(blk, target, actual_size, is_write(h), is_exec(h));
             frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
             total_segment_size += actual_size;

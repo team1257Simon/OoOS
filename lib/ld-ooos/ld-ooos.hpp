@@ -30,7 +30,7 @@
 #define ELIBBAD 84
 #define ELIBSCN 85
 #define ENOSYS 88
-#define exit(code)    asm volatile("syscall" ::"a"(0), "D"(code) : "memory")
+#define exit(code) asm volatile("syscall" ::"a"(0), "D"(code) : "memory")
 typedef void (*init_fn)(int argc, char** argv, char** env);
 typedef void (*fini_fn)();
 struct elf64_dyn

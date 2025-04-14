@@ -18,8 +18,8 @@ __copy:
 __zero:
     movq        %rsi,       %rcx
     jrcxz       2f
-    rep         stosb
     xorl        %eax,       %eax
+    rep         stosb
 2:  ret
     .size       __zero,     .-__zero
 __strterm:

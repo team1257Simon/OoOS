@@ -15,7 +15,7 @@ static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept
 {
     const char* cdata = static_cast<const char*>(data);
     uint32_t    h     = 5381;
-    for(size_t i = 0; i < n; i++) h += static_cast<uint8_t>(cdata[i]) + (h << 5);
+    for(size_t i = 0; i < n && cdata[i]; i++) h += static_cast<uint8_t>(cdata[i]) + (h << 5);
     return h;
 }
 constexpr bool  operator==(link_map const& a, link_map const& b) noexcept { return a.__so_handle == b.__so_handle; }
@@ -34,7 +34,7 @@ static struct
     buckets_ptr    buckets;
     node           root;
     size_t         after_root_idx;
-    buckets_ptr    allocate_buckets(size_t count) { return static_cast<buckets_ptr>(allocate(count * sizeof(node_ptr), alignof(node_ptr))); }
+    buckets_ptr    allocate_buckets(size_t count) { buckets_ptr result = static_cast<buckets_ptr>(allocate(count * sizeof(node_ptr), alignof(node_ptr))); __zero(result, count * sizeof(node_ptr)); return result; }
     node_ptr       advance(node_ptr n) { return n ? n->chain_next : nullptr; }
     node_const_ptr advance(node_const_ptr n) { return n ? n->chain_next : nullptr; }
     size_t         idx(node_const_ptr n) const { return bucket_count ? __hash(*n) % bucket_count : 0; }
@@ -87,7 +87,7 @@ static struct
     }
     node_ptr find_before(void* handle)
     {
-        size_t   index = bucket_count ? elf64_gnu_hash(&handle, sizeof(void*)) : 0;
+        size_t   index = bucket_count ? elf64_gnu_hash(&handle, sizeof(void*)) % bucket_count : 0;
         node_ptr prev  = buckets[index];
         for(node_ptr n = advance(prev); n && idx(n) == index; prev = n, n = advance(n)) { if(handle == *n) return prev; }
         return nullptr;
@@ -159,6 +159,7 @@ static bool __so_close(void* handle)
 }
 static bool __load_deps(void* handle)
 {
+    
     char** deps = depends(handle);
     if(!deps) { last_error_action = DLA_GETDEP; return false; }
     if(*deps)
@@ -170,8 +171,8 @@ static bool __load_deps(void* handle)
             res_pair result = rtld_map.add(so);
             if(!result.second) continue;
             if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
-            else { result.first->__global_offset_table[2] = reinterpret_cast<void*>(&resolve); }
-            if(!__load_deps(handle)) return false;
+            else if(void** got = result.first->__global_offset_table) { got[2] = reinterpret_cast<void*>(&resolve); }
+            if(!__load_deps(so)) return false;
         }
     }
     init_fn* ini = dlinit(handle);

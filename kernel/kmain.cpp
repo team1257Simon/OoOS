@@ -318,26 +318,10 @@ void dyn_elf_tests()
 {
     if(test_extfs.has_init()) try
     {
-        file_node* n = test_extfs.open_file("lib/libc.so.3");
         shared_object_map& sm = shared_object_map::get_globals();
-        shared_object_map::iterator test_so = sm.add(n);
-        test_extfs.close_file(n);
+        shared_object_map::iterator test_so = shared_object_map::get_ldso_object(nullptr);
         kmm.enter_frame(sm.shared_frame);
-        startup_tty.print_line("SO name: " + test_so->get_soname());
-        addr_t sym = test_so->resolve_by_name("printf").second;
-        startup_tty.print_text("Symbol printf: " + std::to_string(sym.as()) + " (");
-        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-        sym = test_so->resolve_by_name("fgets").second;
-        startup_tty.print_text("Symbol fgets: " + std::to_string(sym.as()) + " (");
-        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-        sym = test_so->resolve_by_name("malloc").second;
-        startup_tty.print_text("Symbol malloc: " + std::to_string(sym.as()) + " (");
-        startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-        kmm.exit_frame();
-        sm.remove(test_so);
-        test_so = shared_object_map::get_ldso_object(nullptr);
-        kmm.enter_frame(sm.shared_frame);
-        sym = test_so->get_load_offset();
+        addr_t sym = test_so->get_load_offset();
         startup_tty.print_line("Dynamic Linker SO name: " + test_so->get_soname());
         sym = test_so->entry_point();
         startup_tty.print_text("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");
@@ -421,7 +405,8 @@ constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
             startup_tty.print_text("; page fault address = ");
             __dbg_num(fault_addr, __xdigits(fault_addr));
         }
-        debug_stop_flag = true;
+        if(idx != 0x01) debug_stop_flag = true;
+        else startup_tty.endl();
     }
     else
     {
