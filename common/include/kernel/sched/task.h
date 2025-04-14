@@ -1,16 +1,16 @@
 #ifndef __TASK
 #define __TASK
 #include "sys/types.h"
+#ifndef __KERNEL__
+typedef void* addr_t;
+#define CXX_INI(...)
+#define __pack __attribute__((packed))
+#define __align(n) __attribute__((aligned(n)))
+#endif
 #ifdef __cplusplus
-#include "functional"
-typedef int (attribute(sysv_abi) task_closure)(int, char**);
-typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
 extern "C" 
 {
-#else
-typedef int (attribute(sysv_abi) *task_functor)(int argc, char** argv);
 #endif
-struct uframe_tag;
 typedef enum
 #ifdef __cplusplus
 class
@@ -28,19 +28,19 @@ __task_prio
 } priority_val;
 typedef struct __fx_state
 {
-    uint16_t fcw;               // BASE+0x000
-    uint16_t fsw;               // BASE+0x002
-    uint8_t ftw;                // BASE+0x004
-    uint8_t rsv0;               // BASE+0x005
-    uint16_t fop;               // BASE+0x006
-    uint64_t fip;               // BASE+0x008
-    uint64_t fdp;               // BASE+0x010
-    uint32_t mxcsr;             // BASE+0x018
-    uint32_t mxcsr_mask;        // BASE+0x01B
+    uint16_t    fcw;            // BASE+0x000
+    uint16_t    fsw;            // BASE+0x002
+    uint8_t     ftw;            // BASE+0x004
+    uint8_t     rsv0;           // BASE+0x005
+    uint16_t    fop;            // BASE+0x006
+    uint64_t    fip;            // BASE+0x008
+    uint64_t    fdp;            // BASE+0x010
+    uint32_t    mxcsr;          // BASE+0x018
+    uint32_t    mxcsr_mask;     // BASE+0x01B
     long double stmm[8];        // BASE+0x020
-    int128_t xmm[16];           // BASE+0x0A0
-    int128_t rsv1[3];           // BASE+0x1A0
-    int128_t avail[3];          // BASE+0x1D0
+    int128_t    xmm[16];        // BASE+0x0A0
+    int128_t    rsv1[3];        // BASE+0x1A0
+    int128_t    avail[3];       // BASE+0x1D0
                                 // BASE+0x200
 } __align(16) __pack fx_state;
 typedef struct __reg_state
@@ -71,51 +71,39 @@ typedef struct __reg_state
 } __pack __align(2) regstate_t;
 typedef struct __task_control
 {
-    volatile struct                 // BASE+0x00
+    volatile struct                                 // BASE+0x00
     {
-        bool block              : 1; // sleep or wait
-        bool can_interrupt      : 1; // true if the wait can be interrupted
-        bool notify_cterm       : 1; // true if the wait should be interrupted on a child process termination
-        bool sigkill            : 1; // true if the process has stopped due to an abnormal termination (e.g. kill signal)
-        priority_val prio_base  : 4; // the base priority of the thread/process
+        bool            block           : 1;        // sleep or wait
+        bool            can_interrupt   : 1;        // true if the wait can be interrupted
+        bool            notify_cterm    : 1;        // true if the wait should be interrupted on a child process termination
+        bool            sigkill         : 1;        // true if the process has stopped due to an abnormal termination (e.g. kill signal)
+        priority_val    prio_base       : 4;        // the base priority of the thread/process
     } __pack __align(1);
-    uint8_t skips;                  // BASE+0x01; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
-    uintptr_t signal_num;           // BASE+0x02; the sigval union (WIP)
-    uint32_t wait_ticks_delta;      // BASE+0x0A; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
-    int64_t parent_pid;             // BASE+0x0E; a negative number indicates no parent
-    uint64_t task_id;               // BASE+0x16; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
-                                    // BASE+0x1E
+    uint8_t     skips;                              // BASE+0x01; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
+    uintptr_t   signal_num;                         // BASE+0x02; the sigval union (WIP)
+    uint32_t    wait_ticks_delta;                   // BASE+0x0A; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
+    int64_t     parent_pid;                         // BASE+0x0E; a negative number indicates no parent
+    uint64_t    task_id;                            // BASE+0x16; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
+                                                    // BASE+0x1E
 } __align(1) __pack tcb_t;
 typedef struct __task_info
 {
-    addr_t self;                       // %gs:0x000; self-pointer
-    addr_t frame_ptr;                  // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
-    regstate_t saved_regs;             // %gs:0x010 - %gs:0x0AE; this stores all the register states when the process is not active
-    uint16_t quantum_val;              // %gs:0x0AE; base amount of time allocated per timeslice
-    uint16_t quantum_rem CXX_INI(0);   // %gs:0x0B0; amount of time remaining in the current timeslice
-    tcb_t task_ctl;                    // %gs:0x0B8 - %gs:0x0D0; this contains information related to the process' scheduling information, as well as PID and signaling info
-    fx_state fxsv CXX_INI();           // %gs:0x0D0 - %gs:0x2D0; stored state for floating-point registers
-    uint64_t run_split CXX_INI(0UL);   // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
-    uint64_t run_time CXX_INI(0UL);    // %gs:0x2D8; total runtime
-    uint64_t sys_time CXX_INI(0UL);    // %gs:0x2E0; approximate time in syscalls (for the moment, all syscalls simply count as 1)
-    addr_t tls_block;                  // %gs:0x2E8; location for TLS (represents the end of the block)
-    size_t num_child_procs;            // %gs:0x2F0; how many children are in the array below
-    addr_t* child_procs;               // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
-    addr_t next CXX_INI(nullptr);      // %gs:0x300; updated when scheduling event fires.
+    addr_t      self;                               // %gs:0x000; self-pointer
+    addr_t      frame_ptr;                          // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
+    regstate_t  saved_regs;                         // %gs:0x010 - %gs:0x0AE; this stores all the register states when the process is not active
+    uint16_t    quantum_val;                        // %gs:0x0AE; base amount of time allocated per timeslice
+    uint16_t    quantum_rem     CXX_INI(0);         // %gs:0x0B0; amount of time remaining in the current timeslice
+    tcb_t       task_ctl;                           // %gs:0x0B8 - %gs:0x0D0; this contains information related to the process' scheduling information, as well as PID and signaling info
+    fx_state    fxsv            CXX_INI();          // %gs:0x0D0 - %gs:0x2D0; stored state for floating-point registers
+    uint64_t    run_split       CXX_INI(0UL);       // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
+    uint64_t    run_time        CXX_INI(0UL);       // %gs:0x2D8; total runtime
+    uint64_t    sys_time        CXX_INI(0UL);       // %gs:0x2E0; approximate time in syscalls (for the moment, all syscalls simply count as 1)
+    addr_t      tls_block;                          // %gs:0x2E8; location for TLS (represents the end of the block)
+    size_t      num_child_procs;                    // %gs:0x2F0; how many children are in the array below
+    addr_t*     child_procs;                        // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
+    addr_t      next            CXX_INI(nullptr);   // %gs:0x300; updated when scheduling event fires.
 } __align(16) __pack task_t;
-void user_entry(addr_t);
-[[noreturn]] void kernel_reentry();
-void init_pit();
-void init_tss(addr_t k_rsp);
 #ifdef __cplusplus
 }
-inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
-constexpr unsigned int sub_tick_ratio{ 157 };
-constexpr unsigned int early_trunc_thresh{ 5 };
-constexpr unsigned int cycle_max { 2280 };
-constexpr word pit_divisor{ 760ui16 };
-constexpr byte pit_mode{ 0x34ui8 };
-constexpr word port_pit_data{ 0x40ui16 };
-constexpr word port_pit_cmd{ 0x43ui16 };
 #endif
 #endif

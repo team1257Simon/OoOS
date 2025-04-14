@@ -27,14 +27,15 @@ ARCH_OBJECTS = $(addprefix $(OBJDIR)/,$(ARCH_OBJECT_NAMES))
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) arch-libc.o
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES)) 
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
-OUT_SO = $(OUTDIR)/$(BASE_NAME)
+OUT_SO = $(OUTDIR)/$(SO_NAME)
+OUT_SO_LINK = $(OUTDIR)/$(BASE_NAME)
 SYM_LOG := $(LOG_DIR)/libc-syms.txt
 CRT0 = $(OUTDIR)/crt0.o
 CRTI = $(OUTDIR)/crti.o
 CRTN = $(OUTDIR)/crtn.o
 MATH_LIB = $(OUTDIR)/libm.a
 .PHONY: all
-all: $(OBJDIR) $(OSUBDIRS) $(OUTDIR) $(OUT_SO) $(CRT0) $(CRTI) $(CRTN) $(SYM_LOG)
+all: $(OBJDIR) $(OSUBDIRS) $(OUTDIR) $(OUT_SO) $(OUT_SO_LINK) $(CRT0) $(CRTI) $(CRTN) $(SYM_LOG)
 $(OUTDIR) $(OBJDIR) $(OSUBDIRS) $(ASMT_DIR) $(LOG_DIR):
 	@mkdir -p $@
 $(OBJDIR)/%.o: %.cpp
@@ -58,7 +59,8 @@ $(CRTI): sys/ooos/crti.s
 $(CRTN): sys/ooos/crtn.s
 	$(AS) -fPIC -c $< -o $@
 $(OUT_SO): $(OBJECTS)
-	$(LD) $(OBJECTS) $(MATH_LIB) $(LDFLAGS) -o $(OUTDIR)/$(SO_NAME)
-	$(ST) -s $(OUTDIR)/$(SO_NAME)
-	ln -s $(OUTDIR)/$(SO_NAME) $@
+	$(LD) $(OBJECTS) $(MATH_LIB) $(LDFLAGS) -o $@
+	$(ST) -s $@
+$(OUT_SO_LINK): $(OUT_SO)
+	ln -s $(OUT_SO) $@
 asmtest: $(ASMT_DIR) $(ASM_TEST)

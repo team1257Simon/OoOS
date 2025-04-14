@@ -77,7 +77,7 @@ program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_
 }
 bool elf64_shared_object::xvalidate()
 {
-    if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_encoding_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
+    if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
     if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit object files are not supported"); return false; }
     if(ehdr().e_type != ET_DYN) { panic("not a shared object"); return false; }
     if(!ehdr().e_phnum) { panic("no program headers present"); return false; }

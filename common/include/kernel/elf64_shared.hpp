@@ -30,7 +30,7 @@ public:
     constexpr bool is_sticky() const noexcept { return sticky; }
     constexpr bool is_symbolic() const noexcept { return symbolic; }
     constexpr addr_t get_load_offset() const noexcept { return virtual_load_base; }
-    constexpr addr_t entry_point() const { return entry; } // Gets the entry point if there is one. Returns a null pointer if none is defined (which is most of the time)
+    constexpr addr_t entry_point() const { return entry; }
     constexpr bool could_contain(addr_t addr) const noexcept { return addr >= virtual_load_base && virtual_load_base.plus(total_segment_size) > addr; }
     const char* sym_lookup(addr_t addr) const;
     program_segment_descriptor const* segment_of(addr_t symbol_vaddr) const;

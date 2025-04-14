@@ -15,7 +15,7 @@ addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_va
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return resolve(phdr(dyn_segment_idx).p_vaddr); }
 size_t elf64_dynamic_object::to_image_offset(size_t offs) { for(size_t i = 0; i < ehdr().e_phnum; i++) { if(phdr(i).p_vaddr <= offs && phdr(i).p_vaddr + phdr(i).p_memsz > offs) return offs - (phdr(i).p_vaddr - phdr(i).p_offset); } return offs; }
 elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :
-    elf64_object( start, size ),
+    elf64_object    ( start, size ),
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
     num_plt_relas   { 0UL },
@@ -37,7 +37,7 @@ elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :
     symbol_index    { symstrtab, symtab }
                     {}
 elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
-    elf64_object    { n },
+    elf64_object    ( n ),
     num_dyn_entries { 0UL },
     dyn_entries     { nullptr },
     num_plt_relas   { 0UL },
@@ -304,7 +304,7 @@ bool elf64_dynamic_object::process_got()
         for(size_t i = 0; i < ehdr().e_shnum; i++)
         {
             const char* name = shstrtab[shdr(i).sh_name];
-            if(std::strncmp(name, ".got", 4) != 0) continue;
+            if(std::strncmp(name, ".got.plt", 8) != 0) continue;
             got_vaddr = shdr(i).sh_addr;
             return true; 
         }

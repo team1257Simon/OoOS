@@ -39,8 +39,8 @@ debug_stop_flag:
     .byte 0
     .size       debug_stop_flag,    .-debug_stop_flag
     .section    .text
-    # The one time exponential growth actually comes in handy...
-    # Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
+    // The one time exponential growth actually comes in handy...
+    // Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
     .macro xm_1 macro at
         \macro \at
         \macro %(at+1)
@@ -116,7 +116,7 @@ debug_stop_flag:
     .global test_fault
     .type test_fault,   @function
 test_fault:
-    # Classic "divide by zero" fault to test the handler established in kmain
+    // Classic "divide by zero" fault to test the handler established in kmain
     xorq    %rcx,   %rcx
     movq    $1,     %rax
     divq    %rcx
@@ -124,7 +124,7 @@ test_fault:
     .size   test_fault, .-test_fault
     .type   debug_stop, @function
 debug_stop:
-    # stop here in case of a fault; register state will be mostly intact, and the faulting instruction's address will have been displayed
+    // stop here in case of a fault; register state will be mostly intact, and the faulting instruction's address will have been displayed
 1:  jmp 1b
     .size   debug_stop, .-debug_stop
     .section    .data

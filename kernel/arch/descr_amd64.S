@@ -30,16 +30,16 @@ kernel_stack_top:
 system_tss:
     .zero       102
     .word       104
-gdt_table:                              # The actual GDT
-    .quad       0                       # Null Descriptor
-    .quad       0x00AF9A000000FFFF      # Code Segment for Ring 0; offset 0x8
-    .quad       0x00CF93000000FFFF      # Data Segment for Ring 0; offset 0x10
-    .quad       0x00CFF3000000FFFF      # Data Segment for Ring 3; offset 0x18
-    .quad       0x00AFFA000000FFFF      # Code Segment for Ring 3; offset 0x20
+gdt_table:                              // The actual GDT
+    .quad       0                       // Null Descriptor
+    .quad       0x00AF9A000000FFFF      // Code Segment for Ring 0; offset 0x8
+    .quad       0x00CF93000000FFFF      // Data Segment for Ring 0; offset 0x10
+    .quad       0x00CFF3000000FFFF      // Data Segment for Ring 3; offset 0x18
+    .quad       0x00AFFA000000FFFF      // Code Segment for Ring 3; offset 0x20
 local_tss_descr:
     .zero       16
     .zero       4040
-gdt_descriptor:                         # The GDT pointer struct
+gdt_descriptor:                         // The GDT pointer struct
     .word       0x0FFF
     .quad       gdt_table
 idt_table:

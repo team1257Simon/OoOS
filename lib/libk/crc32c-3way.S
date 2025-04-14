@@ -43,59 +43,59 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-# ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
-# Define threshold below which buffers are considered "small" and routed to
-# regular CRC code that does not interleave the CRC instructions.
-# uint32_t crc32c_x86_3way(uint32_t crc, const uint8_t *buffer, size_t len);
+// ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
+// Define threshold below which buffers are considered "small" and routed to
+// regular CRC code that does not interleave the CRC instructions.
+// uint32_t crc32c_x86_3way(uint32_t crc, const uint8_t *buffer, size_t len);
 .text
 .global crc32c_x86_3way
 .type   crc32c_x86_3way, @function
 crc32c_x86_3way:
 	cmp	$200, %rdx
 	jb .Lsmall
-	################################################################
-	## 1) ALIGN:
-	################################################################
+	//******************************************************************************************************************************
+	// 1) ALIGN:
+	//******************************************************************************************************************************
 	mov	%esi, %ecx
 	neg	%ecx
-	and	$7, %ecx	# calculate the misalignment amount of the address
-	je .Laligned	# Skip if aligned
-	# Process 1 <= %ecx <= 7 bytes individually in order to align
-	# the remaining data to an 8-byte boundary.
+	and	$7, %ecx	// calculate the misalignment amount of the address
+	je .Laligned	// Skip if aligned
+	// Process 1 <= %ecx <= 7 bytes individually in order to align
+	// the remaining data to an 8-byte boundary.
 .Ldo_align:
 	movq (%rsi), %rax
 	add	%rcx, %rsi
 	sub	%rcx, %rdx
 .Lalign_loop:
-	crc32b	%al, %edi		# compute crc32 of 1-byte
-	shr	$8, %rax		    # get next byte
+	crc32b	%al, %edi		// compute crc32 of 1-byte
+	shr	$8, %rax		    // get next byte
 	dec	%ecx
 	jne .Lalign_loop
 .Laligned:
-	################################################################
-	## 2) PROCESS BLOCK:
-	################################################################
+	//******************************************************************************************************************************
+	// 2) PROCESS BLOCK:
+	//******************************************************************************************************************************
 	cmp	$128*24, %rdx
 	jae .Lfull_block
 .Lpartial_block:
-	# Compute floor(%rdx / 24) to get num qwords to process from each lane.
-	imul $2731, %edx, %eax	# 2731 = ceil(2^16 / 24)
+	// Compute floor(%rdx / 24) to get num qwords to process from each lane.
+	imul $2731, %edx, %eax	// 2731 = ceil(2^16 / 24)
 	shr	$16, %eax
 	jmp	.Lcrc_3lanes
 .Lfull_block:
-	# Processing 128 qwords from each lane.
+	// Processing 128 qwords from each lane.
 	mov	$128, %eax
-	################################################################
-	## 3) CRC each of three lanes:
-	################################################################
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 3) CRC each of three lanes:
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 .Lcrc_3lanes:
 	xor	%r8,%r8
 	xor %r9,%r9
 	mov	%eax, %ecx
-	shl	$3, %ecx		# num bytes to process from each lane
-	sub	$5, %eax		# 4 for 4x_loop, 1 for special last iter
+	shl	$3, %ecx		// num bytes to process from each lane
+	sub	$5, %eax		// 4 for 4x_loop, 1 for special last iter
 	jl .Lcrc_3lanes_4x_done
-	# Unroll the loop by a factor of 4 to reduce the overhead of the loop bookkeeping instructions, which can compete with crc32q for the ALUs.
+	// Unroll the loop by a factor of 4 to reduce the overhead of the loop bookkeeping instructions, which can compete with crc32q for the ALUs.
 .Lcrc_3lanes_4x_loop:
 	crc32q (%rsi), %rdi
 	crc32q (%rsi,%rcx), %r8
@@ -125,33 +125,33 @@ crc32c_x86_3way:
 .Lcrc_3lanes_last_qword:
 	crc32q	(%rsi), %rdi
 	crc32q	(%rsi,%rcx), %r8
-	################################################################
-	## 4) Combine three results:
-	################################################################
-	lea	(K_table-8)(%rip), %rax		# first entry is for idx 1
-	pmovzxdq (%rax,%rcx), %xmm0	    # 2 consts: K1:K2
-	lea	(%ecx,%ecx,2), %eax         # %ecx * 3
-	sub	%rax, %rdx			        # %rdx -= %ecx * 3
-	movq %rdi, %xmm1			    # CRC for block 1
-	pclmulqdq $0x00, %xmm0, %xmm1	# Multiply by K2
-	movq %r8, %xmm2			        # CRC for block 2
-	pclmulqdq $0x10, %xmm0, %xmm2	# Multiply by K1
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 4) Combine three results:
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	lea	(K_table-8)(%rip), %rax		// first entry is for idx 1
+	pmovzxdq (%rax,%rcx), %xmm0	    // 2 consts: K1:K2
+	lea	(%ecx,%ecx,2), %eax         // %ecx * 3
+	sub	%rax, %rdx			        // %rdx -= %ecx * 3
+	movq %rdi, %xmm1			    // CRC for block 1
+	pclmulqdq $0x00, %xmm0, %xmm1	// Multiply by K2
+	movq %r8, %xmm2			        // CRC for block 2
+	pclmulqdq $0x10, %xmm0, %xmm2	// Multiply by K1
 	pxor %xmm2,%xmm1
 	movq %xmm1, %rax
 	xor	(%rsi,%rcx,2), %rax
 	mov	%r9, %rdi
 	crc32 %rax, %rdi
 	lea	8(%rsi,%rcx,2), %rsi
-	################################################################
-	## 5) If more blocks remain, goto (2):
-	################################################################
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 5) If more blocks remain, goto (2):
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	cmp	$128*24, %rdx
 	jae	.Lfull_block
 	cmp	$200, %rdx
 	jae	.Lpartial_block
-	#######################################################################
-	## 6) Process any remainder without interleaving:
-	#######################################################################
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 6) Process any remainder without interleaving:
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 .Lsmall:
 	test %edx, %edx
 	jz .Ldone
@@ -182,10 +182,10 @@ crc32c_x86_3way:
     ret
 .size crc32c_x86_3way, .-crc32c_x86_3way
 .section .rodata, "a", @progbits
-	################################################################
-	## PCLMULQDQ tables
-	## Table is 128 entries x 2 words (8 bytes) each
-	################################################################
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// PCLMULQDQ tables
+	// Table is 128 entries x 2 words (8 bytes) each
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 .align 8
 .type K_table, @object
 K_table:

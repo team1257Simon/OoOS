@@ -1,4 +1,4 @@
-AS := $(TARGET_BARE)-as
+AS := $(TARGET_BARE)-gcc
 CXX := $(TARGET_BARE)-g++
 AR := $(TARGET_BARE)-ar
 CC := $(TARGET_BARE)-gcc
@@ -25,11 +25,13 @@ all: $(OBJDIR) $(OSUBDIRS) $(OUT_A) $(SYM_LOG)
 $(OBJDIR) $(OSUBDIRS) $(ASMT_DIR) $(ASUBDIRS):
 	@mkdir -p $@
 $(OUT_A): $(OBJECTS)
+	@mkdir -p $(PROJECT_DIR)/common/include/asm-generated
+	$(PROJECT_DIR)/headergen/build/headergen > $(PROJECT_DIR)/common/include/asm-generated/asm-defs.inc
 	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.S
-	$(AS) $< -o $@
+	$(AS) -c $< -o $@
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
 $(ASMT_DIR)/%.test.asm: %.cpp

@@ -8,6 +8,23 @@
 #include "compare"
 #include "vector"
 #include "array"
+typedef int (attribute(sysv_abi) task_closure)(int, char**);
+typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
+inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
+constexpr unsigned int sub_tick_ratio{ 157 };
+constexpr unsigned int early_trunc_thresh{ 5 };
+constexpr unsigned int cycle_max { 2280 };
+constexpr word pit_divisor{ 760ui16 };
+constexpr byte pit_mode{ 0x34ui8 };
+constexpr word port_pit_data{ 0x40ui16 };
+constexpr word port_pit_cmd{ 0x43ui16 };
+extern "C"
+{
+    void user_entry(addr_t);
+    [[noreturn]] void kernel_reentry();
+    void init_pit();
+    void init_tss(addr_t k_rsp);
+}
 enum class execution_state
 {
     STOPPED     = 0,

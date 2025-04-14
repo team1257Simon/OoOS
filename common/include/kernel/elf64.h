@@ -132,7 +132,7 @@ enum elf_dyn_tag : uint64_t
     DT_PREINIT_ARRAYSZ  = 33,   //      d_val       opt         N/A
     // OS-specific 0x6000000D~0x6ffff000    ?         ?           ?
     // PC-specific 0x7000000D~0x7ffff000    ?         ?           ?
-    DT_GNU_HASH         = 0x6FFFFEF5    // replaces DT_HASH entry
+    DT_GNU_HASH         = 0x6FFFFEF5    // semantically matches DT_HASH entry
 };
 enum elf_rel_type : uint32_t
 {
@@ -151,16 +151,16 @@ enum elf_rel_type : uint32_t
     // I(...):  Represents a program-counter-relative offset
     // [...]:   Represents a table entry containing a pointer to something
     // Name 				Value	Field 	Calculation
-    R_X86_64_NONE		=	0, // 	none 	none
-    R_X86_64_64			=	1, // 	word64 	S + A
-    R_X86_64_PC32		=	2, // 	word32 	S + A - P
-    R_X86_64_GOT32		=	3, // 	word32 	O + A
-    R_X86_64_PLT32		=	4, // 	word32	L + A - P
-    R_X86_64_COPY		=	5, // 	none	none
-    R_X86_64_GLOB_DAT	=	6, // 	word64 	S
-    R_X86_64_JUMP_SLOT	=	7, // 	word64 	S
-    R_X86_64_RELATIVE	=	8, // 	word64 	B + A
-    R_X86_64_GOTPCREL	=	9, // 	word32 	O + G + A - P
+    R_X86_64_NONE		=	0,  // 	none 	none
+    R_X86_64_64			=	1,  // 	word64 	S + A
+    R_X86_64_PC32		=	2,  // 	word32 	S + A - P
+    R_X86_64_GOT32		=	3,  // 	word32 	O + A
+    R_X86_64_PLT32		=	4,  // 	word32	L + A - P
+    R_X86_64_COPY		=	5,  // 	none	none
+    R_X86_64_GLOB_DAT	=	6,  // 	word64 	S
+    R_X86_64_JUMP_SLOT	=	7,  // 	word64 	S
+    R_X86_64_RELATIVE	=	8,  // 	word64 	B + A
+    R_X86_64_GOTPCREL	=	9,  // 	word32 	O + G + A - P
     R_X86_64_32			=	10, // 	word32 	S + A
     R_X86_64_32S		=	11, // 	word32 	S + A
     R_X86_64_16			=	12, // 	word16	S + A
@@ -191,29 +191,29 @@ enum elf_rel_type : uint32_t
     R_X86_64_TLSDESC            = 36,
     R_X86_64_IRELATIVE          = 37
 };
-constexpr unsigned phdr_flag_execute = 0x1U;
-constexpr unsigned phdr_flag_write = 0x2U;
-constexpr unsigned phdr_flag_read = 0x04U;
-constexpr unsigned shdr_flag_write = 0x1U;
-constexpr unsigned shdr_flag_alloc = 0x2U;
-constexpr unsigned shdr_flag_execute = 0x4U;
-constexpr unsigned shdr_flag_amd64_large = 0x10000000U;
-constexpr unsigned elf_ident_class_idx = 4U;
-constexpr unsigned elf_ident_encoding_idx = 5U;
-constexpr unsigned dyn_flag_origin = 0x1U;
-constexpr unsigned dyn_flag_symbolic = 0x2U;
-constexpr unsigned dyn_flag_textrel = 0x4U;
-constexpr unsigned dyn_flag_bind_now = 0x8U;
-constexpr unsigned dyn_flag_static_tls = 0x10U;
+constexpr unsigned phdr_flag_execute    = 0x1U;
+constexpr unsigned phdr_flag_write      = 0x2U;
+constexpr unsigned phdr_flag_read       = 0x04U;
+constexpr unsigned shdr_flag_write      = 0x1U;
+constexpr unsigned shdr_flag_alloc      = 0x2U;
+constexpr unsigned shdr_flag_execute    = 0x4U;
+constexpr unsigned shdr_flag_x64_large  = 0x10000000U;
+constexpr unsigned elf_ident_class_idx  = 4U;
+constexpr unsigned elf_ident_enc_idx    = 5U;
+constexpr unsigned dyn_flag_origin      = 0x1U;
+constexpr unsigned dyn_flag_symbolic    = 0x2U;
+constexpr unsigned dyn_flag_textrel     = 0x4U;
+constexpr unsigned dyn_flag_bind_now    = 0x8U;
+constexpr unsigned dyn_flag_static_tls  = 0x10U;
 enum elf_segment_prot : uint8_t
 {
-    PV_NONE = 0b000U,
-    PV_READ = 0b100U,
-    PV_WRITE = 0b010U,
-    PV_EXEC = 0b001U,
-    PV_READ_EXEC = 0b101U,
-    PV_READ_WRITE = 0b110U,
-    PV_RWX = 0b111U
+    PV_NONE         = 0b000U,
+    PV_READ         = 0b100U,
+    PV_WRITE        = 0b010U,
+    PV_EXEC         = 0b001U,
+    PV_READ_EXEC    = 0b101U,
+    PV_READ_WRITE   = 0b110U,
+    PV_RWX          = 0b111U
 };
 #else
 typedef unsigned char elf_sym_bind;
@@ -290,16 +290,17 @@ typedef struct __elf64_rel
 typedef struct __elf64_rela
 {
 	uintptr_t       r_offset;
-	elf64_rel_info    r_info;
+	elf64_rel_info  r_info;
 	int64_t	        r_addend;
 } elf64_rela;
 typedef struct __elf64_dyn
 {
-    int64_t d_tag;
+    int64_t         d_tag;
     union __may_alias
     {
-        uint64_t d_val;
-        uintptr_t d_ptr;
+        uint64_t    d_val;
+        uintptr_t   d_ptr;
+        // The above two members are interpreted differently, but represent the same field in the image file.
     };
 } elf64_dyn;
 // Contains the important details for loading an elf executable as a task.

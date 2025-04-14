@@ -4,9 +4,10 @@ KINCLUDES := $(INCLUDES)/kernel
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(KINCLUDES)) -Wno-packed-bitfield-compat -D__KERNEL__ -mcrc32 
 CXXFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=c++20
 CCFLAGS := $(CFLAGS) -std=gnu23
+ASFLAGS := -I$(PROJECT_DIR)/common/include/asm-generated
 LDSCRIPT := $(CURDIR)/linker.lds
 LDFLAGS := $(CFLAGS) -L$(LIB_DIR) -nostdlib -lk -lgcc
-AS := $(TARGET_BARE)-as
+AS := $(TARGET_BARE)-gcc
 CXX := $(TARGET_BARE)-g++
 LD := $(TARGET_BARE)-gcc
 CC := $(TARGET_BARE)-gcc
@@ -16,10 +17,10 @@ SUBDIRS = $(sort $(dir $(wildcard */*.* */*/*.*)))
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
 ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
 LSUBDIRS = $(addprefix $(LOG_DIR)/,$(SUBDIRS))
-SSRC = $(wildcard *.s */*.s */*/*.s)
+SSRC = $(wildcard *.S */*.S */*/*.S)
 CSRC = $(wildcard *.c */*.c */*/*.c)
 CPPSRC = $(wildcard *.cpp */*.cpp */*/*.cpp)
-OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.s=%.o) 
+OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.S=%.o) 
 REORDER_OBJ_NAMES_START = crti.o crtbegin.o
 REORDER_OBJ_NAMES_END = crtend.o crtn.o
 REORDER_OBJ_NAMES_ALL = $(REORDER_OBJ_NAMES_START) $(REORDER_OBJ_NAMES_END)
@@ -43,12 +44,12 @@ $(LIB_DIR)/crtbegin.o:
 	$(COPY) -p $(CRTBEGIN) $@
 $(LIB_DIR)/crtend.o:
 	$(COPY) -p $(CRTEND) $@
-$(LIB_DIR)/%.o: %.s
-	$(AS) $< -o $@
+$(LIB_DIR)/%.o: %.S
+	$(AS) -c $< -o $@
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-$(OBJDIR)/%.o: %.s
-	$(AS) $< -o $@
+$(OBJDIR)/%.o: %.S
+	$(AS) $(ASFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
 $(ASMT_DIR)/%.test.asm: %.cpp

@@ -1,3 +1,4 @@
+PROJECT_DIR := $(CURDIR)
 BUILD_DIR := $(CURDIR)/build
 LIB_DIR := $(CURDIR)/common/lib
 LOG_DIR := $(CURDIR)/syms
@@ -16,6 +17,7 @@ OVMF = /usr/share/OVMF
 SYSROOT = /usr/local/ooos_sysroot
 SYS_LIB = $(SYSROOT)/usr/lib
 LIB_GCC = $(SYS_LIB)/gcc/x86_64-ooos/14.2.0
+export PROJECT_DIR
 export ARCH
 export OSNAME
 export TARGET_BARE
@@ -32,7 +34,7 @@ export SYSROOT
 export SYS_LIB
 export LIB_GCC
 export IMAGE_FILE_DIR
-SUBDIRS = lib boot kernel test
+SUBDIRS = headergen lib boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)
 EMUFLAGS := -rtc base=localtime -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=$(OVMF)/OVMF_VARS.fd,readonly=on\
@@ -45,11 +47,13 @@ $(BUILD_DIR):
 	@mkdir -p $@
 $(LOG_DIR):
 	@mkdir -p $@
+lib: headergen
 test: lib
 $(SUBDIRS):
 	$(MAKE) -C $@
 clean:
 	rm -rf $(OUT_IMG) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
+	rm -rf common/include/asm-generated/* || true
 	for dir in $(SUBDIRS); do \
 		cd $$dir;\
 		make clean ; \

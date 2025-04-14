@@ -16,3 +16,4 @@ lib/asm_test/*
 syms/*.*
 img/usr/*
 img/lib/*
+common/include/asm-generated/*
