@@ -4,6 +4,7 @@
     .type   syscall_vec,    @object
     .type   syscv_end,      @object
     .type   __held_pc,      @object
+    .type   __held_rbx,     @object
 syscall_vec:
     .quad syscall_exit          # 0
     .quad syscall_sleep         # 1
@@ -47,6 +48,9 @@ syscv_end:
 __held_pc:
     .quad 0
     .size __held_pc,        .-__held_pc
+__held_rbx:
+    .quad 0
+    .size __held_rbx,       .-__held_rbx
     #   OoOS system call ABI:
     #   System calls are performed using the x86-64 fast system call instruction (SYSCALL).
     #   The caller places arguments in registers DI, SI, D, 8, 9, and 10, and the syscall number in register A.
@@ -58,10 +62,10 @@ __held_pc:
     .type   do_syscall,         @function
 do_syscall:
     cli
-    pushq   %rbx
+    movq    %rbx,                   __held_rbx
     movq    kernel_cr3,             %rbx
     movq    %rbx,                   %cr3
-    popq    %rbx
+    movq    __held_rbx,             %rbx
     movq    %rcx,                   __held_pc
     movq    %rsp,                   %gs:0x088
     movq    %rbp,                   %gs:0x080
