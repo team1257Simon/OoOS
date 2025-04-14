@@ -144,6 +144,7 @@ user_entry:
     movq        %gs:0x010,      %rax
     movq        %gs:0x0A6,      %rax
     movq        %rax,           %cr3
+    xorq        %rax,           %rax
     sysretq
     .size       user_entry,     .-user_entry
 kernel_reentry:
