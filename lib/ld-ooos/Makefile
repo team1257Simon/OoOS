@@ -5,11 +5,11 @@ LD := $(TARGET_HOSTED)-gcc
 ST := $(TARGET_HOSTED)-strip
 READ = $(TARGET_HOSTED)-readelf
 VERSION_MAJOR = 0
-VERSION_MINOR = 0.0
+VERSION_MINOR = 1.0
 FILE_EXTENSION = so
 BASE_NAME = ld-ooos.$(FILE_EXTENSION)
-SO_NAME = $(BASE_NAME)
-FULL_NAME = $(SO_NAME).$(VERSION_MAJOR).$(VERSION_MINOR)
+SO_NAME = $(BASE_NAME).$(VERSION_MAJOR)
+FULL_NAME = $(SO_NAME).$(VERSION_MINOR)
 CFLAGS = -O2 -fPIC 
 CCFLAGS = $(CFLAGS) -std=gnu23 -Wall
 CXXFLAGS = $(CFLAGS) -std=c++20 -Wall -fno-exceptions -fcheck-new -nostdinc++
@@ -24,10 +24,12 @@ ARCH_OBJECTS = $(addprefix $(OBJDIR)/,$(ARCH_OBJECT_NAMES))
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) arch-ldso.o
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES)) 
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
-OUT_SO = $(OUTDIR)/$(BASE_NAME)
+OUT_SO = $(OUTDIR)/$(FULL_NAME)
+OUT_SO_LINK = $(OUTDIR)/$(SO_NAME)
+OUT_SO_SHORT_LINK = $(OUTDIR)/$(BASE_NAME)
 SYM_LOG := $(LOG_DIR)/ld-ooos-syms.txt
 .PHONY: all
-all: $(OBJDIR) $(OUTDIR) $(OUT_SO) $(SYM_LOG)
+all: $(OBJDIR) $(OUTDIR) $(OUT_SO) $(OUT_SO_SHORT_LINK) $(OUT_SO_LINK) $(SYM_LOG)
 $(OUTDIR) $(OBJDIR) $(ASMT_DIR) $(LOG_DIR):
 	@mkdir -p $@
 $(OBJDIR)/%.o: %.cpp
@@ -46,5 +48,9 @@ $(SYM_LOG): $(OUT_SO) $(LOG_DIR)
 	$(READ) $(READFLAGS) $< > $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
-#	$(ST) -s $@
+	$(ST) -s $@
+$(OUT_SO_LINK): $(OUT_SO)
+	ln -sr $(OUT_SO) $@
+$(OUT_SO_SHORT_LINK): $(OUT_SO_LINK)
+	ln -sr $(OUT_SO) $@
 asmtest: $(ASMT_DIR) $(ASM_TEST)

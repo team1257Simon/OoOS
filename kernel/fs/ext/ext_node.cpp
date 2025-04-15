@@ -1,12 +1,12 @@
 #include "fs/ext.hpp"
 #include "kdebug.hpp"
+static std::allocator<char> ch_alloc{};
 static inline size_t unused_dirent_space(ext_dir_entry const& de) { return static_cast<size_t>(static_cast<size_t>(de.entry_size) - static_cast<size_t>(de.name_len + 8UL)); }
 ext_dir_entry* ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(__cur()); }
 char* ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
 uint64_t ext_directory_vnode::num_files() const noexcept { return __n_files; }
 uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs; }
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode const& tn : __my_dir) result.push_back(tn.name()); return result; }
-tnode* ext_directory_vnode::find(std::string const& name) { if(!initialize()) return nullptr; if(tnode_dir::iterator i = __my_dir.find(name); i != __my_dir.end()) { return i.base(); } else return nullptr; }
 bool ext_directory_vnode::fsync() { return parent_fs->persist(this); }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number) : ext_vnode(parent, inode_number), directory_node(std::move(""), inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), inode_number) { mode = on_disk_node->mode; }
@@ -28,6 +28,37 @@ ext_vnode::~ext_vnode() = default;
 void ext_vnode::on_modify() { if(__beg()) { __fullsetp(__beg(), __cur(), __max()); setg(__beg(), __cur(), __max()); } }
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
+tnode* ext_directory_vnode::find(std::string const& name) 
+{
+    if(!initialize()) return nullptr; 
+    if(tnode_dir::iterator i = __my_dir.find(name); i != __my_dir.end()) 
+    {
+        if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
+        {
+            if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic) 
+            {
+                if(!vn->initialize()) throw std::runtime_error{ "symlink could not be initialized" };
+                size_t n = vn->count();
+                tnode* result = nullptr;
+                char* buff = ch_alloc.allocate(n);
+                if(vn->sgetn(buff, n)) result = parent_fs->get_path(std::move(std::string(buff, n)));
+                ch_alloc.deallocate(buff, n);
+                if(!result) throw std::runtime_error{ "bad symlink" };
+                return result;
+            }
+            char* link_str = vn->on_disk_node->block_info.link_target;
+            std::string separator = parent_fs->get_path_separator();
+            std::string xlink_str(link_str, std::strnlen(link_str, 60));
+            // Relative path...
+            if(std::strncmp(separator.data(), link_str, separator.size())) { return find(xlink_str); }
+            // Absolute path...
+            else if(tnode* result = parent_fs->get_path(xlink_str)) return result;
+            else throw std::runtime_error{ "bad symlink" };
+        }
+        else return i.base(); // devie node or regular file/dirnode
+    } 
+    else return nullptr; 
+}
 ext_vnode::ext_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode) :
     base_buffer                 {}, 
     inode_number                { inode_num },

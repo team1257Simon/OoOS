@@ -56,6 +56,7 @@ namespace std
             char_type* data() noexcept { return this->__beg(); }
             char_type const* data() const noexcept { return this->__beg(); }
             void clear() { this->__clear(); }
+            std::streamsize count() const noexcept { return this->__size(); }
         };
         template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)

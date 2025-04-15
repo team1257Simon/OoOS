@@ -441,3 +441,9 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
         }
     }
 }
+tnode* extfs::get_path(std::string const& path_str)
+{
+    target_pair p = get_parent(path_str, false);
+    if(p.first) return p.first->find(p.second);
+    return nullptr;
+}

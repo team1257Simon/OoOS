@@ -515,6 +515,7 @@ struct ext_vnode : public std::ext::dynamic_streambuf<char>
     bool init_extents();
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
+    constexpr bool is_symlink() const { return on_disk_node ? on_disk_node->mode.is_symlink() : false; }
 };
 struct jbd2 : public ext_vnode
 {
@@ -664,6 +665,7 @@ public:
     disk_block* claim_metadata_block(ext_node_extent_tree* requestor);
     off_t inode_block_offset(uint32_t inode);
     ext_inode* get_inode(uint32_t inode_num);
+    tnode* get_path(std::string const& path_str);
     bool write_hd(disk_block const& bl);
     bool read_hd(disk_block& bl);
     bool persist_group_metadata(size_t group_num);    
