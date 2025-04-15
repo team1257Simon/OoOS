@@ -4,7 +4,7 @@ KINCLUDES := $(INCLUDES)/kernel
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(KINCLUDES)) -Wno-packed-bitfield-compat -D__KERNEL__ -mcrc32 
 CXXFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=c++20
 CCFLAGS := $(CFLAGS) -std=gnu23
-ASFLAGS := -I$(PROJECT_DIR)/common/include/asm-generated
+ASFLAGS := -I$(PROJECT_DIR)/common/include/asm -I$(PROJECT_DIR)/common/include/asm-generated
 LDSCRIPT := $(CURDIR)/linker.lds
 LDFLAGS := $(CFLAGS) -L$(LIB_DIR) -nostdlib -lk -lgcc
 AS := $(TARGET_BARE)-gcc

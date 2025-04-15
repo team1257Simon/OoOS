@@ -1,4 +1,4 @@
-#include "asm-defs.inc"
+#include "def-amd64.inc"
     .code64
     .section .data
     .global syscall_vec
@@ -31,17 +31,18 @@ syscall_vec:
     .quad syscall_kill          // 21
     .quad syscall_mmap          // 22
     .quad syscall_munmap        // 23
-    .quad syscall_dlpreinit     // 24; WIP / ldso-specific
-    .quad syscall_dlinit        // 25; WIP / ldso-specific
-    .quad syscall_dlopen        // 26; WIP
-    .quad syscall_dlclose       // 27; WIP
-    .quad syscall_dlsym         // 28; WIP
-    .quad syscall_resolve       // 29; WIP / ldso-specific
-    .quad syscall_dlpath        // 30; WIP / ldso-specific
-    .quad syscall_dlmap         // 31; WIP / ldso-specific
-    .quad syscall_depends       // 32; WIP / ldso-specific
-    .quad syscall_dladdr        // 33; WIP
-    .quad syscall_dlfini        // 34; WIP / ldso-specific
+    .quad syscall_dlpreinit     // 24; ldso-specific
+    .quad syscall_dlinit        // 25; ldso-specific
+    .quad syscall_dlopen        // 26
+    .quad syscall_dlclose       // 27
+    .quad syscall_dlsym         // 28
+    .quad syscall_resolve       // 29; ldso-specific
+    .quad syscall_dlpath        // 30; ldso-specific
+    .quad syscall_dlmap         // 31; ldso-specific
+    .quad syscall_depends       // 32; ldso-specific
+    .quad syscall_dladdr        // 33
+    .quad syscall_dlfini        // 34; ldso-specific
+    .quad syscall_sigret        // 35; WIP
 syscv_end:
     .quad on_invalid_syscall    // handler for out-of-range syscalls
     .size syscall_vec,      .-syscall_vec    
@@ -62,29 +63,13 @@ __held_rbx:
     .global do_syscall
     .type   do_syscall,         @function
 do_syscall:
-    cli
     movq    %rbx,                   __held_rbx
     movq    kernel_cr3,             %rbx
     movq    %rbx,                   %cr3
     movq    __held_rbx,             %rbx
-    movq    %rsp,                   %gs:T_OFFS(rsp)
-    movq    %rbp,                   %gs:T_OFFS(rbp)
-    movq    %rcx,                   %gs:T_OFFS(rip)
-    movq    %rbx,                   %gs:T_OFFS(rbx)
-    movq    %rdx,                   %gs:T_OFFS(rdx)
-    movq    %rdi,                   %gs:T_OFFS(rdi)
-    movq    %rsi,                   %gs:T_OFFS(rsi)
-    movq    %r8,                    %gs:T_OFFS(r8)
-    movq    %r9,                    %gs:T_OFFS(r9)
-    movq    %r10,                   %gs:T_OFFS(r10)
-    movq    %r11,                   %gs:T_OFFS(rflags)
-    movq    %r12,                   %gs:T_OFFS(r12)
-    movq    %r13,                   %gs:T_OFFS(r13)
-    movq    %r14,                   %gs:T_OFFS(r14)
-    movq    %r15,                   %gs:T_OFFS(r15)
+    syscall_state_save
     incq    %gs:T_OFFS(sys_time)
     movq    %gs:T_OFFS(self),       %rcx
-    fxsave  %gs:T_OFFS(fxsv)    
     swapgs
     movq    %rcx,                   %gs:T_OFFS(next)
     movq    %gs:T_OFFS(rsp),        %rsp
@@ -107,22 +92,7 @@ do_syscall:
     cli
     fxsave  %gs:T_OFFS(fxsv)
     swapgs
-    fxrstor %gs:T_OFFS(fxsv)
-    movq    %gs:T_OFFS(rdx),        %rdx
-    movq    %gs:T_OFFS(rdi),        %rdi
-    movq    %gs:T_OFFS(rsi),        %rsi
-    movq    %gs:T_OFFS(r8),         %r8
-    movq    %gs:T_OFFS(r9),         %r9
-    movq    %gs:T_OFFS(r10),        %r10
-    movq    %gs:T_OFFS(rflags),     %r11    
-    movq    %gs:T_OFFS(r12),        %r12
-    movq    %gs:T_OFFS(r13),        %r13
-    movq    %gs:T_OFFS(r14),        %r14
-    movq    %gs:T_OFFS(r15),        %r15
-    movq    %gs:T_OFFS(rbp),        %rbp
-    movq    %gs:T_OFFS(rsp),        %rsp
-    movq    %gs:T_OFFS(rbx),        %rbx
-    movq    %gs:T_OFFS(rip),        %rcx
+    syscall_state_restore
     movq    %rcx,                   __held_pc
     movq    %gs:T_OFFS(cr3),        %rcx
     movq    %rcx,                   %cr3

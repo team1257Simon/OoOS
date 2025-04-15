@@ -20,6 +20,14 @@ extern "C"
     long syscall_fork() { return -ENOSYS; /* NYI */ }
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
     void on_invalid_syscall() { panic("invalid syscall"); active_task_context()->set_exit(-1); /* bounds-check syscall numbers. eventually this will use a signal */ }
+    long syscall_sigret() 
+    {
+        task_ctx* task = active_task_context();
+        task->task_sig_info.pending_signals &= ~BIT(task->task_sig_info.active_signal);
+        long rax = task->end_signal();
+        if(task->task_sig_info.pending_signals) { task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals)); }
+        return rax;
+    }
     int syscall_execve(char* name, char** argv, char** env)
     {
         task_ctx* task = active_task_context();

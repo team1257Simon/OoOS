@@ -12,6 +12,7 @@ static std::allocator<shared_object_map> sm_alloc{};
 static inline addr_t __pml4_of(addr_t frame_ptr) { if(frame_ptr.as<uframe_tag>()->magic == uframe_magic) return frame_ptr.as<uframe_tag>()->pml4; else return get_cr3(); }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 constexpr static uint64_t get_frame_magic(addr_t tag) { return tag.ref<uint64_t>(); }
+static void fill_signal_handlers(task_signal_info_t& inf) { for(size_t i = 0; i < num_signals; i++) { inf.signal_handlers[i] = signal_exit; } }
 void task_ctx::add_child(task_ctx* that) { that->task_struct.task_ctl.parent_pid = this->task_struct.task_ctl.task_id; child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx* that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
 void sys_task_exit() { int retv; asm volatile("movl %%eax, %0" : "=r"(retv) :: "memory"); get_gs_base<task_ctx>()->set_exit(retv); }
@@ -54,6 +55,7 @@ void task_ctx::init_task_state()
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
     if(is_user())
     {
+        fill_signal_handlers(task_sig_info);
         uframe_tag* tag = task_struct.frame_ptr.as<uframe_tag>();
         addr_t old_ext = tag->extent;
         size_t total_len = (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
@@ -228,7 +230,7 @@ void task_ctx::set_exit(int n)
         }
         if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle); dyn && dynamic_exit)
         {
-            if(n != 0) xklog(std::to_string(n));
+            if(n != 0) { xklog(std::to_string(n)); if(n & 0x80000000) task_struct.task_ctl.sigkill = true; }
             else
             {
                 task_struct.saved_regs.rdi = reinterpret_cast<register_t>(dyn);
@@ -289,4 +291,27 @@ register_t task_ctx::stack_pop()
     if(is_user()) kmm.exit_frame();
     task_struct.saved_regs.rsp += sizeof(register_t);
     return result;
+}
+void task_ctx::set_signal(int sig)
+{
+    task_sig_info.sigret_frame = task_struct.saved_regs;
+    task_sig_info.sigret_fxsave = task_struct.fxsv;
+    task_sig_info.active_signal = sig;
+    task_struct.saved_regs.rdi = sig;
+    task_struct.saved_regs.rsi = reinterpret_cast<register_t>(task_sig_info.signal_handlers[sig]);
+    task_struct.saved_regs.rip = addr_t(sigtramp_enter);
+    stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.full));
+}
+register_t task_ctx::end_signal()
+{
+    addr_t end_rsp = task_struct.saved_regs.rsp;
+    addr_t end_rip = task_struct.saved_regs.rip;
+    task_struct.saved_regs = task_sig_info.sigret_frame;
+    task_struct.saved_regs.rsp = end_rsp;
+    task_struct.saved_regs.rip = end_rip;
+    task_struct.fxsv = task_sig_info.sigret_fxsave;
+    task_sig_info.active_signal = 0;
+    stack_push(task_sig_info.sigret_frame.r11);
+    stack_push(task_sig_info.sigret_frame.rcx);
+    return task_sig_info.sigret_frame.rax;
 }

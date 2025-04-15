@@ -88,6 +88,8 @@ struct task_ctx
     void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
     void stack_push(register_t val);
     register_t stack_pop();
+    void set_signal(int sig);
+    register_t end_signal();
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 inline task_ctx* active_task_context() { return current_active_task()->self; }
@@ -96,6 +98,9 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 extern "C"
 {
     [[noreturn]] void handle_exit();
+    void signal_exit(int code);
+    void sigtramp_enter(int sig, signal_handler handler);
+    void sigtramp_return();
     clock_t syscall_times(struct tms* out);                     // clock_t times(struct tms* out);
     long syscall_getpid();                                      // pid_t getpid();
     long syscall_fork();                                        // pid_t fork();
@@ -104,5 +109,6 @@ extern "C"
     pid_t syscall_wait(int* sc_out);                            // pid_t wait(int* sc_out);
     int syscall_sleep(unsigned long seconds);                   // int sleep(time_t seconds);
     int syscall_execve(char* name, char** argv, char** env);    // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
+    long syscall_sigret();                                      // (only called from the signal trampoline)
 }
 #endif

@@ -8,6 +8,8 @@ extern "C"
 {
     extern unsigned char __start;
     extern unsigned char __end;
+    extern unsigned char __code;
+    extern unsigned char sigtramp_code[4096];
     kframe_tag*          __kernel_frame_tag = reinterpret_cast<kframe_tag*>(addressof(__end));
     paging_table         kernel_cr3;
 }
@@ -26,6 +28,7 @@ static addr_t        __copy_kernel_mappings(addr_t start, size_t pages, paging_t
 static addr_t        __map_mmio_pages(addr_t start, size_t pages);
 static addr_t        __map_user_pages(addr_t start_vaddr, uintptr_t start_paddr, size_t pages, paging_table pml4, bool write, bool execute);
 static void          __unmap_pages(addr_t start, size_t pages, addr_t pml4);
+static bool          __is_code_page(addr_t addr) { return addr_t(addressof(__code)) <= addr && addr < addr_t(addressof(__end)); }
 static inline size_t full_kernel_size() { return static_cast<size_t>(addressof(__end) - addressof(__start)); }
 constexpr uint32_t   calculate_block_index(size_t size) { return size < min_block_size ? 0 : size > max_block_size ? max_block_index : (st_bits - __builtin_clzl(size)) - min_exponent; }
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
@@ -60,14 +63,14 @@ static paging_table  __find_table(addr_t of_page, paging_table pml4 = get_cr3())
 static void __set_kernel_page_flags(uintptr_t max)
 {
     paging_table pt = nullptr;
-    for(addr_t addr{ addressof(__start) }; addr < max; addr += page_size)
+    for(addr_t addr = addressof(__start); addr < max; addr += page_size)
     {
         if(!pt || !addr.page_idx) pt = __find_table(addr);
         if(pt)
         {
             pt[addr.page_idx].global      = true;
-            pt[addr.page_idx].write       = true;
-            pt[addr.page_idx].user_access = true;
+            pt[addr.page_idx].write       = !__is_code_page(addr);
+            pt[addr.page_idx].user_access = false;
         }
     }
 }
@@ -153,7 +156,7 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
         {
             .present          = true,
             .write            = true,
-            .user_access      = true, // userland access to pages will be controlled by having only the necessary pages mapped into the userland page frame
+            .user_access      = false,
             .global           = global,
             .physical_address = phys >> 12,
         };
@@ -176,8 +179,7 @@ static addr_t __copy_kernel_mappings(addr_t start, size_t pages, paging_table pm
         pt_entry& u_entry = upt[p_idx];
         pt_entry& k_entry = pt[p_idx];
         array_copy<uint64_t>(addressof(u_entry), addr_t(addressof(k_entry)), sizeof(pt_entry) / sizeof(uint64_t));
-        u_entry.write       = false;
-        u_entry.user_access = false;
+        if(curr.as<uint8_t>() >= sigtramp_code && curr.as<uint8_t>() < addressof(sigtramp_code[4096])) u_entry.user_access =true;
     }
     return start;
 }
@@ -194,7 +196,7 @@ static addr_t __map_mmio_pages(addr_t start, size_t pages)
         {
             .present          = true,
             .write            = true,
-            .user_access      = true,
+            .user_access      = false,
             .write_thru       = true,
             .global           = true,
             .physical_address = curr.full >> 12,

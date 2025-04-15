@@ -487,7 +487,7 @@ extern "C"
         kproc.saved_regs.rsp = std::addressof(kernel_stack_top);
         kproc.saved_regs.rbp = std::addressof(kernel_stack_base);
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0UL, 0x08ui16, 0x10ui16);     
+        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x20UL, 0x08ui16, 0x10ui16);     
         sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing

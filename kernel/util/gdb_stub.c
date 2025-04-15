@@ -187,6 +187,7 @@ attribute(naked) void mem_fault()
     asm volatile("xorq %%rax, %%rax" ::: "memory");
     asm volatile("movq %%rax, mem_fault_routine" ::: "memory");
     asm volatile("iretq");
+	__builtin_unreachable();
 }
 #define CALL_HOOK() asm volatile("call remcom_handler");
 #define DEF_CATCH_EXCEPT(n) \
@@ -196,6 +197,7 @@ attribute(naked) void catch_exception_##n() \
    SAVE_REGISTERS2(); \
    asm volatile("push $"#n ::: "memory"); \
    CALL_HOOK(); \
+   __builtin_unreachable(); \
 }
 #define DEF_CATCH_EXCEPT_WITH_ERRORCODE(n) \
 attribute(naked) void catch_exception_##n() \
@@ -205,6 +207,7 @@ attribute(naked) void catch_exception_##n() \
    SAVE_REGISTERS2(); \
    asm volatile("push $"#n ::: "memory"); \
    CALL_HOOK(); \
+   __builtin_unreachable(); \
 }
 #define DEF_CATCH_FAULT_WITH_ERRORCODE(n) \
 attribute(naked) void catch_exception_##n() \
@@ -215,6 +218,7 @@ attribute(naked) void catch_exception_##n() \
    SAVE_REGISTERS2(); \
    asm volatile("push $"#n ::: "memory"); \
    CALL_HOOK(); \
+   __builtin_unreachable(); \
 }
 /* This function is called when a i386 exception occurs.  It saves
 * all the cpu regs in the registers array, munges the stack a bit,
@@ -242,10 +246,10 @@ DEF_CATCH_FAULT_WITH_ERRORCODE(14)
 DEF_CATCH_EXCEPT(16)
 /* remcom_handler is a front end for handle_exception.  It moves the stack pointer into an area reserved for debugger use. */
 asm("remcom_handler:");
-asm("pop %rax");             /* pop off return address     */
-asm("pop %rax");             /* get the exception number   */
+asm("pop %rax");             	 /* pop off return address     */
+asm("pop %rax");            	 /* get the exception number   */
 asm("movq stack_ptr, %rsp");     /* move to remcom stack area  */
-asm("push %rax");	            /* push exception onto stack  */
+asm("movq %rax, %rdi");	         /* pass exception number  */
 asm("call  handle_exception");   /* this never returns */
 void return_from_exception() { return_to_prog(); }
 int hex(char ch)

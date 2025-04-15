@@ -5,7 +5,7 @@ extern "C" void init_pit() { outb(port_pit_cmd, pit_mode); outb(port_pit_data, p
 extern "C" void init_tss(addr_t k_rsp) { system_tss.rsp[0] = k_rsp; system_tss.rsp[1] = k_rsp; system_tss.rsp[2] = k_rsp; for(int i = 0; i < 7; i++) { system_tss.ist[i] = k_rsp; } }
 __isrcall void task_pl_queue::on_skipped() noexcept { if(!empty() && !at_end()) { next()->task_ctl.skips++; } }
 __isrcall bool task_pl_queue::skip_flag() noexcept { return !empty() && !at_end() && next()->task_ctl.skips > __skips_threshold; }
-__isrcall bool task_pl_queue::transfer_next(task_ptr_queue_base &to_whom) { return !empty() && !at_end() && transfer(to_whom) != 0; }
+__isrcall bool task_pl_queue::transfer_next(task_ptr_queue_base& to_whom) { return !empty() && !at_end() && transfer(to_whom) != 0; }
 __isrcall void task_wait_queue::tick_wait() noexcept { if(!empty() && !at_end()) { next()->task_ctl.wait_ticks_delta--; } }
 __isrcall unsigned int task_wait_queue::next_remaining_wait_ticks() const noexcept { return !empty() && !at_end() ? next()->task_ctl.wait_ticks_delta : 0U; }
 bool task_wait_queue::interrupt_wait(const_iterator where) { if(!(where < end() && (*where)->task_ctl.can_interrupt)) return false; if(const_iterator subs = where + 1; subs < end()) (*subs)->task_ctl.wait_ticks_delta += (*where)->task_ctl.wait_ticks_delta; (*where)->task_ctl.block = false; return erase(where) != 0; }

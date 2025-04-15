@@ -20,6 +20,7 @@ extern "C"
 #else
 #define num_signals 64
 #endif
+typedef void (*signal_handler)(int);
 typedef enum
 #ifdef __cplusplus
 class
@@ -78,12 +79,13 @@ typedef struct __reg_state
 } __pack __align(2) regstate_t;
 typedef struct __task_signal_info
 {
-    qword       blocked_signals;
-    qword       pending_signals;
-    fx_state    sigret_fxsave;
-    addr_t      signal_handlers[num_signals];
-    regstate_t  sigret_frame;
-    spinlock_t  sigmask_lock;
+    qword           blocked_signals;
+    qword           pending_signals;
+    fx_state        sigret_fxsave;
+    signal_handler  signal_handlers[num_signals];
+    regstate_t      sigret_frame;
+    spinlock_t      sigmask_lock;
+    int             active_signal;
 } __pack __align(16) task_signal_info_t;
 typedef struct __task_control
 {

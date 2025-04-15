@@ -17,9 +17,9 @@
     .type       kernel_isr_stack_top,   @object
     .type       kernel_isr_stack_base,  @object
     .type       debug_stop_flag,        @object
-    .align  4096
+    .align      4096
 kernel_isr_stack_base:
-    .zero   16384
+    .zero       16384
 kernel_isr_stack_top:
     .size       kernel_isr_stack_base,  .-kernel_isr_stack_base
     .size       kernel_isr_stack_top,   .-kernel_isr_stack_base
@@ -114,19 +114,19 @@ debug_stop_flag:
     .endm
     xm256 wrapper
     .global test_fault
-    .type test_fault,   @function
+    .type test_fault,           @function
 test_fault:
     // Classic "divide by zero" fault to test the handler established in kmain
-    xorq    %rcx,   %rcx
-    movq    $1,     %rax
-    divq    %rcx
+    xorq        %rcx,           %rcx
+    movq        $1,             %rax
+    divq        %rcx
     ret
-    .size   test_fault, .-test_fault
-    .type   debug_stop, @function
+    .size       test_fault,     .-test_fault
+    .type       debug_stop,     @function
 debug_stop:
     // stop here in case of a fault; register state will be mostly intact, and the faulting instruction's address will have been displayed
 1:  jmp 1b
-    .size   debug_stop, .-debug_stop
+    .size       debug_stop,     .-debug_stop
     .section    .data
     .global     isr_table
     .type       isr_table,      @object    
