@@ -5,7 +5,7 @@ scheduler scheduler::__instance{};
 bool scheduler::__has_init{ false };
 bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
-scheduler &scheduler::get() noexcept { return __instance; }
+scheduler& scheduler::get() noexcept { return __instance; }
 scheduler::scheduler() = default;
 bool scheduler::__set_untimed_wait(task_t* task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
 void scheduler::register_task(task_t* task) { __my_queues[task->task_ctl.prio_base].push(task); }
@@ -63,19 +63,26 @@ __isrcall task_t *scheduler::select_next()
         task_pl_queue& queue = __my_queues[pv];
         if(!queue.empty())
         {
-            for(priority_val qv = priority_val(int8_t(pv) - 1); qv >= priority_val::PVLOW; qv = priority_val(int8_t(qv) - 1)) { queue.on_skipped(); if(queue.skip_flag()) { queue.transfer_next(__my_queues[escalate(qv)]); __my_queues[escalate(qv)].back()->task_ctl.skips = 0; } }
-            if(queue.at_end()) queue.restart();
-            asm volatile("mfence" ::: "memory"); 
-            task_t* result = queue.pop();
+            task_pl_queue::iterator i = queue.current(), j;
+            task_t* result;
+            do {
+                if(queue.at_end()) queue.restart();
+                asm volatile("mfence" ::: "memory");
+                result = queue.pop();
+                asm volatile("mfence" ::: "memory");
+                j = queue.current();
+            } while (result->task_ctl.block && i != j);
+            if(result->task_ctl.block) continue;
             result->task_ctl.skips = 0;
             if(result->task_ctl.prio_base != pv) { __my_queues[pv].unpop(); __my_queues[pv].transfer_next(__my_queues[deescalate(pv)]); asm volatile("mfence" ::: "memory"); }
             target = result;
+            for(priority_val qv = priority_val(int8_t(pv) - 1); qv >= priority_val::PVLOW; qv = priority_val(int8_t(qv) - 1)) { queue.on_skipped(); if(queue.skip_flag()) { queue.transfer_next(__my_queues[escalate(qv)]); __my_queues[escalate(qv)].back()->task_ctl.skips = 0; } }
             break;
         }
     }
     return target;
 }
-bool scheduler::set_wait_untimed(task_t *task)
+bool scheduler::set_wait_untimed(task_t* task)
 {
     if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task); i != __my_queues[priority_val::PVSYS].end() && __my_queues[priority_val::PVSYS].erase(i) != 0) { return __set_untimed_wait(task); } }
     for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0) { return __set_untimed_wait(task); } }

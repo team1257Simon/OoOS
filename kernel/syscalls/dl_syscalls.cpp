@@ -8,7 +8,6 @@
 #include "sys/errno.h"
 #include "arch/arch_amd64.h"
 typedef std::pair<addr_t, bool> search_result;
-static task_ctx* get_task() { return  current_active_task()->self; }
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
 static elf64_dynamic_object* validate_handle(addr_t handle) { return dynamic_cast<elf64_dynamic_object*>(handle.as<elf64_dynamic_object>()); }
 static shared_object_map::iterator global_object_search(std::string const& name, int flags) { return (flags & RTLD_GLOBAL) ? shared_object_map::get_globals().find(name) : shared_object_map::get_globals().end(); }
@@ -75,7 +74,7 @@ extern "C"
         elf64_dynamic_object* obj_handle = validate_handle(handle);
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         obj_handle->set_resolver(resolve);
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         // References to objects in the GOT must be resolved now
         for(elf64_rela const& r : obj_handle->get_object_relas())
@@ -112,7 +111,7 @@ extern "C"
         if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         if(elf64_dynamic_executable* x = dynamic_cast<elf64_dynamic_executable*>(obj_handle))
         {
-            get_task()->dynamic_exit = endfn;
+            active_task_context()->dynamic_exit = endfn;
             size_t len = x->get_preinit().size() + 1;
             addr_t result = sysres_add(len * sizeof(addr_t));
             if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
@@ -131,8 +130,8 @@ extern "C"
     }
     addr_t syscall_dlopen(const char* name, int flags)
     {
-        task_ctx* task = get_task();
-        filesystem* fs_ptr = task->get_vfs_ptr();
+        task_ctx* task = active_task_context();
+        filesystem* fs_ptr = get_fs_instance();
         if(!fs_ptr || !task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(!name) return task->object_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
         name = translate_user_pointer(name);
@@ -180,7 +179,7 @@ extern "C"
     }
     int syscall_dlclose(addr_t handle)
     {
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
         if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->object_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
@@ -193,7 +192,7 @@ extern "C"
     }
     addr_t syscall_dlsym(addr_t handle, const char* name)
     {
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
@@ -218,7 +217,7 @@ extern "C"
     }
     addr_t syscall_resolve(uint32_t sym_idx, addr_t got_loaded_id)
     {
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(got_loaded_id.as<elf64_dynamic_object>()))
         {
@@ -236,7 +235,7 @@ extern "C"
     }
     int syscall_dlpath(const char* path_str)
     {
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
         path_str = translate_user_pointer(path_str);
         if(!path_str) return -EINVAL;
@@ -251,7 +250,7 @@ extern "C"
     }
     int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent)
     {
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
         if(!so) return -EBADF;
@@ -305,7 +304,7 @@ extern "C"
     }
     int syscall_dladdr(addr_t sym_addr, dl_addr_info* info)
     {
-        task_ctx* task = get_task();
+        task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
         info = translate_user_pointer(info);
         if(!info) return -EINVAL;

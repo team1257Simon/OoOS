@@ -51,7 +51,7 @@ extern "C"
     extern void test_fault();
     task_t kproc{};
 }
-filesystem* get_fs_instance() { task_ctx* task = current_active_task()->self; return task->get_vfs_ptr(); }
+filesystem* get_fs_instance() { if(!current_active_task()) return nullptr; return active_task_context()->get_vfs_ptr(); }
 filesystem* create_task_vfs() { return std::addressof(test_extfs); /* TODO */ }
 void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory"); }
 void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "memory"); }

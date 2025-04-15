@@ -1,7 +1,7 @@
 #ifndef __TASK_CTX
 #define __TASK_CTX
-#include "kernel/sched/task.h"
 #include "kernel/kernel_mm.hpp"
+#include "kernel/sched/task.h"
 #include "kernel/fs/fs.hpp"
 #include "kernel/shared_object_map.hpp"
 #include "sys/times.h"
@@ -57,6 +57,7 @@ struct task_ctx
     shared_object_map* local_so_map{ nullptr };
     addr_t rt_argv_ptr{ nullptr };
     addr_t rt_env_ptr{ nullptr };
+    task_signal_info_t task_sig_info{};
     task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     ~task_ctx(); 
@@ -85,9 +86,12 @@ struct task_ctx
     tms get_times() const noexcept;
     void init_task_state();
     void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
+    void stack_push(register_t val);
+    register_t stack_pop();
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 inline task_ctx* active_task_context() { return current_active_task()->self; }
+inline addr_t active_frame() { return current_active_task()->frame_ptr; }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);
 extern "C"
 {

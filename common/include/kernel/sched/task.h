@@ -3,13 +3,22 @@
 #include "sys/types.h"
 #ifndef __KERNEL__
 typedef void* addr_t;
+typedef unsigned long qword;
+typedef bool spinlock_t;
 #define CXX_INI(...)
 #define __pack __attribute__((packed))
 #define __align(n) __attribute__((aligned(n)))
+#elif defined(__cplusplus)
+#include "kernel/libk_decls.h"
+#else
+typedef bool spinlock_t;
 #endif
 #ifdef __cplusplus
+constexpr size_t num_signals = 64UL;
 extern "C" 
 {
+#else
+#define num_signals 64
 #endif
 typedef enum
 #ifdef __cplusplus
@@ -28,80 +37,89 @@ __task_prio
 } priority_val;
 typedef struct __fx_state
 {
-    uint16_t    fcw;            // BASE+0x000
-    uint16_t    fsw;            // BASE+0x002
-    uint8_t     ftw;            // BASE+0x004
-    uint8_t     rsv0;           // BASE+0x005
-    uint16_t    fop;            // BASE+0x006
-    uint64_t    fip;            // BASE+0x008
-    uint64_t    fdp;            // BASE+0x010
-    uint32_t    mxcsr;          // BASE+0x018
-    uint32_t    mxcsr_mask;     // BASE+0x01B
-    long double stmm[8];        // BASE+0x020
-    int128_t    xmm[16];        // BASE+0x0A0
-    int128_t    rsv1[3];        // BASE+0x1A0
-    int128_t    avail[3];       // BASE+0x1D0
-                                // BASE+0x200
+    uint16_t    fcw;
+    uint16_t    fsw;
+    uint8_t     ftw;
+    uint8_t     rsv0;
+    uint16_t    fop;
+    uint64_t    fip;
+    uint64_t    fdp;
+    uint32_t    mxcsr;
+    uint32_t    mxcsr_mask;
+    long double stmm[8];
+    int128_t    xmm[16];
+    int128_t    rsv1[3];
+    int128_t    avail[3];
 } __align(16) __pack fx_state;
 typedef struct __reg_state
 {
-    register_t  rax;    // BASE+0x00=0x10
-    register_t  rbx;    // BASE+0x08=0x18
-    register_t  rcx;    // BASE+0x10=0x20
-    register_t  rdx;    // BASE+0x18=0x28
-    register_t  rdi;    // BASE+0x20=0x30
-    register_t  rsi;    // BASE+0x28=0x38
-    register_t  r8;     // BASE+0x30=0x40
-    register_t  r9;     // BASE+0x38=0x48
-    register_t  r10;    // BASE+0x40=0x50
-    register_t  r11;    // BASE+0x48=0x58
-    register_t  r12;    // BASE+0x50=0x60
-    register_t  r13;    // BASE+0x58=0x68
-    register_t  r14;    // BASE+0x60=0x70
-    register_t  r15;    // BASE+0x68=0x78
-    addr_t      rbp;    // BASE+0x70=0x80
-    addr_t      rsp;    // BASE+0x78=0x88
-    addr_t      rip;    // BASE+0x80=0x90
-    register_t  rflags; // BASE+0x88=0x98
-    uint16_t    ds;     // BASE+0x90=0xA0
-    uint16_t    ss;     // BASE+0x92=0xA2
-    uint16_t    cs;     // BASE+0x94=0xA4
-    addr_t      cr3;    // BASE+0x96=0xA6
-                        // BASE+0x9E=0xAE
+    register_t  rax;
+    register_t  rbx;
+    register_t  rcx;
+    register_t  rdx;
+    register_t  rdi;
+    register_t  rsi;
+    register_t  r8;
+    register_t  r9;
+    register_t  r10;
+    register_t  r11;
+    register_t  r12;
+    register_t  r13;
+    register_t  r14;
+    register_t  r15;
+    addr_t      rbp;
+    addr_t      rsp;
+    addr_t      rip;
+    register_t  rflags;
+    uint16_t    ds;
+    uint16_t    ss;
+    uint16_t    cs;
+    addr_t      cr3;
 } __pack __align(2) regstate_t;
+typedef struct __task_signal_info
+{
+    qword       blocked_signals;
+    qword       pending_signals;
+    fx_state    sigret_fxsave;
+    addr_t      signal_handlers[num_signals];
+    regstate_t  sigret_frame;
+    spinlock_t  sigmask_lock;
+} __pack __align(16) task_signal_info_t;
 typedef struct __task_control
 {
-    volatile struct                                 // BASE+0x00
+    volatile struct 
     {
-        bool            block           : 1;        // sleep or wait
+        bool            block           : 1;        // true if the task is in a sleeping or waiting state
         bool            can_interrupt   : 1;        // true if the wait can be interrupted
         bool            notify_cterm    : 1;        // true if the wait should be interrupted on a child process termination
         bool            sigkill         : 1;        // true if the process has stopped due to an abnormal termination (e.g. kill signal)
         priority_val    prio_base       : 4;        // the base priority of the thread/process
     } __pack __align(1);
-    uint8_t     skips;                              // BASE+0x01; the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
-    uintptr_t   signal_num;                         // BASE+0x02; the sigval union (WIP)
-    uint32_t    wait_ticks_delta;                   // BASE+0x0A; for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
-    int64_t     parent_pid;                         // BASE+0x0E; a negative number indicates no parent
-    uint64_t    task_id;                            // BASE+0x16; pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
-                                                    // BASE+0x1E
-} __align(1) __pack tcb_t;
+    struct
+    {   
+        uint8_t             skips;                      // the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
+        task_signal_info_t* signal_info;                // WIP
+        uint32_t            wait_ticks_delta;           // for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
+        int64_t             parent_pid;                 // a negative number indicates no parent
+        uint64_t            task_id;                    // pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
+    } __pack __align(1);
+} __pack tcb_t;
 typedef struct __task_info
 {
-    addr_t      self;                               // %gs:0x000; self-pointer
-    addr_t      frame_ptr;                          // %gs:0x008; this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
-    regstate_t  saved_regs;                         // %gs:0x010 - %gs:0x0AE; this stores all the register states when the process is not active
-    uint16_t    quantum_val;                        // %gs:0x0AE; base amount of time allocated per timeslice
-    uint16_t    quantum_rem     CXX_INI(0);         // %gs:0x0B0; amount of time remaining in the current timeslice
-    tcb_t       task_ctl;                           // %gs:0x0B8 - %gs:0x0D0; this contains information related to the process' scheduling information, as well as PID and signaling info
-    fx_state    fxsv            CXX_INI();          // %gs:0x0D0 - %gs:0x2D0; stored state for floating-point registers
-    uint64_t    run_split       CXX_INI(0UL);       // %gs:0x2D0; timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
-    uint64_t    run_time        CXX_INI(0UL);       // %gs:0x2D8; total runtime
-    uint64_t    sys_time        CXX_INI(0UL);       // %gs:0x2E0; approximate time in syscalls (for the moment, all syscalls simply count as 1)
-    addr_t      tls_block;                          // %gs:0x2E8; location for TLS (represents the end of the block)
-    size_t      num_child_procs;                    // %gs:0x2F0; how many children are in the array below
-    addr_t*     child_procs;                        // %gs:0x2F8; array of pointers to child process info structures (for things like process-tree termination)
-    addr_t      next            CXX_INI(nullptr);   // %gs:0x300; updated when scheduling event fires.
+    addr_t      self;                               // self-pointer
+    addr_t      frame_ptr;                          // this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
+    regstate_t  saved_regs;                         // this stores all the register states when the process is not active
+    uint16_t    quantum_val;                        // base amount of time allocated per timeslice
+    uint16_t    quantum_rem     CXX_INI(0);         // amount of time remaining in the current timeslice
+    tcb_t       task_ctl;                           // this contains information related to the process' scheduling information, as well as PID and signaling info
+    fx_state    fxsv            CXX_INI();          // stored state for floating-point registers
+    uint64_t    run_split       CXX_INI(0UL);       // timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
+    uint64_t    run_time        CXX_INI(0UL);       // total runtime
+    uint64_t    sys_time        CXX_INI(0UL);       // approximate time in syscalls (for the moment, all syscalls simply count as 1)
+    addr_t      tls_block;                          // pointer to the end of the process TLS template block (WIP)
+    size_t      num_child_procs;                    // how many children are in the array below
+    addr_t*     child_procs;                        // array of pointers to child process info structures (for things like process-tree termination)
+    addr_t      next            CXX_INI(nullptr);   // updated when the scheduling event fires.
 } __align(16) __pack task_t;
 #ifdef __cplusplus
 }

@@ -37,21 +37,21 @@ extern "C"
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
         return EINVAL;
     }
     int syscall_write(int fd, char* ptr, int len)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { n->write(translate_user_pointer(ptr), len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { n->write(translate_user_pointer(ptr), len); n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_read(int fd, char* ptr, int len)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { n->read(translate_user_pointer(ptr), len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { n->read(translate_user_pointer(ptr), len); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_link(char* old, char* __new)
@@ -65,7 +65,7 @@ extern "C"
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { return n->seek(offs, way == 0 ? std::ios_base::beg : way == 1 ? std::ios_base::cur : std::ios_base::end) >= 0 ? 0 : -EIO; } return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_unlink(char* name)
@@ -79,14 +79,14 @@ extern "C"
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_fstat(int fd, stat* st)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_stat(const char* restrict name, stat* restrict st)
@@ -101,7 +101,7 @@ extern "C"
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, current_active_task()->self, fd)) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { n->mode = m; return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -EINVAL;
     }
     int syscall_chmod(const char* name, mode_t m)

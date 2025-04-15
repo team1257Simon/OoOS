@@ -40,7 +40,7 @@ void task_ctx::init_task_state()
         task_struct.saved_regs.rbx = static_cast<register_t>(entry.full);
         shared_object_map::iterator ldso = shared_object_map::get_ldso_object(ctx_filesystem);
         if(addr_t ldso_entry = ldso->entry_point()) { task_struct.saved_regs.rip = ldso_entry; }
-        else { throw std::runtime_error{ "ldso object has no entry point" }; }
+        else { throw std::runtime_error{ "dynamic linker object has no entry point" }; }
         attach_object(ldso.base());
     }
     else
@@ -123,7 +123,21 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
             .cr3            { __pml4_of(frame_ptr) },
         }, 
         .quantum_val        { quantum }, 
-        .task_ctl           { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid },
+        .task_ctl           
+        { 
+            {
+                .block          { false },
+                .can_interrupt  { false },
+                .notify_cterm   { false },
+                .sigkill        { false },
+                .prio_base      { prio }
+            }, 
+            {
+                .signal_info    { std::addressof(task_sig_info) },
+                .parent_pid     { parent_pid }, 
+                .task_id        { pid }
+            }
+        },
         .tls_block          { tls_base.plus(tls_len) }
     },
     arg_vec                 { std::move(args) },
@@ -151,7 +165,21 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
             .cr3            { __pml4_of(desc.frame_ptr) } 
         },
         .quantum_val        { quantum }, 
-        .task_ctl           { { false, false, false, false, prio }, 0U, 0U, 0U, parent_pid, pid },
+        .task_ctl           
+        {
+            {
+                .block          { false },
+                .can_interrupt  { false },
+                .notify_cterm   { false },
+                .sigkill        { false },
+                .prio_base      { prio }
+            }, 
+            {
+                .signal_info    { std::addressof(task_sig_info) },
+                .parent_pid     { parent_pid }, 
+                .task_id        { pid }
+            }
+        },
         .tls_block          { addr_t(desc.prg_tls).plus(desc.tls_size) }
     },
     arg_vec                 { std::move(args) },
@@ -216,6 +244,7 @@ void task_ctx::set_exit(int n)
 }
 void task_ctx::attach_object(elf64_object* obj)
 {
+    if(!is_user()) return;
     std::vector<block_descr> blocks = obj->segment_blocks();
     kmm.enter_frame(task_struct.frame_ptr);
     kmm.map_to_current_frame(blocks);
@@ -245,4 +274,19 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
     if(exit_fn) { ctx->start_task(exit_fn); }
     else { ctx->start_task(); }
     user_entry(ctx->task_struct.self);
+}
+void task_ctx::stack_push(register_t val)
+{
+    task_struct.saved_regs.rsp -= sizeof(register_t);
+    if(is_user()) kmm.enter_frame(task_struct.frame_ptr);
+    addr_t(kmm.frame_translate(task_struct.saved_regs.rsp)).ref<register_t>() = val;
+    if(is_user()) kmm.exit_frame();
+}
+register_t task_ctx::stack_pop()
+{
+    if(is_user()) kmm.enter_frame(task_struct.frame_ptr);
+    register_t result = addr_t(kmm.frame_translate(task_struct.saved_regs.rsp)).ref<register_t>();
+    if(is_user()) kmm.exit_frame();
+    task_struct.saved_regs.rsp += sizeof(register_t);
+    return result;
 }
