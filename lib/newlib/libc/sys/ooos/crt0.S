@@ -3,8 +3,6 @@
     .type       environ,        @object
     .extern     main
     .type       main,           @function
-    .extern     _init_signal
-    .type       _init_signal,   @function
     .section    .text
     .global     _start
     .type       _start,     @function
@@ -16,7 +14,6 @@ _start:
     pushq       %rsi
     pushq       %rdx
     call        _init
-    call        _init_signal
     popq        %rdx    
     popq        %rsi
     popq        %rdi

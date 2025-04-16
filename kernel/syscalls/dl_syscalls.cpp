@@ -9,7 +9,6 @@
 #include "arch/arch_amd64.h"
 typedef std::pair<addr_t, bool> search_result;
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
-static elf64_dynamic_object* validate_handle(addr_t handle) { return dynamic_cast<elf64_dynamic_object*>(handle.as<elf64_dynamic_object>()); }
 static shared_object_map::iterator global_object_search(std::string const& name, int flags) { return (flags & RTLD_GLOBAL) ? shared_object_map::get_globals().find(name) : shared_object_map::get_globals().end(); }
 static search_result global_search(const char* name)
 {
@@ -66,6 +65,13 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
     search_result res = full_search(task, name);
     if(have_weak && !res.second) res.second = true;
     return res;
+}
+static elf64_dynamic_object* validate_handle(addr_t handle) 
+{
+    // need to do this so the dynamic cast doesn't get optimized out; we can use it to verify that the object is indeed a handle and not some random pointer
+    volatile elf64_object* o = static_cast<volatile elf64_object*>(handle.as<volatile elf64_dynamic_object>());
+    barrier();
+    return const_cast<elf64_dynamic_object*>(dynamic_cast<elf64_dynamic_object volatile*>(o)); 
 }
 extern "C"
 {

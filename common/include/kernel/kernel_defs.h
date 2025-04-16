@@ -329,7 +329,6 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 constexpr size_t physical_block_size = 512UL;
 #define __may_alias [[gnu::may_alias]]
 #define restrict
-#include "concepts"
 #include "compare"
 #include "bits/move.h"
 template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
@@ -780,10 +779,10 @@ typedef union __may_alias __byte
     constexpr __byte& operator=(__byte const&) noexcept = default;
     constexpr __byte& operator=(__byte&&) noexcept = default;
     constexpr ~__byte() noexcept = default;
-    constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint8_t() const noexcept { return full; }
-    constexpr bool operator[](uint8_t i) const noexcept { if(__builtin_is_constant_evaluated()) { return full & (1 << i); } return i == 0 ? b0 : (i == 1 ? b1 : (i == 2 ? b2 : (i == 3 ? b3 : (i == 4 ? b4 : (i == 5 ? b5 : (i == 6 ? b6 : (i == 7 ? b7 : false))))))); }
+    constexpr bool operator[](uint8_t i) const noexcept { if(std::is_constant_evaluated()) { return full & (1 << i); } return i == 0 ? b0 : (i == 1 ? b1 : (i == 2 ? b2 : (i == 3 ? b3 : (i == 4 ? b4 : (i == 5 ? b5 : (i == 6 ? b6 : (i == 7 ? b7 : false))))))); }
     constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
     constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
     constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
@@ -796,9 +795,9 @@ typedef union __may_alias __byte
     constexpr __byte operator++(int) noexcept { __byte that(*this); full++; return that; }
     constexpr __byte& operator--() noexcept { full--; return *this; }
     constexpr __byte operator--(int) noexcept { __byte that(*this); full--; return that; }
-    constexpr void set(uint8_t i) volatile noexcept { __byte that{ *const_cast<__byte*>(this) }; that |= (1 << i); __atomic_store(this, &that, __ATOMIC_SEQ_CST); }
-    constexpr void clear(uint8_t i) volatile noexcept { __byte that{ *const_cast<__byte*>(this) }; that &= ~(1 << i); __atomic_store(this, &that, __ATOMIC_SEQ_CST); }
-    constexpr bool get(uint8_t i) volatile noexcept { return (__atomic_load_n(std::bit_cast<const uint8_t*>(this), __ATOMIC_SEQ_CST) & (1 << i)) != 0; }
+    constexpr bool bts(int i) volatile noexcept { return __sync_fetch_and_or(std::addressof(full), 1 << i); }
+    constexpr bool btr(int i) volatile noexcept { return __sync_fetch_and_and(std::addressof(full), ~(1 << i)); }
+    constexpr bool btc(int i) volatile noexcept { return __sync_fetch_and_xor(std::addressof(full), 1 << i); }
 } __pack byte;
 typedef struct __word
 { 
@@ -813,8 +812,8 @@ typedef struct __word
     constexpr __word& operator=(__word const&) noexcept = default;
     constexpr __word& operator=(__word&&) noexcept = default;
     constexpr ~__word() noexcept = default;
-    constexpr volatile __word& operator=(__word const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __word& operator=(__word&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __word& operator=(__word const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __word& operator=(__word&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint16_t() const noexcept { return (static_cast<uint16_t>(hi.full) << 8) | lo; }    
     constexpr __word& operator|=(__word const& that) noexcept { return *this = (*this | that); }
     constexpr __word& operator&=(__word const& that) noexcept { return *this = (*this & that); }
@@ -829,6 +828,9 @@ typedef struct __word
     constexpr __word& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
     constexpr __word operator--(int) noexcept { __word that(*this); --(*this); return that; }
     constexpr bool operator[](uint8_t i) const noexcept { return (i >= 8 ? hi : lo)[i % 8]; }
+    constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
+    constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
+    constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
 } __pack word;
 typedef struct __dword
 {
@@ -843,8 +845,8 @@ typedef struct __dword
     constexpr __dword& operator=(__dword const&) noexcept = default;
     constexpr __dword& operator=(__dword&&) noexcept = default;
     constexpr ~__dword() noexcept = default;
-    constexpr volatile __dword& operator=(__dword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __dword& operator=(__dword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __dword& operator=(__dword const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __dword& operator=(__dword&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint32_t() const noexcept { return static_cast<uint32_t>(static_cast<uint16_t>(lo) | (static_cast<uint32_t>(static_cast<uint16_t>(hi)) << 16)); }
     constexpr __dword& operator|=(__dword const& that) noexcept { return *this = (*this | that); }
     constexpr __dword& operator&=(__dword const& that) noexcept { return *this = (*this & that); }
@@ -859,6 +861,9 @@ typedef struct __dword
     constexpr __dword& operator--() noexcept { uint32_t that = *this; --that; return (*this = that); }
     constexpr __dword operator--(int) noexcept { __dword that(*this); --(*this); return that; }
     constexpr bool operator[](uint8_t i) const noexcept { return (i >= 16 ? hi : lo)[i % 16]; }
+    constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
+    constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
+    constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
 }__pack dword;
 typedef struct __qword
 {
@@ -873,8 +878,8 @@ typedef struct __qword
     constexpr __qword& operator=(__qword const&) noexcept = default;
     constexpr __qword& operator=(__qword&&) noexcept = default;
     constexpr ~__qword() noexcept = default;
-    constexpr volatile __qword& operator=(__qword const& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, &that, __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __qword& operator=(__qword const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
+    constexpr volatile __qword& operator=(__qword&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint64_t() const noexcept { return static_cast<uint64_t>(static_cast<uint32_t>(lo) | (static_cast<uint64_t>(static_cast<uint32_t>(hi)) << 32)); }
     constexpr __qword& operator|=(__qword const& that) noexcept { return *this = (*this | that); }
     constexpr __qword& operator&=(__qword const& that) noexcept { return *this = (*this & that); }
@@ -889,6 +894,9 @@ typedef struct __qword
     constexpr __qword& operator--() noexcept { uint64_t that = *this; --that; return (*this = that); }
     constexpr __qword operator--(int) noexcept { __qword that(*this); --(*this); return that; }
     constexpr bool operator[](uint8_t i) const noexcept { return (i >= 32 ? hi : lo)[i % 32]; }
+    constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
+    constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
+    constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
 } __pack qword;
 /**
  * These structures are for use with drivers that require working with numbers in big endian (amd64 is little endian).
@@ -958,5 +966,5 @@ typedef uint16_t __be16;
 typedef uint32_t __be32;
 typedef uint64_t __be64;
 #endif
-#define BIT(n) (1 << n)
+#define BIT(n) (1 << (n))
 #endif

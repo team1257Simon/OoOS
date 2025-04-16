@@ -43,6 +43,9 @@ syscall_vec:
     .quad syscall_dladdr        // 33
     .quad syscall_dlfini        // 34; ldso-specific
     .quad syscall_sigret        // 35; WIP
+    .quad syscall_signal        // 36; WIP
+    .quad syscall_raise         // 37; WIP
+    .quad syscall_sigprocmask   // 38; WIP
 syscv_end:
     .quad on_invalid_syscall    // handler for out-of-range syscalls
     .size syscall_vec,      .-syscall_vec    
@@ -81,12 +84,13 @@ do_syscall:
     pushq   %rbp
     movq    %rsp,                   %rbp
     cmpl    $0,                     %eax
-    jl      on_invalid_syscall
+    jl      2f
     leaq    syscall_vec,            %r10
     leaq    (%r10, %rax, 8),        %rax
     cmpq    $syscv_end,             %rax
-    jg      on_invalid_syscall
+    jg      2f
     movq    (%rax),                 %rax
+1:
     sti
     call    *%rax
     cli
@@ -98,4 +102,7 @@ do_syscall:
     movq    %rcx,                   %cr3
     movq    __held_pc,              %rcx
     sysretq
+2:
+    leaq    on_invalid_syscall,     %rax
+    jmp 1b
     .size do_syscall, .-do_syscall

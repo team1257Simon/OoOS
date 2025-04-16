@@ -12,7 +12,7 @@ index a35b24ba7..516291a46 100755
  		;;
  	qnx*)
 diff --git a/newlib/configure.host b/newlib/configure.host
-index 5005d38c6..b6caeec03 100644
+index 5005d38c6..f9f1a5b72 100644
 --- a/newlib/configure.host
 +++ b/newlib/configure.host
 @@ -460,6 +460,10 @@ case "${host}" in
@@ -21,7 +21,7 @@ index 5005d38c6..b6caeec03 100644
  	;;
 +  *-*-ooos*)
 +    sys_dir=ooos
-+	newlib_cflags="${newlib_cflags} -DHAVE_MMAP=1"
++	newlib_cflags="${newlib_cflags} -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -DLACKS_UNISTD_H"
 +    ;;
    epiphany-*-*)
  	sys_dir=epiphany

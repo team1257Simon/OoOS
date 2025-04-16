@@ -72,7 +72,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     __setc(dblk_tar);
     disk_block ch_block(txn_st_block + total++, dblk_tar, false, 1U);
     uint64_t timestamp = sys_time(nullptr);
-    jbd2_commit_header* ch = ::new (static_cast<void*>(dblk_tar)) jbd2_commit_header
+    jbd2_commit_header* ch = new(static_cast<void*>(dblk_tar)) jbd2_commit_header
     { 
         .checksum_type = 4,
         .checksum_size = 4,

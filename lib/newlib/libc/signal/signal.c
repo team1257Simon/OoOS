@@ -542,78 +542,31 @@ extern int           _unlink_r(struct _reent*, const char*);
 extern int           _wait_r(struct _reent*, int*);
 extern _ssize_t      _write_r(struct _reent*, int, const void*, size_t);
 extern int           _gettimeofday_r(struct _reent*, struct timeval* __tp, void* __tzp);
-int                  _init_signal_r(struct _reent* ptr)
-{
-    int i;
-    if(ptr->_sig_func == ((void*)0))
-    {
-        ptr->_sig_func = (_sig_func_ptr*)_malloc_r(ptr, sizeof(_sig_func_ptr) * 32);
-        if(ptr->_sig_func == ((void*)0)) return -1;
-        for(i = 0; i < 32; i++) ptr->_sig_func[i] = ((_sig_func_ptr)0);
-    }
-    return 0;
-}
 _sig_func_ptr _signal_r(struct _reent* ptr, int sig, _sig_func_ptr func)
 {
-    _sig_func_ptr old_func;
-    if(sig < 0 || sig >= 32)
-    {
-        ptr->_errno = 22;
-        return ((_sig_func_ptr)-1);
-    }
-    if(ptr->_sig_func == ((void*)0) && _init_signal_r(ptr) != 0) return ((_sig_func_ptr)-1);
-    old_func            = ptr->_sig_func[sig];
-    ptr->_sig_func[sig] = func;
-    return old_func;
+    long retval;
+	asm volatile("syscall" : "=a"(retval) : "0"(36), "D"(sig), "S"(func) : "memory", "%rcx", "%r11");
+	if(retval < 0 && retval > -4096) { ptr->_errno = -retval; return ((_sig_func_ptr)-1); }
+	return (_sig_func_ptr)retval;
 }
 int _raise_r(struct _reent* ptr, int sig)
 {
-    _sig_func_ptr func;
-    if(sig < 0 || sig >= 32)
-    {
-        ptr->_errno = 22;
-        return -1;
-    }
-    if(ptr->_sig_func == ((void*)0))
-        func = ((_sig_func_ptr)0);
-    else
-        func = ptr->_sig_func[sig];
-    if(func == ((_sig_func_ptr)0))
-        return _kill_r(ptr, _getpid_r(ptr), sig);
-    else if(func == ((_sig_func_ptr)1))
-        return 0;
-    else if(func == ((_sig_func_ptr)-1))
-    {
-        ptr->_errno = 22;
-        return 1;
-    }
-    else
-    {
-        ptr->_sig_func[sig] = ((_sig_func_ptr)0);
-        func(sig);
-        return 0;
-    }
+    int retval;
+    asm volatile("syscall" : "=a"(retval) : "0"(37), "D"(sig) : "memory", "%rcx", "%r11");
+    if(retval < 0 && retval > -4096) { ptr->_errno = -retval; return -1; }
+    return 0;
 }
-int __sigtramp_r(struct _reent* ptr, int sig)
+int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset)
 {
-    _sig_func_ptr func;
-    if(sig < 0 || sig >= 32) { return -1; }
-    if(ptr->_sig_func == ((void*)0) && _init_signal_r(ptr) != 0) return -1;
-    func = ptr->_sig_func[sig];
-    if(func == ((_sig_func_ptr)0))
-        return 1;
-    else if(func == ((_sig_func_ptr)-1))
-        return 2;
-    else if(func == ((_sig_func_ptr)1))
-        return 3;
-    else
-    {
-        ptr->_sig_func[sig] = ((_sig_func_ptr)0);
-        func(sig);
-        return 0;
-    }
+    int retval;
+    asm volatile("syscall" : "=a"(retval) : "0"(38), "D"(how), "S"(set), "d"(oset) : "memory", "%rcx", "%r11");
+    if(retval < 0 && retval > -4096) { _impure_ptr->_errno = -retval; return -1; }
+    return 0;
 }
 int           raise(int sig) { return _raise_r(_impure_ptr, sig); }
 _sig_func_ptr signal(int sig, _sig_func_ptr func) { return _signal_r(_impure_ptr, sig, func); }
-int           _init_signal(void) { return _init_signal_r(_impure_ptr); }
-int           __sigtramp(int sig) { return __sigtramp_r(_impure_ptr, sig); }
+int           sigemptyset(sigset_t* set) { if(set) *set = 0UL; else { _impure_ptr->_errno = 22; return -1; } return 0; }
+int           sigfillset(sigset_t* set) { if(set) *set = ~0UL; else { _impure_ptr->_errno = 22; return -1; } return 0; }
+int           sigaddset(sigset_t* set, int sig) { if(set) *set |= (1 << sig); else { _impure_ptr->_errno = 22; return -1; } return 0; }
+int           sigdelset(sigset_t* set, int sig) { if(set) *set &= ~(1 << sig); else { _impure_ptr->_errno = 22; return -1; } return 0; }
+int           sigismember(sigset_t const* set, int sig) { if(set) return (*set & (1 << sig)) ? 1 : 0; _impure_ptr->_errno = 22; return -1; }

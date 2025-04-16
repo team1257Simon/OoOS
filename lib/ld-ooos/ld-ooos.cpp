@@ -33,10 +33,15 @@ static struct
     buckets_ptr    buckets;
     node           root;
     size_t         after_root_idx;
-    buckets_ptr    allocate_buckets(size_t count) { buckets_ptr result = static_cast<buckets_ptr>(allocate(count * sizeof(node_ptr), alignof(node_ptr))); __zero(result, count * sizeof(node_ptr)); return result; }
     node_ptr       advance(node_ptr n) { return n ? n->chain_next : nullptr; }
     node_const_ptr advance(node_const_ptr n) { return n ? n->chain_next : nullptr; }
     size_t         idx(node_const_ptr n) const { return bucket_count ? __hash(*n) % bucket_count : 0; }
+    buckets_ptr    allocate_buckets(size_t count)
+    {
+        buckets_ptr result = static_cast<buckets_ptr>(allocate(count * sizeof(node_ptr), alignof(node_ptr)));
+        __zero(result, count * sizeof(node_ptr));
+        return result;
+    }
     bool           initialize(size_t nbkt)
     {
         buckets      = allocate_buckets(nbkt);

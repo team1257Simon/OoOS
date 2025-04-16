@@ -392,12 +392,18 @@ static const char* codes[] =
 };
 constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
 {
+    if(get_gs_base<task_t>() != std::addressof(kproc)) return;
     if(idx < 0x20) 
     {
         startup_tty.print_text(codes[idx]);
-        if(has_ecode(idx)) { startup_tty.print_text("("); __dbg_num(ecode, __xdigits(ecode)); startup_tty.print_text(")"); }
+        if(has_ecode(idx))
+        {
+            startup_tty.print_text("(");
+            __dbg_num(ecode, __xdigits(ecode));
+            startup_tty.print_text(")");
+        }
         if(svinst && !errinst) { errinst = addr_t(svinst); }
-        if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
+        if(errinst){ startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
         if(idx == 0x0E) 
         {
             uint64_t fault_addr;
@@ -473,7 +479,7 @@ extern "C"
         // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
         idt_init();
         nmi_disable();
-        kproc.self = &kproc;
+        kproc.self = std::addressof(kproc);
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
         kernel_memory_mgr::init_instance(mmap); 
         // Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
@@ -495,7 +501,7 @@ extern "C"
         if(fadt) rtc::init_instance(fadt->century_register);
         else rtc::init_instance();
         // The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
-        new (std::addressof(startup_tty)) direct_text_render{ si, __startup_font, 0x00FFFFFF, 0 };
+        new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFF, 0);
         startup_tty.cls();
         // The base keyboard driver object abstracts out low-level initialization code that could theoretically change for different implementations of keyboards.
         keyboard_driver* kb = get_kb_driver();

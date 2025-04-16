@@ -10,7 +10,7 @@ namespace std
         template<char_type CT, char_traits_type<CT> TT = char_traits<CT>, allocator_object<CT> AT = allocator<CT>>
         class dynamic_queue_streambuf : public virtual basic_streambuf<CT, TT>, protected __impl::__dynamic_queue<CT, AT>
         {
-            typedef typename __impl::__dynamic_queue<CT, AT> __base;
+            typedef __impl::__dynamic_queue<CT, AT> __base;
             using typename __base::__ptr_container;
         public:
             typedef TT                              traits_type;
@@ -58,6 +58,4 @@ namespace std
         }; 
     }
 }
-
-
 #endif

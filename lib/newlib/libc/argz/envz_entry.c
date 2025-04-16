@@ -1,4 +1,3 @@
-
 typedef long unsigned int size_t;
 int                       _buf_findstr(const char* str, char** buf, size_t* buf_len);
 char*                     envz_entry(const char* envz, size_t envz_len, const char* name)

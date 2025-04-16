@@ -1,4 +1,3 @@
-
 typedef long unsigned int size_t;
 char*                     strchr(const char*, int);
 size_t                    strlen(const char*);

@@ -6,7 +6,7 @@
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
 static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st) 
 {
-    new (translate_user_pointer(st)) stat
+    new(translate_user_pointer(st)) stat
     { 
         .st_dev = fsptr->get_dev_id(), 
         .st_ino = n->cid(), 

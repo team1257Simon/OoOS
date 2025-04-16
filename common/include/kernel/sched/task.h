@@ -10,11 +10,13 @@ typedef bool spinlock_t;
 #define __align(n) __attribute__((aligned(n)))
 #elif defined(__cplusplus)
 #include "kernel/libk_decls.h"
+typedef qword sigset_t;
 #else
+typedef unsigned long sigset_t;
 typedef bool spinlock_t;
 #endif
 #ifdef __cplusplus
-constexpr size_t num_signals = 64UL;
+constexpr int num_signals = 64;
 extern "C" 
 {
 #else
@@ -36,6 +38,13 @@ __task_prio
     PVEXTRA = 3,
     PVSYS = 4
 } priority_val;
+typedef enum __sm_action
+{
+    SIG_BLOCK = 0,
+    SIG_UNBLOCK = 1,
+    SIG_SETMASK = 2
+} sigprocmask_action;
+extern int8_t exception_signals[32];
 typedef struct __fx_state
 {
     uint16_t    fcw;
@@ -79,8 +88,8 @@ typedef struct __reg_state
 } __pack __align(2) regstate_t;
 typedef struct __task_signal_info
 {
-    qword           blocked_signals;
-    qword           pending_signals;
+    sigset_t        blocked_signals;
+    sigset_t        pending_signals;
     fx_state        sigret_fxsave;
     signal_handler  signal_handlers[num_signals];
     regstate_t      sigret_frame;

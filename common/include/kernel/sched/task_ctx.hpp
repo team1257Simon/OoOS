@@ -88,7 +88,7 @@ struct task_ctx
     void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
     void stack_push(register_t val);
     register_t stack_pop();
-    void set_signal(int sig);
+    void set_signal(int sig, bool save_state);
     register_t end_signal();
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
@@ -101,14 +101,18 @@ extern "C"
     void signal_exit(int code);
     void sigtramp_enter(int sig, signal_handler handler);
     void sigtramp_return();
-    clock_t syscall_times(struct tms* out);                     // clock_t times(struct tms* out);
-    long syscall_getpid();                                      // pid_t getpid();
-    long syscall_fork();                                        // pid_t fork();
-    void syscall_exit(int n);                                   // void exit(int code) __attribute__((noreturn));
-    int syscall_kill(unsigned long pid, unsigned long sig);     // int kill(pid_t pid, int sig);
-    pid_t syscall_wait(int* sc_out);                            // pid_t wait(int* sc_out);
-    int syscall_sleep(unsigned long seconds);                   // int sleep(time_t seconds);
-    int syscall_execve(char* name, char** argv, char** env);    // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
-    long syscall_sigret();                                      // (only called from the signal trampoline)
+    clock_t syscall_times(struct tms* out);                             // clock_t times(struct tms* out);
+    long syscall_getpid();                                              // pid_t getpid();
+    long syscall_fork();                                                // pid_t fork();
+    void syscall_exit(int n);                                           // void exit(int code) __attribute__((noreturn));
+    int syscall_kill(long pid, unsigned long sig);                      // int kill(pid_t pid, int sig);
+    pid_t syscall_wait(int* sc_out);                                    // pid_t wait(int* sc_out);
+    int syscall_sleep(unsigned long seconds);                           // int sleep(time_t seconds);
+    int syscall_execve(char* name, char** argv, char** env);            // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
+    long syscall_sigret();                                              // (only called from the signal trampoline)
+    signal_handler syscall_signal(int sig, signal_handler new_handler); // int (*signal(int sig, void(*new_handler)(int)))(int);
+    int syscall_raise(int sig);                                         // int raise(int sig);
+    void force_signal(task_ctx* task, int8_t sig);                      // (only called by the system on invalid syscalls or hardware exceptions)
+    int syscall_sigprocmask(sigprocmask_action how, sigset_t const* set, sigset_t* oset);   // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 }
 #endif

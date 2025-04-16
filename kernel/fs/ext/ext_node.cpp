@@ -164,7 +164,7 @@ void ext_directory_vnode::__write_dir_entry(ext_vnode* vnode, ext_dirent_type ty
     dirent->inode_idx = vnode->inode_number;
     mark_write(dirent);
     char* cblk = __current_block_start();
-    ::new (static_cast<void*>(cblk + bs - 12)) ext_dir_tail(crc32c(~0U, cblk, bs));
+    new(static_cast<void*>(cblk + bs - 12)) ext_dir_tail(crc32c(~0U, cblk, bs));
 }
 bool ext_directory_vnode::add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* nm, size_t name_len)
 {

@@ -1,4 +1,3 @@
-
 typedef unsigned long size_t;
 size_t                strlen(const char*);
 void*                 memmove(void*, const void*, size_t);

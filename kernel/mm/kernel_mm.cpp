@@ -645,6 +645,7 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     kmm.exit_frame();
     if(allocated)
     {
+        array_zero<uint64_t>(allocated, added / sizeof(uint64_t));
         usr_blocks.emplace_back(allocated, extent, added);
         extent += added;
         if(mapped_max < extent) mapped_max = extent;
@@ -664,8 +665,8 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
     if(result)
     {
         size_t actual = kernel_memory_mgr::aligned_size(addr, len);
+        array_zero<uint64_t>(result, actual / sizeof(uint64_t));
         usr_blocks.emplace_back(result, addr, actual);
-        __builtin_memset(result, 0, len);
         addr_t top = addr.plus(actual);
         mapped_max = std::max(mapped_max, top);
         extent = std::max(extent, top);

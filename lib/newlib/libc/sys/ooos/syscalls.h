@@ -3,6 +3,8 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/errno.h>
+typedef void (*_sig_func_ptr)(int);
+typedef unsigned long sigset_t;
 #define SYSCVEC_N_exit           0
 #define SYSCVEC_N_sleep          1
 #define SYSCVEC_N_wait           2
@@ -27,6 +29,8 @@
 #define SYSCVEC_N_kill           21
 #define SYSCVEC_N_mmap           22
 #define SYSCVEC_N_munmap         23
+#define SYSCVEC_N_signal         36
+#define SYSCVEC_N_sigprocmask    38
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict
@@ -53,6 +57,8 @@ int unlink(char* name);
 int wait(int* status);
 int write(int file, char* ptr, int len);
 int gettimeofday(struct timeval* restrict p, void* restrict z);
+_sig_func_ptr signal(int sig, _sig_func_ptr func);
+int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 #define SYSCVEC_ARG(name) "0"(SYSCVEC_N_##name)
 #define XSYSCALL0(name, ret) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name) : "memory")
 #define XSYSCALL1(name, ret, arg0) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0) : "memory")

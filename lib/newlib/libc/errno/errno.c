@@ -1,67 +1,3 @@
-
-typedef int               error_t;
-typedef long int          ptrdiff_t;
-typedef long unsigned int size_t;
-typedef int               wchar_t;
-typedef struct
-{
-    long long   __max_align_ll __attribute__((__aligned__(__alignof__(long long))));
-    long double __max_align_ld __attribute__((__aligned__(__alignof__(long double))));
-} max_align_t;
-typedef signed char             __int8_t;
-typedef unsigned char           __uint8_t;
-typedef short int               __int16_t;
-typedef short unsigned int      __uint16_t;
-typedef int                     __int32_t;
-typedef unsigned int            __uint32_t;
-typedef long int                __int64_t;
-typedef long unsigned int       __uint64_t;
-typedef signed char             __int_least8_t;
-typedef unsigned char           __uint_least8_t;
-typedef short int               __int_least16_t;
-typedef short unsigned int      __uint_least16_t;
-typedef int                     __int_least32_t;
-typedef unsigned int            __uint_least32_t;
-typedef long int                __int_least64_t;
-typedef long unsigned int       __uint_least64_t;
-typedef long int                __intmax_t;
-typedef long unsigned int       __uintmax_t;
-typedef long int                __intptr_t;
-typedef long unsigned int       __uintptr_t;
-typedef unsigned long           __blkcnt_t;
-typedef unsigned long           __blksize_t;
-typedef unsigned long           __fsblkcnt_t;
-typedef unsigned int            __fsfilcnt_t;
-typedef long                    _off_t;
-typedef int                     __pid_t;
-typedef int                     __dev_t;
-typedef unsigned long           __uid_t;
-typedef unsigned long           __gid_t;
-typedef unsigned int            __id_t;
-typedef unsigned long           __ino_t;
-typedef unsigned int            __mode_t;
-__extension__ typedef long long _off64_t;
-typedef _off_t                  __off_t;
-typedef _off64_t                __loff_t;
-typedef long                    __key_t;
-typedef long                    _fpos_t;
-typedef unsigned long;
-typedef signed long _ssize_t;
-struct __lock;
-typedef struct __lock* _flock_t;
-typedef void*          _iconv_t;
-typedef unsigned long  __clock_t;
-typedef long           __time_t;
-typedef unsigned long  __clockid_t;
-typedef unsigned long  __timer_t;
-typedef unsigned char  __sa_family_t;
-typedef unsigned int   __socklen_t;
-typedef int            __nl_item;
-typedef unsigned long  __nlink_t;
-typedef long           __suseconds_t;
-typedef unsigned long  __useconds_t;
-typedef char*          __va_list;
-typedef unsigned int   wint_t;
 typedef struct
 {
     int __count;
@@ -71,14 +7,13 @@ typedef struct
         unsigned char __wchb[4];
     } __value;
 } _mbstate_t;
-typedef unsigned int __ULong;
 struct _reent;
 struct __locale_t;
 struct _Bigint
 {
     struct _Bigint* _next;
     int             _k, _maxwds, _sign, _wds;
-    __ULong         _x[1];
+    unsigned int         _x[1];
 };
 struct __tm
 {
@@ -96,8 +31,8 @@ struct _on_exit_args
 {
     void*   _fnargs[32];
     void*   _dso_handle[32];
-    __ULong _fntypes;
-    __ULong _is_cxa;
+    unsigned int _fntypes;
+    unsigned int _is_cxa;
 };
 struct _atexit
 {
@@ -123,7 +58,7 @@ struct __sFILE
     void*          _cookie;
     int (*_read)(struct _reent*, void*, char*, int);
     int (*_write)(struct _reent*, void*, const char*, int);
-    _fpos_t (*_seek)(struct _reent*, void*, _fpos_t, int);
+    long (*_seek)(struct _reent*, void*, long, int);
     int (*_close)(struct _reent*, void*);
     struct __sbuf  _ub;
     unsigned char* _up;
@@ -132,9 +67,9 @@ struct __sFILE
     unsigned char  _nbuf[1];
     struct __sbuf  _lb;
     int            _blksize;
-    _off_t         _offset;
+    long         _offset;
     struct _reent* _data;
-    _flock_t       _lock;
+    void*       _lock;
     _mbstate_t     _mbstate;
     int            _flags2;
 };
@@ -204,34 +139,4 @@ struct _reent
     __FILE       __sf[3];
 };
 extern struct _reent*       _impure_ptr;
-extern struct _reent* const _global_impure_ptr;
-void                        _reclaim_reent(struct _reent*);
-extern int*                 __errno(void);
-extern const char* const    _sys_errlist[];
-extern int                  _sys_nerr;
-struct stat;
-struct tms;
-struct timeval;
-struct timezone;
-extern int           _close_r(struct _reent*, int);
-extern int           _execve_r(struct _reent*, const char*, char* const*, char* const*);
-extern int           _fcntl_r(struct _reent*, int, int, int);
-extern int           _fork_r(struct _reent*);
-extern int           _fstat_r(struct _reent*, int, struct stat*);
-extern int           _getpid_r(struct _reent*);
-extern int           _isatty_r(struct _reent*, int);
-extern int           _kill_r(struct _reent*, int, int);
-extern int           _link_r(struct _reent*, const char*, const char*);
-extern _off_t        _lseek_r(struct _reent*, int, _off_t, int);
-extern int           _mkdir_r(struct _reent*, const char*, int);
-extern int           _open_r(struct _reent*, const char*, int, int);
-extern _ssize_t      _read_r(struct _reent*, int, void*, size_t);
-extern int           _rename_r(struct _reent*, const char*, const char*);
-extern void*         _sbrk_r(struct _reent*, ptrdiff_t);
-extern int           _stat_r(struct _reent*, const char*, struct stat*);
-extern unsigned long _times_r(struct _reent*, struct tms*);
-extern int           _unlink_r(struct _reent*, const char*);
-extern int           _wait_r(struct _reent*, int*);
-extern _ssize_t      _write_r(struct _reent*, int, const void*, size_t);
-extern int           _gettimeofday_r(struct _reent*, struct timeval* __tp, void* __tzp);
 int*                 __errno() { return &_impure_ptr->_errno; }

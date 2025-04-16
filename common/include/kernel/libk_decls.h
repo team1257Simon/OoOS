@@ -56,7 +56,7 @@ template<nontrivial_copy T> constexpr void array_copy(T* dest, const T* src, std
 template<trivial_copy T> constexpr void array_copy(void* dest, const T* src, std::size_t n) { if(std::is_constant_evaluated()) for(size_t i = 0; i < n; i++) { std::construct_at(std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))), src[i]); } else __builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T))); }
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_fill(void* dest, T value, std::size_t n)  { if constexpr(std::is_copy_constructible_v<T>) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value); } } else { init_if_consteval(dest, n); if(std::is_constant_evaluated()) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } } else { __builtin_memset(dest, value, n); } } }
 // Constructs n elements at the destination location using the constructor arguments. If any of the arguments are move-assigned away from their original location by the constructor, the behavior is undefined.
-template<nontrivial_copy T, typename ... Args> requires std::constructible_from<T, Args...> constexpr void array_fill(T* dest, std::size_t n, Args && ... args) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i]), std::forward<Args>(args)...); } }
+template<nontrivial_copy T, typename ... Args> requires std::constructible_from<T, Args...> constexpr void array_fill(T* dest, std::size_t n, Args&& ... args) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i]), std::forward<Args>(args)...); } }
 // If T is default-constructible, this default-initializes n elements at the destination location. Otherwise, this does nothing (use array_fill instead and provide constructor arguments)
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
@@ -81,5 +81,18 @@ template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_
     else if constexpr(sizeof(T) % 2 == 0) array_fill<uint16_t>(dest, 0U, n * sizeof(T) / 2);
     else array_fill<uint8_t>(dest, 0U, n * sizeof(T));
 }
+template<std::integral I, template<I> class S> using __integer_constant_helper = std::bool_constant<std::is_same_v<I, typename S<I(0)>::value_type>>;
+template<std::integral I, template<I> class S> constexpr bool is_integer_constant = __integer_constant_helper<I, S>::value;
+template<std::integral I, I V> using bit_shift = std::integral_constant<I, I(I(1) << V)>;
+template<std::integral I, template<I> class S> requires is_integer_constant<I, S> struct bit_or
+{
+    constexpr static I value() { return I(); }
+    template<I I1> constexpr static I value(S<I1>) { return I1; }
+    template<I I1, I ... Js> constexpr static I value(S<I1>, S<Js>...) { return value(S<I1>()) | value(S<Js>()...); }
+};
+template<uint64_t V> using u64_shift = bit_shift<uint64_t, V>;
+template<uint64_t V> using c_u64 = std::integral_constant<uint64_t, V>;
+typedef bit_or<uint64_t, c_u64> u64_or;
+template<uint64_t ... Is> using bit_mask = c_u64<u64_or::template value(u64_shift<Is>()...)>;
 #endif
 #endif

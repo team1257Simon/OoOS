@@ -56,7 +56,7 @@ file_node* fat32::mkfilenode(directory_node* parent, std::string const& name)
     fparent.get_short_name(name, sfname);
     std::vector<fat32_directory_entry>::iterator avail = fparent.first_unused_entry();
     rtc_time t = rtc::get_instance().get_time();
-    new (std::addressof(avail->regular_entry)) fat32_regular_entry
+    new(std::addressof(avail->regular_entry)) fat32_regular_entry
     {
         .created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
         .created_date       { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
@@ -80,7 +80,7 @@ directory_node* fat32::mkdirnode(directory_node* parent, std::string const& name
     std::string sfname{};
     fparent.get_short_name(name, sfname);
     rtc_time t = rtc::get_instance().get_time();
-    new (std::addressof(avail->regular_entry)) fat32_regular_entry
+    new(std::addressof(avail->regular_entry)) fat32_regular_entry
     {
         .attributes         { 0x10 },
         .created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },

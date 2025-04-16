@@ -84,14 +84,24 @@ __isrcall task_t *scheduler::select_next()
 }
 bool scheduler::set_wait_untimed(task_t* task)
 {
-    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task); i != __my_queues[priority_val::PVSYS].end() && __my_queues[priority_val::PVSYS].erase(i) != 0) { return __set_untimed_wait(task); } }
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0) { return __set_untimed_wait(task); } }
+    using priority_val::PVSYS;
+    if(task->task_ctl.prio_base == PVSYS) 
+        if(task_pl_queue::const_iterator i = __my_queues[PVSYS].find(task); i != __my_queues[PVSYS].end() && __my_queues[PVSYS].erase(i) != 0) 
+             return __set_untimed_wait(task);
+    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1))
+        if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0) 
+            return __set_untimed_wait(task); 
     return false;
 }
 bool scheduler::set_wait_timed(task_t *task, unsigned int time, bool can_interrupt)
 {
-    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task); i != __my_queues[priority_val::PVSYS].end() && __my_queues[priority_val::PVSYS].erase(i) != 0) { return __set_wait_time(task, time, can_interrupt); } }
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0) { return __set_wait_time(task, time, can_interrupt); } }
+    using priority_val::PVSYS;
+    if(task->task_ctl.prio_base == PVSYS)
+        if(task_pl_queue::const_iterator i = __my_queues[PVSYS].find(task); i != __my_queues[PVSYS].end() && __my_queues[PVSYS].erase(i) != 0)
+            return __set_wait_time(task, time, can_interrupt); 
+    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1))
+        if(task_pl_queue::const_iterator i = __my_queues[pv].find(task); i != __my_queues[pv].end() && __my_queues[pv].erase(i) != 0)
+            return __set_wait_time(task, time, can_interrupt);
     return false;
 }
 __isrcall void scheduler::on_tick()
@@ -127,5 +137,11 @@ bool scheduler::init()
             }
         }
     }));
+    interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword) 
+    {
+        if(idx < 0x20 && get_gs_base<task_t>() != std::addressof(kproc))
+            if(task_ctx* task = get_gs_base<task_ctx>(); task->is_user())
+                force_signal(task, exception_signals[idx]);
+    });
     return true;
 }
