@@ -20,7 +20,6 @@ static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept
 constexpr bool  operator==(link_map const& a, link_map const& b) noexcept { return a.__so_handle == b.__so_handle; }
 constexpr bool  operator==(link_map const& a, void* b) noexcept { return a.__so_handle == b; }
 constexpr bool  operator==(void* a, link_map const& b) noexcept { return a == b.__so_handle; }
-static uint64_t __hash(link_map const& l) noexcept { return elf64_gnu_hash(&l.__so_handle, sizeof(void*)); }
 struct node : link_map { node* chain_next; };
 struct res_pair { node* first; bool  second; };
 static struct
@@ -34,15 +33,14 @@ static struct
     node           root;
     size_t         after_root_idx;
     node_ptr       advance(node_ptr n) { return n ? n->chain_next : nullptr; }
-    node_const_ptr advance(node_const_ptr n) { return n ? n->chain_next : nullptr; }
-    size_t         idx(node_const_ptr n) const { return bucket_count ? __hash(*n) % bucket_count : 0; }
+    size_t         idx(node_const_ptr n) const { return bucket_count ? elf64_gnu_hash(&n->__so_handle, sizeof(void*)) % bucket_count : 0; }
     buckets_ptr    allocate_buckets(size_t count)
     {
         buckets_ptr result = static_cast<buckets_ptr>(allocate(count * sizeof(node_ptr), alignof(node_ptr)));
         __zero(result, count * sizeof(node_ptr));
         return result;
     }
-    bool           initialize(size_t nbkt)
+    bool initialize(size_t nbkt)
     {
         buckets      = allocate_buckets(nbkt);
         bucket_count = nbkt;
@@ -163,24 +161,20 @@ static bool __so_close(void* handle)
 }
 static bool __load_deps(void* handle)
 {
-    
     char** deps = depends(handle);
     if(!deps) { last_error_action = DLA_GETDEP; return false; }
-    if(*deps)
+    for(size_t i = 0; deps[i]; i++)
     {
-        for(size_t i = 0; deps[i]; i++)
-        {
-            void* so = __so_open(deps[i], RTLD_LAZY | RTLD_PREINIT);
-            if(!so) return false;
-            res_pair result = rtld_map.add(so);
-            if(!result.second) continue;
-            if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
-            if(!__load_deps(so)) return false;
-        }
+        void* so = __so_open(deps[i], RTLD_LAZY | RTLD_PREINIT);
+        if(!so) return false;
+        res_pair result = rtld_map.add(so);
+        if(!result.second) continue;
+        if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
+        if(!__load_deps(so)) return false;
     }
     init_fn* ini = dlinit(handle);
     if(!ini) { last_error_action = DLA_INIT; return false; }
-    if(*ini) { for(size_t i = 0; ini[i]; i++) { ini[i](argc, argv, env); } }
+    for(size_t i = 0; ini[i]; i++) { ini[i](argc, argv, env); }
     return true;
 }
 static const char* __get_dl_error() 
@@ -196,7 +190,7 @@ static const char* __get_dl_error()
                 case ENOENT:
                     return "the system cound not resolve a required object symbol";
                 case ELIBBAD:
-                    return "a relocation entry in a required library is corrupted";
+                    return "a required library is corrupted";
                 default:
                     break;
             }
@@ -208,22 +202,23 @@ static const char* __get_dl_error()
             switch(errno)
             {
                 case ENOEXEC:
-                    return "the current process is missing relocation info";
+                    return "the current process image is corrupted";
                 case ELIBSCN:
-                    return "the relocation entry for a symbol is missing or incorrect";
+                    return "a required library is corrupted";
                 case ELIBACC:
                     return "the system could not resolve a required function symbol";
                 case ENOENT:
                     return "the system could not find the requested symbol";
-                break;
+                default:
+                    break;
             }
             break;
         default:
             if(errno == ENOENT) { return "the symbol requested does not exist"; }
             break;
     }
-    if(errno == ENOSYS) return "libdl functions not supported with static executables";
-    return "unknown error or invalid error code";
+    if(errno == ENOSYS) return "libdl is not supported with static executables";
+    return "unknown or invalid error code";
 }
 extern "C"
 {
@@ -257,7 +252,7 @@ extern "C"
         alloc_init();
         init_fn* preinit = dlpreinit(phandle);
         if(!preinit) { last_error_action = DLA_PREINIT; return errno; }
-        if(*preinit) { for(size_t i = 0; preinit[i]; i++) preinit[i](argc, argv, env); }
+        for(size_t i = 0; preinit[i]; i++) preinit[i](argc, argv, env);
         if(!rtld_map.initialize(256)) return -1;
         if(__load_deps(phandle)) return 0;
         else return errno;
