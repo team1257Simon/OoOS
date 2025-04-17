@@ -401,6 +401,15 @@ addr_t kernel_memory_mgr::allocate_mmio_block(size_t sz)
     __unlock();
     return result;
 }
+addr_t kernel_memory_mgr::map_mmio_region(uintptr_t addr, size_t sz)
+{
+    size_t npage = div_round_up(sz, page_size);
+    __lock();
+    addr_t result = __map_mmio_pages(addr_t(addr), npage);
+    if(result) { __mark_used(addr, npage); }
+    __unlock();
+    return result;
+}
 addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
 {
     addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
