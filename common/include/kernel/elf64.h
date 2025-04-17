@@ -215,6 +215,8 @@ enum elf_segment_prot : uint8_t
     PV_READ_WRITE   = 0b110U,
     PV_RWX          = 0b111U
 };
+constexpr bool is_write(elf_segment_prot p) { return (p & PV_WRITE) != 0; }
+constexpr bool is_exec(elf_segment_prot p) { return (p & PV_EXEC) != 0; }
 #else
 typedef unsigned char elf_sym_bind;
 typedef unsigned char elf_sym_type;

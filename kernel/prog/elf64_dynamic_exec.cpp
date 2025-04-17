@@ -25,6 +25,15 @@ elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, size_t stack_sz
     preinit_array_ptr       { 0UL },
     preinit_array_size      { 0UL }
                             {}
+elf64_dynamic_executable::elf64_dynamic_executable(elf64_dynamic_executable const& that) :
+    elf64_object            ( that ),
+    elf64_executable        ( that ),
+    elf64_dynamic_object    ( that ),
+    virtual_load_base       { that.virtual_load_base },
+    preinit_array           { that.preinit_array },
+    preinit_array_ptr       { that.preinit_array_ptr },
+    preinit_array_size      { that.preinit_array_size }
+                            {}
 void elf64_dynamic_executable::process_headers()
 {
     elf64_executable::process_headers();

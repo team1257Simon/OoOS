@@ -22,6 +22,7 @@ public:
     virtual ~elf64_dynamic_executable();
     elf64_dynamic_executable(file_node* n, size_t stack_sz = S04, size_t tls_sz = S04, uintptr_t base_offset = 0UL);
     elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz = S04, size_t tls_sz = S04, uintptr_t base_offset = 0UL);
+    elf64_dynamic_executable(elf64_dynamic_executable const& that);
     constexpr std::vector<addr_t> const& get_preinit() const noexcept { return preinit_array; }
 };
 #endif

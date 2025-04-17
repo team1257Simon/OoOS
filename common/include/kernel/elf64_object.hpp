@@ -34,6 +34,8 @@ protected:
     off_t segment_index(size_t offset) const;
     off_t segment_index(elf64_sym const* sym) const;
     void cleanup();
+    virtual void set_frame(uframe_tag*) = 0;
+    virtual uframe_tag* get_frame() const = 0;
 public:
     elf64_object(file_node* n);
     elf64_object(addr_t start, size_t size);
@@ -44,6 +46,7 @@ public:
     virtual ~elf64_object();
     bool validate() noexcept;
     bool load() noexcept;
+    void on_copy(uframe_tag* new_frame);
     std::vector<block_descr> segment_blocks() const;
     constexpr elf64_sym const& get_sym(size_t idx) const noexcept { return symtab[idx]; }
 };

@@ -56,6 +56,7 @@ public:
     iterator transfer(shared_object_map& that, iterator handle);
     void set_path(iterator obj, std::string const& path);
     const char* get_path(iterator obj) const;
+    void copy(shared_object_map const& that);
     static shared_object_map& get_globals();
     static iterator get_ldso_object(filesystem* fs);
 };

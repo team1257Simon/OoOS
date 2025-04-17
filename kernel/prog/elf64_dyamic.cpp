@@ -251,7 +251,7 @@ bool elf64_dynamic_object::load_syms()
             array_copy(bloom_filter, og_filter, h->maskwords);
             array_copy(buckets, og_buckets, h->nbucket);
             array_copy(hval_array, og_hvals, n_hvals);
-            new (std::addressof(symbol_index.htbl)) elf64_gnu_htbl
+            new(std::addressof(symbol_index.htbl)) elf64_gnu_htbl
             { 
                     .header
                     { 

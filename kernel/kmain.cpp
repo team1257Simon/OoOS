@@ -470,8 +470,8 @@ extern "C"
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
-        asm volatile("movq %0, %%rsp" :: "r"(&kernel_stack_top) : "memory");
-        asm volatile("movq %0, %%rbp" :: "r"(&kernel_stack_base) : "memory");
+        asm volatile("movq %0, %%rsp" :: "r"(std::addressof(kernel_stack_top)) : "memory");
+        asm volatile("movq %0, %%rbp" :: "r"(std::addressof(kernel_stack_base)) : "memory");
         // Don't want to get interrupted during early initialization...
         cli();
         // The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.

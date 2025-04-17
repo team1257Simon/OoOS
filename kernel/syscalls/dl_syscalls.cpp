@@ -268,16 +268,13 @@ extern "C"
         const char* fp;
         if(task->local_so_map->contains(so->get_soname())) fp = task->local_so_map->get_path(it);
         else fp = shared_object_map::get_globals().get_path(it);
-        if(fp)
-        {
-            size_t len = std::strlen(fp) + 1;
-            ent->absolute_pathname = sysres_add(len);
-            if(!ent->absolute_pathname) return -ENOMEM;
-            char* target_real = translate_user_pointer(ent->absolute_pathname);
-            array_copy(target_real, fp, len - 1);
-            target_real[len] = '\0';
-        }
-        else ent->absolute_pathname = nullptr;
+        if(!fp) fp = so->get_soname().data();
+        size_t len = std::strlen(fp) + 1;
+        ent->absolute_pathname = sysres_add(len);
+        if(!ent->absolute_pathname) return -ENOMEM;
+        char* target_real = translate_user_pointer(ent->absolute_pathname);
+        array_copy(target_real, fp, len - 1);
+        target_real[len] = '\0';
         ent->vaddr_offset = so->get_load_offset();
         ent->object_handle = obj;
         ent->global_offset_table_start = obj->global_offset_table();

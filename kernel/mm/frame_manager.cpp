@@ -19,7 +19,7 @@ uframe_tag& frame_manager::duplicate_frame(uframe_tag const& t)
         addr_t nblk = kmm.duplicate_user_block(i->size, i->virtual_start, i->write, i->execute);
         kmm.exit_frame();
         if(!nblk) { throw std::runtime_error{ "failed to allocate new block" }; }
-        result.usr_blocks.emplace_back(nblk, i->virtual_start, i->size, i->write, i->execute);
+        result.usr_blocks.emplace_back(nblk, i->virtual_start, i->size, i->align, i->write, i->execute);
     }
     return result;
 }

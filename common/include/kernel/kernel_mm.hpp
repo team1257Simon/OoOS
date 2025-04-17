@@ -93,6 +93,7 @@ struct block_descr
     addr_t physical_start;
     addr_t virtual_start;
     size_t size;
+    size_t align{ 0UL };
     bool write{ true };
     bool execute{ true };
 };

@@ -417,7 +417,7 @@ addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t al
     size_t rsz    = aligned_size(start, sz); // allocate to the end of page so the userspace doesn't see kernel data structures
     addr_t result = __kernel_frame_tag->allocate(rsz, align);
     if(!start) start = result;
-    if(result && !__map_user_pages(start.page_aligned(), result, div_round_up(rsz, page_size), pml4, write, execute)) { __kernel_frame_tag->deallocate(result, align); result = nullptr; }
+    if(result && !__map_user_pages(start.trunc(std::max(align, page_size)), result, div_round_up(rsz, page_size), pml4, write, execute)) { __kernel_frame_tag->deallocate(result, align); result = nullptr; }
     __userunlock();
     return result;
 }
@@ -655,7 +655,7 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     if(allocated)
     {
         array_zero<uint64_t>(allocated, added / sizeof(uint64_t));
-        usr_blocks.emplace_back(allocated, extent, added);
+        usr_blocks.emplace_back(allocated, extent, added, page_size);
         extent += added;
         if(mapped_max < extent) mapped_max = extent;
     }
@@ -675,7 +675,7 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
     {
         size_t actual = kernel_memory_mgr::aligned_size(addr, len);
         array_zero<uint64_t>(result, actual / sizeof(uint64_t));
-        usr_blocks.emplace_back(result, addr, actual);
+        usr_blocks.emplace_back(result, addr, actual, page_size, write, exec);
         addr_t top = addr.plus(actual);
         mapped_max = std::max(mapped_max, top);
         extent = std::max(extent, top);

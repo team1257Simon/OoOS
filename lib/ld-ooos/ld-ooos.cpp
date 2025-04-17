@@ -10,6 +10,13 @@ extern "C"
     __hidden char**    env;
     __hidden dl_action last_error_action;
 }
+static size_t __strlen(const char* str) { return static_cast<size_t>(__strterm(str) - str); } // behaves like strnlen(str, 256) in this implementation
+static int __strncmp(const char* lhs, const char* rhs, size_t n)
+{
+    size_t i;
+    for(i = 0; i < n && lhs[i] == rhs[i]; i++);
+    return lhs[i] < rhs[i] ? -1 : lhs[i] > rhs[i] ? 1 : 0;
+}
 static uint64_t elf64_gnu_hash(const void* data, size_t n) noexcept
 {
     const char* cdata = static_cast<const char*>(data);
@@ -170,6 +177,15 @@ static bool __load_deps(void* handle)
         res_pair result = rtld_map.add(so);
         if(!result.second) continue;
         if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
+        const char* name_str = result.first->l_name;
+        if(name_str)
+        {
+            size_t len = __strlen(name_str);
+            result.first->l_name = static_cast<char*>(allocate(len + 1, 8));
+            if(!result.first->l_name) { errno = ENOMEM; return false; }
+            __copy(result.first->l_name, name_str, len);
+            result.first->l_name[len] = 0;
+        }
         if(!__load_deps(so)) return false;
     }
     init_fn* ini = dlinit(handle);
@@ -222,13 +238,7 @@ static const char* __get_dl_error()
 }
 extern "C"
 {
-    static size_t __strlen(const char* str) { return static_cast<size_t>(__strterm(str) - str); } // behaves like strnlen(str, 256) in this implementation
-    static int __strncmp(const char* lhs, const char* rhs, size_t n)
-    {
-        size_t i;
-        for(i = 0; i < n && lhs[i] == rhs[i]; i++);
-        return lhs[i] < rhs[i] ? -1 : lhs[i] > rhs[i] ? 1 : 0;
-    }
+    
     __hidden int dlbegin(void* phandle, char** __argv, char** __env)
     {
         // The kernel will call this function to invoke the dynamic linker.

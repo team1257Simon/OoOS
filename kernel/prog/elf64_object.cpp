@@ -2,6 +2,7 @@
 #include "libk_decls.h"
 #include "stdlib.h"
 #include "kernel_mm.hpp"
+#include "bits/stdexcept.h"
 static std::allocator<char> ch_alloc{};
 static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 static std::allocator<program_segment_descriptor> sd_alloc{};
@@ -74,7 +75,15 @@ bool elf64_object::xload()
 std::vector<block_descr> elf64_object::segment_blocks() const
 {
     std::vector<block_descr> result(num_seg_descriptors);
-    for(size_t i = 0; i < num_seg_descriptors; i++) { if(segments[i].size) result.emplace_back(segments[i].absolute_addr, segments[i].virtual_addr, segments[i].size, segments[i].perms & PV_WRITE, segments[i].perms & PV_EXEC); }
+    for(size_t i = 0; i < num_seg_descriptors; i++) 
+    { 
+        if(segments[i].size)
+        {
+            size_t align = segments[i].seg_align;
+            elf_segment_prot pr = segments[i].perms;
+            result.emplace_back(segments[i].absolute_addr.trunc(align), segments[i].virtual_addr.trunc(align), segments[i].size, segments[i].seg_align, is_write(pr), is_exec(pr));
+        }
+    }
     return result;
 }
 // Copy and move constructors are nontrivial. Executables and the like delete the copy constructor and can inherit the move constructor (dynamic objects will have to extend the nontrivial constructors)
@@ -114,4 +123,34 @@ elf64_object::elf64_object(elf64_object&& that) :
     that.__image_start = nullptr;
     that.segments = nullptr;
     that.num_seg_descriptors = 0;
+}
+void elf64_object::on_copy(uframe_tag* new_frame)
+{
+    if(!new_frame) { throw std::invalid_argument{ "frame tag must not be null" }; }
+    uframe_tag* old_frame = get_frame();
+    set_frame(new_frame);
+    std::vector<block_descr> readonly_blocks{};
+    for(block_descr const& bd : old_frame->usr_blocks)
+    {
+        if(!bd.write) readonly_blocks.push_back(bd);
+        else
+        {
+            frame_enter();
+            addr_t allocated = kmm.allocate_user_block(bd.size, bd.virtual_start, bd.align, true, bd.execute);
+            kmm.exit_frame();
+            if(!allocated) throw std::bad_alloc();
+            array_copy<uint8_t>(allocated, bd.physical_start, bd.size);
+            new_frame->usr_blocks.emplace_back(allocated, bd.virtual_start, bd.align, true, bd.execute);
+        }
+    }
+    frame_enter();
+    kmm.map_to_current_frame(readonly_blocks);
+    for(size_t i = 0; i < num_seg_descriptors; i++)
+    {
+        if(!segments[i].absolute_addr) continue;
+        addr_t translated(kmm.frame_translate(segments[i].virtual_addr));
+        if(!translated) throw std::runtime_error{ "block mapping is invalid" };
+        segments[i].absolute_addr = translated;
+    }
+    kmm.exit_frame();
 }
