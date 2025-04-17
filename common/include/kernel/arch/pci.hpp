@@ -146,7 +146,7 @@ struct pci_config_table
     uint8_t reserved[8];
     pci_config_ptr addr_allocations[];
 } __pack;
-pci_config_table* find_pci_config(xsdt_t* xsdt);
+pci_config_table* find_pci_config();
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
 addr_t compute_base_address(uint32_t bar_registers[], uint8_t i);
 addr_t compute_base(uint32_t bar);
@@ -159,7 +159,7 @@ class pci_device_list : public std::vector<pci_config_space*>
 public:
     pci_device_list(pci_device_list&&) = delete;
     pci_device_list(pci_device_list const&) = delete;
-    static bool init_instance(xsdt_t* xsdt);
+    static bool init_instance();
     static pci_device_list* get_instance();
     pci_config_space* find(uint8_t device_class, uint8_t subclass);
 };

@@ -24,10 +24,10 @@
 #include "unordered_map"
 #include "algorithm"
 #include "map"
+sysinfo_t* sysinfo;
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
 static com_amd64* com;
-static sysinfo_t* sysinfo;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
 static bool direct_print_enable{ false };
@@ -497,7 +497,7 @@ extern "C"
         sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
-        if(sysinfo->xsdt) fadt = find_fadt(sysinfo->xsdt);
+        if(sysinfo->xsdt) fadt = find_fadt();
         if(fadt) rtc::init_instance(fadt->century_register);
         else rtc::init_instance();
         // The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
@@ -519,7 +519,7 @@ extern "C"
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         fx_enable = true;
         scheduler::init_instance();
-        startup_tty.print_line(pci_device_list::init_instance(sysinfo->xsdt) ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
+        startup_tty.print_line(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
         direct_print_enable = true;
         try
         {

@@ -22,7 +22,7 @@ extern "C"
     long syscall_sigret()
     {
         task_ctx* task = active_task_context();
-        task->task_sig_info.pending_signals.btr(task->task_sig_info.active_signal);
+        if(!task->task_sig_info.pending_signals.btr(task->task_sig_info.active_signal)) { return -EINVAL; }
         long rax = task->end_signal();
         if(task->task_sig_info.pending_signals) task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals), false); // state is already saved
         return rax;

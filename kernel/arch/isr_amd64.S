@@ -1,22 +1,26 @@
     .code64
     .altmacro
-    .extern     isr_dispatch
-    .type       isr_dispatch,           @function
-    .section    .data
     .global     ecode
     .global     errinst
     .global     svinst
     .global     task_change_flag
+    .global     task_signal_code
     .global     kernel_isr_stack_top
     .global     kernel_isr_stack_base
     .global     debug_stop_flag
+    .extern     isr_dispatch
+    .extern     set_task_signal
+    .type       isr_dispatch,           @function
+    .type       set_task_signal,        @function
     .type       ecode,                  @object
     .type       errinst,                @object
     .type       svinst,                 @object
     .type       task_change_flag,       @object
+    .type       task_signal_code,       @object
     .type       kernel_isr_stack_top,   @object
     .type       kernel_isr_stack_base,  @object
     .type       debug_stop_flag,        @object
+    .data
     .align      4096
 kernel_isr_stack_base:
     .zero       16384
@@ -35,6 +39,9 @@ svinst:
 task_change_flag:
     .byte 0
     .size       task_change_flag,   .-task_change_flag
+task_signal_code:
+    .byte 0
+    .size       task_signal_code,   .-task_signal_code
 debug_stop_flag:
     .byte 0
     .size       debug_stop_flag,    .-debug_stop_flag
@@ -98,6 +105,8 @@ debug_stop_flag:
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
+            cmpb    $0,         task_signal_code
+            jnz     set_task_signal
             cmpb    $0,         debug_stop_flag
             jnz     debug_stop
             cmpb    $0,         task_change_flag
@@ -131,5 +140,5 @@ debug_stop:
     .global     isr_table
     .type       isr_table,      @object    
 isr_table:
-    xm256 wr_id
+    xm256       wr_id
     .size       isr_table,      .-isr_table

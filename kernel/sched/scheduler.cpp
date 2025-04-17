@@ -1,6 +1,11 @@
 #include "sched/scheduler.hpp"
 #include "isr_table.hpp"
-extern "C" { extern std::atomic<bool> task_change_flag; extern task_t kproc; }
+extern "C" 
+{
+    extern std::atomic<bool> task_change_flag;
+    extern std::atomic<int8_t> task_signal_code;
+    extern task_t kproc;
+}
 scheduler scheduler::__instance{};
 bool scheduler::__has_init{ false };
 bool scheduler::has_init() noexcept { return __has_init; }
@@ -141,7 +146,7 @@ bool scheduler::init()
     {
         if(idx < 0x20 && get_gs_base<task_t>() != std::addressof(kproc))
             if(task_ctx* task = get_gs_base<task_ctx>(); task->is_user())
-                force_signal(task, exception_signals[idx]);
+                task_signal_code = exception_signals[idx];
     });
     return true;
 }

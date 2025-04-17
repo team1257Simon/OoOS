@@ -2,11 +2,42 @@
 #include "sched/scheduler.hpp"
 #include "kernel_mm.hpp"
 #include "stdlib.h" // rand()
+using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
 task_list task_list::__instance{};
-uint64_t task_list::__mk_pid() const noexcept { uint64_t pid; do { pid = static_cast<unsigned long>(rand()); } while(pid == 0 || contains(pid)); return pid; }
-task_ctx* task_list::create_system_task(task_functor task, std::vector<const char*>&& args, size_t stack_size, size_t tls_size, priority_val pv, uint16_t quantum) { iterator result = emplace(task, std::move(args), __kernel_frame_tag->allocate(stack_size, page_size), static_cast<ptrdiff_t>(stack_size), __kernel_frame_tag->allocate(tls_size, stack_size), tls_size, __kernel_frame_tag, __mk_pid(), 0L, pv, quantum).first; result->init_task_state(); return result.base(); }
-task_ctx* task_list::create_user_task(task_functor task, std::vector<const char*>&& args, addr_t frame_ptr, addr_t stack_base, addr_t tls_base, int64_t parent_pid, size_t stack_size, size_t tls_size, priority_val pv, uint16_t quantum, pid_t pid) { iterator result = emplace(task, std::move(args), stack_base, static_cast<ptrdiff_t>(stack_size), tls_base, tls_size, frame_ptr, pid ? pid : __mk_pid(), parent_pid, pv, quantum).first; result->init_task_state(); return result.base(); }
-task_ctx* task_list::create_user_task(elf64_program_descriptor const& program_desc, std::vector<const char*>&& args, int64_t parent_pid, priority_val pv, uint16_t quantum, pid_t pid) { iterator result = emplace(program_desc, std::move(args), pid ? pid : __mk_pid(), parent_pid, pv, quantum).first; result->init_task_state(); return result.base(); }
-bool task_list::destroy_task(uint64_t pid) { iterator i = find(pid); if(i == end()) return false; sch.unregister_task_tree(i->task_struct.self); erase(i); return true; }
 task_list& task_list::get() { return __instance; }
+uint64_t task_list::__mk_pid() const noexcept { uint64_t pid; do { pid = static_cast<unsigned long>(rand()); } while(pid == 0 || contains(pid)); return pid; }
+task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size_t stack_size, size_t tls_size, priority_val pv, uint16_t quantum)
+{
+    kframe_tag* ft = __kernel_frame_tag;
+    iterator result = emplace
+    (
+        task,
+        std::move(args), 
+        ft->allocate(stack_size, page_size),
+        static_cast<ptrdiff_t>(stack_size),
+        ft->allocate(tls_size, stack_size),
+        tls_size,
+        ft,
+        __mk_pid(),
+        0L,
+        pv,
+        quantum
+    ).first;
+    result->init_task_state();
+    return result.base();
+}
+task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, int64_t parent_pid, priority_val pv, uint16_t quantum, pid_t pid) 
+{
+    iterator result = emplace(program_desc, std::move(args), pid ? pid : __mk_pid(), parent_pid, pv, quantum).first; 
+    result->init_task_state(); 
+    return result.base(); 
+}
+bool task_list::destroy_task(uint64_t pid)
+{
+    iterator i = find(pid);
+    if(i == end()) return false;
+    sch.unregister_task_tree(i->task_struct.self);
+    erase(i);
+    return true;
+}

@@ -10,7 +10,7 @@ void rtc::init_instance(uint8_t century_register) noexcept { __instance.__centur
 rtc volatile& rtc::get_instance() noexcept { return __instance; }
 rtc_time rtc::get_time() volatile { return __my_time; }
 uint64_t rtc::get_timestamp() volatile { return to_unix_timestamp(get_time()); }
-fadt_t* find_fadt(xsdt_t* xsdt) { return static_cast<fadt_t*>(find_system_table(xsdt, "FACP")); }
+fadt_t* find_fadt() { return static_cast<fadt_t*>(find_system_table("FACP")); }
 extern "C" { uint64_t sys_time(uint64_t* tm_target) { uint64_t t = rtc::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; } }
 __isrcall void rtc::rtc_time_update() volatile noexcept
 {

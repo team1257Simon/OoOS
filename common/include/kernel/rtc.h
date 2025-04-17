@@ -36,5 +36,5 @@ public:
 };
 constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts / 1000U, (ts % 1000U) * 1000U }; }
 #endif
-struct fadt_t* find_fadt(struct xsdt_t* xsdt);
+struct fadt_t* find_fadt();
 #endif

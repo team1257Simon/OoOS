@@ -115,6 +115,7 @@
         "time.h": "c",
         "string.h": "c",
         "errno.h": "c",
-        "*.hpp" : "cpp"
+        "*.hpp": "cpp",
+        "signal.h": "c"
     }
 }

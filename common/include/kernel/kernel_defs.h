@@ -498,9 +498,9 @@ struct xsdp_t
 struct xsdt_t
 {
     struct acpi_header hdr;
-    uintptr_t __align(4) sdt_pointers[];
+    addr_t __align(4) sdt_pointers[];
 } __pack;
-void* find_system_table(struct xsdt_t* xsdt, const char* expected_sig);
+void* find_system_table(const char* expected_sig);
 typedef struct __generic_address_structure
 {
   uint8_t address_space;
@@ -754,7 +754,7 @@ typedef struct __mmap
     size_t num_entries;
     mmap_entry entries[];
 } __pack mmap_t;
-typedef void (attribute(sysv_abi) *kernel_entry_fn) (sysinfo_t*, mmap_t*);
+typedef void (attribute(sysv_abi) *kernel_entry_fn)(sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
 typedef union __may_alias __byte
 {

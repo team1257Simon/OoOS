@@ -4,6 +4,7 @@
 #include "kernel_mm.hpp"
 #include "array"
 #include "string"
+#include "arch/apic.hpp"
 std::array<std::vector<irq_callback>, 16> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
 uintptr_t saved_stack_ptr{};
@@ -15,7 +16,7 @@ namespace interrupt_table
     bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16) { __lock(); __handler_tables[idx].push_back(std::move(handler)); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
     void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(std::move(cb)); }
 }
-inline void pic_eoi(byte irq) { if (irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
+inline void pic_eoi(byte irq) { if(irq > 7) outb(command_pic2, sig_pic_eoi); outb(command_pic1, sig_pic_eoi); }
 extern "C"
 {
     extern uint64_t ecode;

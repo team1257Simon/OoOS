@@ -50,10 +50,11 @@ class apic
 {
     apic_map* __apic_mem;
     unsigned int __local_id;
-    static apic_map* __enable(uintptr_t physical_base);
 public:
-    apic(uintptr_t base, unsigned int id = 0U);
     constexpr apic_map& get_map() { return *__apic_mem; }
     constexpr apic_map const& get_map() const { return *__apic_mem; }
+    constexpr bool valid() const { return __apic_mem != nullptr; }
+    apic(unsigned id = 0);
+    void eoi() volatile;
 };
 #endif

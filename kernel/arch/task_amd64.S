@@ -1,62 +1,68 @@
 #include "def-amd64.inc"
     .code64
-    .section    .text
-    .global     task_change
-    .global     current_active_task
-    .global     user_entry
-    .global     kernel_reentry
-    .global     enable_fs_gs_insns
-    .type       task_change,            @function
-    .type       current_active_task,    @function
-    .type       user_entry,             @function
-    .type       kernel_reentry,         @function
-    .type       enable_fs_gs_insns,     @function
+    .global         task_change
+    .global         user_entry
+    .global         kernel_reentry
+    .global         enable_fs_gs_insns
+    .global         set_task_signal
+    .extern         force_signal
+    .extern         task_signal_code
+    .type           task_change,         @function
+    .type           user_entry,          @function
+    .type           kernel_reentry,      @function
+    .type           enable_fs_gs_insns,  @function
+    .type           set_task_signal,     @function
+    .type           force_signal,        @function
+    .type           task_signal_code,    @object
+    .text
+    .macro          interrupt_stack_save
+        pushq       %rax
+        movq        kernel_cr3,           %rax
+        movq        %rax,                 %cr3
+        popq        %rax
+        movq        %rax,                 %gs:T_OFFS(rax)
+        popq        %rax    
+        movq        %rax,                 %gs:T_OFFS(rip)
+        popq        %rax
+        movw        %ax,                  %gs:T_OFFS(cs)
+        popq        %rax
+        movq        %rax,                 %gs:T_OFFS(rflags)
+        popq        %rax
+        movq        %rax,                 %gs:T_OFFS(rsp)
+        popq        %rax
+        movw        %ax,                  %gs:T_OFFS(ss)
+        movw        %ds,                  %ax
+        movw        %ax,                  %gs:T_OFFS(ds)
+    .endm
+    .macro          interrupt_stack_restore
+        movw        %gs:T_OFFS(ss),       %ax
+        pushq       %rax
+        movq        %gs:T_OFFS(rsp),      %rax
+        pushq       %rax
+        movq        %gs:T_OFFS(rflags),   %rax
+        pushq       %rax
+        movw        %gs:T_OFFS(cs),       %ax
+        pushq       %rax
+        movq        %gs:T_OFFS(rip),      %rax
+        pushq       %rax
+        movw        %gs:T_OFFS(ds),       %ax       
+        movw        %ax,                  %ds
+        movw        %ax,                  %es
+        movq        %gs:T_OFFS(rax),      %rax
+        pushq       %rax
+        movq        %gs:T_OFFS(cr3),      %rax
+        movq        %rax,                 %cr3
+        popq        %rax
+    .endm
 task_change:
-    pushq       %rax
-    movq        %cr3,           %rax
-    movq        %rax,           __held_cr3
-    movq        kernel_cr3,     %rax
-    movq        %rax,           %cr3
-    popq        %rax
-    movq        %rax,           %gs:T_OFFS(rax)
-    popq        %rax    
-    movq        %rax,           %gs:T_OFFS(rip)
-    popq        %rax
-    movw        %ax,            %gs:T_OFFS(cs)
-    popq        %rax
-    movq        %rax,           %gs:T_OFFS(rflags)
-    popq        %rax
-    movq        %rax,           %gs:T_OFFS(rsp)
-    popq        %rax
-    movw        %ax,            %gs:T_OFFS(ss)
-    movw        %ds,            %ax
-    movw        %ax,            %gs:T_OFFS(ds)
+    interrupt_stack_save
     base_state_save
-    movq        __held_cr3,     %rax
-    movq        %rax,           %gs:T_OFFS(cr3)
-    movq        %gs:T_OFFS(next),      %rax
+    movq        %gs:T_OFFS(next),       %rax
     wrgsbase    %rax
-    movq        %gs:T_OFFS(tls_block), %rax
+    movq        %gs:T_OFFS(tls_block),  %rax
     wrfsbase    %rax
     base_state_restore
-    movw        %gs:T_OFFS(ss),       %ax
-    pushq       %rax
-    movq        %gs:T_OFFS(rsp),      %rax
-    pushq       %rax
-    movq        %gs:T_OFFS(rflags),   %rax
-    pushq       %rax
-    movw        %gs:T_OFFS(cs),       %ax
-    pushq       %rax
-    movq        %gs:T_OFFS(rip),      %rax
-    pushq       %rax
-    movw        %gs:T_OFFS(ds),       %ax       
-    movw        %ax,                  %ds
-    movw        %ax,                  %es
-    movq        %gs:T_OFFS(rax),      %rax
-    pushq       %rax
-    movq        %gs:T_OFFS(cr3),      %rax
-    movq        %rax,                 %cr3
-    popq        %rax
+    interrupt_stack_restore
     iretq
     .size       task_change,    .-task_change
 user_entry:
@@ -118,8 +124,14 @@ enable_fs_gs_insns:
     movq        %rax,       %cr4
     ret
     .size       enable_fs_gs_insns,     .-enable_fs_gs_insns
-    .section    .data
-    .type       __held_cr3,             @object
-__held_cr3:
-    .quad 0
-    .size       __held_cr3,             .-__held_cr3
+set_task_signal:
+    interrupt_stack_save
+    base_state_save
+    movq        %gs:T_OFFS(self),       %rdi
+    xorl        %esi,                   %esi
+    lock xchgb  %sil,                   task_signal_code
+    call        force_signal
+    base_state_restore
+    interrupt_stack_restore
+    iretq
+    .size       set_task_signal,        .-set_task_signal

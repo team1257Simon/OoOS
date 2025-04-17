@@ -1,3 +1,11 @@
 #include "kernel/kernel_defs.h"
+extern sysinfo_t* sysinfo;
 bool checksum(acpi_header* h) { char* c = reinterpret_cast<char*>(h); signed char sum = 0; for(size_t i = 0; i < h->length; i++) sum += c[i]; return sum == 0; }
-void* find_system_table(xsdt_t* xsdt, const char* expected_sig) { acpi_header* cur = reinterpret_cast<acpi_header*>(xsdt->sdt_pointers[0]); for(size_t i = 0; i < ((xsdt->hdr.length - sizeof(xsdt->hdr)) / 8); cur = reinterpret_cast<acpi_header*>(xsdt->sdt_pointers[++i])) { if(__builtin_memcmp(cur->signature, expected_sig, 4) == 0 && checksum(cur)) return cur; } return nullptr; }
+bool matches(acpi_header* h, const char* expected_sig) { return __builtin_memcmp(h->signature, expected_sig, 4) == 0; }
+void* find_system_table(const char* expected_sig) 
+{
+    addr_t* ptrs = sysinfo->xsdt->sdt_pointers;
+    size_t total_len = ((sysinfo->xsdt->hdr.length - sizeof(sysinfo->xsdt->hdr)) / sizeof(addr_t));
+    for(size_t i = 0; i < total_len; i++) { if(matches(ptrs[i], expected_sig) && checksum(ptrs[i])) return ptrs[i]; } 
+    return nullptr;
+}

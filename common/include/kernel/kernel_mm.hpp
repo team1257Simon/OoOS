@@ -11,10 +11,10 @@
 #ifndef MAX_COMPLETE_REGIONS
 #define MAX_COMPLETE_REGIONS 5U
 #endif
-#define PROT_READ	0x1		/* Page can be read.  */
-#define PROT_WRITE	0x2		/* Page can be written.  */
-#define PROT_EXEC	0x4		/* Page can be executed.  */
-#define PROT_NONE	0x0		/* Page can not be accessed.  */
+#define PROT_READ	0x1		    /* Page can be read.  */
+#define PROT_WRITE	0x2		    /* Page can be written.  */
+#define PROT_EXEC	0x4		    /* Page can be executed.  */
+#define PROT_NONE	0x0		    /* Page can not be accessed.  */
 /* Sharing types (must choose one and only one of these).  */
 #define MAP_SHARED	0x01		/* Share changes.  */
 #define MAP_PRIVATE	0x02		/* Changes are private.  */
