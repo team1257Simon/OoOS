@@ -4,6 +4,7 @@
 #include "kernel/sched/task.h"
 #include "kernel/fs/fs.hpp"
 #include "kernel/shared_object_map.hpp"
+#include "kernel/elf64_exec.hpp"
 #include "sys/times.h"
 #include "compare"
 #include "vector"
@@ -53,16 +54,19 @@ struct task_ctx
     addr_t dynamic_exit{ nullptr };
     addr_t notif_target{ nullptr };
     task_ctx* last_notified{ nullptr };
-    elf64_object* object_handle{ nullptr };
+    elf64_executable* program_handle{ nullptr };
     shared_object_map* local_so_map{ nullptr };
     addr_t rt_argv_ptr{ nullptr };
     addr_t rt_env_ptr{ nullptr };
     task_signal_info_t task_sig_info{};
     task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
-    ~task_ctx(); 
+    task_ctx(task_ctx const& that);
+    task_ctx(task_ctx&& that);
+    ~task_ctx();
     constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
     constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
+    constexpr void change_pid(uint64_t pid, int64_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
     constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == kframe_magic; }
     constexpr bool is_user() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == uframe_magic; }
     constexpr static uint16_t code_segment(uint64_t fmagic) noexcept { return fmagic == kframe_magic ? 0x08 : 0x23; }
@@ -90,6 +94,7 @@ struct task_ctx
     register_t stack_pop();
     void set_signal(int sig, bool save_state);
     register_t end_signal();
+    bool set_fork();
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 inline task_ctx* active_task_context() { return current_active_task()->self; }

@@ -1,5 +1,6 @@
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
+#include "prog_manager.hpp"
 #include "frame_manager.hpp"
 #include "kernel_mm.hpp"
 #include "kdebug.hpp"
@@ -35,7 +36,7 @@ void task_ctx::init_task_state()
 {
     if(arg_vec.empty() || arg_vec.back()) arg_vec.push_back(nullptr);
     register_t rdi_val;
-    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle))
+    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle))
     {
         rdi_val = reinterpret_cast<register_t>(dyn);
         task_struct.saved_regs.rbx = static_cast<register_t>(entry.full);
@@ -159,7 +160,7 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
         .saved_regs         
         { 
             .rbp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
-            .rsp            { addr_t(desc.prg_stack).plus(desc.stack_size)},
+            .rsp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
             .rflags         { 0x202UL },
             .ds             { data_segment(get_frame_magic(desc.frame_ptr)) },
             .ss             { data_segment(get_frame_magic(desc.frame_ptr)) },
@@ -192,9 +193,61 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
     tls                     { desc.prg_tls },
     tls_size                { desc.tls_size },
     ctx_filesystem          { create_task_vfs() },
-    object_handle           { static_cast<elf64_executable*>(desc.object_handle) },
+    program_handle          { static_cast<elf64_executable*>(desc.object_handle) },
     local_so_map            { sm_alloc.allocate(1) }
 { std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.frame_ptr)); if(desc.ld_path && desc.ld_path_count) { dl_search_paths.push_back(desc.ld_path, desc.ld_path + desc.ld_path_count); } }
+task_ctx::task_ctx(task_ctx const& that) :
+    task_struct             { that.task_struct },
+    child_tasks             {},
+    arg_vec                 { that.arg_vec },
+    env_vec                 { that.env_vec },
+    dl_search_paths         { that.dl_search_paths },
+    attached_so_handles     { that.attached_so_handles },
+    entry                   { that.entry },
+    allocated_stack         { that.allocated_stack },
+    stack_allocated_size    { that.stack_allocated_size },
+    tls                     { that.tls },
+    tls_size                { that.tls_size },
+    ctx_filesystem          { that.ctx_filesystem },
+    stdio_ptrs              { that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2] },
+    current_state           { that.current_state },
+    exit_code               { that.exit_code },
+    exit_target             { that.exit_target },
+    dynamic_exit            { that.dynamic_exit },
+    notif_target            {},
+    last_notified           {},
+    program_handle          { that.program_handle },
+    local_so_map            { that.local_so_map },
+    rt_argv_ptr             { that.rt_argv_ptr },
+    rt_env_ptr              { that.rt_env_ptr },
+    task_sig_info           {}
+                            { task_struct.self = std::addressof(task_struct); }
+task_ctx::task_ctx(task_ctx&& that) :
+    task_struct             { std::move(that.task_struct) },
+    child_tasks             { std::move(that.child_tasks) },
+    arg_vec                 { std::move(that.arg_vec) },
+    env_vec                 { std::move(that.env_vec) },
+    dl_search_paths         { std::move(that.dl_search_paths) },
+    attached_so_handles     { std::move(that.attached_so_handles) },
+    entry                   { std::move(that.entry) },
+    allocated_stack         { std::move(that.allocated_stack) },
+    stack_allocated_size    { std::move(that.stack_allocated_size) },
+    tls                     { std::move(that.tls) },
+    tls_size                { std::move(that.tls_size) },
+    ctx_filesystem          { std::move(that.ctx_filesystem) },
+    stdio_ptrs              { std::move(that.stdio_ptrs[0]), std::move(that.stdio_ptrs[1]), std::move(that.stdio_ptrs[2]) },
+    current_state           { std::move(that.current_state) },
+    exit_code               { std::move(that.exit_code) },
+    exit_target             { std::move(that.exit_target) },
+    dynamic_exit            { std::move(that.dynamic_exit) },
+    notif_target            { std::move(that.notif_target) },
+    last_notified           { std::move(that.last_notified) },
+    program_handle          { std::move(that.program_handle) },
+    local_so_map            { std::move(that.local_so_map) },
+    rt_argv_ptr             { std::move(that.rt_argv_ptr) },
+    rt_env_ptr              { std::move(that.rt_env_ptr) },
+    task_sig_info           { std::move(that.task_sig_info) }
+                            { array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / 8)); }
 void task_ctx::start_task(addr_t exit_fn)
 {
     exit_target = exit_fn;
@@ -228,7 +281,7 @@ void task_ctx::set_exit(int n)
             p->last_notified = this;
             c = p;
         }
-        if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(object_handle); dyn && dynamic_exit)
+        if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle); dyn && dynamic_exit)
         {
             if(n != 0) { xklog("D: process " + std::to_string(get_pid()) + " exited with code " + std::to_string(n)); }
             else
@@ -317,4 +370,44 @@ register_t task_ctx::end_signal()
     stack_push(task_sig_info.sigret_frame.r11);
     stack_push(task_sig_info.sigret_frame.rcx);
     return task_sig_info.sigret_frame.rax;
+}
+bool task_ctx::set_fork()
+{
+    try 
+    {
+        uframe_tag* old_frame = task_struct.frame_ptr;
+        shared_object_map* old_so_map = local_so_map;
+        if(old_so_map) local_so_map = sm_alloc.allocate(1);
+        program_handle = prog_manager::get_instance().clone(program_handle);
+        if(!program_handle) return false;
+        elf64_program_descriptor const& desc = program_handle->describe();
+        task_struct.saved_regs.cr3 = task_struct.frame_ptr = desc.frame_ptr;
+        std::vector<elf64_shared_object*> old_attached_so_handles{ std::move(attached_so_handles) }; 
+        if(local_so_map) 
+        { 
+            for(elf64_shared_object* so : old_attached_so_handles) { if(so->is_global()) attach_object(so); else attached_so_handles.push_back(so); } 
+            std::construct_at(local_so_map, task_struct.frame_ptr); 
+            local_so_map->copy(*old_so_map);
+        }
+        kmm.enter_frame(task_struct.frame_ptr);
+        std::vector<block_descr> readonly_blocks{};
+        for(block_descr const& bd : old_frame->usr_blocks)
+        {
+            if(kmm.frame_translate(bd.virtual_start) != 0) continue;
+            if(!bd.write) readonly_blocks.push_back(bd);
+            else
+            {
+                addr_t allocated = kmm.allocate_user_block(bd.size, bd.virtual_start, bd.align, true, bd.execute);
+                kmm.exit_frame();
+                if(!allocated) { panic("no memory to copy frame"); return false; }
+                array_copy<uint8_t>(allocated, bd.physical_start, bd.size);
+                task_struct.frame_ptr.ref<uframe_tag>().usr_blocks.emplace_back(allocated, bd.virtual_start, bd.align, true, bd.execute);
+                kmm.enter_frame(task_struct.frame_ptr);
+            }
+        }
+        kmm.map_to_current_frame(readonly_blocks);
+        kmm.exit_frame();
+        return true;
+    }
+    catch(std::exception& e) { panic(e.what()); return false; }
 }

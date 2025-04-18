@@ -79,7 +79,11 @@ elf64_executable::elf64_executable(elf64_executable const& that) :
     entry               { that.entry },
     frame_tag           { that.frame_tag },
     program_descriptor  { that.program_descriptor }
-                        { program_descriptor.object_handle = this; on_copy(std::addressof(fm.create_frame(frame_base, frame_extent))); }
+    {
+        program_descriptor.object_handle = this; 
+        on_copy(std::addressof(fm.create_frame(frame_base, frame_extent)));
+        frame_tag->mapped_max = that.frame_tag->mapped_max;
+    }
 bool elf64_executable::xvalidate()
 {
     if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }

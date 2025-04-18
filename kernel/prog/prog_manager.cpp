@@ -38,8 +38,19 @@ elf64_executable* prog_manager::add(file_node* exec_file, size_t stack_sz, size_
 }
 void prog_manager::remove(elf64_executable* e)
 {
-    if(elf64_dynamic_executable* dyn = dynamic_cast<elf64_dynamic_executable*>(e)) 
+    if(elf64_dynamic_executable* dyn = dynamic_cast<elf64_dynamic_executable*>(e))
         __dynamic_base::erase(__dynamic_base::iterator(addr_t(dyn).minus(__dynamic_node_offset)));
     else
         __static_base::erase(__static_base::iterator(addr_t(e).minus(__static_node_offset)));
+}
+elf64_executable* prog_manager::clone(elf64_executable const* exec)
+{
+    try
+    {
+        if(elf64_dynamic_executable const* dyn = dynamic_cast<elf64_dynamic_executable const*>(exec))
+            return __dynamic_base::emplace_back(*dyn).base();
+        return __static_base::emplace_back(*exec).base();
+    }
+    catch(std::exception& e) { panic(e.what()); }
+    return nullptr;
 }

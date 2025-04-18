@@ -127,10 +127,9 @@ elf64_object::elf64_object(elf64_object&& that) :
 void elf64_object::on_copy(uframe_tag* new_frame)
 {
     if(!new_frame) { throw std::invalid_argument{ "frame tag must not be null" }; }
-    uframe_tag* old_frame = get_frame();
     set_frame(new_frame);
     std::vector<block_descr> readonly_blocks{};
-    for(block_descr const& bd : old_frame->usr_blocks)
+    for(block_descr const& bd : segment_blocks())
     {
         if(!bd.write) readonly_blocks.push_back(bd);
         else

@@ -27,7 +27,7 @@ static search_result full_search(task_ctx* task, const char* name)
 { 
     addr_t result;
     bool have_weak = false;
-    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->object_handle))
+    if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->program_handle))
     {   
         if(std::pair<elf64_sym, addr_t> result_pair = dyn->resolve_by_name(name); result_pair.second)
         {
@@ -139,7 +139,7 @@ extern "C"
         task_ctx* task = active_task_context();
         filesystem* fs_ptr = get_fs_instance();
         if(!fs_ptr || !task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-        if(!name) return task->object_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
+        if(!name) return task->program_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
         name = translate_user_pointer(name);
         if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
         std::string xname(name, std::strnlen(name, 256UL));
@@ -187,7 +187,7 @@ extern "C"
     {
         task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
-        if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->object_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
+        if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->program_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
         if(!so) { return -EINVAL; }
         shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
@@ -208,7 +208,7 @@ extern "C"
             if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
             return sr.first;
         }
-        if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->object_handle)
+        if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->program_handle)
         {
             search_result sr = full_search(task, name);
             if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));

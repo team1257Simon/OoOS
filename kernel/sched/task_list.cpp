@@ -41,3 +41,10 @@ bool task_list::destroy_task(uint64_t pid)
     erase(i);
     return true;
 }
+task_ctx* task_list::context_vfork(task_ctx const* ctx)
+{
+    if(!ctx) return nullptr;
+    task_ctx clone(*ctx);
+    clone.change_pid(__mk_pid(), ctx->get_pid());
+    try { return emplace(std::move(clone)).first.base(); } catch(...) { return nullptr; }
+}
