@@ -2,6 +2,7 @@
 #include "arch/idt_amd64.h"
 #include "arch/com_amd64.h"
 #include "arch/kb_amd64.hpp"
+#include "arch/apic.hpp"
 #include "kernel_mm.hpp"
 #include "prog_manager.hpp"
 #include "kdebug.hpp"
@@ -30,6 +31,7 @@ static direct_text_render startup_tty;
 static com_amd64* com;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
+volatile apic bsp_lapic{ 0U };
 static bool direct_print_enable{ false };
 static bool fx_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
@@ -414,7 +416,7 @@ constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
         if(idx != 0x01) debug_stop_flag = true;
         else startup_tty.endl();
     }
-    else
+    else if(idx != 0xFF)
     {
         startup_tty.print_text("Received interrupt ");
         __dbg_num(idx, 2);
@@ -479,6 +481,7 @@ extern "C"
         // The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
         idt_init();
         nmi_disable();
+        sysinfo = si;
         kproc.self = std::addressof(kproc);
         // This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
         kernel_memory_mgr::init_instance(mmap); 
@@ -494,7 +497,6 @@ extern "C"
         kproc.saved_regs.rbp = std::addressof(kernel_stack_base);
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
         init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x20UL, 0x08ui16, 0x10ui16);     
-        sysinfo = si;
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
         if(sysinfo->xsdt) fadt = find_fadt();
@@ -508,6 +510,7 @@ extern "C"
         kb->initialize();
         kb->add_listener([&](kb_data d) -> void { if(!(d.event_code & KEY_UP)) dbg_hold = false; });
         if(com_amd64::init_instance()) com = com_amd64::get_instance();
+        bsp_lapic.init();
         nmi_enable();
         sti();
         // The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.

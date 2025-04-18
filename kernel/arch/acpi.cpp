@@ -5,7 +5,7 @@ bool matches(acpi_header* h, const char* expected_sig) { return __builtin_memcmp
 void* find_system_table(const char* expected_sig) 
 {
     addr_t* ptrs = sysinfo->xsdt->sdt_pointers;
-    size_t total_len = ((sysinfo->xsdt->hdr.length - sizeof(sysinfo->xsdt->hdr)) / sizeof(addr_t));
+    size_t total_len = ((sysinfo->xsdt->hdr.length - sizeof(acpi_header)) / sizeof(addr_t));
     for(size_t i = 0; i < total_len; i++) { if(matches(ptrs[i], expected_sig) && checksum(ptrs[i])) return ptrs[i]; } 
     return nullptr;
 }

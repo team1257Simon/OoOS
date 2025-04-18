@@ -740,12 +740,44 @@ typedef struct __mmap_entry
     uint32_t len;       // Length in pages
     memtype_t type;     // Type
 } __pack mmap_entry;
+typedef struct __processor_info
+{
+    uint64_t processor_id;
+    struct 
+    {
+        uint8_t is_bsp      : 1;
+        uint8_t is_enabled  : 1;
+        uint8_t is_healthy  : 1;
+        uint32_t            : 29;
+    } __pack status;
+    struct
+    {
+        uint32_t package;
+        uint32_t core;
+        uint32_t thread;
+    } __pack location;
+    union
+    {
+        struct 
+        {
+            uint32_t package;
+            uint32_t module;
+            uint32_t tile;
+            uint32_t die;
+            uint32_t core;
+            uint32_t thread;
+        } __pack extended_location;
+    } __pack;
+} __pack processor_info;
 typedef struct __system_info 
 {
     uint32_t fb_width;
     uint32_t fb_height;
     uint32_t fb_pitch;
     uint32_t* fb_ptr;
+    uint64_t num_processors;
+    uint64_t num_enabled_processors;
+    processor_info* mp_processor_info_structs;
     struct xsdt_t* xsdt;
 } __pack sysinfo_t;
 typedef struct __mmap

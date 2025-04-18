@@ -1,17 +1,11 @@
 #ifndef __APIC
 #define __APIC
 #include "arch/arch_amd64.h"
-typedef uint32_t& dword_reference;
-typedef uint32_t&& dword_rvalue_reference;
-typedef uint32_t const& dword_const_reference;
 struct apic_reg 
 {
     uint32_t value;
-    constexpr operator dword_reference() & noexcept { return value; }
-    constexpr operator dword_const_reference() const& noexcept { return value; }
-    constexpr operator dword_rvalue_reference() && noexcept { return std::move(value); }
-    constexpr apic_reg(uint32_t val = 0U) : value(val) {}
-}  __align(16);
+    uint32_t align_bytes[3];
+} __pack __align(16);
 struct apic_map
 {
     int128_t rsv0[2]; 
@@ -45,16 +39,25 @@ struct apic_map
     int128_t rsv3[4];
     apic_reg timer_divide;
     int128_t rsv4;
-} __align(16);
+} __pack __align(16);
+struct ioapic
+{
+    uint32_t select_reg;
+    uint32_t unused[2];
+    uint32_t data_reg;
+} __pack __align(4);
 class apic
 {
-    apic_map* __apic_mem;
+    apic_map volatile* __apic_mem;
+    ioapic volatile* __ioapic_mem;
     unsigned int __local_id;
 public:
-    constexpr apic_map& get_map() { return *__apic_mem; }
-    constexpr apic_map const& get_map() const { return *__apic_mem; }
-    constexpr bool valid() const { return __apic_mem != nullptr; }
+    inline bool valid() const volatile { return __apic_mem != nullptr && __ioapic_mem != nullptr; }
     apic(unsigned id = 0);
     void eoi() volatile;
+    bool init() volatile;
+    inline apic_map volatile* get_map() volatile { return __apic_mem; }
+    inline apic_map const volatile* get_map() const volatile { return __apic_mem; }
+    inline int get_id() const volatile noexcept { return __local_id; }
 };
 #endif
