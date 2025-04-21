@@ -180,7 +180,7 @@ extern "C"
         }
         if(flags & RTLD_NODELETE) result->set_sticky();
         elf64_dynamic_object* handle = result.base();
-        task->attach_object(handle);
+        if(result->is_global()) task->attach_object(handle);
         return handle;
     }
     int syscall_dlclose(addr_t handle)

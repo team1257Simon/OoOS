@@ -8,7 +8,7 @@ void elf64_executable::frame_enter() { kmm.enter_frame(frame_tag); }
 addr_t elf64_executable::segment_vaddr(size_t n) const { return addr_t(phdr(n).p_vaddr); }
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
-void elf64_executable::set_frame(uframe_tag* ft) { frame_tag = ft; program_descriptor.frame_ptr = ft; }
+void elf64_executable::set_frame(uframe_tag* ft) { ft->mapped_max = frame_tag->mapped_max; frame_tag = ft; program_descriptor.frame_ptr = ft; }
 uframe_tag *elf64_executable::get_frame() const { return frame_tag; }
 elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz) :
     elf64_object        ( start, size ),
@@ -80,9 +80,9 @@ elf64_executable::elf64_executable(elf64_executable const& that) :
     frame_tag           { that.frame_tag },
     program_descriptor  { that.program_descriptor }
     {
-        program_descriptor.object_handle = this; 
-        on_copy(std::addressof(fm.create_frame(frame_base, frame_extent)));
-        frame_tag->mapped_max = that.frame_tag->mapped_max;
+        program_descriptor.object_handle = this;
+        // on_copy(std::addressof(fm.create_frame(frame_base, frame_extent)));
+        // frame_tag->mapped_max = that.frame_tag->mapped_max;
     }
 bool elf64_executable::xvalidate()
 {
@@ -114,6 +114,7 @@ bool elf64_executable::load_segments()
     if((frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent))))
     {
         frame_enter();
+        size_t i = 0;
         for(size_t n = 0; n < ehdr().e_phnum; n++)
         {
             elf64_phdr const& h = phdr(n);
@@ -130,7 +131,15 @@ bool elf64_executable::load_segments()
             frame_enter();
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
             if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
-            new(std::addressof(segments[n])) program_segment_descriptor{ idmap, addr, static_cast<off_t>(h.p_offset), h.p_memsz, h.p_align, static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) };
+            new(std::addressof(segments[i++])) program_segment_descriptor
+            { 
+                .absolute_addr = idmap, 
+                .virtual_addr  = addr, 
+                .obj_offset    = static_cast<off_t>(h.p_offset),
+                .size		   = h.p_memsz, 
+                .seg_align     = h.p_align, 
+                .perms         = static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) 
+            };
         }
         addr_t stkblk = kmm.allocate_user_block(stack_size, stack_base, page_size, true, false);
         addr_t tlsblk = kmm.allocate_user_block(tls_size, tls_base, page_size, true, false);
@@ -138,7 +147,7 @@ bool elf64_executable::load_segments()
         kmm.exit_frame();
         frame_tag->usr_blocks.emplace_back(stkblk, stack_base, stack_size, page_size, true, false);
         frame_tag->usr_blocks.emplace_back(tlsblk, tls_base, tls_size, page_size, true, false);
-        new(std::addressof(program_descriptor)) elf64_program_descriptor 
+        new(std::addressof(program_descriptor)) elf64_program_descriptor
         { 
             .frame_ptr = frame_tag, 
             .prg_stack = stack_base, 

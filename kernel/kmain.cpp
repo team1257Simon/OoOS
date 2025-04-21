@@ -25,6 +25,7 @@
 #include "unordered_map"
 #include "algorithm"
 #include "map"
+#include "list"
 sysinfo_t* sysinfo;
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
@@ -350,6 +351,7 @@ void elf64_tests()
             file_node* c = testramfs.lndev("com", com, 0);
             elf64_program_descriptor const& desc = test_exec->describe();
             startup_tty.print_line("Entry at " + std::to_string(desc.entry));
+            sch.start();
             task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
             prog_manager::get_instance().remove(test_exec);
         }
@@ -496,7 +498,7 @@ extern "C"
         kproc.saved_regs.rsp = std::addressof(kernel_stack_top);
         kproc.saved_regs.rbp = std::addressof(kernel_stack_base);
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x20UL, 0x08ui16, 0x10ui16);     
+        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08ui16, 0x10ui16);     
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
         if(sysinfo->xsdt) fadt = find_fadt();

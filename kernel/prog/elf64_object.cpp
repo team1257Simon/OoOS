@@ -10,7 +10,7 @@ elf64_object::~elf64_object() { if(__image_start) elf_alloc.deallocate(__image_s
 void elf64_object::cleanup() { if(__image_start) elf_alloc.deallocate(__image_start, __image_size); __image_start = nullptr; }
 void elf64_object::release_segments() { xrelease(); }
 void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
-void elf64_object::process_headers() { for(size_t i = 0; i < ehdr().e_phnum; i++) { if(is_load(phdr(i))) num_seg_descriptors++; }  segments = sd_alloc.allocate(num_seg_descriptors); }
+void elf64_object::process_headers() { for(size_t i = 0; i < ehdr().e_phnum; i++) { if(is_load(phdr(i)) && phdr(i).p_memsz) num_seg_descriptors++; } segments = sd_alloc.allocate(num_seg_descriptors); }
 bool elf64_object::validate() noexcept { if(__validated) return true; if(!__image_size) return false; if(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0) { panic("missing identifier; invalid object"); return false; } try { return (__validated = xvalidate()); } catch(std::exception& e) { panic(e.what()); return false; } }
 bool elf64_object::load() noexcept { try { if(__loaded) return true; if(!validate()) { panic("invalid executable"); return false; } __loaded = xload(); if(!__loaded) on_load_failed(); return __loaded; } catch(std::exception& e) { panic(e.what()); on_load_failed(); return false; } }
 off_t elf64_object::segment_index(size_t offset) const { for(size_t i = 0; i < num_seg_descriptors; i++) { if(static_cast<uintptr_t>(segments[i].obj_offset) <= offset && offset < static_cast<uintptr_t>(segments[i].obj_offset + segments[i].size)) return static_cast<off_t>(i); } return -1L; }
@@ -103,7 +103,7 @@ elf64_object::elf64_object(elf64_object const& that) :
         array_copy<char>(symtab.data, that.symtab.data, that.symtab.total_size);
         array_copy<char>(symstrtab.data, that.symstrtab.data, that.symstrtab.total_size);
         array_copy<char>(shstrtab.data, that.shstrtab.data, that.shstrtab.total_size);
-        array_copy<program_segment_descriptor>(segments, that.segments, num_seg_descriptors); // based generic memcpy routine
+        array_copy<program_segment_descriptor>(segments, that.segments, that.num_seg_descriptors); // based generic memcpy routine
     }
 }
 elf64_object::elf64_object(elf64_object&& that) :
@@ -128,28 +128,12 @@ void elf64_object::on_copy(uframe_tag* new_frame)
 {
     if(!new_frame) { throw std::invalid_argument{ "frame tag must not be null" }; }
     set_frame(new_frame);
-    std::vector<block_descr> readonly_blocks{};
-    for(block_descr const& bd : segment_blocks())
-    {
-        if(!bd.write) readonly_blocks.push_back(bd);
-        else
-        {
-            frame_enter();
-            addr_t allocated = kmm.allocate_user_block(bd.size, bd.virtual_start, bd.align, true, bd.execute);
-            kmm.exit_frame();
-            if(!allocated) throw std::bad_alloc();
-            array_copy<uint8_t>(allocated, bd.physical_start, bd.size);
-            new_frame->usr_blocks.emplace_back(allocated, bd.virtual_start, bd.align, true, bd.execute);
-        }
-    }
-    frame_enter();
-    kmm.map_to_current_frame(readonly_blocks);
     for(size_t i = 0; i < num_seg_descriptors; i++)
     {
-        if(!segments[i].absolute_addr) continue;
-        addr_t translated(kmm.frame_translate(segments[i].virtual_addr));
-        if(!translated) throw std::runtime_error{ "block mapping is invalid" };
-        segments[i].absolute_addr = translated;
+        if(!segments[i].absolute_addr || !segments[i].size) continue;
+        addr_t addr = segments[i].virtual_addr;
+        frame_enter();
+        segments[i].absolute_addr = addr_t(kmm.frame_translate(addr));
+        kmm.exit_frame();
     }
-    kmm.exit_frame();
 }

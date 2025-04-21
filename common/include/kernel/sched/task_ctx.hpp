@@ -103,6 +103,7 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 extern "C"
 {
     [[noreturn]] void handle_exit();
+    [[noreturn]] void fallthrough_reentry(task_t*);
     void signal_exit(int code);
     void sigtramp_enter(int sig, signal_handler handler);
     void sigtramp_return();

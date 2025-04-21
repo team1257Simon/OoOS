@@ -7,15 +7,53 @@
 #include "elf64_exec.hpp"
 #include "arch/arch_amd64.h"
 #include "rtc.h"
+#include "kdebug.hpp"
 extern "C"
 {
-    [[noreturn]] void handle_exit() { cli(); if(task_ctx* task = active_task_context(); task->is_user()) { task->terminate(); tl.destroy_task(task->get_pid()); } kernel_reentry(); __builtin_unreachable(); }
-    clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(task_ctx* task = active_task_context(); task->is_user() && out) { new (out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -EINVAL; }
+    [[noreturn]] void handle_exit()
+    {
+        cli();
+        if(task_ctx* task = active_task_context(); task->is_user()) { task->terminate(); tl.destroy_task(task->get_pid()); }
+        if(task_t* next = sch.fallthrough_yield()) { fallthrough_reentry(next); }
+        else { kernel_reentry(); }
+        __builtin_unreachable();
+    }
+    clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(task_ctx* task = active_task_context(); task->is_user() && out) { new(out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -EINVAL; }
     int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { std::construct_at<timeval>(translate_user_pointer(tm), timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
     long syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
-    pid_t syscall_wait(int* sc_out) { task_ctx* task = active_task_context(); sc_out = translate_user_pointer(sc_out); if(task->last_notified) { *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } else if(sch.set_wait_untimed(task->task_struct.self)) { task->notif_target = sc_out; task->task_struct.task_ctl.notify_cterm = true; while(task->task_struct.task_ctl.block) { pause(); } return task->last_notified ? task->last_notified->get_pid() : -EINTR; } return -EINVAL; }
-    int syscall_sleep(unsigned long seconds) { if(task_ctx* task = active_task_context(); sch.set_wait_timed(task->task_struct.self, seconds * 1000, false)) { while(task->task_struct.task_ctl.block) { pause(); } return 0; } return -ENOSYS; }
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
+    int syscall_sleep(unsigned long seconds)
+    {
+        if(task_ctx* task = active_task_context(); sch.set_wait_timed(task->task_struct.self, seconds * 1000, false)) 
+        { 
+            task_t* next = sch.manual_yield();
+            if(next == task->task_struct.self.as<task_t>())
+            {
+                sti();
+                while(task->task_struct.task_ctl.block) pause();
+                cli();
+                return 0;
+            }
+            task->task_struct.saved_regs.rax = 0;
+            return next->saved_regs.rax;
+        }
+        return -ENOSYS;
+    }
+    pid_t syscall_wait(int* sc_out)
+    {
+        task_ctx* task = active_task_context();
+        sc_out = translate_user_pointer(sc_out);
+        if(task->last_notified) { if(sc_out) *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } 
+        else if(sch.set_wait_untimed(task->task_struct.self)) 
+        {
+            task->notif_target = sc_out;
+            task->task_struct.task_ctl.notify_cterm = true;
+            task_t* next = sch.manual_yield();
+            if(next == task->task_struct.self.as<task_t>()) { return -ECHILD; }
+            return next->saved_regs.rax;
+        }
+        return -EINVAL;
+    }
     long syscall_fork()
     {
         task_ctx* task = active_task_context();
@@ -24,7 +62,9 @@ extern "C"
         {
             try { sch.register_task(clone->task_struct.self); } catch(...) { return -ENOMEM; }
             clone->current_state = execution_state::RUNNING;
-            return static_cast<long>(clone->get_pid());
+            task->add_child(clone);
+            clone->task_struct.saved_regs.rax = 0;
+            return clone->get_pid();
         }
         else return -ENOMEM;
     }
@@ -49,7 +89,7 @@ extern "C"
         uint16_t qv = task->task_struct.quantum_val;
         pid_t parent_id = task->get_parent_pid();
         pid_t id = task->get_pid();
-        task->terminate();
+        sch.unregister_task(task->task_struct.self);
         tl.destroy_task(id);
         task_ctx* ntask = tl.create_user_task(ex->describe(), std::move(argv_v), parent_id, pv, qv, id);
         ntask->env_vec = std::move(env_v);

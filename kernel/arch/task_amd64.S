@@ -1,5 +1,6 @@
 #include "def-amd64.inc"
     .code64
+    .global         fallthrough_reentry
     .global         task_change
     .global         user_entry
     .global         kernel_reentry
@@ -7,6 +8,7 @@
     .global         set_task_signal
     .extern         force_signal
     .extern         task_signal_code
+    .type           fallthrough_reentry, @function
     .type           task_change,         @function
     .type           user_entry,          @function
     .type           kernel_reentry,      @function
@@ -54,9 +56,14 @@
         movq        %rax,                 %cr3
         popq        %rax
     .endm
+fallthrough_reentry:
+    movq        %rdi,                   %gs:T_OFFS(next)
+    movq        $kernel_isr_stack_top,  %rsp
+    jmp         1f
 task_change:
     interrupt_stack_save
     base_state_save
+1:
     movq        %gs:T_OFFS(next),       %rax
     wrgsbase    %rax
     movq        %gs:T_OFFS(tls_block),  %rax
@@ -64,7 +71,8 @@ task_change:
     base_state_restore
     interrupt_stack_restore
     iretq
-    .size       task_change,    .-task_change
+    .size       task_change,            .-task_change
+    .size       fallthrough_reentry,    .-1b+task_change-fallthrough_reentry
 user_entry:
     cli
     movq        %rax,           %gs:T_OFFS(rax)

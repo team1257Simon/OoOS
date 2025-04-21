@@ -33,6 +33,8 @@ public:
     bool set_wait_untimed(task_t* task);
     bool interrupt_wait(task_t* waiting);
     bool set_wait_timed(task_t* task, unsigned int time, bool can_interrupt = true);
+    task_t* manual_yield();
+    task_t* fallthrough_yield();
     static bool init_instance();
     static bool has_init() noexcept;
     static scheduler& get() noexcept;

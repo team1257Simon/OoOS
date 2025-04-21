@@ -37,7 +37,6 @@ bool task_list::destroy_task(uint64_t pid)
 {
     iterator i = find(pid);
     if(i == end()) return false;
-    sch.unregister_task_tree(i->task_struct.self);
     erase(i);
     return true;
 }
@@ -46,5 +45,5 @@ task_ctx* task_list::context_vfork(task_ctx const* ctx)
     if(!ctx) return nullptr;
     task_ctx clone(*ctx);
     clone.change_pid(__mk_pid(), ctx->get_pid());
-    try { return emplace(std::move(clone)).first.base(); } catch(...) { return nullptr; }
+    try { return emplace(std::move(clone)).first.base(); } catch(std::exception& e) { panic(e.what()); return nullptr; }
 }
