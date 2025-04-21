@@ -396,7 +396,7 @@ static const char* codes[] =
 };
 constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
 {
-    if(get_gs_base<task_t>() != std::addressof(kproc)) return;
+//    if(get_gs_base<task_t>() != std::addressof(kproc)) return;
     if(idx < 0x20) 
     {
         startup_tty.print_text(codes[idx]);

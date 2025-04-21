@@ -131,9 +131,7 @@ void elf64_object::on_copy(uframe_tag* new_frame)
     for(size_t i = 0; i < num_seg_descriptors; i++)
     {
         if(!segments[i].absolute_addr || !segments[i].size) continue;
-        addr_t addr = segments[i].virtual_addr;
-        frame_enter();
-        segments[i].absolute_addr = addr_t(kmm.frame_translate(addr));
-        kmm.exit_frame();
+        segments[i].absolute_addr = new_frame->translate(segments[i].virtual_addr);
+        if(!segments[i].absolute_addr) throw std::runtime_error{ "cannot change frame before remapping blocks" };
     }
 }

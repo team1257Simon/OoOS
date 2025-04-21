@@ -113,10 +113,8 @@ bool elf64_shared_object::load_segments()
             addr_t addr = virtual_load_base.plus(h.p_vaddr);
             addr_t target = addr.trunc(h.p_align);
             size_t full_size = h.p_memsz + (addr - target);
-            frame_enter();
-            addr_t blk = kmm.allocate_user_block(full_size, target, h.p_align, is_write(h), is_exec(h));
-            if(!blk) { kmm.exit_frame(); throw std::bad_alloc{}; }
-            addr_t idmap(kmm.frame_translate(addr));
+            if(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h))) { throw std::bad_alloc{}; }
+            addr_t idmap = frame_tag->translate(addr);
             size_t actual_size = kernel_memory_mgr::aligned_size(target, full_size);
             addr_t img_dat = segment_ptr(n);
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
@@ -130,8 +128,6 @@ bool elf64_shared_object::load_segments()
                 .seg_align     = h.p_align, 
                 .perms         = static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) 
             };
-            kmm.exit_frame();
-            frame_tag->usr_blocks.emplace_back(blk, target, actual_size, h.p_align, is_write(h), is_exec(h));
             frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
             total_segment_size += actual_size;
             have_loads = true;

@@ -1,16 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
 #include <sys/mman.h>
 #include <errno.h>
-void sigsegv_handler(int num)
-{
-    printf("Ach, hans! Run! It's the... %i!\n", num); // Magic Unglued is great
-    exit(0); // we need to use this version of exit because we can't return in main from here
-}
-int* some_pointer = (int*)42;
+#include <unistd.h>
+#include <sys/wait.h>
 int main(int argc, char** argv)
 {
     printf("Hello OoOS (from userland)! I'm %s!\n", argv[0]);
@@ -32,7 +27,20 @@ int main(int argc, char** argv)
         printf("mmap failed; error code %i\n", errno);
         return errno;
     }
-    signal(SIGSEGV, sigsegv_handler);
-    printf("%i", *some_pointer); // this will segfault...
-    return 0;                    // we won't get here; instead, the handler will do the exiting
+    pid_t pid = fork();
+    printf("forked\n");
+    int rv = 0;
+    switch(pid)
+    {
+    case -1:
+        printf(":(\n");
+        return -1;
+    case 0:
+        printf("In child\n");
+        return 0;
+    default:
+        printf("Child PID is %i\n", pid);
+        wait(&rv);
+        return 0;
+    }
 }

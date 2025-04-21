@@ -57,6 +57,7 @@
         popq        %rax
     .endm
 fallthrough_reentry:
+    swapgs
     movq        %rdi,                   %gs:T_OFFS(next)
     movq        $kernel_isr_stack_top,  %rsp
     jmp         1f

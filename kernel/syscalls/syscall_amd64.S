@@ -2,6 +2,7 @@
     .code64
     .data
     .global                         do_syscall
+    .global                         user_reentry
     .extern                         syscall_exit
     .extern                         syscall_sleep
     .extern                         syscall_wait
@@ -182,6 +183,7 @@ do_syscall:
     movq    (%rax),                 %rax
 1:
     call    *%rax
+user_reentry:
     fxsave  %gs:T_OFFS(fxsv)
     swapgs
     syscall_state_restore
@@ -190,6 +192,7 @@ do_syscall:
     movq    %rcx,                   %cr3
     movq    __held_pc,              %rcx
     sysretq
+    .size   user_reentry,           .-user_reentry
 2:
     leaq    on_invalid_syscall,     %rax
     jmp 1b

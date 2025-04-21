@@ -1,6 +1,7 @@
 #include "sched/task_list.hpp"
 #include "sched/scheduler.hpp"
 #include "kernel_mm.hpp"
+#include "frame_manager.hpp"
 #include "stdlib.h" // rand()
 using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
@@ -43,7 +44,8 @@ bool task_list::destroy_task(uint64_t pid)
 task_ctx* task_list::context_vfork(task_ctx const* ctx)
 {
     if(!ctx) return nullptr;
-    task_ctx clone(*ctx);
-    clone.change_pid(__mk_pid(), ctx->get_pid());
-    try { return emplace(std::move(clone)).first.base(); } catch(std::exception& e) { panic(e.what()); return nullptr; }
+    task_ctx* result;
+    try { result = emplace(*ctx).first.base(); }
+    catch(...) { return nullptr; }
+    return result;
 }

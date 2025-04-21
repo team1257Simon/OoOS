@@ -243,10 +243,9 @@ namespace std::__impl
         {
             if(start == __qbeg() && start + n >= __end()) 
             {
-                size_t n = __qcapacity();
                 size_t r = this->__qsize();
                 this->__qdestroy();
-                __my_queue_data.__set_ptrs(__qallocator.allocate(n), n);
+                __my_queue_data.__reset();
                 return r;
             }
             __ptr_container tmp{ __qallocator.allocate(__qcapacity() - n), __qcapacity() - n }; 

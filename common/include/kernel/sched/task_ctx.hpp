@@ -104,6 +104,7 @@ extern "C"
 {
     [[noreturn]] void handle_exit();
     [[noreturn]] void fallthrough_reentry(task_t*);
+    [[noreturn]] void user_reentry();
     void signal_exit(int code);
     void sigtramp_enter(int sig, signal_handler handler);
     void sigtramp_return();

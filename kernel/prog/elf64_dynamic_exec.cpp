@@ -40,11 +40,14 @@ void elf64_dynamic_executable::process_headers()
     if(virtual_load_base)
     {
         off_t diff = static_cast<off_t>(virtual_load_base.full);
-        frame_base += diff;
-        frame_extent += diff;
-        stack_base += diff;
-        tls_base += diff;
-        entry += diff;
+        if(diff)
+        {
+            frame_base += diff;
+            frame_extent += diff;
+            stack_base += diff;
+            tls_base += diff;
+            entry += diff;
+        }
     }
 }
 bool elf64_dynamic_executable::load_segments()
@@ -70,9 +73,7 @@ bool elf64_dynamic_executable::load_preinit()
     if(preinit_array_ptr && preinit_array_size)
     {
         addr_t preinit_ptrs_vaddr = resolve(preinit_array_ptr);
-        frame_enter();
-        uintptr_t* preinit_ptrs = reinterpret_cast<uintptr_t*>(kmm.frame_translate(preinit_ptrs_vaddr));
-        kmm.exit_frame();
+        uintptr_t* preinit_ptrs = get_frame()->translate(preinit_ptrs_vaddr);
         if(!preinit_ptrs) { panic("pre-initialization array pointer is non-null but is invalid"); return false; }
         for(size_t i = 0; i < preinit_array_size; i++) { preinit_array.push_back(addr_t(preinit_ptrs[i])); }
     }

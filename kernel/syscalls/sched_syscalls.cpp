@@ -10,11 +10,13 @@
 #include "kdebug.hpp"
 extern "C"
 {
+    extern task_t* kproc;
     [[noreturn]] void handle_exit()
     {
         cli();
-        if(task_ctx* task = active_task_context(); task->is_user()) { task->terminate(); tl.destroy_task(task->get_pid()); }
-        if(task_t* next = sch.fallthrough_yield()) { fallthrough_reentry(next); }
+        task_ctx* task = active_task_context();
+        if(task->is_user()) { task->terminate(); tl.destroy_task(task->get_pid()); }
+        if(task_t* next = sch.fallthrough_yield(); next != nullptr) { fallthrough_reentry(next); }
         else { kernel_reentry(); }
         __builtin_unreachable();
     }
@@ -24,10 +26,10 @@ extern "C"
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
     int syscall_sleep(unsigned long seconds)
     {
-        if(task_ctx* task = active_task_context(); sch.set_wait_timed(task->task_struct.self, seconds * 1000, false)) 
+        if(task_ctx* task = active_task_context(); sch.set_wait_timed(reinterpret_cast<task_t*>(task), seconds * 1000, false)) 
         { 
             task_t* next = sch.manual_yield();
-            if(next == task->task_struct.self.as<task_t>())
+            if(next == reinterpret_cast<task_t*>(task))
             {
                 sti();
                 while(task->task_struct.task_ctl.block) pause();
@@ -44,12 +46,12 @@ extern "C"
         task_ctx* task = active_task_context();
         sc_out = translate_user_pointer(sc_out);
         if(task->last_notified) { if(sc_out) *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } 
-        else if(sch.set_wait_untimed(task->task_struct.self)) 
+        else if(sch.set_wait_untimed(reinterpret_cast<task_t*>(task))) 
         {
             task->notif_target = sc_out;
             task->task_struct.task_ctl.notify_cterm = true;
             task_t* next = sch.manual_yield();
-            if(next == task->task_struct.self.as<task_t>()) { return -ECHILD; }
+            if(next == reinterpret_cast<task_t*>(task)) { return -ECHILD; }
             return next->saved_regs.rax;
         }
         return -EINVAL;
@@ -60,7 +62,7 @@ extern "C"
         // TODO check/enforce thread limit
         if(task_ctx* clone = tl.context_vfork(task); clone && clone->set_fork())
         {
-            try { sch.register_task(clone->task_struct.self); } catch(...) { return -ENOMEM; }
+            try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
             clone->current_state = execution_state::RUNNING;
             task->add_child(clone);
             clone->task_struct.saved_regs.rax = 0;

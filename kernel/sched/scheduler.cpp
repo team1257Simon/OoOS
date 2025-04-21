@@ -13,7 +13,7 @@ bool scheduler::init_instance() { return has_init() || (__has_init = __instance.
 scheduler& scheduler::get() noexcept { return __instance; }
 scheduler::scheduler() = default;
 bool scheduler::__set_untimed_wait(task_t* task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
-void scheduler::register_task(task_t* task) { __my_queues[task->task_ctl.prio_base].push(task); }
+void scheduler::register_task(task_t* task) { __my_queues[task->task_ctl.prio_base].push(task); __total_tasks++; }
 bool scheduler::interrupt_wait(task_t* waiting)
 {
     if(task_wait_queue::const_iterator i = __my_sleepers.find(waiting); i != __my_sleepers.end()) { return __my_sleepers.interrupt_wait(i); } 
@@ -60,6 +60,7 @@ bool scheduler::unregister_task(task_t* task)
     if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __my_queues[priority_val::PVSYS].find(task, true); i != __my_queues[priority_val::PVSYS].end()) { result = __my_queues[priority_val::PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
     for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __my_queues[pv].find(task, true); i != __my_queues[pv].end()) { result = __my_queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
     __sync_synchronize();
+    if(__total_tasks) __total_tasks--;
     return result;
 }
 bool scheduler::unregister_task_tree(task_t* task)
@@ -164,7 +165,7 @@ bool scheduler::init()
 }
 task_t* scheduler::manual_yield()
 {
-    task_t* cur = active_task_context()->task_struct.self;
+    task_t* cur = std::addressof(active_task_context()->task_struct);
     cur->quantum_rem = 0;
     task_t* next = select_next();
     if(!next) { next = cur; }
@@ -174,6 +175,7 @@ task_t* scheduler::manual_yield()
 }
 task_t* scheduler::fallthrough_yield()
 {
+    if(__total_tasks == 0) return nullptr;
     task_t* next = select_next();
     if(next) next->quantum_rem = next->quantum_val;
     return next;

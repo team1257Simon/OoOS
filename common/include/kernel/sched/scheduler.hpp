@@ -11,6 +11,7 @@ class scheduler
     std::atomic<unsigned> __my_subticks{};
     std::atomic<unsigned> __my_tick_cycles{};
     bool __running{ false };
+    size_t __total_tasks{ 0UL };
     static scheduler __instance;
     static bool __has_init;
     bool __set_wait_time(task_t* task, unsigned int time, bool can_interrupt);

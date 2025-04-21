@@ -81,17 +81,15 @@ void elf64_dynamic_object::apply_relocations()
 {
     reloc_sym_resolve reloc_symbol_fn = std::bind(&elf64_dynamic_object::resolve_rela_sym, this, std::placeholders::_1, std::placeholders::_2);
     reloc_tar_resolve reloc_target_fn = std::bind(&elf64_dynamic_object::resolve_rela_target, this, std::placeholders::_1);
-    frame_enter();
     // Assuming everything works as planned (decently tall ask), the relocation value will be calculated here for each relocation.
     for(elf64_relocation const& r : relocations)
     {
         if(is_dynamic_relocation(r.rela_entry)) continue; // these will be resolved later
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
-        addr_t phys_target(kmm.frame_translate(result.target));
+        addr_t phys_target = get_frame()->translate(result.target);
         if(phys_target && result.value) phys_target.ref<uint64_t>() = result.value;
         else klog("W: invalid relocation");
     }
-    kmm.exit_frame();
 }
 uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const
 {
@@ -149,11 +147,9 @@ bool elf64_dynamic_object::post_load_init()
     apply_relocations();
     if(got_vaddr)
     {
-        frame_enter();
-        addr_t* got = reinterpret_cast<addr_t*>(kmm.frame_translate(global_offset_table()));
+        addr_t* got = get_frame()->translate(global_offset_table());
         if(got) { got[1] = this; }
         else { panic("GOT pointer is non-null but is invalid"); return false; }
-        kmm.exit_frame();
     }
     try
     {
@@ -164,18 +160,14 @@ bool elf64_dynamic_object::post_load_init()
         if(init_array_size && init_array_ptr) 
         {
             addr_t init_ptrs_vaddr = resolve(init_array_ptr);
-            frame_enter();
-            uintptr_t* init_ptrs = reinterpret_cast<uintptr_t*>(kmm.frame_translate(init_ptrs_vaddr)); 
-            kmm.exit_frame();
+            uintptr_t* init_ptrs = get_frame()->translate(init_ptrs_vaddr);
             if(!init_ptrs) { panic("initialization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
         if(fini_array_size && fini_array_ptr)
         {
             addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
-            frame_enter();
-            uintptr_t* fini_ptrs = reinterpret_cast<uintptr_t*>(kmm.frame_translate(fini_ptrs_vaddr)); 
-            kmm.exit_frame();
+            uintptr_t* fini_ptrs = get_frame()->translate(fini_ptrs_vaddr);
             if(!fini_ptrs) { panic("finalization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
         }
@@ -316,10 +308,9 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
 {
     if(got_vaddr)
     {
-        frame_enter();
-        addr_t got_table(kmm.frame_translate(global_offset_table()));
+        addr_t got_table = get_frame()->translate(global_offset_table());
+        if(!got_table) return;
         got_table.as<addr_t>()[2] = ptr;
-        kmm.exit_frame();
     }
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
