@@ -8,7 +8,7 @@ addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 void elf64_shared_object::set_frame(uframe_tag* ft) { frame_tag = ft; }
 uframe_tag *elf64_shared_object::get_frame() const { return frame_tag; }
-void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descr& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
+void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descriptor& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
 void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && dyn_entries[i].d_val & 0x02)) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
 elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :

@@ -60,7 +60,7 @@ extern "C"
     {
         task_ctx* task = active_task_context();
         // TODO check/enforce thread limit
-        if(task_ctx* clone = tl.context_vfork(task); clone && clone->set_fork())
+        if(task_ctx* clone = tl.task_vfork(task); clone && clone->set_fork())
         {
             try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
             clone->current_state = execution_state::RUNNING;
@@ -78,26 +78,21 @@ extern "C"
         name = translate_user_pointer(name);
         if(!name) return -EINVAL;
         file_node* n;
-        try{ n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         elf64_executable* ex = prog_manager::get_instance().add(n);
         if(!ex) return -ENOEXEC;
         std::vector<const char*> argv_v{}, env_v{};
         for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
         for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
-        task->exit_code = 0;
-        file_node* stdio_ptrs[3] = { task->stdio_ptrs[0], task->stdio_ptrs[1], task->stdio_ptrs[2] };
-        addr_t exit_target = task->exit_target;
-        priority_val pv = task->task_struct.task_ctl.prio_base;
-        uint16_t qv = task->task_struct.quantum_val;
-        pid_t parent_id = task->get_parent_pid();
-        pid_t id = task->get_pid();
-        sch.unregister_task(task->task_struct.self);
-        tl.destroy_task(id);
-        task_ctx* ntask = tl.create_user_task(ex->describe(), std::move(argv_v), parent_id, pv, qv, id);
-        ntask->env_vec = std::move(env_v);
-        ntask->set_stdio_ptrs(stdio_ptrs);
-        ntask->start_task(exit_target);
-        asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(ntask) : "memory");
-        return 0;
+        try
+        {
+            if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
+                return task->task_struct.saved_regs.rax;
+            else return -ENOMEM;
+        }
+        catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
+        catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
+        catch(std::bad_alloc&) { panic("no memory for argument vectors"); return -ENOMEM; }
+        __builtin_unreachable();
     }
 }

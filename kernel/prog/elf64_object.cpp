@@ -72,9 +72,9 @@ bool elf64_object::xload()
     cleanup();
     return success;
 }
-std::vector<block_descr> elf64_object::segment_blocks() const
+std::vector<block_descriptor> elf64_object::segment_blocks() const
 {
-    std::vector<block_descr> result(num_seg_descriptors);
+    std::vector<block_descriptor> result(num_seg_descriptors);
     for(size_t i = 0; i < num_seg_descriptors; i++) 
     { 
         if(segments[i].size)

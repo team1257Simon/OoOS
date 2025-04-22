@@ -11,7 +11,13 @@ elf64_sym const* elf64_dynsym_index::operator[](std::string const& str) const
     if(!i) return nullptr;
     uint32_t hash_val = hash & ~1U;
     uint32_t other_hash = htbl.hash_value_array[i - htbl.header.symndx];
-    for(elf64_sym const* sym = symtab + i; ; ++i, sym = symtab + i, other_hash = htbl.hash_value_array[i - htbl.header.symndx]) { if(hash_val == (other_hash & ~1U) && !std::strcmp(str.c_str(), strtab[sym->st_name])) return sym; if(other_hash & 1U) break; }
+    for(elf64_sym const* sym = symtab + i; ; ++i, sym = symtab + i, other_hash = htbl.hash_value_array[i - htbl.header.symndx]) 
+    { 
+        if(hash_val == (other_hash & ~1U) && !std::strcmp(str.c_str(), strtab[sym->st_name])) 
+            return sym;
+        if(other_hash & 1U) 
+            break;
+    }
     return nullptr;
 }
 void elf64_dynsym_index::destroy_if_present()

@@ -68,7 +68,7 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 }
 static elf64_dynamic_object* validate_handle(addr_t handle) 
 {
-    // need to do this so the dynamic cast doesn't get optimized out; we can use it to verify that the object is indeed a handle and not some random pointer
+    // We need to do this so the dynamic cast doesn't get optimized out; we can use it to verify that the object is indeed a handle and not some random pointer
     volatile elf64_object* o = static_cast<volatile elf64_object*>(handle.as<volatile elf64_dynamic_object>());
     barrier();
     return const_cast<elf64_dynamic_object*>(dynamic_cast<elf64_dynamic_object volatile*>(o)); 
@@ -225,7 +225,7 @@ extern "C"
     {
         task_ctx* task = active_task_context();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-        if(elf64_dynamic_object* obj = dynamic_cast<elf64_dynamic_object*>(got_loaded_id.as<elf64_dynamic_object>()))
+        if(elf64_dynamic_object* obj = validate_handle(got_loaded_id))
         {
             if(!obj->has_plt_relas()) { return addr_t(static_cast<uintptr_t>(-ENOEXEC)); }
             elf64_rela const& rela = obj->get_plt_rela(sym_idx);
@@ -311,7 +311,7 @@ extern "C"
         if(!task->local_so_map) return -ENOSYS;
         info = translate_user_pointer(info);
         if(!info) return -EINVAL;
-        array_zero<uint64_t>(addr_t(info), sizeof(dl_addr_info) / sizeof(uint64_t));
+        array_zero(reinterpret_cast<uint64_t*>(info), sizeof(dl_addr_info) / sizeof(uint64_t));
         size_t n = task->attached_so_handles.size();
         for(size_t i = 0; i < n; i++)
         {

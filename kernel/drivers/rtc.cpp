@@ -15,7 +15,7 @@ extern "C" { uint64_t sys_time(uint64_t* tm_target) { uint64_t t = rtc::get_inst
 __isrcall void rtc::rtc_time_update() volatile noexcept
 {
     while(is_cmos_update_in_progress());
-    uint16_t century{ (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20ui8) };
+    uint16_t century = (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20ui8);
     rtc_time nt
     {
         .sec = read_rtc_register<0x00ui8>(),
@@ -28,7 +28,7 @@ __isrcall void rtc::rtc_time_update() volatile noexcept
     };
     if(__is_12h)
     {
-        bool pm((nt.hr & 0x80U) != 0);
+        bool pm = ((nt.hr & 0x80U) != 0);
         nt.hr &= ~0x80;
         nt.hr %= 12;
         if(pm) nt.hr += 12U;

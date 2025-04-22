@@ -47,7 +47,7 @@ public:
     bool validate() noexcept;
     bool load() noexcept;
     void on_copy(uframe_tag* new_frame);
-    std::vector<block_descr> segment_blocks() const;
+    std::vector<block_descriptor> segment_blocks() const;
     constexpr elf64_sym const& get_sym(size_t idx) const noexcept { return symtab[idx]; }
 };
 #endif

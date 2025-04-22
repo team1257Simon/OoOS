@@ -332,7 +332,7 @@ void task_ctx::set_exit(int n)
 void task_ctx::attach_object(elf64_object* obj)
 {
     if(!is_user()) return;
-    std::vector<block_descr> blocks = obj->segment_blocks();
+    std::vector<block_descriptor> blocks = obj->segment_blocks();
     kmm.enter_frame(task_struct.frame_ptr);
     kmm.map_to_current_frame(blocks);
     kmm.exit_frame();
@@ -426,4 +426,62 @@ bool task_ctx::set_fork()
         return true;
     }
     catch(std::exception& e) { panic(e.what()); return false; }
+}
+bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env)
+{
+    if(local_so_map)
+    {
+        local_so_map->shared_frame = nullptr;
+        sm_alloc.deallocate(local_so_map, 1); 
+        local_so_map = sm_alloc.allocate(1);
+        if(!local_so_map) return false;
+    }
+    fm.destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
+    uframe_tag* new_tag = static_cast<uframe_tag*>(desc.frame_ptr);
+    if(!new_tag) throw std::invalid_argument{ "frame must not be null" };
+    task_struct.frame_ptr = new_tag;
+    allocated_stack = desc.prg_stack;
+    stack_allocated_size = desc.stack_size;
+    tls = desc.prg_tls;
+    tls_size = desc.tls_size;
+    int64_t parent_pid = task_struct.task_ctl.parent_pid;
+    pid_t pid = get_pid();
+    priority_val prio = task_struct.task_ctl.prio_base;
+    uint16_t quantum = task_struct.quantum_val;
+    new(std::addressof(task_struct)) task_t
+    {
+        .self               { std::addressof(task_struct) },
+        .frame_ptr          { desc.frame_ptr },
+        .saved_regs         
+        { 
+            .rbp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
+            .rsp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
+            .rflags         { 0x202UL },
+            .ds             { data_segment(get_frame_magic(desc.frame_ptr)) },
+            .ss             { data_segment(get_frame_magic(desc.frame_ptr)) },
+            .cs             { code_segment(get_frame_magic(desc.frame_ptr)) },
+            .cr3            { __pml4_of(desc.frame_ptr) } 
+        },
+        .quantum_val        { quantum }, 
+        .task_ctl           
+        {
+            {
+                .block          { false },
+                .can_interrupt  { false },
+                .notify_cterm   { false },
+                .sigkill        { false },
+                .prio_base      { prio }
+            }, 
+            {
+                .signal_info    { std::addressof(task_sig_info) },
+                .parent_pid     { parent_pid }, 
+                .task_id        { pid }
+            }
+        },
+        .tls_block          { addr_t(desc.prg_tls).plus(desc.tls_size) }
+    };
+    arg_vec = std::move(args);
+    env_vec = std::move(env);
+    init_task_state();
+    return true;
 }

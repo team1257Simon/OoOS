@@ -118,8 +118,8 @@ bool elf64_executable::load_segments()
                 .perms         = static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) 
             };
         }
-        block_descr* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
-        block_descr* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
+        block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
+        block_descriptor* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
         if(!s || !t) { panic("could not allocate blocks for stack/tls");  return false; }
         frame_extent = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
         frame_tag->extent = frame_extent;

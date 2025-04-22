@@ -88,7 +88,7 @@ private:
     void __lock();
     void __unlock();
 } __pack;
-struct block_descr
+struct block_descriptor
 {
     addr_t physical_start;
     addr_t virtual_start;
@@ -108,8 +108,8 @@ struct uframe_tag
     addr_t sysres_extent;
     addr_t dynamic_extent;
     std::vector<addr_t> kernel_allocated_blocks{};
-    std::vector<block_descr> usr_blocks{};
-    std::vector<block_descr*> shared_blocks{};
+    std::vector<block_descriptor> usr_blocks{};
+    std::vector<block_descriptor*> shared_blocks{};
 private:
     spinlock_t __my_mutex{};
     void __lock();
@@ -128,10 +128,10 @@ public:
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
     addr_t sysres_add(size_t n);
     bool mmap_remove(addr_t addr, size_t len);
-    void accept_block(block_descr&& desc);
-    void transfer_block(uframe_tag& that, block_descr const& which);
-    void drop_block(block_descr const& which);
-    block_descr* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);
+    void accept_block(block_descriptor&& desc);
+    void transfer_block(uframe_tag& that, block_descriptor const& which);
+    void drop_block(block_descriptor const& which);
+    block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);
     addr_t translate(addr_t addr);
     friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
 };
@@ -246,8 +246,8 @@ public:
     kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
     void enter_frame(uframe_tag* ft) noexcept;
     void exit_frame() noexcept;
-    void map_to_current_frame(std::vector<block_descr> const& blocks);
-    void map_to_current_frame(block_descr const& block);
+    void map_to_current_frame(std::vector<block_descriptor> const& blocks);
+    void map_to_current_frame(block_descriptor const& block);
     paging_table allocate_pt();
     uintptr_t frame_translate(addr_t addr);
     addr_t allocate_kernel_block(size_t sz);

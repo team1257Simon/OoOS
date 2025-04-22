@@ -41,7 +41,7 @@ bool task_list::destroy_task(uint64_t pid)
     erase(i);
     return true;
 }
-task_ctx* task_list::context_vfork(task_ctx const* ctx)
+task_ctx* task_list::task_vfork(task_ctx const* ctx)
 {
     if(!ctx) return nullptr;
     task_ctx* result;

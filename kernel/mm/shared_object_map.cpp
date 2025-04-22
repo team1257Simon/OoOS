@@ -61,7 +61,7 @@ shared_object_map::iterator shared_object_map::transfer(shared_object_map& that,
     iterator result = that.emplace(std::move(*handle)).first; 
     __obj_paths.erase(handle); 
     erase(result->get_soname()); 
-    for(block_descr& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); } 
+    for(block_descriptor& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); } 
     result->frame_tag = that.shared_frame; 
     that.set_path(result, xhpath);
     if(std::addressof(that) == std::addressof(__globals)) result->set_global();

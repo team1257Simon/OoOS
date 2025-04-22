@@ -53,7 +53,7 @@ void   kframe_tag::__lock() { lock(addressof(__my_mutex)); }
 void   kframe_tag::__unlock() { release(addressof(__my_mutex)); }
 void   uframe_tag::__lock() { lock(addressof(__my_mutex)); }
 void   uframe_tag::__unlock() { release(addressof(__my_mutex)); }
-static paging_table  __find_table(addr_t of_page, paging_table pml4 = get_cr3())
+static paging_table __find_table(addr_t of_page, paging_table pml4 = get_cr3())
 {
     if(pml4[of_page.pml4_idx].present)
         if(paging_table pdp = addr_t(pml4[of_page.pml4_idx].physical_address << 12); pdp[of_page.pdp_idx].present)
@@ -75,7 +75,7 @@ static void __set_kernel_page_flags(uintptr_t max)
         }
     }
 }
-static uintptr_t    block_offset(uintptr_t addr, block_idx idx)
+static uintptr_t block_offset(uintptr_t addr, block_idx idx)
 {
     switch(idx)
     {
@@ -92,7 +92,7 @@ static uintptr_t    block_offset(uintptr_t addr, block_idx idx)
 }
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
-    paging_table result = kmm.allocate_pt();
+    paging_table result       = kmm.allocate_pt();
     if(result)
     {
         new(addressof(in[idx])) pt_entry
@@ -108,22 +108,20 @@ static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thr
 }
 static paging_table __get_table(addr_t of_page, bool write_thru, paging_table pml4)
 {
-    uint16_t  pml4_idx   = of_page.pml4_idx;
-    uint16_t  pdp_idx    = of_page.pdp_idx;
-    uint16_t  pd_idx     = of_page.pd_idx;
+    uint16_t  pml4_idx      = of_page.pml4_idx;
+    uint16_t  pdp_idx       = of_page.pdp_idx;
+    uint16_t  pd_idx        = of_page.pd_idx;
     if(pt_entry& entry_pml4 = pml4[pml4_idx]; entry_pml4.present)
     {
         entry_pml4.write_thru  = write_thru;
         entry_pml4.user_access = true;
         paging_table pdp       = addr_t(entry_pml4.physical_address << 12);
-        pt_entry&    entry_pdp = pdp[pdp_idx];
-        if(entry_pdp.present)
+        if(pt_entry& entry_pdp = pdp[pdp_idx]; entry_pdp.present)
         {
             entry_pdp.write_thru  = write_thru;
             entry_pdp.user_access = true;
             paging_table pd       = addr_t(entry_pdp.physical_address << 12);
-            pt_entry&    entry_pd = pd[pd_idx];
-            if(entry_pd.present)
+            if(pt_entry& entry_pd = pd[pd_idx]; entry_pd.present)
             {
                 entry_pd.write_thru  = write_thru;
                 entry_pd.user_access = true;
@@ -168,15 +166,14 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
 }
 static addr_t __copy_kernel_mappings(addr_t start, size_t pages, paging_table pml4)
 {
-    addr_t       curr = start;
-    paging_table pt   = __get_table(curr, false);
-    if(!pt) return nullptr;
-    paging_table upt = __get_table(curr, false, pml4);
-    if(!upt) return nullptr;
+    addr_t       curr   = start;
+    paging_table pt     = __get_table(curr, false);
+    paging_table upt    = __get_table(curr, false, pml4);
+    if(!upt || !pt) return nullptr;
     for(size_t i = 0; i < pages; i++, curr += page_size)
     {
         uint16_t p_idx = curr.page_idx;
-        if(i != 0 && p_idx == 0) { pt  = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
+        if(i != 0 && p_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
         pt_entry& u_entry = upt[p_idx];
         pt_entry& k_entry = pt[p_idx];
         array_copy<uint64_t>(addressof(u_entry), addr_t(addressof(k_entry)), sizeof(pt_entry) / sizeof(uint64_t));
@@ -397,20 +394,20 @@ addr_t kernel_memory_mgr::allocate_mmio_block(size_t sz)
 }
 addr_t kernel_memory_mgr::map_mmio_region(uintptr_t addr, size_t sz)
 {
-    size_t npage = div_round_up(sz, page_size);
+    size_t npage    = div_round_up(sz, page_size);
     __lock();
-    addr_t result = __map_mmio_pages(addr_t(addr), npage);
+    addr_t result   = __map_mmio_pages(addr_t(addr), npage);
     if(result) { __mark_used(addr, npage); }
     __unlock();
     return result;
 }
 addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
 {
-    addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
+    addr_t pml4         = __active_frame ? __active_frame->pml4 : get_cr3();
     __userlock();
-    size_t rsz    = aligned_size(start, sz); // allocate to the end of page so the userspace doesn't see kernel data structures
-    addr_t result = __kernel_frame_tag->allocate(rsz, align);
-    if(!start) start = result;
+    size_t rsz          = aligned_size(start, sz); // allocate to the end of page so the userspace doesn't see kernel data structures
+    addr_t result       = __kernel_frame_tag->allocate(rsz, align);
+    if(!start) start    = result;
     if(result && !__map_user_pages(start.trunc(std::max(align, page_size)), result, div_round_up(rsz, page_size), pml4, write, execute)) { __kernel_frame_tag->deallocate(result, align); result = nullptr; }
     __userunlock();
     return result;
@@ -481,18 +478,18 @@ addr_t kernel_memory_mgr::identity_map_to_user(addr_t what, size_t sz, bool writ
     __unlock();
     return result;
 }
-void kernel_memory_mgr::map_to_current_frame(block_descr const& blk)
+void kernel_memory_mgr::map_to_current_frame(block_descriptor const& blk)
 {
     addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
     __lock();
     __map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute);
     __unlock();
 }
-void kernel_memory_mgr::map_to_current_frame(std::vector<block_descr> const& blocks)
+void kernel_memory_mgr::map_to_current_frame(std::vector<block_descriptor> const& blocks)
 {
     addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
     __lock();
-    for(block_descr const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute); }
+    for(block_descriptor const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute); }
     __unlock();
 }
 block_tag* kframe_tag::__create_tag(size_t size, size_t align)
@@ -504,19 +501,19 @@ block_tag* kframe_tag::__create_tag(size_t size, size_t align)
 }
 block_tag* kframe_tag::__melt_left(block_tag* tag) noexcept
 {
-    block_tag* left = tag->left_split;
-    left->block_size += tag->block_size;
-    left->right_split = tag->right_split;
+    block_tag* left     = tag->left_split;
+    left->block_size    += tag->block_size;
+    left->right_split   = tag->right_split;
     if(tag->right_split) tag->right_split->left_split = left;
     remove_block(tag);
     return left;
 }
 block_tag* kframe_tag::__melt_right(block_tag* tag) noexcept
 {
-    block_tag* right = tag->right_split;
+    block_tag* right    = tag->right_split;
     remove_block(right);
-    tag->block_size += right->block_size;
-    tag->right_split = right->right_split;
+    tag->block_size     += right->block_size;
+    tag->right_split    = right->right_split;
     if(right->right_split) right->right_split->left_split = tag;
     return tag;
 }
@@ -621,10 +618,10 @@ addr_t kframe_tag::array_allocate(size_t num, size_t size)
 }
 block_tag* block_tag::split()
 {
-    block_tag* that = new(actual_start().plus(held_size)) block_tag(available_size(), 0, -1, this, right_split);
+    block_tag* that     = new(actual_start().plus(held_size)) block_tag(available_size(), 0, -1, this, right_split);
     if(that->right_split) that->right_split->left_split = that;
-    right_split = that;
-    this->block_size -= that->block_size;
+    right_split         = that;
+    this->block_size    -= that->block_size;
     return that;
 }
 bool uframe_tag::shift_extent(ptrdiff_t amount)
@@ -637,11 +634,11 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         if(static_cast<size_t>(extent - base) > amt_freed)
         {
             addr_t target = extent + amount;
-            std::vector<block_descr>::reverse_iterator i;
+            std::vector<block_descriptor>::reverse_iterator i;
             kmm.enter_frame(this);
             for(i = usr_blocks.rend(); i->physical_start >= target && i->write; i++) { kmm.deallocate_block(i->physical_start, i->size, true); }
             kmm.exit_frame();
-            usr_blocks.erase(std::vector<block_descr>::const_iterator((--i).base()), usr_blocks.end());
+            usr_blocks.erase((--i).base(), usr_blocks.end());
             if(usr_blocks.empty()) { extent = base = nullptr; }
             else extent = usr_blocks.back().physical_start.plus(usr_blocks.back().size);
             __unlock();
@@ -650,42 +647,42 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         return false;
     }
     size_t added            = kernel_memory_mgr::aligned_size(extent, static_cast<size_t>(amount));
-    block_descr* allocated  = add_block(added, extent, page_size, true, false);
-    if(!allocated) return false;
+    block_descriptor* allocated  = add_block(added, extent, page_size, true, false);
+    if(allocated == nullptr) return false;
     extent                  = allocated->virtual_start.plus(allocated->size);
     array_zero(allocated->physical_start.as<uint64_t>(), allocated->size / sizeof(uint64_t));
     return true;
 }
 addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
 {
-    addr = addr.page_aligned();
-    bool use_extent = !addr;
+    addr                = addr.page_aligned();
+    bool use_extent     = !addr;
     if(use_extent) addr = extent;
-    block_descr* result = add_block(len, addr, page_size, write, exec);
+    block_descriptor* result = add_block(len, addr, page_size, write, exec);
     if(result)
     {
-        size_t actual = kernel_memory_mgr::aligned_size(addr, len);
-        array_zero<uint64_t>(result->physical_start, actual / sizeof(uint64_t));
-        addr_t top = addr.plus(actual);
-        mapped_max = std::max(mapped_max, top);
-        extent = std::max(extent, top);
+        size_t actual   = kernel_memory_mgr::aligned_size(addr, len);
+        array_zero(result->physical_start.as<uint64_t>(), actual / sizeof(uint64_t));
+        addr_t top      = addr.plus(actual);
+        mapped_max      = std::max(mapped_max, top);
+        extent          = std::max(extent, top);
         return addr;
     }
     return addr_t(static_cast<uintptr_t>(-ENOMEM));
 }
-void uframe_tag::accept_block(block_descr&& desc)
+void uframe_tag::accept_block(block_descriptor&& desc)
 {
     __lock();
-    block_descr& blk = usr_blocks.emplace_back(std::move(desc));
+    block_descriptor& blk = usr_blocks.emplace_back(std::move(desc));
     kmm.enter_frame(this);
     kmm.map_to_current_frame(blk);
     kmm.exit_frame();
     __unlock();
 }
-void uframe_tag::transfer_block(uframe_tag& that, block_descr const& which)
+void uframe_tag::transfer_block(uframe_tag& that, block_descriptor const& which)
 {
     __lock();
-    for(std::vector<block_descr>::iterator i = usr_blocks.begin(); i != usr_blocks.end(); i++)
+    for(std::vector<block_descriptor>::iterator i = usr_blocks.begin(); i != usr_blocks.end(); i++)
     {
         if(which.physical_start == i->physical_start)
         {
@@ -696,10 +693,10 @@ void uframe_tag::transfer_block(uframe_tag& that, block_descr const& which)
     }
     __unlock();
 }
-void uframe_tag::drop_block(block_descr const& which)
+void uframe_tag::drop_block(block_descriptor const& which)
 {
     __lock();
-    for(std::vector<block_descr>::iterator i = usr_blocks.begin(); i != usr_blocks.end(); i++)
+    for(std::vector<block_descriptor>::iterator i = usr_blocks.begin(); i != usr_blocks.end(); i++)
     {
         if(which.physical_start == i->physical_start)
         {
@@ -717,10 +714,10 @@ addr_t uframe_tag::translate(addr_t addr)
     kmm.exit_frame();
     return result;
 }
-block_descr* uframe_tag::add_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
+block_descriptor* uframe_tag::add_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
 {
     if(!write) { return fm.get_shared(this, sz, start, align, execute); }
-    block_descr* result = nullptr;
+    block_descriptor* result = nullptr;
     __lock();
     kmm.enter_frame(this);
     addr_t allocated = kmm.allocate_user_block(sz, start, align, write, execute);
