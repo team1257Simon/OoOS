@@ -11,17 +11,86 @@ index a35b24ba7..516291a46 100755
  	# Remember, each alternative MUST END IN *, to match a version number.
  		;;
  	qnx*)
+diff --git a/libtool.m4 b/libtool.m4
+index 24d13f344..0d3586cf2 100644
+--- a/libtool.m4
++++ b/libtool.m4
+@@ -2531,6 +2531,16 @@ newsos6)
+   dynamic_linker='ldqnx.so'
+   ;;
+ 
++*ooos*)
++  version_type=linux
++  need_lib_prefix=no
++  need_version=no
++  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major $libname${shared_ext}'
++  soname_spec='${libname}${release}${shared_ext}$major'
++  shlibpath_var=LD_LIBRARY_PATH
++  dynamic_linker='ld-ooos.so'
++  ;;
++
+ openbsd*)
+   version_type=sunos
+   sys_lib_dlsearch_path_spec="/usr/lib"
+@@ -3111,6 +3121,10 @@ newos6*)
+   lt_cv_deplibs_check_method=pass_all
+   ;;
+ 
++*ooos*)
++  lt_cv_deplibs_check_method=pass_all
++  ;;
++
+ openbsd*)
+   if test -z "`echo __ELF__ | $CC -E - | $GREP __ELF__`" || test "$host_os-$host_cpu" = "openbsd2.8-powerpc"; then
+     lt_cv_deplibs_check_method='match_pattern /lib[[^/]]+(\.so\.[[0-9]]+\.[[0-9]]+|\.so|_pic\.a)$'
+@@ -4101,6 +4115,12 @@ m4_if([$1], [CXX], [
+       _LT_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC -shared'
+       ;;
+ 
++	*ooos*)
++	 _LT_TAGVAR(lt_prog_compiler_wl, $1)='-Wl,'
++	 _LT_TAGVAR(lt_prog_compiler_pic, $1)='--shared'
++	 _LT_TAGVAR(lt_prog_compiler_static, $1)='--static'
++	 ;;
++
+     osf3* | osf4* | osf5*)
+       _LT_TAGVAR(lt_prog_compiler_wl, $1)='-Wl,'
+       # All OSF/1 code is PIC.
+@@ -5945,7 +5965,9 @@ if test "$_lt_caught_CXX_error" != yes; then
+         _LT_TAGVAR(hardcode_libdir_separator, $1)=:
+         _LT_TAGVAR(inherit_rpath, $1)=yes
+         ;;
+-
++      *ooos*)
++        _LT_TAGVAR(ld_shlibs, $1)=yes
++        ;;
+       linux* | k*bsd*-gnu | kopensolaris*-gnu)
+         case $cc_basename in
+           KCC*)
 diff --git a/newlib/configure.host b/newlib/configure.host
-index 5005d38c6..f9f1a5b72 100644
+index 5005d38c6..4ccdd5eef 100644
 --- a/newlib/configure.host
 +++ b/newlib/configure.host
-@@ -460,6 +460,10 @@ case "${host}" in
+@@ -401,6 +401,12 @@ case "${host}" in
+     oext=lo
+     lpfx=
+     aext=la ;;
++  *-*-ooos)
++    use_libtool=yes
++    have_sys_mach_dir=yes
++    oext=lo
++    lpfx=
++    aext=la ;;
+   *) ;; #shared library not supported for ${host}
+ esac
+ 
+@@ -460,6 +466,10 @@ case "${host}" in
    d30v*)
  	sys_dir=
  	;;
 +  *-*-ooos*)
 +    sys_dir=ooos
-+	newlib_cflags="${newlib_cflags} -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -DLACKS_UNISTD_H"
++	newlib_cflags="${newlib_cflags} -fPIC -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -D_I386MACH_NEED_SOTYPE_FUNCTION"
 +    ;;
    epiphany-*-*)
  	sys_dir=epiphany

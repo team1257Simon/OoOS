@@ -10,5 +10,31 @@ AC_CONFIG_AUX_DIR(../../../..)
 
 NEWLIB_CONFIGURE(../../..)
 
+_LT_DECL_SED
+_LT_PROG_ECHO_BACKSLASH
+AC_PROG_AWK
+if test "${use_libtool}" = "yes"; then
+AC_LIBTOOL_WIN32_DLL
+AM_PROG_LIBTOOL
+fi
+
+AC_CONFIG_SUBDIRS(machine)
+
+if test -n "${machine_dir}"; then
+  if test "${use_libtool}" = "yes"; then
+    OOOS_MACHINE_LIB=machine/${machine_dir}/libooos${machine_dir}.${aext}
+  else
+    OOOS_MACHINE_LIB=machine/lib.${aext}
+  fi
+fi
+AC_SUBST(OOOS_MACHINE_LIB)
+AC_SUBST(machine_dir)
+
+EXTRA_SUBDIRS=
+EXTRA_SUBLIBS=
+
+AC_SUBST(EXTRA_SUBDIRS)
+AC_SUBST(EXTRA_SUBLIBS)
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

@@ -17,6 +17,7 @@ CXXFLAGS = $(CFLAGS) -std=c++20 -w
 LDFLAGS = $(CFLAGS) -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -Wl,-soname,$(SO_NAME) -shared -lgcc
 OUTDIR = $(IMAGE_FILE_DIR)/lib
 OBJDIR := $(OBJ_BASE_DIR)/libc
+SYS_MACHINE_DIR = sys/ooos/machine/x86_64
 SUBDIRS = $(sort $(dir $(wildcard */*.*))) sys/ooos machine/x86_64
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
 ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
@@ -54,11 +55,11 @@ $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 $(SYM_LOG): $(OUT_SO) $(LOG_DIR) 
 	$(READ) $(READFLAGS) $< > $@
-$(CRT0): sys/ooos/crt0_dyn.S
+$(CRT0): $(SYS_MACHINE_DIR)/crt0.S
+	$(AS) -DDYNAMIC -fPIC -c $< -o $@
+$(CRTI): $(SYS_MACHINE_DIR)/crti.S
 	$(AS) -fPIC -c $< -o $@
-$(CRTI): sys/ooos/crti.s
-	$(AS) -fPIC -c $< -o $@
-$(CRTN): sys/ooos/crtn.s
+$(CRTN): $(SYS_MACHINE_DIR)/crtn.S
 	$(AS) -fPIC -c $< -o $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(MATH_LIB) $(LDFLAGS) -o $@
