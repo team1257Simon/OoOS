@@ -109,7 +109,23 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
+        if(!name) return -EINVAL;
         try { if(file_node* n = fsptr->get_file(name)) { n->mode = m; return 0; } else return -EISDIR; } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        return -EINVAL;
+    }
+    int syscall_mkdir(const char* path, mode_t mode)
+    {
+        filesystem* fsptr = get_fs_instance();
+        if(!fsptr) return -ENOSYS;
+        path = translate_user_pointer(path);
+        if(!path) return -EINVAL;
+        if(std::strnlen(path, 255) != std::strnlen(path, 256)) return -ENAMETOOLONG;
+        if(fsptr->get_dir_nothrow(path, false)) return -EEXIST;
+        try { if(directory_node* n = fsptr->get_dir(path)) { n->mode = mode; return 0; } }
+        catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
+        catch(std::logic_error& e) { panic(e.what()); return -ENOENT; }
+        catch(std::runtime_error& e) { return -ENOSPC; }
+        catch(std::bad_alloc&) { return -ENOMEM; }
         return -EINVAL;
     }
 }

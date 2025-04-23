@@ -51,21 +51,14 @@ $GCC_AM
 cd $BUILD_DIR/build-binutils
 ../binutils-gdb/configure --target=x86_64-ooos --with-sysroot=$SYSROOT --prefix=$PREFIX --disable-nls --disable-werror --enable-shared
 make && make install
-cd $BUILD_DIR
-if [ ! -e "$PREFIX/bin/x86_64-ooos-gcc" ] then
-    ln $BARE_CC_PREFIX/bin/x86_64-elf-gcc $PREFIX/bin/x86_64-ooos-gcc
-    echo yes > "$BUILD_DIR/linked_cc"
-fi
 git clone https://github.com/reswitched/newlib.git
 cd newlib
 git apply $OOOS_DIR/lib/patches/newlib-3.0.0.diff
 cp -lRf $OOOS_DIR/lib/newlib/libc/sys/ooos $BUILD_DIR/newlib/newlib/libc/sys
-cd newlib/libc/sys/ooos
-$NL_RC
-cd ..
-$NL_AC
+cd $BUILD_DIR/newlib/newlib
+$NL_RC || true # autoheader will fail, but the configure still works so we don't want that to kill the script. TODO: figure out something less hacky
 cd $BUILD_DIR/build-newlib
-../newlib/configure --target=x86_64-ooos --prefix=$PREFIX
+../newlib/configure --target=x86_64-ooos --prefix=$PREFIX --with-sysroot=$SYSROOT --enable-shared --enable-host-shared
 make && make install
 cd $BUILD_DIR
 if [ -e "$BUILD_DIR/linked_cc" ] then
@@ -84,10 +77,3 @@ make all-gcc all-target-libgcc
 make install-gcc install-target-libgcc
 make all-target-libstdc++-v3
 make install-target-libstdc++-v3
-cd $BUILD_DIR
-if [ -e "$BUILD_DIR/linked_cc" ] then
-    cd $BUILD_DIR/build-newlib
-    ../newlib/configure --target=x86_64-ooos --prefix=$PREFIX
-    make && make install
-    rm "$BUILD_DIR/linked_cc"
-fi

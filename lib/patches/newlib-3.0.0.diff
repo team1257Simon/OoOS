@@ -79,7 +79,7 @@ index 24d13f344..f1884d1f0 100644
          case $cc_basename in
            KCC*)
 diff --git a/newlib/configure.host b/newlib/configure.host
-index 5005d38c6..4ccdd5eef 100644
+index 5005d38c6..4452d1f2f 100644
 --- a/newlib/configure.host
 +++ b/newlib/configure.host
 @@ -401,6 +401,12 @@ case "${host}" in
@@ -101,7 +101,7 @@ index 5005d38c6..4ccdd5eef 100644
  	;;
 +  *-*-ooos*)
 +    sys_dir=ooos
-+	newlib_cflags="${newlib_cflags} -fPIC -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -D_I386MACH_NEED_SOTYPE_FUNCTION"
++	newlib_cflags="${newlib_cflags} -fPIC -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -D_I386MACH_NEED_SOTYPE_FUNCTION -DHAVE_MKDIR"
 +    ;;
    epiphany-*-*)
  	sys_dir=epiphany

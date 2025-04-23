@@ -282,5 +282,6 @@ extern "C"
     int syscall_stat(const char* restrict name, struct stat* restrict st);  // int stat(const char* restrict name, struct stat* restrict st);
     int syscall_fchmod(int fd, mode_t m);                                   // int fchmod(int fd, mode_t m);
     int syscall_chmod(const char* name, mode_t m);                          // int chmod(const char* name, mode_t m);
+    int syscall_mkdir(const char* path, mode_t m);                          // int mkdir(const char* path, mode_t m);
 }
 #endif

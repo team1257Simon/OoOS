@@ -42,6 +42,7 @@
     .extern                         syscall_signal
     .extern                         syscall_raise
     .extern                         syscall_sigprocmask
+    .extern                         syscall_mkdir
     .extern                         on_invalid_syscall
     .global                         syscall_vec
     .type   do_syscall,             @function
@@ -84,6 +85,7 @@
     .type   syscall_signal,			@function
     .type   syscall_raise,			@function
     .type   syscall_sigprocmask,	@function
+    .type   syscall_mkdir,          @function
     .type   on_invalid_syscall,     @function
     .type   syscall_vec,            @object
     .type   syscv_end,              @object
@@ -129,6 +131,7 @@ syscall_vec:
     .quad syscall_signal            // 36
     .quad syscall_raise             // 37
     .quad syscall_sigprocmask       // 38
+    .quad syscall_mkdir             // 39
 syscv_end:
     .quad on_invalid_syscall        // handler for out-of-range syscalls
     .size syscall_vec,              .-syscall_vec    

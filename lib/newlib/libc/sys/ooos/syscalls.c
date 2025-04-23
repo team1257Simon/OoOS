@@ -25,3 +25,27 @@ DEF_SYSCALL6(void*, mmap, void*, addr, size_t, len, int, prot, int, flags, int, 
 DEF_SYSCALL2(int, munmap, void*, addr, size_t, len)
 DEF_SYSCALL2(_sig_func_ptr, signal, int, sig, _sig_func_ptr, func)
 DEF_SYSCALL3(int, sigprocmask, int, how, sigset_t const* restrict, set, sigset_t* restrict, oset)
+DEF_SYSCALL2(int, mkdir, const char*, path, mode_t, mode)
+extern void *memalign(size_t alignment, size_t size);
+extern int rand();
+int posix_memalign(void** memptr, size_t alignment, size_t size)
+{
+    if(alignment % sizeof(void*) != 0 || __builtin_popcount(alignment) > 1) { *memptr = NULL; return EINVAL; }
+    void* result = memalign(alignment, size);
+    if(!result) return ENOMEM;
+    *memptr = result;
+    return 0;
+}
+int fcntl(int, int, ...)
+{
+    // NYI
+    errno = ENOSYS;
+    return -1;
+}
+int getentropy(void* buffer, unsigned long length)
+{
+    if(length > 256) { errno = EIO; return -1; }
+    void* buf_end = ((unsigned char*)buffer) + length;
+    while(buffer < buf_end) { *((unsigned char*)buffer++) = rand() % 256; }
+    return 0;
+}

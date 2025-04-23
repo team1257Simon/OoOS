@@ -65,10 +65,10 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
                 cur = node->add(created);
                 node = created; 
             } 
-            else { throw std::logic_error{ "path " + pathspec[i] + " does not exist (use get_dir(\".../" + pathspec[i] + "\", true) to create it)" }; } 
+            else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use get_dir(\".../" + pathspec[i] + "\", true) to create it)" }; } 
         }
         else if(cur->is_directory()) node = cur->as_directory();
-        else throw std::logic_error{ "path is invalid because entry " + pathspec[i] + " is a file" };
+        else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(node), std::forward_as_tuple(pathspec.back()));
 }
@@ -114,8 +114,8 @@ directory_node* filesystem::get_dir(std::string const& path, bool create)
             node = parent.first->add(cn);
             return node->as_directory(); 
         } 
-        else throw std::logic_error{ "path " + path + " does not exist (use get_dir(\"" + path + "\", true) to create it)" }; 
+        else throw std::out_of_range{ "path " + path + " does not exist (use get_dir(\"" + path + "\", true) to create it)" }; 
     }
-    else if (node->is_file()) throw std::logic_error{ "path " + path + " exists and is a file" };
+    else if(node->is_file()) throw std::invalid_argument{ "path " + path + " exists and is a file" };
     else return node->as_directory();
 }
