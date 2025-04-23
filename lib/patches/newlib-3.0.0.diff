@@ -12,56 +12,67 @@ index a35b24ba7..516291a46 100755
  		;;
  	qnx*)
 diff --git a/libtool.m4 b/libtool.m4
-index 24d13f344..0d3586cf2 100644
+index 24d13f344..f1884d1f0 100644
 --- a/libtool.m4
 +++ b/libtool.m4
-@@ -2531,6 +2531,16 @@ newsos6)
+@@ -2531,6 +2531,18 @@ newsos6)
    dynamic_linker='ldqnx.so'
    ;;
  
-+*ooos*)
++ooos*)
 +  version_type=linux
 +  need_lib_prefix=no
 +  need_version=no
 +  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major $libname${shared_ext}'
 +  soname_spec='${libname}${release}${shared_ext}$major'
 +  shlibpath_var=LD_LIBRARY_PATH
++  shlibpath_overrides_runpath=no
++  hardcode_into_libs=yes
 +  dynamic_linker='ld-ooos.so'
 +  ;;
 +
  openbsd*)
    version_type=sunos
    sys_lib_dlsearch_path_spec="/usr/lib"
-@@ -3111,6 +3121,10 @@ newos6*)
+@@ -3111,6 +3123,10 @@ newos6*)
    lt_cv_deplibs_check_method=pass_all
    ;;
  
-+*ooos*)
++ooos*)
 +  lt_cv_deplibs_check_method=pass_all
 +  ;;
 +
  openbsd*)
    if test -z "`echo __ELF__ | $CC -E - | $GREP __ELF__`" || test "$host_os-$host_cpu" = "openbsd2.8-powerpc"; then
      lt_cv_deplibs_check_method='match_pattern /lib[[^/]]+(\.so\.[[0-9]]+\.[[0-9]]+|\.so|_pic\.a)$'
-@@ -4101,6 +4115,12 @@ m4_if([$1], [CXX], [
+@@ -3800,6 +3816,8 @@ m4_if([$1], [CXX], [
+ 	;;
+       netbsd*)
+ 	;;
++      ooos*)
++	;;
+       *qnx* | *nto*)
+         # QNX uses GNU C++, but need to define -shared option too, otherwise
+         # it will coredump.
+@@ -4101,6 +4119,12 @@ m4_if([$1], [CXX], [
        _LT_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC -shared'
        ;;
  
-+	*ooos*)
++	ooos*)
 +	 _LT_TAGVAR(lt_prog_compiler_wl, $1)='-Wl,'
-+	 _LT_TAGVAR(lt_prog_compiler_pic, $1)='--shared'
-+	 _LT_TAGVAR(lt_prog_compiler_static, $1)='--static'
++	 _LT_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC -shared'
++	 _LT_TAGVAR(lt_prog_compiler_static, $1)='-static'
 +	 ;;
 +
      osf3* | osf4* | osf5*)
        _LT_TAGVAR(lt_prog_compiler_wl, $1)='-Wl,'
        # All OSF/1 code is PIC.
-@@ -5945,7 +5965,9 @@ if test "$_lt_caught_CXX_error" != yes; then
+@@ -5945,7 +5969,9 @@ if test "$_lt_caught_CXX_error" != yes; then
          _LT_TAGVAR(hardcode_libdir_separator, $1)=:
          _LT_TAGVAR(inherit_rpath, $1)=yes
          ;;
 -
-+      *ooos*)
++      ooos*)
 +        _LT_TAGVAR(ld_shlibs, $1)=yes
 +        ;;
        linux* | k*bsd*-gnu | kopensolaris*-gnu)
@@ -95,6 +106,63 @@ index 5005d38c6..4ccdd5eef 100644
    epiphany-*-*)
  	sys_dir=epiphany
  	# crt0 is provided by libgloss.
+diff --git a/newlib/libc/machine/x86_64/Makefile.am b/newlib/libc/machine/x86_64/Makefile.am
+index 3d53cbc85..13f76f258 100644
+--- a/newlib/libc/machine/x86_64/Makefile.am
++++ b/newlib/libc/machine/x86_64/Makefile.am
+@@ -6,11 +6,33 @@ INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
+ 
+ AM_CCASFLAGS = $(INCLUDES)
+ 
++if USE_LIBTOOL
++noinst_LTLIBRARIES = libx86_64.la
++libx86_64_la_SOURCES = setjmp.S memcpy.S memset.S
++libx86_64_la_LIBADD = $(LIBADD_OBJS)
++libx86_64_la_DEPENDENCIES = $(LIBADD_OBJS)
++LIB_COMPILE = $(LTCOMPILE)
++noinst_DATA = objectlist.awk.in
++else
+ noinst_LIBRARIES = lib.a
+-
+ lib_a_SOURCES = setjmp.S memcpy.S memset.S
+ lib_a_CCASFLAGS=$(AM_CCASFLAGS)
+ lib_a_CFLAGS = $(AM_CFLAGS)
++endif
++
++objectlist.awk.in: $(noinst_LTLIBRARIES) $(SUBLIBS)
++	-rm -f objectlist.awk.in
++	for i in `ls *.lo` ; \
++	  do \
++		echo $$i `pwd`/$$i >> objectlist.awk.in ; \
++	done
++	for j in $(SUBLIBS) ; \
++	  do \
++		export i=`echo $$j | sed -e 's,\(.*\)\/[^\/]*$$,\1,'`; \
++		if test $$i != "." && test -f $$i/objectlist.awk.in; then \
++			cat $$i/objectlist.awk.in >> objectlist.awk.in ; \
++		fi; \
++	done
+ 
+ ACLOCAL_AMFLAGS = -I ../../.. -I ../../../..
+ CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
+diff --git a/newlib/libc/machine/x86_64/configure.in b/newlib/libc/machine/x86_64/configure.in
+index c59d4e3ba..490ed5832 100644
+--- a/newlib/libc/machine/x86_64/configure.in
++++ b/newlib/libc/machine/x86_64/configure.in
+@@ -10,5 +10,13 @@ AC_CONFIG_AUX_DIR(../../../..)
+ 
+ NEWLIB_CONFIGURE(../../..)
+ 
++_LT_DECL_SED
++_LT_PROG_ECHO_BACKSLASH
++AC_PROG_AWK
++if test "${use_libtool}" = "yes"; then
++AC_LIBTOOL_WIN32_DLL
++AM_PROG_LIBTOOL
++fi
++
+ AC_CONFIG_FILES([Makefile])
+ AC_OUTPUT
 diff --git a/newlib/libc/stdlib/strtorx.c b/newlib/libc/stdlib/strtorx.c
 index a35dabefe..4faed8542 100644
 --- a/newlib/libc/stdlib/strtorx.c

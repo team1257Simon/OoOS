@@ -14,7 +14,7 @@ GENERAL_SOURCES = syscalls.c
 
 ADD_OBJS = $(OOOS_MACHINE_LIB)
 
-libooos_la_LDFLAGS = -Xcompiler -nostdlib
+# libooos_la_LDFLAGS = -Xcompiler -nostdlib
 
 if USE_LIBTOOL
 noinst_LTLIBRARIES = libooos.la
