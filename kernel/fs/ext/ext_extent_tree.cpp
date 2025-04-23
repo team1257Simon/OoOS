@@ -5,9 +5,9 @@ ext_node_extent_tree::ext_node_extent_tree() = default;
 ext_node_extent_tree::~ext_node_extent_tree() = default;
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const* n) { return n - tracked_extents.begin().base(); }
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const& n) { return cached_node_pos(std::addressof(n)); }
-cached_extent_node *ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
+cached_extent_node* ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
 cached_extent_node::cached_extent_node(disk_block* bptr, ext_vnode* node, uint16_t d) : blk_offset{ bptr - (d ? node->cached_metadata.data() : node->block_data.data()) }, tracked_node{ node }, depth{ d } {}
-disk_block *cached_extent_node::block() { return ((depth ? tracked_node->cached_metadata.begin() : tracked_node->block_data.begin()) + blk_offset).base(); }
+disk_block* cached_extent_node::block() { return ((depth ? tracked_node->cached_metadata.begin() : tracked_node->block_data.begin()) + blk_offset).base(); }
 static void populate_leaf(ext_extent_leaf& leaf, disk_block* blk, uint64_t fn_start)
 {
     qword blknum(blk->block_number);
@@ -327,6 +327,7 @@ bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree* parent, 
             populate_leaf(node->leaf, blk, parent->total_extent);
             parent->total_extent += blk->chain_len;
             my_blk->dirty = true;
+            csum_update();
             return true;
         }
         return false;
@@ -344,9 +345,22 @@ bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree* parent, 
             next_level_extents.insert(std::move(std::make_pair(parent->total_extent, parent->cached_node_pos(base))));
             populate_index(node->idx, nl_blk->block_number, parent->total_extent);
             my_blk->dirty = true;
+            csum_update();
             return base->push_extent_recurse_ext4(parent, blk);
         }
         return false;
     }
     return true;
+}
+void cached_extent_node::csum_update()
+{
+    size_t bs = tracked_node->parent_fs->block_size();
+    uint32_t csum = tracked_node->parent_fs->get_uuid_csum();
+    csum = crc32c(csum, tracked_node->inode_number);
+    csum = crc32c(csum, tracked_node->on_disk_node->version_lo);
+    csum = crc32c(csum, tracked_node->on_disk_node->version_hi);
+    uint32_t* target = reinterpret_cast<uint32_t*>(block()->data_buffer + bs - 4);
+    *target = 0U;
+    csum = crc32c_blk(csum, *block(), bs);
+    *target = csum;
 }

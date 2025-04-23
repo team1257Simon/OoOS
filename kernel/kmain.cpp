@@ -240,7 +240,7 @@ void vfs_tests()
     try 
     {
         // test folder creation
-        testramfs.get_dir("test/files");
+        testramfs.get_directory("test/files");
         file_node* n = testramfs.open_file("test/files/memes.txt");
         n->write("sweet dreams are made of memes\n", 31);
         testramfs.close_file(n);
@@ -309,7 +309,7 @@ void extfs_tests()
     try
     {
         test_extfs.initialize();
-        test_extfs.get_dir("files");
+        test_extfs.get_directory("files");
         file_node* fn = test_extfs.open_file("files/memes.txt");
         fn->write("derple blerple", 14);
         test_extfs.close_file(fn);

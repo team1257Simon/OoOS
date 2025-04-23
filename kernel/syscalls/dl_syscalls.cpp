@@ -152,7 +152,7 @@ extern "C"
             paths.push_back("usr/lib");
             file_node* n = nullptr;
             std::string const* found_path = nullptr;
-            for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_dir_nothrow(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = fs_ptr->open_fd(tn); found_path = std::addressof(path); break; } } }
+            for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_directory_or_null(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = fs_ptr->on_open(tn); found_path = std::addressof(path); break; } } }
             if(!n) { return addr_t(static_cast<uintptr_t>(-ENOENT)); }
             struct __guard
             {

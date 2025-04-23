@@ -8,7 +8,7 @@ struct ext_superblock
     uint32_t inode_count;
     uint32_t block_count;
     uint32_t reserved_blocks;
-    uint32_t unallocated_blocks;
+    uint32_t unallocated_blocks_lo;
     uint32_t unallocated_inodes;
     uint32_t sb_block_index;
     uint32_t block_size_shift;      // blocksize = 1024 << block_size_shift
@@ -160,7 +160,7 @@ struct block_group_descriptor
     uint32_t block_usage_bitmap_block_idx;
     uint32_t inode_usage_bitmap_block_idx;
     uint32_t inode_table_start_block;
-    uint16_t unallocated_blocks;
+    uint16_t free_blocks_lo;
     uint16_t free_inodes;
     uint16_t num_directories;
     uint16_t block_group_features;
@@ -271,10 +271,10 @@ struct ext_dir_entry
 } __pack;
 struct ext_dir_tail
 {
-    uint32_t rsv0{ 0 };
-    uint16_t rlen{ 12 };
-    uint8_t rsv1{ 0 };
-    uint8_t rsv2{ 0xDE };
+    uint32_t rsv0   { 0 };
+    uint16_t rlen   { 12 };
+    uint8_t rsv1    { 0 };
+    uint8_t rsv2    { 0xDE };
     uint32_t csum;
     constexpr ext_dir_tail(uint32_t blk_csum) noexcept : csum{ blk_csum } {}
 } __pack;
@@ -471,6 +471,7 @@ struct cached_extent_node
     bool nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t start_file_block);
     bool push_extent_recurse_legacy(ext_node_extent_tree* parent, disk_block* blk);
     bool push_extent_recurse_ext4(ext_node_extent_tree* parent, disk_block* blk);
+    void csum_update();
 };
 struct ext_node_extent_tree
 {
@@ -595,8 +596,8 @@ public:
     virtual bool initialize() override;
     bool init_dir_blank(ext_directory_vnode* parent);
     constexpr bool has_init() const noexcept { return __initialized; }
-    ext_directory_vnode(extfs* parent, uint32_t inode_number);
-    ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data);
+    ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd);
+    ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
 };
 struct ext_block_group
 {
@@ -632,6 +633,7 @@ protected:
     size_t num_blk_groups;
     uint64_t superblock_lba;
     jbd2 fs_journal;
+    uint32_t uuid_csum{ 0U };
     disk_block bg_table_block{ 1UL, nullptr };
     friend struct ext_block_group;
     bool initialized{ false };
@@ -642,7 +644,7 @@ protected:
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
-    virtual file_node* open_fd(tnode* fd) override;
+    virtual file_node* on_open(tnode* fd) override;
     ext_jbd2_mode journal_mode() const;
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     uint32_t claim_inode(bool dir);
@@ -674,6 +676,7 @@ public:
     fs_node* dirent_to_vnode(ext_dir_entry* de);
     void initialize();
     constexpr bool has_init() const { return initialized; }
+    constexpr uint32_t get_uuid_csum() const { return uuid_csum; }
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };

@@ -4,30 +4,90 @@
 #include "stdexcept"
 #include "errno.h"
 #include "kdebug.hpp"
-file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_fd(fd); }
+fd_map::fd_map() : __base(256) {}
+file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
 filesystem::filesystem() : device_nodes{}, current_open_files{}, next_fd{ 3 } {}
 filesystem::~filesystem() = default;
-void filesystem::__put_fd(file_node* fd) { if(static_cast<size_t>(fd->vid()) >= current_open_files.capacity()) current_open_files.reserve(static_cast<size_t>(fd->vid() + 1)); current_open_files.set_at(fd->vid(), fd); for(std::vector<file_node*>::iterator i = current_open_files.begin() + next_fd; i < current_open_files.end() && *i; i++, next_fd++); }
-const char *filesystem::path_separator() const noexcept { return "/"; }
-void filesystem::close_file(file_node* fd) { close_fd(fd); fd->rel_lock(); syncdirs(); }
-void filesystem::close_fd(file_node* fd) { if(fd->is_device()) return; fd->seek(0); int id = fd->vid(); if(static_cast<size_t>(id) < current_open_files.size()) { current_open_files[id] = nullptr; next_fd = id; } }
-file_node* filesystem::open_fd(tnode* node) { return node->as_file(); }
-void filesystem::dldevnode(device_node* n) { n->prune_refs(); current_open_files[n->vid()] = nullptr; device_nodes.erase(*n); syncdirs(); }
-file_node* filesystem::open_file(const char* path, std::ios_base::openmode mode) { return open_file(std::string(path), mode); }
-file_node* filesystem::get_fd(int fd) { if(static_cast<size_t>(fd) < current_open_files.size()) { return current_open_files[fd]; } else return nullptr; }
-device_node* filesystem::lndev(std::string const& where, device_node::device_buffer* what, int fd_hint, bool create_parents) { target_pair parent = get_parent(where, create_parents); if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; device_node* result = this->mkdevnode(parent.first, parent.second, what, fd_hint); this->__put_fd(result); return result; }
-void filesystem::link_stdio(device_node::device_buffer* target) { current_open_files.push_back(mkdevnode(get_root_directory(), "stdin", target, 0)); current_open_files.push_back(mkdevnode(get_root_directory(), "stdout", target, 1)); current_open_files.push_back(this->mkdevnode(this->get_root_directory(), "stderr", target, 2)); }
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
+fs_node* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
+void filesystem::__put_fd(fs_node* node) { next_fd = current_open_files.add_fd(node) + 1; }
+const char *filesystem::path_separator() const noexcept { return "/"; }
+file_node* filesystem::open_file(const char* path, std::ios_base::openmode mode) { return open_file(std::string(path), mode); }
+file_node* filesystem::on_open(tnode* node) { return node->as_file(); }
+file_node* filesystem::get_file(int fd) { return dynamic_cast<file_node*>(current_open_files.find_fd(fd)); }
+directory_node* filesystem::get_directory(int fd) { return dynamic_cast<directory_node*>(current_open_files.find_fd(fd)); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return xlink(get_parent(ogpath, false), get_parent(tgpath, create_parents)); }
-bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool dir_recurse) { target_pair parent = get_parent(what, false); return xunlink(parent.first, parent.second, ignore_nonexistent, dir_recurse); }
-dev_t filesystem::get_dev_id() const noexcept { return this->xgdevid(); }
-directory_node *filesystem::get_dir_nothrow(std::string const& path, bool create) noexcept { try { return get_dir(path, create); } catch(...) { return nullptr; } }
+dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
+directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return get_directory(path, create); } catch(...) { return nullptr; } }
+fs_node* fd_map::find_fd(int i) noexcept
+{
+    iterator result = find(i);
+    if(result != end()) return *result;
+    return nullptr;
+}
+int fd_map::add_fd(fs_node* node)
+{
+    while(contains(node->fd) && find_fd(node->fd) != node) node->fd++;
+    insert(node);
+    return node->fd;
+}
+void filesystem::close_file(file_node* fd) 
+{ 
+    on_close(fd);
+    fd->rel_lock();
+    syncdirs();
+}
+void filesystem::on_close(file_node* fd)
+{
+    if(fd->is_device()) return; 
+    fd->seek(0); 
+    current_open_files.erase(fd->vid()); 
+}
+void filesystem::dldevnode(device_node* n)
+{
+    n->prune_refs();
+    current_open_files.erase(n->vid());
+    device_nodes.erase(*n); 
+    syncdirs(); 
+}
+device_node* filesystem::lndev(std::string const& where, device_node::device_buffer* what, int fd_hint, bool create_parents)
+{
+    target_pair parent = get_parent(where, create_parents);
+    if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; 
+    device_node* result = mkdevnode(parent.first, parent.second, what, fd_hint); 
+    __put_fd(result);
+    return result; 
+}
+void filesystem::link_stdio(device_node::device_buffer* target)
+{
+    current_open_files.add_fd(mkdevnode(get_root_directory(), "stdin", target, 0));
+    current_open_files.add_fd(mkdevnode(get_root_directory(), "stdout", target, 1));
+    current_open_files.add_fd(mkdevnode(get_root_directory(), "stderr", target, 2));
+}
+bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool dir_recurse)
+{
+    directory_node* pdir;
+    std::string fname;
+    if(ignore_nonexistent) try 
+    { 
+        target_pair parent = get_parent(what, false); 
+        pdir = parent.first;
+        fname = parent.second;
+    } 
+    catch(...) { return false; }
+    else
+    {
+        target_pair parent = get_parent(what, false); 
+        pdir = parent.first;
+        fname = parent.second;
+    }
+    return xunlink(pdir, fname, ignore_nonexistent, dir_recurse);
+}
 device_node* filesystem::mkdevnode(directory_node* parent, std::string const& name, device_node::device_buffer* dev, int fd_hint)
 {
     device_node* result = device_nodes.emplace(name, fd_hint, dev).first.base();
     parent->add(result);
-    while(current_open_files.size() > static_cast<size_t>(fd_hint) && current_open_files[fd_hint]) fd_hint++;
-    result->fd = fd_hint;
+    __put_fd(result);
     return result;
 }
 bool filesystem::xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
@@ -65,7 +125,7 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
                 cur = node->add(created);
                 node = created; 
             } 
-            else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use get_dir(\".../" + pathspec[i] + "\", true) to create it)" }; } 
+            else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use get_directory(\".../" + pathspec[i] + "\", true) to create it)" }; } 
         }
         else if(cur->is_directory()) node = cur->as_directory();
         else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
@@ -90,17 +150,22 @@ file_node* filesystem::open_file(std::string const& path, std::ios_base::openmod
     }
     if(!node->as_file()->chk_lock()) { throw std::runtime_error{ "file " + path + " is in use" }; }
     node->as_file()->acq_lock();
-    file_node* result = open_fd(node);
+    file_node* result = on_open(node);
     __put_fd(result);
     return result;
 }
 file_node* filesystem::get_file(std::string const& path)
 {
     target_pair parent = get_parent(path, false);
-    if(tnode* node{ parent.first->find(parent.second) }) { return open_fd(node); }
+    if(tnode* node = parent.first->find(parent.second))
+    { 
+        file_node* file = on_open(node);
+        if(file) __put_fd(file);
+        return file;
+    }
     else throw std::runtime_error{ "file not found: " + path };
 }
-directory_node* filesystem::get_dir(std::string const& path, bool create)
+directory_node* filesystem::get_directory(std::string const& path, bool create)
 {
     if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
     target_pair parent = get_parent(path, create);
@@ -112,10 +177,11 @@ directory_node* filesystem::get_dir(std::string const& path, bool create)
             directory_node* cn = mkdirnode(parent.first, parent.second);
             if(!cn) throw std::runtime_error{ "failed to create " + path };
             node = parent.first->add(cn);
+            __put_fd(cn);
             return node->as_directory(); 
         } 
-        else throw std::out_of_range{ "path " + path + " does not exist (use get_dir(\"" + path + "\", true) to create it)" }; 
+        else throw std::out_of_range{ "path " + path + " does not exist (use get_directory(\"" + path + "\", true) to create it)" }; 
     }
     else if(node->is_file()) throw std::invalid_argument{ "path " + path + " exists and is a file" };
-    else return node->as_directory();
+    else { __put_fd(node->ptr()); return node->as_directory(); }
 }

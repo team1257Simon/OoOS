@@ -94,7 +94,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        try { if(file_node* n = fsptr->get_file(name)) { __stat_init(n, fsptr, st); return 0; } else if(directory_node* n{ fsptr->get_dir(name, false) }) { __stat_init(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
+        try { if(file_node* n = fsptr->get_file(name)) { __stat_init(n, fsptr, st); return 0; } else if(directory_node* n{ fsptr->get_directory(name, false) }) { __stat_init(n, fsptr, st); return 0; } } catch(std::logic_error& e) { panic(e.what()); return -ENOTDIR; } catch(std::runtime_error& e) { panic(e.what()); return -ENOENT; }
         return -EINVAL;
     }
     int syscall_fchmod(int fd, mode_t m)
@@ -120,8 +120,8 @@ extern "C"
         path = translate_user_pointer(path);
         if(!path) return -EINVAL;
         if(std::strnlen(path, 255) != std::strnlen(path, 256)) return -ENAMETOOLONG;
-        if(fsptr->get_dir_nothrow(path, false)) return -EEXIST;
-        try { if(directory_node* n = fsptr->get_dir(path)) { n->mode = mode; return 0; } }
+        if(fsptr->get_directory_or_null(path, false)) return -EEXIST;
+        try { if(directory_node* n = fsptr->get_directory(path)) { n->mode = mode; return 0; } }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
         catch(std::logic_error& e) { panic(e.what()); return -ENOENT; }
         catch(std::runtime_error& e) { return -ENOSPC; }

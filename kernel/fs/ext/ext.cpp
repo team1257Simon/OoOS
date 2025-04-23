@@ -12,15 +12,15 @@ void ext_block_group::decrement_dir_ct() { dword dir_ct(descr->num_directories, 
 void ext_block_group::decrement_inode_ct() { dword inode_ct(descr->free_inodes, descr->free_inodes_hi); inode_ct--; descr->free_inodes = inode_ct.lo; descr->free_inodes_hi = inode_ct.hi; }
 void ext_block_group::increment_inode_ct() { dword inode_ct(descr->free_inodes, descr->free_inodes_hi); inode_ct++; descr->free_inodes = inode_ct.lo; descr->free_inodes_hi = inode_ct.hi; }
 bool ext_block_group::has_available_inode() { return descr->free_inodes || descr->free_inodes_hi; }
-bool ext_block_group::has_available_blocks() { return descr->unallocated_blocks || descr->free_blocks_hi; }
-bool ext_block_group::has_available_blocks(size_t n) { return dword(descr->unallocated_blocks, descr->free_blocks_hi) >= n; }
-void ext_block_group::alter_available_blocks(int64_t diff) { dword num_blocks(descr->unallocated_blocks, descr->free_blocks_hi); num_blocks += diff; descr->unallocated_blocks = num_blocks.lo; descr->free_blocks_hi = num_blocks.hi; }
+bool ext_block_group::has_available_blocks() { return descr->free_blocks_lo || descr->free_blocks_hi; }
+bool ext_block_group::has_available_blocks(size_t n) { return dword(descr->free_blocks_lo, descr->free_blocks_hi) >= n; }
+
 size_t extfs::block_size() { return 1024UL << sb->block_size_shift; }
 size_t extfs::inodes_per_block() { return (1024UL << sb->block_size_shift) / sb->inode_size; }
 size_t extfs::inodes_per_group() { return sb->inodes_per_group; }
 size_t extfs::sectors_per_block() { return (1024UL / physical_block_size) << sb->block_size_shift; }
 uint64_t extfs::block_to_lba(uint64_t block) { return static_cast<uint64_t>(superblock_lba - sb_off) + sectors_per_block() * static_cast<uint64_t>(block); }
-directory_node *extfs::get_root_directory() { return root_dir; }
+directory_node* extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
 bool extfs::read_hd(void* dest, uint64_t lba_src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::read(static_cast<char*>(dest), lba_src, sectors); }
 bool extfs::read_hd(disk_block& bl) { if(bl.data_buffer && bl.block_number) return hda_ahci::read(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
@@ -72,6 +72,14 @@ ext_block_group::~ext_block_group()
     parent_fs->free_block_buffer(blk_usage_bmp);
     parent_fs->free_block_buffer(inode_block);
 }
+void ext_block_group::alter_available_blocks(int64_t diff)
+{
+    uint32_t num_blocks = dword(descr->free_blocks_lo, descr->free_blocks_hi);
+    num_blocks += diff;
+    dword dw_num_blocks(num_blocks);
+    descr->free_blocks_lo = dw_num_blocks.lo;
+    descr->free_blocks_hi = dw_num_blocks.hi;
+}
 void ext_block_group::compute_checksums(size_t group_num)
 {
     dword gn(static_cast<uint32_t>(group_num));
@@ -105,6 +113,7 @@ void extfs::initialize()
 {
     if(initialized) return;
     if(!(sb && read_hd(sb, superblock_lba, sb_sectors))) throw std::runtime_error{ "failed to read superblock" };
+    uuid_csum = crc32c(sb->fs_uuid);
     uint64_t block_cnt = qword(sb->block_count, sb->block_count_hi);
     uint64_t group_count_by_blocks = div_round_up(block_cnt, sb->blocks_per_group);
     uint64_t group_count_by_inodes = div_round_up(sb->inode_count, sb->inodes_per_group);
@@ -132,13 +141,13 @@ void extfs::initialize()
         uint16_t cs = blk_group_descs[i].group_checksum;
         blk_group_descs[i].group_checksum = 0;
         dword dw_i(i);
-        dword dw_cs = crc32c(sb->fs_uuid);
+        dword dw_cs = uuid_csum;
         dw_cs = crc32c(dw_cs, dw_i);
         dw_cs = crc32c(dw_cs, blk_group_descs[i]);
         if(dw_cs.lo != cs) throw std::runtime_error{ "checksums on block group did not match" };
         blk_group_descs[i].group_checksum = cs;
     }
-    ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U).first.base();
+    ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U, next_fd++).first.base();
     if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
     root_dir = rdnode;
     std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
@@ -154,7 +163,7 @@ uint32_t extfs::claim_inode(bool dir)
             unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
             off_t avail = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
             uint32_t result = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
-            bitmap_set_chain_bits(bmp, avail, 1UL);
+            bitmap_set_bit(bmp, avail);
             block_groups[i].decrement_inode_ct();
             if(dir) block_groups[i].increment_dir_ct();
             if(!persist_group_metadata(i)) return 0U;
@@ -195,7 +204,7 @@ ext_inode* extfs::get_inode(uint32_t inode_num)
     if(grp >= block_groups.size()) throw std::out_of_range{ "invalid inode group" };
     return reinterpret_cast<ext_inode*>(block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num));
 }
-file_node* extfs::open_fd(tnode* fd)
+file_node* extfs::on_open(tnode* fd)
 {
     file_node* n = fd->as_file();
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) { exfn->initialize(); }
@@ -232,15 +241,11 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
             .created_time       { tstamp.lo },
             .created_time_hi    { tstamp.hi }
         };
-        ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode).first.base();
+        ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size()) && vnode->init_dir_blank(std::addressof(exparent))) 
+        if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size())) 
         {
-            word checksum = crc32c(*inode);
-            checksum = crc32c(checksum, sb->fs_uuid);
-            checksum = crc32c(checksum, inode_num);
-            inode->checksum_lo = checksum.lo;
-            inode->checksum_hi = checksum.hi;
+            if(!vnode->init_dir_blank(std::addressof(exparent))) { panic("failed to initialize directory"); return nullptr; }
             if(persist_inode(inode_num) && persist(vnode)) return vnode;
             else panic("failed to persist directory node");
         }
@@ -281,18 +286,13 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
             .created_time       { tstamp.lo },
             .created_time_hi    { tstamp.hi }
         };
-        next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
-        ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd).first.base();
+        ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size()) && vnode->initialize()) 
+        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size()))
         {
-            dword checksum = crc32c(*inode);
-            checksum = crc32c(checksum, sb->fs_uuid);
-            checksum = crc32c(checksum, inode_num);
-            inode->checksum_lo = checksum.lo;
-            inode->checksum_hi = checksum.hi;
+            if(!vnode->initialize()) { panic("failed to initialize node"); return nullptr; };
             if(persist_inode(inode_num)) return vnode;
-            else panic("failed to add loop entries");
+            else panic("failed to write inode");
         }
         else panic("failed to add directory entry");
     }
@@ -403,7 +403,7 @@ bool extfs::persist_inode(uint32_t inode_num)
 {
     ext_inode* inode = get_inode(inode_num);
     inode->checksum_hi = inode->checksum_lo = 0;
-    dword csum = crc32c(sb->fs_uuid);
+    dword csum = uuid_csum;
     csum = crc32c(csum, inode_num);
     csum = crc32c(csum, *inode);
     inode->checksum_lo = csum.lo;
@@ -421,7 +421,7 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
     uint32_t idx = de->inode_idx;
     if(sb->required_features & dirent_type)
     {
-        if(de->type_ind == dti_dir) return dir_nodes.emplace(this, idx).first.base();
+        if(de->type_ind == dti_dir) return dir_nodes.emplace(this, idx, next_fd++).first.base();
         else 
         { 
             next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
@@ -432,7 +432,7 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
     else
     { 
         ext_inode* n = get_inode(idx);
-        if(n->mode.is_directory()) return dir_nodes.emplace(this, idx, n).first.base();
+        if(n->mode.is_directory()) return dir_nodes.emplace(this, idx, n, next_fd++).first.base();
         else 
         {
             next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));

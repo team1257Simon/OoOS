@@ -1,6 +1,6 @@
 #include "fs/ramfs.hpp"
 #include "rtc.h"
-ramfs_directory_inode::ramfs_directory_inode(std::string const& name) : directory_node{ name, addr_t(this) } {}
+ramfs_directory_inode::ramfs_directory_inode(std::string const& name, int fd) : directory_node{ name, fd, addr_t(this) } {}
 bool ramfs_directory_inode::fsync() { /* nop */ return true; }
 std::vector<std::string> ramfs_directory_inode::lsdir() const { std::vector<std::string> result{}; for(tnode_dir::const_iterator i = __my_dir.begin(); i != __my_dir.end(); ++i) result.push_back(i->name()); return result; }
 uint64_t ramfs_directory_inode::num_subdirs() const noexcept { return __subdir_count; }

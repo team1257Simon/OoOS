@@ -287,7 +287,7 @@ protected:
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
-    virtual file_node* open_fd(tnode*) override;
+    virtual file_node* on_open(tnode*) override;
     fat32_file_node* put_file_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
     fat32_directory_node* put_directory_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
     fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial);

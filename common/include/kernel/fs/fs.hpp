@@ -8,6 +8,7 @@
 #include "string"
 #include "functional"
 #include "bits/ios_base.hpp"
+#include "bits/hash_set.hpp"
 #include "vector"
 #include "set"
 #include "ext/dynamic_streambuf.hpp"
@@ -119,6 +120,16 @@ struct fs_node
     friend constexpr std::strong_ordering operator<=>(fs_node const& a, uint64_t b) noexcept { return a.real_id <=> b; }
     friend constexpr std::strong_ordering operator<=>(uint64_t a, fs_node const& b) noexcept { return a <=> b.real_id; }
 };
+struct fd_extract{ constexpr int const& operator()(fs_node* const& ptr) const noexcept { return ptr->fd; } };
+struct id_key_int{ constexpr uint64_t operator()(int const& i) const noexcept { return static_cast<uint64_t>(i); } };
+class fd_map : public std::hash_set<fs_node*, int, id_key_int, std::equal_to<int>, std::allocator<fs_node*>, fd_extract>
+{
+    typedef std::hash_set<fs_node*, int, id_key_int, std::equal_to<int>, std::allocator<fs_node*>, fd_extract> __base;
+public:
+    fd_map();
+    fs_node* find_fd(int i) noexcept;
+    int add_fd(fs_node* node);
+};
 class file_node : public fs_node
 {
     spinlock_t __my_lock{};
@@ -154,7 +165,7 @@ struct directory_node : public fs_node
     virtual uint64_t size() const noexcept override;
     virtual bool is_empty() const noexcept;
     virtual bool relink(std::string const& oldn, std::string const& newn);
-    directory_node(std::string const& name, uint64_t cid);
+    directory_node(std::string const& name, int vfd, uint64_t cid);
 };
 class device_node : public file_node
 {
@@ -230,7 +241,7 @@ class filesystem
 protected:
     typedef std::pair<directory_node*, std::string> target_pair;
     std::set<device_node> device_nodes{};
-    std::vector<file_node*> current_open_files{};
+    fd_map current_open_files{};
     int next_fd;
     virtual directory_node* get_root_directory() = 0;
     virtual void dlfilenode(file_node*) = 0;
@@ -240,7 +251,7 @@ protected:
     virtual void syncdirs() = 0;
     virtual dev_t xgdevid() const noexcept = 0;
     virtual const char* path_separator() const noexcept;
-    virtual void close_fd(file_node*);
+    virtual void on_close(file_node*);
     virtual bool xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
     virtual target_pair get_parent(std::string const& path, bool create);    
@@ -248,14 +259,16 @@ protected:
     virtual device_node* mkdevnode(directory_node*, std::string const&, device_node::device_buffer*, int fd_number_hint);
 public:
     virtual device_node* lndev(std::string const& where, device_node::device_buffer* what, int fd_number_hint, bool create_parents = true);
-    virtual file_node* open_fd(tnode*);
+    virtual file_node* on_open(tnode*);
     void link_stdio(device_node::device_buffer* target);
-    file_node* get_fd(int fd);      
+    fs_node* get_fd_node(int fd);
+    file_node* get_file(int fd);      
     file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* get_file(std::string const& path);
-    directory_node* get_dir(std::string const& path, bool create = true);
-    directory_node* get_dir_nothrow(std::string const& path, bool create = true) noexcept;
+    directory_node* get_directory(std::string const& path, bool create = true);
+    directory_node* get_directory(int fd);
+    directory_node* get_directory_or_null(std::string const& path, bool create = true) noexcept;
     void close_file(file_node* fd);
     dev_t get_dev_id() const noexcept;
     std::string get_path_separator() const noexcept;
@@ -264,7 +277,7 @@ public:
     filesystem();
     ~filesystem();
 private:
-    void __put_fd(file_node* fd);
+    void __put_fd(fs_node* node);
 };
 filesystem* create_task_vfs();
 filesystem* get_fs_instance();
