@@ -714,9 +714,9 @@ addr_t uframe_tag::translate(addr_t addr)
     kmm.exit_frame();
     return result;
 }
-block_descriptor* uframe_tag::add_block(size_t sz, addr_t start, size_t align, bool write, bool execute)
+block_descriptor* uframe_tag::add_block(size_t sz, addr_t start, size_t align, bool write, bool execute, bool allow_global_shared)
 {
-    if(!write) { return fm.get_shared(this, sz, start, align, execute); }
+    if(allow_global_shared && !write) { return fm.get_global_shared(this, sz, start, align, execute); }
     block_descriptor* result = nullptr;
     __lock();
     kmm.enter_frame(this);

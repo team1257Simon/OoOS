@@ -1,4 +1,5 @@
 #include "elf64_shared.hpp"
+#include "frame_manager.hpp"
 #include "stdexcept"
 constexpr size_t mw_bits = sizeof(uint64_t) * CHAR_BIT;
 const char* empty_name = "";
@@ -113,12 +114,16 @@ bool elf64_shared_object::load_segments()
             addr_t addr = virtual_load_base.plus(h.p_vaddr);
             addr_t target = addr.trunc(h.p_align);
             size_t full_size = h.p_memsz + (addr - target);
-            if(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h))) { throw std::bad_alloc{}; }
+            block_descriptor* bd = frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), true);
+            if(!bd) { throw std::bad_alloc{}; }
             addr_t idmap = frame_tag->translate(addr);
             size_t actual_size = kernel_memory_mgr::aligned_size(target, full_size);
-            addr_t img_dat = segment_ptr(n);
-            array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
-            if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
+            if(fm.count_references(bd->virtual_start) < 2)
+            {
+                addr_t img_dat = segment_ptr(n);
+                array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
+                if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
+            }
             new(std::addressof(segments[i++])) program_segment_descriptor
             { 
                 .absolute_addr = idmap, 

@@ -131,7 +131,7 @@ public:
     void accept_block(block_descriptor&& desc);
     void transfer_block(uframe_tag& that, block_descriptor const& which);
     void drop_block(block_descriptor const& which);
-    block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);
+    block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true, bool allow_global_shared = false);
     addr_t translate(addr_t addr);
     friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
 };
