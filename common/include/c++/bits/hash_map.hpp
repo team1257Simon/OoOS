@@ -62,6 +62,7 @@ namespace std
         template<convertible_to<key_type> JT, convertible_to<mapped_type> NT> constexpr pair<iterator, bool> insert(pair<JT, NT> const& p) { return this->__emplace(piecewise_construct, tuple<JT const&>(p.first), tuple<NT const&>(p.second)); }
         template<std::convertible_to<key_type> JT> constexpr size_type erase(JT const& what) { return this->__erase(what); }
         template<std::convertible_to<key_type> JT> constexpr bool contains(JT const& what) const { return this->__contains(what); }
+        template<std::input_iterator IT> requires constructible_from<value_type, deref_t<IT>> constexpr void insert(IT start, IT end) { this->__insert(start, end); }
         constexpr iterator erase(const_iterator what) { return this->__erase(what); }
         constexpr void clear() { this->__clear(); }
         template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT&& key) { return this->__emplace(piecewise_construct, forward_as_tuple(move(key)), tuple<>()).first->second; }

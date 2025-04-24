@@ -30,7 +30,6 @@ extern "C"
     wchar_t* wstrncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::strncpy<wchar_t>(dest, src, n); }
     wchar_t* wstpcpy(wchar_t* dest, const wchar_t* src) { return std::stpcpy<wchar_t>(dest, src); }
     wchar_t* wstpncpy(wchar_t* dest, const wchar_t* src, size_t n) { return std::stpncpy<wchar_t>(dest, src, n); }
-    void* memset(void* buffer, int value, size_t n) { return std::memset<int>(buffer, value, n); }
     char* strdup(const char* str) { size_t n = std::strlen(str) + 1; if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); array_copy<char>(result, str, n); return result; }
     char* strndup(const char* str, size_t max) { size_t n = std::strnlen(str, max); if(!n) return nullptr; char* result = std::allocator<char>().allocate(n); array_copy<char>(result, str, n); return result; }
     const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line)

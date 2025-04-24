@@ -1,6 +1,8 @@
 #include "fs/ext.hpp"
 #include "sys/errno.h"
+#include "unordered_set"
 #include "kdebug.hpp"
+typedef std::hash_set<qword, uint64_t, std::hash<uint64_t>, std::equal_to<void>, std::allocator<qword>, decltype([](qword const& qw) -> uint64_t const& { return *reinterpret_cast<uint64_t const*>(&qw); })> blocknum_set;
 std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
@@ -105,13 +107,14 @@ bool jbd2::ddwrite()
 bool jbd2::clear_log()
 {
     size_t bs = parent_fs->block_size();
-    array_zero(__beg() + bs, static_cast<size_t>(__capacity() - bs));
+    array_zero(reinterpret_cast<uint64_t*>(__beg() + bs), static_cast<size_t>(__capacity() - bs) / sizeof(uint64_t));
     replay_blocks.clear();
+    __setc(0UL);
     return ddwrite();
 }
 bool jbd2::execute_pending_txns()
 {
-    try { while(!active_transactions.at_end()) { jbd2_transaction* t = std::addressof(active_transactions.pop()); if(!t->execute_and_complete(parent_fs)) { active_transactions.restart(); return false; } } return true; }
+    try { while(!active_transactions.at_end()) { jbd2_transaction* t = std::addressof(active_transactions.pop()); if(!t->execute_and_complete(parent_fs)) { active_transactions.restart(); return false; } } return clear_log(); }
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
@@ -136,5 +139,125 @@ bool jbd2::initialize()
     sb = reinterpret_cast<jbd2_superblock*>(block_data[0].data_buffer);
     if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
     uuid_checksum = crc32c(sb->uuid);
-    return (has_init = true);
+    return (has_init = read_log());
+}
+log_read_state jbd2::read_next_log_entry()
+{
+    char* entry_start = __cur();
+    jbd2_header* h = reinterpret_cast<jbd2_header*>(entry_start);
+    if(h->magic == 0 && h->blocktype == 0 && h->sequence == 0) return NREM;
+    else if(h->magic != jbd2_magic) return SKIP;
+    uint32_t type = h->blocktype;
+    try
+    {
+        if(type == revocation) { parse_revocation(); return VALID; }
+        else if(type == descriptor) return read_log_transaction();
+        else return SKIP;
+    }
+    catch(std::exception& e)
+    {
+        panic(e.what());
+        __setc(0UL);
+        return ERROR;
+    }
+}
+void jbd2::parse_revocation()
+{
+    char* entry_start = __cur();
+    blocknum_set block_nums{ 64 };
+    jbd2_revoke_header* rh = reinterpret_cast<jbd2_revoke_header*>(entry_start);
+    __be64* start = reinterpret_cast<__be64*>(entry_start + sizeof(jbd2_revoke_header));
+    __be64* end = reinterpret_cast<__be64*>(entry_start + rh->block_bytes_used);
+    block_nums.insert(start, end);
+    for(jbd2_transaction& t : active_transactions)
+    {
+        std::vector<disk_block>::iterator i = t.data_blocks.begin();
+        while(i != t.data_blocks.end())
+        {
+            if(block_nums.contains(i->block_number))
+                i = t.data_blocks.erase(i);
+            else
+                i++;
+        }
+    }
+}
+log_read_state jbd2::read_log_transaction()
+{
+    char* start = __cur();
+    char* pos = start;
+    char* end = __max();
+    size_t bs = parent_fs->block_size();
+    jbd2_commit_header* ch = nullptr;
+    while(!ch)
+    {
+        if(pos < end)
+        {
+            jbd2_header* bh = reinterpret_cast<jbd2_header*>(pos);
+            if(bh->magic == jbd2_magic && bh->blocktype == commit) { ch = reinterpret_cast<jbd2_commit_header*>(bh); }
+            else { pos += bs; }
+        }
+        else return NREM;
+    }
+    transaction_id id = static_cast<transaction_id>(active_transactions.size());
+    end = reinterpret_cast<char*>(ch);
+    std::vector<disk_block> txn_blocks{};
+    char* block_st = start;
+    char* block_ed;
+    do {
+        jbd2_header* h = reinterpret_cast<jbd2_header*>(block_st);
+        if(h->magic != jbd2_magic) return SKIP;
+        if(h->blocktype == revocation) parse_revocation();
+        else
+        {
+            pos = block_st + sizeof(jbd2_header);
+            block_ed = block_st + bs;
+            while(pos < block_ed)
+            {
+                // TODO verify checksums
+                if(sb->required_features & csum_v3)
+                {
+                    jbd2_block_tag3* tag = reinterpret_cast<jbd2_block_tag3*>(pos);
+                    qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0U);
+                    __bumpc(bs);
+                    txn_blocks.emplace_back(blocknum, __cur(), true, 1);
+                    if(tag->flags & last_block) pos = block_ed;
+                    else pos += desc_tag_size(tag->flags & same_uuid);
+                }
+                else
+                {
+                    jbd2_block_tag* tag = reinterpret_cast<jbd2_block_tag*>(pos);
+                    qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0U);
+                    __bumpc(bs);
+                    txn_blocks.emplace_back(blocknum, __cur(), true, 1);
+                    if(tag->flags & last_block) pos = block_ed;
+                    else pos += desc_tag_size(tag->flags & same_uuid);
+                }
+            }
+        }
+        __bumpc(bs);
+        block_st = __cur();
+    } while(block_st < end);
+    active_transactions.emplace(std::move(txn_blocks), id);
+    return VALID;
+}
+bool jbd2::read_log()
+{
+    char* end = __max();
+    size_t bs = parent_fs->block_size();
+    while(__cur() < end)
+    {
+        log_read_state state = read_log_transaction();
+        switch(state)
+        {
+        case NREM:
+            return true;
+        case ERROR:
+            return false;
+        default:
+            __bumpc(bs);
+            break;
+        }
+    }
+    if(active_transactions.empty()) return true;
+    return execute_pending_txns();
 }

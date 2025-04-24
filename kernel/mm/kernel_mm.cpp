@@ -46,8 +46,8 @@ void kernel_memory_mgr::__mark_used(uintptr_t start, size_t num_regions) { for(s
 size_t    kernel_memory_mgr::aligned_size(addr_t start, size_t requested) { return static_cast<size_t>(start.plus(requested + page_size).page_aligned() - start.page_aligned()); }
 void      kernel_memory_mgr::suspend_user_frame() { __instance->__suspend_frame(); }
 void      kernel_memory_mgr::resume_user_frame() { __instance->__resume_frame(); }
-void   kernel_memory_mgr::enter_frame(uframe_tag* ft) noexcept { this->__active_frame = ft; }
-void   kernel_memory_mgr::exit_frame() noexcept { this->__active_frame = nullptr; }
+void   kernel_memory_mgr::enter_frame(uframe_tag* ft) noexcept { lock(addressof(__heap_mutex)); this->__active_frame = ft; release(addressof(__heap_mutex)); }
+void   kernel_memory_mgr::exit_frame() noexcept { lock(addressof(__heap_mutex)); this->__active_frame = nullptr; release(addressof(__heap_mutex)); }
 addr_t kernel_memory_mgr::copy_kernel_mappings(paging_table target) { return __copy_kernel_mappings(addressof(__start), div_round_up(full_kernel_size(), PAGESIZE), target); }
 void   kframe_tag::__lock() { lock(addressof(__my_mutex)); }
 void   kframe_tag::__unlock() { release(addressof(__my_mutex)); }
@@ -304,11 +304,7 @@ uintptr_t kernel_memory_mgr::__find_and_claim(size_t sz)
                     return result;
                 }
             }
-            else
-            {
-                n      = num_regions;
-                result = addr + region_size;
-            }
+            else { n = num_regions; result = addr + region_size; }
         }
     }
     else
@@ -331,11 +327,7 @@ uintptr_t kernel_memory_mgr::__find_and_claim(size_t sz)
         }
     }
     // If we didn't find any, try again with the watermark reset in case it's inaccurate
-    if(__watermark > __kernel_heap_begin + __num_status_bytes)
-    {
-        __watermark = __kernel_heap_begin + __num_status_bytes;
-        return __find_and_claim(sz);
-    }
+    if(__watermark > __kernel_heap_begin + __num_status_bytes) { __watermark = __kernel_heap_begin + __num_status_bytes; return __find_and_claim(sz); }
     return 0;
 }
 void kernel_memory_mgr::__release_region(size_t sz, uintptr_t start)
@@ -646,10 +638,10 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         }
         return false;
     }
-    size_t added            = kernel_memory_mgr::aligned_size(extent, static_cast<size_t>(amount));
-    block_descriptor* allocated  = add_block(added, extent, page_size, true, false);
+    size_t added                = kernel_memory_mgr::aligned_size(extent, static_cast<size_t>(amount));
+    block_descriptor* allocated = add_block(added, extent, page_size, true, false);
     if(allocated == nullptr) return false;
-    extent                  = allocated->virtual_start.plus(allocated->size);
+    extent                      = allocated->virtual_start.plus(allocated->size);
     array_zero(allocated->physical_start.as<uint64_t>(), allocated->size / sizeof(uint64_t));
     return true;
 }

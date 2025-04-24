@@ -519,6 +519,13 @@ struct ext_vnode : public std::ext::dynamic_streambuf<char>
     size_t block_of_data_ptr(size_t offs);
     constexpr bool is_symlink() const { return on_disk_node ? on_disk_node->mode.is_symlink() : false; }
 };
+enum log_read_state : int
+{
+    VALID   = 0,
+    SKIP    = 1,
+    NREM    = 2,
+    ERROR   = 3
+};
 struct jbd2 : public ext_vnode
 {
     jbd2_superblock* sb;
@@ -533,6 +540,10 @@ struct jbd2 : public ext_vnode
     bool clear_log();
     bool ddread();
     bool ddwrite();
+    void parse_revocation();
+    log_read_state read_next_log_entry();
+    log_read_state read_log_transaction();
+    bool read_log();
     off_t desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first = false, bool is_last = false);
     size_t desc_tag_size(bool same_uuid);
     size_t tags_per_block();
@@ -542,7 +553,6 @@ struct jbd2 : public ext_vnode
     jbd2() = default;
     jbd2(extfs* parent, uint32_t inode);
     virtual bool initialize() override;
-    // TODO parsing log and executing pending transactions
 };
 class ext_file_vnode : public ext_vnode, public file_node
 {

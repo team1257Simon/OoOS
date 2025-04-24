@@ -12,7 +12,7 @@ namespace std
     namespace __detail
     {
         template<typename FT, typename KT> concept __hash_ftor = is_default_constructible_v<FT> && unsigned_integral<decltype(declval<FT>()(declval<KT const&>()))>;
-        template<typename FT, typename KT, typename VT> concept __key_extract = is_default_constructible_v<FT> && is_same_v<decltype(declval<FT>()(declval<VT const&>())), KT const&>;
+        template<typename FT, typename KT, typename VT> concept __key_extract = is_default_constructible_v<FT> && convertible_to<decltype(declval<FT>()(declval<VT const&>())), KT const&>;
         template<typename FT, typename KT> concept __predicate = is_default_constructible_v<FT> && __boolean_testable<decltype(declval<FT>()(declval<KT const&>(), declval<KT const&>()))>;
         template<typename KT, typename MT> struct __pair_key_extract { constexpr KT const& operator()(pair<KT, MT> const& p) const noexcept { return p.first; } };
         template<typename T> struct __identity_key { constexpr T const& operator()(T const& t) const noexcept { return t; } };

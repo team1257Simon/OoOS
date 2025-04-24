@@ -5,12 +5,15 @@
     .section    .text
     .global memcmp
     .global memcpy
+    .global memset
+  
     .global memchr    
     .global __errno
     .global __rdseed
     .global get_flags    
     .type   memcmp,     @function
     .type   memcpy,     @function
+    .type   memset,     @function
     .type   memchr,     @function 
     .type   __errno,    @function
     .type   __rdseed,   @function
@@ -28,18 +31,152 @@ memcmp:
 1:
     ret
     .size   memcmp,     .-memcmp
-//   This is just about the smallest implementation you can have for a memcpy on amd64 at 11 bytes assembled. 
-//   It's also quite fast, beating out anything that doesn't use speculative fetching.
-//   Funnily enough, it would be only 8 bytes if we didn't have to move the size argument into the C register.
-//   The ABI did us dirty there, because it would be pretty hilarious to have a C standard function whose code fits in a general-purpose register.
+//   Memcpy and memset taken from newlib, under the same license as in the legal.md
 memcpy:
-    movq    %rdi,       %rax
-    movq    %rdx,       %rcx
-    jrcxz   1f
-    rep     movsb
+    movq %rdi, %rax
+    cmpq $16, %rdx
+    jb 3f
+    movq %rdi, %r8
+    andq $7, %r8
+    jz 1f
+    movq $8, %rcx
+    subq %r8, %rcx
+    subq %rcx, %rdx
+    rep movsb
 1:
+    cmpq $256, %rdx
+    jb 4f
+    pushq %rax
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    movq %rdx, %rcx
+    shrq $7, %rcx
+    .p2align 4
+2:
+    prefetchnta 768(%rsi)
+    prefetchnta 832(%rsi)
+    movq (%rsi), %rax
+    movq 8(%rsi), %r8
+    movq 16(%rsi), %r9
+    movq 24(%rsi), %r10
+    movq 32(%rsi), %r11
+    movq 40(%rsi), %r12
+    movq 48(%rsi), %r13
+    movq 56(%rsi), %r14
+    movntiq %rax,(%rdi)
+    movntiq %r8 , 8(%rdi)
+    movntiq %r9 , 16(%rdi)
+    movntiq %r10, 24(%rdi)
+    movntiq %r11, 32(%rdi)
+    movntiq %r12, 40(%rdi)
+    movntiq %r13, 48(%rdi)
+    movntiq %r14, 56(%rdi)
+    movq 64(%rsi), %rax
+    movq 72(%rsi), %r8
+    movq 80(%rsi), %r9
+    movq 88(%rsi), %r10
+    movq 96(%rsi), %r11
+    movq 104(%rsi), %r12
+    movq 112(%rsi), %r13
+    movq 120(%rsi), %r14
+    movntiq %rax, 64(%rdi)
+    movntiq %r8 , 72(%rdi)
+    movntiq %r9 , 80(%rdi)
+    movntiq %r10, 88(%rdi)
+    movntiq %r11, 96(%rdi)
+    movntiq %r12, 104(%rdi)
+    movntiq %r13, 112(%rdi)
+    movntiq %r14, 120(%rdi)
+    leaq 128(%rsi), %rsi
+    leaq 128(%rdi), %rdi
+    dec %rcx
+    jnz 2b
+    sfence
+    movq %rdx, %rcx
+    andq $127, %rcx
+    rep movsb
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %rax
     ret
-    .size   memcpy,     .-memcpy
+3:
+    movq %rdx, %rcx
+    rep movsb
+    ret
+4:
+    movq %rdx, %rcx
+    shrq $3, %rcx
+    .p2align 4
+    rep movsq
+    movq %rdx, %rcx
+    andq $7, %rcx
+    rep movsb
+    ret
+    .size memcpy, .-memcpy
+memset:
+    movq %rdi, %r9
+    movq %rsi, %rax
+    movq %rdx, %rcx
+    cmpq $16, %rdx
+    jb 3f
+    movq %rdi, %r8
+    andq $7, %r8
+    jz 1f
+    movq $8, %rcx
+    subq %r8, %rcx
+    subq %rcx, %rdx
+    rep stosb
+    movq %rdx, %rcx
+1:
+    movabs $0x0101010101010101, %r8
+    movzbl %sil, %eax
+    imul %r8, %rax
+    cmpq $256, %rdx
+    jb 4f
+    shrq $7, %rcx
+    .p2align 4
+2:
+    movntiq %rax,(%rdi)
+    movntiq %rax, 8(%rdi)
+    movntiq %rax, 16(%rdi)
+    movntiq %rax, 24(%rdi)
+    movntiq %rax, 32(%rdi)
+    movntiq %rax, 40(%rdi)
+    movntiq %rax, 48(%rdi)
+    movntiq %rax, 56(%rdi)
+    movntiq %rax, 64(%rdi)
+    movntiq %rax, 72(%rdi)
+    movntiq %rax, 80(%rdi)
+    movntiq %rax, 88(%rdi)
+    movntiq %rax, 96(%rdi)
+    movntiq %rax, 104(%rdi)
+    movntiq %rax, 112(%rdi)
+    movntiq %rax, 120(%rdi)
+    leaq 128(%rdi), %rdi
+    dec %rcx
+    jnz 2b
+    sfence
+    movq %rdx, %rcx
+    andq $127, %rcx
+    rep stosb
+    movq %r9, %rax
+    ret
+3:
+    rep stosb
+    movq %r9, %rax
+    ret
+4:
+    shrq $3, %rcx
+    .p2align 4
+    rep stosq
+    movq %rdx, %rcx
+    andq $7, %rcx
+    rep stosb
+    movq %r9, %rax
+    ret
+    .size memset, .-memset
 //   The scas implementation of memchr saves less code than the movs implementation of memcpy, but it's still fast.
 memchr:
 	movq	%rdx, 		%rcx
