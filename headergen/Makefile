@@ -2,8 +2,7 @@ BUILD 		= x86_64-linux-gnu
 CCLD		= $(BUILD)-g++
 SRC			= $(wildcard *.cpp)
 OBJDIR 		:= $(CURDIR)/build
-CFLAGS		= -O2 -Wall
-CCLDFLAGS 	:= $(CFLAGS) -std=c++20
+CCLDFLAGS 	:= -O2 -Wall -std=c++20
 OUTDIR		= $(INCLUDES)/asm-generated
 GEN_PRG		= $(OBJDIR)/headergen
 OUT_INC		= $(OUTDIR)/$(ARCH)-defs.inc

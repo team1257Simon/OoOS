@@ -164,12 +164,12 @@ void extfs::initialize()
         if(dw_cs.lo != cs) throw std::runtime_error{ "checksums on block group did not match" };
         blk_group_descs[i].group_checksum = cs;
     }
+    std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
+    if(!fs_journal.initialize()) throw std::runtime_error{ "journal init failed" };
     ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U, next_fd++).first.base();
     if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
     root_dir = rdnode;
-    std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
-    if(!fs_journal.initialize()) throw std::runtime_error{ "journal init failed" };
-    else initialized = true;
+    initialized = true;
 }
 bool extfs::persist_sb()
 {
@@ -247,6 +247,7 @@ file_node* extfs::on_open(tnode* fd)
 directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
+    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
     if(uint32_t inode_num = claim_inode(true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
@@ -270,10 +271,10 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
                 } 
             },
             .size_hi            { 0U },
-            .changed_time_hi    { tstamp.hi },
-            .mod_time_extra     { tstamp.hi },
+            .changed_time_hi    { extrabits },
+            .mod_time_extra     { extrabits },
             .created_time       { tstamp.lo },
-            .created_time_hi    { tstamp.hi }
+            .created_time_hi    { extrabits }
         };
         ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
@@ -292,6 +293,7 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
 file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
+    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
     if(uint32_t inode_num = claim_inode(false)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
@@ -315,19 +317,14 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
                 } 
             },
             .size_hi            { 0U },
-            .changed_time_hi    { tstamp.hi },
-            .mod_time_extra     { tstamp.hi },
+            .changed_time_hi    { extrabits },
+            .mod_time_extra     { extrabits },
             .created_time       { tstamp.lo },
-            .created_time_hi    { tstamp.hi }
+            .created_time_hi    { extrabits }
         };
         ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size()))
-        {
-            if(!vnode->initialize()) { panic("failed to initialize node"); return nullptr; };
-            if(persist_inode(inode_num)) return vnode;
-            else panic("failed to write inode");
-        }
+        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size())) { if(!vnode->initialize()) { panic("failed to initialize node"); return nullptr; }; return vnode; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -481,6 +478,7 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
 tnode* extfs::get_path(std::string const& path_str)
 {
     target_pair p = get_parent(path_str, false);
+    // TODO check for loops in symlink paths; this probably means overriding get_parent
     if(p.first) return p.first->find(p.second);
     return nullptr;
 }

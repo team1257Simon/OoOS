@@ -34,7 +34,7 @@ public:
     rtc_time get_time() volatile;
     uint64_t get_timestamp() volatile;
 };
-constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts / 1000U, (ts % 1000U) * 1000U }; }
+constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts, 0U }; }
 #endif
 struct fadt_t* find_fadt();
 #endif

@@ -37,6 +37,10 @@ bool ext_file_vnode::fsync()
         on_disk_node->size_hi = fsz.hi;
         if(!parent_fs->persist_inode(inode_number)) return false;
     }
+    qword timestamp = sys_time(nullptr);
+    modif_time = timestamp;
+    on_disk_node->modified_time = timestamp.lo;
+    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
     return parent_fs->persist(this); 
 }
 tnode* ext_directory_vnode::find(std::string const& name) 
@@ -66,7 +70,7 @@ tnode* ext_directory_vnode::find(std::string const& name)
             else if(tnode* result = parent_fs->get_path(xlink_str)) return result;
             else throw std::runtime_error{ "bad symlink" };
         }
-        else return i.base(); // devie node or regular file/dirnode
+        else return i.base(); // device node or regular file/dirnode
     } 
     else return nullptr; 
 }
@@ -142,7 +146,11 @@ bool ext_file_vnode::initialize()
     {
         if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
         update_block_ptrs();
-        for(disk_block& db : block_data) { if(!parent_fs->read_hd(db)) { panic("block read failed"); return false; } }   
+        for(disk_block& db : block_data) { if(!parent_fs->read_hd(db)) { panic("block read failed"); return false; } }
+        qword timestamp = sys_time(nullptr);
+        on_disk_node->accessed_time = timestamp.lo;
+        on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
+        return parent_fs->persist_inode(inode_number);
     }
     return true;
 }
@@ -279,7 +287,10 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
                 __dir_index.insert_or_assign(tn, std::move(dirent_idx{ .block_num = static_cast<uint32_t>(i), .block_offs = static_cast<uint32_t>(n) }));
             }
         }
-        return true;
+        qword timestamp = sys_time(nullptr);
+        on_disk_node->accessed_time = timestamp.lo;
+        on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
+        return parent_fs->persist_inode(inode_number);
     }
     catch(std::exception& e) { panic(e.what()); }
     return false;

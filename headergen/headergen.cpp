@@ -5,7 +5,7 @@
 typedef long register_t;
 typedef __int128_t int128_t;
 #include "../common/include/kernel/sched/task.h"
-#define DEFS(m, n) std::cout << "#define __TASK_MEMBER_" #m "_OFFSET 0x" << offsetof(task_t, n) << std::endl
+#define DEFS(m, n) std::cout << "#define __TASK_MEMBER_" #m "_OFFSET 0x" << offsetof(task_t, n) << "\n"
 #define DEF(n) DEFS(n, n)
 #define DEFR(r) DEFS(r, saved_regs.r)
 int main()
