@@ -512,6 +512,7 @@ struct ext_vnode : public std::ext::dynamic_streambuf<char>
     virtual std::streamsize xsputn(const char* s, std::streamsize n) override;
     void mark_write(void* pos);
     void update_block_ptrs();
+    bool expand_buffer(size_t added_bytes, size_t written_bytes);
     bool expand_buffer(size_t added_bytes);
     bool init_extents();
     uint64_t next_block();
@@ -609,9 +610,9 @@ struct ext_block_group
     bool has_available_inode();
     bool has_available_blocks();
     bool has_available_blocks(size_t n);
-    void alter_available_blocks(int64_t diff);
-    void decrement_inode_ct();
-    void increment_inode_ct();
+    bool alter_available_blocks(int diff);
+    bool decrement_inode_ct();
+    bool increment_inode_ct();
     void increment_dir_ct();
     void decrement_dir_ct();
     void compute_checksums(size_t);
@@ -646,10 +647,14 @@ protected:
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* on_open(tnode* fd) override;
     ext_jbd2_mode journal_mode() const;
+    bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     uint32_t claim_inode(bool dir);
     bool release_inode(uint32_t num, bool dir);
     void release_blocks(uint64_t start, size_t num);
+    bool update_free_block_count(int diff);
+    bool update_free_inode_count(int diff);
+    bool persist_sb();
 public:
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);

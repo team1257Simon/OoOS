@@ -15,7 +15,6 @@ ext_file_vnode::size_type ext_file_vnode::read(pointer dest, size_type n) { retu
 ext_file_vnode::size_type ext_file_vnode::write(const_pointer src, size_type n) { size_t result = ext_vnode::xsputn(src, n); return result && fsync() ? result : 0; }
 ext_file_vnode::pos_type ext_file_vnode::seek(off_type off, std::ios_base::seekdir way) { return std::ext::dynamic_streambuf<char>::seekoff(off, way); }
 ext_file_vnode::pos_type ext_file_vnode::seek(pos_type pos) { return std::ext::dynamic_streambuf<char>::seekpos(pos); }
-bool ext_file_vnode::fsync() { return parent_fs->persist(this); }
 uint64_t ext_file_vnode::size() const noexcept { return qword(on_disk_node->size_lo, on_disk_node->size_hi); }
 ext_file_vnode::pos_type ext_file_vnode::tell() const { return std::ext::dynamic_streambuf<char>::tell(); }
 ext_file_vnode::~ext_file_vnode() = default;
@@ -28,6 +27,18 @@ ext_vnode::~ext_vnode() = default;
 void ext_vnode::on_modify() { if(__beg()) { __fullsetp(__beg(), __cur(), __max()); setg(__beg(), __cur(), __max()); } }
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
+bool ext_file_vnode::fsync() 
+{
+    size_t updated_size = __size();
+    if(size() < updated_size)
+    {
+        qword fsz(updated_size);
+        on_disk_node->size_lo = fsz.lo;
+        on_disk_node->size_hi = fsz.hi;
+        if(!parent_fs->persist_inode(inode_number)) return false;
+    }
+    return parent_fs->persist(this); 
+}
 tnode* ext_directory_vnode::find(std::string const& name) 
 {
     if(!initialize()) return nullptr; 
@@ -80,6 +91,16 @@ void ext_vnode::update_block_ptrs()
     char* pos = __beg();
     for(size_t i = 0; i < block_data.size() && pos < __max(); i++) { block_data[i].data_buffer = pos; pos += block_data[i].chain_len * bs; }
 }
+bool ext_vnode::expand_buffer(size_t added_bytes, size_t written_bytes)
+{
+    if(!__grow_buffer(added_bytes)) return false;
+    qword fsz(on_disk_node->size_lo, on_disk_node->size_hi);
+    fsz += written_bytes;
+    on_disk_node->size_lo = fsz.lo;
+    on_disk_node->size_hi = fsz.hi;
+    update_block_ptrs();
+    return parent_fs->persist_inode(inode_number);
+}
 bool ext_vnode::expand_buffer(size_t added_bytes)
 {
     if(!__grow_buffer(added_bytes)) return false;
@@ -97,7 +118,7 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
     size_t ccap = __capacity();
     if(disk_block* blk = parent_fs->claim_blocks(this, needed)) 
     { 
-        if(!expand_buffer(bs * blk->chain_len)) return 0;
+        if(!expand_buffer(bs * blk->chain_len, n)) return 0;
         array_zero(__get_ptr(ccap), bs * blk->chain_len);
         return bs * blk->chain_len; 
     }
