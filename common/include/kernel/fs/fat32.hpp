@@ -225,7 +225,7 @@ public:
 };
 class fat32_directory_node final : public directory_node, public fat32_node
 {
-    tnode_dir __my_directory;
+    tnode_dir __my_dir;
     std::vector<fat32_directory_entry> __my_dir_data;
     std::vector<uint32_t> __my_covered_clusters;
     bool __has_init{ false };    
@@ -249,6 +249,8 @@ public:
     virtual uint64_t num_files() const noexcept override;
     virtual uint64_t num_subdirs() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
+    virtual size_t readdir(std::vector<tnode*>& out_vec) override;
+    virtual uint64_t size() const noexcept override;
     virtual bool fsync() override;
     void get_short_name(std::string const &full, std::string& result);
     fat32_regular_entry* find_dirent(std::string const&);

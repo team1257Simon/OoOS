@@ -2,6 +2,7 @@
 #include "fs/hda_ahci.hpp"
 #include "sys/errno.h"
 #include "immintrin.h"
+#include "algorithm"
 #include "bitmap.hpp"
 #include "kdebug.hpp"
 static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
@@ -243,6 +244,75 @@ file_node* extfs::on_open(tnode* fd)
     file_node* n = fd->as_file();
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) { exfn->initialize(); }
     return n;
+}
+filesystem::target_pair extfs::get_parent(std::string const& path, bool create)
+{
+    std::vector<std::string> pathspec = std::ext::split(path, path_separator());
+    if(pathspec.empty()) throw std::logic_error{ "empty path" };
+    directory_node* node = get_root_directory();
+    for(size_t i = 0; i < pathspec.size() - 1; i++)
+    {
+        if(pathspec[i].empty()) continue;
+        tnode* cur = node->find(pathspec[i]);
+        if(!cur) 
+        {
+            if(create) 
+            {
+                directory_node* created = mkdirnode(node, pathspec[i]);
+                if(!node) throw std::runtime_error{ "failed to create " + pathspec[i] };
+                node = created; 
+            } 
+            else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)" }; } 
+        }
+        else if(cur->is_directory()) node = cur->as_directory();
+        else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
+    }
+    return target_pair(std::piecewise_construct, std::forward_as_tuple(node), std::forward_as_tuple(pathspec.back()));
+}
+file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode)
+{
+    target_pair parent = get_parent(path, false);
+    tnode* node = parent.first->find(parent.second);
+    if(node && node->is_directory()) throw std::logic_error{ "path " + path + " exists and is a directory" };
+    file_node* result;
+    if(!node)
+    {
+        if(!mode.out) throw std::out_of_range{ "file not found: " + path }; 
+        if(file_node* created = mkfilenode(parent.first, parent.second))
+        {
+            created->mode.read_group = created->mode.read_owner = created->mode.read_others = mode.in;
+            created->mode.write_group = created->mode.write_owner = created->mode.write_others = mode.out;
+            result = created;
+        }
+        else throw std::runtime_error{ "failed to create file: " + path }; 
+    }
+    else { result = node->as_file(); }
+    if(!result->chk_lock()) { throw std::domain_error{ "file " + path + " is in use" }; }
+    result->acq_lock();
+    if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
+    if(!current_open_files.contains(result->vid())) { register_fd(result); }
+    return result;
+}
+directory_node* extfs::open_directory(std::string const& path, bool create)
+{
+    if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
+    target_pair parent = get_parent(path, create);
+    tnode* node = parent.first->find(parent.second);
+    directory_node* result;
+    if(!node)
+    {
+        if(create) 
+        {
+            directory_node* cn = mkdirnode(parent.first, parent.second);
+            if(!cn) throw std::runtime_error{ "failed to create " + path };
+            result = cn;
+        } 
+        else throw std::out_of_range{ "path " + path + " does not exist (use open_directory(\"" + path + "\", true) to create it)" }; 
+    }
+    else if(node->is_file()) throw std::invalid_argument{ "path " + path + " exists and is a file" };
+    else { result = node->as_directory(); }
+    if(!current_open_files.contains(result->vid())) { register_fd(result); }
+    return result;
 }
 directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name)
 {

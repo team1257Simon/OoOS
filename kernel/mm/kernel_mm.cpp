@@ -627,9 +627,7 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
         {
             addr_t target = extent + amount;
             std::vector<block_descriptor>::reverse_iterator i;
-            kmm.enter_frame(this);
-            for(i = usr_blocks.rend(); i->physical_start >= target && i->write; i++) { kmm.deallocate_block(i->physical_start, i->size, true); }
-            kmm.exit_frame();
+            for(i = usr_blocks.rend(); i->physical_start >= target && i->write; i++) { __unmap_pages(i->physical_start, i->size / page_size, pml4); __kernel_frame_tag->deallocate(i->physical_start, i->align); }
             usr_blocks.erase((--i).base(), usr_blocks.end());
             if(usr_blocks.empty()) { extent = base = nullptr; }
             else extent = usr_blocks.back().physical_start.plus(usr_blocks.back().size);
@@ -692,7 +690,8 @@ void uframe_tag::drop_block(block_descriptor const& which)
     {
         if(which.physical_start == i->physical_start)
         {
-            kmm.deallocate_block(i->virtual_start, i->size, true);
+            __unmap_pages(i->physical_start, i->size / page_size, pml4);
+            __kernel_frame_tag->deallocate(i->physical_start, i->align);
             usr_blocks.erase(i);
             break;
         }
@@ -722,7 +721,12 @@ bool uframe_tag::mmap_remove(addr_t addr, size_t len)
 {
     if(addr > mapped_max) return false;
     len = std::min(len, static_cast<size_t>(mapped_max - addr));
-    __unmap_pages(addr, truncate(len, page_size), pml4);
+    for(size_t i = 0; i < usr_blocks.size(); i++)
+    {
+        if(usr_blocks[i].virtual_start >= addr) 
+            continue;
+        if(usr_blocks[i].virtual_start.plus(usr_blocks[i].size) > addr) { drop_block(usr_blocks[i]); break; }
+    }
     return true;
 }
 addr_t uframe_tag::sysres_add(size_t n)

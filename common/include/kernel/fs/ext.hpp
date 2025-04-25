@@ -602,6 +602,8 @@ public:
     virtual uint64_t num_files() const noexcept override;
     virtual uint64_t num_subdirs() const noexcept override;
     virtual std::vector<std::string> lsdir() const override;
+    virtual size_t readdir(std::vector<tnode*>& out_vec) override;
+    virtual uint64_t size() const noexcept override;
     virtual bool fsync() override;
     virtual bool initialize() override;
     bool init_dir_blank(ext_directory_vnode* parent);
@@ -633,7 +635,7 @@ struct ext_block_group
 };
 class extfs : public filesystem
 {
-protected:    
+protected:
     std::set<ext_file_vnode> file_nodes;
     std::set<ext_directory_vnode> dir_nodes;
     std::vector<ext_block_group> block_groups;
@@ -653,6 +655,7 @@ protected:
     virtual void syncdirs() override;
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
+    virtual target_pair get_parent(std::string const& path, bool create) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* on_open(tnode* fd) override;
     ext_jbd2_mode journal_mode() const;
@@ -665,6 +668,8 @@ protected:
     bool update_free_inode_count(int diff);
     bool persist_sb();
 public:
+    virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out) override;
+    virtual directory_node* open_directory(std::string const& path, bool create = true) override;
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);
     void allocate_block_buffer(disk_block& bl);

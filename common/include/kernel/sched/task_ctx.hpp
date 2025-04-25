@@ -6,6 +6,8 @@
 #include "kernel/shared_object_map.hpp"
 #include "kernel/elf64_exec.hpp"
 #include "sys/times.h"
+#include "fs/posix_dirent.hpp"
+#include "map"
 #include "compare"
 #include "vector"
 #include "array"
@@ -59,6 +61,7 @@ struct task_ctx
     addr_t rt_argv_ptr{ nullptr };
     addr_t rt_env_ptr{ nullptr };
     task_signal_info_t task_sig_info{};
+    std::map<int, posix_directory> opened_directories{};
     task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(task_ctx const& that);

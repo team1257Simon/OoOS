@@ -7,10 +7,11 @@ char* ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_d
 uint64_t ext_directory_vnode::num_files() const noexcept { return __n_files; }
 uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs; }
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode const& tn : __my_dir) result.push_back(tn.name()); return result; }
+size_t ext_directory_vnode::readdir(std::vector<tnode*>& out_vec) { size_t result = 0UL; for(tnode& tn : __my_dir) { out_vec.push_back(std::addressof(tn)); ++result; } return result; }
+uint64_t ext_directory_vnode::size() const noexcept { return __my_dir.size(); }
 bool ext_directory_vnode::fsync() { return parent_fs->persist(this); }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
-tnode* ext_directory_vnode::add(fs_node* n) { return __my_dir.emplace(n, std::move(std::to_string(n->cid()))).first.base(); /* fast-track tnodes for newly-created files; dirents will be separately made */ }
 ext_file_vnode::size_type ext_file_vnode::read(pointer dest, size_type n) { return sgetn(dest, n); }
 ext_file_vnode::size_type ext_file_vnode::write(const_pointer src, size_type n) { size_t result = ext_vnode::xsputn(src, n); return result && fsync() ? result : 0; }
 ext_file_vnode::pos_type ext_file_vnode::seek(off_type off, std::ios_base::seekdir way) { return std::ext::dynamic_streambuf<char>::seekoff(off, way); }
@@ -27,6 +28,7 @@ ext_vnode::~ext_vnode() = default;
 void ext_vnode::on_modify() { if(__beg()) { __fullsetp(__beg(), __cur(), __max()); setg(__beg(), __cur(), __max()); } }
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
+tnode* ext_directory_vnode::add(fs_node* n) { for(tnode& node : __my_dir) { if(node.ptr() == n) return std::addressof(node); } return nullptr; }
 bool ext_file_vnode::fsync() 
 {
     size_t updated_size = __size();

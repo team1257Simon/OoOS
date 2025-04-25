@@ -244,7 +244,8 @@ task_ctx::task_ctx(task_ctx const& that) :
     local_so_map            { that.local_so_map },
     rt_argv_ptr             { that.rt_argv_ptr },
     rt_env_ptr              { that.rt_env_ptr },
-    task_sig_info           {}
+    task_sig_info           {},
+    opened_directories      { that.opened_directories }
                             {}
 task_ctx::task_ctx(task_ctx&& that) :
     task_struct             { that.task_struct },
@@ -270,7 +271,8 @@ task_ctx::task_ctx(task_ctx&& that) :
     local_so_map            { std::move(that.local_so_map) },
     rt_argv_ptr             { std::move(that.rt_argv_ptr) },
     rt_env_ptr              { std::move(that.rt_env_ptr) },
-    task_sig_info           { std::move(that.task_sig_info) }
+    task_sig_info           { std::move(that.task_sig_info) },
+    opened_directories      { std::move(that.opened_directories) }
     { 
         array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / 8)); 
         task_struct.self = this;
@@ -423,6 +425,10 @@ bool task_ctx::set_fork()
         program_handle = prog_manager::get_instance().clone(program_handle);
         if(!program_handle) return false;
         program_handle->on_copy(new_frame);
+        if(opened_directories.empty()) return true;
+        std::map<int, posix_directory> old_dirs{ std::move(opened_directories) };
+        opened_directories.clear();
+        for(std::map<int, posix_directory>::iterator i = old_dirs.begin(); i != old_dirs.end(); i++) { opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(i->first), std::forward_as_tuple(new_frame, i->second.get_base_vaddr())); }
         return true;
     }
     catch(std::exception& e) { panic(e.what()); return false; }
@@ -482,6 +488,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
     };
     arg_vec = std::move(args);
     env_vec = std::move(env);
+    opened_directories.clear();
     init_task_state();
     return true;
 }

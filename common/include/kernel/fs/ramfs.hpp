@@ -15,7 +15,9 @@ public:
     virtual bool unlink(std::string const& what) override;
     virtual uint64_t num_files() const noexcept override;
     virtual uint64_t num_subdirs() const noexcept override;
-    virtual std::vector<std::string> lsdir() const;
+    virtual std::vector<std::string> lsdir() const override;
+    virtual size_t readdir(std::vector<tnode*>& out_vec) override;
+    virtual uint64_t size() const noexcept override;
     ramfs_directory_inode(std::string const& name, int fd);
     virtual bool fsync() override;
 };

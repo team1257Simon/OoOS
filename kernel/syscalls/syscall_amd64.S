@@ -43,6 +43,9 @@
     .extern                         syscall_raise
     .extern                         syscall_sigprocmask
     .extern                         syscall_mkdir
+    .extern                         syscall_opendir
+    .extern                         syscall_fdopendir
+    .extern                         syscall_closedir
     .extern                         on_invalid_syscall
     .global                         syscall_vec
     .type   do_syscall,             @function
@@ -86,6 +89,9 @@
     .type   syscall_raise,			@function
     .type   syscall_sigprocmask,	@function
     .type   syscall_mkdir,          @function
+    .type   syscall_opendir,        @function
+    .type   syscall_fdopendir,      @function
+    .type   syscall_closedir,       @function
     .type   on_invalid_syscall,     @function
     .type   syscall_vec,            @object
     .type   syscv_end,              @object
@@ -132,6 +138,9 @@ syscall_vec:
     .quad syscall_raise             // 37
     .quad syscall_sigprocmask       // 38
     .quad syscall_mkdir             // 39
+    .quad syscall_opendir           // 40
+    .quad syscall_fdopendir         // 41
+    .quad syscall_closedir          // 42
 syscv_end:
     .quad on_invalid_syscall        // handler for out-of-range syscalls
     .size syscall_vec,              .-syscall_vec    

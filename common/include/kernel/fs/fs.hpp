@@ -161,6 +161,7 @@ struct directory_node : public fs_node
     virtual uint64_t num_files() const noexcept = 0;
     virtual uint64_t num_subdirs() const noexcept = 0;
     virtual std::vector<std::string> lsdir() const = 0;
+    virtual size_t readdir(std::vector<tnode*>& out_vec) = 0;
     virtual bool is_directory() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool is_empty() const noexcept;
@@ -254,19 +255,21 @@ protected:
     virtual void on_close(file_node*);
     virtual bool xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
-    virtual target_pair get_parent(std::string const& path, bool create);    
+    virtual target_pair get_parent(std::string const& path, bool create);
     virtual void dldevnode(device_node*);
     virtual device_node* mkdevnode(directory_node*, std::string const&, device_node::device_buffer*, int fd_number_hint);
+    void register_fd(fs_node* node);
 public:
     virtual device_node* lndev(std::string const& where, device_node::device_buffer* what, int fd_number_hint, bool create_parents = true);
     virtual file_node* on_open(tnode*);
+    virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
+    virtual directory_node* open_directory(std::string const& path, bool create = true);
     void link_stdio(device_node::device_buffer* target);
+    fs_node* find_node(std::string const& path);
     fs_node* get_fd_node(int fd);
     file_node* get_file(int fd);      
-    file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     file_node* get_file(std::string const& path);
-    directory_node* get_directory(std::string const& path, bool create = true);
     directory_node* get_directory(int fd);
     directory_node* get_directory_or_null(std::string const& path, bool create = true) noexcept;
     void close_file(file_node* fd);
@@ -276,8 +279,6 @@ public:
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     filesystem();
     ~filesystem();
-private:
-    void __put_fd(fs_node* node);
 };
 filesystem* create_task_vfs();
 filesystem* get_fs_instance();
