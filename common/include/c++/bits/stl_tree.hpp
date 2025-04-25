@@ -280,7 +280,7 @@ namespace std
         constexpr ~__tree_base() { __recursive_destroy_base(); }
         constexpr __tree_base() : __tree_trunk{}, __alloc{} {}
         template<matching_input_iterator<T> IT> constexpr __tree_base(IT st, IT ed) : __tree_base{} { this->__insert_range_unique(st, ed); }
-        constexpr __tree_base(__tree_base const& that) : __tree_base{ that.__l_begin(), that.__end() } {}
+        constexpr __tree_base(__tree_base const& that) : __tree_base(__const_iterator(that.__l_begin()), __const_iterator(that.__end())) {}
         constexpr __tree_base(__tree_base&& that) : __tree_trunk{ forward<__tree_trunk>(that) }, __alloc{} {}
         constexpr __tree_base& operator=(__tree_base const& that) { __clear();  this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
         constexpr __tree_base& operator=(__tree_base&& that) { __clear(); this->__trunk = that.__trunk; this->__count = that.__count; return *this; }

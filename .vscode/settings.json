@@ -116,6 +116,7 @@
         "string.h": "c",
         "errno.h": "c",
         "*.hpp": "cpp",
-        "signal.h": "c"
+        "signal.h": "c",
+        "types.h": "c"
     }
 }

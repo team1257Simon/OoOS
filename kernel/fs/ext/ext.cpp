@@ -286,9 +286,7 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
         }
         else throw std::runtime_error{ "failed to create file: " + path }; 
     }
-    else { result = node->as_file(); }
-    if(!result->chk_lock()) { throw std::domain_error{ "file " + path + " is in use" }; }
-    result->acq_lock();
+    else result = node->as_file();
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
     if(!current_open_files.contains(result->vid())) { register_fd(result); }
     return result;

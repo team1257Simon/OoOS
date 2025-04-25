@@ -147,9 +147,6 @@ public:
     virtual pos_type seek(pos_type) = 0;
     virtual pos_type tell() const = 0;
     virtual bool is_file() const noexcept final override;
-    virtual bool chk_lock() const noexcept;
-    virtual void acq_lock();
-    virtual void rel_lock();
     file_node(std::string const& name, int vfd, uint64_t cid);    
 };
 struct directory_node : public fs_node

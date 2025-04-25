@@ -32,9 +32,9 @@ int fd_map::add_fd(fs_node* node)
     return node->fd;
 }
 void filesystem::close_file(file_node* fd) 
-{ 
-    on_close(fd);
-    fd->rel_lock();
+{
+    if(fd && fd->is_file())
+        on_close(fd);
     syncdirs();
 }
 void filesystem::on_close(file_node* fd)
@@ -161,8 +161,6 @@ file_node* filesystem::open_file(std::string const& path, std::ios_base::openmod
         }
         else throw std::runtime_error{ "failed to create file: " + path }; 
     }
-    if(!node->as_file()->chk_lock()) { throw std::domain_error{ "file " + path + " is in use" }; }
-    node->as_file()->acq_lock();
     file_node* result = on_open(node);
     register_fd(result);
     return result;

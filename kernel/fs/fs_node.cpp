@@ -19,9 +19,6 @@ size_t fs_node::num_refs() const noexcept { return refs.size(); }
 fs_node::~fs_node() { prune_refs(); }
 file_node::file_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 bool file_node::is_file() const noexcept { return true; }
-bool file_node::chk_lock() const noexcept { return !test_lock(std::addressof(__my_lock)); }
-void file_node::acq_lock() { acquire(std::addressof(__my_lock)); }
-void file_node::rel_lock() { release(std::addressof(__my_lock)); }
 directory_node::directory_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 bool directory_node::is_directory() const noexcept { return true; }
 uint64_t directory_node::size() const noexcept { return num_files() + num_subdirs(); }
