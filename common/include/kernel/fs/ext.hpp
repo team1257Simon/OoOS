@@ -596,6 +596,7 @@ public:
     bool add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual tnode* find(std::string const&) override;
+    virtual tnode* find_l(std::string const&) override;
     virtual bool link(tnode* original, std::string const& target) override;
     virtual tnode* add(fs_node* n) override;
     virtual bool unlink(std::string const& name) override;
@@ -655,7 +656,7 @@ protected:
     virtual void syncdirs() override;
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
-    virtual target_pair get_parent(std::string const& path, bool create) override;
+    virtual target_pair get_parent(directory_node* start, std::string const& path, bool create) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* on_open(tnode* fd) override;
     ext_jbd2_mode journal_mode() const;

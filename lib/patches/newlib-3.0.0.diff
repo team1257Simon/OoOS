@@ -79,7 +79,7 @@ index 24d13f344..f1884d1f0 100644
          case $cc_basename in
            KCC*)
 diff --git a/newlib/configure.host b/newlib/configure.host
-index 5005d38c6..4452d1f2f 100644
+index 5005d38c6..a3a2f45b5 100644
 --- a/newlib/configure.host
 +++ b/newlib/configure.host
 @@ -401,6 +401,12 @@ case "${host}" in
@@ -95,13 +95,14 @@ index 5005d38c6..4452d1f2f 100644
    *) ;; #shared library not supported for ${host}
  esac
  
-@@ -460,6 +466,10 @@ case "${host}" in
+@@ -460,6 +466,11 @@ case "${host}" in
    d30v*)
  	sys_dir=
  	;;
 +  *-*-ooos*)
 +    sys_dir=ooos
-+	newlib_cflags="${newlib_cflags} -fPIC -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -D_I386MACH_NEED_SOTYPE_FUNCTION -DHAVE_MKDIR"
++	posix_dir=posix
++	newlib_cflags="${newlib_cflags} -fPIC -DHAVE_MMAP=1 -DSIGNAL_PROVIDED -D_I386MACH_NEED_SOTYPE_FUNCTION -DHAVE_MKDIR -DHAVE_OPENDIR -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN -D_NO_GLOB"
 +    ;;
    epiphany-*-*)
  	sys_dir=epiphany
@@ -163,6 +164,84 @@ index c59d4e3ba..490ed5832 100644
 +
  AC_CONFIG_FILES([Makefile])
  AC_OUTPUT
+diff --git a/newlib/libc/posix/execl.c b/newlib/libc/posix/execl.c
+index c3b4e55bd..5e6732044 100644
+--- a/newlib/libc/posix/execl.c
++++ b/newlib/libc/posix/execl.c
+@@ -34,6 +34,6 @@ execl (const char *path,
+   while (argv[i++] != NULL);
+   va_end (args);
+ 
+-  return _execve (path, (char * const  *) argv, *p_environ);
++  return execve (path, (char * const  *) argv, *p_environ);
+ }
+ #endif /* !_NO_EXECVE  */
+diff --git a/newlib/libc/posix/execle.c b/newlib/libc/posix/execle.c
+index 34f0ea373..11e8237d4 100644
+--- a/newlib/libc/posix/execle.c
++++ b/newlib/libc/posix/execle.c
+@@ -31,7 +31,7 @@ execle (const char *path,
+   envp = va_arg (args, const char * const *);
+   va_end (args);
+ 
+-  return _execve (path, (char * const *) argv, (char * const *) envp);
++  return execve (path, (char * const *) argv, (char * const *) envp);
+ }
+ 
+ #endif /* !_NO_EXECVE  */
+diff --git a/newlib/libc/posix/execv.c b/newlib/libc/posix/execv.c
+index 6a1052c26..0e232d4be 100644
+--- a/newlib/libc/posix/execv.c
++++ b/newlib/libc/posix/execv.c
+@@ -17,7 +17,7 @@ int
+ execv (const char *path,
+ 	char * const argv[])
+ {
+-  return _execve (path, (char * const *) argv, *p_environ);
++  return execve (path, (char * const *) argv, *p_environ);
+ }
+ 
+ #endif /* !_NO_EXECVE  */
+diff --git a/newlib/libc/posix/execve.c b/newlib/libc/posix/execve.c
+index 99c145426..e69de29bb 100644
+--- a/newlib/libc/posix/execve.c
++++ b/newlib/libc/posix/execve.c
+@@ -1,20 +0,0 @@
+-#ifndef _NO_EXECVE
+-
+-/* execve.c */
+-
+-/* This and the other exec*.c files in this directory require 
+-   the target to provide the _execve syscall.  */
+-
+-
+-#include <unistd.h>
+-
+-
+-int
+-execve (const char *path,
+-      char * const argv[],
+-      char * const envp[])
+-{
+-  return _execve (path, argv, envp);
+-}
+-
+-#endif /* !_NO_EXECVE  */
+diff --git a/newlib/libc/posix/isatty.c b/newlib/libc/posix/isatty.c
+index 8a6740a55..e69de29bb 100644
+--- a/newlib/libc/posix/isatty.c
++++ b/newlib/libc/posix/isatty.c
+@@ -1,10 +0,0 @@
+-/* isatty.c */
+-
+-#include <unistd.h>
+-#include <reent.h>
+-
+-int
+-isatty (int fd)
+-{
+-  return _isatty (fd);
+-}
 diff --git a/newlib/libc/stdlib/strtorx.c b/newlib/libc/stdlib/strtorx.c
 index a35dabefe..4faed8542 100644
 --- a/newlib/libc/stdlib/strtorx.c

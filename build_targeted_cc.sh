@@ -61,9 +61,6 @@ cd $BUILD_DIR/build-newlib
 ../newlib/configure --target=x86_64-ooos --prefix=$PREFIX --with-sysroot=$SYSROOT --enable-shared --enable-host-shared
 make && make install
 cd $BUILD_DIR
-if [ -e "$BUILD_DIR/linked_cc" ] then
-    unlink $PREFIX/bin/x86_64-ooos-gcc
-fi
 git clone https://gcc.gnu.org/git/gcc.git
 cd gcc
 git checkout releases/gcc-14.2.0

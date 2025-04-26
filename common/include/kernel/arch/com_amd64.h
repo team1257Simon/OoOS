@@ -162,6 +162,7 @@ class com_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual st
     using typename __base::__ptr_container;
     bool __mode_echo{ true };
     std::streamsize __pos_echo{ 0UL };
+    uint32_t __dev_id{ 0U };
     void __do_echo();
 public:
     using typename __base::traits_type;
@@ -183,6 +184,7 @@ public:
     com_amd64(com_amd64 const&) = delete;
     com_amd64& operator=(com_amd64 const&) = delete;
     void set_echo(bool mode) noexcept;
+    constexpr uint32_t get_device_id() const { return __dev_id; }
 };
 #endif
 #endif

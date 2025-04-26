@@ -8,6 +8,7 @@
 #include "kdebug.hpp"
 #include "rtc.h"
 #include "keyboard_driver.hpp"
+#include "device_registry.hpp"
 #include "sched/task_ctx.hpp"
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
@@ -244,7 +245,7 @@ void vfs_tests()
         file_node* n = testramfs.open_file("test/files/memes.txt");
         n->write("sweet dreams are made of memes\n", 31);
         testramfs.close_file(n);
-        file_node* testout = testramfs.lndev("dev/com", com, 0, true);
+        file_node* testout = testramfs.lndev("dev/console", 0, com->get_device_id());
         n = testramfs.open_file("test/files/memes.txt");
         char teststr[32](0);
         // test device and file inodes
@@ -311,7 +312,7 @@ void extfs_tests()
         test_extfs.initialize();
         test_extfs.open_directory("files");
         file_node* fn = test_extfs.open_file("files/memes.txt");
-        fn->write("derple blerple", 14);
+        fn->write("derple blerple\n", 15);
         test_extfs.close_file(fn);
         startup_tty.print_line("Wrote files/memes.txt");
     }
@@ -348,7 +349,7 @@ void elf64_tests()
         test_extfs.close_file(tst);
         if(test_exec)
         {
-            file_node* c = testramfs.lndev("com", com, 0);
+            file_node* c = test_extfs.lndev("/dev/console", 0, com->get_device_id());
             elf64_program_descriptor const& desc = test_exec->describe();
             startup_tty.print_line("Entry at " + std::to_string(desc.entry));
             sch.start();

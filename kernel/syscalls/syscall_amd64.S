@@ -46,6 +46,9 @@
     .extern                         syscall_opendir
     .extern                         syscall_fdopendir
     .extern                         syscall_closedir
+    .extern                         syscall_lstat
+    .extern                         syscall_mknod
+    .extern                         syscall_mknodat
     .extern                         on_invalid_syscall
     .global                         syscall_vec
     .type   do_syscall,             @function
@@ -92,6 +95,9 @@
     .type   syscall_opendir,        @function
     .type   syscall_fdopendir,      @function
     .type   syscall_closedir,       @function
+    .type   syscall_lstat,          @function
+    .type   syscall_mknod,          @function
+    .type   syscall_mknodat,        @function
     .type   on_invalid_syscall,     @function
     .type   syscall_vec,            @object
     .type   syscv_end,              @object
@@ -141,6 +147,9 @@ syscall_vec:
     .quad syscall_opendir           // 40
     .quad syscall_fdopendir         // 41
     .quad syscall_closedir          // 42
+    .quad syscall_lstat             // 43
+    .quad syscall_mknod             // 44
+    .quad syscall_mknodat           // 45
 syscv_end:
     .quad on_invalid_syscall        // handler for out-of-range syscalls
     .size syscall_vec,              .-syscall_vec    

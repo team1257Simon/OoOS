@@ -31,8 +31,8 @@ constexpr uint8_t start_bit = 0u;
 constexpr uint8_t descriptor_processed_bit = 5u;
 constexpr uint8_t soft_reset_bit = 0b10;
 constexpr uint8_t nien_bit = 0b1;
-constexpr uint8_t dev_class_ahci = 1;
-constexpr uint8_t subclass_ahci_controller = 6;
+constexpr uint8_t dev_class_storage_controller = 1;
+constexpr uint8_t subclass_sata_controller = 6;
 constexpr uint64_t max_wait = 10000000uL;
 constexpr uint64_t max_ext_wait = max_wait * max_wait;
 constexpr uint8_t i_state_hi_byte_error = 0x78u;
@@ -402,7 +402,7 @@ typedef volatile struct tmem
 } __pack hba_mem;
 class ahci
 {
-    pci_config_space* __my_ahci_controller { nullptr };
+    pci_config_space* __my_ahci_controller{ nullptr };
     hba_mem* __my_abar{ nullptr }; // this will be stored in the BAR numbered 5
     ahci_device __my_devices[32]{ none };
     size_t __num_ports{};

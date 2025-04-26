@@ -35,6 +35,8 @@ typedef unsigned long sigset_t;
 #define SYSCVEC_N_opendir        40
 #define SYSCVEC_N_fdopendir      41
 #define SYSCVEC_N_closedir       42
+#define SYSCVEC_N_lstat          43
+#define SYSCVEC_N_mknod          44
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict

@@ -27,6 +27,16 @@ int main(int argc, char** argv)
         printf("mmap failed; error code %i\n", errno);
         return errno;
     }
+    FILE* f = fopen("/files/dreams.txt", "w+");
+    if(f)
+    {
+        fprintf(f, "blerple derple\n");
+        fclose(f);
+    }
+    else
+    {
+        printf("no file D:\n");
+    }
     pid_t pid = fork();
     printf("forked\n");
     int rv = 0;

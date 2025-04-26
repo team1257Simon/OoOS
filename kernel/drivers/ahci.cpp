@@ -94,7 +94,7 @@ bool ahci::init_instance(pci_device_list* ls) noexcept
 {
     if(__has_init) return true;
     if(!ls) return false;
-    return (__has_init = __instance.init(ls->find(dev_class_ahci, subclass_ahci_controller)));
+    return (__has_init = __instance.init(ls->find(dev_class_storage_controller, subclass_sata_controller)));
 }
 bool ahci::init(pci_config_space* ps) noexcept
 {

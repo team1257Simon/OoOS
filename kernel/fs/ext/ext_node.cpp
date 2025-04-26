@@ -9,7 +9,7 @@ uint64_t ext_directory_vnode::num_subdirs() const noexcept { return __n_subdirs;
 std::vector<std::string> ext_directory_vnode::lsdir() const { std::vector<std::string> result{}; for(tnode const& tn : __my_dir) result.push_back(tn.name()); return result; }
 size_t ext_directory_vnode::readdir(std::vector<tnode*>& out_vec) { size_t result = 0UL; for(tnode& tn : __my_dir) { out_vec.push_back(std::addressof(tn)); ++result; } return result; }
 uint64_t ext_directory_vnode::size() const noexcept { return __my_dir.size(); }
-bool ext_directory_vnode::fsync() { return parent_fs->persist(this); }
+bool ext_directory_vnode::fsync() { on_disk_node->mode = mode; return parent_fs->persist(this); }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
 ext_file_vnode::size_type ext_file_vnode::read(pointer dest, size_type n) { return sgetn(dest, n); }
@@ -29,6 +29,12 @@ void ext_vnode::on_modify() { if(__beg()) { __fullsetp(__beg(), __cur(), __max()
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
 tnode* ext_directory_vnode::add(fs_node* n) { for(tnode& node : __my_dir) { if(node.ptr() == n) return std::addressof(node); } return nullptr; }
+tnode* ext_directory_vnode::find_l(std::string const& name)
+{
+    if(!initialize()) return nullptr;
+    if(tnode_dir::iterator i = __my_dir.find(name); i != __my_dir.end()) return i.base();
+    return nullptr;
+}
 bool ext_file_vnode::fsync() 
 {
     size_t updated_size = __size();
@@ -43,6 +49,7 @@ bool ext_file_vnode::fsync()
     modif_time = timestamp;
     on_disk_node->modified_time = timestamp.lo;
     on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
+    on_disk_node->mode = mode;
     return parent_fs->persist(this); 
 }
 tnode* ext_directory_vnode::find(std::string const& name) 

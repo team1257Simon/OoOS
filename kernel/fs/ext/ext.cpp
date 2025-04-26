@@ -245,33 +245,32 @@ file_node* extfs::on_open(tnode* fd)
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) { exfn->initialize(); }
     return n;
 }
-filesystem::target_pair extfs::get_parent(std::string const& path, bool create)
+filesystem::target_pair extfs::get_parent(directory_node* start, std::string const& path, bool create)
 {
     std::vector<std::string> pathspec = std::ext::split(path, path_separator());
     if(pathspec.empty()) throw std::logic_error{ "empty path" };
-    directory_node* node = get_root_directory();
     for(size_t i = 0; i < pathspec.size() - 1; i++)
     {
         if(pathspec[i].empty()) continue;
-        tnode* cur = node->find(pathspec[i]);
+        tnode* cur = start->find(pathspec[i]);
         if(!cur) 
         {
             if(create) 
             {
-                directory_node* created = mkdirnode(node, pathspec[i]);
-                if(!node) throw std::runtime_error{ "failed to create " + pathspec[i] };
-                node = created; 
+                directory_node* created = mkdirnode(start, pathspec[i]);
+                if(!start) throw std::runtime_error{ "failed to create " + pathspec[i] };
+                start = created; 
             } 
             else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)" }; } 
         }
-        else if(cur->is_directory()) node = cur->as_directory();
+        else if(cur->is_directory()) start = cur->as_directory();
         else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
     }
-    return target_pair(std::piecewise_construct, std::forward_as_tuple(node), std::forward_as_tuple(pathspec.back()));
+    return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
 }
 file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode)
 {
-    target_pair parent = get_parent(path, false);
+    target_pair parent = filesystem::get_parent(path, false);
     tnode* node = parent.first->find(parent.second);
     if(node && node->is_directory()) throw std::logic_error{ "path " + path + " exists and is a directory" };
     file_node* result;
@@ -294,7 +293,7 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
 directory_node* extfs::open_directory(std::string const& path, bool create)
 {
     if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
-    target_pair parent = get_parent(path, create);
+    target_pair parent = filesystem::get_parent(path, create);
     tnode* node = parent.first->find(parent.second);
     directory_node* result;
     if(!node)
@@ -545,7 +544,7 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
 }
 tnode* extfs::get_path(std::string const& path_str)
 {
-    target_pair p = get_parent(path_str, false);
+    target_pair p = filesystem::get_parent(path_str, false);
     // TODO check for loops in symlink paths; this probably means overriding get_parent
     if(p.first) return p.first->find(p.second);
     return nullptr;

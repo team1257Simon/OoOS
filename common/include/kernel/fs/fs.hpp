@@ -11,6 +11,7 @@
 #include "bits/hash_set.hpp"
 #include "vector"
 #include "set"
+#include "device_registry.hpp"
 #include "ext/dynamic_streambuf.hpp"
 #include "sys/stat.h"
 struct file_mode
@@ -159,6 +160,7 @@ struct directory_node : public fs_node
     virtual uint64_t num_subdirs() const noexcept = 0;
     virtual std::vector<std::string> lsdir() const = 0;
     virtual size_t readdir(std::vector<tnode*>& out_vec) = 0;
+    virtual tnode* find_l(std::string const&);
     virtual bool is_directory() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool is_empty() const noexcept;
@@ -175,9 +177,10 @@ class device_node : public file_node
 	using file_node::pointer;
 	using file_node::const_pointer;
 public:
-    using device_buffer = std::ext::dynamic_streambuf<char>;
+    using device_buffer = device_stream;
 private:
-    device_buffer* __my_device;
+    device_stream* __dev_buffer;
+    dev_t __dev_id;
 public:
     virtual size_type write(const_pointer src, size_type n) override;
     virtual size_type read(pointer dest, size_type n) override;
@@ -187,7 +190,8 @@ public:
     virtual bool fsync() override;
     virtual bool is_device() const noexcept final override;
     virtual uint64_t size() const noexcept override;
-    device_node(std::string const& name, int fd, device_buffer* dev_buffer);
+    device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
+    constexpr dev_t get_device_id() const noexcept { return __dev_id; }
 };
 class tnode
 {
@@ -252,17 +256,19 @@ protected:
     virtual void on_close(file_node*);
     virtual bool xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
-    virtual target_pair get_parent(std::string const& path, bool create);
+    virtual target_pair get_parent(directory_node* node, std::string const& path, bool create);
     virtual void dldevnode(device_node*);
-    virtual device_node* mkdevnode(directory_node*, std::string const&, device_node::device_buffer*, int fd_number_hint);
+    virtual device_node* mkdevnode(directory_node* parent, std::string const& name, int fd, dev_t id);
     void register_fd(fs_node* node);
+    target_pair get_parent(std::string const& path, bool create);
 public:
-    virtual device_node* lndev(std::string const& where, device_node::device_buffer* what, int fd_number_hint, bool create_parents = true);
+    virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true);
     virtual file_node* on_open(tnode*);
     virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     virtual directory_node* open_directory(std::string const& path, bool create = true);
-    void link_stdio(device_node::device_buffer* target);
-    fs_node* find_node(std::string const& path);
+    bool link_stdio(dev_t device_id);
+    fs_node* find_node(std::string const& path, bool ignore_links = false);
+    void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev);
     fs_node* get_fd_node(int fd);
     file_node* get_file(int fd);      
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
@@ -274,6 +280,7 @@ public:
     std::string get_path_separator() const noexcept;
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
+    void pubsyncdirs();
     filesystem();
     ~filesystem();
 };
@@ -294,5 +301,8 @@ extern "C"
     int syscall_fchmod(int fd, mode_t m);                                   // int fchmod(int fd, mode_t m);
     int syscall_chmod(const char* name, mode_t m);                          // int chmod(const char* name, mode_t m);
     int syscall_mkdir(const char* path, mode_t m);                          // int mkdir(const char* path, mode_t m);
+    int syscall_lstat(char* name, stat* st);
+    int syscall_mknod(char* name, mode_t mode, dev_t dev);
+    int syscall_mknodat(int fd, char* name, mode_t mode, dev_t dev);
 }
 #endif

@@ -1,4 +1,5 @@
 #include "arch/com_amd64.h"
+#include "device_registry.hpp"
 #include "isr_table.hpp"
 #include "string"
 // https://raw.githubusercontent.com/marcv81/termcap/master/termcap.src under "linux" for these control codes
@@ -15,8 +16,8 @@ std::streamsize com_amd64::sector_size() { return std::streamsize(16UL); }
 std::streamsize com_amd64::unread_size() { return __qrem(); }
 void com_amd64::set_echo(bool mode) noexcept { __mode_echo = mode; }
 com_amd64* com_amd64::get_instance() { return std::addressof(__instance); }
-com_amd64::pos_type com_amd64::seekpos(pos_type pos, std::ios_base::openmode which) { return pos_type(off_type(-1)); }
-com_amd64::pos_type com_amd64::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) { return pos_type(off_type(-1)); }
+com_amd64::pos_type com_amd64::seekpos(pos_type pos, std::ios_base::openmode which) { return which.out ? pos_type(off_type(__cur() - __beg())) : pos_type(off_type(__qcur() - __qbeg())); }
+com_amd64::pos_type com_amd64::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) { return which.out ? pos_type(off_type(__cur() - __beg())) : pos_type(off_type(__qcur() - __qbeg())); }
 __isrcall void com_amd64::on_modify_queue() { ptrdiff_t n = gptr() - eback(); if(n > 0) __qsetn(static_cast<size_t>(n)); if(__qbeg()) setg(__qbeg(), __qcur(), __end()); }
 static void com1_set_baud_divisor(word value)
 {
@@ -102,6 +103,7 @@ bool com_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level,
         init_ier.receive_data = true;
         outb(port_com1_ier, init_ier);
         if(interrupt_table::add_irq_handler(4, std::move(LAMBDA_ISR() { __instance.read_dev(0); }))) irq_clear_mask<4ui8>();
+        try { __instance.__dev_id = device_registry::get_instance().add(std::addressof(__instance), COM); } catch(std::exception& e) { panic(e.what()); return false; }
         return true; 
     }
     else return false;

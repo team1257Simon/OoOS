@@ -10,7 +10,7 @@ noinst_LIBRARIES = lib.a
 SUBLIBS = $(OOOS_MACHINE_LIB) \
 	$(EXTRA_SUBLIBS)
 
-GENERAL_SOURCES = syscalls.c posix_stub.c dirent.c
+GENERAL_SOURCES = syscalls.c posix_stub.c dirent.c jp2uc_weak.c
 
 ADD_OBJS = $(OOOS_MACHINE_LIB)
 
