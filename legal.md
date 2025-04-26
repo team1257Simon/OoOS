@@ -1,4 +1,4 @@
-Legal notices from code taken from various libraries have been extracted to this file to save space.
+Legal notices from code taken from various libraries have been extracted to save space.
 
 ## unwind.h:
 libunwind - a platform-independent unwind library
@@ -30,3 +30,6 @@ libunwind - a platform-independent unwind library
     Copyright (c) 1994
     Hewlett-Packard Company
     Permission to use, copy, modify, distribute and sell this software and its documentation for any purpose is hereby granted without fee, provided that the above copyright notice appear in all copies and that both that copyright notice  and this permission notice appear in supporting documentation. Hewlett-Packard Company makes no representations about the suitability of this software for any purpose.  It is provided "as is" without express or implied warranty.
+
+## Newlib (lib/newlib/**):
+    See "COPYING" under lib/newlib. The comments at the top of the files were removed by the preprocessor during the initial import; the stripped files are only being used during development until the full build via libtool produces a usable library (which should be once the OS reaches a certain level of compliance with POSIX)

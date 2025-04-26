@@ -392,7 +392,7 @@ typedef struct __vaddr
         ext         { sign } 
                     {}
     constexpr explicit __vaddr(uint64_t i) noexcept : full{ i } {}
-    constexpr __vaddr(nullptr_t) noexcept : __vaddr{ 0UL } {}
+    constexpr __vaddr(nullptr_t) noexcept : full{ 0UL } {}
     constexpr __vaddr(void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
     constexpr __vaddr(const void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
     constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}

@@ -62,7 +62,7 @@ namespace std
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)
         {
             char_type* ptr = (way == std::ios_base::cur ? this->__cur() : (way == std::ios_base::end ? this->__max() : this->__beg())) + off;
-            if(__builtin_expect(which.in || which.out, true))
+            if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
                 this->__setc(ptr);
                 if(which.in) this->__in_region.__end = ptr;
@@ -71,12 +71,13 @@ namespace std
             }
             return pos_type(off_type(this->__size()));
         }
-        template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
+        template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekpos(pos_type pos, std::ios_base::openmode which)
         {
-            if(__builtin_expect(which.in || which.out, true))
+            char_type* ptr = this->__get_ptr(pos);
+            if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
-                this->__bumpc(off_type(pos));
+                this->__setc(ptr);
                 if(which.in) this->__in_region.__end = this->__cur();
                 if(which.out) this->__out_region.__end = this->__cur();
                 this->on_modify();

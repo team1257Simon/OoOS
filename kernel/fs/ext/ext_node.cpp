@@ -304,11 +304,11 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
     if(disk_block* db = parent_fs->claim_blocks(this))
     {
         if(!expand_buffer(bs * db->chain_len)) return false;
-        __setc(0UL);
+        __setc(static_cast<base_buffer::__size_type>(0));
         ext_dir_entry* dirent = __current_ent();
         dirent->entry_size = 12;
         __write_dir_entry(this, dti_dir, ".", 1);
-        __bumpc(12);
+        __bumpc(static_cast<base_buffer::__diff_type>(12));
         dirent = __current_ent();
         dirent->entry_size = bs - 24; // need 12 bytes at the end for the checksum
         __write_dir_entry(parent, dti_dir, "..", 2);

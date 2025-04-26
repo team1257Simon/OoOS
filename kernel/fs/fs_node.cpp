@@ -28,7 +28,7 @@ device_node::device_node(std::string const& name, int fd, device_buffer* dev_buf
 bool device_node::fsync() { return __my_device->pubsync() == 0; }
 bool device_node::is_device() const noexcept { return true; }
 uint64_t device_node::size() const noexcept { return __my_device->in_avail(); }
-device_node::pos_type device_node::tell() const { return __my_device->tell(); }
+device_node::pos_type device_node::tell() const { return __my_device->pubseekoff(0L, std::ios_base::cur); }
 device_node::size_type device_node::write(const_pointer src, size_type n) { size_type result = __my_device->sputn(src, n); if(result) sys_time(std::addressof(modif_time)); return result; }
 device_node::size_type device_node::read(pointer dest, size_type n) { return __my_device->sgetn(dest, n); }
 device_node::pos_type device_node::seek(off_type off, std::ios_base::seekdir way) { return __my_device->pubseekoff(off, way); }

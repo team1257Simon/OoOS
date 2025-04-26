@@ -4,7 +4,8 @@
 #include "kernel/isr_table.hpp"
 #include "atomic"
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 struct rtc_time
 {
