@@ -56,17 +56,17 @@ int __lo0bits_d2a(uilong* y)
         return 2;
     }
     k = 0;
-    if(!(x & 0xffff))
+    if(!(x & 0xFFFF))
     {
         k = 16;
         x >>= 16;
     }
-    if(!(x & 0xff))
+    if(!(x & 0xFF))
     {
         k += 8;
         x >>= 8;
     }
-    if(!(x & 0xf))
+    if(!(x & 0xF))
     {
         k += 4;
         x >>= 4;
@@ -98,7 +98,7 @@ big_int* __multadd_d2a(big_int* b, int m, int a)
     do {
         y     = *x * (unsigned long long)m + carry;
         carry = y >> 32;
-        *x++  = y & 0xffffffffUL;
+        *x++  = y & 0xFFFFFFFFUL;
     } while(++i < wds);
     if(carry)
     {
@@ -118,22 +118,22 @@ big_int* __multadd_d2a(big_int* b, int m, int a)
 int __hi0bits_d2a(uilong x)
 {
     int k = 0;
-    if(!(x & 0xffff0000))
+    if(!(x & 0xFFFF0000))
     {
         k = 16;
         x <<= 16;
     }
-    if(!(x & 0xff000000))
+    if(!(x & 0xFF000000))
     {
         k += 8;
         x <<= 8;
     }
-    if(!(x & 0xf0000000))
+    if(!(x & 0xF0000000))
     {
         k += 4;
         x <<= 4;
     }
-    if(!(x & 0xc0000000))
+    if(!(x & 0xC0000000))
     {
         k += 2;
         x <<= 2;
@@ -190,7 +190,7 @@ big_int* __mult_d2a(big_int* a, big_int* b)
             do {
                 z     = *x++ * (unsigned long long)y + *xc + carry;
                 carry = z >> 32;
-                *xc++ = z & 0xffffffffUL;
+                *xc++ = z & 0xFFFFFFFFUL;
             } while(x < xae);
             *xc = carry;
         }
@@ -326,7 +326,7 @@ big_int* __diff_d2a(big_int* a, big_int* b)
     do {
         y      = (unsigned long long)*xa++ - *xb++ - borrow;
         borrow = y >> 32 & 1UL;
-        *xc++  = y & 0xffffffffUL;
+        *xc++  = y & 0xFFFFFFFFUL;
     } while(xb < xbe);
     while(xa < xae)
     {
@@ -350,7 +350,7 @@ double __b2d_d2a(big_int* a, int* e)
     *e  = 32 - k;
     if(k < 11)
     {
-        (&d)->u_l[1] = 0x3ff00000 | y >> (11 - k);
+        (&d)->u_l[1] = 0x3FF00000 | y >> (11 - k);
         w            = xa > xa0 ? *--xa : 0;
         (&d)->u_l[0] = y << ((32 - 11) + k) | w >> (11 - k);
         goto ret_d;
@@ -358,13 +358,13 @@ double __b2d_d2a(big_int* a, int* e)
     z = xa > xa0 ? *--xa : 0;
     if(k -= 11)
     {
-        (&d)->u_l[1] = 0x3ff00000 | y << k | z >> (32 - k);
+        (&d)->u_l[1] = 0x3FF00000 | y << k | z >> (32 - k);
         y            = xa > xa0 ? *--xa : 0;
         (&d)->u_l[0] = z << k | y >> (32 - k);
     }
     else
     {
-        (&d)->u_l[1] = 0x3ff00000 | y;
+        (&d)->u_l[1] = 0x3FF00000 | y;
         (&d)->u_l[0] = z;
     }
 ret_d:
@@ -381,8 +381,8 @@ big_int* __d2b_d2a(double dd, int* e, int* bits)
     b   = __balloc_d2a(1);
     if(b == NULL) return (NULL);
     x = b->x;
-    z = (&d)->u_l[1] & 0xfffff;
-    (&d)->u_l[1] &= 0x7fffffff;
+    z = (&d)->u_l[1] & 0xFFFFF;
+    (&d)->u_l[1] &= 0x7FFFFFFF;
     if((de = (int)((&d)->u_l[1] >> 20)) != 0) z |= 0x100000;
     if((y = (&d)->u_l[0]) != 0)
     {
@@ -404,17 +404,16 @@ big_int* __d2b_d2a(double dd, int* e, int* bits)
     }
     if(de)
     {
-        *e    = de - 1023 - (53 - 1) + k;
+        *e    = de - 1075 + k;
         *bits = 53 - k;
     }
     else
     {
-        *e    = de - 1023 - (53 - 1) + 1 + k;
+        *e    = de - 1074 + k;
         *bits = 32 * i - __hi0bits_d2a((uilong)(x[i - 1]));
     }
     return b;
 }
-const double __bigtens_d2a[]  = {1e16, 1e32, 1e64, 1e128, 1e256};
-const double __tinytens_d2a[] = {1e-16, 1e-32, 1e-64, 1e-128, 1e-256};
-const double __tens_d2a[]     = {1e0,  1e1,  1e2,  1e3,  1e4,  1e5,  1e6,  1e7,  1e8,  1e9,  1e10, 1e11,
-                                 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22};
+const double __bigtens_d2a[]  = { 1e16, 1e32, 1e64, 1e128, 1e256 };
+const double __tinytens_d2a[] = { 1e-16, 1e-32, 1e-64, 1e-128, 1e-256 };
+const double __tens_d2a[]     = { 1e0, 1e1, 1e2, 1e3, 1e4,  1e5,  1e6,  1e7,  1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22};

@@ -15,7 +15,7 @@ void __rshift_d2a(big_int* b, int k)
             y = *x++ >> k;
             while(x < xe)
             {
-                *x1++ = (y | (*x << n)) & 0xffffffff;
+                *x1++ = (y | (*x << n)) & 0xFFFFFFFF;
                 y     = *x++ >> k;
             }
             if((*x1 = y) != 0) x1++;

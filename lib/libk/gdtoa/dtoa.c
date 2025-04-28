@@ -39,7 +39,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     if((i = (int)((&d)->u_l[1] >> 20 & (0x7FF00000 >> 20))) != 0)
     {
         (&d2)->d = (&d)->d;
-        (&d2)->u_l[1] &= 0xFFFFf;
+        (&d2)->u_l[1] &= 0xFFFFF;
         (&d2)->u_l[1] |= 0x3FF00000;
         i -= 1023;
         denorm = 0;
@@ -142,7 +142,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
         }
         else if((j1 = -k) != 0)
         {
-            (&d)->d *= __tens_d2a[j1 & 0xf];
+            (&d)->d *= __tens_d2a[j1 & 0xF];
             for(j = j1 >> 4; j; j >>= 1, i++)
             {
                 if(j & 1)
@@ -254,7 +254,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
     mhi = mlo = 0;
     if(leftright)
     {
-        i = denorm ? be + (1023 + (53 - 1) - 1 + 1) : 1 + 53 - bbits;
+        i = denorm ? be + 1075 : 1 + 53 - bbits;
         b2 += i;
         s2 += i;
         mhi = __i2b_d2a(1);
@@ -309,7 +309,7 @@ char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve
             spec_case = 1;
         }
     }
-    if((i = ((s5 ? 32 - __hi0bits_d2a((uilong)(S->x[S->wds - 1])) : 1) + s2) & 0x1f) != 0) i = 32 - i;
+    if((i = ((s5 ? 32 - __hi0bits_d2a((uilong)(S->x[S->wds - 1])) : 1) + s2) & 0x1F) != 0) i = 32 - i;
     if(i > 4)
     {
         i -= 4;

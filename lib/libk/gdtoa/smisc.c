@@ -5,8 +5,7 @@ big_int* __s2b_d2a(const char* s, int nd0, int nd, uilong y9, int dplen)
     int      i, k;
     int      x, y;
     x = (nd + 8) / 9;
-    for(k = 0, y = 1; x > y; y <<= 1, k++)
-        ;
+    for(k = 0, y = 1; x > y; y <<= 1, k++);
     b = __balloc_d2a(k);
     if(b == NULL) return (NULL);
     b->x[0] = y9;

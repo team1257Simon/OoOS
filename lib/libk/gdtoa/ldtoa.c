@@ -2,7 +2,7 @@
 extern void panic(const char* msg);
 char*       __ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sign, char** rve)
 {
-    fpi              fpi = {64, (-16381) - 64, 16384 - 64, 1, 0};
+    fpi              fpi = { 64, -16445, 16320, 1, 0 };
     int              be, kind;
     char*            ret;
     struct ieee_ext* p = (struct ieee_ext*)ld;
@@ -10,7 +10,7 @@ char*       __ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sig
     void*            vbits = bits;
     *sign                  = p->ext_sign;
     fpi.rounding ^= (fpi.rounding >> 1) & p->ext_sign;
-    be        = p->ext_exp - (16384 - 1) - (64 - 1);
+    be        = p->ext_exp - 16446;
     (bits)[0] = (uint32_t)(p)->ext_fracl;
     (bits)[1] = (uint32_t)(p)->ext_frach;
     (bits)[2] = (uint32_t)(p)->ext_exp;
@@ -30,6 +30,6 @@ char*       __ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sig
     default: panic("ldtoa: classify error"); abort();
     }
     ret = __gdtoa(&fpi, be, vbits, &kind, mode, ndigits, decpt, rve);
-    if(*decpt == -32768) *decpt = 0x7fffffff;
+    if(*decpt == -32768) *decpt = 0x7FFFFFFF;
     return ret;
 }

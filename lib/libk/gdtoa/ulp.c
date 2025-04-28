@@ -3,7 +3,7 @@ double __ulp_d2a(udouble* x)
 {
     int     u_l;
     udouble a;
-    u_l = ((x)->u_l[1] & 0x7ff00000) - (53 - 1) * 0x100000;
+    u_l = ((x)->u_l[1] & 0x7FF00000) - (53 - 1) * 0x100000;
     if(u_l > 0)
     {
         (&a)->u_l[1] = u_l;

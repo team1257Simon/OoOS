@@ -56,7 +56,7 @@ pcheck:
         e1 = n - 0x10;
         while((n = __hexdig_d2a[*++s]) != 0 && n <= 0x19)
         {
-            if(e1 & 0xf8000000) big = 1;
+            if(e1 & 0xF8000000) big = 1;
             e1 = 10 * e1 + n - 0x10;
         }
         if(esign) e1 = -e1;
@@ -105,13 +105,13 @@ pcheck:
         *bp = b = __balloc_d2a(k);
         if(*bp == NULL) return (strtog_nomemory);
         b->wds = n;
-        for(j = 0; j < n0; ++j) b->x[j] = 0xffffffff;
+        for(j = 0; j < n0; ++j) b->x[j] = 0xFFFFFFFF;
         if(n > n0) b->x[j] = 32 >> (32 - (nbits & 31));
         *exp = fpi->emin;
         return strtog_normal | strtog_inexlo;
     }
     n = s1 - s0 - 1;
-    for(k = 0; n > (1 << (5 - 2)) - 1; n >>= 1) k++;
+    for(k = 0; n > (1 << 3) - 1; n >>= 1) k++;
     b = __balloc_d2a(k);
     if(b == NULL) return (strtog_nomemory);
     x   = b->x;
@@ -126,7 +126,7 @@ pcheck:
             u_l  = 0;
             n    = 0;
         }
-        u_l |= (__hexdig_d2a[*s1] & 0x0f) << n;
+        u_l |= (__hexdig_d2a[*s1] & 0xF) << n;
         n += 4;
     }
     *x++   = u_l;

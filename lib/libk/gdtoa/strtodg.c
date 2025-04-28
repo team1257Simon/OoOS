@@ -1,5 +1,5 @@
 #include "gdtoa.h"
-static const int fivesbits[] = {0, 3, 5, 7, 10, 12, 14, 17, 19, 21, 24, 26, 28, 31, 33, 35, 38, 40, 42, 45, 47, 49, 52};
+static const int fivesbits[] = { 0, 3, 5, 7, 10, 12, 14, 17, 19, 21, 24, 26, 28, 31, 33, 35, 38, 40, 42, 45, 47, 49, 52 };
 big_int*         __increment_d2a(big_int* b)
 {
     uilong * x, *xe;
@@ -7,7 +7,7 @@ big_int*         __increment_d2a(big_int* b)
     x  = b->x;
     xe = x + b->wds;
     do {
-        if(*x < (uilong)0xffffffffL)
+        if(*x < (uilong)0xFFFFFFFFL)
         {
             ++*x;
             return b;
@@ -38,7 +38,7 @@ void __decrement_d2a(big_int* b)
             --*x;
             break;
         }
-        *x++ = 0xffffffffL;
+        *x++ = 0xFFFFFFFFL;
     } while(x < xe);
 }
 static int all_on(big_int* b, int n)
@@ -47,8 +47,8 @@ static int all_on(big_int* b, int n)
     x  = b->x;
     xe = x + (n >> 5);
     while(x < xe)
-        if((*x++ & 0xffffffff) != 0xffffffff) return 0;
-    if(n &= 31) return ((*x | (0xffffffff << n)) & 0xffffffff) == 0xffffffff;
+        if((*x++ & 0xFFFFFFFF) != 0xFFFFFFFF) return 0;
+    if(n &= 31) return ((*x | (0xFFFFFFFF << n)) & 0xFFFFFFFF) == 0xFFFFFFFF;
     return 1;
 }
 big_int* __set_ones_d2a(big_int* b, int n)
@@ -67,7 +67,7 @@ big_int* __set_ones_d2a(big_int* b, int n)
     b->wds = k;
     x      = b->x;
     xe     = x + k;
-    while(x < xe) *x++ = 0xffffffff;
+    while(x < xe) *x++ = 0xFFFFFFFF;
     if(n) x[-1] >>= 32 - n;
     return b;
 }
@@ -443,14 +443,14 @@ rv_notOK:
             e1 >>= 4;
             while(e1 >= (1 << (5 - 1)))
             {
-                e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
-                (&rv)->u_l[1] &= ~0x7ff00000;
+                e2 += (((&rv)->u_l[1] & 0x7FF00000) >> 20) - 1023;
+                (&rv)->u_l[1] &= ~0x7FF00000;
                 (&rv)->u_l[1] |= 1023 << 20;
                 (&rv)->d *= __bigtens_d2a[5 - 1];
                 e1 -= 1 << (5 - 1);
             }
-            e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
-            (&rv)->u_l[1] &= ~0x7ff00000;
+            e2 += (((&rv)->u_l[1] & 0x7FF00000) >> 20) - 1023;
+            (&rv)->u_l[1] &= ~0x7FF00000;
             (&rv)->u_l[1] |= 1023 << 20;
             for(j = 0; e1 > 0; j++, e1 >>= 1)
                 if(e1 & 1) (&rv)->d *= __bigtens_d2a[j];
@@ -465,14 +465,14 @@ rv_notOK:
             e1 >>= 4;
             while(e1 >= (1 << (5 - 1)))
             {
-                e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
-                (&rv)->u_l[1] &= ~0x7ff00000;
+                e2 += (((&rv)->u_l[1] & 0x7FF00000) >> 20) - 1023;
+                (&rv)->u_l[1] &= ~0x7FF00000;
                 (&rv)->u_l[1] |= 1023 << 20;
                 (&rv)->d *= __tinytens_d2a[5 - 1];
                 e1 -= 1 << (5 - 1);
             }
-            e2 += (((&rv)->u_l[1] & 0x7ff00000) >> 20) - 1023;
-            (&rv)->u_l[1] &= ~0x7ff00000;
+            e2 += (((&rv)->u_l[1] & 0x7FF00000) >> 20) - 1023;
+            (&rv)->u_l[1] &= ~0x7FF00000;
             (&rv)->u_l[1] |= 1023 << 20;
             for(j = 0; e1 > 0; j++, e1 >>= 1)
                 if(e1 & 1) (&rv)->d *= __tinytens_d2a[j];
@@ -620,7 +620,7 @@ rv_notOK:
                 if(rve1 == emin) goto adj1;
                 for(i = 0, j = nbits; j >= 32; i++, j -= 32)
                 {
-                    if(rvb->x[i] & 0xffffffff) goto adj1;
+                    if(rvb->x[i] & 0xFFFFFFFF) goto adj1;
                 }
                 if(j > 1 && __lo0bits_d2a(rvb->x + i) < j - 1) goto adj1;
                 rve = rve1 - 1;
@@ -812,7 +812,7 @@ rv_notOK:
         z = rve + rvbits;
         if(y == z && u_l)
         {
-            tol       = (&adj)->d * 5e-16;
+            tol       = (&adj)->d * 5E-16;
             (&adj)->d = adj0 - .5;
             if((&adj)->d < -tol)
             {

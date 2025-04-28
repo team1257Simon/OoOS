@@ -19,7 +19,7 @@ big_int* __sum_d2a(big_int* a, big_int* b)
     xc     = c->x;
     xe     = xc + b->wds;
     do {
-        y     = (*xa & 0xffff) + (*xb & 0xffff) + carry;
+        y     = (*xa & 0xFFFF) + (*xb & 0xFFFF) + carry;
         carry = (y & 0x10000) >> 16;
         z     = (*xa++ >> 16) + (*xb++ >> 16) + carry;
         carry = (z & 0x10000) >> 16;
@@ -28,7 +28,7 @@ big_int* __sum_d2a(big_int* a, big_int* b)
     xe += a->wds - b->wds;
     while(xc < xe)
     {
-        y     = (*xa & 0xffff) + carry;
+        y     = (*xa & 0xFFFF) + carry;
         carry = (y & 0x10000) >> 16;
         z     = (*xa++ >> 16) + carry;
         carry = (z & 0x10000) >> 16;

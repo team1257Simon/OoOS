@@ -75,8 +75,8 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
     }
     (&d)->d = __b2d_d2a(b, &i);
     i       = be + bbits - 1;
-    (&d)->u_l[1] &= 0xfffff;
-    (&d)->u_l[1] |= 0x3ff00000;
+    (&d)->u_l[1] &= 0xFFFFF;
+    (&d)->u_l[1] |= 0x3FF00000;
     ds = ((&d)->d - 1.5) * 0.289529654602168 + 0.1760912590558 + i * 0.301029995663981;
     if((j = i) < 0) j = -j;
     if((j -= 1077) > 0) ds += j * 7e-17;
@@ -119,7 +119,7 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
         mode -= 4;
         try_quick = 0;
     }
-    else if(i >= -4 - (-1022) || i < (-1022))
+    else if(i >= 1018 || i < -1022)
         try_quick = 0;
     leftright = 1;
     ilim = ilim1 = -1;
@@ -158,12 +158,12 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
         ieps  = 2;
         if(k > 0)
         {
-            ds = __tens_d2a[k & 0xf];
+            ds = __tens_d2a[k & 0xF];
             j  = k >> 4;
             if(j & 0x10)
             {
-                j &= 0x10 - 1;
-                (&d)->d /= __bigtens_d2a[5 - 1];
+                j &= 0xF;
+                (&d)->d /= __bigtens_d2a[4];
                 ieps++;
             }
             for(; j; j >>= 1, i++)
@@ -178,7 +178,7 @@ char* __gdtoa(fpi* fpi, int be, uilong* bits, int* kindp, int mode, int ndigits,
             ds = 1.;
             if((j1 = -k) != 0)
             {
-                (&d)->d *= __tens_d2a[j1 & 0xf];
+                (&d)->d *= __tens_d2a[j1 & 0xF];
                 for(j = j1 >> 4; j; j >>= 1, i++)
                     if(j & 1)
                     {

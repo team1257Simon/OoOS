@@ -3,7 +3,7 @@ extern void panic(const char*);
 static int  roundup(char* s0, int ndigits)
 {
     char* s;
-    for(s = s0 + ndigits - 1; *s == 0xf; s--)
+    for(s = s0 + ndigits - 1; *s == 0xF; s--)
     {
         if(s == s0)
         {
@@ -23,21 +23,21 @@ static void dorounding(char* s0, int ndigits, int sign, int* decpt)
 }
 char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, char** rve)
 {
-    static const int    sigfigs = (53 + 3) / 4;
+    static const int    sigfigs = 14;
     struct ieee_double* p       = (struct ieee_double*)&d;
     char *              s, *s0;
     int                 bufsize;
     *sign = p->dbl_sign;
     switch(__builtin_fpclassify(0x02, 0x01, 0x04, 0x08, 0x10, d))
     {
-    case 0x04: *decpt = p->dbl_exp - (1024 - 2 + ((53 - 1) % 4)); break;
+    case 0x04: *decpt = p->dbl_exp - 1022; break;
     case 0x10: *decpt = 1; return (__nrv_alloc_d2a("0", rve, 1));
     case 0x08:
         d *= 0x1p514;
-        *decpt = p->dbl_exp - (514 + (1024 - 2 + ((53 - 1) % 4)));
+        *decpt = p->dbl_exp - 1536;
         break;
-    case 0x01: *decpt = 0x7fffffff; return (__nrv_alloc_d2a("Infinity", rve, sizeof("Infinity") - 1));
-    case 0x02: *decpt = 0x7fffffff; return (__nrv_alloc_d2a("NaN", rve, sizeof("NaN") - 1));
+    case 0x01: *decpt = 0x7FFFFFFF; return (__nrv_alloc_d2a("Infinity", rve, sizeof("Infinity") - 1));
+    case 0x02: *decpt = 0x7FFFFFFF; return (__nrv_alloc_d2a("NaN", rve, sizeof("NaN") - 1));
     default: panic("hdtoa: classify error"); abort();
     }
     if(ndigits == 0) ndigits = 1;
@@ -45,17 +45,17 @@ char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, c
     s0      = __rv_alloc_d2a(bufsize);
     if(s0 == (NULL)) return ((NULL));
     for(s = s0 + bufsize - 1; s > s0 + sigfigs - 1; s--) *s = 0;
-    for(; s > s0 + sigfigs - (32 / 4) - 1 && s > s0; s--)
+    for(; s > s0 + sigfigs - 7 && s > s0; s--)
     {
-        *s = p->dbl_fracl & 0xf;
+        *s = p->dbl_fracl & 0xF;
         p->dbl_fracl >>= 4;
     }
     for(; s > s0; s--)
     {
-        *s = p->dbl_frach & 0xf;
+        *s = p->dbl_frach & 0xF;
         p->dbl_frach >>= 4;
     }
-    *s = p->dbl_frach | (1U << ((53 - 1) % 4));
+    *s = p->dbl_frach | 1;
     if(ndigits < 0)
     {
         for(ndigits = sigfigs; s0[ndigits - 1] == 0; ndigits--)
@@ -78,14 +78,14 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
     *sign                  = p->ext_sign;
     switch(__builtin_fpclassify(0x02, 0x01, 0x04, 0x08, 0x10, e))
     {
-    case 0x04: *decpt = p->ext_exp - (16384 - 2 + ((64 - 1) % 4)); break;
+    case 0x04: *decpt = p->ext_exp - 16385; break;
     case 0x10: *decpt = 1; return (__nrv_alloc_d2a("0", rve, 1));
     case 0x08:
         e *= 0x1p514L;
-        *decpt = p->ext_exp - (514 + (16384 - 2 + ((64 - 1) % 4)));
+        *decpt = p->ext_exp - 16899;
         break;
-    case 0x01: *decpt = 0x7fffffff; return (__nrv_alloc_d2a("Infinity", rve, sizeof("Infinity") - 1));
-    case 0x02: *decpt = 0x7fffffff; return (__nrv_alloc_d2a("NaN", rve, sizeof("NaN") - 1));
+    case 0x01: *decpt = 0x7FFFFFFF; return (__nrv_alloc_d2a("Infinity", rve, sizeof("Infinity") - 1));
+    case 0x02: *decpt = 0x7FFFFFFF; return (__nrv_alloc_d2a("NaN", rve, sizeof("NaN") - 1));
     default: panic("hldtoa: classify error"); abort();
     }
     if(ndigits == 0) ndigits = 1;
@@ -95,20 +95,16 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
     for(s = s0 + bufsize - 1; s > s0 + sigfigs - 1; s--) *s = 0;
     for(fbits = 32 / 4; fbits > 0 && s > s0; s--, fbits--)
     {
-        *s = p->ext_fracl & 0xf;
+        *s = p->ext_fracl & 0xF;
         p->ext_fracl >>= 4;
     }
     for(fbits = 16 / 4; fbits > 0 && s > s0; s--, fbits--)
     {
-        *s = p->ext_frach & 0xf;
+        *s = p->ext_frach & 0xF;
         p->ext_frach >>= 4;
     }
-    *s = (p->ext_frach | (1U << ((64 - 1) % 4))) & 0xf;
-    if(ndigits < 0)
-    {
-        for(ndigits = sigfigs; s0[ndigits - 1] == 0; ndigits--)
-            ;
-    }
+    *s = (p->ext_frach | 0x8) & 0xF;
+    if(ndigits < 0) { for(ndigits = sigfigs; s0[ndigits - 1] == 0; ndigits--); }
     if(sigfigs > ndigits && s0[ndigits] != 0) dorounding(s0, ndigits, p->ext_sign, decpt);
     s = s0 + ndigits;
     if(rve != NULL) *rve = s;

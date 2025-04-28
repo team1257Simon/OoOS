@@ -1,5 +1,5 @@
 #include "gdtoa.h"
-static void L_shift(uilong* x, uilong* x1, int i)
+static void __l_shift(uilong* x, uilong* x1, int i)
 {
     int j;
     i = 8 - i;
@@ -33,7 +33,7 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
             {
                 if(hd0 < havedig)
                 {
-                    if(x < x1 && i < 8) L_shift(x, x1, i);
+                    if(x < x1 && i < 8) __l_shift(x, x1, i);
                     if(x <= x0)
                     {
                         i = 8;
@@ -69,10 +69,10 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
             i    = 1;
             *--x = 0;
         }
-        *x = (*x << 4) | (h & 0xf);
+        *x = (*x << 4) | (h & 0xF);
     }
     if(!havedig) return strog_nan;
-    if(x < x1 && i < 8) L_shift(x, x1, i);
+    if(x < x1 && i < 8) __l_shift(x, x1, i);
     if(x > x0)
     {
         x1 = x0;
@@ -83,7 +83,7 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
     }
     else
     {
-        if((i = nbits & (32 - 1)) != 0) *xe &= ((uilong)0xffffffff) >> (32 - i);
+        if((i = nbits & (32 - 1)) != 0) *xe &= ((uilong)0xFFFFFFFF) >> (32 - i);
     }
     for(x1 = xe;; --x1)
     {

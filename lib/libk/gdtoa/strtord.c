@@ -12,20 +12,20 @@ void __ultod_d2a(uilong* u_l, uilong* bits, int exp, int k)
     case strtog_normal:
     case strtog_nanbits:
         u_l[0] = bits[0];
-        u_l[1] = (bits[1] & ~0x100000) | ((exp + 0x3ff + 52) << 20);
+        u_l[1] = (bits[1] & ~0x100000) | ((exp + 0x3FF + 52) << 20);
         break;
     case strtog_nomemory: *(__errno()) = 34;
     case strtog_infinite:
-        u_l[1] = 0x7ff00000;
+        u_l[1] = 0x7FF00000;
         u_l[0] = 0;
         break;
-    case strog_nan: u_l[0] = 0x00000000; u_l[1] = 0x7ff80000;
+    case strog_nan: u_l[0] = 0x00000000; u_l[1] = 0x7FF80000;
     }
     if(k & strtog_neg) u_l[1] |= 0x80000000L;
 }
 int __strtord(const char* s, char** sp, int rounding, double* d)
 {
-    static fpi fpi0 = {53, 1 - 1023 - 53 + 1, 2046 - 1023 - 53 + 1, 1, 0};
+    static fpi fpi0 = { 53, -1074, 971, 1, 0 };
     fpi *      fpi, fpi1;
     uilong     bits[2];
     int        exp;
