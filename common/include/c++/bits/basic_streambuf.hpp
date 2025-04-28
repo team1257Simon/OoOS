@@ -46,7 +46,7 @@ namespace std
         virtual streamsize xsputn(char_type const* s, streamsize n);
     public:
         virtual ~basic_streambuf() {}
-        basic_streambuf pubsetbuf(char_type* s, streamsize n) { return this->setbuf(s, n); }
+        basic_streambuf* pubsetbuf(char_type* s, streamsize n) { return this->setbuf(s, n); }
         pos_type pubseekoff(off_type off, ios_base::seekdir way, ios_base::openmode mode = ios_base::in | ios_base::out) { return this->seekoff(off, way, mode); }
         pos_type pubseekpos(pos_type pos, ios_base::openmode mode = ios_base::in | ios_base::out) { return this->seekpos(pos, mode); }
         int pubsync() { return this->sync(); }
@@ -104,5 +104,8 @@ namespace std
         }
         return i;
     }
+#ifndef INST
+    extern template class basic_streambuf<char>;
+#endif
 }
 #endif

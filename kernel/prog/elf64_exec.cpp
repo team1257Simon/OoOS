@@ -115,7 +115,7 @@ bool elf64_executable::load_segments()
                 .obj_offset    = static_cast<off_t>(h.p_offset),
                 .size		   = h.p_memsz, 
                 .seg_align     = h.p_align, 
-                .perms         = static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) 
+                .perms         = static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
             };
         }
         block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);

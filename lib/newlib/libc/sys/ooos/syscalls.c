@@ -4,8 +4,9 @@
 #endif
 void _exit(int code) { asm volatile("syscall" :: "a"(0), "D"(code) : "memory"); __builtin_unreachable(); }
 DEF_SYSCALL1(int, close, int, fd)
-DEF_SYSCALL3(int, execve, char*, name, char**, argv, char**, env)
-DEF_SYSCALL0(int, fork)
+DEF_SYSCALL3(int, execve, char* restrict, name, char** restrict, argv, char** restrict, env)
+DEF_SYSCALL0(pid_t, fork)
+DEF_SYSCALL0(pid_t, vfork)
 DEF_SYSCALL2(int, fstat, int, fd, struct stat*, st)
 DEF_SYSCALL2(int, stat, const char* restrict, name, struct stat* restrict, st)
 DEF_SYSCALL0(int, getpid)

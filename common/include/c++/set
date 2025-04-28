@@ -8,9 +8,9 @@
 namespace std
 {
     template<typename KT, __valid_comparator<KT> CT = std::less<void>, allocator_object<KT> AT = std::allocator<KT>>
-    class set : public __tree_base<KT, CT, AT>
+    class set : public __rb_tree<KT, CT, AT>
     {
-        using __base = __tree_base<KT, CT, AT>;
+        using __base = __rb_tree<KT, CT, AT>;
         typedef __node<KT>* __link_t;
         typedef __node<KT> const* __clink_t;
         typedef typename __base::__res_pair __res_t;
@@ -61,8 +61,8 @@ namespace std
         void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
         iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.get_node()) }; }
-        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__node_base*>(pos.get_node())) }; }
-        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.get_node(), end.get_node()) }; }
+        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__link_t>(pos.get_node())) }; }
+        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(const_cast<__link_t>(start.get_node()), const_cast<__link_t>(end.get_node())) }; }
         constexpr void swap(set& that) noexcept { this->__swap(that); }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr bool contains(U const& u) const noexcept { return this->__contains(u); }
     };

@@ -10,7 +10,7 @@ void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 void elf64_shared_object::set_frame(uframe_tag* ft) { frame_tag = ft; }
 uframe_tag *elf64_shared_object::get_frame() const { return frame_tag; }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descriptor& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
-void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && dyn_entries[i].d_val & 0x02)) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
+void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && (dyn_entries[i].d_val & 0x02UL))) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
 elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     elf64_object            ( n ),
@@ -19,7 +19,7 @@ elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
     virtual_load_base       { frame->dynamic_extent },
     total_segment_size      { 0UL },
     frame_tag               { frame },
-    ref_count               { 1UL },
+    ref_count               { 1UZ },
     sticky                  { false },
     symbolic                { false },
     global                  { false },
@@ -61,7 +61,7 @@ static const char* find_so_name(addr_t image_start, file_node* so_file)
         {
             elf64_dyn* dyn_ent = image_start.plus(ph.p_offset);
             size_t n = ph.p_filesz / sizeof(elf64_dyn);
-            size_t strtab_off = 0UL, name_off = 0UL;
+            size_t strtab_off = 0UZ, name_off = 0UZ;
             for(size_t j = 0; j < n; j++)
             {
                 if(dyn_ent[j].d_tag == DT_STRTAB) strtab_off = dyn_ent[j].d_ptr;
@@ -131,7 +131,7 @@ bool elf64_shared_object::load_segments()
                 .obj_offset    = static_cast<off_t>(h.p_offset),
                 .size		   = h.p_memsz, 
                 .seg_align     = h.p_align, 
-                .perms         = static_cast<elf_segment_prot>(0b100 | (is_write(h) ? 0b010 : 0) | (is_exec(h) ? 0b001 : 0)) 
+                .perms         = static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
             };
             frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
             total_segment_size += actual_size;

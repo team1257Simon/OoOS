@@ -1,7 +1,7 @@
 #ifndef __AMD64_SERIAL
 #define __AMD64_SERIAL
 #include "kernel/arch/arch_amd64.h"
-constexpr word port_com1 = 0x03F8;
+constexpr word port_com1 = 0x03F8US;
 constexpr word port_com1_ier = port_com1 + 1;
 constexpr word port_com1_iir = port_com1 + 2;
 constexpr word port_com1_fifo_ctl = port_com1 + 2;
@@ -52,13 +52,13 @@ typedef struct __line_ctl
     bool divisor_latch_access    : 1;
 #ifdef __cplusplus
     constexpr __line_ctl(data_len_t len, bool extend_sb, parity_bit_t pb, bool enable_break, bool dla) noexcept : data_len{ len }, extend_stop_bit{ extend_sb }, parity_bit{ pb }, break_enable{ enable_break }, divisor_latch_access{ dla } {}
-    constexpr __line_ctl(byte i) noexcept : __line_ctl{ data_len_t(i & 0x03), i[2], parity_bit_t((i & 0x38) >> 3), i[6], i[7] } {}
+    constexpr __line_ctl(byte i) noexcept : __line_ctl{ data_len_t(i & 0x03UC), i[2], parity_bit_t((i & 0x38) >> 3), i[6], i[7] } {}
     constexpr operator byte() const noexcept { return byte(data_len | (parity_bit << 3) | byte{ false, false, extend_stop_bit, false, false, false, break_enable, divisor_latch_access }); }
 #endif
 } __pack line_ctl_byte;
 #ifdef __cplusplus
-constexpr line_ctl_byte dla_enable = 0x80ui8;
-constexpr line_ctl_byte S8N1 = 0x03ui8;
+constexpr line_ctl_byte dla_enable(0x80UC);
+constexpr line_ctl_byte S8N1(0x03UC);
 #endif
 typedef struct __ier_reg
 {
@@ -74,7 +74,7 @@ typedef struct __ier_reg
 #endif
 } __pack serial_ier;
 #ifdef __cplusplus
-constexpr serial_ier send_recv = 0x03ui8;
+constexpr serial_ier send_recv(0x03UC);
 #endif
 typedef struct __modem_ctl
 {
@@ -100,7 +100,7 @@ typedef struct __fifo_ctl_reg
     enum trigger_level_t trigger_level  : 2;
 #ifdef __cplusplus
     constexpr __fifo_ctl_reg(bool irq, bool clt, bool clr, bool timeout, trigger_level_t buf) noexcept : enable{ irq }, clear_transmit_buffer{ clt }, clear_receive_buffer{ clr }, dma_sel{ timeout }, trigger_level{ buf } {}
-    constexpr __fifo_ctl_reg(byte i) noexcept : __fifo_ctl_reg{ i[0], i[1], i[2], i[3], trigger_level_t((i & 0xC0u) >> 6) } {}
+    constexpr __fifo_ctl_reg(byte i) noexcept : __fifo_ctl_reg{ i[0], i[1], i[2], i[3], trigger_level_t((i & 0xC0UC) >> 6) } {}
     constexpr operator byte() const noexcept { return byte((trigger_level << 6) | byte{ enable, clear_transmit_buffer, clear_receive_buffer, dma_sel, false, false, false, false }); }
 #endif
 } __pack fifo_ctl_byte;
@@ -113,7 +113,7 @@ typedef struct __iir_reg
     enum buffer_state_t buffer_state    : 2;
 #ifdef __cplusplus
     constexpr __iir_reg(bool irq, irq_state_t state, bool timeout, buffer_state_t buf) noexcept : irq_pending{ irq }, irq_state{ state }, timeout_pending{ timeout }, buffer_state{ buf } {}
-    constexpr __iir_reg(byte i) noexcept : __iir_reg{ i[0], irq_state_t((i & 0x06u) >> 1), i[3], buffer_state_t((i & 0xC0u) >> 6) } {}
+    constexpr __iir_reg(byte i) noexcept : __iir_reg{ i[0], irq_state_t((i & 0x06UC) >> 1), i[3], buffer_state_t((i & 0xC0UC) >> 6) } {}
     constexpr operator byte() const noexcept { return byte((buffer_state << 6) | (irq_state << 1) | byte{ irq_pending, false, false, timeout_pending, false, false, false, false }); }
 #endif
 } __pack serial_iir;
@@ -160,9 +160,9 @@ class com_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual st
     using __queue = typename std::__impl::__dynamic_queue<char, std::allocator<char>>;
     using __queue_container = typename __queue::__ptr_container;
     using typename __base::__ptr_container;
-    bool __mode_echo{ true };
-    std::streamsize __pos_echo{ 0UL };
-    uint32_t __dev_id{ 0U };
+    bool __mode_echo            { true };
+    std::streamsize __pos_echo  { 0UL };
+    uint32_t __dev_id           { 0U };
     void __do_echo();
 public:
     using typename __base::traits_type;
@@ -179,7 +179,7 @@ protected:
     static com_amd64 __instance;
     com_amd64(size_t init_size);
 public:
-    static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12ui16);
+    static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12US);
     static com_amd64* get_instance();
     com_amd64(com_amd64 const&) = delete;
     com_amd64& operator=(com_amd64 const&) = delete;

@@ -1,7 +1,8 @@
+#define INST_PCI
 #include "arch/pci.hpp"
 #include "string"
 pci_device_list pci_device_list::__instance{};
-constexpr static pci_config_space* check_valid(pci_config_space* ptr) { return ptr->vendor_id != 0xFFFF ? ptr : nullptr; }
+constexpr static pci_config_space* check_valid(pci_config_space* ptr) { return ptr->vendor_id != 0xFFFFUS ? ptr : nullptr; }
 pci_config_table* find_pci_config() { return static_cast<pci_config_table*>(find_system_table("MCFG")); }
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func) { for(uint8_t i = 0; i < static_cast<uint8_t>((tb->hdr.length - sizeof(tb->hdr) - 8) / 16); i++) { if(tb->addr_allocations[i].start_bus <= bus && tb->addr_allocations[i].end_bus >= bus) return check_valid(tb->addr_allocations[i].config_start + ((bus - tb->addr_allocations[i].start_bus) * 256 + slot * 8 + func)); } return nullptr; }
 addr_t compute_base_address(uint32_t bar_registers[], uint8_t i) { return addr_t{ static_cast<uintptr_t>((bar_registers[i] & 0x00000001) ? static_cast<uint64_t>(bar_registers[i] & 0xFFFFFFFCUL) : static_cast<uint64_t>((bar_registers[i] & 0xFFFFFFF0UL) | (bar_registers[i] & 0x00000004UL ? (static_cast<uint64_t>(bar_registers[i + 1]) << 32) : 0))) }; }

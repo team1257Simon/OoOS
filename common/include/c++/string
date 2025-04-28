@@ -106,5 +106,19 @@ namespace std
 	extension u32string to_u32string(unsigned int value, ext::hex_t);
 	extension u32string to_u32string(unsigned long value, ext::hex_t);
 	extension u32string to_u32string(unsigned long long value, ext::hex_t);
+#ifdef INST_STR
+template class basic_string<char>;
+template class basic_string<wchar_t>;
+template class basic_string<char8_t>;
+template class  basic_string<char16_t>;
+template class basic_string<char32_t>;
+#else
+extern template class basic_string<char>;
+extern template class basic_string<wchar_t>;
+extern template class basic_string<char8_t>;
+extern template class  basic_string<char16_t>;
+extern template class basic_string<char32_t>;
+#endif
+
 }
 #endif

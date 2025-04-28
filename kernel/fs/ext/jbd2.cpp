@@ -108,7 +108,7 @@ bool jbd2::clear_log()
     size_t bs = parent_fs->block_size();
     array_zero(reinterpret_cast<uint64_t*>(__beg() + bs), static_cast<size_t>(__capacity() - bs) / sizeof(uint64_t));
     replay_blocks.clear();
-    __setc(0UL);
+    __rst();
     log_seq = 0;
     return ddwrite();
 }
@@ -157,7 +157,7 @@ log_read_state jbd2::read_next_log_entry()
     catch(std::exception& e)
     {
         panic(e.what());
-        __setc(0UL);
+        __rst();
         return ERROR;
     }
 }
@@ -219,7 +219,7 @@ log_read_state jbd2::read_log_transaction()
             block_ed = block_st + bs;
             __be32* db_csum_pos = reinterpret_cast<__be32*>(block_ed - sizeof(__be32));
            uint32_t checkval = *db_csum_pos;
-           *db_csum_pos = 0;
+           *db_csum_pos = 0_be32;
            uint32_t db_csum = crc32c(csum_base, block_st, bs);
            *db_csum_pos = __be32(checkval); 
             if(db_csum != checkval) goto skip_txn;

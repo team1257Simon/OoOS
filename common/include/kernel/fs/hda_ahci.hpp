@@ -34,6 +34,12 @@ typedef struct __part_table_entry
     char16_t part_name[36];
 } __pack partition_entry_t;
 typedef std::vector<partition_entry_t> partition_table;
+#ifdef INST_PT
+template class std::vector<partition_entry_t>;
+#else
+extern template class std::vector<partition_entry_t>;
+#endif
+
 class hda_ahci
 {
     static bool __has_init;

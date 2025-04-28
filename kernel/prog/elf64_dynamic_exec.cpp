@@ -14,7 +14,7 @@ elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, si
     virtual_load_base       ( base_offset ),
     preinit_array           {},
     preinit_array_ptr       { 0UL },
-    preinit_array_size      { 0UL }
+    preinit_array_size      { 0UZ }
                             {}
 elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
     elf64_object            ( n ),
@@ -23,7 +23,7 @@ elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, size_t stack_sz
     virtual_load_base       ( base_offset ),
     preinit_array           {},
     preinit_array_ptr       { 0UL },
-    preinit_array_size      { 0UL }
+    preinit_array_size      { 0UZ }
                             {}
 elf64_dynamic_executable::elf64_dynamic_executable(elf64_dynamic_executable const& that) :
     elf64_object            ( that ),

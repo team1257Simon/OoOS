@@ -259,7 +259,7 @@ public:
     addr_t allocate_kernel_block(size_t sz);
     addr_t allocate_mmio_block(size_t sz);
     addr_t map_mmio_region(uintptr_t addr, size_t sz);
-    addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true);
+    addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);
     addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
     addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
     void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
@@ -271,4 +271,13 @@ extern "C" void* aligned_malloc(size_t size, size_t align);
 extern "C" addr_t syscall_sbrk(ptrdiff_t incr);                                                             // void* sbrk(ptrdiff_t incr);
 extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);     // void* mmap(void* addr, size_t len, int prot, int flags, ptrdiff_t offset);
 extern "C" int syscall_munmap(addr_t addr, size_t len);                                                     // int munmap(void* addr, size_t len);
+#ifdef INST_MM
+template class std::vector<addr_t>;
+template class std::vector<block_descriptor>;
+template class std::vector<block_descriptor*>;
+#else
+extern template class std::vector<addr_t>;
+extern template class std::vector<block_descriptor>;
+extern template class std::vector<block_descriptor*>;
+#endif
 #endif

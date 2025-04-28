@@ -55,7 +55,7 @@ extern "C"
         kill_one(active_task_context(), sig);
         return 0;
     }
-    int syscall_sigprocmask(sigprocmask_action how, sigset_t const* set, sigset_t* oset)
+    int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset)
     {
         task_ctx* task = active_task_context();
         sigset_t const* rset = translate_user_pointer(set);

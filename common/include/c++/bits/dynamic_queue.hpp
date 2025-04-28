@@ -123,6 +123,7 @@ namespace std::__impl
         constexpr __ptr __push_elements(T const&, __size_type = __size_type(1UL));
         constexpr __ptr __push_elements(T&&, __size_type = __size_type(1UL));
         template<std::matching_input_iterator<T> IT> constexpr __ptr __push_elements(IT start, IT end) requires(!std::is_same_v<IT, __const_ptr>);
+        template<std::matching_input_iterator<T> IT> constexpr __ptr __push_elements(IT what) requires(!std::is_same_v<IT, __const_ptr>) { IT end = what; end++; return __push_elements(what, end); }
         constexpr __ptr __push_elements(__const_ptr start, __const_ptr end);
         template<std::output_iterator<T> IT> constexpr __size_type __pop_elements(IT out_start, IT out_end) requires(!std::is_same_v<IT, __ptr>);
         constexpr __size_type __pop_elements(__ptr out_start, __ptr out_end);
@@ -289,5 +290,8 @@ namespace std::__impl
         }
         catch(...) { return nullptr; }
     }
+#ifndef INST
+    extern template class __dynamic_queue<char, std::allocator<char>>;
+#endif
 }
 #endif

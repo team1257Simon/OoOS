@@ -145,12 +145,12 @@ struct	stat
 #endif
 
 int	chmod (const char *__path, mode_t __mode );
-int     fchmod (int __fd, mode_t __mode);
+int fchmod (int __fd, mode_t __mode);
 int	fstat (int __fd, struct stat *__sbuf );
 int	mkdir (const char *_path, mode_t __mode );
 int	mkfifo (const char *__path, mode_t __mode );
 int	stat (const char *__restrict __path, struct stat *__restrict __sbuf );
-mode_t	umask (mode_t __mask );
+mode_t umask (mode_t __mask );
 
 #if defined (__SPU__) || defined(__rtems__) || defined(__ooos__) || defined(__CYGWIN__) && !defined(__INSIDE_CYGWIN__)
 int	lstat (const char *__restrict __path, struct stat *__restrict __buf );

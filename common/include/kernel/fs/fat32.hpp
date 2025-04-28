@@ -125,6 +125,7 @@ union [[gnu::may_alias]] fat32_directory_entry
     char full[32]{};
     constexpr fat32_directory_entry(fat32_directory_entry const& that) { array_copy(full, that.full, 32); }
     constexpr fat32_directory_entry(fat32_directory_entry&& that) { array_move(full, that.full, 32); }
+    inline fat32_directory_entry() : full{} {}
     constexpr fat32_directory_entry& operator=(fat32_directory_entry const& that) { array_copy(full, that.full, 32); return *this; }
     constexpr fat32_directory_entry& operator=(fat32_directory_entry&& that) { array_move(full, that.full, 32); return *this; }
 } __pack __align(1);
@@ -216,6 +217,7 @@ public:
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
     virtual pos_type tell() const;
+    virtual bool truncate() override;
     void on_open();
     void set_fd(int i);
     uint32_t claim_next(uint32_t cl);
@@ -252,6 +254,7 @@ public:
     virtual size_t readdir(std::vector<tnode*>& out_vec) override;
     virtual uint64_t size() const noexcept override;
     virtual bool fsync() override;
+    virtual bool truncate() override;
     void get_short_name(std::string const &full, std::string& result);
     fat32_regular_entry* find_dirent(std::string const&);
     bool parse_dir_data();
@@ -266,6 +269,7 @@ class fat32 final : public filesystem
     uint8_t __sectors_per_cluster;
     uint64_t __sector_base;
     dev_t __dev_serial;
+    size_t __sector_size;
     std::set<fat32_file_node> __file_nodes{};
     std::set<fat32_directory_node> __directory_nodes{};    
     std::map<uint64_t, size_t> __st_cluster_ref_counts{};
@@ -299,7 +303,8 @@ protected:
     bool read_sectors(char* buffer, uint32_t start, size_t num);
     bool write_clusters(uint32_t cl_st, const char* data, size_t num = 1UL);
     bool read_clusters(char* buffer, uint32_t cl_st, size_t num = 1UL);
-public:    
+public:
+    virtual size_t block_size() override;
     static bool has_init();
     static bool init_instance();
     static fat32* get_instance();

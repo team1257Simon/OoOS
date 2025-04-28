@@ -68,17 +68,16 @@ int com_amd64::write_dev()
         for(size_t i = 0; i < 16 && ptr != __cur(); i++, ++ptr) 
         { 
             outb(port_com1, byte(*ptr)); 
+            // newlines can take a while to process; give the console time to sync up or we might lose characters 
             if(*ptr == '\n') 
             {
-                // newlines can take a while to process; give the console time to sync up or we might lose characters 
                 ptr++; 
-                goto buff_wait; 
+                break; 
             } 
         }
-    buff_wait:
         while(!serial_empty_transmit()) { pause(); }
     }
-    __setc(__beg());
+    __rst();
     return 0;
 }
 __isrcall std::streamsize com_amd64::read_dev(std::streamsize cnt)
@@ -91,9 +90,9 @@ __isrcall std::streamsize com_amd64::read_dev(std::streamsize cnt)
 }
 bool com_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level, word baud_div)
 {
-    __instance.__set_stale_op_threshold(6);
+    __instance.__set_stale_op_threshold(6U);
     serial_ier init_ier{ inb(port_com1_ier) };
-    outb(port_com1_ier, 0ui8);
+    outb(port_com1_ier, 0UC);
     com1_set_baud_divisor(baud_div);
     outb(port_com1_line_ctl, mode);
     outb(port_com1_fifo_ctl, fifo_ctl_byte{ true, true, true, false, trigger_level });
@@ -102,7 +101,7 @@ bool com_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level,
         outb(port_com1_modem_ctl, modem_ctl_byte{ true, true, true, true, false });
         init_ier.receive_data = true;
         outb(port_com1_ier, init_ier);
-        if(interrupt_table::add_irq_handler(4, std::move(LAMBDA_ISR() { __instance.read_dev(0); }))) irq_clear_mask<4ui8>();
+        if(interrupt_table::add_irq_handler(4UC, std::move(LAMBDA_ISR() { __instance.read_dev(0UZ); }))) irq_clear_mask<4UC>();
         try { __instance.__dev_id = device_registry::get_instance().add(std::addressof(__instance), COM); } catch(std::exception& e) { panic(e.what()); return false; }
         return true; 
     }

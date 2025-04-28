@@ -6,7 +6,7 @@ typedef unsigned long __blksize_t;
 typedef unsigned long __fsblkcnt_t;
 typedef unsigned int __fsfilcnt_t;
 typedef long _off_t;
-typedef int __pid_t;
+typedef long __pid_t;
 typedef int __dev_t;
 typedef unsigned long __uid_t;
 typedef unsigned long __gid_t;

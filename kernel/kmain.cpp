@@ -64,7 +64,7 @@ void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 void xklog(std::string const& str) { klog(str.c_str()); }
 static int __xdigits(uintptr_t num) { return num ? div_round_up((sizeof(uintptr_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
-constexpr static bool has_ecode(byte idx) { return (idx > 0x09 && idx < 0x0F) || idx == 0x11 || idx == 0x15 || idx == 0x1D || idx == 0x1E; }
+constexpr static bool has_ecode(byte idx) { return (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC; }
 static void descr_pt(partition_table const& pt)
 {
     for(partition_table::const_iterator i = pt.begin(); i != pt.end(); i++)
@@ -409,7 +409,7 @@ constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
         }
         if(svinst && !errinst) { errinst = addr_t(svinst); }
         if(errinst){ startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
-        if(idx == 0x0E) 
+        if(idx == 0x0EUC) 
         {
             uint64_t fault_addr;
             asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
@@ -499,14 +499,14 @@ extern "C"
         kproc.saved_regs.rsp = std::addressof(kernel_stack_top);
         kproc.saved_regs.rbp = std::addressof(kernel_stack_base);
         // The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08ui16, 0x10ui16);     
+        init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);     
         fadt_t* fadt = nullptr;
         // FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
         if(sysinfo->xsdt) fadt = find_fadt();
         if(fadt) rtc::init_instance(fadt->century_register);
         else rtc::init_instance();
         // The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
-        new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFF, 0);
+        new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFFU, 0);
         startup_tty.cls();
         // The base keyboard driver object abstracts out low-level initialization code that could theoretically change for different implementations of keyboards.
         keyboard_driver* kb = get_kb_driver();

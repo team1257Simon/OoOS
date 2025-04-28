@@ -14,6 +14,7 @@
 #include "device_registry.hpp"
 #include "ext/dynamic_streambuf.hpp"
 #include "sys/stat.h"
+#include "sys/fcntl.h"
 struct file_mode
 {
     bool exec_others  : 1;
@@ -98,6 +99,7 @@ struct fs_node
     virtual bool is_device() const noexcept;            // equivalent to (dynamic_cast<device_inode*>(this) != nullptr)
     virtual uint64_t size() const noexcept = 0;         // size in bytes (for files) or concrete entries (for directories)
     virtual bool fsync() = 0;                           // sync to disc, if applicable
+    virtual bool truncate() = 0;                        // clear all data and reset the size to 0
     virtual ~fs_node();
     file_mode mode{ 0774U };
     std::set<tnode*> refs{};
@@ -142,6 +144,7 @@ public:
     typedef typename traits_type::off_type                              off_type;
     typedef typename std::__impl::__buf_ptrs<char>::__ptr_type          pointer;
     typedef typename std::__impl::__buf_ptrs<char>::__const_ptr_type    const_pointer;
+    std::ios_base::openmode current_mode = (std::ios_base::in | std::ios_base::out);
     virtual size_type write(const_pointer src, size_type n) = 0;
     virtual size_type read(pointer dest, size_type n) = 0;
     virtual pos_type seek(off_type, std::ios_base::seekdir) = 0;
@@ -190,6 +193,7 @@ public:
     virtual bool fsync() override;
     virtual bool is_device() const noexcept final override;
     virtual uint64_t size() const noexcept override;
+    virtual bool truncate() override;
     device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
     constexpr dev_t get_device_id() const noexcept { return __dev_id; }
 };
@@ -264,14 +268,15 @@ protected:
 public:
     virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true);
     virtual file_node* on_open(tnode*);
-    virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
+    virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);
+    virtual size_t block_size();
     virtual directory_node* open_directory(std::string const& path, bool create = true);
     bool link_stdio(dev_t device_id);
     fs_node* find_node(std::string const& path, bool ignore_links = false);
     void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev);
     fs_node* get_fd_node(int fd);
     file_node* get_file(int fd);      
-    file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
+    file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);
     file_node* get_file(std::string const& path);
     directory_node* get_directory(int fd);
     directory_node* get_directory_or_null(std::string const& path, bool create = true) noexcept;
@@ -293,7 +298,7 @@ extern "C"
     int syscall_write(int fd, char* ptr, int len);                          // int write(int fd, char* ptr, int len)
     int syscall_read(int fd, char* ptr, int len);                           // int read(int fd, char* ptr, int len);
     int syscall_lseek(int fd, long offs, int way);                          // int lseek(int fd, off_t offs, int way);
-    int syscall_link(char* old, char* __new);                               // int link(char* restrict src, char* restrict target);
+    int syscall_link(char* restrict old, char* restrict __new);             // int link(char* restrict src, char* restrict target);
     int syscall_unlink(char* name);                                         // int unlink(char* name);
     int syscall_isatty(int fd);                                             // int isatty(int fd);
     int syscall_fstat(int fd, struct stat* st);                             // int fstat(int fd, struct stat* st);
@@ -301,8 +306,8 @@ extern "C"
     int syscall_fchmod(int fd, mode_t m);                                   // int fchmod(int fd, mode_t m);
     int syscall_chmod(const char* name, mode_t m);                          // int chmod(const char* name, mode_t m);
     int syscall_mkdir(const char* path, mode_t m);                          // int mkdir(const char* path, mode_t m);
-    int syscall_lstat(char* name, stat* st);
-    int syscall_mknod(char* name, mode_t mode, dev_t dev);
-    int syscall_mknodat(int fd, char* name, mode_t mode, dev_t dev);
+    int syscall_lstat(const char* restrict name, struct stat* restrict st); // int lstat(const char* restrict name, struct stat* restrict st);
+    int syscall_mknod(const char* name, mode_t mode, dev_t dev);            // int mknod(const char* name, mode_t mode, dev_t dev);
+    int syscall_mknodat(int fd, const char* name, mode_t mode, dev_t dev);  // int mknodat(int fd, const char* name, mode_t mode, dev_t dev);
 }
 #endif

@@ -18,6 +18,7 @@ public:
     virtual std::vector<std::string> lsdir() const override;
     virtual size_t readdir(std::vector<tnode*>& out_vec) override;
     virtual uint64_t size() const noexcept override;
+    virtual bool truncate() override;
     ramfs_directory_inode(std::string const& name, int fd);
     virtual bool fsync() override;
 };
@@ -39,6 +40,7 @@ public:
     ramfs_file_inode(std::string const& name, int fd);
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
+    virtual bool truncate() override;
 };
 class ramfs final : public filesystem
 {

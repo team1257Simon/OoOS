@@ -27,16 +27,16 @@ int main(int argc, char** argv)
         printf("mmap failed; error code %i\n", errno);
         return errno;
     }
-    FILE* f = fopen("/files/dreams.txt", "w+");
+    FILE* f = fopen("/files/memes.txt", "a+");
     if(f)
     {
         fprintf(f, "blerple derple\n");
         fclose(f);
+        f = fopen("/files/dreams.txt", "w+");
+        if(f) { fprintf(f, "merple yerple\n"); fclose(f); }
+        else printf("no file :(\n");
     }
-    else
-    {
-        printf("no file D:\n");
-    }
+    else printf("no file D:\n");
     pid_t pid = fork();
     printf("forked\n");
     int rv = 0;
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
         printf("In child\n");
         return 0;
     default:
-        printf("Child PID is %i\n", pid);
+        printf("Child PID is %li\n", pid);
         wait(&rv);
         return 0;
     }

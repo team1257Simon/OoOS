@@ -62,6 +62,7 @@ namespace std
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)
         {
             char_type* ptr = (way == std::ios_base::cur ? this->__cur() : (way == std::ios_base::end ? this->__max() : this->__beg())) + off;
+            if(ptr > this->__max()) return pos_type(off_type(-1));
             if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
                 this->__setc(ptr);
@@ -75,6 +76,7 @@ namespace std
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekpos(pos_type pos, std::ios_base::openmode which)
         {
             char_type* ptr = this->__get_ptr(pos);
+            if(ptr > this->__max()) return pos_type(off_type(-1));
             if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
                 this->__setc(ptr);
@@ -105,6 +107,10 @@ namespace std
             this->on_modify();
             return std::streamsize(result - old);
         }
+#ifndef INST
+        extern template class dynamic_streambuf<char>;
+        extern template class dynamic_streambuf<uint8_t>;
+#endif
     }
 }
 #endif

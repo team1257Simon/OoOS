@@ -33,8 +33,8 @@ enum
     DT_WHT = 14
 };
 typedef int (*scan_filter_fn)(const struct dirent*);
-typedef int (*scan_compare_fn)(const struct dirent**, const struct dirent**);
-int alphasort(const struct dirent** a, const struct dirent** b);
+typedef int (*scan_compare_fn)(const struct dirent** restrict, const struct dirent** restrict);
+int alphasort(const struct dirent** restrict a, const struct dirent** restrict b);
 DIR* fdopendir(int fd);
 DIR* opendir(const char* dirname);
 int closedir(DIR* dir);

@@ -37,6 +37,8 @@ typedef unsigned long sigset_t;
 #define SYSCVEC_N_closedir       42
 #define SYSCVEC_N_lstat          43
 #define SYSCVEC_N_mknod          44
+#define SYSCVEC_N_vfork          45
+#define SYSCVEC_N_spawn          46
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict
@@ -46,14 +48,15 @@ extern "C"
 #endif
 void _exit(int code);
 int close(int file);
-int execve(char* name, char** argv, char** env);
-int fork();
+int execve(char* restrict name, char** restrict argv, char** restrict env);
+pid_t fork();
+pid_t vfork();
 int fstat(int file, struct stat* st);
 int stat(const char* restrict name, struct stat* restrict st);
 int getpid();
 int isatty(int file);
 int kill(int pid, int sig);
-int link(char* restrict old, char* restrict new);
+int link(char* restrict old, char* restrict __new);
 int lseek(int file, int ptr, int dir);
 int open(const char* name, int flags, ...);
 int read(int file, char* ptr, int len);

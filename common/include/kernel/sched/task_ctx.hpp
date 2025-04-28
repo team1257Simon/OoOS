@@ -16,10 +16,10 @@ typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
 constexpr unsigned int sub_tick_ratio{ 157 };
 constexpr unsigned int early_trunc_thresh{ 5 };
 constexpr unsigned int cycle_max { 2280 };
-constexpr word pit_divisor{ 760ui16 };
-constexpr byte pit_mode{ 0x34ui8 };
-constexpr word port_pit_data{ 0x40ui16 };
-constexpr word port_pit_cmd{ 0x43ui16 };
+constexpr word pit_divisor{ 760US };
+constexpr byte pit_mode{ 0x34UC };
+constexpr word port_pit_data{ 0x40US };
+constexpr word port_pit_cmd{ 0x43US };
 extern "C"
 {
     void user_entry(addr_t);
@@ -112,18 +112,31 @@ extern "C"
     void signal_exit(int code);
     void sigtramp_enter(int sig, signal_handler handler);
     void sigtramp_return();
-    clock_t syscall_times(struct tms* out);                             // clock_t times(struct tms* out);
-    long syscall_getpid();                                              // pid_t getpid();
-    long syscall_fork();                                                // pid_t fork();
-    void syscall_exit(int n);                                           // void exit(int code) __attribute__((noreturn));
-    int syscall_kill(long pid, unsigned long sig);                      // int kill(pid_t pid, int sig);
-    pid_t syscall_wait(int* sc_out);                                    // pid_t wait(int* sc_out);
-    int syscall_sleep(unsigned long seconds);                           // int sleep(time_t seconds);
-    int syscall_execve(char* name, char** argv, char** env);            // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
-    long syscall_sigret();                                              // (only called from the signal trampoline)
-    signal_handler syscall_signal(int sig, signal_handler new_handler); // int (*signal(int sig, void(*new_handler)(int)))(int);
-    int syscall_raise(int sig);                                         // int raise(int sig);
-    void force_signal(task_ctx* task, int8_t sig);                      // (only called by the system on invalid syscalls or hardware exceptions)
-    int syscall_sigprocmask(sigprocmask_action how, sigset_t const* set, sigset_t* oset);   // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
+    clock_t syscall_times(struct tms* out);                                                                     // clock_t times(struct tms* out);
+    long syscall_getpid();                                                                                      // pid_t getpid();
+    long syscall_fork();                                                                                        // pid_t fork();
+    long syscall_vfork();                                                                                       // pid_t vfork();
+    void syscall_exit(int n);                                                                                   // void exit(int code) __attribute__((noreturn));
+    int syscall_kill(long pid, unsigned long sig);                                                              // int kill(pid_t pid, int sig);
+    pid_t syscall_wait(int* sc_out);                                                                            // pid_t wait(int* sc_out);
+    int syscall_sleep(unsigned long seconds);                                                                   // int sleep(time_t seconds);
+    int syscall_execve(char* restrict name, char** restrict argv, char** restrict env);                         // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
+    long syscall_spawn(char* restrict name, char** restrict argv, char** restrict env);                         // pid_t spawn(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
+    long syscall_sigret();                                                                                      // (only called from the signal trampoline)
+    signal_handler syscall_signal(int sig, signal_handler new_handler);                                         // int (*signal(int sig, void(*new_handler)(int)))(int);
+    int syscall_raise(int sig);                                                                                 // int raise(int sig);
+    void force_signal(task_ctx* task, int8_t sig);                                                              // (only called by the system on invalid syscalls or hardware exceptions)
+    int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset);     // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 }
+#ifdef INST_TASK
+template class std::vector<task_ctx*>;
+template class std::vector<const char*>;
+template class std::vector<elf64_shared_object*>;
+template class std::map<int, posix_directory>;
+#else
+extern template class std::vector<task_ctx*>;
+extern template class std::vector<const char*>;
+extern template class std::vector<elf64_shared_object*>;
+extern template class std::map<int, posix_directory>;
+#endif
 #endif

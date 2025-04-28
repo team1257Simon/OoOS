@@ -1,3 +1,4 @@
+#define INST_MM
 #include "kernel_mm.hpp"
 #include "frame_manager.hpp"
 #include "direct_text_render.hpp"

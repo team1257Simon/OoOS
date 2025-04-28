@@ -1,3 +1,4 @@
+#define INST_PT
 #include "fs/hda_ahci.hpp"
 #include "stdexcept"
 #include "kdebug.hpp"

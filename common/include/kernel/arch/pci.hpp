@@ -163,4 +163,10 @@ public:
     static pci_device_list* get_instance();
     pci_config_space* find(uint8_t device_class, uint8_t subclass);
 };
+#ifdef INST_PCI
+template class std::vector<pci_config_space*>;
+#else
+extern template class std::vector<pci_config_space*>;
+#endif
+
 #endif

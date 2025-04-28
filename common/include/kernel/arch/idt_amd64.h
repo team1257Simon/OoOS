@@ -13,7 +13,7 @@ typedef struct
     uint8_t     attributes;              // Type and attributes
     uint16_t    isr_mid;                 // The higher 16 bits of the lower 32 bits of the ISR's address
     uint32_t    isr_high;                // The higher 32 bits of the ISR's address
-    uint32_t    reserved CXX_INI(0);     // Set to zero
+    uint32_t    reserved CXX_INI(0U);    // Set to zero
 } __pack idt_entry_t;
 void idt_init();
 #ifdef __cplusplus

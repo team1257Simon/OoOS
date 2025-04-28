@@ -40,7 +40,7 @@ extfs::extfs(uint64_t volume_start_lba) :
     dir_nodes           {},
     dev_nodes           {},
     block_groups        {},
-    dev_linked_nodes   {},
+    dev_linked_nodes    {},
     sb                  { sb_alloc.allocate(1UL) }, 
     blk_group_descs     {}, 
     root_dir            {}, 
@@ -270,7 +270,7 @@ filesystem::target_pair extfs::get_parent(directory_node* start, std::string con
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
 }
-file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode)
+file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
     target_pair parent = filesystem::get_parent(path, false);
     tnode* node = parent.first->find(parent.second);
@@ -278,18 +278,14 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
     file_node* result;
     if(!node)
     {
-        if(!mode.out) throw std::out_of_range{ "file not found: " + path }; 
-        if(file_node* created = mkfilenode(parent.first, parent.second))
-        {
-            created->mode.read_group = created->mode.read_owner = created->mode.read_others = mode.in;
-            created->mode.write_group = created->mode.write_owner = created->mode.write_others = mode.out;
-            result = created;
-        }
+        if(!create) throw std::out_of_range{ "file not found: " + path }; 
+        if(file_node* created = mkfilenode(parent.first, parent.second)) result = created;
         else throw std::runtime_error{ "failed to create file: " + path }; 
     }
     else result = node->as_file();
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
     if(!current_open_files.contains(result->vid())) { register_fd(result); }
+    result->current_mode = mode;
     return result;
 }
 directory_node* extfs::open_directory(std::string const& path, bool create)
@@ -432,17 +428,25 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
     else panic("failed to get inode");
     return nullptr;
 }
+void extfs::release_all(ext_vnode& extn)
+{
+    for(size_t i = 0; i < extn.cached_metadata.size(); i++) { free_block_buffer(extn.cached_metadata[i]); release_blocks(extn.cached_metadata[i].block_number, extn.cached_metadata[i].chain_len); }
+    for(size_t i = 0; i < extn.block_data.size(); i++) { release_blocks(extn.block_data[i].block_number, extn.block_data[i].chain_len); }
+    extn.extents.base_extent_level.clear();
+    extn.extents.tracked_extents.clear();
+    if(extn.on_disk_node->flags & use_extents) { array_zero(extn.on_disk_node->block_info.ext4_extent.root_nodes, 4); }
+    else array_zero(reinterpret_cast<uint32_t*>(std::addressof(extn.on_disk_node->block_info.legacy_extent)), 15);
+}
 void extfs::dldirnode(directory_node* dd)
 {
     if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete non-empty directory " } + dd->name() }; }
     uint64_t cid = dd->cid();
     ext_directory_vnode& exdn = dynamic_cast<ext_directory_vnode&>(*dd);
     uint32_t inode_num = exdn.inode_number;
+    release_all(exdn);
     release_inode(inode_num, true);
     array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
     persist_inode(inode_num);
-    for(size_t i = 0; i < exdn.cached_metadata.size(); i++) { release_blocks(exdn.cached_metadata[i].block_number, exdn.cached_metadata[i].chain_len); }
-    for(size_t i = 0; i < exdn.block_data.size(); i++) { release_blocks(exdn.block_data[i].block_number, exdn.block_data[i].chain_len); }
     dir_nodes.erase(cid);
 }
 void extfs::dlfilenode(file_node* fd)
@@ -450,11 +454,10 @@ void extfs::dlfilenode(file_node* fd)
     uint64_t cid = fd->cid();
     ext_file_vnode& exfn = dynamic_cast<ext_file_vnode&>(*fd);
     uint32_t inode_num = exfn.inode_number;
+    release_all(exfn);
     release_inode(inode_num, false);
     array_zero(reinterpret_cast<char*>(exfn.on_disk_node), sb->inode_size);
     persist_inode(inode_num);
-    for(size_t i = 0; i < exfn.cached_metadata.size(); i++) { release_blocks(exfn.cached_metadata[i].block_number, exfn.cached_metadata[i].chain_len); }
-    for(size_t i = 0; i < exfn.block_data.size(); i++) { release_blocks(exfn.block_data[i].block_number, exfn.block_data[i].chain_len); }
     file_nodes.erase(cid);
 }
 disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
@@ -612,4 +615,11 @@ device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool creat
     device_node* result = mkdevnode(parent.first, parent.second, id, fd);
     register_fd(result);
     return result; 
+}
+bool extfs::truncate_node(ext_vnode* n)
+{
+    if(!n->on_disk_node->size_hi && !n->on_disk_node->size_lo) return true;
+    release_all(*n);
+    n->truncate_buffer();
+    return persist_inode(n->inode_number);
 }

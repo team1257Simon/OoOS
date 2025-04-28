@@ -32,7 +32,7 @@ struct [[gnu::may_alias]] block_tag
     block_tag* previous     { nullptr };
     block_tag* next         { nullptr };
     size_t align_bytes      { 0 };
-    constexpr block_tag() = default;
+    block_tag() = default;
     constexpr block_tag(size_t size, size_t held, int idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
         index           { idx },
         block_size      { size },

@@ -3,24 +3,24 @@
 #include "kernel/libk_decls.h"
 #include "kernel/arch/pci.hpp"
 #pragma region magic_numbers
-constexpr uint32_t sig_sata = 0x00000101u;
-constexpr uint32_t sig_atapi = 0xEB140101u;
-constexpr uint32_t sig_semb = 0xC33C0101u;
-constexpr uint32_t sig_pmul = 0x96690101u;
+constexpr uint32_t sig_sata = 0x00000101U;
+constexpr uint32_t sig_atapi = 0xEB140101U;
+constexpr uint32_t sig_semb = 0xC33C0101U;
+constexpr uint32_t sig_pmul = 0x96690101U;
 constexpr uint32_t hba_reset = 0b1;
-constexpr uint16_t hba_cmd_start  =  0x0001u;
-constexpr uint16_t hba_command_spin_up_disk = 0x0002u;
+constexpr uint16_t hba_cmd_start  =  0x0001US;
+constexpr uint16_t hba_command_spin_up_disk = 0x0002US;
 constexpr uint8_t  hba_sud_bit = 1;
-constexpr uint16_t hba_command_fre =  0x0010u;
-constexpr uint16_t hba_command_fr  =  0x4000u;
-constexpr uint16_t hba_command_cr  =  0x8000u;
-constexpr uint16_t hba_control_det =  0x0001u;
-constexpr uint32_t hba_enable_interrupts_all = 0xFDC000FFu;
-constexpr uint32_t hba_error = 0x78000000u;
+constexpr uint16_t hba_command_fre =  0x0010US;
+constexpr uint16_t hba_command_fr  =  0x4000US;
+constexpr uint16_t hba_command_cr  =  0x8000US;
+constexpr uint16_t hba_control_det =  0x0001US;
+constexpr uint32_t hba_enable_interrupts_all = 0xFDC000FFU;
+constexpr uint32_t hba_error = 0x78000000U;
 constexpr uint32_t hba_enable_ahci = 0x80000002;
-constexpr unsigned prdt_entries_count = 8u;
-constexpr byte port_active = 0x01ui8;
-constexpr byte port_present = 0x03ui8;
+constexpr unsigned prdt_entries_count = 8U;
+constexpr byte port_active = 0x01UC;
+constexpr byte port_present = 0x03UC;
 constexpr uint32_t port_power_on = (1<<28);
 constexpr uint8_t busy_bit = 7u;
 constexpr uint8_t drq_bit = 3u;
@@ -28,14 +28,14 @@ constexpr uint8_t cr_bit = 15u;
 constexpr uint8_t fr_bit = 14u;
 constexpr uint8_t fre_bit = 4u;
 constexpr uint8_t start_bit = 0u;
-constexpr uint8_t descriptor_processed_bit = 5u;
+constexpr uint8_t descriptor_processed_bit = 5UC;
 constexpr uint8_t soft_reset_bit = 0b10;
 constexpr uint8_t nien_bit = 0b1;
 constexpr uint8_t dev_class_storage_controller = 1;
 constexpr uint8_t subclass_sata_controller = 6;
 constexpr uint64_t max_wait = 10000000uL;
 constexpr uint64_t max_ext_wait = max_wait * max_wait;
-constexpr uint8_t i_state_hi_byte_error = 0x78u;
+constexpr uint8_t i_state_hi_byte_error = 0x78UC;
 constexpr uint8_t oos_bit = 2;
 constexpr uint8_t ooc_bit = 4;
 constexpr uint8_t bos_bit = 1;
@@ -383,7 +383,7 @@ typedef volatile struct tmem
 	uint32_t em_control;        // 0x20, Enclosure management control
 	struct 
 	{
-		uint32_t rsv1 : 26;
+		uint32_t rsv1 				: 26;
 		bool devsleep_slumber_only 	: 1;
 		bool agg_sleep_manage		: 1;
 		bool dev_sleep				: 1;

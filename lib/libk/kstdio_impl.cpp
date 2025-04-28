@@ -21,7 +21,7 @@ size_t __arg_insert_dec(IT i, std::basic_streambuf<char>* stream, size_t minwid,
     if(i > 0 && sign) str.insert(str.begin(), '+');
     if(str.size() < minwid) 
     { 
-        size_t diff = static_cast<size_t>(minwid - str.size());
+        size_t diff = std::min(SIZE_MAX / 4, static_cast<size_t>(minwid - str.size()));
         if(left) str.append(std::string(diff, ' ')); 
         else str.insert(str.begin() + (i < 0 || sign ? 1 : 0), std::string(diff, zeropad ? '0' : ' '));
     }
@@ -34,7 +34,7 @@ size_t __arg_insert_hex(IT i, std::basic_streambuf<char>* stream, size_t minwid,
     if(!pref) str.erase(str.begin(), str.begin() + 2);
     if(str.size() < minwid) 
     { 
-        size_t diff = static_cast<size_t>(minwid - str.size());
+        size_t diff = std::min(SIZE_MAX / 4, static_cast<size_t>(minwid - str.size()));
         if(left) str.append(std::string(diff, ' ')); 
         else str.insert(str.begin() + (pref && zeropad ? 2 : 0), std::string(diff, zeropad ? '0' : ' '));
     }
@@ -49,7 +49,7 @@ size_t __arg_insert_fp(FT f, std::basic_streambuf<char>* stream, size_t minwid, 
     if(f > 0 && sign) str.insert(str.begin(), '+');
      if(str.size() < minwid) 
     { 
-        size_t diff = static_cast<size_t>(minwid - str.size());
+        size_t diff = std::min(SIZE_MAX / 4, static_cast<size_t>(minwid - str.size()));
         if(left) str.append(std::string(diff, ' ')); 
         else str.insert(str.begin() + (f < 0 || sign ? 1 : 0), std::string(diff, zeropad ? '0' : ' '));
     }
@@ -62,7 +62,7 @@ size_t __arg_insert_fpx(FT f, std::basic_streambuf<char>* stream, size_t minwid,
     if(pref) str.insert(str.begin(), std::move(std::string("0x")));
     if(str.size() < minwid) 
     { 
-        size_t diff = static_cast<size_t>(minwid - str.size());
+        size_t diff = std::min(SIZE_MAX / 4, static_cast<size_t>(minwid - str.size()));
         if(left) str.append(std::string(diff, ' ')); 
         else str.insert(str.begin() + (pref && zeropad ? 2 : 0), std::string(diff, zeropad ? '0' : ' '));
     }

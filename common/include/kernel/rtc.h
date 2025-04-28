@@ -30,12 +30,12 @@ class rtc
     static rtc __instance;
 public:
     __isrcall void rtc_time_update() volatile noexcept;
-    static void init_instance(uint8_t century_register = 0) noexcept;
+    static void init_instance(uint8_t century_register = 0UC) noexcept;
     static rtc volatile& get_instance() noexcept;
     rtc_time get_time() volatile;
     uint64_t get_timestamp() volatile;
 };
-constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts, 0U }; }
+constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts, 0UL }; }
 #endif
 struct fadt_t* find_fadt();
 #endif

@@ -31,7 +31,7 @@ static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, direct
     for(tnode* t : tnodes)
     {
         const char* name = t->name();
-        size_t name_len = std::strnlen(name, 255);
+        size_t name_len = std::strnlen(name, 255UZ);
         uint8_t type = t->is_directory() ? DT_DIR : (t->is_device() ? DT_FIFO : DT_REG);
         if(ext_vnode* vn = dynamic_cast<ext_vnode*>(t->ptr()); vn && vn->is_symlink()) { type = DT_LNK; }
         dirent* ent = new(cur) dirent

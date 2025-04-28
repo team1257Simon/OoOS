@@ -169,8 +169,8 @@ task_t* scheduler::manual_yield()
     cur->quantum_rem = 0;
     task_t* next = select_next();
     if(!next) { next = cur; }
+    else { asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory"); }
     next->quantum_rem = next->quantum_val;
-    asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory");
     return next;
 }
 task_t* scheduler::fallthrough_yield()

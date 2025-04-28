@@ -123,7 +123,7 @@ typedef struct __task_info
     addr_t      frame_ptr;                          // this will be a pointer to a uframe_tag struct for a userspace task. The kernel has its own frame pointer of a different type
     regstate_t  saved_regs;                         // this stores all the register states when the process is not active
     uint16_t    quantum_val;                        // base amount of time allocated per timeslice
-    uint16_t    quantum_rem     CXX_INI(0);         // amount of time remaining in the current timeslice
+    uint16_t    quantum_rem     CXX_INI(0US);       // amount of time remaining in the current timeslice
     tcb_t       task_ctl;                           // this contains information related to the process' scheduling information, as well as PID and signaling info
     fx_state    fxsv            CXX_INI();          // stored state for floating-point registers
     uint64_t    run_split       CXX_INI(0UL);       // timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter

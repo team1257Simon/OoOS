@@ -328,7 +328,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #else
 constexpr size_t physical_block_size = 512UL;
 #define __may_alias [[gnu::may_alias]]
-#define restrict
+#define restrict __restrict__
 #include "compare"
 #include "bits/move.h"
 template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
@@ -980,9 +980,8 @@ constexpr __be64 operator""_be64(unsigned long long i) noexcept { return __be64(
 #pragma endregion
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
-constexpr byte operator""ui8(unsigned long long i) noexcept { return byte(static_cast<uint8_t>(i)); }
-constexpr word operator""ui16(unsigned long long i) noexcept { return word(static_cast<uint16_t>(i)); }
-constexpr dword operator""ui32(unsigned long long i) noexcept { return dword(static_cast<uint32_t>(i)); }
+constexpr uint8_t operator""UC(unsigned long long i) noexcept { return static_cast<uint8_t>(i); }
+constexpr uint16_t operator""US(unsigned long long i) noexcept { return static_cast<uint16_t>(i); }
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;

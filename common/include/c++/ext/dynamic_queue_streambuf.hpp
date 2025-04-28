@@ -27,7 +27,7 @@ namespace std
             dynamic_queue_streambuf(dynamic_queue_streambuf&& that) : __base{ forward<__base>(that) } {}
             dynamic_queue_streambuf(const_pointer start, const_pointer end, off_type n = static_cast<off_type>(0), size_type e = static_cast<size_type>(0)) : __base{ static_cast<size_type>(end - start) } { this->__qcopy(this->__qbeg(), start, static_cast<size_type>(end - start)); if(n > static_cast<off_type>(0)) this->__qsetn(static_cast<size_type>(n)); if(e) this->__qsete(e); }
             dynamic_queue_streambuf& operator=(dynamic_queue_streambuf const&) = delete;
-            dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__qmove(forward<__base>(that)); }
+            dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__qmove(forward<__base>(that)); return *this; }
             dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type{}) : __base{ sz, alloc } {}
         protected:
             virtual streamsize xsputn(const_pointer src,  streamsize n) override { pointer old_end = this->__end(); return size_type(this->__push_elements(src, src + n) - old_end); }
@@ -55,7 +55,11 @@ namespace std
             constexpr off_type tell() const noexcept { return static_cast<off_type>(this->__tell()); }
             constexpr size_type rem() const noexcept { return this->__qrem(); }
             constexpr size_type avail_cap() const noexcept { return this->__cap_rem(); }
-        }; 
+        };
+#ifndef INST
+        extern template class dynamic_queue_streambuf<char>;
+        extern template class dynamic_queue_streambuf<uint8_t>;
+#endif
     }
 }
 #endif

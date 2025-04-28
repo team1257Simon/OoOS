@@ -64,4 +64,11 @@ extern "C"
     addr_t syscall_dlfini(addr_t handle);                    // void (**dlfini(void* handle))();
     addr_t syscall_depends(addr_t handle);                   // char** depends(void* handle);
 }
+#ifdef INST_ELF_DYN
+template class std::vector<elf64_rela>;
+template class std::vector<elf64_relocation>;
+#else
+extern template class std::vector<elf64_rela>;
+extern template class std::vector<elf64_relocation>;
+#endif
 #endif

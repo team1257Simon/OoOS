@@ -82,7 +82,7 @@ void ahci::__build_h2d_fis(qword start, dword count, addr_t buffer, ata_command 
 		.lba0 = start.lo.lo.lo,
 		.lba1 = start.lo.lo.hi,
 		.lba2 = start.lo.hi.lo,
-		.device = 0x40ui8,
+		.device = 0x40UC,
 		.lba3 = start.lo.hi.hi,
 		.lba4 = start.hi.lo.lo,
 		.lba5 = start.hi.lo.hi,
@@ -346,7 +346,7 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
     barrier();
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
     {
-        .cmd_fis_len = 5ui8,
+        .cmd_fis_len = 5UC,
         .w_direction = false,
         .prdt_length = true,
         .command_table = new(port->command_list[slot].command_table) hba_cmd_table { .prdt_entries { { .data_base = addr.lo, .data_base_hi = addr.hi, .byte_count = 511U, .interrupt_on_completion = true } } }
@@ -357,7 +357,7 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
 		.type = reg_h2d,
 		.ctype = true,
 		.command = identify, 
-		.device = 0ui8
+		.device = 0UC
 	};
     try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("error on port identify; attempt soft reset"); port_soft_reset(idx); }
     await_result([&]() -> bool { return is_done(idx); });

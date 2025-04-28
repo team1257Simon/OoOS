@@ -34,8 +34,8 @@ bool apic::init() volatile
     if(!ioapic_physical_base) return false;
     addr_t the_apic = kmm.map_mmio_region(physical_base, sizeof(apic_map));
     addr_t the_ioapic = kmm.map_mmio_region(ioapic_physical_base, sizeof(ioapic));
-    outb(data_pic1, 0xFFui8);
-    outb(data_pic2, 0xFFui8);
+    outb(data_pic1, 0xFFUC);
+    outb(data_pic2, 0xFFUC);
     write_msr<ia32_apic_base>(qword((physical_base & 0xFFFFF000) | apic_enable, (physical_base >> 32) & 0x0F));
     __apic_mem = the_apic;
     __ioapic_mem = the_ioapic;

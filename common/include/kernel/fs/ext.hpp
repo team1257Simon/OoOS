@@ -524,6 +524,7 @@ struct ext_vnode : public std::ext::dynamic_streambuf<char>
     bool expand_buffer(size_t added_bytes, size_t written_bytes);
     bool expand_buffer(size_t added_bytes);
     bool init_extents();
+    void truncate_buffer();
     uint64_t next_block();
     size_t block_of_data_ptr(size_t offs);
     constexpr bool is_symlink() const { return on_disk_node ? on_disk_node->mode.is_symlink() : false; }
@@ -566,6 +567,7 @@ struct jbd2 : public ext_vnode
 };
 class ext_file_vnode : public ext_vnode, public file_node
 {
+    bool __initialized = false;
 public:
     using file_node::traits_type;
     using file_node::difference_type;
@@ -583,6 +585,7 @@ public:
     virtual uint64_t size() const noexcept override;
     virtual pos_type tell() const;
     virtual bool initialize() override;
+    virtual bool truncate() override;
     virtual ~ext_file_vnode();
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
@@ -620,6 +623,7 @@ public:
     virtual uint64_t size() const noexcept override;
     virtual bool fsync() override;
     virtual bool initialize() override;
+    virtual bool truncate() override;
     bool init_dir_blank(ext_directory_vnode* parent);
     constexpr bool has_init() const noexcept { return __initialized; }
     ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd);
@@ -694,17 +698,18 @@ protected:
     uint32_t claim_inode(bool dir);
     bool release_inode(uint32_t num, bool dir);
     void release_blocks(uint64_t start, size_t num);
+    void release_all(ext_vnode& extfn);
     bool update_free_block_count(int diff);
     bool update_free_inode_count(int diff);
     bool persist_sb();
 public:
-    virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out) override;
+    virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true) override;
     virtual directory_node* open_directory(std::string const& path, bool create = true) override;
     virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true) override;
+    virtual size_t block_size() override;
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);
     void allocate_block_buffer(disk_block& bl);
-    size_t block_size();
     size_t inodes_per_block();
     uint32_t inode_pos_in_group(uint32_t inode_num);
     size_t sectors_per_block();
@@ -723,6 +728,7 @@ public:
     bool persist_group_metadata(size_t group_num);    
     bool persist_inode(uint32_t inode_num);
     bool persist(ext_vnode* n);
+    bool truncate_node(ext_vnode* n);
     fs_node* dirent_to_vnode(ext_dir_entry* de);
     void initialize();
     constexpr bool has_init() const { return initialized; }

@@ -1,3 +1,4 @@
+#define INST_TASK
 #include "sched/scheduler.hpp"
 #include "sched/task_list.hpp"
 #include "prog_manager.hpp"

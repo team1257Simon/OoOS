@@ -28,7 +28,7 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
             else if(id == K_LALT) { result.state.alt = true; return result; }
             else if(id == K_LCTRL) { result.state.ctrl = true; return result; }
         }
-        if(id <= 0x53 && id >= 0x47) return result;
+        if(id <= 0x53UC && id >= 0x47UC) return result;
     }
     bool is_up = (scan & KEY_UP) != 0;
     if(id == K_LSHIFT || id == K_RSHIFT) result.state.shift = !is_up;
@@ -47,6 +47,6 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
 }
 __isrcall kb_data keyboard_driver_amd64::__get_last(kb_state current_state) { return this->__get_next(current_state, false); }
 __isrcall bool keyboard_driver_amd64::__skip_send() { if(__skip) { __skip = false; return true; } return false; }
-void keyboard_driver_amd64::__on_init() { kb_put(0xF4ui8); kb_get(); irq_clear_mask<1ui8>(); }
-byte keyboard_driver_amd64::__get_irq_index() { return 1ui8; }
+void keyboard_driver_amd64::__on_init() { kb_put(0xF4UC); kb_get(); irq_clear_mask<1UC>(); }
+byte keyboard_driver_amd64::__get_irq_index() { return 1UC; }
 keyboard_driver* get_kb_driver() { return static_cast<keyboard_driver*>(std::addressof(__instance)); }

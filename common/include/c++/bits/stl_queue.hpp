@@ -74,7 +74,7 @@ namespace std
             extension constexpr void set_trim_stale(bool enable = true) noexcept { __enable_trim_stale = enable; }
             extension constexpr void set_stale_settings(stale_settings<T, A> const& settings) noexcept { __enable_trim_stale = true; this->__set_stale_op_threshold(settings.op_threshold); this->__set_stale_size_threshold(settings.size_threshold); }
             extension constexpr size_type transfer(resettable_queue& to_whom, const_iterator start, const_iterator end) { to_whom.__push_elements(start.base(), end.base()); return erase(start, end); }
-            extension constexpr size_type transfer(resettable_queue& to_whom, const_iterator what) { to_whom.__push_elements(what.base()); return erase(what); }
+            extension constexpr size_type transfer(resettable_queue& to_whom, const_iterator what) { to_whom.__push_elements(what); return erase(what); }
             extension constexpr size_type transfer(resettable_queue& to_whom, size_type how_many) { to_whom.__push_elements(this->__qcur(), this->__qcur() + how_many); return this->__erase_elements(this->__qcur(), how_many); }
             extension constexpr size_type transfer(resettable_queue& to_whom) { to_whom.__push_elements(this->front()); return this->__erase_elements(this->__qcur(), 1); }
         };

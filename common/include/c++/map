@@ -18,9 +18,9 @@ namespace std
         constexpr bool operator()(T const& a, T const& b) const { return c(a, b); }
     };
     template<typename KT, typename VT, __valid_comparator<KT> CT = less<KT>, allocator_object<pair<const KT, VT>> AT = allocator<pair<const KT, VT>>>
-    class map : public __tree_base<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT>
+    class map : public __rb_tree<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT>
     {
-        typedef __tree_base<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT> __base;
+        typedef __rb_tree<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT> __base;
         typedef __node<pair<const KT, VT>>* __link_t;
         typedef __node<pair<const KT, VT>> const* __clink_t;
         typedef typename __base::__res_pair __res_t;
@@ -75,8 +75,8 @@ namespace std
         void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
         template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
         iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.get_node()) }; }
-        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__node_base*>(pos.get_node())) }; }
-        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(start.get_node(), end.get_node()) }; }
+        iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__link_t>(pos.get_node())) }; }
+        iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(const_cast<__link_t>(start.get_node()), const_cast<__link_t>(end.get_node())) }; }
         iterator max() noexcept { __link_t r = this->__l_rightmost(); if(r) return iterator(r); return end(); }
         const_iterator max() const noexcept { __clink_t r = this->__l_rightmost(); if(r) return const_iterator(r); return cend(); }
         constexpr void swap(map& that) noexcept { this->__swap(that); }

@@ -7,6 +7,7 @@ size_t ramfs_directory_inode::readdir(std::vector<tnode*>& out_vec) { size_t res
 uint64_t ramfs_directory_inode::num_subdirs() const noexcept { return __subdir_count; }
 uint64_t ramfs_directory_inode::num_files() const noexcept { return __file_count; }
 uint64_t ramfs_directory_inode::size() const noexcept { return __my_dir.size(); }
+bool ramfs_directory_inode::truncate() { __my_dir.clear(); __file_count = 0; __subdir_count = 0; return true; }
 bool ramfs_directory_inode::unlink(std::string const& what) { bool result = __my_dir.erase(what) != 0; if(result) sys_time(std::addressof(modif_time)); return result; }
 tnode* ramfs_directory_inode::add(fs_node* n) { std::pair<tnode_dir::iterator, bool> result = __my_dir.emplace(n, n->name()); if(result.second) sys_time(std::addressof(modif_time)); return result.first.base(); }
 bool ramfs_directory_inode::link(tnode* original, std::string const& alias) { bool result = __my_dir.emplace(mklink(original, alias)).second; if(result) sys_time(std::addressof(modif_time)); return result; }
@@ -19,3 +20,4 @@ ramfs_file_inode::pos_type ramfs_file_inode::seek(off_type off, std::ios_base::s
 ramfs_file_inode::pos_type ramfs_file_inode::seek(pos_type pos) { return seekpos(pos); }
 bool ramfs_file_inode::fsync() { on_modify_queue(); return true; }
 uint64_t ramfs_file_inode::size() const noexcept { return __qsize(); }
+bool ramfs_file_inode::truncate() { clear(); return true; }

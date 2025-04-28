@@ -23,7 +23,7 @@ elf64_object::elf64_object(addr_t start, size_t size):
     __loaded            { false },
     __image_start       { start },
     __image_size        { size },
-    num_seg_descriptors { 0UL },
+    num_seg_descriptors { 0UZ },
     segments            { nullptr },
     symtab              {},
     symstrtab           {},

@@ -54,12 +54,11 @@ extern "C"
             if(next == reinterpret_cast<task_t*>(task)) { return -ECHILD; }
             return next->saved_regs.rax;
         }
-        return -EINVAL;
+        return -ENOMEM;
     }
     long syscall_fork()
     {
         task_ctx* task = active_task_context();
-        // TODO check/enforce thread limit
         if(task_ctx* clone = tl.task_vfork(task); clone && clone->set_fork())
         {
             try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
@@ -68,9 +67,31 @@ extern "C"
             clone->task_struct.saved_regs.rax = 0;
             return clone->get_pid();
         }
-        else return -ENOMEM;
+        else return -EAGAIN;
     }
-    int syscall_execve(char* name, char** argv, char** env)
+    long syscall_vfork()
+    {
+        task_ctx* task = active_task_context();
+        if(task_ctx* clone = tl.task_vfork(task); clone && sch.set_wait_untimed(reinterpret_cast<task_t*>(task)))
+        {
+            try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
+            clone->current_state = execution_state::RUNNING;
+            task->add_child(clone);
+            task->task_struct.task_ctl.notify_cterm = true;
+            clone->task_struct.saved_regs.rax = 0;
+            task->task_struct.saved_regs.rax = clone->get_pid();
+            task_t* next = sch.manual_yield();
+            if(next == reinterpret_cast<task_t*>(task))
+            { 
+                next = clone->task_struct.self;
+                next->quantum_rem = next->quantum_val;
+                asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory");
+            }
+            return next->saved_regs.rax;
+        }
+        else return -EAGAIN;
+    }
+    int syscall_execve(char* restrict name, char** restrict argv, char** restrict env)
     {
         task_ctx* task = active_task_context();
         filesystem* fs_ptr = get_fs_instance();
@@ -86,6 +107,8 @@ extern "C"
         for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
         try
         {
+            if(task_list::iterator parent = tl.find(task->get_parent_pid()); parent != tl.end())
+                sch.interrupt_wait(parent->task_struct.self);
             if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
                 return task->task_struct.saved_regs.rax;
             else return -ENOMEM;
@@ -94,5 +117,36 @@ extern "C"
         catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
         catch(std::bad_alloc&) { panic("no memory for argument vectors"); return -ENOMEM; }
         __builtin_unreachable();
+    }
+    long syscall_spawn(char* restrict name, char** restrict argv, char** restrict env)
+    {
+        task_ctx* task = active_task_context();
+        filesystem* fs_ptr = get_fs_instance();
+        if(!fs_ptr) return -ENOSYS;
+        name = translate_user_pointer(name);
+        if(!name) return -EINVAL;
+        file_node* n;
+        try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+        elf64_executable* ex = prog_manager::get_instance().add(n);
+        if(!ex) return -ENOEXEC;
+        std::vector<const char*> argv_v{}, env_v{};
+        for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
+        for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
+        if(task_ctx* clone = tl.task_vfork(task))
+        {
+            try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
+            clone->current_state = execution_state::RUNNING;
+            task->add_child(clone);
+            try
+            {
+                if(clone->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
+                    return clone->get_pid();
+                else return -ENOMEM;
+            }
+            catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
+            catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
+            catch(std::bad_alloc&) { panic("no memory for argument vectors"); return -ENOMEM; }            
+        }
+        return -EAGAIN;
     }
 }

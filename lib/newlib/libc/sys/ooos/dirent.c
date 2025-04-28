@@ -2,10 +2,10 @@
 #include "./sys/dirent.h"
 #include <string.h>
 #include <stdlib.h>
-typedef int cmp_t(const void*, const void*);
+typedef int cmp_t(const void* restrict, const void* restrict);
 extern void qsort(void* a, size_t n, size_t es, cmp_t* cmp);
 void rewinddir(DIR* dirp) { if(dirp != NULL) dirp->buf_pos = dirp->buf_start; }
-int alphasort(const struct dirent** a, const struct dirent** b) { return strncmp((*a)->d_name, (*b)->d_name, 255); }
+int alphasort(const struct dirent** restrict a, const struct dirent** restrict b) { return strncmp((*a)->d_name, (*b)->d_name, 255); }
 DIR* opendir(const char* dirname)
 {
     DIR* result;

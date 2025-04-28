@@ -17,7 +17,7 @@ typedef std::ext::resettable_queue<task_t*, std::allocator<task_t*>> task_ptr_qu
 class task_pl_queue : public task_ptr_queue_base
 {
     typedef task_ptr_queue_base __base;
-    uint8_t __skips_threshold{ 5U };
+    uint8_t __skips_threshold{ 5UC };
 public:
     using __base::value_type;
     using __base::allocator_type;
@@ -61,14 +61,22 @@ public:
     __isrcall unsigned int cumulative_remaining_ticks() const noexcept;
     bool interrupt_wait(const_iterator where);
 };
-constexpr static priority_val escalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVEXTRA) return pv; return priority_val(int8_t(pv) + 1); }
-constexpr static priority_val deescalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVLOW) return pv; return priority_val(int8_t(pv) - 1); }
-class prio_level_task_queues : public std::array<task_pl_queue, 5>
+constexpr static priority_val escalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVEXTRA) return pv; return priority_val(static_cast<int8_t>(pv) + 1); }
+constexpr static priority_val deescalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVLOW) return pv; return priority_val(static_cast<int8_t>(pv) - 1); }
+class prio_level_task_queues : public std::array<task_pl_queue, 5UZ>
 {
-    typedef std::array<task_pl_queue, 5> __base;
-    constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(int8_t(pv) + 1); }
+    typedef std::array<task_pl_queue, 5UZ> __base;
+    constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(static_cast<int8_t>(pv) + 1); }
 public:
     __isrcall task_pl_queue& operator[](priority_val pv) noexcept;
     __isrcall task_pl_queue const& operator[](priority_val pv) const noexcept;
 };
+#ifdef INST_TQ
+template class std::array<task_pl_queue, 5UZ>;
+template class std::ext::resettable_queue<task_t*, std::allocator<task_t*>>;
+#else
+extern template class std::array<task_pl_queue, 5UZ>;
+extern template class std::ext::resettable_queue<task_t*, std::allocator<task_t*>>;
+#endif
+
 #endif

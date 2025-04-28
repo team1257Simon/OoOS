@@ -1,3 +1,4 @@
+#define INST_TL
 #include "sched/task_list.hpp"
 #include "sched/scheduler.hpp"
 #include "kernel_mm.hpp"
@@ -43,6 +44,7 @@ bool task_list::destroy_task(uint64_t pid)
 }
 task_ctx* task_list::task_vfork(task_ctx const* ctx)
 {
+    // TODO check/enforce thread limit
     if(!ctx) return nullptr;
     task_ctx* result;
     try { result = emplace(*ctx).first.base(); }

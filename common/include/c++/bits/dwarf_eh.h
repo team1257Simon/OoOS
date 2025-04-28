@@ -73,7 +73,7 @@ enum dwarf_data_encoding
  * Returns the encoding for a DWARF EH table entry.  The encoding is stored in
  * the low four of an octet.  The high four bits store the addressing mode.
  */
-static inline enum dwarf_data_encoding get_encoding(unsigned char x) { return static_cast<enum dwarf_data_encoding>(x & 0xf); }
+static inline enum dwarf_data_encoding get_encoding(unsigned char x) { return static_cast<enum dwarf_data_encoding>(x & 0xF); }
 /**
  * DWARF addressing mode constants.  When reading a pointer value from a DWARF
  * exception table, you must know how it is stored and what the addressing mode
@@ -84,7 +84,7 @@ static inline enum dwarf_data_encoding get_encoding(unsigned char x) { return st
 enum dwarf_data_relative
 {
 	/// Value is omitted
-	DW_EH_PE_omit     = 0xff,
+	DW_EH_PE_omit     = 0xFF,
 	/// Value relative to program counter
 	DW_EH_PE_pcrel    = 0x10,
 	/// Value relative to the text segment
@@ -146,7 +146,7 @@ static uint64_t read_leb128(dw_eh_ptr_t *data, int *b)
 		// bit of the digit.
 		assert(bit < sizeof(uint64_t) * 8);
 		// Get the base 128 digit 
-		digit = (**data) & 0x7f;
+		digit = (**data) & 0x7F;
 		// Add it to the current value
 		uleb += digit << bit;
 		// Increase the shift value
