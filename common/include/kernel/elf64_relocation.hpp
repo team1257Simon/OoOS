@@ -8,7 +8,7 @@ typedef std::function<uint64_t(elf64_sym const&, elf64_rela const&)> reloc_sym_r
 typedef std::function<addr_t(elf64_rela const&)> reloc_tar_resolve;
 struct elf64_relocation
 {
-    elf64_sym symbol{};
+    elf64_sym symbol;
     elf64_rela rela_entry;
     elf64_relocation(elf64_sym const& sym, elf64_rela const& relaent);
     elf64_relocation(elf64_rela const& relaent);

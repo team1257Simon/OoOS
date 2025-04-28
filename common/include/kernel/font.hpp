@@ -26,10 +26,10 @@ typedef struct __psf2_t
 }
 class font_render 
 {
-	psf2_t* __my_font{};
-	uint32_t __foreground{};
-	uint32_t __background{};
-	uint32_t __pitch{};
+	psf2_t* __my_font		{};
+	uint32_t __foreground	{};
+	uint32_t __background	{};
+	uint32_t __pitch		{};
 	constexpr size_t __buffer_start_offset(point const& start) const { return (start.x * __my_font->width) * 4 + (start.y * __my_font->height) * __pitch; }
 	constexpr size_t __buffer_offset(point const& start, point const& sub) const { return ((__buffer_start_offset(start) + sub.y * __pitch) / 4) + sub.x; }
 	constexpr char __ensure_bounds(char c) const { return (static_cast<unsigned char>(c) > __my_font->numglyph || c < 1) ? ' ' : c; }

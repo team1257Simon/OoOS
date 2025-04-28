@@ -4,12 +4,12 @@
 enum write_mode : bool { INSERT = false, OVERWRITE = true };
 struct kb_state
 {
-    bool shift      : 1 { false  };
-    bool ctrl       : 1 { false  };
-    bool alt        : 1 { false  };
-    bool fn         : 1 { false  };
-    bool numlk      : 1 { false  };
-    bool capslk     : 1 { false  };
+    bool shift      : 1 { false };
+    bool ctrl       : 1 { false };
+    bool alt        : 1 { false };
+    bool fn         : 1 { false };
+    bool numlk      : 1 { false };
+    bool capslk     : 1 { false };
     write_mode mode : 2 { INSERT };
     constexpr kb_state& operator=(kb_state const& that) 
     {

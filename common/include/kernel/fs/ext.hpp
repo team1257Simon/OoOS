@@ -224,7 +224,16 @@ union ext_node_extent_root
         uint32_t doubly_indirect_block;
         uint32_t triply_indirect_block;
     } __pack legacy_extent;
-    char link_target[60]{};   // either a symlink target or device ID
+    char link_target[60]{};   // either a symlink target or device name (given by its initial file name)
+} __pack;
+struct ooos_misc_flags
+{
+    bool system_only        : 1;
+    bool force_journal      : 1;
+    bool always_hide        : 1;
+    bool disallow_symlink   : 1;
+    bool                    : 4;
+    bool                    : 8;
 } __pack;
 struct ext_inode
 {
@@ -239,7 +248,7 @@ struct ext_inode
     uint16_t referencing_dirents;
     uint32_t blocks_count_lo;
     uint32_t flags;
-    uint32_t os_specific_1;             // unused for now
+    dev_t    device_hardlink_id;        // zero unless the node points to a device; otherwise stores the device ID number
     ext_node_extent_root block_info;    // either a list of block pointers (direct and indirect) or an extent tree
     uint32_t version_lo;
     uint32_t file_acl_block;
@@ -250,7 +259,7 @@ struct ext_inode
     uint16_t uid_hi;
     uint16_t gid_hi;
     uint16_t checksum_lo;               // crc32c(uuid+inode_number+inode)
-    uint16_t os_specific_3;             // unused for now
+    ooos_misc_flags extra_flags;
     uint16_t extra_isize;
     uint16_t checksum_hi;               // high-order 16 bits of the inode checksum
     uint32_t changed_time_hi;
@@ -280,43 +289,43 @@ struct ext_dir_tail
 } __pack;
 enum ext_dirent_type
 {
-    dti_unknown = 0,
-    dti_regular = 1,
-    dti_dir = 2,
-    dti_chardev = 3,
-    dti_blockdev = 4,
-    dti_fifo = 5,
-    dti_socket = 6,
-    dti_symlink = 7
+    dti_unknown     = 0,
+    dti_regular     = 1,
+    dti_dir         = 2,
+    dti_chardev     = 3,
+    dti_blockdev    = 4,
+    dti_fifo        = 5,
+    dti_socket      = 6,
+    dti_symlink     = 7
 };
 struct ext_dx_entry { uint32_t hash; uint32_t node_dirfile_block; } __pack;
 enum ext_dx_hash_type : uint8_t
 {
-    hx_legacy = 0,
-    hx_half_md4 = 1,
-    hx_tea = 2,
-    hx_unsigned_legacy = 3,
-    hx_unsigned_half_md4 = 4,
-    hx_unsigned_tea = 5,
-    hx_siphahs = 6
+    hx_legacy               = 0,
+    hx_half_md4             = 1,
+    hx_tea                  = 2,
+    hx_unsigned_legacy      = 3,
+    hx_unsigned_half_md4    = 4,
+    hx_unsigned_tea         = 5,
+    hx_siphahs              = 6
 };
 struct ext_dx_root
 {
     uint32_t inode_idx;
-    uint16_t dot_entry_size{ 12 };
-    uint8_t dot_name_len{ 1 };
-    uint8_t dot_type_ind{ dti_dir };
-    char dot[4]{ '.', '\0', '\0', '\0' };
+    uint16_t dot_entry_size     { 12 };
+    uint8_t dot_name_len        { 1 };
+    uint8_t dot_type_ind        { dti_dir };
+    char dot[4]                 { '.', '\0', '\0', '\0' };
     uint32_t parent_inode_idx;
     uint16_t dotdot_entry_size;
-    uint8_t dotdot_name_len{ 2 };
-    uint8_t dotdot_type_ind{ dti_dir };
-    char dotdot[4]{ '.', '.', '\0', '\0' };
-    uint32_t zero{ 0U };
+    uint8_t dotdot_name_len     { 2 };
+    uint8_t dotdot_type_ind     { dti_dir };
+    char dotdot[4]              { '.', '.', '\0', '\0' };
+    uint32_t zero               { 0U };
     ext_dx_hash_type hash_type;
-    uint8_t info_len{ 8 };
+    uint8_t info_len            { 8 };
     uint8_t htree_depth;
-    uint8_t unused_flags{ 0 };
+    uint8_t unused_flags        { 0 };
     uint16_t limit;
     uint16_t count;
     uint32_t start_file_block;
@@ -324,10 +333,10 @@ struct ext_dx_root
 } __pack;
 struct ext_dx_node
 {
-    uint32_t fake_inode{ 0U };
+    uint32_t fake_inode     { 0U };
     uint16_t fake_len;
-    uint8_t fake_name_len{ 0 };
-    uint8_t fake_type{ 0 };
+    uint8_t fake_name_len   { 0 };
+    uint8_t fake_type       { 0 };
     uint16_t limit;
     uint16_t count;
     uint32_t start_file_block;
@@ -336,29 +345,29 @@ struct ext_dx_node
 struct ext_dx_tail { uint32_t dt_reserved; uint32_t dt_checksum; } __pack;
 enum ext_inode_flags : uint32_t
 {
-    secure_delete = 0x00001,
-    retain_copy_on_delete = 0x00002,
-    file_compression = 0x00004,
-    sync_unbuffered_updates= 0x00008,
-    immutable = 0x00010,
-    append_only = 0x00020,
-    exclude_from_dump = 0x00040,
-    no_access_time_update = 0x00080,
-    hash_indexed_dir = 0x10000,
-    afs_directory = 0x20000,
-    journal_file_data = 0x40000,
-    use_extents = 0x80000
+    secure_delete           = 0x00001,
+    retain_copy_on_delete   = 0x00002,
+    file_compression        = 0x00004,
+    sync_unbuffered_updates = 0x00008,
+    immutable               = 0x00010,
+    append_only             = 0x00020,
+    exclude_from_dump       = 0x00040,
+    no_access_time_update   = 0x00080,
+    hash_indexed_dir        = 0x10000,
+    afs_directory           = 0x20000,
+    journal_file_data       = 0x40000,
+    use_extents             = 0x80000
 };
 struct ext_mmp
 {
-    uint32_t magic; // 0x004D4D50
+    uint32_t magic;         // 0x004D4D50
     uint32_t sequence;
     uint64_t updated_time;
     char system_hostname[64];
     char mount_path[32];
     uint16_t check_interval;
     uint16_t padding[453];
-    uint32_t checksum;  // crc32c(uuid+mmp_block_number)
+    uint32_t checksum;      // crc32c(uuid+mmp_block_number)
 } __pack;
 class extfs;
 struct ext_vnode;
@@ -374,26 +383,26 @@ struct jbd2_header
 };
 enum jbd_block_type : uint32_t
 {
-    descriptor = 0x1U,
-    commit = 0x2U,
-    sbv1 = 0x3U,
-    sbv2 = 0x4U,
-    revocation = 0x5U
+    descriptor  = 0x1U,
+    commit      = 0x2U,
+    sbv1        = 0x3U,
+    sbv2        = 0x4U,
+    revocation  = 0x5U
 };
 enum jbd_feature_flags
 {
-    revocation_records = 0x1,
-    x64_support = 0x2,
-    async_commit = 0x4,
-    csum_v2 = 0x8,
-    csum_v3 = 0x10,
-    fast_commits = 0x20
+    revocation_records  = 0x1,
+    x64_support         = 0x2,
+    async_commit        = 0x4,
+    csum_v2             = 0x8,
+    csum_v3             = 0x10,
+    fast_commits        = 0x20
 };
 enum jbd_block_flags
 {
-    escape = 0x1,
-    same_uuid = 0x2,
-    last_block = 0x8
+    escape      = 0x1,
+    same_uuid   = 0x2,
+    last_block  = 0x8
 };
 enum ext_jbd2_mode
 {
@@ -403,7 +412,7 @@ enum ext_jbd2_mode
 };
 struct jbd2_commit_header
 {
-    jbd2_header header{ .blocktype = __be32(commit) };
+    jbd2_header header{ .blocktype{ commit } };
     uint8_t checksum_type;
     uint8_t checksum_size;
     uint8_t padding[2];
@@ -426,7 +435,7 @@ struct jbd2_block_tag
     __be32 block_number_hi;
 };
 struct jbd2_block_tail { __be32 block_checksum; /* crc32c(uuid+descr_block) */ }; 
-struct jbd2_revoke_header { jbd2_header header{ .blocktype = __be32(revocation) }; __be32 block_bytes_used; };
+struct jbd2_revoke_header { jbd2_header header{ .blocktype{ revocation } }; __be32 block_bytes_used; };
 struct jbd2_superblock
 {
     jbd2_header header;
@@ -464,7 +473,7 @@ struct cached_extent_node
     off_t blk_offset;
     ext_vnode* tracked_node;
     uint16_t depth;
-    std::map<uint64_t, off_t> next_level_extents{};
+    std::map<uint64_t, off_t> next_level_extents;
     disk_block* block();
     cached_extent_node(disk_block* bptr, ext_vnode* tracked_node, uint16_t depth);
     size_t nl_recurse_legacy(ext_node_extent_tree* parent, uint64_t start_file_block);
@@ -476,11 +485,11 @@ struct cached_extent_node
 struct ext_node_extent_tree
 {
     ext_vnode* tracked_node;
-    uint16_t base_depth{};
-    size_t total_extent{};
-    std::vector<cached_extent_node> tracked_extents{};        // the actual extent map objects are allocated here
-    std::map<uint64_t, off_t> base_extent_level{};
-    bool has_init{ false };
+    uint16_t base_depth                             {};
+    size_t total_extent                             {};
+    std::vector<cached_extent_node> tracked_extents {};        // the actual extent map objects are allocated here
+    std::map<uint64_t, off_t> base_extent_level     {};
+    bool has_init                                   { false };
     bool parse_legacy();
     bool parse_ext4();
     bool push_extent_legacy(disk_block* blk);
@@ -529,11 +538,12 @@ enum log_read_state : int
 struct jbd2 : public ext_vnode
 {
     jbd2_superblock* sb;
-    uint32_t uuid_checksum{};
-    bool has_init{ false };
-    jbd2_transaction_queue active_transactions{};
-    std::vector<disk_block> replay_blocks{};
-    uint32_t first_open_block{ 1U };                    // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
+    uint32_t uuid_checksum                      {};
+    bool has_init                               { false };
+    jbd2_transaction_queue active_transactions  {};
+    std::vector<disk_block> replay_blocks       {};
+    int log_seq                                 { 0U };
+    uint32_t first_open_block                   { 1U }; // the value in the superblock is only valid when the journal is empty, so just track the value here (if we boot to a non-empty journal we'll figure this value during the replay)
     bool create_txn(ext_vnode* changed_node);           // this overload is for files and directories (only needed in full journal and writeback mode)
     bool create_txn(std::vector<disk_block> const&);    // this overload can be used directly for metadata (needed in all modes)
     bool need_escape(disk_block const& bl);
@@ -580,19 +590,22 @@ public:
 constexpr size_t sb_sectors = (sizeof(ext_superblock) / physical_block_size);
 constexpr off_t sb_off = (1024L / physical_block_size);
 struct dirent_idx { unsigned block_num; unsigned block_offs; };
+class ext_device_vnode;
 class ext_directory_vnode : public ext_vnode, public directory_node
 {
     tnode_dir __my_dir;
-    std::map<tnode*, dirent_idx> __dir_index{};
-    bool __initialized{};
-    size_t __n_subdirs{};
-    size_t __n_files{};
+    std::map<tnode*, dirent_idx> __dir_index    {};
+    bool __initialized                          { false };
+    size_t __n_subdirs                          { 0UL };
+    size_t __n_files                            { 0UL };
     char* __current_block_start();
     bool __parse_entries(size_t bs);
     bool __seek_available_entry(size_t name_len);
+    void __write_dir_entry(ext_device_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     void __write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     ext_dir_entry* __current_ent();
 public:
+    bool add_dir_entry(ext_device_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     bool add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual tnode* find(std::string const&) override;
@@ -611,6 +624,19 @@ public:
     constexpr bool has_init() const noexcept { return __initialized; }
     ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
+};
+class ext_device_vnode : public device_node
+{
+    friend class ext_directory_vnode;
+    friend class extfs;
+    uint32_t inode_number;
+    extfs* parent_fs;
+    ext_inode* on_disk_node;
+public:
+    virtual bool fsync() override;
+    ext_device_vnode(extfs* parent, uint32_t inode_number, device_stream* dev, int fd);
+    ext_device_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, device_stream* dev, int fd);
+    virtual ~ext_device_vnode();
 };
 struct ext_block_group
 {
@@ -636,26 +662,29 @@ struct ext_block_group
 };
 class extfs : public filesystem
 {
+    friend struct ext_block_group;
 protected:
     std::set<ext_file_vnode> file_nodes;
     std::set<ext_directory_vnode> dir_nodes;
+    std::set<ext_device_vnode> dev_nodes;
     std::vector<ext_block_group> block_groups;
+    std::map<dev_t, ext_device_vnode*> dev_linked_nodes;
     ext_superblock* sb;
     block_group_descriptor* blk_group_descs;
     directory_node* root_dir;
     size_t num_blk_groups;
     uint64_t superblock_lba;
     jbd2 fs_journal;
-    uint32_t uuid_csum{ 0U };
-    disk_block bg_table_block{ 1UL, nullptr };
-    friend struct ext_block_group;
-    bool initialized{ false };
+    uint32_t uuid_csum          { 0U };
+    disk_block bg_table_block   { 1UL, nullptr };
+    bool initialized            { false };
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
     virtual void dldirnode(directory_node* dd) override;
     virtual void syncdirs() override;
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
+    virtual device_node* mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd) override;
     virtual target_pair get_parent(directory_node* start, std::string const& path, bool create) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* on_open(tnode* fd) override;
@@ -671,6 +700,7 @@ protected:
 public:
     virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out) override;
     virtual directory_node* open_directory(std::string const& path, bool create = true) override;
+    virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true) override;
     char* allocate_block_buffer();
     void free_block_buffer(disk_block& bl);
     void allocate_block_buffer(disk_block& bl);

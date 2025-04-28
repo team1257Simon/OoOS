@@ -5,9 +5,9 @@
 constexpr dev_t ramfs_magic = 0xC001;
 class ramfs_directory_inode : public directory_node
 {
-    tnode_dir __my_dir{};
-    size_t __file_count{};
-    size_t __subdir_count{};
+    tnode_dir __my_dir      {};
+    size_t __file_count     {};
+    size_t __subdir_count   {};
 public:
     virtual tnode* find(std::string const& name) override;
     virtual bool link(tnode* original, std::string const& alias) override;

@@ -375,14 +375,16 @@ typedef struct __vaddr
 #ifdef __cplusplus 
 	struct 
 	{
+#endif
 		uint16_t offset     : 12;
 		uint16_t page_idx   :  9;
 		uint16_t pd_idx     :  9;
 		uint16_t pdp_idx    :  9;
 		uint16_t pml4_idx   :  9;
 		uint16_t ext        : 16;
+#ifdef __cplusplus 
 	} __pack __align(1);
-	uintptr_t full{ 0UL };
+	uintptr_t full  { 0UL };
     constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
         offset      { offs },
         page_idx    { idx0 },
@@ -448,13 +450,6 @@ typedef struct __vaddr
     friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.full; }
     friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.full <=> __that; }
     constexpr bool is_canonical() const noexcept { return (((pml4_idx & 0x100) == 0) && (ext == 0)) || (((pml4_idx & 0x100) != 0) && (ext == 0xFFFF)); }
-#else
-    uint16_t offset     : 12;
-    uint16_t page_idx   :  9;
-    uint16_t pd_idx     :  9;
-    uint16_t pdp_idx    :  9;
-    uint16_t pml4_idx   :  9;
-    uint16_t ext        : 16;
 #endif
 } __pack __align(1) addr_t;
 #ifndef __cplusplus
@@ -585,30 +580,30 @@ enum madt_record_type
 : uint8_t
 #endif
 {
-    LOCAL_APIC = 0x0,
-    IO_APIC = 0x1,
-    INTERRUPT_SOURCE_OVERRIDE = 0x2,
-    NMI_SOURCE_OVERRIDE = 0x3,
-    LOCAL_APIC_NMI = 0x4,
-    APIC_ADDRESS_OVERRIDE = 0x5,
-    IO_SAPIC = 0x6,
-    LOCAL_SAPIC = 0x7,
-    PLATFORM_INTERRUPT_SOURCE = 0x8,
-    LOCAL_2XAPIC = 0x9,
-    LOCAL_2XAPIC_NMI = 0xA,
-    GICC = 0xB,
-    GICD = 0xC,
-    GIC_MSI_FRAME = 0xD,
-    GICR = 0xE,
-    GIC_ITS = 0xF,
-    MULTUPROCESSOR_WAKEUP = 0x10,
-    CORE_PIC = 0x11,
-    LIO_PIC = 0x12,
-    HT_PIC = 0x13,
-    EIO_PIC = 0x14,
-    MSI_PIC = 0x15,
-    BIO_PIC = 0x16,
-    LPI_PIC = 0x17
+    LOCAL_APIC                  = 0x0,
+    IO_APIC                     = 0x1,
+    INTERRUPT_SOURCE_OVERRIDE   = 0x2,
+    NMI_SOURCE_OVERRIDE         = 0x3,
+    LOCAL_APIC_NMI              = 0x4,
+    APIC_ADDRESS_OVERRIDE       = 0x5,
+    IO_SAPIC                    = 0x6,
+    LOCAL_SAPIC                 = 0x7,
+    PLATFORM_INTERRUPT_SOURCE   = 0x8,
+    LOCAL_2XAPIC                = 0x9,
+    LOCAL_2XAPIC_NMI            = 0xA,
+    GICC                        = 0xB,
+    GICD                        = 0xC,
+    GIC_MSI_FRAME               = 0xD,
+    GICR                        = 0xE,
+    GIC_ITS                     = 0xF,
+    MULTUPROCESSOR_WAKEUP       = 0x10,
+    CORE_PIC                    = 0x11,
+    LIO_PIC                     = 0x12,
+    HT_PIC                      = 0x13,
+    EIO_PIC                     = 0x14,
+    MSI_PIC                     = 0x15,
+    BIO_PIC                     = 0x16,
+    LPI_PIC                     = 0x17
 };
 struct madt_record_header
 {

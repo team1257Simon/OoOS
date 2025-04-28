@@ -13,7 +13,6 @@
 #include "array"
 typedef int (attribute(sysv_abi) task_closure)(int, char**);
 typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
-inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 constexpr unsigned int sub_tick_ratio{ 157 };
 constexpr unsigned int early_trunc_thresh{ 5 };
 constexpr unsigned int cycle_max { 2280 };
@@ -37,31 +36,31 @@ enum class execution_state
 };
 struct task_ctx
 {
-    task_t task_struct;                     //  The c-style struct from task.h; gs base will point here when the task is active
-    std::vector<task_ctx*> child_tasks{};   //  The array in task_struct will be redirected here.
-    std::vector<const char*> arg_vec;       //  Argv will be taken from this vector's data() member; argc is its size()
-    std::vector<const char*> env_vec{};     //  Environment variables will go here
-    std::vector<std::string> dl_search_paths{};
-    std::vector<elf64_shared_object*> attached_so_handles{};
+    task_t task_struct;                                             //  The c-style struct from task.h; gs base will point here when the task is active
+    std::vector<task_ctx*> child_tasks                      {};     //  The array in task_struct will be redirected here.
+    std::vector<const char*> arg_vec;                               //  Argv will be taken from this vector's data() member; argc is its size()
+    std::vector<const char*> env_vec                        {};     //  Environment variables will go here
+    std::vector<std::string> dl_search_paths                {};
+    std::vector<elf64_shared_object*> attached_so_handles   {};
     addr_t entry;
     addr_t allocated_stack;
     size_t stack_allocated_size;
     addr_t tls;
     size_t tls_size;
     filesystem* ctx_filesystem;
-    file_node* stdio_ptrs[3]{};
-    execution_state current_state{ execution_state::STOPPED };
-    int exit_code{ 0 };
-    addr_t exit_target{ nullptr };
-    addr_t dynamic_exit{ nullptr };
-    addr_t notif_target{ nullptr };
-    task_ctx* last_notified{ nullptr };
-    elf64_executable* program_handle{ nullptr };
-    shared_object_map* local_so_map{ nullptr };
-    addr_t rt_argv_ptr{ nullptr };
-    addr_t rt_env_ptr{ nullptr };
-    task_signal_info_t task_sig_info{};
-    std::map<int, posix_directory> opened_directories{};
+    file_node* stdio_ptrs[3]                                {};
+    execution_state current_state                           { execution_state::STOPPED };
+    int exit_code                                           { 0 };
+    addr_t exit_target                                      { nullptr };
+    addr_t dynamic_exit                                     { nullptr };
+    addr_t notif_target                                     { nullptr };
+    task_ctx* last_notified                                 { nullptr };
+    elf64_executable* program_handle                        { nullptr };
+    shared_object_map* local_so_map                         { nullptr };
+    addr_t rt_argv_ptr                                      { nullptr };
+    addr_t rt_env_ptr                                       { nullptr };
+    task_signal_info_t task_sig_info                        {};
+    std::map<int, posix_directory> opened_directories       {};
     task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(task_ctx const& that);
@@ -101,6 +100,7 @@ struct task_ctx
     bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
+inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 inline task_ctx* active_task_context() { return current_active_task()->self; }
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);

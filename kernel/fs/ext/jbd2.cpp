@@ -14,11 +14,10 @@ off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, boo
 {
     off_t result = static_cast<off_t>(desc_tag_size(true));
     uint32_t fl = (!is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (need_escape(bl) ? escape : 0);
-    __be32 be_seq(seq);
     uint32_t csum = crc32c(uuid_checksum, seq);
     csum = crc32c_blk(csum, bl, parent_fs->block_size());
     if(sb->required_features & csum_v3) { std::construct_at<jbd2_block_tag3>(static_cast<jbd2_block_tag3*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be32(fl), __be32((bl.block_number & 0xFFFFFFFF00000000) >> 32), __be32(csum)); }
-    else { std::construct_at<jbd2_block_tag>(static_cast<jbd2_block_tag*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be16(uint16_t(csum & 0xFFFF)), __be16(fl), __be32(sb->required_features & x64_support ? (bl.block_number & 0xFFFFFFFF00000000) >> 32 : 0)); }
+    else { std::construct_at<jbd2_block_tag>(static_cast<jbd2_block_tag*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be16(static_cast<uint16_t>(csum & 0xFFFF)), __be16(fl), __be32(sb->required_features & x64_support ? (bl.block_number & 0xFFFFFFFF00000000) >> 32 : 0)); }
     if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16; array_copy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
     return result;
 }
@@ -110,6 +109,7 @@ bool jbd2::clear_log()
     array_zero(reinterpret_cast<uint64_t*>(__beg() + bs), static_cast<size_t>(__capacity() - bs) / sizeof(uint64_t));
     replay_blocks.clear();
     __setc(0UL);
+    log_seq = 0;
     return ddwrite();
 }
 bool jbd2::execute_pending_txns()
@@ -121,7 +121,7 @@ bool jbd2::execute_pending_txns()
 uint32_t jbd2::calculate_sb_checksum()
 {
     uint32_t sb_cs_val = sb->checksum;
-    sb->checksum = __be32(0U);
+    sb->checksum = 0_be32;
     uint32_t result = crc32c(*sb);
     sb->checksum = __be32(sb_cs_val);
     return result;
@@ -198,11 +198,17 @@ log_read_state jbd2::read_log_transaction()
         }
         else return NREM;
     }
-    transaction_id id = static_cast<transaction_id>(active_transactions.size());
+    transaction_id id = static_cast<transaction_id>(log_seq);
+    uint32_t csum_base = crc32c(uuid_checksum, log_seq);
     end = reinterpret_cast<char*>(ch);
     std::vector<disk_block> txn_blocks{};
     char* block_st = start;
     char* block_ed;
+    uint32_t cb_csum_checkval = ch->checksum[0];
+    ch->checksum[0] = 0_be32;
+    uint32_t cb_csum = crc32c(csum_base, end, bs);
+    ch->checksum[0] = __be32(cb_csum_checkval);
+    if(cb_csum != cb_csum_checkval) goto skip_txn;
     do {
         jbd2_header* h = reinterpret_cast<jbd2_header*>(block_st);
         if(h->magic != jbd2_magic) return SKIP;
@@ -211,15 +217,23 @@ log_read_state jbd2::read_log_transaction()
         {
             pos = block_st + sizeof(jbd2_header);
             block_ed = block_st + bs;
+            __be32* db_csum_pos = reinterpret_cast<__be32*>(block_ed - sizeof(__be32));
+           uint32_t checkval = *db_csum_pos;
+           *db_csum_pos = 0;
+           uint32_t db_csum = crc32c(csum_base, block_st, bs);
+           *db_csum_pos = __be32(checkval); 
+            if(db_csum != checkval) goto skip_txn;
             while(pos < block_ed)
             {
-                // TODO verify checksums
                 if(sb->required_features & csum_v3)
                 {
                     jbd2_block_tag3* tag = reinterpret_cast<jbd2_block_tag3*>(pos);
                     qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0U);
                     __bumpc(bs);
                     txn_blocks.emplace_back(blocknum, __cur(), true, 1);
+                    uint32_t csum = crc32c(csum_base, __cur(), bs);
+                    uint32_t checkval = tag->checksum;
+                    if(csum != checkval) goto skip_txn;
                     if(tag->flags & last_block) pos = block_ed;
                     else pos += desc_tag_size(tag->flags & same_uuid);
                 }
@@ -228,6 +242,9 @@ log_read_state jbd2::read_log_transaction()
                     jbd2_block_tag* tag = reinterpret_cast<jbd2_block_tag*>(pos);
                     qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0U);
                     __bumpc(bs);
+                    uint32_t csum = crc32c(csum_base, __cur(), bs);
+                    uint16_t checkval = tag->checksum;
+                    if(dword(csum).lo != checkval) goto skip_txn;
                     txn_blocks.emplace_back(blocknum, __cur(), true, 1);
                     if(tag->flags & last_block) pos = block_ed;
                     else pos += desc_tag_size(tag->flags & same_uuid);
@@ -239,6 +256,10 @@ log_read_state jbd2::read_log_transaction()
     } while(block_st < end);
     active_transactions.emplace(std::move(txn_blocks), id);
     return VALID;
+skip_txn:
+    klog("W: skipping corrupted transaction");
+    __setc(end);
+    return SKIP;
 }
 bool jbd2::read_log()
 {
@@ -255,6 +276,7 @@ bool jbd2::read_log()
             return false;
         default:
             __bumpc(bs);
+            log_seq++;
             break;
         }
     }

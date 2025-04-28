@@ -6,7 +6,7 @@ ext_node_extent_tree::~ext_node_extent_tree() = default;
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const* n) { return n - tracked_extents.begin().base(); }
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const& n) { return cached_node_pos(std::addressof(n)); }
 cached_extent_node* ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
-cached_extent_node::cached_extent_node(disk_block* bptr, ext_vnode* node, uint16_t d) : blk_offset{ bptr - (d ? node->cached_metadata.data() : node->block_data.data()) }, tracked_node{ node }, depth{ d } {}
+cached_extent_node::cached_extent_node(disk_block* bptr, ext_vnode* node, uint16_t d) : blk_offset{ bptr - (d ? node->cached_metadata.data() : node->block_data.data()) }, tracked_node{ node }, depth{ d }, next_level_extents{} {}
 disk_block* cached_extent_node::block() { return ((depth ? tracked_node->cached_metadata.begin() : tracked_node->block_data.begin()) + blk_offset).base(); }
 static void populate_leaf(ext_extent_leaf& leaf, disk_block* blk, uint64_t fn_start)
 {

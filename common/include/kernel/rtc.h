@@ -22,10 +22,10 @@ int syscall_gettimeofday(struct timeval* restrict tm, void* restrict tz);
 }
 class rtc
 {
-    uint8_t __century_register{ 0ui8 };
-    std::atomic<rtc_time> __my_time{};
-    bool __is_bcd{};
-    bool __is_12h{};
+    uint8_t __century_register      {};
+    std::atomic<rtc_time> __my_time {};
+    bool __is_bcd                   {};
+    bool __is_12h                   {};
     rtc() = default;
     static rtc __instance;
 public:

@@ -30,4 +30,5 @@ public:
     device_stream* operator[](dword id) const;
     uint32_t add(device_stream* dev, device_type type);
 };
+#define dreg device_registry::get_instance()
 #endif

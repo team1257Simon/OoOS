@@ -32,15 +32,15 @@ __task_prio
 : int8_t
 #endif
 {
-    PVLOW = 0,
-    PVNORM = 1,
-    PVHIGH = 2,
+    PVLOW   = 0,
+    PVNORM  = 1,
+    PVHIGH  = 2,
     PVEXTRA = 3,
-    PVSYS = 4
+    PVSYS   = 4
 } priority_val;
 typedef enum __sm_action
 {
-    SIG_BLOCK = 0,
+    SIG_BLOCK   = 0,
     SIG_UNBLOCK = 1,
     SIG_SETMASK = 2
 } sigprocmask_action;
@@ -109,10 +109,12 @@ typedef struct __task_control
     struct
     {   
         uint8_t             skips;                      // the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
-        task_signal_info_t* signal_info;                // WIP
+        task_signal_info_t* signal_info;                // points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
         uint32_t            wait_ticks_delta;           // for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
         int64_t             parent_pid;                 // a negative number indicates no parent
         uint64_t            task_id;                    // pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
+        int64_t             task_uid;                   // WIP
+        int64_t             task_gid;                   // WIP
     } __pack __align(1);
 } __pack tcb_t;
 typedef struct __task_info

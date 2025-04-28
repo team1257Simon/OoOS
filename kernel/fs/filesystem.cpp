@@ -56,17 +56,16 @@ device_node* filesystem::lndev(std::string const& where, int fd, dev_t id, bool 
 {
     target_pair parent = get_parent(where, create_parents);
     if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; 
-    device_node* result = mkdevnode(parent.first, parent.second, fd, id);
+    device_node* result = mkdevnode(parent.first, parent.second, id, fd);
     register_fd(result);
     return result; 
 }
 bool filesystem::link_stdio(dev_t dev_id)
 {
-    device_stream* target = device_registry::get_instance()[dev_id];
-    if(!target) return false;    
-    current_open_files.add_fd(mkdevnode(get_root_directory(), "/dev/stdin", 0, dev_id));
-    current_open_files.add_fd(mkdevnode(get_root_directory(), "/dev/stdout", 1, dev_id));
-    current_open_files.add_fd(mkdevnode(get_root_directory(), "/dev/stderr", 2, dev_id));
+    if(!dreg[dev_id]) return false;    
+    current_open_files.add_fd(lndev("/dev/stdin", dev_id, 0));
+    current_open_files.add_fd(lndev("/dev/stdout", dev_id, 1));
+    current_open_files.add_fd(lndev("/dev/stderr", dev_id, 2));
     return true;
 }
 bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool dir_recurse)
@@ -88,9 +87,9 @@ bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool d
     }
     return xunlink(pdir, fname, ignore_nonexistent, dir_recurse);
 }
-device_node* filesystem::mkdevnode(directory_node* parent, std::string const& name, int fd, dev_t id)
+device_node* filesystem::mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd)
 {
-    device_stream* dev = device_registry::get_instance()[id];
+    device_stream* dev = dreg[id];
     if(!dev) { throw std::invalid_argument{"no device found with that id"}; }
     device_node* result = device_nodes.emplace(name, fd, dev, id).first.base();
     parent->add(result);
@@ -208,7 +207,7 @@ void filesystem::create_node(directory_node* from, std::string const& path, mode
     file_mode m(mode);
     fs_node* result;
     if(m.is_directory()) { result = mkdirnode(parent.first, parent.second); result->mode = mode; }
-    else if(m.is_chardev()) { result = mkdevnode(parent.first, parent.second, next_fd++, dev); result->mode = mode; }
+    else if(m.is_chardev()) { result = mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
     else { result = mkfilenode(parent.first, parent.second); result->mode = mode; }
     if(!result) { throw std::runtime_error{ "failed to create node at " + path }; }
     result->fsync();

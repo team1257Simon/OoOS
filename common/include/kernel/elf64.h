@@ -13,85 +13,85 @@
 #endif
 enum elf_class : uint8_t
 {
-    EC_NONE = 0,
-    EC_32 = 1,
-    EC_64 = 2
+    EC_NONE     = 0,
+    EC_32       = 1,
+    EC_64       = 2
 };
 enum elf_data_encoding : uint8_t
 {
-    ED_NONE = 0,
-    ED_LSB = 1,
-    ED_MSB = 2
+    ED_NONE     = 0,
+    ED_LSB      = 1,
+    ED_MSB      = 2
 };
 enum elf_machine_type : uint16_t
 {
-    EM_NONE = 0,
-    EM_M32 = 1,
-    EM_SPARC = 2,
-    EM_I386 = 3,
-    EM_68K = 4,
-    EM_88K = 5,
-    EM_I860 = 7,
-    EM_MIPS = 8,
-    EM_PPC = 0x14,
-    EM_ARM = 0x28,
-    EM_SUPERH = 0x2A,
-    EM_ITANIUM = 0x32,
-    EM_AMD64 = 0x3E,
-    EM_AARCH64 = 0xB7,
-    EM_RISCV = 0xF3
+    EM_NONE     = 0,
+    EM_M32      = 1,
+    EM_SPARC    = 2,
+    EM_I386     = 3,
+    EM_68K      = 4,
+    EM_88K      = 5,
+    EM_I860     = 7,
+    EM_MIPS     = 8,
+    EM_PPC      = 0x14,
+    EM_ARM      = 0x28,
+    EM_SUPERH   = 0x2A,
+    EM_ITANIUM  = 0x32,
+    EM_AMD64    = 0x3E,
+    EM_AARCH64  = 0xB7,
+    EM_RISCV    = 0xF3
 };
 enum elf_object_type : uint16_t
 {
-    ET_NONE = 0,
-    ET_REL = 1,
-    ET_EXEC = 2,
-    ET_DYN = 3,
-    ET_CORE = 4
+    ET_NONE     = 0,
+    ET_REL      = 1,
+    ET_EXEC     = 2,
+    ET_DYN      = 3,
+    ET_CORE     = 4
     // PC-Specific = 0xFF00~0xFFFF
 };
 enum elf_segment_type : uint32_t
 {
-    PT_NULL = 0,
-    PT_LOAD = 1,
-    PT_DYNAMIC = 2,
-    PT_INTERP = 3,
-    PT_NOTE = 4,
-    PT_SHLIB = 5,
-    PT_PHDR = 6,
+    PT_NULL     = 0,
+    PT_LOAD     = 1,
+    PT_DYNAMIC  = 2,
+    PT_INTERP   = 3,
+    PT_NOTE     = 4,
+    PT_SHLIB    = 5,
+    PT_PHDR     = 6,
     // PC-Specific = 0x70000000~0x7FFFFFFF
 };
 enum elf_section_type : uint32_t
 {
-    ST_NULL = 0,
-    ST_PROGBITS = 1,
-    ST_SYMTAB = 2,
-    ST_STRTAB = 3,
-    ST_RELA = 4,
-    ST_HASH = 5,
-    ST_DYNAMIC = 6,
-    ST_NOTE = 7,
-    ST_NOBITS = 8,
-    ST_REL = 9,
-    ST_SHLIB = 10,
-    ST_DYNSYM = 11,
+    ST_NULL         = 0,
+    ST_PROGBITS     = 1,
+    ST_SYMTAB       = 2,
+    ST_STRTAB       = 3,
+    ST_RELA         = 4,
+    ST_HASH         = 5,
+    ST_DYNAMIC      = 6,
+    ST_NOTE         = 7,
+    ST_NOBITS       = 8,
+    ST_REL          = 9,
+    ST_SHLIB        = 10,
+    ST_DYNSYM       = 11,
     // OS-Specific = 0x60000000~0x6FFFFFFF
     // PC-Specific = 0x70000000~0x7FFFFFFF
     ST_AMD64_UNWIND = 0x70000001
 };
 enum elf_sym_type : uint8_t
 {
-    SYM_NOTYPE = 0,
-    SYM_OBJECT = 1,
-    SYM_FUNCTION = 2,
-    SYM_SECTION = 3,
-    SYM_FILE = 4
+    SYM_NOTYPE      = 0,
+    SYM_OBJECT      = 1,
+    SYM_FUNCTION    = 2,
+    SYM_SECTION     = 3,
+    SYM_FILE        = 4
 };
 enum elf_sym_bind : uint8_t
 {
-    SB_LOCAL = 0,
-    SB_GLOBAL = 1,
-    SB_WEAK = 2
+    SB_LOCAL    = 0,
+    SB_GLOBAL   = 1,
+    SB_WEAK     = 2
 };
 enum elf_dyn_tag : uint64_t
 {

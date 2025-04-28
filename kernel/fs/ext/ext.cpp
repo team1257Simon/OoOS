@@ -38,7 +38,9 @@ extfs::extfs(uint64_t volume_start_lba) :
     filesystem          {}, 
     file_nodes          {}, 
     dir_nodes           {},
+    dev_nodes           {},
     block_groups        {},
+    dev_linked_nodes   {},
     sb                  { sb_alloc.allocate(1UL) }, 
     blk_group_descs     {}, 
     root_dir            {}, 
@@ -398,6 +400,38 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
     else panic("failed to get inode");
     return nullptr;
 }
+device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd)
+{
+    device_stream* dev = dreg[id];
+    if(!dev) { throw std::invalid_argument{"no device found with that id"}; }
+    qword tstamp = sys_time(nullptr);
+    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
+    if(uint32_t inode_num = claim_inode(false)) try
+    {
+        ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
+        {
+            .mode               { 0020666U },
+            .size_lo            { 0U },
+            .changed_time       { tstamp.lo },
+            .modified_time      { tstamp.lo },
+            .flags              { use_extents },
+            .device_hardlink_id { id },
+            .size_hi            { 0U },
+            .changed_time_hi    { extrabits },
+            .mod_time_extra     { extrabits },
+            .created_time       { tstamp.lo },
+            .created_time_hi    { extrabits }
+        };
+        array_copy(inode->block_info.link_target, name.c_str(), std::strnlen(name.c_str(), 60));
+        ext_device_vnode* vnode = dev_nodes.emplace(this, inode_num, dev, fd).first.base();
+        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
+        if(exparent.add_dir_entry(vnode, dti_chardev, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
+        else panic("failed to add directory entry");
+    }
+    catch(std::exception& e) { panic(e.what()); }
+    else panic("failed to get inode");
+    return nullptr;
+}
 void extfs::dldirnode(directory_node* dd)
 {
     if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete non-empty directory " } + dd->name() }; }
@@ -523,6 +557,14 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
     if(sb->required_features & dirent_type)
     {
         if(de->type_ind == dti_dir) return dir_nodes.emplace(this, idx, next_fd++).first.base();
+        else if(de->type_ind == dti_chardev || de->type_ind == dti_blockdev)
+        {
+            ext_inode* n = get_inode(idx);
+            dev_t id = n->device_hardlink_id;
+            if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
+            device_stream* dev = dreg[id];
+            return (dev_linked_nodes[id] = dev_nodes.emplace(this, idx, dev, next_fd++).first.base());
+        }
         else 
         { 
             next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
@@ -534,6 +576,13 @@ fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
     { 
         ext_inode* n = get_inode(idx);
         if(n->mode.is_directory()) return dir_nodes.emplace(this, idx, n, next_fd++).first.base();
+        else if(n->mode.is_chardev() || n->mode.is_blockdev()) 
+        {
+            dev_t id = n->device_hardlink_id;
+            if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
+            device_stream* dev = dreg[id];
+            return (dev_linked_nodes[id] = dev_nodes.emplace(this, idx, dev, next_fd++).first.base());
+        }
         else 
         {
             next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
@@ -548,4 +597,19 @@ tnode* extfs::get_path(std::string const& path_str)
     // TODO check for loops in symlink paths; this probably means overriding get_parent
     if(p.first) return p.first->find(p.second);
     return nullptr;
+}
+device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool create_parents)
+{
+    target_pair parent = filesystem::get_parent(where, create_parents);
+    if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" };
+    ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent.first);
+    if(dev_linked_nodes.contains(id))
+    {
+        ext_device_vnode* node = dev_linked_nodes[id];
+        if(exparent.add_dir_entry(node, dti_chardev, parent.second.data(), parent.second.size()) && persist_inode(node->inode_number)) return node;
+        throw std::runtime_error{ "failed to create directory entry" };
+    }
+    device_node* result = mkdevnode(parent.first, parent.second, id, fd);
+    register_fd(result);
+    return result; 
 }

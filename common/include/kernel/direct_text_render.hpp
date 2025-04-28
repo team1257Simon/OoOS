@@ -4,11 +4,11 @@
 #include "string"
 class direct_text_render
 {
-    uint32_t* __fb_ptr{};
-    font_render __render{};
-    uint32_t __fb_wid{};
-    uint32_t __fb_ht{};
-    point __cursor_pos{ 0, 0 };
+    uint32_t* __fb_ptr      {};
+    font_render __render    {};
+    uint32_t __fb_wid       {};
+    uint32_t __fb_ht        {};
+    point __cursor_pos      { 0, 0 };
     constexpr uint32_t __fb_col_cap() const { return __fb_wid / __render.glyph_width(); }
     constexpr uint32_t __fb_row_cap() const { return __fb_ht / __render.glyph_height(); }
     __isrcall void __advance() noexcept;

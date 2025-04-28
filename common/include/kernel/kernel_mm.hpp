@@ -22,33 +22,33 @@
 #define MAP_FIXED	    0x10
 #define MAP_FILE	    0x00
 #define MAP_ANONYMOUS   0x20
-constexpr unsigned region_cap = MAX_COMPLETE_REGIONS;
-constexpr unsigned min_exponent = MIN_BLOCK_EXP;
-constexpr unsigned max_exponent = MAX_BLOCK_EXP;
+constexpr unsigned region_cap       = MAX_COMPLETE_REGIONS;
+constexpr unsigned min_exponent     = MIN_BLOCK_EXP;
+constexpr unsigned max_exponent     = MAX_BLOCK_EXP;
 // 64 bits means new levels of l33tpuns! Now featuring Pokemon frustrations using literal suffixes.
-constexpr uint64_t block_magic = 0xB1600FBA615FULL;
+constexpr uint64_t block_magic      = 0xB1600FBA615FULL;
 // Of course, we wouldn't want to offend anyone, so... (the 7s are T's...don't judge me >.<)
-constexpr uint64_t kframe_magic = 0xD0BE7AC7FUL;
+constexpr uint64_t kframe_magic     = 0xD0BE7AC7FUL;
 // Oh yea we did...
-constexpr uint64_t uframe_magic = 0xACED17C001B012;
-constexpr size_t page_size = PAGESIZE;
-constexpr size_t page_table_length = PT_LEN;
-constexpr size_t region_size = page_size * page_table_length;
-constexpr uintptr_t mmap_min_addr = 0x500000UL;
-constexpr size_t block_index_range = max_exponent - min_exponent;
-constexpr size_t max_block_index = block_index_range - 1;
-constexpr addr_t sysres_base{ 0xFFFF800000000000 };
+constexpr uint64_t uframe_magic     = 0xACED17C001B012;
+constexpr size_t page_size          = PAGESIZE;
+constexpr size_t page_table_length  = PT_LEN;
+constexpr size_t region_size        = page_size * page_table_length;
+constexpr uintptr_t mmap_min_addr   = 0x500000UL;
+constexpr size_t block_index_range  = max_exponent - min_exponent;
+constexpr size_t max_block_index    = block_index_range - 1;
+constexpr addr_t sysres_base        { 0xFFFF800000000000 };
 struct block_tag
 {
-    uint64_t magic{ block_magic };
+    uint64_t magic          { block_magic };
     size_t block_size;
     size_t held_size;
     int64_t index;
-    block_tag* left_split{ nullptr };
-    block_tag* right_split{ nullptr };
-    block_tag* previous{ nullptr };
-    block_tag* next{ nullptr };
-    size_t align_bytes{ 0 };
+    block_tag* left_split   { nullptr };
+    block_tag* right_split  { nullptr };
+    block_tag* previous     { nullptr };
+    block_tag* next         { nullptr };
+    size_t align_bytes      { 0UL };
     constexpr block_tag() = default;
     constexpr block_tag(size_t size, size_t held, int64_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
         block_size      { size },
@@ -77,9 +77,9 @@ public:
     constexpr kframe_tag() = default;
     void insert_block(block_tag* blk, int idx);
     void remove_block(block_tag* blk);
-    addr_t allocate(size_t size, size_t align = 0);
-    void deallocate(addr_t ptr, size_t align = 0);
-    addr_t reallocate(addr_t ptr, size_t size, size_t align = 0);
+    addr_t allocate(size_t size, size_t align = 0UL);
+    void deallocate(addr_t ptr, size_t align = 0UL);
+    addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL);
     addr_t array_allocate(size_t num, size_t size);
 private:
     block_tag* __create_tag(size_t size, size_t align);
@@ -93,13 +93,13 @@ struct block_descriptor
     addr_t physical_start;
     addr_t virtual_start;
     size_t size;
-    size_t align{ 0UL };
-    bool write{ true };
-    bool execute{ true };
+    size_t align    { 0UL };
+    bool write      { true };
+    bool execute    { true };
 };
 struct uframe_tag
 {
-    uint64_t magic{ uframe_magic };
+    uint64_t magic  { uframe_magic };
     paging_table pml4;
     addr_t base;
     addr_t extent;
@@ -107,23 +107,26 @@ struct uframe_tag
     addr_t sysres_wm;
     addr_t sysres_extent;
     addr_t dynamic_extent;
-    std::vector<addr_t> kernel_allocated_blocks{};
-    std::vector<block_descriptor> usr_blocks{};
-    std::vector<block_descriptor*> shared_blocks{};
+    std::vector<addr_t> kernel_allocated_blocks;
+    std::vector<block_descriptor> usr_blocks;
+    std::vector<block_descriptor*> shared_blocks;
 private:
-    spinlock_t __my_mutex{};
+    spinlock_t __my_mutex;
     void __lock();
     void __unlock();
 public:
     constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : 
-        pml4            { cr3 },
-        base            { st_base },
-        extent          { st_extent },
-        mapped_max      { st_extent },
-        sysres_wm       { sysres_base },
-        sysres_extent   { sysres_base },
-        dynamic_extent  { nullptr }
-                        {}
+        pml4                    { cr3 },
+        base                    { st_base },
+        extent                  { st_extent },
+        mapped_max              { st_extent },
+        sysres_wm               { sysres_base },
+        sysres_extent           { sysres_base },
+        dynamic_extent          { nullptr },
+        kernel_allocated_blocks {},
+        usr_blocks              {},
+        shared_blocks           {}
+                                {}
     bool shift_extent(ptrdiff_t amount);
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
     addr_t sysres_add(size_t n);
@@ -149,14 +152,14 @@ enum block_idx : uint8_t
 };
 enum block_size : uint32_t
 {
-    S512 = 512*PAGESIZE,
-    S256 = 256*PAGESIZE,
-    S128 = 128*PAGESIZE,
-    S64  = 64*PAGESIZE,
-    S32  = 32*PAGESIZE,
-    S16  = 16*PAGESIZE,
-    S08  = 8*PAGESIZE,
-    S04  = 4*PAGESIZE
+    S512 = 512 * page_size,
+    S256 = 256 * page_size,
+    S128 = 128 * page_size,
+    S64  =  64 * page_size,
+    S32  =  32 * page_size,
+    S16  =  16 * page_size,
+    S08  =   8 * page_size,
+    S04  =   4 * page_size
 };
 #define BS2BI(i) i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i ==  S16 ? I4 : (i ==  S32 ? I3 : (i ==  S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))
 /*
@@ -205,21 +208,24 @@ private:
 } __align(1) __pack status_byte, gb_status[512];
 class kernel_memory_mgr
 {
-    spinlock_t __heap_mutex{};                  // Calls to kernel allocations lock this mutex to prevent comodification
-    spinlock_t __user_mutex{};                  // Separate mutex for userspace calls because userspace memory will be delegated from kernel blocks
+    spinlock_t __heap_mutex;                    // Calls to kernel allocations lock this mutex to prevent comodification
+    spinlock_t __user_mutex;                    // Separate mutex for userspace calls because userspace memory will be split from kernel blocks
     gb_status* const __status_bytes;            // Array of 512-byte arrays
     size_t const __num_status_bytes;            // Length of said array
     uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
-    addr_t __kernel_cr3;                        // The location of the kernel's top-level paging structure
-    uintptr_t __watermark{ 0 };   // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
-    addr_t __suspended_cr3{ nullptr };          // Saved cr3 value for a frame suspended in order to access kernel paging structures
-    uframe_tag* __active_frame{ nullptr };
+    uintptr_t __watermark;                      // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+    addr_t __suspended_cr3;                     // Saved cr3 value for a frame suspended in order to access kernel paging structures
+    uframe_tag* __active_frame;
     static kernel_memory_mgr* __instance;
-    constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr, addr_t get_kernel_cr3) noexcept :
+    constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
+        __heap_mutex                {},
+        __user_mutex                {},
         __status_bytes              { status_bytes },
         __num_status_bytes          { num_status_bytes },
         __kernel_heap_begin         { kernel_heap_addr },
-        __kernel_cr3                { get_kernel_cr3 }
+        __watermark                 { 0UL },
+        __suspended_cr3             { nullptr },
+        __active_frame              { nullptr }
                                     {}
     constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
     constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }

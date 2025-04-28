@@ -250,6 +250,7 @@ protected:
     virtual void dldirnode(directory_node*) = 0;
     virtual file_node* mkfilenode(directory_node*, std::string const&) = 0;
     virtual directory_node* mkdirnode(directory_node*, std::string const&) = 0;
+    virtual device_node* mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd);
     virtual void syncdirs() = 0;
     virtual dev_t xgdevid() const noexcept = 0;
     virtual const char* path_separator() const noexcept;
@@ -258,7 +259,6 @@ protected:
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
     virtual target_pair get_parent(directory_node* node, std::string const& path, bool create);
     virtual void dldevnode(device_node*);
-    virtual device_node* mkdevnode(directory_node* parent, std::string const& name, int fd, dev_t id);
     void register_fd(fs_node* node);
     target_pair get_parent(std::string const& path, bool create);
 public:

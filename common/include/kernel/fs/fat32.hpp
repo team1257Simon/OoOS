@@ -89,7 +89,7 @@ struct fat32_regular_entry
 {
     char filename[11];
     uint8_t attributes;
-    uint8_t winnt_reserved{ 0 };
+    uint8_t winnt_reserved = 0;
     uint8_t created_time_millis;    // in hundredths of a second, so this times 10 is the milliseconds field
     fat_filetime created_time;
     fat_filedate created_date;
@@ -228,10 +228,10 @@ class fat32_directory_node final : public directory_node, public fat32_node
     tnode_dir __my_dir;
     std::vector<fat32_directory_entry> __my_dir_data;
     std::vector<uint32_t> __my_covered_clusters;
-    bool __has_init{ false };    
-    size_t __n_files{};
-    size_t __n_folders{};
-    bool __dirty{ false };
+    bool __has_init     { false };    
+    size_t __n_files    {};
+    size_t __n_folders  {};
+    bool __dirty        { false };
     friend class fat32_node;
     friend class fat32;    
     void __expand_dir();

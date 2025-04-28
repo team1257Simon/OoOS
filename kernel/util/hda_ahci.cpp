@@ -9,7 +9,7 @@ bool hda_ahci::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __dr
 hda_ahci::hda_ahci() {}
 bool hda_ahci::init_instance() { if(__has_init) return true; return (__has_init = __instance.init()); }
 bool hda_ahci::is_initialized() noexcept { return __has_init; }
-partition_table& hda_ahci::get_partition_table() { return __instance.__my_partitions; }
+partition_table& hda_ahci::get_partition_table() { return __instance.__part_table; }
 hda_ahci* hda_ahci::get_instance() { return __has_init ? std::addressof(__instance) : nullptr; }
 bool hda_ahci::__read_pt()
 {
@@ -26,7 +26,7 @@ bool hda_ahci::__read_pt()
     partition_entry_t* arr = alloc_pt.allocate(actual);
     array_zero<partition_entry_t>(arr, n);
     if(!read(reinterpret_cast<char*>(arr), hdr->lba_partition_entry_array, div_round_up(n * sizeof(partition_entry_t), physical_block_size))) { panic("bad read on plus-size partition table"); alloc_hdr.deallocate(hdr, 1); alloc_pt.deallocate(arr, actual); return false; }
-    for(size_t i = 0; i < n; i += sz_multi) __my_partitions.push_back(arr[i]);
+    for(size_t i = 0; i < n; i += sz_multi) __part_table.push_back(arr[i]);
     alloc_hdr.deallocate(hdr, 1);
     alloc_pt.deallocate(arr, actual);
     return true;

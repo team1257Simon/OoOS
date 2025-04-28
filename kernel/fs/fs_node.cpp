@@ -34,8 +34,8 @@ device_node::size_type device_node::write(const_pointer src, size_type n) { size
 device_node::size_type device_node::read(pointer dest, size_type n) { return __dev_buffer->sgetn(dest, n); }
 device_node::pos_type device_node::seek(off_type off, std::ios_base::seekdir way) { return __dev_buffer->pubseekoff(off, way); }
 device_node::pos_type device_node::seek(pos_type pos) { return __dev_buffer->pubseekpos(pos); }
-tnode::tnode(fs_node* node, std::string const& name) : __my_node{ node }, __my_name{ name } { __my_node->refs.insert(this); }
-tnode::tnode(fs_node* node, const char* name) : __my_node{ node }, __my_name{ name } { __my_node->refs.insert(this); }
+tnode::tnode(fs_node* node, std::string const& name) : __my_node{ node }, __my_name{ name } { if(__my_node) __my_node->refs.insert(this); }
+tnode::tnode(fs_node* node, const char* name) : __my_node{ node }, __my_name{ name } { if(__my_node) __my_node->refs.insert(this); }
 tnode::tnode(std::string name) : __my_node { nullptr }, __my_name{ name } {}
 tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
 void tnode::rename(std::string const& n) { __my_name = n; }
