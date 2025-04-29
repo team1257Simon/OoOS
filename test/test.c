@@ -37,7 +37,7 @@ int main(int argc, char** argv)
         else printf("no file :(\n");
     }
     else printf("no file D:\n");
-    pid_t pid = fork();
+    long pid = fork();
     printf("forked\n");
     int rv = 0;
     switch(pid)
