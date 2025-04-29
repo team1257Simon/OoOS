@@ -51,7 +51,7 @@ namespace std
         {
             constexpr static size_t __max_size = sizeof(__no_copy);
             constexpr static size_t __max_align = alignof(__no_copy);
-            template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { ::new (dest.__access()) FT{ forward<F2>(src) }; }
+            template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { ::new(dest.__access()) FT{ forward<F2>(src) }; }
             template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { dest.__access<FT*>() = new FT{ forward<F2>(src) }; }
             constexpr static void __delete_wrapper(__data_store& target, true_type) { target.__access<FT>().~FT(); }
             constexpr static void __delete_wrapper(__data_store& target, false_type) { ::operator delete(target.__access<FT*>()); }
@@ -156,7 +156,7 @@ namespace std
             if constexpr(is_object_v<FT>)
             {
                 using __handler = __target_helper<RT(Args...), FT>;
-                if(__my_manager == &__handler::__manager || ( __my_manager && typeid(FT) == target_type()))
+                if(__my_manager == &__handler::__manager || (__my_manager && typeid(FT) == target_type()))
                 {
                     __data_store ptr;
                     __my_manager(ptr, __my_functor, __get_functor_ptr);

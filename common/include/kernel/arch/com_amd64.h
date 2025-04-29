@@ -174,6 +174,7 @@ protected:
     virtual std::streamsize unread_size() override;
     virtual std::streamsize sector_size() override;
     __isrcall virtual void on_modify_queue() override;
+    virtual void sync_ptrs() override;
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;
     static com_amd64 __instance;

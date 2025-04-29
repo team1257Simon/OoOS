@@ -19,6 +19,7 @@ com_amd64* com_amd64::get_instance() { return std::addressof(__instance); }
 com_amd64::pos_type com_amd64::seekpos(pos_type pos, std::ios_base::openmode which) { return which.out ? pos_type(off_type(__cur() - __beg())) : pos_type(off_type(__qcur() - __qbeg())); }
 com_amd64::pos_type com_amd64::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) { return which.out ? pos_type(off_type(__cur() - __beg())) : pos_type(off_type(__qcur() - __qbeg())); }
 __isrcall void com_amd64::on_modify_queue() { ptrdiff_t n = gptr() - eback(); if(n > 0) __qsetn(static_cast<size_t>(n)); if(__qbeg()) setg(__qbeg(), __qcur(), __end()); }
+void com_amd64::sync_ptrs() { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); }
 static void com1_set_baud_divisor(word value)
 {
     line_ctl_byte cur_ctl = inb(port_com1_line_ctl);

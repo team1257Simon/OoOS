@@ -20,6 +20,7 @@ namespace std
             using typename std::basic_streambuf<CT, TT>::__sb_type;
             using typename std::basic_streambuf<CT, TT>::__ptr_container;
             bool is_dirty{ false };
+            virtual void sync_ptrs() { if(!this->__in_region.__end) { this->__in_region.__end = this->__beg(); } if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); this->setg(this->__beg(), this->gptr(), this->__max()); } }
             virtual std::basic_string<CT, TT, AT> __str() const& { return std::basic_string<CT, TT, AT>{ this->__beg(), this->__max() }; }
             virtual std::basic_string<CT, TT, AT> __str() && { size_t s = this->__capacity(); std::basic_string<CT, TT, AT> result{ this->__beg(), this->__max() }; this->__clear(); this->__allocate_storage(s); this->on_modify(); return result; }
             virtual void __str(std::basic_string<CT, TT, AT> const& that) { this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->__beg(), that.data(), that.size()); this->__advance(that.size()); this->on_modify(); }
@@ -34,8 +35,8 @@ namespace std
              * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.
              * Inheritors can override to add functionality that needs to be invoked whenever these pointers move.
              */
-            virtual void on_modify() { if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); is_dirty = true; } }
-            virtual int sync() override { if(this->__beg()) this->__fullsetp(this->__beg(), this->__cur(), this->__max()); if(is_dirty) { int result = write_dev(); is_dirty = (result >= 0); return result; } return 0; }
+            virtual void on_modify() { if(this->__beg()) { sync_ptrs(); is_dirty = true; } }
+            virtual int sync() override { sync_ptrs(); if(is_dirty) { int result = write_dev(); is_dirty = (result >= 0); return result; } return 0; }
             virtual __sb_type* setbuf(char_type* s, std::streamsize n) { this->__setn(s, n); return this; }
             virtual int_type underflow() override { std::streamsize n = std::min(sector_size(), showmanyc()); if(n && read_dev(n)) { this->on_modify(); return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); } 
             virtual int_type overflow(int_type c = traits_type::eof()) override { if(!traits_type::eq_int_type(c, traits_type::eof())) { if(this->__append_element(traits_type::to_char_type(c))) { this->on_modify(); return c; } } return traits_type::eof(); }
@@ -61,13 +62,12 @@ namespace std
         template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)
         {
-            char_type* ptr = (way == std::ios_base::cur ? this->__cur() : (way == std::ios_base::end ? this->__max() : this->__beg())) + off;
+            char_type* ptr = (way == std::ios_base::cur ? (which.out ? this->__cur() : this->gptr()) : (way == std::ios_base::end ? this->__max() : this->__beg())) + off;
             if(ptr > this->__max()) return pos_type(off_type(-1));
             if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
-                this->__setc(ptr);
                 if(which.in) this->__in_region.__end = ptr;
-                if(which.out) this->__out_region.__end = ptr;
+                if(which.out) { this->__setc(ptr); this->__out_region.__end = this->__cur(); }
                 this->on_modify();
             }
             return pos_type(off_type(this->__size()));
@@ -79,15 +79,14 @@ namespace std
             if(ptr > this->__max()) return pos_type(off_type(-1));
             if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
-                this->__setc(ptr);
-                if(which.in) this->__in_region.__end = this->__cur();
-                if(which.out) this->__out_region.__end = this->__cur();
+                if(which.in) this->__in_region.__end = ptr;
+                if(which.out) { this->__setc(ptr); this->__out_region.__end = this->__cur(); }
                 this->on_modify();
             }
             return pos_type(off_type(this->__size()));
         }
         template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
-        std::streamsize dynamic_streambuf<CT, TT, AT>::xsgetn(char_type *s, std::streamsize n)
+        std::streamsize dynamic_streambuf<CT, TT, AT>::xsgetn(char_type* s, std::streamsize n)
         {
             std::streamsize l = std::min(n, std::streamsize(this->egptr() - this->gptr()));
             if(l < n) { l += this->read_dev(std::min(std::streamsize(l - n), this->unread_size())); }
@@ -97,11 +96,11 @@ namespace std
             return l;
         }
         template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
-        std::streamsize dynamic_streambuf<CT, TT, AT>::xsputn(char_type const *s, std::streamsize n)
+        std::streamsize dynamic_streambuf<CT, TT, AT>::xsputn(char_type const* s, std::streamsize n)
         {
-            std::streamsize l = std::min(n, std::streamsize(this->__max() - this->__cur()));
+            std::streamsize l = std::min(n, std::streamsize(this->epptr() - this->pptr()));
             if(l < n) { l += this->on_overflow(std::streamsize(n - l)); }
-            char_type* old = this->__cur();
+            char_type* old = this->pptr();
             char_type* result = this->__append_elements(s, s + l);
             if(!result) return std::streamsize(0);
             this->on_modify();

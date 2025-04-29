@@ -3,7 +3,7 @@
 #include "bits/functional_hash.hpp"
 #include "bits/aligned_buffer.hpp"
 #include "bits/basic_string.hpp"
-#include "md5.hpp"
+#include "kernel/md5.hpp"
 /**
  * DRAGON, aka Decompose and Rehash to Avoid Grossly Oversized Numbers, is a sort of hash-function adapter that will take a large-number hash (such as md5) and apply a smaller, secondary hash to the result of that function.
  * The rehash-function should be one that expects a text string as input, and outputs 64 bits or fewer. Hence, I chose to use an elf64 hash.

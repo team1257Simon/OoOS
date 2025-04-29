@@ -29,7 +29,6 @@ ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number) : ext_vnode(parent, i
 bool ext_vnode::initialize() { return init_extents(); }
 void ext_vnode::mark_write(void* pos) { addr_t addr(pos); if(!__out_of_range(addr)) { block_data[block_of_data_ptr(static_cast<size_t>(addr - addr_t(__beg())))].dirty = true; } }
 ext_vnode::~ext_vnode() = default;
-void ext_vnode::on_modify() { if(__beg()) { __fullsetp(__beg(), __cur(), __max()); setg(__beg(), __cur(), __max()); } }
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
 tnode* ext_directory_vnode::add(fs_node* n) { for(tnode& node : __my_dir) { if(node.ptr() == n) return std::addressof(node); } return nullptr; }

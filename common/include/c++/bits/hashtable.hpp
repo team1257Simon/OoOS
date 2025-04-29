@@ -185,7 +185,7 @@ namespace std
             constexpr size_type __index(__const_node_ptr n) const { return this->__range(__hash_code(n)); }
             constexpr size_type __index(key_type const& k) const { return this->__range(__hash_code(k)); }
             constexpr size_type __index(value_type const& v) const { return this->__range(__hash_code(v)); }
-            constexpr __node_ptr __allocate_node() { __node_ptr n = __alloc.allocate(1UL); if(is_constant_evaluated()) construct_at(n); return n; }
+            constexpr __node_ptr __allocate_node() { __node_ptr n = __alloc.allocate(1UL); if consteval { construct_at(n); } return n; }
             template<typename ... Args> requires constructible_from<value_type, Args...> constexpr __node_ptr __create_node(Args&& ... args) { __node_ptr n = __allocate_node(); construct_at(n->__ptr(), forward<Args>(args)...); return n; }
             constexpr void __destroy_node(__node_ptr n) { __alloc.deallocate(n, 1UL); }
             constexpr __node_ptr __begin() noexcept { return static_cast<__node_ptr>(this->__root.__next); }

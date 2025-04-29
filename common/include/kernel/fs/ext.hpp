@@ -516,7 +516,6 @@ struct ext_vnode : public std::ext::dynamic_streambuf<char>
     ext_vnode(extfs* parent, uint32_t inode_number);
     ext_vnode() = default;
     virtual ~ext_vnode();
-    virtual void on_modify() final override;
     virtual bool initialize();
     virtual std::streamsize xsputn(const char* s, std::streamsize n) override;
     void mark_write(void* pos);

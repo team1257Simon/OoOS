@@ -66,7 +66,7 @@ namespace std
         constexpr iterator erase(const_iterator what) { return this->__erase(what); }
         constexpr void clear() { this->__clear(); }
         template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT&& key) { return this->__emplace(piecewise_construct, forward_as_tuple(move(key)), tuple<>()).first->second; }
-        template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT const& key) {  return this->__emplace(piecewise_construct, tuple<JT const&>(key), tuple<>()).first->second; }    
+        template<std::convertible_to<key_type> JT> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](JT const& key) { return this->__emplace(piecewise_construct, tuple<JT const&>(key), tuple<>()).first->second; }    
         constexpr pair<iterator, bool> insert_or_assign(key_type&& kt, mapped_type&& mt) { return __insert_or_assign(this->__create_node(piecewise_construct, forward_as_tuple(move(kt)), forward_as_tuple(move(mt)))); }
         constexpr pair<iterator, bool> insert_or_assign(key_type const& kt, mapped_type&& mt) { return __insert_or_assign(this->__create_node(piecewise_construct, tuple<key_type const&>(kt), forward_as_tuple(move(mt)))); }
         template<not_self<value_type> PT> requires constructible_from<value_type, PT&&> constexpr pair<iterator, bool> insert(PT&& pt) { return this->__emplace(move(pt)); }

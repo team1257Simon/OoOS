@@ -41,18 +41,17 @@ template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way
 template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
 inline uint32_t crc32c(uint32_t start, const char* c, size_t l) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(c), l); }
 constexpr uint16_t unix_year_base = 1970U;
-
 inline void set_cr3(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
 inline paging_table get_cr3() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
 inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 constexpr inline size_t gigabyte = 0x40000000;
 template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
-template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { if(std::is_constant_evaluated()) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(array[i])); } } } }
+template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { if consteval { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(array[i])); } } } }
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_fill(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++, dest++) { *dest = value; } }
 template<nontrivial_copy T> constexpr void array_copy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++, ++dest, ++src) std::construct_at(dest, *src); }
-template<trivial_copy T> constexpr void array_copy(void* dest, const T* src, std::size_t n) { if(std::is_constant_evaluated()) for(size_t i = 0; i < n; i++) { std::construct_at(std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))), src[i]); } else __builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T))); }
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_fill(void* dest, T value, std::size_t n)  { if constexpr(std::is_copy_constructible_v<T> && !std::integral<T>) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value); } } else { init_if_consteval(dest, n); if(std::is_constant_evaluated()) { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } } else { __builtin_memset(dest, value, n); } } }
+template<trivial_copy T> constexpr void array_copy(void* dest, const T* src, std::size_t n) { if consteval { for(size_t i = 0; i < n; i++) { std::construct_at(std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))), src[i]); } } else { __builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T))); } }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_fill(void* dest, T value, std::size_t n)  { if constexpr(std::is_copy_constructible_v<T> && !std::integral<T>) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value); } } else { init_if_consteval(dest, n); if consteval { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } } else { __builtin_memset(dest, value, n); } } }
 // Constructs n elements at the destination location using the constructor arguments. If any of the arguments are move-assigned away from their original location by the constructor, the behavior is undefined.
 template<nontrivial_copy T, typename ... Args> requires std::constructible_from<T, Args...> constexpr void array_fill(T* dest, std::size_t n, Args&& ... args) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i]), std::forward<Args>(args)...); } }
 // If T is default-constructible, this default-initializes n elements at the destination location. Otherwise, this does nothing (use array_fill instead and provide constructor arguments)

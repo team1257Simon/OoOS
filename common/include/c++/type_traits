@@ -1,8 +1,8 @@
 #ifndef __TYPETRAITS
 #define __TYPETRAITS
 #define extension __extension__
-#define ARGCHK(T) static_assert(__is_complete_or_unbounded(__type_identity <T> {}), "template argument must be a complete class or an unbounded array")
-#define ARGSCHK static_assert((__is_complete_or_unbounded(__type_identity <Args> {}) && ...), "each argument type must be a complete class or an unbounded array")
+#define ARGCHK(T) static_assert(__is_complete_or_unbounded(__type_identity<T> {}), "template argument must be a complete class or an unbounded array")
+#define ARGSCHK static_assert((__is_complete_or_unbounded(__type_identity<Args> {}) && ...), "each argument type must be a complete class or an unbounded array")
 // Credit goes to the GNU project for these implementations
 // GCC / glibcxx is under the GPL
 #ifndef _GCC_STDINT_H
