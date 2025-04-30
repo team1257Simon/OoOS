@@ -44,7 +44,6 @@ void user_file::get_user_info(user_info* out)
     user_capabilities* caps = resolve_object_ptr(info.capabilities_ptr, BT_CAPABILITIES);
     char* home = resolve_object_ptr(info.home_dir_ptr, BT_STRING);
     char* contact = resolve_object_ptr(info.contact_string_ptr, BT_STRING);
-    if(!contact) contact = "";
     if(!cred || !caps || !home) throw std::runtime_error{ "user data is invalid" };
     new(out) user_info
     {
@@ -52,7 +51,7 @@ void user_file::get_user_info(user_info* out)
         .gid            { info.gid },
         .credentials    { *cred },
         .capabilities   { *caps },
-        .contact        { contact, std::strnlen(contact, 256) },
+        .contact        { contact ? contact : "" },
         .home_directory { home, std::strnlen(home, 256) }
     };
 }
