@@ -183,6 +183,7 @@ protected:
     virtual std::streamsize unread_size() override;
     virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual int sync() override;
+    bool grow_file(size_t added);
 public:
     fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_file_node* parent);
 };
@@ -218,6 +219,8 @@ public:
     virtual uint64_t size() const noexcept override;
     virtual pos_type tell() const;
     virtual bool truncate() override;
+    virtual char* data() override;
+    virtual bool grow(size_t added) override;
     void on_open();
     void set_fd(int i);
     uint32_t claim_next(uint32_t cl);

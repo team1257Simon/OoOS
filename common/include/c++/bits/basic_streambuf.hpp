@@ -7,6 +7,7 @@ namespace std
     template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>>
     class basic_streambuf
     {
+        friend class device_node;
     public:
         typedef CT                      char_type;
         typedef TT                      traits_type;
@@ -59,6 +60,8 @@ namespace std
         int_type sungetc() { int_type result; if (__builtin_expect(this->eback() < this->gptr(), true)) { this->gbump(-1); result = traits_type::to_int_type(*this->gptr()); } else result = this->pbackfail(); return result; }
         int_type sputc(char_type c) { int_type result; if (__builtin_expect(this->pptr() < this->epptr(), true)) { *this->pptr() = c; this->pbump(1); result = traits_type::to_int_type(c); } else result = this->overflow(traits_type::to_int_type(c)); return result; }
         streamsize sputn(char_type const* s, streamsize n) { return this->xsputn(s, n); }
+        extension char_type* in_data() { return eback(); }
+        extension char_type* out_data() { return pbase(); }
     };
     template <std::char_type CT, std::char_traits_type<CT> TT>
     streamsize std::basic_streambuf<CT, TT>::xsgetn(char_type *s, streamsize n)

@@ -30,6 +30,8 @@ bool device_node::fsync() { return __dev_buffer->pubsync() == 0; }
 bool device_node::is_device() const noexcept { return true; }
 uint64_t device_node::size() const noexcept { return __dev_buffer->in_avail(); }
 bool device_node::truncate() { return true; /* NOP for device nodes */ }
+char* device_node::data() { return __dev_buffer->in_data(); }
+bool device_node::grow(size_t) { return false; }
 device_node::pos_type device_node::tell() const { return __dev_buffer->pubseekoff(0L, std::ios_base::cur); }
 device_node::size_type device_node::write(const_pointer src, size_type n) { size_type result = __dev_buffer->sputn(src, n); if(result) sys_time(std::addressof(modif_time)); return result; }
 device_node::size_type device_node::read(pointer dest, size_type n) { return __dev_buffer->sgetn(dest, n); }

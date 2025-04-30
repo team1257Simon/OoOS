@@ -29,3 +29,11 @@ std::streamsize fat32_filebuf::on_overflow(std::streamsize n)
     if(!__grow_buffer(k)) return 0UZ;
     return k;
 }
+bool fat32_filebuf::grow_file(size_t added)
+{
+    size_t bs = __parent->parent_fs->block_size();
+    size_t target = __capacity() + added;
+    size_t blk_cap = up_to_nearest(__capacity(), bs);
+    if(target < blk_cap) return true;
+    return on_overflow(added) != 0;
+}

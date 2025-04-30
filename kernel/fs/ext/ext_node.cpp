@@ -34,6 +34,21 @@ uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1]
 tnode* ext_directory_vnode::add(fs_node* n) { for(tnode& node : __my_dir) { if(node.ptr() == n) return std::addressof(node); } return nullptr; }
 bool ext_file_vnode::truncate() { return parent_fs->truncate_node(this); }
 bool ext_directory_vnode::truncate() { return parent_fs->truncate_node(this); }
+char* ext_file_vnode::data() { return __beg(); }
+bool ext_file_vnode::grow(size_t added)
+{
+    size_t sz = size();
+    size_t bs = parent_fs->block_size();
+    size_t blk_cap = up_to_nearest(sz, bs);
+    qword target_size(sz + added);
+    if(target_size < blk_cap)
+    {
+        on_disk_node->size_lo = target_size.lo;
+        on_disk_node->size_hi = target_size.hi;
+        return fsync();
+    }
+    return on_overflow(added) != 0;
+}
 tnode* ext_directory_vnode::find_l(std::string const& name)
 {
     if(!initialize()) return nullptr;
@@ -42,6 +57,11 @@ tnode* ext_directory_vnode::find_l(std::string const& name)
 }
 bool ext_file_vnode::fsync() 
 {
+    qword timestamp = sys_time(nullptr);
+    modif_time = timestamp;
+    on_disk_node->modified_time = timestamp.lo;
+    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
+    on_disk_node->mode = mode;
     size_t updated_size = __size();
     if(size() < updated_size)
     {
@@ -50,11 +70,6 @@ bool ext_file_vnode::fsync()
         on_disk_node->size_hi = fsz.hi;
         if(!parent_fs->persist_inode(inode_number)) return false;
     }
-    qword timestamp = sys_time(nullptr);
-    modif_time = timestamp;
-    on_disk_node->modified_time = timestamp.lo;
-    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
-    on_disk_node->mode = mode;
     return parent_fs->persist(this); 
 }
 tnode* ext_directory_vnode::find(std::string const& name) 

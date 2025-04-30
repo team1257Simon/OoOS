@@ -7,6 +7,7 @@
 #include "prog_manager.hpp"
 #include "kdebug.hpp"
 #include "rtc.h"
+#include "ow-crypt.h"
 #include "keyboard_driver.hpp"
 #include "device_registry.hpp"
 #include "sched/task_ctx.hpp"
@@ -235,6 +236,10 @@ void str_tests()
     std::ext::dragon<std::string> sdragon{};
     debug_print_num(sdragon(test_str));
     startup_tty.print_line(" (rawr)");
+    std::string setting = create_hash_setting_string();
+    startup_tty.print_line("crypt setting: " + setting);
+    std::string crypto = create_crypto_string("fleedle deedle", setting);
+    startup_tty.print_line("crypt of fleedle deedle: " + crypto);
 }
 void vfs_tests()
 {

@@ -37,9 +37,11 @@ public:
     virtual pos_type seek(off_type, std::ios_base::seekdir) override;
     virtual pos_type seek(pos_type) override;
     virtual pos_type tell() const;
+    virtual char* data() override;
     ramfs_file_inode(std::string const& name, int fd);
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
+    virtual bool grow(size_t added) override;
     virtual bool truncate() override;
 };
 class ramfs final : public filesystem

@@ -150,6 +150,8 @@ public:
     virtual pos_type seek(off_type, std::ios_base::seekdir) = 0;
     virtual pos_type seek(pos_type) = 0;
     virtual pos_type tell() const = 0;
+    virtual char* data() = 0;
+    virtual bool grow(size_t) = 0;
     virtual bool is_file() const noexcept final override;
     file_node(std::string const& name, int vfd, uint64_t cid);    
 };
@@ -194,6 +196,8 @@ public:
     virtual bool is_device() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool truncate() override;
+    virtual char* data() override;
+    virtual bool grow(size_t) override;
     device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
     constexpr dev_t get_device_id() const noexcept { return __dev_id; }
 };

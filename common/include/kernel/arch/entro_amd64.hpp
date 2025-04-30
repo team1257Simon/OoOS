@@ -13,5 +13,4 @@ protected:
 public:
     entro_amd64();
 };
-
 #endif
