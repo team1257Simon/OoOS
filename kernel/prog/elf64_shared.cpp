@@ -114,7 +114,7 @@ bool elf64_shared_object::load_segments()
             addr_t addr = virtual_load_base.plus(h.p_vaddr);
             addr_t target = addr.trunc(h.p_align);
             size_t full_size = h.p_memsz + (addr - target);
-            block_descriptor* bd = frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), true);
+            block_descriptor* bd = frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), is_global());
             if(!bd) { throw std::bad_alloc{}; }
             addr_t idmap = frame_tag->translate(addr);
             size_t actual_size = kernel_memory_mgr::aligned_size(target, full_size);

@@ -436,14 +436,18 @@ bool task_ctx::set_fork()
 }
 bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env)
 {
+    int64_t parent_pid = task_struct.task_ctl.parent_pid;
     if(local_so_map)
     {
-        local_so_map->shared_frame = nullptr;
-        sm_alloc.deallocate(local_so_map, 1); 
+        if(parent_pid < 0)
+        {
+            local_so_map->shared_frame = nullptr;
+            fm.destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
+            sm_alloc.deallocate(local_so_map, 1);
+        }
         local_so_map = sm_alloc.allocate(1);
         if(!local_so_map) return false;
     }
-    fm.destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
     uframe_tag* new_tag = static_cast<uframe_tag*>(desc.frame_ptr);
     if(!new_tag) throw std::invalid_argument{ "frame must not be null" };
     task_struct.frame_ptr = new_tag;
@@ -451,7 +455,6 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
     stack_allocated_size = desc.stack_size;
     tls = desc.prg_tls;
     tls_size = desc.tls_size;
-    int64_t parent_pid = task_struct.task_ctl.parent_pid;
     pid_t pid = get_pid();
     priority_val prio = task_struct.task_ctl.prio_base;
     uint16_t quantum = task_struct.quantum_val;
