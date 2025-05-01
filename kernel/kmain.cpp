@@ -25,6 +25,7 @@
 #include "stdlib.h"
 #include "bits/stl_queue.hpp"
 #include "unordered_map"
+#include "ext/delegate_ptr.hpp"
 #include "algorithm"
 #include "map"
 #include "list"

@@ -36,6 +36,7 @@ tnode* fat32_directory_node::find(std::string const& name) { if(tnode_dir::itera
 std::vector<fat32_directory_entry>::iterator fat32_directory_node::__get_longname_start(fat32_regular_entry* e) { std::vector<fat32_directory_entry>::iterator i = __whereis(e), j = i - 1; if(!is_longname(*j)) { return __my_dir_data.end(); } while(!is_last_longname(j->longname_entry) && j > this->__my_dir_data.begin()) { j--; } return is_longname(*j) && is_last_longname(j->longname_entry) ? j : __my_dir_data.end(); }
 tnode* fat32_directory_node::add(fs_node* n) { return __my_dir.emplace(n, n->name()).first.base(); }
 bool fat32_directory_node::link(tnode* original, std::string const& target) { panic("fat32 does not support hard links"); return false; }
+void fat32_file_node::force_write() { __my_filebuf.is_dirty = true; }
 bool fat32_file_node::grow(size_t added)
 {
     if(!__my_filebuf.grow_file(added)) return false;

@@ -587,6 +587,7 @@ public:
     virtual bool initialize() override;
     virtual bool truncate() override;
     virtual bool grow(size_t added) override;
+    virtual void force_write() override;
     virtual ~ext_file_vnode();
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);

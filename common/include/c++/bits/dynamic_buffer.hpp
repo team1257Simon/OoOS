@@ -20,26 +20,26 @@ namespace std::__impl
     template<typename T>
     struct __buf_ptrs
     {
-        typedef T* __ptr_type;
-        typedef T const* __const_ptr_type;
+        typedef T* __ptr;
+        typedef T const* __const_ptr;
         typedef decltype(sizeof(T)) __size_type;
-        typedef decltype(declval<T*>() - declval<T*>()) __diff_type;
-        __ptr_type __begin{};
-        __ptr_type __end{};
-        __ptr_type __max{};
+        typedef decltype(declval<__ptr>() - declval<__ptr>()) __diff_type;
+        __ptr __begin{};
+        __ptr __end{};
+        __ptr __max{};
         constexpr __buf_ptrs() = default;
-        constexpr __buf_ptrs(__ptr_type start, __ptr_type end, __ptr_type max) : __begin{ start }, __end{ end }, __max{ max } {}
-        void __reset() { __begin = __end = __max = __ptr_type{}; }
+        constexpr __buf_ptrs(__ptr start, __ptr end, __ptr max) : __begin{ start }, __end{ end }, __max{ max } {}
+        void __reset() { __begin = __end = __max = __ptr{}; }
         __buf_ptrs(__buf_ptrs const& that) : __begin{ that.__begin }, __end{ that.__end }, __max{ that.__max } {}
         __buf_ptrs(__buf_ptrs&& that) : __begin{ that.__begin }, __end{ that.__end }, __max{ that.__max } { that.__reset(); }
-        __buf_ptrs(__ptr_type start, __ptr_type end) : __begin{ start }, __end{ end }, __max { end } {}
-        __buf_ptrs(__ptr_type start, __size_type cap) : __begin{ start }, __end{ start }, __max{ start + cap } {}
-        void __copy_ptrs(__buf_ptrs const& that) { this->__begin = that.__begin; this->__end = that.__end; this->__max = that.__max; }
-        void __move_ptrs(__buf_ptrs&& that) { this->__copy_ptrs(that); that.__reset(); }
-        void __swap_ptrs(__buf_ptrs& that) { __buf_ptrs tmp; tmp.__copy_ptrs(*this); this->__copy_ptrs(that); that.__copy_ptrs(tmp); }
-        void __set_ptrs(__ptr_type begin, __ptr_type end, __ptr_type max) { this->__begin = begin; this->__end = end; this->__max = max; }
-        __ptr_type __get_ptr(__size_type offs) { return __begin + offs; }
-        void __setc(__ptr_type where) { __end = where; }
+        __buf_ptrs(__ptr start, __ptr end) : __begin{ start }, __end{ end }, __max { end } {}
+        __buf_ptrs(__ptr start, __size_type cap) : __begin{ start }, __end{ start }, __max{ start + cap } {}
+        void __copy_ptrs(__buf_ptrs const& that) { __begin = that.__begin; __end = that.__end; __max = that.__max; }
+        void __move_ptrs(__buf_ptrs&& that) { __copy_ptrs(that); that.__reset(); }
+        void __swap_ptrs(__buf_ptrs& that) { __buf_ptrs tmp; tmp.__copy_ptrs(*this); __copy_ptrs(that); that.__copy_ptrs(tmp); }
+        void __set_ptrs(__ptr begin, __ptr end, __ptr max) { __begin = begin; __end = end; __max = max; }
+        __ptr __get_ptr(__size_type offs) { return __begin + offs; }
+        void __setc(__ptr where) { __end = where; }
         void __setc(__size_type offs) { __end = __begin + offs; }
         void __adv(__size_type n) { __end += n; }
         void __bck(__size_type n) { __end -= n; }
@@ -53,12 +53,12 @@ namespace std::__impl
     struct __dynamic_buffer
     {
         typedef __buf_ptrs<T> __container;
-        typedef typename __container::__ptr_type __ptr;
-        typedef typename __container::__const_ptr_type __const_ptr;
+        typedef typename __container::__ptr __ptr;
+        typedef typename __container::__const_ptr __const_ptr;
         typedef typename __container::__size_type __size_type;
         typedef typename __container::__diff_type __diff_type;
-        typedef decltype(*(declval<__ptr>())) __ref;
-        typedef decltype(*(declval<__const_ptr>())) __const_ref;
+        typedef deref_t<__ptr> __ref;
+        typedef deref_t<__const_ptr> __const_ref;
         typedef A __alloc_type;
         constexpr static bool __end_zero = NT;
         __alloc_type __allocator;
@@ -67,25 +67,25 @@ namespace std::__impl
          * Copies data using iterators that might not be contiguous; i.e. not linear (e.g. tree iterators) or not forward-facing (e.g. reverse iterators).
          * If the iterator happens to be contiguous (e.g. a pointer), this will simplify into the normal copy operation.
          */
-        template<std::matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy<T>(where, std::addressof(*start), static_cast<size_t>(std::distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
-        constexpr void __set(__ptr where, T const& val, __size_type n) { array_fill<T>(where, val, n); }
+        template<matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
+        constexpr void __set(__ptr where, T const& val, __size_type n) { array_fill(where, val, n); }
         /**
          * Selects the proper function to clear allocated storage of garbage data.
          * If the type T is a nontrivial type which cannot be default-constructed, this function does nothing.
          * If the type is nontrivial and can be default-constructed, it default-constructs each element of the destination array.
          * Otherwise, it will behave similarly to using memset to zero the memory.
          */
-        constexpr void __zero(__ptr where, __size_type n) { array_zero<T>(where, n); }
-        constexpr void __copy(__ptr where, __const_ptr src, __size_type n) { array_copy<T>(where, src, n); }
+        constexpr void __zero(__ptr where, __size_type n) { array_zero(where, n); }
+        constexpr void __copy(__ptr where, __const_ptr src, __size_type n) { array_copy(where, src, n); }
         constexpr bool __grow_buffer(__size_type added);
         extension constexpr void __post_modify_check_nt();
-        template<std::matching_input_iterator<T> IT> constexpr __ptr __append_elements(IT start_it, IT end_it);
+        template<matching_input_iterator<T> IT> constexpr __ptr __append_elements(IT start_it, IT end_it);
         template<matching_input_iterator<T> IT> constexpr __ptr __insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr);
         template<typename ... Args> requires constructible_from<T, Args...> constexpr __ptr __emplace_element(__const_ptr pos, Args&& ... args);
         template<typename ... Args> requires constructible_from<T, Args...> constexpr __ptr __emplace_at_end(Args&& ... args);
         constexpr __ptr __replace_elements(__size_type pos, __size_type count, __const_ptr from, __size_type count2);
         constexpr __ptr __erase_range(__const_ptr start, __const_ptr end);
-        constexpr __ptr __insert_element(__const_ptr pos, T const& t) { return __insert_elements(pos, __builtin_addressof(t), __builtin_addressof(t) + 1); }
+        constexpr __ptr __insert_element(__const_ptr pos, T const& t) { return __insert_elements(pos, addressof(t), addressof(t) + 1); }
         constexpr __ptr __beg() noexcept { return __my_data.__begin; }
         constexpr __const_ptr __beg() const noexcept { return __my_data.__begin; }
         constexpr __ptr __cur() noexcept { return __my_data.__end; }
@@ -112,34 +112,34 @@ namespace std::__impl
         constexpr void __setc(__size_type pos) noexcept { __setc(__get_ptr(pos)); }
         constexpr void __bumpc(int64_t off) noexcept { __setc(__cur() + off); }
         constexpr void __rst() noexcept { __setc(__beg()); }
-        constexpr __size_type __max_capacity() const noexcept { return std::numeric_limits<__size_type>::max(); }
+        constexpr __size_type __max_capacity() const noexcept { return numeric_limits<__size_type>::max(); }
         constexpr void __advance(__size_type n) { if(__valid_end_pos(__cur() + n)) { __my_data.__adv(n); } else { __setc(__max()); } }
         constexpr void __backtrack(__size_type n) { if(__valid_end_pos(__cur() - n)) { __my_data.__bck(n); } else { __setc(__beg()); } }
         constexpr __size_type __size() const noexcept { return __size_type(__cur() - __beg()); }
         constexpr __size_type __capacity() const noexcept { return __size_type(__max() - __beg()); }
         constexpr __size_type __rem() const noexcept { return __size_type(__max() - __cur()); }
         constexpr __size_type __ediff(__const_ptr pos) const noexcept { return __size_type(__cur() - pos); }
-        constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize<T>(__beg(), __capacity(), num_elements), num_elements, num_elements); this->__post_modify_check_nt(); }
-        constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize<T>(__beg(), __capacity(), n), std::min(n, num_elements), n); this->__post_modify_check_nt(); }
+        constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize(__beg(), __capacity(), num_elements), num_elements, num_elements); __post_modify_check_nt(); }
+        constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize(__beg(), __capacity(), n), std::min(n, num_elements), n); __post_modify_check_nt(); }
         constexpr void __allocate_storage(__size_type n) { if(n) __setn(__allocator.allocate(n), n); }
         constexpr void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
-        constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__post_modify_check_nt(); return __cur(); }
-        constexpr __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); this->__post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); __post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); __post_modify_check_nt(); return __cur(); }
         constexpr __ptr __replace_elements(__const_ptr start, __const_ptr end, __const_ptr from, __size_type count) { if(!__out_of_range(start, end)) return __replace_elements(start - __beg(), end - start, from, count); else return nullptr; }
-        constexpr __ptr __assign_elements(std::initializer_list<T> ini) { return __assign_elements(ini.begin(), ini.end()); }
-        constexpr __ptr __append_elements(__size_type count, T const& t) { if(__max() <= __cur() + count) { if(!this->__grow_buffer(__size_type(count - __rem()))) return nullptr; } for(__size_type i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); this->__post_modify_check_nt(); return __cur(); }
-        constexpr __ptr __append_element(T const& t) { if(!(__max() > __cur())) { if(!this->__grow_buffer(1)) return nullptr; } construct_at(__cur(), t); __advance(1); this->__post_modify_check_nt(); return __cur(); }
-        constexpr void __clear() { __size_type cap = __capacity(); __destroy(); __allocate_storage(cap); this->__post_modify_check_nt(); __zero(__beg(), __capacity()); }
-        constexpr __ptr __erase_at_end(__size_type how_many) { if(how_many >= __size()) __clear(); else { __backtrack(how_many); this->__zero(__cur(), how_many); } __post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __assign_elements(initializer_list<T> ini) { return __assign_elements(ini.begin(), ini.end()); }
+        constexpr __ptr __append_elements(__size_type count, T const& t) { if(__max() <= __cur() + count) { if(!__grow_buffer(__size_type(count - __rem()))) return nullptr; } for(__size_type i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); __post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __append_element(T const& t) { if(!(__max() > __cur())) { if(!__grow_buffer(1UZ)) return nullptr; } construct_at(__cur(), t); __advance(1); __post_modify_check_nt(); return __cur(); }
+        constexpr void __clear() { __size_type cap = __capacity(); __destroy(); __allocate_storage(cap); __post_modify_check_nt(); __zero(__beg(), __capacity()); }
+        constexpr __ptr __erase_at_end(__size_type how_many) { if(how_many >= __size()) __clear(); else { __backtrack(how_many); __zero(__cur(), how_many); } __post_modify_check_nt(); return __cur(); }
         constexpr __ptr __erase(__const_ptr pos) { return __erase_range(pos, pos + 1); }
         constexpr void __destroy() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); __my_data.__reset(); } }
-        constexpr void __swap(__dynamic_buffer& that) { __my_data.__swap_ptrs(that.__my_data); this->__post_modify_check_nt(); that.__post_modify_check_nt(); }
+        constexpr void __swap(__dynamic_buffer& that) { __my_data.__swap_ptrs(that.__my_data); __post_modify_check_nt(); that.__post_modify_check_nt(); }
         constexpr void __move(__dynamic_buffer&& that) { __my_data.__move_ptrs(move(that.__my_data)); }
-        constexpr void __copy_assign(__dynamic_buffer const& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); __copy(this->__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
-        constexpr void __realloc_move(__dynamic_buffer&& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); array_move<T>(this->__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); }
+        constexpr void __copy_assign(__dynamic_buffer const& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); __copy(__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
+        constexpr void __realloc_move(__dynamic_buffer&& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); array_move(__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); }
         constexpr explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
-        template<std::matching_input_iterator<T> IT> constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }
+        template<matching_input_iterator<T> IT> constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }
         constexpr __dynamic_buffer(__size_type sz) : __allocator{}, __my_data{} { __allocate_storage(sz); }
         constexpr __dynamic_buffer(__size_type sz, A const& alloc) : __allocator{ alloc }, __my_data{} { __allocate_storage(sz); }
         constexpr __dynamic_buffer(__size_type sz, T const& val, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(sz), sz } { if(sz) { __set(__beg(), val, sz); __advance(sz); } }
@@ -152,7 +152,7 @@ namespace std::__impl
         constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
         constexpr ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
         constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { __copy_assign(that); return *this; }
-        constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); this->__move(move(that)); return *this; }
+        constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); __move(move(that)); return *this; }
     };
     template<typename T, allocator_object<T> A, bool NT>
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__replace_elements(__size_type pos, __size_type count, __const_ptr from, __size_type count2)
@@ -170,7 +170,7 @@ namespace std::__impl
             nwdat.__setc(__size() + diff);
             __allocator.deallocate(__beg(), __capacity());
             __my_data.__copy_ptrs(nwdat);
-            this->__post_modify_check_nt();
+            __post_modify_check_nt();
             return __get_ptr(pos + count);
         }
         catch(...) { return nullptr; }
@@ -180,8 +180,8 @@ namespace std::__impl
     {
         if(!added) return true; // Zero elements -> vacuously true completion
         __size_type num_elements = __size();
-        __size_type target = max(num_elements << 1, __capacity() + added);
-        try { __setn(resize<T>(__beg(), __capacity(), target), num_elements, target); if constexpr(__end_zero) { this->__zero(__cur(), added); } } 
+        __size_type target = min(max(num_elements << 1, __capacity() + added), __max_capacity());
+        try { __setn(resize(__beg(), __capacity(), target), num_elements, target); if constexpr(__end_zero) { __zero(__cur(), added); } } 
         catch(...) { return false; }
         return true;
     }
@@ -190,10 +190,10 @@ namespace std::__impl
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__append_elements(IT start_it, IT end_it)
     {
         __size_type rem = __rem();
-        __size_type num = std::distance(start_it, end_it);
-        if(!__beg() || num > rem) { if(!this->__grow_buffer(num - rem)) return nullptr; }
-        for(IT i = start_it; i < end_it; i++, __advance(1)) construct_at(__cur(), *i);
-        this->__post_modify_check_nt();
+        __size_type num = distance(start_it, end_it);
+        if(!__beg() || num > rem) { if(!__grow_buffer(num - rem)) return nullptr; }
+        for(IT i = start_it; i < end_it; i++, __advance(1UZ)) construct_at(__cur(), *i);
+        __post_modify_check_nt();
         return __cur();
     }
     template<typename T, allocator_object<T> A, bool NT>
@@ -203,7 +203,7 @@ namespace std::__impl
         if(__out_of_range(pos)) return nullptr;
         try
         {
-            __size_type range_size = std::distance(start_ptr, end_ptr);
+            __size_type range_size = distance(start_ptr, end_ptr);
             __size_type offs = __diff(pos);
             if(pos + range_size < __max())
             {
@@ -235,7 +235,7 @@ namespace std::__impl
                 __my_data.__copy_ptrs(nwdat);
                 __transfer(__get_ptr(offs), start_ptr, end_ptr);
             }
-            this->__post_modify_check_nt();
+            __post_modify_check_nt();
             return __get_ptr(offs);
         }
         catch(...) { return nullptr; }
@@ -251,12 +251,12 @@ namespace std::__impl
         __size_type rem = __ediff(pos);
         __size_type target_cap = (__size() < __capacity()) ? __capacity() : __capacity() + 1;
         __container nwdat{ __allocator.allocate(target_cap), target_cap };
-        __ptr result = construct_at(nwdat.__get_ptr(start_pos), std::forward<Args>(args)...);
+        __ptr result = construct_at(nwdat.__get_ptr(start_pos), forward<Args>(args)...);
         __copy(nwdat.__begin, __beg(), start_pos);
         if(rem) __copy(result + 1, __get_ptr(start_pos), rem);
         __destroy();
         __my_data.__swap_ptrs(nwdat);
-        this->__post_modify_check_nt();
+        __post_modify_check_nt();
         return result;
     }
     template <typename T, allocator_object<T> A, bool NT>
@@ -264,10 +264,10 @@ namespace std::__impl
     requires constructible_from<T, Args...>
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__emplace_at_end(Args && ...args)
     {
-        if(__size() == __capacity() && !__grow_buffer(1)) return nullptr;
+        if(__size() == __capacity() && !__grow_buffer(1UZ)) return nullptr;
         __ptr p = construct_at(__cur(), forward<Args>(args)...);
         __bumpc(1L);
-        this->__post_modify_check_nt();
+        __post_modify_check_nt();
         return p;
     }
     template<typename T, allocator_object<T> A, bool NT>
@@ -277,7 +277,7 @@ namespace std::__impl
         __size_type how_many = end - start;
         __size_type rem = __ediff(end);
         __size_type start_pos = __diff(start);
-        if(rem == 0) return __erase_at_end(how_many);
+        if(!rem) return __erase_at_end(how_many);
         else try
         {
             __ptr temp = __allocator.allocate(rem);
@@ -291,9 +291,17 @@ namespace std::__impl
         __post_modify_check_nt();
         return __get_ptr(start_pos);
     }
-    extension template <typename T, allocator_object<T> A, bool NT> constexpr void std::__impl::__dynamic_buffer<T, A, NT>::__post_modify_check_nt() { if constexpr(__end_zero) { if(!(__max() > __cur())) { this->__grow_buffer(1); } construct_at(this->__cur()); } }
+    extension template <typename T, allocator_object<T> A, bool NT> constexpr void __dynamic_buffer<T, A, NT>::__post_modify_check_nt() 
+    { 
+        if constexpr(__end_zero) 
+        { 
+            if(!(__max() > __cur()))
+                __grow_buffer(1UZ); 
+            construct_at(__cur()); 
+        } 
+    }
 #ifndef INST
-    extern template class __dynamic_buffer<char, std::allocator<char>, true>;
+    extern template class __dynamic_buffer<char, allocator<char>, true>;
 #endif
 }
 #endif

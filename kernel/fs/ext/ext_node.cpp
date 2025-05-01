@@ -35,6 +35,7 @@ tnode* ext_directory_vnode::add(fs_node* n) { for(tnode& node : __my_dir) { if(n
 bool ext_file_vnode::truncate() { return parent_fs->truncate_node(this); }
 bool ext_directory_vnode::truncate() { return parent_fs->truncate_node(this); }
 char* ext_file_vnode::data() { return __beg(); }
+void ext_file_vnode::force_write() { for(disk_block& b : block_data) { b.dirty = true; } }
 bool ext_file_vnode::grow(size_t added)
 {
     size_t sz = size();

@@ -31,7 +31,7 @@ namespace std
                 __dealloc_node  { dealloc },
                 __destroy_node  { bind(&__generic_ptr_container::__erase_at_index, this, placeholders::_1) }
                                 {} 
-            __generic_ptr_container::__generic_ptr_container(__action acq, __action rel, __node_alloc_ftor alloc, __node_dealloc_ftor dealloc) :
+            __generic_ptr_container::__generic_ptr_container(delegate_callback acq, delegate_callback rel, __node_alloc_ftor alloc, __node_dealloc_ftor dealloc) :
                 __acquire_fn    { acq },
                 __release_fn    { rel },
                 __alloc_node    { alloc },

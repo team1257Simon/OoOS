@@ -19,6 +19,7 @@ size_t fs_node::num_refs() const noexcept { return refs.size(); }
 fs_node::~fs_node() { prune_refs(); }
 file_node::file_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 bool file_node::is_file() const noexcept { return true; }
+void file_node::force_write() { /* if applicable, treat all data in the file as dirty; does nothing in the default implementation */ }
 directory_node::directory_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 tnode* directory_node::find_l(std::string const& what) { return find(what); }
 bool directory_node::is_directory() const noexcept { return true; }

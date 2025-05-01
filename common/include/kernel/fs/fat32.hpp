@@ -221,6 +221,7 @@ public:
     virtual bool truncate() override;
     virtual char* data() override;
     virtual bool grow(size_t added) override;
+    virtual void force_write() override;
     void on_open();
     void set_fd(int i);
     uint32_t claim_next(uint32_t cl);
