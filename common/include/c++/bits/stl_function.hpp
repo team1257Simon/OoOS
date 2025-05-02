@@ -179,5 +179,28 @@ namespace std
     template<typename FT, typename O> using __function_guide_t = typename __function_guide_helper<O>::type;
     template<typename RT, typename... Args> function(RT(*)(Args...)) -> function<RT(Args...)>;
     template<typename FT, typename ST = __function_guide_t<FT, decltype(&FT::operator())>> function(FT) -> function<ST>;
+    namespace ext
+    {
+        template<typename FT, typename TT> concept __explicitly_convertible_to = requires { static_cast<TT>(declval<FT>()); };
+        template<typename FT, typename TT> requires __explicitly_convertible_to<FT, TT> struct static_cast_t { constexpr TT operator()(FT ft) const noexcept { return static_cast<TT>(ft); } };
+        template<typename CT, typename MT>
+        struct field_access
+        {
+            typedef MT CT::*member_object;
+            typedef MT member_type;
+            typedef CT object_type;
+            template<member_object O>
+            struct bind
+            {
+                constexpr static member_object member = O;
+                constexpr member_type const& operator()(object_type const& o) const noexcept { return ((o).*(member)); }
+                constexpr member_type& operator()(object_type& o) const noexcept { return ((o).*(member)); }
+                constexpr member_type&& operator()(object_type&& o) const noexcept { return forward<member_type>((o).*(member)); }
+                constexpr member_type& operator()(object_type* o) const noexcept { return ((o)->*(member)); }
+                constexpr member_type const& operator()(object_type const* o) const noexcept { return ((o)->*(member)); }
+            };
+        };
+        template<typename CT, typename MT, MT CT::*MO> using field_access_t = typename field_access<CT, MT>::template bind<MO>;
+    }
 }
 #endif

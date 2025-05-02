@@ -77,8 +77,4 @@ extern "C"
     int syscall_dlpath(const char* path_str);                                       // int dlpath(const char* path_str); add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
     int syscall_dladdr(addr_t sym_addr, dl_addr_info* info);                        // int dladdr(const void* addr, dl_info* info);
 }
-#ifndef INST_SOM
-extern 
-#endif
-template class std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<elf64_shared_object>, shared_object_map::__key_extract>;
 #endif

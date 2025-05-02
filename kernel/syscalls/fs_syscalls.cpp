@@ -275,7 +275,8 @@ extern "C"
         name = translate_user_pointer(name);
         if(!name) return -EINVAL;
         try { fsptr->create_node(nullptr, name, mode, dev); return 0; }
-        catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; } 
+        catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
+        catch(std::domain_error& e) { panic(e.what()); return -EEXIST; }
         catch(std::runtime_error& e) { panic(e.what()); return -ENOSPC; }
         catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }
         catch(std::exception& e) { panic(e.what()); }
@@ -293,6 +294,7 @@ extern "C"
         if(!node) return -ENOTDIR;
         try { fsptr->create_node(dirnode, name, mode, dev); return 0; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; } 
+        catch(std::domain_error& e) { panic(e.what()); return -EEXIST; }
         catch(std::runtime_error& e) { panic(e.what()); return -ENOSPC; }
         catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }
         catch(std::exception& e) { panic(e.what()); }

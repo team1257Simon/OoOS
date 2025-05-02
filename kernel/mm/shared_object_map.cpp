@@ -1,4 +1,3 @@
-#define INST_SOM
 #include "shared_object_map.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"

@@ -28,9 +28,4 @@ public:
     static task_list& get();
 };
 #define tl task_list::get()
-#ifdef INST_TL
-template class std::set<task_ctx>;
-#else
-extern template class std::set<task_ctx>;
-#endif
 #endif

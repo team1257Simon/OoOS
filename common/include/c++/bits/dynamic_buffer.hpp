@@ -300,8 +300,5 @@ namespace std::__impl
             construct_at(__cur()); 
         } 
     }
-#ifndef INST
-    extern template class __dynamic_buffer<char, allocator<char>, true>;
-#endif
 }
 #endif

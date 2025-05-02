@@ -71,12 +71,4 @@ public:
     __isrcall task_pl_queue& operator[](priority_val pv) noexcept;
     __isrcall task_pl_queue const& operator[](priority_val pv) const noexcept;
 };
-#ifdef INST_TQ
-template class std::array<task_pl_queue, 5UZ>;
-template class std::ext::resettable_queue<task_t*, std::allocator<task_t*>>;
-#else
-extern template class std::array<task_pl_queue, 5UZ>;
-extern template class std::ext::resettable_queue<task_t*, std::allocator<task_t*>>;
-#endif
-
 #endif

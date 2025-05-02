@@ -17,6 +17,10 @@
 #include "ext/delegate_ptr.hpp"
 #include "sys/stat.h"
 #include "sys/fcntl.h"
+template<typename FT, typename TT> using cast_t = std::ext::static_cast_t<FT, TT>;
+template<typename CT, typename MT, MT CT::*MO> using access_t = std::ext::field_access_t<CT, MT, MO>;
+typedef std::equal_to<void> equals_t;
+typedef std::ext::delegate_ptr<simplex_pipe> pipe_handle;
 struct file_mode
 {
     bool exec_others  : 1;
@@ -98,7 +102,8 @@ struct fs_node
     virtual const char* name() const;                   // get the concrete (i.e. on-disk for persistent fs) name; this may be an empty string (ext, for instance, only uses names for tnodes)
     virtual bool is_file() const noexcept;              // equivalent to (dynamic_cast<file_node*>(this) != nullptr)
     virtual bool is_directory() const noexcept;         // equivalent to (dynamic_cast<directory_node*>(this) != nullptr)
-    virtual bool is_device() const noexcept;            // equivalent to (dynamic_cast<device_inode*>(this) != nullptr)
+    virtual bool is_device() const noexcept;            // equivalent to (dynamic_cast<device_node*>(this) != nullptr)
+    virtual bool is_pipe() const noexcept;              // equivalent to (dynamic_cast<pipe_node*>(this) != nullptr)
     virtual uint64_t size() const noexcept = 0;         // size in bytes (for files) or concrete entries (for directories)
     virtual bool fsync() = 0;                           // sync to disc, if applicable
     virtual bool truncate() = 0;                        // clear all data and reset the size to 0
@@ -125,9 +130,9 @@ struct fs_node
     friend constexpr std::strong_ordering operator<=>(fs_node const& a, uint64_t b) noexcept { return a.real_id <=> b; }
     friend constexpr std::strong_ordering operator<=>(uint64_t a, fs_node const& b) noexcept { return a <=> b.real_id; }
 };
-class fd_map : public std::hash_set<fs_node*, int, decltype([](int const& i) -> uint64_t { return static_cast<uint64_t>(i); }), std::equal_to<int>, std::allocator<fs_node*>, decltype([](fs_node* const& ptr) -> int const& { return ptr->fd; })>
+class fd_map : public std::hash_set<fs_node*, int, cast_t<int, uint64_t>, equals_t, std::allocator<fs_node*>, access_t<fs_node, int, &fs_node::fd>>
 {
-    typedef std::hash_set<fs_node*, int, hasher, std::equal_to<int>, std::allocator<fs_node*>, __key_extract> __base;
+    using __base = std::hash_set<value_type, key_type, hasher, key_equal, allocator_type, __key_extract>;
 public:
     fd_map();
     fs_node* find_fd(int i) noexcept;
@@ -135,15 +140,14 @@ public:
 };
 class file_node : public fs_node
 {
-    spinlock_t __my_lock{};
 public:
     typedef std::char_traits<char>                                      traits_type;
     typedef decltype(std::declval<char*>() - std::declval<char*>())     difference_type;
     typedef decltype(sizeof(char))                                      size_type;
     typedef typename traits_type::pos_type                              pos_type;
     typedef typename traits_type::off_type                              off_type;
-    typedef typename std::__impl::__buf_ptrs<char>::__ptr          pointer;
-    typedef typename std::__impl::__buf_ptrs<char>::__const_ptr    const_pointer;
+    typedef typename std::__impl::__buf_ptrs<char>::__ptr               pointer;
+    typedef typename std::__impl::__buf_ptrs<char>::__const_ptr         const_pointer;
     std::ios_base::openmode current_mode = (std::ios_base::in | std::ios_base::out);
     virtual size_type write(const_pointer src, size_type n) = 0;
     virtual size_type read(pointer dest, size_type n) = 0;
@@ -156,17 +160,62 @@ public:
     virtual void force_write();
     file_node(std::string const& name, int vfd, uint64_t cid);    
 };
+class directory_node;
+class device_node;
+class tnode
+{
+    fs_node* __my_node;
+    std::string __my_name;
+public:
+    tnode(fs_node*, std::string const&);
+    tnode(fs_node*, const char*);
+    tnode(std::string);
+    tnode(const char*);
+    void rename(std::string const&);
+    void rename(const char*);
+    const char* name() const;
+    fs_node* ptr() noexcept;
+    fs_node const* ptr() const noexcept;
+    fs_node& ref() noexcept;
+    fs_node const& ref() const noexcept;
+    fs_node& operator*() noexcept;
+    fs_node const& operator*() const noexcept;
+    fs_node* operator->() noexcept;
+    fs_node const* operator->() const noexcept;
+    bool is_file() const;
+    bool is_directory() const;
+    bool is_device() const;
+    bool is_pipe() const;
+    file_node* as_file();
+    file_node const* as_file() const;
+    directory_node* as_directory();
+    directory_node const* as_directory() const;
+    device_node* as_device();
+    device_node const* as_device() const;
+    void invlnode() noexcept;
+    bool assign(fs_node* n) noexcept;
+    friend tnode mklink(tnode* original, std::string const& name);
+    constexpr operator bool() const noexcept { return bool(__my_node); }    
+    friend constexpr bool operator==(tnode const& __this, tnode const& __that) { return __this.__my_name == __that.__my_name && __this.__my_node == __that.__my_node; }
+    friend constexpr std::strong_ordering operator<=>(tnode const& __this, tnode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that.__my_name)); }
+    friend constexpr std::strong_ordering operator<=>(tnode const& __this, std::string const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that)); }
+    friend constexpr std::strong_ordering operator<=>(std::string const& __this, tnode const&  __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.compare(__that.__my_name)); }
+};
+typedef std::set<tnode> tnode_dir;
 struct directory_node : public fs_node
 {
-    virtual tnode* find(std::string const&) = 0;
+    tnode_dir directory_tnodes;
+    size_t file_count;
+    size_t subdir_count;
     virtual bool link(tnode*, std::string const&) = 0;
-    virtual tnode* add(fs_node*) = 0;
     virtual bool unlink(std::string const&) = 0;
-    virtual uint64_t num_files() const noexcept = 0;
-    virtual uint64_t num_subdirs() const noexcept = 0;
-    virtual std::vector<std::string> lsdir() const = 0;
-    virtual size_t readdir(std::vector<tnode*>& out_vec) = 0;
+    virtual tnode* add(fs_node*) = 0;
+    virtual tnode* find(std::string const&);
     virtual tnode* find_l(std::string const&);
+    virtual uint64_t num_files() const noexcept;
+    virtual uint64_t num_subdirs() const noexcept;
+    virtual std::vector<std::string> lsdir() const;
+    virtual size_t readdir(std::vector<tnode*>& out_vec);
     virtual bool is_directory() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool is_empty() const noexcept;
@@ -199,8 +248,7 @@ public:
     device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
     constexpr dev_t get_device_id() const noexcept { return __dev_id; }
 };
-typedef std::ext::delegate_ptr<simplex_pipe> pipe_handle;
-class pipe_node : public file_node
+class pipe_node : public virtual file_node
 {
     using file_node::traits_type;
 	using file_node::difference_type;
@@ -217,72 +265,24 @@ public:
     virtual pos_type seek(pos_type) override;
     virtual pos_type tell() const override;
     virtual bool fsync() override;
+    virtual bool is_pipe() const noexcept final override;
     virtual uint64_t size() const noexcept override;
     virtual bool truncate() override;
     virtual char* data() override;
     virtual bool grow(size_t) override;
+    size_t pipe_id() const;
     pipe_node(std::string const& name, int vid, size_t cid);
     pipe_node(std::string const& name, int vid);
     pipe_node(int vid, size_t cid);
     pipe_node(int vid);
-    constexpr int const& get_fd() const& noexcept { return fd; }
 };
-class pipe_map : public std::hash_set<pipe_node, int, decltype([](int const& i) -> uint64_t { return static_cast<uint64_t>(i); }), std::equal_to<int>, std::allocator<pipe_node>, decltype([](pipe_node const& n) -> int const& { return n.fd; })>
-{
-    using __base = std::hash_set<pipe_node, int, hasher, std::equal_to<int>, std::allocator<pipe_node>, __key_extract>;
-public:
-    pipe_map();
-    pipe_node& operator[](int fd);
-};
-class tnode
-{
-    fs_node* __my_node;
-    std::string __my_name;
-public:
-    tnode(fs_node*, std::string const&);
-    tnode(fs_node*, const char*);
-    tnode(std::string);
-    tnode(const char*);
-    void rename(std::string const&);
-    void rename(const char*);
-    const char* name() const;
-    fs_node* ptr() noexcept;
-    fs_node const* ptr() const noexcept;
-    fs_node& ref() noexcept;
-    fs_node const& ref() const noexcept;
-    fs_node& operator*() noexcept;
-    fs_node const& operator*() const noexcept;
-    fs_node* operator->() noexcept;
-    fs_node const* operator->() const noexcept;
-    bool if_file(std::function<bool(file_node&)> const& action);
-    bool if_folder(std::function<bool(directory_node&)> const& action);
-    bool if_device(std::function<bool(device_node&)> const& action);
-    bool if_file(std::function<bool(file_node const&)> const& action) const;
-    bool if_folder(std::function<bool(directory_node const&)> const& action) const;
-    bool if_device(std::function<bool(device_node const&)> const& action) const;
-    bool is_file() const;
-    bool is_directory() const;
-    bool is_device() const;
-    file_node* as_file();
-    file_node const* as_file() const;
-    directory_node* as_directory();
-    directory_node const* as_directory() const;
-    device_node* as_device();
-    device_node const* as_device() const;
-    void invlnode() noexcept;
-    bool assign(fs_node* n) noexcept;
-    friend tnode mklink(tnode* original, std::string const& name);
-    constexpr operator bool() const noexcept { return bool(__my_node); }    
-    friend constexpr bool operator==(tnode const& __this, tnode const& __that) { return __this.__my_name == __that.__my_name && __this.__my_node == __that.__my_node; }
-    friend constexpr std::strong_ordering operator<=>(tnode const& __this, tnode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that.__my_name)); }
-    friend constexpr std::strong_ordering operator<=>(tnode const& __this, std::string const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.__my_name.compare(__that)); }
-    friend constexpr std::strong_ordering operator<=>(std::string const& __this, tnode const&  __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(__this.compare(__that.__my_name)); }
-};
-typedef std::set<tnode> tnode_dir;
+typedef std::hash_set<pipe_node, int, cast_t<int, uint64_t>, equals_t, std::allocator<pipe_node>, access_t<fs_node, int, &fs_node::fd>> pipe_map;
+struct pipe_pair { pipe_node* in; pipe_node* out; };
 class filesystem
 {
 protected:
     typedef std::pair<directory_node*, std::string> target_pair;
+    pipe_map pipes;
     std::set<device_node> device_nodes{};
     fd_map current_open_files{};
     int next_fd;
@@ -292,6 +292,8 @@ protected:
     virtual file_node* mkfilenode(directory_node*, std::string const&) = 0;
     virtual directory_node* mkdirnode(directory_node*, std::string const&) = 0;
     virtual device_node* mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd);
+    virtual pipe_pair mkpipe(directory_node* parent, std::string const& name);
+    virtual pipe_pair mkpipe();
     virtual void syncdirs() = 0;
     virtual dev_t xgdevid() const noexcept = 0;
     virtual const char* path_separator() const noexcept;
@@ -300,6 +302,7 @@ protected:
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
     virtual target_pair get_parent(directory_node* node, std::string const& path, bool create);
     virtual void dldevnode(device_node*);
+    virtual void dlpipenode(fs_node*);
     void register_fd(fs_node* node);
     target_pair get_parent(std::string const& path, bool create);
 public:
@@ -311,6 +314,7 @@ public:
     bool link_stdio(dev_t device_id);
     fs_node* find_node(std::string const& path, bool ignore_links = false);
     void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev);
+    void create_pipe(int fds[2]);
     fs_node* get_fd_node(int fd);
     file_node* get_file(int fd);      
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);

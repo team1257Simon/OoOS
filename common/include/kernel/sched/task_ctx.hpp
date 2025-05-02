@@ -128,15 +128,4 @@ extern "C"
     void force_signal(task_ctx* task, int8_t sig);                                                              // (only called by the system on invalid syscalls or hardware exceptions)
     int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset);     // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 }
-#ifdef INST_TASK
-template class std::vector<task_ctx*>;
-template class std::vector<const char*>;
-template class std::vector<elf64_shared_object*>;
-template class std::map<int, posix_directory>;
-#else
-extern template class std::vector<task_ctx*>;
-extern template class std::vector<const char*>;
-extern template class std::vector<elf64_shared_object*>;
-extern template class std::map<int, posix_directory>;
-#endif
 #endif

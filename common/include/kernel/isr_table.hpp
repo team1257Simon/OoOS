@@ -13,11 +13,4 @@ namespace interrupt_table
     bool add_irq_handler(byte idx, irq_callback&& handler);
     void add_interrupt_callback(interrupt_callback&& cb);
 }
-#ifdef INST_ISR
-template class std::function<void()>;
-template class std::function<void(byte, qword)>;
-#else
-extern template class std::function<void()>;
-extern template class std::function<void(byte, qword)>;
-#endif
 #endif

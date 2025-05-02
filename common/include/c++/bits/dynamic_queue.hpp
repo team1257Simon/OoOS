@@ -290,8 +290,5 @@ namespace std::__impl
         }
         catch(...) { return nullptr; }
     }
-#ifndef INST
-    extern template class __dynamic_queue<char, allocator<char>>;
-#endif
 }
 #endif

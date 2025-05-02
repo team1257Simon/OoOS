@@ -5,9 +5,8 @@
 #include "errno.h"
 #include "kdebug.hpp"
 fd_map::fd_map() : __base(256) {}
-pipe_map::pipe_map() : __base(256) {}
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
-filesystem::filesystem() : device_nodes{}, current_open_files{}, next_fd{ 3 } {}
+filesystem::filesystem() : pipes{ 256UZ }, device_nodes{}, current_open_files{}, next_fd{ 3 } {}
 filesystem::~filesystem() = default;
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 fs_node* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
@@ -23,12 +22,6 @@ void filesystem::pubsyncdirs() { syncdirs(); }
 size_t filesystem::block_size() { return physical_block_size; }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create) { return get_parent(get_root_directory(), path, create); }
 directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
-pipe_node& pipe_map::operator[](int fd)
-{
-    iterator i = find(fd);
-    if(i == end()) { return *(emplace(fd).first); }
-    return *i;
-}
 fs_node* fd_map::find_fd(int i) noexcept
 {
     iterator result = find(i);
@@ -59,6 +52,16 @@ void filesystem::dldevnode(device_node* n)
     current_open_files.erase(n->vid());
     device_nodes.erase(*n); 
     syncdirs(); 
+}
+void filesystem::dlpipenode(fs_node* fn)
+{
+    if(pipe_node* n = dynamic_cast<pipe_node*>(fn))
+    {
+        n->prune_refs();
+        current_open_files.erase(n->vid());
+        pipes.erase(n->vid());
+        syncdirs();
+    }
 }
 device_node* filesystem::lndev(std::string const& where, int fd, dev_t id, bool create_parents)
 {
@@ -104,14 +107,58 @@ device_node* filesystem::mkdevnode(directory_node* parent, std::string const& na
     register_fd(result);
     return result;
 }
+pipe_pair filesystem::mkpipe()
+{
+    int first_fd = next_fd;
+    while(current_open_files.contains(first_fd)) first_fd++;
+    pipe_node* first_pipe = std::addressof(pipes[first_fd]);
+    size_t id = first_pipe->pipe_id();
+    register_fd(first_pipe);
+    int second_fd = next_fd;
+    while(current_open_files.contains(second_fd)) second_fd++;
+    pipe_node* second_pipe = pipes.emplace(second_fd, id).first.base();
+    register_fd(second_pipe);
+    return pipe_pair{ .in = first_pipe, .out = second_pipe };
+}
+pipe_pair filesystem::mkpipe(directory_node*, std::string const& name)
+{
+    int first_fd = next_fd;
+    while(current_open_files.contains(first_fd)) first_fd++;
+    pipe_node* first_pipe = pipes.emplace(name, first_fd).first.base();
+    size_t id = first_pipe->real_id;
+    register_fd(first_pipe);
+    int second_fd = next_fd;
+    while(current_open_files.contains(second_fd)) second_fd++;
+    pipe_node* second_pipe = pipes.emplace(name, second_fd, id).first.base();
+    register_fd(second_pipe);
+    return pipe_pair{ .in = first_pipe, .out = second_pipe };
+}
 bool filesystem::xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {
     tnode* node = parent->find(what);
     if(!node) { if(!ignore_nonexistent) throw std::logic_error{ "cannot unlink " + what + " because it does not exist" }; else return false; }
-    if(node->is_directory() && (*node)->num_refs() <= 1) { if(!node->as_directory()->is_empty() && !dir_recurse) throw std::logic_error{ "folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)" }; if(dir_recurse) for(std::string s : node->as_directory()->lsdir()) this->xunlink(node->as_directory(), s, true, true); }
+    if(node->is_directory() && (*node)->num_refs() <= 1)
+    { 
+        if(!node->as_directory()->is_empty() && !dir_recurse) 
+            throw std::logic_error{ "folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)" };
+        if(dir_recurse) 
+            for(std::string s : node->as_directory()->lsdir())
+                this->xunlink(node->as_directory(), s, true, true);
+    }
     if(!parent->unlink(what)) return false;
     (*node)->rm_reference(node);
-    if(!(*node)->has_refs()) { if(node->is_file()){ if(node->as_file()->is_device()) { dldevnode(dynamic_cast<device_node*>(node->as_file())); } else dlfilenode(node->as_file()); } if(node->is_directory()) dldirnode(node->as_directory()); }
+    if(!(*node)->has_refs())
+    {
+
+        if(node->is_file()) 
+        {
+            if(node->is_pipe())
+                dlpipenode(node->ptr());
+            else if(node->as_file()->is_device()) 
+                dldevnode(dynamic_cast<device_node*>(node->as_file()));
+            else dlfilenode(node->as_file()); 
+        }
+        if(node->is_directory()) dldirnode(node->as_directory()); }
     return true;
 }
 tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
@@ -208,11 +255,19 @@ void filesystem::create_node(directory_node* from, std::string const& path, mode
 {
     if(!from) from = get_root_directory();
     target_pair parent = get_parent(from, path, false);
+    if(parent.first->find(parent.second)) { throw std::domain_error{ "target " + path + " already exists" }; }
     file_mode m(mode);
     fs_node* result;
     if(m.is_directory()) { result = mkdirnode(parent.first, parent.second); result->mode = mode; }
     else if(m.is_chardev()) { result = mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
+    else if(m.is_fifo()) { pipe_pair pipes = mkpipe(parent.first, parent.second); pipes.in->mode = mode; pipes.out->mode = mode; return; }
     else { result = mkfilenode(parent.first, parent.second); result->mode = mode; }
     if(!result) { throw std::runtime_error{ "failed to create node at " + path }; }
     result->fsync();
+}
+void filesystem::create_pipe(int fds[2])
+{
+    pipe_pair result = mkpipe();
+    if(result.in && result.out) { fds[0] = result.in->vid(); fds[1] = result.out->vid(); }
+    else throw std::runtime_error{ "failed to create pipe" };
 }

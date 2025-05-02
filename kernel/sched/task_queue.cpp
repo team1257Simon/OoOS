@@ -1,4 +1,3 @@
-#define INST_TQ
 #include "sched/task_queue.hpp"
 #include "arch/arch_amd64.h"
 extern "C" tss system_tss;

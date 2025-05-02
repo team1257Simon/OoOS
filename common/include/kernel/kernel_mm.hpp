@@ -271,13 +271,4 @@ extern "C" void* aligned_malloc(size_t size, size_t align);
 extern "C" addr_t syscall_sbrk(ptrdiff_t incr);                                                             // void* sbrk(ptrdiff_t incr);
 extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);     // void* mmap(void* addr, size_t len, int prot, int flags, ptrdiff_t offset);
 extern "C" int syscall_munmap(addr_t addr, size_t len);                                                     // int munmap(void* addr, size_t len);
-#ifdef INST_MM
-template class std::vector<addr_t>;
-template class std::vector<block_descriptor>;
-template class std::vector<block_descriptor*>;
-#else
-extern template class std::vector<addr_t>;
-extern template class std::vector<block_descriptor>;
-extern template class std::vector<block_descriptor*>;
-#endif
 #endif

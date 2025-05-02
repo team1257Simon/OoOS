@@ -106,10 +106,6 @@ namespace std
             this->on_modify();
             return std::streamsize(result - old);
         }
-#ifndef INST
-        extern template class dynamic_streambuf<char>;
-        extern template class dynamic_streambuf<uint8_t>;
-#endif
     }
 }
 #endif

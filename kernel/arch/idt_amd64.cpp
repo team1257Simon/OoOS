@@ -1,4 +1,3 @@
-#define INST_ISR
 #include "libk_decls.h"
 #include "arch/idt_amd64.h"
 #include "isr_table.hpp"

@@ -40,10 +40,6 @@ namespace std
             virtual int sync() override { this->setg(this->__qbeg(), this->__qcur(), this->__qmax()); this->__fullsetp(this->__qbeg(), this->__end(), this->__qmax()); return 0; }
             virtual std::streamsize unread_size() { return this->__qrem(); }
         };
-#ifndef INST
-        extern template class dynamic_queue_streambuf<char>;
-        extern template class dynamic_queue_streambuf<uint8_t>;
-#endif
     }
 }
 #endif

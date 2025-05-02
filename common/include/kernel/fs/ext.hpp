@@ -502,19 +502,26 @@ struct ext_node_extent_tree
     ext_node_extent_tree();
     ~ext_node_extent_tree();
 };
-struct ext_vnode : public std::ext::dynamic_streambuf<char>
+struct ext_vnode_base
+{
+    uint32_t inode_number;
+    extfs* parent_fs;
+    ext_inode* on_disk_node;
+    ext_vnode_base(extfs* parent, uint32_t inode_number, ext_inode* inode);
+    ext_vnode_base(extfs* parent, uint32_t inode_number);
+    ext_vnode_base();
+    virtual ~ext_vnode_base();
+};
+struct ext_vnode : public ext_vnode_base, public std::ext::dynamic_streambuf<char>
 {
     using base_buffer = std::ext::dynamic_streambuf<char>;
     std::vector<disk_block> block_data{}; // all the actual data blocks are recorded here
     std::vector<disk_block> cached_metadata{}; // all metadata blocks, such as extent / indirect block pointers, that are part of the node are cached here
     size_t last_checked_block_idx{};
-    uint32_t inode_number;
-    extfs* parent_fs;
-    ext_inode* on_disk_node;
     ext_node_extent_tree extents;
     ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode);
     ext_vnode(extfs* parent, uint32_t inode_number);
-    ext_vnode() = default;
+    ext_vnode();
     virtual ~ext_vnode();
     virtual bool initialize();
     virtual std::streamsize xsputn(const char* s, std::streamsize n) override;
@@ -559,8 +566,8 @@ struct jbd2 : public ext_vnode
     size_t tags_per_block();
     bool execute_pending_txns();
     uint32_t calculate_sb_checksum();
-    ~jbd2();
-    jbd2() = default;
+    virtual ~jbd2();
+    jbd2();
     jbd2(extfs* parent, uint32_t inode);
     virtual bool initialize() override;
 };
@@ -598,52 +605,62 @@ struct dirent_idx { unsigned block_num; unsigned block_offs; };
 class ext_device_vnode;
 class ext_directory_vnode : public ext_vnode, public directory_node
 {
-    tnode_dir __my_dir;
     std::map<tnode*, dirent_idx> __dir_index    {};
     bool __initialized                          { false };
-    size_t __n_subdirs                          { 0UL };
-    size_t __n_files                            { 0UL };
     char* __current_block_start();
     bool __parse_entries(size_t bs);
     bool __seek_available_entry(size_t name_len);
-    void __write_dir_entry(ext_device_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
-    void __write_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
+    void __write_dir_entry(ext_vnode_base* vnode, ext_dirent_type type, const char* name, size_t name_len);
     ext_dir_entry* __current_ent();
 public:
-    bool add_dir_entry(ext_device_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
-    bool add_dir_entry(ext_vnode* vnode, ext_dirent_type type, const char* name, size_t name_len);
     virtual std::streamsize on_overflow(std::streamsize n) override;
+    virtual bool link(tnode* original, std::string const& target) override;
+    virtual bool unlink(std::string const& name) override;
+    virtual tnode* add(fs_node* n) override;
     virtual tnode* find(std::string const&) override;
     virtual tnode* find_l(std::string const&) override;
-    virtual bool link(tnode* original, std::string const& target) override;
-    virtual tnode* add(fs_node* n) override;
-    virtual bool unlink(std::string const& name) override;
-    virtual uint64_t num_files() const noexcept override;
-    virtual uint64_t num_subdirs() const noexcept override;
-    virtual std::vector<std::string> lsdir() const override;
-    virtual size_t readdir(std::vector<tnode*>& out_vec) override;
-    virtual uint64_t size() const noexcept override;
     virtual bool fsync() override;
     virtual bool initialize() override;
     virtual bool truncate() override;
-    bool init_dir_blank(ext_directory_vnode* parent);
-    constexpr bool has_init() const noexcept { return __initialized; }
+    virtual ~ext_directory_vnode();
     ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
+    bool add_dir_entry(ext_vnode_base* vnode, ext_dirent_type type, const char* name, size_t name_len);
+    bool init_dir_blank(ext_directory_vnode* parent);
+    constexpr bool has_init() const noexcept { return __initialized; }
 };
-class ext_device_vnode : public device_node
+class ext_device_vnode : public ext_vnode_base, public device_node
 {
     friend class ext_directory_vnode;
     friend class extfs;
-    uint32_t inode_number;
-    extfs* parent_fs;
-    ext_inode* on_disk_node;
 public:
     virtual bool fsync() override;
     ext_device_vnode(extfs* parent, uint32_t inode_number, device_stream* dev, int fd);
     ext_device_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, device_stream* dev, int fd);
     virtual ~ext_device_vnode();
 };
+class ext_pipe_vnode : public ext_vnode_base, public pipe_node
+{
+public:
+    ext_pipe_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode, int fd);
+    ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd);
+    ext_pipe_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode, int fd, size_t pipe_id);
+    ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd, size_t pipe_id);
+    virtual ~ext_pipe_vnode();
+};
+class ext_pipe_pair : public fs_node
+{
+public:
+    ext_pipe_vnode in;
+    ext_pipe_vnode out;
+    virtual uint64_t size() const noexcept override;
+    virtual bool fsync() override;
+    virtual bool truncate() override;
+    virtual bool is_pipe() const noexcept final override;
+    ext_pipe_pair(extfs* parent, uint32_t inode_number, std::string const& name, int fd0, int fd1);
+    virtual ~ext_pipe_pair();
+};
+typedef std::hash_set<ext_pipe_pair, std::string, std::hash<std::string>, equals_t, std::allocator<ext_pipe_pair>, access_t<fs_node, std::string, &fs_node::concrete_name>> named_pipe_map;
 struct ext_block_group
 {
     extfs* parent_fs;
@@ -669,12 +686,14 @@ struct ext_block_group
 class extfs : public filesystem
 {
     friend struct ext_block_group;
+    ext_pipe_pair& __init_pipes(uint32_t inode_num, std::string const& name);
 protected:
     std::set<ext_file_vnode> file_nodes;
     std::set<ext_directory_vnode> dir_nodes;
     std::set<ext_device_vnode> dev_nodes;
     std::vector<ext_block_group> block_groups;
     std::map<dev_t, ext_device_vnode*> dev_linked_nodes;
+    named_pipe_map named_pipes;
     ext_superblock* sb;
     block_group_descriptor* blk_group_descs;
     directory_node* root_dir;
@@ -687,10 +706,13 @@ protected:
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;
     virtual void dldirnode(directory_node* dd) override;
+    virtual void dldevnode(device_node*) override;
+    virtual void dlpipenode(fs_node*) override;
     virtual void syncdirs() override;
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual device_node* mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd) override;
+    virtual pipe_pair mkpipe(directory_node* parent, std::string const& name) override;
     virtual target_pair get_parent(directory_node* start, std::string const& path, bool create) override;
     virtual dev_t xgdevid() const noexcept override;
     virtual file_node* on_open(tnode* fd) override;
@@ -704,6 +726,7 @@ protected:
     bool update_free_block_count(int diff);
     bool update_free_inode_count(int diff);
     bool persist_sb();
+    fs_node* inode_to_vnode(uint32_t idx, ext_dirent_type type);
 public:
     virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true) override;
     virtual directory_node* open_directory(std::string const& path, bool create = true) override;

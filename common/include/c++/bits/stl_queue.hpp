@@ -5,11 +5,11 @@ namespace std
 {
     extension namespace ext
     {
-        template<typename T, allocator_object<T> A> struct stale_settings { unsigned int op_threshold; typename __impl::__dynamic_queue<T, A>::__diff_type size_threshold; };
+        template<typename T, allocator_object<T> A> struct stale_settings { unsigned int op_threshold; typename std::__impl::__dynamic_queue<T, A>::__diff_type size_threshold; };
         template<typename T, allocator_object<T> A = std::allocator<T>>
-        class resettable_queue : protected __impl::__dynamic_queue<T, A>
+        class resettable_queue : protected std::__impl::__dynamic_queue<T, A>
         {
-            typedef __impl::__dynamic_queue<T, A> __base;
+            typedef std::__impl::__dynamic_queue<T, A> __base;
             bool __enable_trim_stale{ false };
             // copy- and move-assign and construct functions implicitly inherit from base
         protected:

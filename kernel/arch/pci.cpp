@@ -1,4 +1,3 @@
-#define INST_PCI
 #include "arch/pci.hpp"
 #include "string"
 pci_device_list pci_device_list::__instance{};

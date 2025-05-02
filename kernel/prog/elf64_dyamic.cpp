@@ -1,4 +1,3 @@
-#define INST_ELF_DYN
 #include "elf64_dynamic.hpp"
 #include "kernel_mm.hpp"
 #include "stdlib.h"

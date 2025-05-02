@@ -1,4 +1,3 @@
-#define INST_TL
 #include "sched/task_list.hpp"
 #include "sched/scheduler.hpp"
 #include "kernel_mm.hpp"

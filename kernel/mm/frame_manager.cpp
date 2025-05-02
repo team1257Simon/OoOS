@@ -1,4 +1,3 @@
-#define INST_FM
 #include "frame_manager.hpp"
 #include "stdexcept"
 #include "stdlib.h"

@@ -223,7 +223,6 @@ public:
     virtual bool grow(size_t added) override;
     virtual void force_write() override;
     void on_open();
-    void set_fd(int i);
     uint32_t claim_next(uint32_t cl);
     uint64_t cl_to_s(uint32_t cl);    
     fat32_file_node(fat32* pfs, std::string const& real_name, fat32_directory_node* pdir, uint32_t cl_st, size_t dirent_idx);
@@ -231,12 +230,9 @@ public:
 };
 class fat32_directory_node final : public directory_node, public fat32_node
 {
-    tnode_dir __my_dir;
     std::vector<fat32_directory_entry> __my_dir_data;
     std::vector<uint32_t> __my_covered_clusters;
-    bool __has_init     { false };    
-    size_t __n_files    {};
-    size_t __n_folders  {};
+    bool __has_init     { false };
     bool __dirty        { false };
     friend class fat32_node;
     friend class fat32;    
@@ -248,15 +244,9 @@ class fat32_directory_node final : public directory_node, public fat32_node
     std::vector<fat32_directory_entry>::iterator __get_longname_start(fat32_regular_entry* e);
 public:
     std::vector<fat32_directory_entry>::iterator first_unused_entry();
-    virtual tnode* find(std::string const&) override;
     virtual bool link(tnode* original, std::string const& target) override;
-    virtual tnode* add(fs_node* n) override;
     virtual bool unlink(std::string const& name) override;
-    virtual uint64_t num_files() const noexcept override;
-    virtual uint64_t num_subdirs() const noexcept override;
-    virtual std::vector<std::string> lsdir() const override;
-    virtual size_t readdir(std::vector<tnode*>& out_vec) override;
-    virtual uint64_t size() const noexcept override;
+    virtual tnode* add(fs_node* n) override;
     virtual bool fsync() override;
     virtual bool truncate() override;
     void get_short_name(std::string const &full, std::string& result);

@@ -5,6 +5,7 @@
 #include "algorithm"
 #include "bitmap.hpp"
 #include "kdebug.hpp"
+using std::addressof;
 static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
 static std::allocator<ext_superblock> sb_alloc{};
 static std::allocator<block_group_descriptor> bg_alloc{};
@@ -34,6 +35,7 @@ uint32_t extfs::inode_pos_in_group(uint32_t inode_num) { return (inode_num - 1) 
 dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
 void extfs::syncdirs() { if(!fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
 bool extfs::update_free_inode_count(int diff) { sb->unallocated_inodes += diff; return persist_sb(); }
+fs_node* extfs::dirent_to_vnode(ext_dir_entry* de) { return inode_to_vnode(de->inode_idx, static_cast<ext_dirent_type>(de->type_ind)); }
 extfs::extfs(uint64_t volume_start_lba) : 
     filesystem          {}, 
     file_nodes          {}, 
@@ -41,6 +43,7 @@ extfs::extfs(uint64_t volume_start_lba) :
     dev_nodes           {},
     block_groups        {},
     dev_linked_nodes    {},
+    named_pipes         { 256UZ },
     sb                  { sb_alloc.allocate(1UL) }, 
     blk_group_descs     {}, 
     root_dir            {}, 
@@ -73,6 +76,16 @@ ext_block_group::~ext_block_group()
     parent_fs->free_block_buffer(inode_usage_bmp);
     parent_fs->free_block_buffer(blk_usage_bmp);
     parent_fs->free_block_buffer(inode_block);
+}
+ext_pipe_pair& extfs::__init_pipes(uint32_t inode_num, std::string const& name)
+{
+    int first_fd = next_fd;
+    while(current_open_files.contains(first_fd)) first_fd++;
+    int second_fd = first_fd + 1;
+    while(current_open_files.contains(second_fd)) second_fd++;
+    std::pair<named_pipe_map::iterator, bool> result = named_pipes.emplace(this, inode_num, name, first_fd, second_fd);
+    if(result.second) { register_fd(addressof(result.first->in)); register_fd(addressof(result.first->out)); }
+    return *result.first;
 }
 bool ext_block_group::decrement_inode_ct()
 {
@@ -276,16 +289,23 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
     tnode* node = parent.first->find(parent.second);
     if(node && node->is_directory()) throw std::logic_error{ "path " + path + " exists and is a directory" };
     file_node* result;
+    bool pipe = false;
     if(!node)
     {
         if(!create) throw std::out_of_range{ "file not found: " + path }; 
         if(file_node* created = mkfilenode(parent.first, parent.second)) result = created;
         else throw std::runtime_error{ "failed to create file: " + path }; 
     }
+    else if(ext_pipe_pair* pipes = dynamic_cast<ext_pipe_pair*>(node->ptr())) 
+    {
+        if(mode.out) result = addressof(pipes->out);
+        else result = addressof(pipes->in);
+        pipe = true;
+    }
     else result = node->as_file();
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
     if(!current_open_files.contains(result->vid())) { register_fd(result); }
-    result->current_mode = mode;
+    if(!pipe) result->current_mode = mode;
     return result;
 }
 directory_node* extfs::open_directory(std::string const& path, bool create)
@@ -418,7 +438,7 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
             .created_time       { tstamp.lo },
             .created_time_hi    { extrabits }
         };
-        array_copy(inode->block_info.link_target, name.c_str(), std::strnlen(name.c_str(), 60));
+        array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
         ext_device_vnode* vnode = dev_nodes.emplace(this, inode_num, dev, fd).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
         if(exparent.add_dir_entry(vnode, dti_chardev, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
@@ -427,6 +447,35 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
     catch(std::exception& e) { panic(e.what()); }
     else panic("failed to get inode");
     return nullptr;
+}
+pipe_pair extfs::mkpipe(directory_node* parent, std::string const& name)
+{
+    qword tstamp = sys_time(nullptr);
+    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
+    if(uint32_t inode_num = claim_inode(false)) try
+    {
+        ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
+        {
+            .mode               { 0010666U },
+            .size_lo            { 0U },
+            .changed_time       { tstamp.lo },
+            .modified_time      { tstamp.lo },
+            .flags              { use_extents },
+            .size_hi            { 0U },
+            .changed_time_hi    { extrabits },
+            .mod_time_extra     { extrabits },
+            .created_time       { tstamp.lo },
+            .created_time_hi    { extrabits }
+        };
+        array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
+        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
+        ext_pipe_pair& result = __init_pipes(inode_num, name);
+        if(exparent.add_dir_entry(addressof(result.in), dti_fifo, name.c_str(), name.size()) && persist_inode(inode_num)) { return { addressof(result.in), addressof(result.out) }; }
+        else panic("failed to add directory entry");
+    }
+    catch(std::exception& e) { panic(e.what()); }
+    else panic("failed to get inode");
+    return { nullptr, nullptr };
 }
 void extfs::release_all(ext_vnode& extn)
 {
@@ -459,6 +508,28 @@ void extfs::dlfilenode(file_node* fd)
     array_zero(reinterpret_cast<char*>(exfn.on_disk_node), sb->inode_size);
     persist_inode(inode_num);
     file_nodes.erase(cid);
+}
+void extfs::dldevnode(device_node* dd)
+{
+    ext_device_vnode& exdn = dynamic_cast<ext_device_vnode&>(*dd);
+    dev_t dn = dd->get_device_id();
+    uint32_t inode_num = exdn.inode_number;
+    release_inode(inode_num, false);
+    array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
+    persist_inode(inode_num);
+    dev_linked_nodes.erase(dn);
+}
+void extfs::dlpipenode(fs_node* fn)
+{
+    if(ext_pipe_pair* pipes = dynamic_cast<ext_pipe_pair*>(fn))
+    {
+        uint32_t inode_num = pipes->in.inode_number;
+        release_inode(inode_num, false);
+        array_zero(reinterpret_cast<char*>(pipes->in.on_disk_node), sb->inode_size);
+        persist_inode(inode_num);
+        named_pipes.erase(pipes->concrete_name);
+    }
+    else filesystem::dlpipenode(fn);
 }
 disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 {
@@ -554,44 +625,41 @@ bool extfs::persist_inode(uint32_t inode_num)
     blks.emplace_back(iblk, block_groups[grp].inode_block.data_buffer + bs * (iblk - block_groups[grp].inode_block.block_number), true, 1UL);
     return fs_journal.create_txn(blks);
 }
-fs_node* extfs::dirent_to_vnode(ext_dir_entry* de)
+static ext_dirent_type mode_to_dirent_type(file_mode mode)
 {
-    uint32_t idx = de->inode_idx;
-    if(sb->required_features & dirent_type)
+    if(mode.is_directory()) return dti_dir;
+    else if(mode.is_chardev()) return dti_blockdev;
+    else if(mode.is_chardev()) return dti_chardev;
+    else if(mode.is_socket()) return dti_socket;
+    else if(mode.is_fifo()) return dti_fifo;
+    else if(mode.is_symlink()) return dti_symlink;
+    else if(mode.is_regular()) return dti_regular;
+    else return dti_unknown;
+}
+fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
+{
+    ext_inode* n = get_inode(idx);
+    if(!(sb->required_features & dirent_type)) type = mode_to_dirent_type(n->mode);
+    if(type == dti_dir) return dir_nodes.emplace(this, idx, next_fd++).first.base();
+    else if(type == dti_fifo)
     {
-        if(de->type_ind == dti_dir) return dir_nodes.emplace(this, idx, next_fd++).first.base();
-        else if(de->type_ind == dti_chardev || de->type_ind == dti_blockdev)
-        {
-            ext_inode* n = get_inode(idx);
-            dev_t id = n->device_hardlink_id;
-            if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
-            device_stream* dev = dreg[id];
-            return (dev_linked_nodes[id] = dev_nodes.emplace(this, idx, dev, next_fd++).first.base());
-        }
-        else 
-        { 
-            next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
-            fs_node* result = file_nodes.emplace(this, idx, next_fd++).first.base();
-            return result;
-        }
+        std::string name(n->block_info.link_target, std::strnlen(n->block_info.link_target, 60UZ));
+        if(named_pipes.contains(name)) return named_pipes.find(name).base();
+        return addressof(__init_pipes(idx, name));
     }
-    else
+    else if(type == dti_chardev || type == dti_blockdev)
+    {
+        
+        dev_t id = n->device_hardlink_id;
+        if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
+        device_stream* dev = dreg[id];
+        return (dev_linked_nodes[id] = dev_nodes.emplace(this, idx, dev, next_fd++).first.base());
+    }
+    else 
     { 
-        ext_inode* n = get_inode(idx);
-        if(n->mode.is_directory()) return dir_nodes.emplace(this, idx, n, next_fd++).first.base();
-        else if(n->mode.is_chardev() || n->mode.is_blockdev()) 
-        {
-            dev_t id = n->device_hardlink_id;
-            if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
-            device_stream* dev = dreg[id];
-            return (dev_linked_nodes[id] = dev_nodes.emplace(this, idx, dev, next_fd++).first.base());
-        }
-        else 
-        {
-            next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
-            fs_node* result = file_nodes.emplace(this, idx, n, next_fd++).first.base(); 
-            return result; 
-        }
+        next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
+        fs_node* result = file_nodes.emplace(this, idx, next_fd++).first.base();
+        return result;
     }
 }
 tnode* extfs::get_path(std::string const& path_str)

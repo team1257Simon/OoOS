@@ -3,26 +3,17 @@
 #include "kernel/fs/fs.hpp"
 #include "ext/dynamic_queue_streambuf.hpp"
 constexpr dev_t ramfs_magic = 0xC001;
-class ramfs_directory_inode : public directory_node
+class ramfs_directory_node : public directory_node
 {
-    tnode_dir __my_dir      {};
-    size_t __file_count     {};
-    size_t __subdir_count   {};
 public:
-    virtual tnode* find(std::string const& name) override;
     virtual bool link(tnode* original, std::string const& alias) override;
-    virtual tnode* add(fs_node*) override;
     virtual bool unlink(std::string const& what) override;
-    virtual uint64_t num_files() const noexcept override;
-    virtual uint64_t num_subdirs() const noexcept override;
-    virtual std::vector<std::string> lsdir() const override;
-    virtual size_t readdir(std::vector<tnode*>& out_vec) override;
-    virtual uint64_t size() const noexcept override;
+    virtual tnode* add(fs_node*) override;
     virtual bool truncate() override;
-    ramfs_directory_inode(std::string const& name, int fd);
+    ramfs_directory_node(std::string const& name, int fd);
     virtual bool fsync() override;
 };
-class ramfs_file_inode final : std::ext::dynamic_queue_streambuf<char>, public file_node
+class ramfs_file_node final : std::ext::dynamic_queue_streambuf<char>, public file_node
 {
 	using file_node::traits_type;
 	using file_node::difference_type;
@@ -38,7 +29,7 @@ public:
     virtual pos_type seek(pos_type) override;
     virtual pos_type tell() const;
     virtual char* data() override;
-    ramfs_file_inode(std::string const& name, int fd);
+    ramfs_file_node(std::string const& name, int fd);
     virtual bool fsync() override;
     virtual uint64_t size() const noexcept override;
     virtual bool grow(size_t added) override;
@@ -46,9 +37,9 @@ public:
 };
 class ramfs final : public filesystem
 {
-    ramfs_directory_inode __root_dir;
-    std::set<ramfs_file_inode> __file_nodes;
-    std::set<ramfs_directory_inode> __directory_nodes;
+    ramfs_directory_node __root_dir;
+    std::set<ramfs_file_node> __file_nodes;
+    std::set<ramfs_directory_node> __directory_nodes;
 protected:
     virtual directory_node* get_root_directory() override;
     virtual void dlfilenode(file_node* fd) override;

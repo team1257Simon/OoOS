@@ -107,8 +107,5 @@ namespace std
         }
         return i;
     }
-#ifndef INST
-    extern template class basic_streambuf<char>;
-#endif
 }
 #endif

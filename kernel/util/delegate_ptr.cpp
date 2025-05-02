@@ -1,3 +1,4 @@
+#define INST_DELEGATE
 #include "ext/delegate_ptr.hpp"
 namespace std
 {

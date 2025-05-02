@@ -23,13 +23,4 @@ public:
     static frame_manager& get();
 };
 #define fm frame_manager::get()
-#ifdef INST_FM
-template class std::set<uframe_tag>;
-template class std::hash_map<addr_t, shared_block, std::hash<addr_t>, std::equal_to<addr_t>, std::allocator<std::pair<const addr_t, shared_block>>>;
-template class std::hash_map<addr_t, int, std::hash<addr_t>, std::equal_to<addr_t>, std::allocator<std::pair<const addr_t, int>>>;
-#else
-extern template class std::set<uframe_tag>;
-extern template class std::hash_map<addr_t, shared_block, std::hash<addr_t>, std::equal_to<addr_t>, std::allocator<std::pair<const addr_t, shared_block>>>;
-extern template class std::hash_map<addr_t, int, std::hash<addr_t>, std::equal_to<addr_t>, std::allocator<std::pair<const addr_t, int>>>;
-#endif
 #endif
