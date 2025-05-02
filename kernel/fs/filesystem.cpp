@@ -5,6 +5,7 @@
 #include "errno.h"
 #include "kdebug.hpp"
 fd_map::fd_map() : __base(256) {}
+pipe_map::pipe_map() : __base(256) {}
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
 filesystem::filesystem() : device_nodes{}, current_open_files{}, next_fd{ 3 } {}
 filesystem::~filesystem() = default;
@@ -22,6 +23,12 @@ void filesystem::pubsyncdirs() { syncdirs(); }
 size_t filesystem::block_size() { return physical_block_size; }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create) { return get_parent(get_root_directory(), path, create); }
 directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
+pipe_node& pipe_map::operator[](int fd)
+{
+    iterator i = find(fd);
+    if(i == end()) { return *(emplace(fd).first); }
+    return *i;
+}
 fs_node* fd_map::find_fd(int i) noexcept
 {
     iterator result = find(i);

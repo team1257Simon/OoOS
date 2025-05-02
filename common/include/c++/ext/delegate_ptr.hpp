@@ -135,10 +135,10 @@ namespace std
                 __delegate_ptr_impl(size_t node_idx) : __idx{ node_idx }, __node{ __get<T>(node_idx).__acquire() } {}
             public:
                 ~__delegate_ptr_impl() { __node.__release(); }
-                typename __nt::reference operator*() { return __node.__ref(); }
-                typename __nt::const_reference operator*() const { return __node.__ref(); }
-                typename __nt::pointer operator->() { return __node.__ptr(); }
-                typename __nt::const_pointer operator->() const { return __node.__ptr(); }
+                typename __nt::reference operator*() & { return __node.__ref(); }
+                typename __nt::const_reference operator*() const& { return __node.__ref(); }
+                typename __nt::pointer operator->() & { return __node.__ptr(); }
+                typename __nt::const_pointer operator->() const& { return __node.__ptr(); }
                 size_t get_id() const { return __idx; }
             };
         }
@@ -153,6 +153,7 @@ namespace std
             template<typename ... Args> requires constructible_from<T, Args...> delegate_ptr(Args&& ... args) : __base(__impl::__get_ptrs<T>().template add_new(type_token<T>(), forward<Args>(args)...)) {}
             // Registers any action that must be performed on a per-reference basis with regard to a given object when acquiring or releasing a delegate pointer.
             static void on_acquire_release(delegate_callback&& acq, delegate_callback&& rel) { __impl::__register_acq_rel_fns<T>(move(acq), move(rel)); }
+            friend constexpr strong_ordering operator<=>(delegate_ptr const& __this, delegate_ptr const& __that) noexcept { return __this.__idx <=> __that.__idx; }
         };
     }
 }

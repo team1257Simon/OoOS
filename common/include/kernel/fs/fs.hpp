@@ -11,8 +11,10 @@
 #include "bits/hash_set.hpp"
 #include "vector"
 #include "set"
+#include "fs/simplex_pipe.hpp"
 #include "device_registry.hpp"
 #include "ext/dynamic_streambuf.hpp"
+#include "ext/delegate_ptr.hpp"
 #include "sys/stat.h"
 #include "sys/fcntl.h"
 struct file_mode
@@ -123,11 +125,9 @@ struct fs_node
     friend constexpr std::strong_ordering operator<=>(fs_node const& a, uint64_t b) noexcept { return a.real_id <=> b; }
     friend constexpr std::strong_ordering operator<=>(uint64_t a, fs_node const& b) noexcept { return a <=> b.real_id; }
 };
-struct fd_extract{ constexpr int const& operator()(fs_node* const& ptr) const noexcept { return ptr->fd; } };
-struct id_key_int{ constexpr uint64_t operator()(int const& i) const noexcept { return static_cast<uint64_t>(i); } };
-class fd_map : public std::hash_set<fs_node*, int, id_key_int, std::equal_to<int>, std::allocator<fs_node*>, fd_extract>
+class fd_map : public std::hash_set<fs_node*, int, decltype([](int const& i) -> uint64_t { return static_cast<uint64_t>(i); }), std::equal_to<int>, std::allocator<fs_node*>, decltype([](fs_node* const& ptr) -> int const& { return ptr->fd; })>
 {
-    typedef std::hash_set<fs_node*, int, id_key_int, std::equal_to<int>, std::allocator<fs_node*>, fd_extract> __base;
+    typedef std::hash_set<fs_node*, int, hasher, std::equal_to<int>, std::allocator<fs_node*>, __key_extract> __base;
 public:
     fd_map();
     fs_node* find_fd(int i) noexcept;
@@ -182,9 +182,6 @@ class device_node : public file_node
 	using file_node::off_type;
 	using file_node::pointer;
 	using file_node::const_pointer;
-public:
-    using device_buffer = device_stream;
-private:
     device_stream* __dev_buffer;
     dev_t __dev_id;
 public:
@@ -201,6 +198,41 @@ public:
     virtual bool grow(size_t) override;
     device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
     constexpr dev_t get_device_id() const noexcept { return __dev_id; }
+};
+typedef std::ext::delegate_ptr<simplex_pipe> pipe_handle;
+class pipe_node : public file_node
+{
+    using file_node::traits_type;
+	using file_node::difference_type;
+	using file_node::size_type;
+	using file_node::pos_type;
+	using file_node::off_type;
+	using file_node::pointer;
+	using file_node::const_pointer;
+    pipe_handle __pipe;
+public:
+    virtual size_type write(const_pointer src, size_type n) override;
+    virtual size_type read(pointer dest, size_type n) override;
+    virtual pos_type seek(off_type, std::ios_base::seekdir) override;
+    virtual pos_type seek(pos_type) override;
+    virtual pos_type tell() const override;
+    virtual bool fsync() override;
+    virtual uint64_t size() const noexcept override;
+    virtual bool truncate() override;
+    virtual char* data() override;
+    virtual bool grow(size_t) override;
+    pipe_node(std::string const& name, int vid, size_t cid);
+    pipe_node(std::string const& name, int vid);
+    pipe_node(int vid, size_t cid);
+    pipe_node(int vid);
+    constexpr int const& get_fd() const& noexcept { return fd; }
+};
+class pipe_map : public std::hash_set<pipe_node, int, decltype([](int const& i) -> uint64_t { return static_cast<uint64_t>(i); }), std::equal_to<int>, std::allocator<pipe_node>, decltype([](pipe_node const& n) -> int const& { return n.fd; })>
+{
+    using __base = std::hash_set<pipe_node, int, hasher, std::equal_to<int>, std::allocator<pipe_node>, __key_extract>;
+public:
+    pipe_map();
+    pipe_node& operator[](int fd);
 };
 class tnode
 {

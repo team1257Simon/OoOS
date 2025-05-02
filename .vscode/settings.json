@@ -117,6 +117,7 @@
         "errno.h": "c",
         "*.hpp": "cpp",
         "signal.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "strstream": "cpp"
     }
 }

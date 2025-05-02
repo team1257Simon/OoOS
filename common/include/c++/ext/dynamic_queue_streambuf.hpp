@@ -30,6 +30,7 @@ namespace std
             dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__qmove(forward<__base>(that)); return *this; }
             dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type{}) : __base{ sz, alloc } {}
             virtual void reset() { this->__qrst(); }
+            pointer data() { return this->__qbeg(); }
         protected:
             virtual streamsize xsputn(const_pointer src,  streamsize n) override { pointer old_end = this->__end(); return size_type(this->__push_elements(src, src + n) - old_end); }
             virtual streamsize xsgetn(pointer dest, streamsize n) override { return this->__pop_elements(dest, dest + n); }

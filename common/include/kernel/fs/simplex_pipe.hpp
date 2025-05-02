@@ -11,5 +11,9 @@ protected:
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode mode) noexcept override;
 public:
     simplex_pipe();
+    bool grow(size_type added);
+    bool truncate();
+    size_type size() const;
+    pos_type tell(std::ios_base::openmode which) const;
 };
 #endif

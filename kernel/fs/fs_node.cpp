@@ -26,7 +26,7 @@ bool directory_node::is_directory() const noexcept { return true; }
 uint64_t directory_node::size() const noexcept { return num_files() + num_subdirs(); }
 bool directory_node::is_empty() const noexcept { return size() == 0; }
 bool directory_node::relink(std::string const& oldn, std::string const& newn) { if(tnode* ptr = find(oldn)) { return unlink(oldn) && link(ptr, newn); } else return false; } 
-device_node::device_node(std::string const& name, int fd, device_buffer* dev_buffer, dev_t id) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
+device_node::device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
 bool device_node::fsync() { return __dev_buffer->pubsync() == 0; }
 bool device_node::is_device() const noexcept { return true; }
 uint64_t device_node::size() const noexcept { return __dev_buffer->in_avail(); }
@@ -39,9 +39,9 @@ device_node::size_type device_node::read(pointer dest, size_type n) { return __d
 device_node::pos_type device_node::seek(off_type off, std::ios_base::seekdir way) { return __dev_buffer->pubseekoff(off, way); }
 device_node::pos_type device_node::seek(pos_type pos) { return __dev_buffer->pubseekpos(pos); }
 tnode::tnode(fs_node* node, std::string const& name) : __my_node{ node }, __my_name{ name } { if(__my_node) __my_node->refs.insert(this); }
-tnode::tnode(fs_node* node, const char* name) : __my_node{ node }, __my_name{ name } { if(__my_node) __my_node->refs.insert(this); }
-tnode::tnode(std::string name) : __my_node { nullptr }, __my_name{ name } {}
-tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
+tnode::tnode(fs_node* node, const char* name) : __my_node{ node }, __my_name(name) { if(__my_node) __my_node->refs.insert(this); }
+tnode::tnode(std::string name) : __my_node{ nullptr }, __my_name{ name } {}
+tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name(name) {}
 void tnode::rename(std::string const& n) { __my_name = n; }
 void tnode::rename(const char* n) { rename(std::string(n, std::strlen(n))); }
 const char* tnode::name() const { return __my_name.c_str(); }
@@ -71,3 +71,17 @@ bool tnode::is_device() const { return __my_node && __my_node->is_device(); }
 void tnode::invlnode() noexcept { __my_node = nullptr; }
 bool tnode::assign(fs_node* n) noexcept { if(!__my_node) { __my_node = n; return true; } else return false; }
 tnode mklink(tnode* original, std::string const& name) { return tnode(original->__my_node, name); }
+pipe_node::pipe_node(std::string const& name, int vid, size_t cid) : file_node(name, vid, cid), __pipe(cid) { current_mode = std::ios_base::out;  mode.t_regular = false; mode.t_fifo = true; }
+pipe_node::pipe_node(std::string const& name, int vid) : file_node(name, vid, 0), __pipe() { current_mode = std::ios_base::in; real_id = __pipe.get_id(); mode.t_regular = false; mode.t_fifo = true; }
+pipe_node::pipe_node(int vid, size_t cid) : pipe_node("", vid, cid) {}
+pipe_node::pipe_node(int vid) : pipe_node("", vid) {}
+bool pipe_node::fsync() { return true; }
+uint64_t pipe_node::size() const noexcept { return __pipe->size(); }
+bool pipe_node::truncate() { return __pipe->truncate(); }
+char* pipe_node::data() { return __pipe->data(); }
+bool pipe_node::grow(size_t added) { return __pipe->grow(added); }
+pipe_node::pos_type pipe_node::tell() const { return __pipe->tell(current_mode); }
+pipe_node::size_type pipe_node::write(const_pointer src, size_type n) { return __pipe->sputn(src, n); }
+pipe_node::size_type pipe_node::read(pointer dest, size_type n) { return __pipe->sgetn(dest, n); }
+pipe_node::pos_type pipe_node::seek(off_type off, std::ios_base::seekdir way) { return __pipe->pubseekoff(off, way, current_mode); }
+pipe_node::pos_type pipe_node::seek(pos_type pos) { return __pipe->pubseekpos(pos, current_mode); }
