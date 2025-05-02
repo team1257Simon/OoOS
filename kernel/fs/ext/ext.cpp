@@ -662,13 +662,6 @@ fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
         return result;
     }
 }
-tnode* extfs::get_path(std::string const& path_str)
-{
-    target_pair p = filesystem::get_parent(path_str, false);
-    // TODO check for loops in symlink paths; this probably means overriding get_parent
-    if(p.first) return p.first->find(p.second);
-    return nullptr;
-}
 device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool create_parents)
 {
     target_pair parent = filesystem::get_parent(where, create_parents);
@@ -690,4 +683,19 @@ bool extfs::truncate_node(ext_vnode* n)
     release_all(*n);
     n->truncate_buffer();
     return persist_inode(n->inode_number);
+}
+tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link, std::set<fs_node*>& checked)
+{
+    if(!from) from = dynamic_cast<ext_directory_vnode*>(root_dir);
+    std::vector<std::string> pathspec = std::ext::split(link, path_separator());
+    if(pathspec.empty()) throw std::logic_error{ "empty path" };
+    for(size_t i = 0; i < pathspec.size() - 1; i++)
+    {
+        if(pathspec[i].empty()) continue;
+        tnode* node = from->find_r(pathspec[i], checked);
+        if(!node) throw std::out_of_range{ "broken link" };
+        else if(node->is_directory()) { from = dynamic_cast<ext_directory_vnode*>(node->as_directory()); if(!from) throw std::bad_cast(); }
+        else throw std::invalid_argument{ "symlink path component .../" + pathspec[i] + "/ is a file" };
+    }
+    return from->find_r(pathspec.back(), checked);
 }

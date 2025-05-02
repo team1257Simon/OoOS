@@ -37,8 +37,10 @@ typedef unsigned long sigset_t;
 #define SYSCVEC_N_closedir       42
 #define SYSCVEC_N_lstat          43
 #define SYSCVEC_N_mknod          44
-#define SYSCVEC_N_vfork          45
-#define SYSCVEC_N_spawn          46
+#define SYSCVEC_N_mknodat        45
+#define SYSCVEC_N_vfork          46
+#define SYSCVEC_N_spawn          47
+#define SYSCVEC_N_pipe           48
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict
@@ -69,6 +71,7 @@ int gettimeofday(struct timeval* restrict p, void* restrict z);
 _sig_func_ptr signal(int sig, _sig_func_ptr func);
 int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 int mkdir(const char* path, mode_t mode);
+int pipe(int out[2]);
 #define SYSCVEC_ARG(name) "0"(SYSCVEC_N_##name)
 #define XSYSCALL0(name, ret) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name) : "memory", "%r11", "%rcx")
 #define XSYSCALL1(name, ret, arg0) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0) : "memory", "%r11", "%rcx")

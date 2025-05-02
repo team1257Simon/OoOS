@@ -612,6 +612,7 @@ class ext_directory_vnode : public ext_vnode, public directory_node
     bool __seek_available_entry(size_t name_len);
     void __write_dir_entry(ext_vnode_base* vnode, ext_dirent_type type, const char* name, size_t name_len);
     ext_dir_entry* __current_ent();
+    tnode* __resolve_link_r(ext_vnode* vn, std::set<fs_node*>& checked_elements);
 public:
     virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual bool link(tnode* original, std::string const& target) override;
@@ -619,6 +620,7 @@ public:
     virtual tnode* add(fs_node* n) override;
     virtual tnode* find(std::string const&) override;
     virtual tnode* find_l(std::string const&) override;
+    virtual tnode* find_r(std::string const&, std::set<fs_node*>&) override;
     virtual bool fsync() override;
     virtual bool initialize() override;
     virtual bool truncate() override;
@@ -747,7 +749,6 @@ public:
     disk_block* claim_metadata_block(ext_node_extent_tree* requestor);
     off_t inode_block_offset(uint32_t inode);
     ext_inode* get_inode(uint32_t inode_num);
-    tnode* get_path(std::string const& path_str);
     bool write_hd(disk_block const& bl);
     bool read_hd(disk_block& bl);
     bool persist_group_metadata(size_t group_num);    
@@ -758,6 +759,7 @@ public:
     void initialize();
     constexpr bool has_init() const { return initialized; }
     constexpr uint32_t get_uuid_csum() const { return uuid_csum; }
+    tnode* resolve_symlink(ext_directory_vnode* from, std::string const& link, std::set<fs_node*>& checked);
     extfs(uint64_t volume_start_lba);
     ~extfs();
 };

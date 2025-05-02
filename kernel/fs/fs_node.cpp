@@ -24,6 +24,7 @@ void file_node::force_write() { /* if applicable, treat all data in the file as 
 directory_node::directory_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
 tnode* directory_node::find(std::string const& name) { tnode_dir::iterator i = directory_tnodes.find(name); if(i != directory_tnodes.end()) { return i.base(); } return nullptr; }
 tnode* directory_node::find_l(std::string const& what) { return find(what); }
+tnode* directory_node::find_r(std::string const& what, std::set<fs_node*>&) { return find(what); /* default implementation for FS without symlinks */ }
 std::vector<std::string> directory_node::lsdir() const { std::vector<std::string> result{}; for(tnode const& tn : directory_tnodes) result.push_back(tn.name()); return result; }
 size_t directory_node::readdir(std::vector<tnode*>& out_vec) { size_t result = 0UL; for(tnode& tn : directory_tnodes) { out_vec.push_back(std::addressof(tn)); ++result; } return result; }
 uint64_t directory_node::num_subdirs() const noexcept { return subdir_count; }

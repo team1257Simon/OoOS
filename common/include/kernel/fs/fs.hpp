@@ -212,6 +212,7 @@ struct directory_node : public fs_node
     virtual tnode* add(fs_node*) = 0;
     virtual tnode* find(std::string const&);
     virtual tnode* find_l(std::string const&);
+    virtual tnode* find_r(std::string const&, std::set<fs_node*>&);
     virtual uint64_t num_files() const noexcept;
     virtual uint64_t num_subdirs() const noexcept;
     virtual std::vector<std::string> lsdir() const;
@@ -350,5 +351,6 @@ extern "C"
     int syscall_lstat(const char* restrict name, struct stat* restrict st); // int lstat(const char* restrict name, struct stat* restrict st);
     int syscall_mknod(const char* name, mode_t mode, dev_t dev);            // int mknod(const char* name, mode_t mode, dev_t dev);
     int syscall_mknodat(int fd, const char* name, mode_t mode, dev_t dev);  // int mknodat(int fd, const char* name, mode_t mode, dev_t dev);
+    int syscall_pipe(int* out);                                             // int pipe(int out[2]);
 }
 #endif

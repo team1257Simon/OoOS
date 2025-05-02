@@ -51,6 +51,7 @@
     .extern                         syscall_mknodat
     .extern                         syscall_vfork
     .extern                         syscall_spawn
+    .extern                         syscall_pipe
     .extern                         on_invalid_syscall
     .global                         syscall_vec
     .type   do_syscall,             @function
@@ -103,6 +104,7 @@
     .type   syscall_vfork,          @function
     .type   syscall_spawn,          @function
     .type   on_invalid_syscall,     @function
+    .type   syscall_pipe,           @function
     .type   syscall_vec,            @object
     .type   syscv_end,              @object
     .type   __held_pc,              @object
@@ -156,6 +158,7 @@ syscall_vec:
     .quad syscall_mknodat           // 45
     .quad syscall_vfork             // 46
     .quad syscall_spawn             // 47
+    .quad syscall_pipe              // 48
 syscv_end:
     .quad on_invalid_syscall        // handler for out-of-range syscalls
     .size syscall_vec,              .-syscall_vec    

@@ -170,42 +170,58 @@ bool ext_directory_vnode::initialize()
     for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_hd(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
     return (__initialized = __parse_entries(bs));
 }
+tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& checked_elements)
+{
+    std::string separator = parent_fs->get_path_separator();
+    if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic) 
+    {
+        if(!vn->initialize()) throw std::runtime_error{ "symlink inode read failed" };
+        size_t n = vn->count();
+        tnode* result = nullptr;
+        char* buff = ch_alloc.allocate(n);
+        if(vn->sgetn(buff, n))
+        {
+            std::string xlink_str(buff, std::strnlen(buff, 255));
+            if(std::strncmp(buff, separator.c_str(), separator.size()))
+                result = parent_fs->resolve_symlink(this, xlink_str, checked_elements); // relative
+            else result = parent_fs->resolve_symlink(nullptr, buff, checked_elements);  // absolute
+        }
+        ch_alloc.deallocate(buff, n);
+        if(!result) throw std::runtime_error{ "bad symlink" };
+        return result;
+    }
+    char* link_str = vn->on_disk_node->block_info.link_target;
+    std::string xlink_str(link_str, std::strnlen(link_str, 60));
+    if(tnode* result = parent_fs->resolve_symlink(std::strncmp(link_str, separator.c_str(), separator.size()) ? this : nullptr, xlink_str, checked_elements))
+        return result;
+    throw std::runtime_error{ "bad symlink" };
+}
 tnode* ext_directory_vnode::find(std::string const& name) 
 {
-    if(!initialize()) return nullptr; 
-    if(tnode_dir::iterator i = directory_tnodes.find(name); i != directory_tnodes.end()) 
-    {
-        if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
-        {
-            if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic) 
-            {
-                if(!vn->initialize()) throw std::runtime_error{ "symlink could not be initialized" };
-                size_t n = vn->count();
-                tnode* result = nullptr;
-                char* buff = ch_alloc.allocate(n);
-                if(vn->sgetn(buff, n)) result = parent_fs->get_path(std::move(std::string(buff, n)));
-                ch_alloc.deallocate(buff, n);
-                if(!result) throw std::runtime_error{ "bad symlink" };
-                return result;
-            }
-            char* link_str = vn->on_disk_node->block_info.link_target;
-            std::string separator = parent_fs->get_path_separator();
-            std::string xlink_str(link_str, std::strnlen(link_str, 60));
-            // Relative path...
-            if(std::strncmp(separator.data(), link_str, separator.size())) { return find(xlink_str); }
-            // Absolute path...
-            else if(tnode* result = parent_fs->get_path(xlink_str)) return result;
-            else throw std::runtime_error{ "bad symlink" };
-        }
-        else return i.base(); // device node or regular file/dirnode
-    } 
-    else return nullptr; 
+    if(!initialize()) return nullptr;
+    std::set<fs_node*> checked_elements{};
+    return find_r(name, checked_elements);
 }
 tnode* ext_directory_vnode::find_l(std::string const& name)
 {
     if(!initialize()) return nullptr;
     if(tnode_dir::iterator i = directory_tnodes.find(name); i != directory_tnodes.end()) return i.base();
     return nullptr;
+}
+tnode* ext_directory_vnode::find_r(std::string const& name, std::set<fs_node*>& checked_elements)
+{
+    if(tnode_dir::iterator i = directory_tnodes.find(name); i != directory_tnodes.end())
+    {
+        if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
+        {
+            if(checked_elements.contains(i->ptr()))
+                throw std::overflow_error{ "circular link" };
+            checked_elements.insert(i->ptr());
+            return __resolve_link_r(vn, checked_elements); // symlink
+        }
+        else return i.base(); // device node or regular file/dirnode
+    }
+    else return nullptr;
 }
 std::streamsize ext_directory_vnode::on_overflow(std::streamsize n)
 {
