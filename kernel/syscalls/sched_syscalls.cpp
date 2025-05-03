@@ -20,8 +20,8 @@ extern "C"
         else { kernel_reentry(); }
         __builtin_unreachable();
     }
-    clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(task_ctx* task = active_task_context(); task->is_user() && out) { new(out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -EINVAL; }
-    int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { std::construct_at<timeval>(translate_user_pointer(tm), timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
+    clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context(); task->is_user()) { new(out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -ENOSYS; }
+    int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
     long syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
     int syscall_sleep(unsigned long seconds)
@@ -97,7 +97,7 @@ extern "C"
         filesystem* fs_ptr = get_fs_instance();
         if(!fs_ptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         file_node* n;
         try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         elf64_executable* ex = prog_manager::get_instance().add(n);
@@ -124,7 +124,7 @@ extern "C"
         filesystem* fs_ptr = get_fs_instance();
         if(!fs_ptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         file_node* n;
         try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         elf64_executable* ex = prog_manager::get_instance().add(n);

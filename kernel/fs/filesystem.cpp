@@ -11,9 +11,10 @@ filesystem::~filesystem() = default;
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 fs_node* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
 void filesystem::register_fd(fs_node* node) { next_fd = current_open_files.add_fd(node) + 1; }
-const char *filesystem::path_separator() const noexcept { return "/"; }
+const char* filesystem::path_separator() const noexcept { return "/"; }
 file_node* filesystem::open_file(const char* path, std::ios_base::openmode mode, bool create) { return open_file(std::string(path), mode, create); }
 file_node* filesystem::on_open(tnode* node) { return node->as_file(); }
+file_node* filesystem::on_open(tnode* node, std::ios_base::openmode) { return on_open(node); }
 file_node* filesystem::get_file(int fd) { return dynamic_cast<file_node*>(current_open_files.find_fd(fd)); }
 directory_node* filesystem::get_directory(int fd) { return dynamic_cast<directory_node*>(current_open_files.find_fd(fd)); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return xlink(get_parent(ogpath, false), get_parent(tgpath, create_parents)); }
@@ -191,7 +192,7 @@ filesystem::target_pair filesystem::get_parent(directory_node* start, std::strin
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
 }
-fs_node* filesystem::find_node(std::string const& path, bool ignore_links)
+fs_node* filesystem::find_node(std::string const& path, bool ignore_links, std::ios_base::openmode mode)
 {
     try
     {
@@ -199,7 +200,7 @@ fs_node* filesystem::find_node(std::string const& path, bool ignore_links)
         tnode* tn = ignore_links ? parent.first->find_l(parent.second) : parent.first->find(parent.second);
         if(!tn) return nullptr;
         if(!current_open_files.contains(tn->ref().vid())) { register_fd(tn->ptr()); }
-        if(tn->is_file()) { return on_open(tn); }
+        if(tn->is_file() || tn->is_pipe()) { return on_open(tn, mode); }
         else return tn->ptr();
     }
     catch(std::out_of_range&) { return nullptr; }
@@ -215,7 +216,7 @@ file_node* filesystem::open_file(std::string const& path, std::ios_base::openmod
         if(file_node* created = mkfilenode(parent.first, parent.second)) { node = parent.first->add(created); }
         else throw std::runtime_error{ "failed to create file: " + path }; 
     }
-    file_node* result = on_open(node);
+    file_node* result = on_open(node, mode);
     register_fd(result);
     result->current_mode = mode;
     return result;

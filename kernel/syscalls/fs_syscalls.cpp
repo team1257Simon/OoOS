@@ -31,7 +31,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         std::ios_base::openmode mode;
         mode.app = (flags & O_APPEND) != 0;
         mode.in = (flags & O_RDONLY) || (flags & O_RDWR);
@@ -39,7 +39,7 @@ extern "C"
         mode.trunc = (flags & O_TRUNC);
         try 
         {
-            if(fs_node* existing = fsptr->find_node(name))
+            if(fs_node* existing = fsptr->find_node(name, false, mode))
             {
                 if(file_node* fn = dynamic_cast<file_node*>(existing))
                     fn->current_mode = mode;
@@ -65,14 +65,14 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
-        return EINVAL;
+        return ENOMEM;
     }
     int syscall_write(int fd, char* ptr, int len)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         ptr = translate_user_pointer(ptr);
-        if(!ptr) return -EINVAL;
+        if(!ptr) return -EFAULT;
         try
         { 
             if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) 
@@ -84,6 +84,12 @@ extern "C"
             } 
             else return -EBADF;
         } 
+        catch(std::logic_error&)
+        {
+            task_ctx* task = active_task_context();
+            force_signal(task, 13); // SIGPIPE
+            return -EPIPE;
+        }
         catch(std::exception& e) { panic(e.what()); }
         return -ENOMEM;
     }
@@ -92,7 +98,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         ptr = translate_user_pointer(ptr);
-        if(!ptr) return -EINVAL;
+        if(!ptr) return -EFAULT;
         try 
         { 
             if(file_node* n = get_by_fd(fsptr, active_task_context(), fd))
@@ -103,6 +109,12 @@ extern "C"
             } 
             else return -EBADF; 
         } 
+        catch(std::logic_error&)
+        {
+            task_ctx* task = active_task_context();
+            force_signal(task, 13); // SIGPIPE
+            return -EPIPE;
+        }
         catch(std::exception& e) { panic(e.what()); }
         return -ENOMEM;
     }
@@ -112,7 +124,7 @@ extern "C"
         if(!fsptr) return -ENOSYS;
         old = translate_user_pointer(old);
         __new = translate_user_pointer(__new);
-        if(!old || !__new) return -EINVAL;
+        if(!old || !__new) return -EFAULT;
         try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOSPC; }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
         catch(std::exception& e) { panic(e.what()); }
@@ -138,32 +150,32 @@ extern "C"
             return -EBADF; 
         } 
         catch(std::exception& e) { panic(e.what()); }
-        return -EINVAL;
+        return -ENOMEM;
     }
     int syscall_unlink(char* name)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         try { return fsptr->unlink(name) ? 0 : -ENOENT; }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
         catch(std::exception& e) { panic(e.what()); }
-        return -EINVAL;
+        return -ENOMEM;
     }
     int syscall_isatty(int fd)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
-        return -EINVAL;
+        return -ENOMEM;
     }
     int syscall_fstat(int fd, stat* st)
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         st = translate_user_pointer(st);
-        if(!st) return -EINVAL;
+        if(!st) return -EFAULT;
         try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
         return -ENOMEM;
     }
@@ -173,7 +185,7 @@ extern "C"
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
         st = translate_user_pointer(st);
-        if(!st || !name) return -EINVAL;
+        if(!st || !name) return -EFAULT;
         try
         {
             fs_node* fn = fsptr->find_node(name);
@@ -196,7 +208,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         try { if(file_node* n = fsptr->get_file(name)) { n->mode = m; n->fsync(); return 0; } else return -EISDIR; } 
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
         catch(std::exception& e) { panic(e.what()); }
@@ -207,7 +219,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         path = translate_user_pointer(path);
-        if(!path) return -EINVAL;
+        if(!path) return -EFAULT;
         if(std::strnlen(path, 255) != std::strnlen(path, 256)) return -ENAMETOOLONG;
         if(fsptr->get_directory_or_null(path, false)) return -EEXIST;
         try { if(directory_node* n = fsptr->open_directory(path)) { n->mode = mode; n->fsync(); return 0; } }
@@ -239,7 +251,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
-        if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
+        if(!name) return addr_t(static_cast<uintptr_t>(-EFAULT));
         task_ctx* task = active_task_context();
         try
         {
@@ -256,7 +268,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         dirp = translate_user_pointer(dirp);
-        if(!dirp) return -EINVAL;
+        if(!dirp) return -EFAULT;
         task_ctx* task = active_task_context();
         task->opened_directories.erase(dirp.ref<DIR>().fd);
         return 0;
@@ -267,7 +279,7 @@ extern "C"
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
         st = translate_user_pointer(st);
-        if(!st || !name) return -EINVAL;
+        if(!st || !name) return -EFAULT;
         try
         {
             fs_node* fn = fsptr->find_node(name, true);
@@ -283,7 +295,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         try { fsptr->create_node(nullptr, name, mode, dev); }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
@@ -298,7 +310,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EINVAL;
+        if(!name) return -EFAULT;
         fs_node* node = fsptr->get_fd_node(fd);
         if(!node) return -EBADF;
         directory_node* dirnode = dynamic_cast<directory_node*>(node);
@@ -317,7 +329,7 @@ extern "C"
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
         out = translate_user_pointer(out);
-        if(!out) return -EINVAL;
+        if(!out) return -EFAULT;
         int fds[2]{ 0, 0 };
         try { fsptr->create_pipe(fds); }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }

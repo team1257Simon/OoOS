@@ -35,6 +35,7 @@ uint32_t extfs::inode_pos_in_group(uint32_t inode_num) { return (inode_num - 1) 
 dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
 void extfs::syncdirs() { if(!fs_journal.execute_pending_txns()) panic("failed to execute transaction(s)"); }
 bool extfs::update_free_inode_count(int diff) { sb->unallocated_inodes += diff; return persist_sb(); }
+file_node* extfs::on_open(tnode* node) { return on_open(node, std::ios_base::in | std::ios_base::out); }
 fs_node* extfs::dirent_to_vnode(ext_dir_entry* de) { return inode_to_vnode(de->inode_idx, static_cast<ext_dirent_type>(de->type_ind)); }
 extfs::extfs(uint64_t volume_start_lba) : 
     filesystem          {}, 
@@ -254,11 +255,17 @@ ext_inode* extfs::get_inode(uint32_t inode_num)
     if(grp >= block_groups.size()) throw std::out_of_range{ "invalid inode group" };
     return reinterpret_cast<ext_inode*>(block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num));
 }
-file_node* extfs::on_open(tnode* fd)
+file_node* extfs::on_open(tnode* fd, std::ios_base::openmode mode)
 {
-    file_node* n = fd->as_file();
-    if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(n)) { exfn->initialize(); }
-    return n;
+    if(fd->is_pipe())
+    {
+        ext_pipe_pair* p = dynamic_cast<ext_pipe_pair*>(fd->ptr());
+        if(!p) return fd->as_file();
+        if(mode.in) return addressof(p->in);
+        return addressof(p->out);
+    }
+    else if(ext_file_vnode* vn = dynamic_cast<ext_file_vnode*>(fd->ptr())) { vn->initialize(); return vn; }
+    return fd->as_file();
 }
 filesystem::target_pair extfs::get_parent(directory_node* start, std::string const& path, bool create)
 {
@@ -296,13 +303,7 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
         if(file_node* created = mkfilenode(parent.first, parent.second)) result = created;
         else throw std::runtime_error{ "failed to create file: " + path }; 
     }
-    else if(ext_pipe_pair* pipes = dynamic_cast<ext_pipe_pair*>(node->ptr())) 
-    {
-        if(mode.out) result = addressof(pipes->out);
-        else result = addressof(pipes->in);
-        pipe = true;
-    }
-    else result = node->as_file();
+    else result = on_open(node, mode);
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
     if(!current_open_files.contains(result->vid())) { register_fd(result); }
     if(!pipe) result->current_mode = mode;

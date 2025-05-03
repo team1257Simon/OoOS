@@ -59,11 +59,11 @@ extern "C"
     {
         task_ctx* task = active_task_context();
         sigset_t const* rset = translate_user_pointer(set);
-        if(!rset) return -EINVAL;
+        if(!rset) return -EFAULT;
         if(oset)
         {
             oset = translate_user_pointer(oset);
-            if(!oset) return -EINVAL;
+            if(!oset) return -EFAULT;
             *oset = task->task_sig_info.blocked_signals;
         }
         if(how == SIG_BLOCK) { task->task_sig_info.blocked_signals |= *rset; }

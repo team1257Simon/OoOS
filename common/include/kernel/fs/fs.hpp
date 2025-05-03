@@ -271,6 +271,8 @@ public:
     virtual bool truncate() override;
     virtual char* data() override;
     virtual bool grow(size_t) override;
+    void on_open();
+    void on_close();
     size_t pipe_id() const;
     pipe_node(std::string const& name, int vid, size_t cid);
     pipe_node(std::string const& name, int vid);
@@ -309,15 +311,16 @@ protected:
 public:
     virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true);
     virtual file_node* on_open(tnode*);
+    virtual file_node* on_open(tnode*, std::ios_base::openmode);
     virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);
     virtual size_t block_size();
     virtual directory_node* open_directory(std::string const& path, bool create = true);
     bool link_stdio(dev_t device_id);
-    fs_node* find_node(std::string const& path, bool ignore_links = false);
+    fs_node* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev);
     void create_pipe(int fds[2]);
     fs_node* get_fd_node(int fd);
-    file_node* get_file(int fd);      
+    file_node* get_file(int fd);
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);
     file_node* get_file(std::string const& path);
     directory_node* get_directory(int fd);

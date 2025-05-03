@@ -717,7 +717,8 @@ protected:
     virtual pipe_pair mkpipe(directory_node* parent, std::string const& name) override;
     virtual target_pair get_parent(directory_node* start, std::string const& path, bool create) override;
     virtual dev_t xgdevid() const noexcept override;
-    virtual file_node* on_open(tnode* fd) override;
+    virtual file_node* on_open(tnode* node) override;
+    virtual file_node* on_open(tnode* node, std::ios_base::openmode mode) override;
     ext_jbd2_mode journal_mode() const;
     bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
     bool read_hd(void* dest, uint64_t lba_src, size_t sectors);

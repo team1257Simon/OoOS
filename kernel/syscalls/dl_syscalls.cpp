@@ -141,7 +141,7 @@ extern "C"
         if(!fs_ptr || !task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(!name) return task->program_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
         name = translate_user_pointer(name);
-        if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
+        if(!name) return addr_t(static_cast<uintptr_t>(-EFAULT));
         std::string xname(name, std::strnlen(name, 256UL));
         shared_object_map::iterator result;
         if(shared_object_map::iterator cached = global_object_search(xname, flags); cached != shared_object_map::get_globals().end()) { result = cached; }
@@ -201,7 +201,7 @@ extern "C"
         task_ctx* task = active_task_context();
         if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
-        if(!name) return addr_t(static_cast<uintptr_t>(-EINVAL));
+        if(!name) return addr_t(static_cast<uintptr_t>(-EFAULT));
         if(!handle)
         {
             search_result sr = global_search(name);
@@ -244,7 +244,7 @@ extern "C"
         task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
         path_str = translate_user_pointer(path_str);
-        if(!path_str) return -EINVAL;
+        if(!path_str) return -EFAULT;
         try
         {
             size_t end_pos = std::distance(path_str, static_cast<const char*>(std::find(path_str, std::strlen(path_str), ';')));
@@ -261,7 +261,7 @@ extern "C"
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
         if(!so) return -EBADF;
         ent = translate_user_pointer(ent);
-        if(!ent) return -EINVAL;
+        if(!ent) return -EFAULT;
         ent->dynamic_section = so->dyn_segment_ptr();
         ent->dynamic_section_length = so->dyn_segment_len();
         shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
@@ -310,7 +310,7 @@ extern "C"
         task_ctx* task = active_task_context();
         if(!task->local_so_map) return -ENOSYS;
         info = translate_user_pointer(info);
-        if(!info) return -EINVAL;
+        if(!info) return -EFAULT;
         array_zero(reinterpret_cast<uint64_t*>(info), sizeof(dl_addr_info) / sizeof(uint64_t));
         size_t n = task->attached_so_handles.size();
         for(size_t i = 0; i < n; i++)

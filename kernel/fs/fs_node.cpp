@@ -83,9 +83,11 @@ bool pipe_node::truncate() { return __pipe->truncate(); }
 char* pipe_node::data() { return __pipe->data(); }
 bool pipe_node::grow(size_t added) { return __pipe->grow(added); }
 size_t pipe_node::pipe_id() const { return __pipe.get_id(); }
+void pipe_node::on_close() { if(current_mode.in) __pipe->readers--; if(current_mode.out) __pipe->writers--; }
+void pipe_node::on_open() { if(current_mode.in) __pipe->readers++; if(current_mode.out) __pipe->writers++; }
 pipe_node::pos_type pipe_node::tell() const { return __pipe->tell(current_mode); }
-pipe_node::size_type pipe_node::write(const_pointer src, size_type n) { return __pipe->sputn(src, n); }
-pipe_node::size_type pipe_node::read(pointer dest, size_type n) { return __pipe->sgetn(dest, n); }
+pipe_node::size_type pipe_node::write(const_pointer src, size_type n) { if(__pipe->readers) return __pipe->sputn(src, n); else throw std::logic_error{ "broken pipe" }; }
+pipe_node::size_type pipe_node::read(pointer dest, size_type n) { if(__pipe->writers) return __pipe->sgetn(dest, n); else throw std::logic_error{ "broken pipe" }; }
 pipe_node::pos_type pipe_node::seek(off_type off, std::ios_base::seekdir way) { return __pipe->pubseekoff(off, way, current_mode); }
 pipe_node::pos_type pipe_node::seek(pos_type pos) { return __pipe->pubseekpos(pos, current_mode); }
 bool pipe_node::is_pipe() const noexcept { return true; }
