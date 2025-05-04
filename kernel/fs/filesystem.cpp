@@ -19,7 +19,6 @@ file_node* filesystem::get_file(int fd) { return dynamic_cast<file_node*>(curren
 directory_node* filesystem::get_directory(int fd) { return dynamic_cast<directory_node*>(current_open_files.find_fd(fd)); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return xlink(get_parent(ogpath, false), get_parent(tgpath, create_parents)); }
 dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
-void filesystem::pubsyncdirs() { syncdirs(); }
 size_t filesystem::block_size() { return physical_block_size; }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create) { return get_parent(get_root_directory(), path, create); }
 directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
@@ -45,7 +44,9 @@ void filesystem::on_close(file_node* fd)
 {
     if(fd->is_device()) return; 
     fd->seek(0);
-    current_open_files.erase(fd->vid()); 
+    int vid = fd->vid();
+    current_open_files.erase(vid);
+    next_fd = vid; 
 }
 void filesystem::dldevnode(device_node* n)
 {
@@ -265,6 +266,7 @@ void filesystem::create_node(directory_node* from, std::string const& path, mode
     else { result = mkfilenode(parent.first, parent.second); result->mode = mode; }
     if(!result) { throw std::runtime_error{ "failed to create node at " + path }; }
     result->fsync();
+    syncdirs();
 }
 void filesystem::create_pipe(int fds[2])
 {

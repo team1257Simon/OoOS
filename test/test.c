@@ -6,6 +6,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+int	mkdir (const char *_path, mode_t __mode);
 int main(int argc, char** argv)
 {
     printf("Hello OoOS (from userland)! I'm %s!\n", argv[0]);
@@ -37,6 +39,14 @@ int main(int argc, char** argv)
         else printf("no file :(\n");
     }
     else printf("no file D:\n");
+    if(mkdir("/files/fleedledeedle", 0774) < 0)
+        printf("no directory creation q.q\n");
+    else
+    {
+        FILE* g = fopen("/files/fleedledeedle/flaboogle.txt", "w+");
+        if(g) { fprintf(g, "sha-dizzle!\n"); fclose(g); }
+        else printf("no file ;-;\n");
+    }
     long pid = fork();
     printf("forked\n");
     int rv = 0;

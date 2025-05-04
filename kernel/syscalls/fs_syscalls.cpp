@@ -50,7 +50,7 @@ extern "C"
             else if(!(flags & O_CREAT))
                 return -ENOENT;
             else if(file_node* n = fsptr->open_file(name, mode)) 
-                return n->vid(); 
+                return n->vid();
         }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
@@ -222,7 +222,8 @@ extern "C"
         if(!path) return -EFAULT;
         if(std::strnlen(path, 255) != std::strnlen(path, 256)) return -ENAMETOOLONG;
         if(fsptr->get_directory_or_null(path, false)) return -EEXIST;
-        try { if(directory_node* n = fsptr->open_directory(path)) { n->mode = mode; n->fsync(); return 0; } }
+        mode_t full_mode = mode | 0040000;
+        try { fsptr->create_node(nullptr, path, full_mode); return 0; }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
         catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }

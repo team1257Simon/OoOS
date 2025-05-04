@@ -1,8 +1,9 @@
 #include "fs/ext.hpp"
 #include "kdebug.hpp"
-static std::allocator<char> ch_alloc{};
-ext_vnode_base::ext_vnode_base(extfs *parent, uint32_t inode_num, ext_inode *inode) : inode_number{ inode_num }, parent_fs{ parent }, on_disk_node{ inode } {}
-ext_vnode_base::ext_vnode_base(extfs *parent, uint32_t inode_number) : ext_vnode_base(parent, inode_number, parent->get_inode(inode_number)) {}
+static std::allocator<char> ch_alloc{};;
+static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* inode);
+ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_num, ext_inode* inode) : inode_number{ inode_num }, parent_fs{ parent }, on_disk_node{ inode }, checksum_seed{ compute_csum_seed(parent, inode_num, inode) } {}
+ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_number) : ext_vnode_base(parent, inode_number, parent->get_inode(inode_number)) {}
 ext_vnode_base::ext_vnode_base() = default;
 ext_vnode_base::~ext_vnode_base() = default;
 ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode) : ext_vnode_base(parent, inode_number, inode), base_buffer(), extents(this) {}
@@ -13,10 +14,11 @@ ext_vnode::ext_vnode() = default;
 ext_vnode::~ext_vnode() = default;
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
+void ext_vnode::on_modify() { base_buffer::on_modify(); if(fs_node* fn = dynamic_cast<fs_node*>(this)) { fn->fsync(); } }
 static inline size_t unused_dirent_space(ext_dir_entry const& de) { return static_cast<size_t>(static_cast<size_t>(de.entry_size) - static_cast<size_t>(de.name_len + 8UL)); }
 ext_dir_entry* ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(__cur()); }
 char* ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
-bool ext_directory_vnode::fsync() { on_disk_node->mode = mode; return parent_fs->persist(this); }
+bool ext_directory_vnode::fsync() { return update_inode() && parent_fs->persist(this); }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::~ext_directory_vnode() = default;
@@ -39,16 +41,62 @@ ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, device_str
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd) {}
 ext_pipe_vnode::ext_pipe_vnode(extfs *parent, uint32_t inode_number, int fd, size_t pipe_id) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd, pipe_id) {}
 ext_device_vnode::~ext_device_vnode() = default;
-bool ext_device_vnode::fsync() { return device_node::fsync() && parent_fs->persist_inode(inode_number); }
+bool ext_device_vnode::fsync() { return update_inode() && device_node::fsync(); }
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd, size_t pipe_id) : file_node(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_node(fd, pipe_id) { mode = on_disk_node->mode; }
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd) : file_node(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_node(fd) { mode = on_disk_node->mode; }
 ext_pipe_vnode::~ext_pipe_vnode() = default;
 ext_pipe_pair::ext_pipe_pair(extfs *parent, uint32_t inode_number, std::string const& name, int fd0, int fd1) : fs_node(name, fd0, inode_number), in(parent, inode_number, fd0), out(parent, inode_number, fd1, in.pipe_id()) {}
 ext_pipe_pair::~ext_pipe_pair() = default;
 uint64_t ext_pipe_pair::size() const noexcept { return in.size(); }
-bool ext_pipe_pair::fsync() { return in.parent_fs->persist_inode(in.inode_number); }
+bool ext_pipe_pair::fsync() { return in.update_inode(); }
 bool ext_pipe_pair::truncate() { return in.truncate(); }
 bool ext_pipe_pair::is_pipe() const noexcept { return true; }
+struct guarded_inode_buffer
+{
+    std::allocator<uint8_t> alloc;
+    size_t sz;
+    uint8_t* buffer;
+    void accept(ext_inode const& n) { ext_inode* copy = new(buffer) ext_inode(n); copy->checksum_lo = copy->checksum_hi = 0; }
+    guarded_inode_buffer(size_t s) : alloc(), sz(s), buffer(alloc.allocate(s)) {}
+    ~guarded_inode_buffer() { alloc.deallocate(buffer, sz); }
+};
+static uint32_t compute_inode_csum(uint32_t checksum_seed, extfs* parent_fs, ext_inode* on_disk_node)
+{
+    guarded_inode_buffer buff(parent_fs->inode_size());
+    buff.accept(*on_disk_node);
+    return crc32c_x86_3way(checksum_seed, buff.buffer, buff.sz);
+}
+static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* inode)
+{
+    dword gen = inode->version_lo;
+    dword ino = inode_num;
+    uint32_t csum = crc32c(crc32c(parent->get_uuid_csum(), ino), gen);
+    if(uint32_t checkval = dword(inode->checksum_lo, inode->checksum_hi))
+    {
+        uint32_t calculated = compute_inode_csum(csum, parent, inode);
+        if(calculated != checkval) 
+            throw std::runtime_error{ "inode checksum " + std::to_string(checkval, std::ext::hex) + " does not match calculated " + std::to_string(calculated, std::ext::hex) };
+    }
+    return csum;
+}
+bool ext_vnode_base::update_inode()
+{
+    qword timestamp = sys_time(nullptr);
+    on_disk_node->modified_time = timestamp.lo;
+    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
+    on_disk_node->accessed_time = timestamp.lo;
+    on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
+    if(fs_node* fn = dynamic_cast<fs_node*>(this))
+    {
+        fn->modif_time = timestamp;
+        if(static_cast<uint16_t>(on_disk_node->mode) != static_cast<uint16_t>(fn->mode))
+            on_disk_node->mode = fn->mode; 
+    }
+    dword csval = compute_inode_csum(checksum_seed, parent_fs, on_disk_node);
+    on_disk_node->checksum_lo = csval.lo;
+    if(parent_fs->inode_size() >= offsetof(ext_inode, checksum_hi)) on_disk_node->checksum_hi = csval.hi;
+    return parent_fs->persist_inode(inode_number);
+}
 bool ext_vnode::init_extents()
 {
     if((on_disk_node->flags & use_extents) ? extents.parse_ext4() : extents.parse_legacy()) return true;
@@ -77,7 +125,7 @@ bool ext_vnode::expand_buffer(size_t added_bytes, size_t written_bytes)
     on_disk_node->size_lo = fsz.lo;
     on_disk_node->size_hi = fsz.hi;
     update_block_ptrs();
-    return parent_fs->persist_inode(inode_number);
+    return true;
 }
 bool ext_vnode::expand_buffer(size_t added_bytes)
 {
@@ -87,7 +135,7 @@ bool ext_vnode::expand_buffer(size_t added_bytes)
     on_disk_node->size_lo = fsz.lo;
     on_disk_node->size_hi = fsz.hi;
     update_block_ptrs();
-    return parent_fs->persist_inode(inode_number);
+    return true;
 }
 std::streamsize ext_vnode::xsputn(const char* s, std::streamsize n)
 {
@@ -116,20 +164,14 @@ bool ext_file_vnode::grow(size_t added)
 }
 bool ext_file_vnode::fsync() 
 {
-    qword timestamp = sys_time(nullptr);
-    modif_time = timestamp;
-    on_disk_node->modified_time = timestamp.lo;
-    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
-    on_disk_node->mode = mode;
     size_t updated_size = __size();
     if(size() < updated_size)
     {
         qword fsz(updated_size);
         on_disk_node->size_lo = fsz.lo;
         on_disk_node->size_hi = fsz.hi;
-        if(!parent_fs->persist_inode(inode_number)) return false;
     }
-    return parent_fs->persist(this); 
+    return update_inode() && parent_fs->persist(this); 
 }
 std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
 {
@@ -142,6 +184,7 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
         array_zero(__get_ptr(ccap), bs * blk->chain_len);
         return bs * blk->chain_len; 
     }
+    panic("no blocks");
     return 0;
 }
 bool ext_file_vnode::initialize()
@@ -156,7 +199,7 @@ bool ext_file_vnode::initialize()
         qword timestamp = sys_time(nullptr);
         on_disk_node->accessed_time = timestamp.lo;
         on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
-        return parent_fs->persist_inode(inode_number);
+        return (__initialized = update_inode());
     }
     return (__initialized = true);
 }
@@ -294,15 +337,15 @@ bool ext_directory_vnode::add_dir_entry(ext_vnode_base* vnode, ext_dirent_type t
         size_t i = block_of_data_ptr(tell());
         __dir_index.insert_or_assign(tn, std::move(dirent_idx{ .block_num = static_cast<uint32_t>(i), .block_offs = static_cast<uint32_t>(tell() % parent_fs->block_size()) }) );
     }
-    return parent_fs->persist(this);
+    return fsync();
 }
 bool ext_directory_vnode::link(tnode* original, std::string const& target)
 {
     ext_dirent_type type = original->is_file() ? dti_regular : dti_dir;
-    if(ext_vnode* vnode = dynamic_cast<ext_vnode*>(original->ptr()))
-        return add_dir_entry(vnode, type, target.data(), target.size()) && parent_fs->persist_inode(vnode->inode_number);
-    else if(ext_directory_vnode* vnode = dynamic_cast<ext_directory_vnode*>(original->ptr()))
-        return add_dir_entry(vnode, vnode->on_disk_node->mode.is_blockdev() ? dti_blockdev : dti_chardev, target.data(), target.size()) && vnode->fsync();
+    if(ext_directory_vnode* vnode = dynamic_cast<ext_directory_vnode*>(original->ptr()))
+        return add_dir_entry(vnode, type, target.data(), target.size()) && vnode->update_inode();
+    else if(ext_vnode* vnode = dynamic_cast<ext_vnode*>(original->ptr()))
+        return add_dir_entry(vnode, type, target.data(), target.size()) && vnode->update_inode();
     return false;
 }
 bool ext_directory_vnode::unlink(std::string const& name)
@@ -325,8 +368,8 @@ bool ext_directory_vnode::unlink(std::string const& name)
             tail->csum = csum;
             mark_write(dirent);
             __dir_index.erase(j);
-            if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr())) { vn->on_disk_node->referencing_dirents--; success = parent_fs->persist_inode(vn->inode_number) && parent_fs->persist(this); }
-            else success = parent_fs->persist(this);
+            if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr())) { vn->on_disk_node->referencing_dirents--; success = vn->update_inode() && fsync(); }
+            else success = fsync();
         }
     }
     return success;
@@ -351,7 +394,7 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
         qword timestamp = sys_time(nullptr);
         on_disk_node->accessed_time = timestamp.lo;
         on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
-        return parent_fs->persist_inode(inode_number);
+        return update_inode();
     }
     catch(std::exception& e) { panic(e.what()); }
     return false;
@@ -376,7 +419,7 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
         on_disk_node->referencing_dirents++;
         directory_tnodes.emplace(this, ".");
         directory_tnodes.emplace(parent, "..");
-        return (__initialized = parent_fs->persist_inode(parent->inode_number));
+        return (__initialized =  parent->fsync());
     }
     return false;
 }

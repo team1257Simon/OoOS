@@ -9,6 +9,7 @@ using std::addressof;
 static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
 static std::allocator<ext_superblock> sb_alloc{};
 static std::allocator<block_group_descriptor> bg_alloc{};
+constexpr static uint16_t isize_val = sizeof(ext_inode) - offsetof(ext_inode, extra_isize);
 void ext_block_group::increment_dir_ct() { dword dir_ct(descr->num_directories, descr->num_directories_hi); dir_ct++; descr->num_directories = dir_ct.lo; descr->num_directories_hi = dir_ct.hi; }
 void ext_block_group::decrement_dir_ct() { dword dir_ct(descr->num_directories, descr->num_directories_hi); dir_ct--; descr->num_directories = dir_ct.lo; descr->num_directories_hi = dir_ct.hi; }
 bool ext_block_group::has_available_inode() { return descr->free_inodes || descr->free_inodes_hi; }
@@ -37,6 +38,8 @@ void extfs::syncdirs() { if(!fs_journal.execute_pending_txns()) panic("failed to
 bool extfs::update_free_inode_count(int diff) { sb->unallocated_inodes += diff; return persist_sb(); }
 file_node* extfs::on_open(tnode* node) { return on_open(node, std::ios_base::in | std::ios_base::out); }
 fs_node* extfs::dirent_to_vnode(ext_dir_entry* de) { return inode_to_vnode(de->inode_idx, static_cast<ext_dirent_type>(de->type_ind)); }
+size_t extfs::inode_size() { return sb->inode_size; }
+uint32_t extfs::__sb_checksum() const { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(sb), offsetof(ext_superblock, checksum)); }
 extfs::extfs(uint64_t volume_start_lba) : 
     filesystem          {}, 
     file_nodes          {}, 
@@ -130,9 +133,7 @@ void ext_block_group::compute_checksums(size_t group_num)
         descr->inode_usage_bmp_checksum_hi = ibmp_cs.hi;
         descr->group_checksum = 0;
         barrier();
-        dword cs_full = parent_fs->uuid_csum;
-        cs_full = crc32c(cs_full, static_cast<uint32_t>(group_num));
-        cs_full = crc32c(cs_full, *descr);
+        dword cs_full = crc32c(cs_seed, *descr);
         barrier();
         descr->group_checksum = cs_full.lo;
     }
@@ -147,7 +148,10 @@ void extfs::initialize()
 {
     if(initialized) return;
     if(!(sb && read_hd(sb, superblock_lba, sb_sectors))) throw std::runtime_error{ "failed to read superblock" };
-    uuid_csum = crc32c(sb->fs_uuid);
+    uint32_t checkval = __sb_checksum();
+    if(sb->checksum != checkval)
+        throw std::logic_error{ "superblock checksum of " + std::to_string(sb->checksum, std::ext::hex) + " does not match calculated value of " + std::to_string(checkval, std::ext::hex) };
+    uuid_csum = crc32c(~0U, sb->fs_uuid);
     uint64_t block_cnt = qword(sb->block_count, sb->block_count_hi);
     uint64_t group_count_by_blocks = div_round_up(block_cnt, sb->blocks_per_group);
     uint64_t group_count_by_inodes = div_round_up(sb->inode_count, sb->inodes_per_group);
@@ -174,10 +178,8 @@ void extfs::initialize()
         if(!read_hd(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
         uint16_t cs = blk_group_descs[i].group_checksum;
         blk_group_descs[i].group_checksum = 0;
-        dword dw_i(i);
-        dword dw_cs = uuid_csum;
-        dw_cs = crc32c(dw_cs, dw_i);
-        dw_cs = crc32c(dw_cs, blk_group_descs[i]);
+        uint32_t cs0 = crc32c(uuid_csum, dword(i));
+        dword dw_cs = crc32c(cs0, blk_group_descs[i]);
         if(dw_cs.lo != cs) throw std::runtime_error{ "checksums on block group did not match" };
         blk_group_descs[i].group_checksum = cs;
     }
@@ -186,14 +188,18 @@ void extfs::initialize()
     ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U, next_fd++).first.base();
     if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
     root_dir = rdnode;
+    qword tstamp = sys_time(nullptr);
+    sb->last_mount_time = tstamp.lo;
+    sb->last_mount_time_hi = tstamp.hi.lo.lo;
+    if(!persist_sb()) throw std::runtime_error{ "superblock write failed" };
     initialized = true;
 }
 bool extfs::persist_sb()
 {
-    sb->uuid_checksum = uuid_csum;
-    sb->checksum = 0;
-    uint32_t csum = crc32c(*sb);
-    sb->checksum = csum;
+    qword tstamp = sys_time(nullptr);
+    sb->last_write_time = tstamp.lo;
+    sb->last_write_time_hi = tstamp.hi.lo.lo;
+    sb->checksum = __sb_checksum();
     return write_hd(superblock_lba, sb, sb_sectors);
 }
 bool extfs::update_free_block_count(int diff)
@@ -271,24 +277,25 @@ filesystem::target_pair extfs::get_parent(directory_node* start, std::string con
 {
     std::vector<std::string> pathspec = std::ext::split(path, path_separator());
     if(pathspec.empty()) throw std::logic_error{ "empty path" };
+    directory_node* cur = start;
     for(size_t i = 0; i < pathspec.size() - 1; i++)
     {
         if(pathspec[i].empty()) continue;
-        tnode* cur = start->find(pathspec[i]);
-        if(!cur) 
+        tnode* node = cur->find(pathspec[i]);
+        if(!node) 
         {
             if(create) 
             {
-                directory_node* created = mkdirnode(start, pathspec[i]);
-                if(!start) throw std::runtime_error{ "failed to create " + pathspec[i] };
-                start = created; 
+                directory_node* created = mkdirnode(cur, pathspec[i]);
+                if(!created) throw std::runtime_error{ "failed to create " + pathspec[i] };
+                cur = created;
             } 
             else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)" }; } 
         }
-        else if(cur->is_directory()) start = cur->as_directory();
+        else if(node->is_directory()) cur = node->as_directory();
         else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
     }
-    return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
+    return target_pair(std::piecewise_construct, std::forward_as_tuple(cur), std::forward_as_tuple(pathspec.back()));
 }
 file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
@@ -301,7 +308,7 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
     {
         if(!create) throw std::out_of_range{ "file not found: " + path }; 
         if(file_node* created = mkfilenode(parent.first, parent.second)) result = created;
-        else throw std::runtime_error{ "failed to create file: " + path }; 
+        else throw std::runtime_error{ "failed to create file: " + path };
     }
     else result = on_open(node, mode);
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
@@ -357,6 +364,7 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
                 } 
             },
             .size_hi            { 0U },
+            .extra_isize        { isize_val },
             .changed_time_hi    { extrabits },
             .mod_time_extra     { extrabits },
             .created_time       { tstamp.lo },
@@ -367,7 +375,7 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
         if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size())) 
         {
             if(!vnode->init_dir_blank(std::addressof(exparent))) { panic("failed to initialize directory"); return nullptr; }
-            if(persist_inode(inode_num) && persist(vnode)) return vnode;
+            if(vnode->fsync()) return vnode;
             else panic("failed to persist directory node");
         }
         else panic("failed to add directory entry");
@@ -403,6 +411,7 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
                 } 
             },
             .size_hi            { 0U },
+            .extra_isize        { isize_val },
             .changed_time_hi    { extrabits },
             .mod_time_extra     { extrabits },
             .created_time       { tstamp.lo },
@@ -410,7 +419,12 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
         };
         ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size())) { if(!vnode->initialize()) { panic("failed to initialize node"); return nullptr; }; return vnode; }
+        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size())) 
+        {
+            if(!vnode->initialize()) { panic("failed to initialize node"); return nullptr; };
+            vnode->fsync();
+            return vnode;
+        }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -434,6 +448,7 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
             .flags              { use_extents },
             .device_hardlink_id { id },
             .size_hi            { 0U },
+            .extra_isize        { isize_val },
             .changed_time_hi    { extrabits },
             .mod_time_extra     { extrabits },
             .created_time       { tstamp.lo },
@@ -442,7 +457,7 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
         array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
         ext_device_vnode* vnode = dev_nodes.emplace(this, inode_num, dev, fd).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(vnode, dti_chardev, name.data(), name.size()) && persist_inode(inode_num)) { return vnode; }
+        if(exparent.add_dir_entry(vnode, dti_chardev, name.data(), name.size()) && vnode->update_inode()) { return vnode; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -463,6 +478,7 @@ pipe_pair extfs::mkpipe(directory_node* parent, std::string const& name)
             .modified_time      { tstamp.lo },
             .flags              { use_extents },
             .size_hi            { 0U },
+            .extra_isize        { isize_val },
             .changed_time_hi    { extrabits },
             .mod_time_extra     { extrabits },
             .created_time       { tstamp.lo },
@@ -471,7 +487,7 @@ pipe_pair extfs::mkpipe(directory_node* parent, std::string const& name)
         array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
         ext_pipe_pair& result = __init_pipes(inode_num, name);
-        if(exparent.add_dir_entry(addressof(result.in), dti_fifo, name.c_str(), name.size()) && persist_inode(inode_num)) { return { addressof(result.in), addressof(result.out) }; }
+        if(exparent.add_dir_entry(addressof(result.in), dti_fifo, name.c_str(), name.size()) && result.in.update_inode()) { return { addressof(result.in), addressof(result.out) }; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -555,6 +571,7 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
             return blk;
         }
     }
+    panic("out of space");
     return nullptr;
 }
 disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
@@ -576,6 +593,7 @@ disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
             return std::addressof(requestor->tracked_node->cached_metadata.emplace_back(result, allocate_block_buffer(), false, 1U));
         }
     }
+    panic("out of space");
     return nullptr;
 }
 bool extfs::persist(ext_vnode* n) 
@@ -584,15 +602,12 @@ bool extfs::persist(ext_vnode* n)
     for(disk_block& db : n->block_data) 
     {
 		if(!(db.dirty && db.block_number && db.data_buffer)) { continue; }
-        if(!write_hd(db)) { panic("write failed"); sb->last_errno = EPIPE; return false; }
+        if(!write_hd(db)) { panic("write failed"); return false; }
         db.dirty = false;
     }
     std::vector<disk_block> dirty_metadata{};
     for(disk_block& mdb : n->cached_metadata) { if(mdb.dirty) { dirty_metadata.push_back(mdb); mdb.dirty = false; } }
     if(dirty_metadata.empty()) return true; // vacuous truth if nothing to do
-    qword tstamp = sys_time(nullptr);
-    sb->last_write_time = tstamp.lo;
-    sb->last_write_time_hi = tstamp.hi.lo.lo;
     return persist_sb() && fs_journal.create_txn(dirty_metadata);
 }
 bool extfs::persist_group_metadata(size_t group_num)
@@ -611,19 +626,13 @@ bool extfs::persist_group_metadata(size_t group_num)
 }
 bool extfs::persist_inode(uint32_t inode_num)
 {
-    ext_inode* inode = get_inode(inode_num);
-    inode->checksum_hi = inode->checksum_lo = 0;
-    dword csum = uuid_csum;
-    csum = crc32c(csum, inode_num);
-    csum = crc32c(csum, *inode);
-    inode->checksum_lo = csum.lo;
-    inode->checksum_hi = csum.hi;
     size_t grp = group_num_for_inode(inode_num);
     if(grp >= block_groups.size()) { panic("invalid group number"); return false; }
     std::vector<disk_block> blks{};
     size_t bs = block_size();
     uint64_t iblk = inode_to_block(inode_num);
-    blks.emplace_back(iblk, block_groups[grp].inode_block.data_buffer + bs * (iblk - block_groups[grp].inode_block.block_number), true, 1UL);
+    off_t ipos = inode_block_offset(inode_num);
+    blks.emplace_back(iblk, block_groups[grp].inode_block.data_buffer + (ipos - (ipos % bs)), true, 1UL);
     return fs_journal.create_txn(blks);
 }
 static ext_dirent_type mode_to_dirent_type(file_mode mode)
@@ -649,8 +658,7 @@ fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
         return addressof(__init_pipes(idx, name));
     }
     else if(type == dti_chardev || type == dti_blockdev)
-    {
-        
+    { 
         dev_t id = n->device_hardlink_id;
         if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
         device_stream* dev = dreg[id];
@@ -658,7 +666,7 @@ fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
     }
     else 
     { 
-        next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size())); 
+        next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
         fs_node* result = file_nodes.emplace(this, idx, next_fd++).first.base();
         return result;
     }
@@ -671,7 +679,7 @@ device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool creat
     if(dev_linked_nodes.contains(id))
     {
         ext_device_vnode* node = dev_linked_nodes[id];
-        if(exparent.add_dir_entry(node, dti_chardev, parent.second.data(), parent.second.size()) && persist_inode(node->inode_number)) return node;
+        if(exparent.add_dir_entry(node, dti_chardev, parent.second.data(), parent.second.size()) && node->update_inode()) return node;
         throw std::runtime_error{ "failed to create directory entry" };
     }
     device_node* result = mkdevnode(parent.first, parent.second, id, fd);
@@ -683,7 +691,7 @@ bool extfs::truncate_node(ext_vnode* n)
     if(!n->on_disk_node->size_hi && !n->on_disk_node->size_lo) return true;
     release_all(*n);
     n->truncate_buffer();
-    return persist_inode(n->inode_number);
+    return n->update_inode();
 }
 tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link, std::set<fs_node*>& checked)
 {

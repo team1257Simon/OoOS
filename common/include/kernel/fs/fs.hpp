@@ -317,7 +317,7 @@ public:
     virtual directory_node* open_directory(std::string const& path, bool create = true);
     bool link_stdio(dev_t device_id);
     fs_node* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
-    void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev);
+    void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev = 0U);
     void create_pipe(int fds[2]);
     fs_node* get_fd_node(int fd);
     file_node* get_file(int fd);
@@ -330,7 +330,6 @@ public:
     std::string get_path_separator() const noexcept;
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
-    void pubsyncdirs();
     filesystem();
     ~filesystem();
 };

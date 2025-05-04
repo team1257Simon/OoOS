@@ -105,7 +105,8 @@ struct ext_superblock
     uint8_t last_errno;
     uint16_t filename_charset_encoding;
     uint16_t filename_charset_flags;
-    uint8_t pad1[380];
+    uint32_t orphan_file_ino;
+    uint32_t pad1[94];
     uint32_t checksum;  // crc32c(superblock)
 } __pack;
 enum required_feature_flags : uint32_t
@@ -226,15 +227,6 @@ union ext_node_extent_root
     } __pack legacy_extent;
     char link_target[60]{};   // either a symlink target or device name (given by its initial file name)
 } __pack;
-struct ooos_misc_flags
-{
-    bool system_only        : 1;
-    bool force_journal      : 1;
-    bool always_hide        : 1;
-    bool disallow_symlink   : 1;
-    bool                    : 4;
-    bool                    : 8;
-} __pack;
 struct ext_inode
 {
     file_mode mode;
@@ -248,7 +240,7 @@ struct ext_inode
     uint16_t referencing_dirents;
     uint32_t blocks_count_lo;
     uint32_t flags;
-    dev_t    device_hardlink_id;        // zero unless the node points to a device; otherwise stores the device ID number
+    uint32_t device_hardlink_id;        // zero unless the node points to a device; otherwise stores the device ID number
     ext_node_extent_root block_info;    // either a list of block pointers (direct and indirect) or an extent tree
     uint32_t version_lo;
     uint32_t file_acl_block;
@@ -259,7 +251,7 @@ struct ext_inode
     uint16_t uid_hi;
     uint16_t gid_hi;
     uint16_t checksum_lo;               // crc32c(uuid+inode_number+inode)
-    ooos_misc_flags extra_flags;
+    uint16_t extra_flags;
     uint16_t extra_isize;
     uint16_t checksum_hi;               // high-order 16 bits of the inode checksum
     uint32_t changed_time_hi;
@@ -507,9 +499,11 @@ struct ext_vnode_base
     uint32_t inode_number;
     extfs* parent_fs;
     ext_inode* on_disk_node;
+    uint32_t checksum_seed;
     ext_vnode_base(extfs* parent, uint32_t inode_number, ext_inode* inode);
     ext_vnode_base(extfs* parent, uint32_t inode_number);
     ext_vnode_base();
+    bool update_inode();
     virtual ~ext_vnode_base();
 };
 struct ext_vnode : public ext_vnode_base, public std::ext::dynamic_streambuf<char>
@@ -525,6 +519,7 @@ struct ext_vnode : public ext_vnode_base, public std::ext::dynamic_streambuf<cha
     virtual ~ext_vnode();
     virtual bool initialize();
     virtual std::streamsize xsputn(const char* s, std::streamsize n) override;
+    virtual void on_modify() override;
     void mark_write(void* pos);
     void update_block_ptrs();
     bool expand_buffer(size_t added_bytes, size_t written_bytes);
@@ -689,6 +684,7 @@ class extfs : public filesystem
 {
     friend struct ext_block_group;
     ext_pipe_pair& __init_pipes(uint32_t inode_num, std::string const& name);
+    uint32_t __sb_checksum() const;
 protected:
     std::set<ext_file_vnode> file_nodes;
     std::set<ext_directory_vnode> dir_nodes;
@@ -743,6 +739,7 @@ public:
     size_t sectors_per_block();
     size_t blocks_per_group();
     size_t inodes_per_group();
+    size_t inode_size();
     uint64_t block_to_lba(uint64_t block);
     uint64_t group_num_for_inode(uint32_t inode);
     uint64_t inode_to_block(uint32_t inode);

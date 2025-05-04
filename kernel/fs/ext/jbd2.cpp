@@ -200,18 +200,19 @@ log_read_state jbd2::read_log_transaction()
         else return NREM;
     }
     transaction_id id = static_cast<transaction_id>(log_seq);
-    uint32_t csum_base = crc32c(uuid_checksum, log_seq);
     end = reinterpret_cast<char*>(ch);
     std::vector<disk_block> txn_blocks{};
     char* block_st = start;
     char* block_ed;
     uint32_t cb_csum_checkval = ch->checksum[0];
     ch->checksum[0] = 0_be32;
+    uint32_t csum_base = crc32c(uuid_checksum, ch->header.sequence);
     uint32_t cb_csum = crc32c(csum_base, end, bs);
     ch->checksum[0] = __be32(cb_csum_checkval);
     if(cb_csum != cb_csum_checkval) goto skip_txn;
     do {
         jbd2_header* h = reinterpret_cast<jbd2_header*>(block_st);
+        csum_base = crc32c(uuid_checksum, h->sequence);
         if(h->magic != jbd2_magic) return SKIP;
         if(h->blocktype == revocation) parse_revocation();
         else
