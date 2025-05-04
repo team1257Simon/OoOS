@@ -2,18 +2,18 @@ AS := $(TARGET_HOSTED)-as
 CXX := $(TARGET_HOSTED)-g++
 AR := $(TARGET_HOSTED)-ar
 CC := $(TARGET_HOSTED)-gcc
-LD := $(TARGET_HOSTED)-ld
+LD := $(TARGET_HOSTED)-gcc
 READ = $(TARGET_HOSTED)-readelf
 OUTDIR = $(IMAGE_FILE_DIR)
 SYS_LIB = $(IMAGE_FILE_DIR)/lib
 CFLAGS = -O2 -Wall -fPIC
 CCFLAGS = $(CFLAGS) -std=gnu23
 CXXFLAGS = $(CFLAGS) -std=c++20
-LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -lc -lgcc --hash-style=both # -static -lg -lm
+LDFLAGS = -L$(SYS_LIB) -L$(LIB_GCC) -Wl,--hash-style=both
 TARGET = $(OUTDIR)/test.elf
 CSRC = test.c
 CPPSRC = $(wildcard *.cpp)
-OBJECTS = $(SYS_LIB)/crt0.o $(SYS_LIB)/crti.o $(LIB_GCC)/crtbegin.o $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(LIB_GCC)/crtend.o $(SYS_LIB)/crtn.o 
+OBJECTS = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)
 SYM_LOG := $(LOG_DIR)/test-syms.txt
 .PHONY: all
 %.o: %.c

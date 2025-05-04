@@ -1,5 +1,5 @@
     .code64
-    .section    .data
+    .data
     .global     gdt_setup
     .global     idt_register
     .extern     idt_set_entry

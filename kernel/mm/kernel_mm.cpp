@@ -15,8 +15,8 @@ extern "C"
     paging_table         kernel_cr3;
 }
 constexpr ptrdiff_t  bt_offset          = sizeof(block_tag);
-constexpr size_t     min_block_size = 1UL << min_exponent;
-constexpr size_t     max_block_size = 1UL << max_block_index;
+constexpr size_t     min_block_size     = 1UL << min_exponent;
+constexpr size_t     max_block_size     = 1UL << max_block_index;
 constexpr size_t     st_bits            = CHAR_BIT * sizeof(size_t);
 static uint8_t       __kmm_data[sizeof(kernel_memory_mgr)];
 kernel_memory_mgr*   kernel_memory_mgr::__instance{ reinterpret_cast<kernel_memory_mgr*>(__kmm_data) };
@@ -76,7 +76,7 @@ static void __set_kernel_page_flags(uintptr_t max)
     paging_table pt = nullptr;
     for(addr_t addr = addressof(__start); addr < max; addr += page_size)
     {
-        if(!pt || !addr.page_idx) pt = __find_table(addr);
+        if(!pt || !addr.page_idx) pt      = __find_table(addr);
         if(pt)
         {
             pt[addr.page_idx].global      = true;

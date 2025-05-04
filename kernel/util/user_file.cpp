@@ -32,20 +32,20 @@ user_file_object_ptr& user_file::__next_object_slot(user_file_block_type type)
 }
 void user_file::__write_block_csum(size_t idx)
 {
-    user_file_superblock& sb = get_superblock();
-    user_file_block_data& data = blocks()[idx];
-    data.tail.block_checksum = 0;
-    uint32_t sb_csum = crc32c(crc32c(sb.system_uuid), data);
-    data.tail.block_checksum = sb_csum;
+    user_file_superblock& sb    = get_superblock();
+    user_file_block_data& data  = blocks()[idx];
+    data.tail.block_checksum    = 0;
+    uint32_t sb_csum            = crc32c(crc32c(sb.system_uuid), data);
+    data.tail.block_checksum    = sb_csum;
 }
 bool user_file::__verify_block_csum(size_t idx)
 {
-    uint32_t sb_seed = crc32c(get_superblock().system_uuid);
-    user_file_block_data& data = blocks()[idx];
-    uint32_t checkval = data.tail.block_checksum;
-    data.tail.block_checksum = 0;
-    uint32_t csum = crc32c(sb_seed, data);
-    data.tail.block_checksum = checkval;
+    uint32_t sb_seed            = crc32c(get_superblock().system_uuid);
+    user_file_block_data& data  = blocks()[idx];
+    uint32_t checkval           = data.tail.block_checksum;
+    data.tail.block_checksum    = 0;
+    uint32_t csum               = crc32c(sb_seed, data);
+    data.tail.block_checksum    = checkval;
     return csum == checkval;
 }
 void user_file::add_block(user_file_block_type type)
@@ -53,14 +53,14 @@ void user_file::add_block(user_file_block_type type)
     if(!__file.grow(user_file_block_size)) throw std::runtime_error{ "couldn't get disk space" };
     else
     {
-        user_file_superblock& sb = get_superblock();
-        user_file_index_entry& ent = resolve_object_ptr(sb.next_available_index_slot, BT_INDEX).ref<user_file_index_entry>();
-        ent.block_idx = sb.total_blocks++;
-        ent.type = type;
-        ent.checksum = 0;
-        uint32_t csum = crc32c(crc32c(sb.system_uuid), ent);
-        ent.checksum = csum;
-        size_t idx_slot = sb.next_available_index_slot.entry_block_idx;
+        user_file_superblock& sb    = get_superblock();
+        user_file_index_entry& ent  = resolve_object_ptr(sb.next_available_index_slot, BT_INDEX).ref<user_file_index_entry>();
+        ent.block_idx               = sb.total_blocks++;
+        ent.type                    = type;
+        ent.checksum                = 0;
+        uint32_t csum               = crc32c(crc32c(sb.system_uuid), ent);
+        ent.checksum                = csum;
+        size_t idx_slot             = sb.next_available_index_slot.entry_block_idx;
         if(idx_slot) __write_block_csum(idx_slot);
         advance_object_slot(BT_INDEX);
     }
@@ -77,14 +77,14 @@ void user_file::advance_object_slot(user_file_block_type type)
     }
     else try
     {
-        user_file_object_ptr& obj = __next_object_slot(type);
+        user_file_object_ptr& obj   = __next_object_slot(type);
         size_t entsz = entry_size(type);
         if((obj.offset_in_block + 1) * entsz < usable_block_size) obj.offset_in_block++;
         else
         {
-            size_t block_num = sb.total_blocks;
-            obj.offset_in_block = 0;
-            obj.entry_block_idx = block_num;
+            size_t block_num        = sb.total_blocks;
+            obj.offset_in_block     = 0;
+            obj.entry_block_idx     = block_num;
             add_block(type);        // need to do this after because resizing the buffer will otherwise create a dangling reference
         }
         __write_block_csum(0UZ);
@@ -119,11 +119,11 @@ user_persisted_info& user_file::get_user_data(uid_t uid)
 }
 void user_file::get_user_info(user_info& out)
 {
-    user_persisted_info& info = get_user_data(out.uid);
-    user_credentials* cred = resolve_object_ptr(info.credentials_ptr, BT_CREDENTIALS);
-    user_capabilities* caps = resolve_object_ptr(info.capabilities_ptr, BT_CAPABILITIES);
-    char* home = resolve_object_ptr(info.home_dir_ptr, BT_STRING);
-    char* contact = resolve_object_ptr(info.contact_string_ptr, BT_STRING);
+    user_persisted_info& info   = get_user_data(out.uid);
+    user_credentials* cred      = resolve_object_ptr(info.credentials_ptr, BT_CREDENTIALS);
+    user_capabilities* caps     = resolve_object_ptr(info.capabilities_ptr, BT_CAPABILITIES);
+    char* home                  = resolve_object_ptr(info.home_dir_ptr, BT_STRING);
+    char* contact               = resolve_object_ptr(info.contact_string_ptr, BT_STRING);
     if(!cred || !caps || !home) throw std::runtime_error{ "user data is invalid" };
     new(addressof(out)) user_info
     {
@@ -160,8 +160,8 @@ void user_file::parse_index_entry(user_file_index_entry& ent)
                 if(!cred) klog("W: corruption detected in user data");
                 else
                 {
-                    size_t blk_idx = ent.block_idx;
-                    uid_t uid = inf[i].uid;
+                    size_t blk_idx  = ent.block_idx;
+                    uid_t uid       = inf[i].uid;
                     __uid_map.emplace(std::piecewise_construct, std::tuple<uid_t>(uid), std::tuple<size_t, size_t>(blk_idx, i));
                     size_t name_len = std::strnlen(cred->user_login_name, username_max_len);
                     __username_map.emplace(std::piecewise_construct, std::forward_as_tuple(std::move(std::string(cred->user_login_name, name_len))), std::forward_as_tuple(uid));
@@ -172,36 +172,38 @@ void user_file::parse_index_entry(user_file_index_entry& ent)
 }
 void user_file::write_string(std::string const& str)
 {
-    size_t needed = str.size() + 1;
-    size_t rem = static_cast<size_t>(usable_block_size - get_superblock().next_available_string_slot.offset_in_block);
-    if(needed > rem) advance_object_slot(BT_STRING); // after this there shouldn't be a dangling reference problem
-    user_file_superblock& sb = get_superblock();
-    user_file_object_ptr& slot = sb.next_available_string_slot;
-    char* target = resolve_object_ptr(slot, BT_STRING);
-    slot.offset_in_block += needed;
+    size_t needed               = str.size() + 1;
+    size_t rem                  = static_cast<size_t>(usable_block_size - get_superblock().next_available_string_slot.offset_in_block);
+    if(needed > rem) 
+        advance_object_slot(BT_STRING); // after this there shouldn't be a dangling reference problem
+    user_file_superblock& sb    = get_superblock();
+    user_file_object_ptr& slot  = sb.next_available_string_slot;
+    char* target                = resolve_object_ptr(slot, BT_STRING);
+    slot.offset_in_block        += needed;
     array_copy(target, str.c_str(), str.size());
-    target[str.size()] = '\0';
+    target[str.size()]          = '\0';
     __write_block_csum(slot.entry_block_idx);
-    if(slot.offset_in_block >= usable_block_size) advance_object_slot(BT_STRING);
+    if(slot.offset_in_block >= usable_block_size) 
+        advance_object_slot(BT_STRING);
 }
 void user_file::persist_user_info(user_info const& inf)
 {
-    user_file_superblock* sb = addressof(get_superblock());
-    uid_t uid = inf.uid;
+    user_file_superblock* sb    = addressof(get_superblock());
+    uid_t uid                   = inf.uid;
     if(__uid_map.contains(uid)) { update_user_info(inf); }
     else
     {      
         user_file_object_ptr contact_str_slot, home_str_slot;
-        size_t needed_home = inf.home_directory.size() + 1;
+        size_t needed_home      = inf.home_directory.size() + 1;
         if(sb->next_available_string_slot.offset_in_block + needed_home > usable_block_size) { advance_object_slot(BT_STRING); sb = addressof(get_superblock()); }
-        home_str_slot = sb->next_available_string_slot;
+        home_str_slot           = sb->next_available_string_slot;
         write_string(inf.home_directory);
         sb = addressof(get_superblock());
         if(!inf.contact.empty())
         {
             size_t needed_total = needed_home + inf.contact.size() + 1;
             if(sb->next_available_string_slot.offset_in_block + needed_total > usable_block_size) { advance_object_slot(BT_STRING); sb = addressof(get_superblock()); }
-            contact_str_slot = sb->next_available_string_slot;
+            contact_str_slot    = sb->next_available_string_slot;
             write_string(inf.contact);
             sb = addressof(get_superblock());
         }
@@ -222,7 +224,7 @@ void user_file::persist_user_info(user_info const& inf)
             .home_dir_ptr       { home_str_slot },
             .checksum           { 0 }  
         };
-        uint32_t csum = crc32c(crc32c(sb->system_uuid), *persisted);
+        uint32_t csum       = crc32c(crc32c(sb->system_uuid), *persisted);
         persisted->checksum = csum;
         __write_block_csum(info_ptr.entry_block_idx);
         advance_object_slot(BT_CAPABILITIES);
@@ -237,12 +239,13 @@ void user_file::persist_user_info(user_info const& inf)
 }
 void user_file::update_user_info(user_info const& inf)
 {
-    user_persisted_info& persisted = resolve_object_ptr(__uid_map[inf.uid], BT_USER_INFO).ref<user_persisted_info>();
-    user_capabilities* caps = resolve_object_ptr(persisted.capabilities_ptr, BT_CAPABILITIES);
-    user_credentials* creds = resolve_object_ptr(persisted.credentials_ptr, BT_CREDENTIALS);
-    if(!caps || !creds) throw std::invalid_argument{ "user data has invalid pointers or is corrupted" };
-    *caps = inf.capabilities;
-    *creds = inf.credentials;
+    user_persisted_info& persisted  = resolve_object_ptr(__uid_map[inf.uid], BT_USER_INFO).ref<user_persisted_info>();
+    user_capabilities* caps         = resolve_object_ptr(persisted.capabilities_ptr, BT_CAPABILITIES);
+    user_credentials* creds         = resolve_object_ptr(persisted.credentials_ptr, BT_CREDENTIALS);
+    if(!caps || !creds) 
+        throw std::invalid_argument{ "user data has invalid pointers or is corrupted" };
+    *caps                           = inf.capabilities;
+    *creds                          = inf.credentials;
     __write_block_csum(persisted.capabilities_ptr.entry_block_idx);
     __write_block_csum(persisted.credentials_ptr.entry_block_idx);
 }
@@ -258,13 +261,13 @@ void user_file::init_credentials(user_credentials& out, std::string const& usern
     };
     if(!pw.empty())
     {
-        std::string setting = create_hash_setting_string();
-        std::string hash_str = create_crypto_string(pw, setting);
+        std::string setting         = create_hash_setting_string();
+        std::string hash_str        = create_crypto_string(pw, setting);
         array_copy(result->crypto_setting_str, setting.c_str(), crypto_setting_len);
         array_copy(result->password_hash_str, hash_str.c_str(), crypto_hash_len);
     }
-    uint32_t csum = crc32c(crc32c(get_superblock().system_uuid), *result);
-    result->checksum = csum;
+    uint32_t csum       = crc32c(crc32c(get_superblock().system_uuid), *result);
+    result->checksum    = csum;
 }
 void user_file::init_capabilities(user_capabilities& out, uint32_t perm_flags, uint32_t proc_quota, uint32_t thread_quota)
 {
@@ -275,8 +278,8 @@ void user_file::init_capabilities(user_capabilities& out, uint32_t perm_flags, u
         .system_permissions { perm_flags },
         .checksum           { 0U }
     };
-    uint32_t csum = crc32c(crc32c(get_superblock().system_uuid), *result);
-    result->checksum = csum;
+    uint32_t csum       = crc32c(crc32c(get_superblock().system_uuid), *result);
+    result->checksum    = csum;
 }
 bool check_pw(user_info const& user, std::string const& pw)
 {
@@ -318,28 +321,28 @@ bool user_file::__initialize()
                 .next_available_index_slot  { 0UZ, initial_idx0_offset + 4 }
             };
             __fill_entropy(addressof(sb->system_uuid), sizeof(guid_t) / sizeof(uint64_t));
-            uint32_t csum_seed = crc32c(sb->system_uuid);
+            uint32_t csum_seed          = crc32c(sb->system_uuid);
             user_file_index_entry* idx0 = blocks()[0].idx0;
-            idx0[0].block_idx = 1;
-            idx0[0].type = BT_USER_INFO;
-            idx0[0].checksum = 0;
-            idx0[1].block_idx = 2;
-            idx0[1].type = BT_CREDENTIALS;
-            idx0[1].checksum = 0;
-            idx0[2].block_idx = 3;
-            idx0[2].type = BT_CAPABILITIES;
-            idx0[2].checksum = 0;
-            idx0[3].block_idx = 4;
-            idx0[3].type = BT_STRING;
-            idx0[3].checksum = 0;
-            uint32_t csum = crc32c(csum_seed, idx0[0]);
-            idx0[0].checksum = csum;
-            csum = crc32c(csum_seed, idx0[1]);
-            idx0[1].checksum = csum;
-            csum = crc32c(csum_seed, idx0[2]);
-            idx0[2].checksum = csum;
-            csum = crc32c(csum_seed, idx0[3]);
-            idx0[3].checksum = csum;
+            idx0[0].block_idx           = 1;
+            idx0[0].type                = BT_USER_INFO;
+            idx0[0].checksum            = 0;
+            idx0[1].block_idx           = 2;
+            idx0[1].type                = BT_CREDENTIALS;
+            idx0[1].checksum            = 0;
+            idx0[2].block_idx           = 3;
+            idx0[2].type                = BT_CAPABILITIES;
+            idx0[2].checksum            = 0;
+            idx0[3].block_idx           = 4;
+            idx0[3].type                = BT_STRING;
+            idx0[3].checksum            = 0;
+            uint32_t csum               = crc32c(csum_seed, idx0[0]);
+            idx0[0].checksum            = csum;
+            csum                        = crc32c(csum_seed, idx0[1]);
+            idx0[1].checksum            = csum;
+            csum                        = crc32c(csum_seed, idx0[2]);
+            idx0[2].checksum            = csum;
+            csum                        = crc32c(csum_seed, idx0[3]);
+            idx0[3].checksum            = csum;
             __write_block_csum(0UZ);
             __file.force_write();
             if(!__file.fsync()) { panic("failed to write user file"); return false; }

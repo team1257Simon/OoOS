@@ -12,10 +12,10 @@ static addr_t map_dirent_buffer(uframe_tag* tag, size_t num_entries)
 static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, directory_node* dirnode)
 {
     std::vector<tnode*> tnodes(dirnode->size());
-    size_t buffer_len = (dirnode->readdir(tnodes) + 1) * sizeof(dirent);
-    addr_t start_addr = vaddr.plus(sizeof(directory_buffer));
-    addr_t end_addr = start_addr.plus(buffer_len);
-    directory_buffer* result = new(tag->translate(vaddr)) directory_buffer
+    size_t buffer_len           = (dirnode->readdir(tnodes) + 1) * sizeof(dirent);
+    addr_t start_addr           = vaddr.plus(sizeof(directory_buffer));
+    addr_t end_addr             = start_addr.plus(buffer_len);
+    directory_buffer* result    = new(tag->translate(vaddr)) directory_buffer
     {
         .buffer_start   { tag->translate(start_addr) },
         .buffer_size    { buffer_len },
@@ -30,11 +30,12 @@ static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, direct
     addr_t cur = result->buffer_start;
     for(tnode* t : tnodes)
     {
-        const char* name = t->name();
-        size_t name_len = std::strnlen(name, 255UZ);
-        uint8_t type = t->is_directory() ? DT_DIR : (t->is_device() ? DT_FIFO : DT_REG);
-        if(ext_vnode* vn = dynamic_cast<ext_vnode*>(t->ptr()); vn && vn->is_symlink()) { type = DT_LNK; }
-        dirent* ent = new(cur) dirent
+        const char* name        = t->name();
+        size_t name_len         = std::strnlen(name, 255UZ);
+        uint8_t type            = t->is_directory() ? DT_DIR : (t->is_device() ? DT_FIFO : DT_REG);
+        ext_vnode* vn           = dynamic_cast<ext_vnode*>(t->ptr());
+        if(vn && vn->is_symlink()) { type = DT_LNK; }
+        dirent* ent             = new(cur) dirent
         {
             .d_ino      { static_cast<long>(t->ref().cid()) },
             .d_reclen   { static_cast<uint16_t>(sizeof(dirent)) },
@@ -42,27 +43,27 @@ static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, direct
             .d_name     {}
         };
         __builtin_memcpy(ent->d_name, name, name_len);
-        ent->d_name[name_len] = 0;
-        cur += sizeof(dirent);
+        ent->d_name[name_len]   = 0;
+        cur                     += sizeof(dirent);
     }
     array_zero(cur.as<uint64_t>(), sizeof(dirent) / sizeof(uint64_t));
     return result;
 }
 posix_directory& posix_directory::operator=(posix_directory const& that)
 {
-    this->__owning_frame = nullptr;
-    this->__buffer_mapped_vaddr = that.__buffer_mapped_vaddr;
-    this->__my_dir_buffer = nullptr;
+    this->__owning_frame            = nullptr;
+    this->__buffer_mapped_vaddr     = that.__buffer_mapped_vaddr;
+    this->__my_dir_buffer           = nullptr;
     return *this;
 }
 posix_directory& posix_directory::operator=(posix_directory&& that)
 {
-    this->__owning_frame = that.__owning_frame;
-    this->__buffer_mapped_vaddr = that.__buffer_mapped_vaddr;
-    this->__my_dir_buffer = that.__my_dir_buffer;
-    that.__owning_frame = nullptr;
-    that.__buffer_mapped_vaddr = nullptr;
-    that.__my_dir_buffer = nullptr;
+    this->__owning_frame            = that.__owning_frame;
+    this->__buffer_mapped_vaddr     = that.__buffer_mapped_vaddr;
+    this->__my_dir_buffer           = that.__my_dir_buffer;
+    that.__owning_frame             = nullptr;
+    that.__buffer_mapped_vaddr      = nullptr;
+    that.__my_dir_buffer            = nullptr;
     return *this;
 }
 posix_directory::posix_directory(directory_node* dirnode, uframe_tag* calling_tag) :
@@ -80,9 +81,9 @@ posix_directory::posix_directory(posix_directory&& that) :
     __buffer_mapped_vaddr   { that.__buffer_mapped_vaddr },
     __my_dir_buffer         { that.__my_dir_buffer }
 {
-    that.__owning_frame = nullptr;
-    that.__buffer_mapped_vaddr = nullptr;
-    that.__my_dir_buffer = nullptr;
+    that.__owning_frame         = nullptr;
+    that.__buffer_mapped_vaddr  = nullptr;
+    that.__my_dir_buffer        = nullptr;
 }
 posix_directory::posix_directory(posix_directory const& that) :
     __owning_frame          { nullptr },

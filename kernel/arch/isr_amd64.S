@@ -45,9 +45,10 @@ task_signal_code:
 debug_stop_flag:
     .byte 0
     .size       debug_stop_flag,    .-debug_stop_flag
-    .section    .text
+    .text
     // The one time exponential growth actually comes in handy...
-    // Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size
+    // Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size.
+    // Actually, it's just straight up 1+log(n) assuming you're in log base 2...
     .macro xm_1 macro at
         \macro \at
         \macro %(at+1)
