@@ -8,6 +8,7 @@ typedef bool spinlock_t;
 #define CXX_INI(...)
 #define __pack __attribute__((packed))
 #define __align(n) __attribute__((aligned(n)))
+#define attribute(...) __attribute__((__VA_ARGS__))
 #elif defined(__cplusplus)
 #include "kernel/libk_decls.h"
 typedef qword sigset_t;
@@ -60,7 +61,7 @@ typedef struct __fx_state
     int128_t    xmm[16];
     int128_t    rsv1[3];
     int128_t    avail[3];
-} __align(16) __pack fx_state;
+} attribute(packed, aligned(16)) fx_state;
 typedef struct __reg_state
 {
     register_t  rax;
@@ -85,7 +86,7 @@ typedef struct __reg_state
     uint16_t    ss;
     uint16_t    cs;
     addr_t      cr3;
-} __pack __align(2) regstate_t;
+} attribute(packed, aligned(2)) regstate_t;
 typedef struct __task_signal_info
 {
     sigset_t        blocked_signals;
@@ -95,7 +96,7 @@ typedef struct __task_signal_info
     regstate_t      sigret_frame;
     spinlock_t      sigmask_lock;
     int             active_signal;
-} __pack __align(16) task_signal_info_t;
+} attribute(packed, aligned(16)) task_signal_info_t;
 typedef struct __task_control
 {
     volatile struct 
@@ -105,7 +106,7 @@ typedef struct __task_control
         bool            notify_cterm    : 1;        // true if the wait should be interrupted on a child process termination
         bool            sigkill         : 1;        // true if the process has stopped due to an abnormal termination (e.g. kill signal)
         priority_val    prio_base       : 4;        // the base priority of the thread/process
-    } __pack __align(1);
+    } attribute(packed, aligned(1));
     struct
     {   
         uint8_t             skips;                      // the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
@@ -115,7 +116,7 @@ typedef struct __task_control
         uint64_t            task_id;                    // pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
         int64_t             task_uid;                   // WIP
         int64_t             task_gid;                   // WIP
-    } __pack __align(1);
+    } attribute(packed, aligned(1));
 } __pack tcb_t;
 typedef struct __task_info
 {
@@ -133,7 +134,7 @@ typedef struct __task_info
     size_t      num_child_procs;                    // how many children are in the array below
     addr_t*     child_procs;                        // array of pointers to child process info structures (for things like process-tree termination)
     addr_t      next            CXX_INI(nullptr);   // updated when the scheduling event fires.
-} __align(16) __pack task_t;
+} attribute(packed, aligned(16)) task_t;
 #ifdef __cplusplus
 }
 #endif

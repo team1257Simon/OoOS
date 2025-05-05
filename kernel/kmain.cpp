@@ -519,6 +519,7 @@ extern "C"
         kb->initialize();
         kb->add_listener([&](kb_data d) -> void { if(!(d.event_code & KEY_UP)) dbg_hold = false; });
         if(com_amd64::init_instance()) com = com_amd64::get_instance();
+        direct_print_enable = true;
         bsp_lapic.init();
         nmi_enable();
         sti();
@@ -532,7 +533,7 @@ extern "C"
         fx_enable = true;
         scheduler::init_instance();
         startup_tty.print_line(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
-        direct_print_enable = true;
+       
         try
         {
             // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.

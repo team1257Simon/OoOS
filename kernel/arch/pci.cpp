@@ -10,3 +10,27 @@ void pci_device_list::add_all(pci_config_table* tb) { for(int i = 0; i < 256; i+
 pci_config_space* pci_device_list::find(uint8_t device_class, uint8_t subclass) { for(pci_config_space* s : *this) if(s && (s->class_code == device_class) && (s->subclass == subclass)) return s; return nullptr; }
 bool pci_device_list::init_instance() { if(pci_config_table* tb = find_pci_config()) { __instance.add_all(tb); return true; } return false; }
 pci_device_list* pci_device_list::get_instance() { return std::addressof(__instance); }
+pci_capabilities_register* get_first_capability_register(pci_config_space* device)
+{
+    if(device->status.capabilities_list)
+    {
+        uint8_t caps_ptr;
+        char* dev_space = reinterpret_cast<char*>(device);
+        switch(device->header_type)
+        {
+            case st: caps_ptr = device->header_0x0.capabilities_pointer; break;
+            case br: caps_ptr = device->header_0x1.capabilities_pointer; break;
+            case cb: caps_ptr = device->header_0x2.capabilities_pointer; break;
+            default: panic("invalid device header type"); return nullptr;
+        }
+        return reinterpret_cast<pci_capabilities_register*>(dev_space + caps_ptr);
+    }
+    panic("capabilities list not supported");
+    return nullptr;
+}
+pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r)
+{
+    char* dev_space = reinterpret_cast<char*>(device);
+    uint8_t next = r->next;
+    return reinterpret_cast<pci_capabilities_register*>(dev_space + next);
+}

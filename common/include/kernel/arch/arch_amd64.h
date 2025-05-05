@@ -60,6 +60,13 @@ typedef struct __tss_descriptor
     uint8_t base_mid    : 8;
     uint64_t base_hi;
 } __pack tss_descriptor;
+typedef struct __cpuid_leaf
+{
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+} cpuid_leaf;
 inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 #ifdef __cplusplus

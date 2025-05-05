@@ -13,13 +13,13 @@
 #include "array"
 typedef int (attribute(sysv_abi) task_closure)(int, char**);
 typedef decltype(std::addressof(std::declval<task_closure>())) task_functor;
-constexpr unsigned int sub_tick_ratio{ 157 };
-constexpr unsigned int early_trunc_thresh{ 5 };
-constexpr unsigned int cycle_max { 2280 };
-constexpr word pit_divisor{ 760US };
-constexpr byte pit_mode{ 0x34UC };
-constexpr word port_pit_data{ 0x40US };
-constexpr word port_pit_cmd{ 0x43US };
+constexpr unsigned int sub_tick_ratio       { 157 };
+constexpr unsigned int early_trunc_thresh   { 5 };
+constexpr unsigned int cycle_max            { 2280 };
+constexpr word pit_divisor                  { 760US };
+constexpr byte pit_mode                     { 0x34UC };
+constexpr word port_pit_data                { 0x40US };
+constexpr word port_pit_cmd                 { 0x43US };
 extern "C"
 {
     void user_entry(addr_t);

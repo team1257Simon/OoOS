@@ -1,5 +1,6 @@
 #include "arch/apic.hpp"
 #include "kernel_mm.hpp"
+constexpr uint64_t ioapic_default_physical_base = 0xFEC00000UL;
 apic::apic(unsigned id) : __apic_mem{ nullptr }, __local_id{ id } {}
 void apic::eoi() volatile { if(__apic_mem) __apic_mem->eoi.value = 0; } // writing a 0 to this register signals an eoi in apic mode
 bool apic::init() volatile
@@ -7,7 +8,7 @@ bool apic::init() volatile
     madt_t* madt = static_cast<madt_t*>(find_system_table("APIC"));
     if(!madt) return false;
     uintptr_t physical_base = madt->local_apic_physical_address;
-    uintptr_t ioapic_physical_base = 0xFEC00000UL;
+    uintptr_t ioapic_physical_base = 0;
     bool have_sapic = false;
     size_t table_size = madt->header.length - (8 + sizeof(acpi_header));
     addr_t table_ptr(madt->record_data);
@@ -18,22 +19,27 @@ bool apic::init() volatile
         switch(h->type)
         {
         case APIC_ADDRESS_OVERRIDE:
-            physical_base = table_ptr.plus(i).ref<local_apic_addr_override>().local_apic_physical_addr;
+            if(table_ptr.plus(i).ref<local_apic_addr_override>().local_apic_physical_addr)
+                physical_base = table_ptr.plus(i).ref<local_apic_addr_override>().local_apic_physical_addr;
             break;
         case IO_SAPIC:
-            have_sapic = true;
-            ioapic_physical_base = table_ptr.plus(i).ref<io_sapic_data>().io_sapic_physical_addr;
+            have_sapic = (table_ptr.plus(i).ref<io_sapic_data>().io_sapic_physical_addr != 0);
+            if(have_sapic)
+                ioapic_physical_base = table_ptr.plus(i).ref<io_sapic_data>().io_sapic_physical_addr;
             break;
         case IO_APIC:
-            if(!have_sapic) ioapic_physical_base = table_ptr.plus(i).ref<io_apic_data>().io_apic_physical_address;
+            if(table_ptr.plus(i).ref<io_apic_data>().io_apic_physical_address && !have_sapic) 
+                ioapic_physical_base = table_ptr.plus(i).ref<io_apic_data>().io_apic_physical_address;
             break;
         default:
             break;
         }
     }
-    if(!ioapic_physical_base) return false;
+    if(!ioapic_physical_base) ioapic_physical_base = ioapic_default_physical_base;
     addr_t the_apic = kmm.map_mmio_region(physical_base, sizeof(apic_map));
     addr_t the_ioapic = kmm.map_mmio_region(ioapic_physical_base, sizeof(ioapic));
+    uint8_t k_pic1 = inb(data_pic1);
+    uint8_t k_pic2 = inb(data_pic2);
     outb(data_pic1, 0xFFUC);
     outb(data_pic2, 0xFFUC);
     write_msr<ia32_apic_base>(qword((physical_base & 0xFFFFF000) | apic_enable, (physical_base >> 32) & 0x0F));
@@ -56,5 +62,8 @@ bool apic::init() volatile
         __ioapic_mem->data_reg = data;
         barrier();
     }
+    // TODO: use the APIC LVT mechanism instead of reenabling legacy PIC
+    outb(data_pic1, k_pic1);
+    outb(data_pic2, k_pic2);
     return true;
 }

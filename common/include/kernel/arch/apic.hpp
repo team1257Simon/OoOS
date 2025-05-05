@@ -5,7 +5,7 @@ struct apic_reg
 {
     uint32_t value;
     uint32_t align_bytes[3];
-} __pack __align(16);
+} attribute(packed, aligned(16));
 struct apic_map
 {
     int128_t rsv0[2]; 
@@ -39,13 +39,13 @@ struct apic_map
     int128_t rsv3[4];
     apic_reg timer_divide;
     int128_t rsv4;
-} __pack __align(16);
+} attribute(packed, aligned(16));
 struct ioapic
 {
     uint32_t select_reg;
     uint32_t unused[2];
     uint32_t data_reg;
-} __pack __align(4);
+} attribute(packed, aligned(4));
 class apic
 {
     apic_map volatile* __apic_mem;

@@ -58,8 +58,8 @@ extern "C"
             byte irq{ uint8_t(idx - 0x20UC) };
             kernel_memory_mgr::suspend_user_frame();
             for(irq_callback const& h : __handler_tables[irq]) h();
-            kernel_memory_mgr::resume_user_frame();
             pic_eoi(irq);
+            kernel_memory_mgr::resume_user_frame();
         }
         else 
         { 
