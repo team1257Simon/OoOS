@@ -10,8 +10,8 @@ class scheduler
     std::vector<task_t*> __non_timed_sleepers;
     std::atomic<unsigned> __cycle_subticks;
     unsigned int __tick_rate;
-    unsigned int __sub_cycle_divisor;
-    const unsigned int __cycle_divisor;
+    unsigned int __subtick_rate;
+    unsigned int __cycle_divisor;
     std::atomic<unsigned> __tick_cycles;
     bool __running;
     size_t __total_tasks;

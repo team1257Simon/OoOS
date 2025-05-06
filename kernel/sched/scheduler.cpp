@@ -19,8 +19,8 @@ scheduler::scheduler()      :
     __non_timed_sleepers    {},
     __cycle_subticks        { 0U },
     __tick_rate             {},
-    __sub_cycle_divisor     {},
-    __cycle_divisor         { 100U },
+    __subtick_rate     {},
+    __cycle_divisor         {},
     __tick_cycles           {},
     __running               { false },
     __total_tasks           { 0UZ }
@@ -154,6 +154,12 @@ __isrcall void scheduler::on_tick()
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
 }
+static uint32_t normalize_dec(uint32_t num)
+{
+    uint32_t i = num;
+    while(i > 10) i /= 10;
+    return i;
+}
 bool scheduler::init()
 {
     try
@@ -166,19 +172,20 @@ bool scheduler::init()
     task_change_flag.store(0);
     uint32_t timer_frequency = cpuid(0x15, 0).ecx;
     if(!timer_frequency) timer_frequency = cpuid(0x16, 0).ecx * 1000000;
-    __tick_rate = timer_frequency / __cycle_divisor;
-    if(timer_frequency % __cycle_divisor) __sub_cycle_divisor = __cycle_divisor;
+    __cycle_divisor = normalize_dec(timer_frequency) * 1000;
+    __tick_rate = __cycle_divisor / 25;
+    if(timer_frequency % (__cycle_divisor)) __subtick_rate = timer_frequency % (__cycle_divisor);
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(__running)
         {
             __tick_cycles += __tick_rate;
-            if(__sub_cycle_divisor) 
+            if(__subtick_rate) 
             {
-                __cycle_subticks += __tick_rate;
-                if(__cycle_subticks >= __sub_cycle_divisor)
+                __cycle_subticks += __subtick_rate;
+                if(__cycle_subticks >= __cycle_divisor)
                     __tick_cycles++;
-                __cycle_subticks = __cycle_subticks % __sub_cycle_divisor;
+                __cycle_subticks = __cycle_subticks % __cycle_divisor;
             }
             if(__tick_cycles >= __cycle_divisor) 
                 on_tick();
