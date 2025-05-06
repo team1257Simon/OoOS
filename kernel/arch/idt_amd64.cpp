@@ -4,6 +4,7 @@
 #include "kernel_mm.hpp"
 #include "array"
 #include "string"
+#include "kdebug.hpp"
 #include "arch/apic.hpp"
 std::array<std::vector<irq_callback>, 16UZ> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
@@ -28,6 +29,9 @@ extern "C"
     extern uint64_t ecode;
     extern void* isr_table[];
     extern idt_entry_t idt_table[256];
+    extern void no_waiting_op();
+    void (*callback_8)() = no_waiting_op;
+    extern volatile bool delay_flag;
     struct 
     {
         uint16_t size;
@@ -48,26 +52,29 @@ extern "C"
             .isr_high   { static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFFU) }
         };
     }
-    [[gnu::no_caller_saved_registers]] __isrcall void isr_dispatch(uint8_t idx)
+    __isrcall void isr_dispatch(uint8_t idx)
     {
-        kfx_save();
+        if(idx == 0x28UC) { (*callback_8)(); delay_flag = false; callback_8 = no_waiting_op; }
         bool is_err = (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
         asm volatile("movq %%rsp, %0" : "=m"(saved_stack_ptr) :: "memory");
         if(idx > 0x19UC && idx < 0x30UC) 
         { 
             byte irq{ uint8_t(idx - 0x20UC) };
             kernel_memory_mgr::suspend_user_frame();
+            kfx_save();
             for(irq_callback const& h : __handler_tables[irq]) h();
-            pic_eoi(irq);
+            pic_eoi(irq);    
+            kfx_load();
             kernel_memory_mgr::resume_user_frame();
         }
         else 
         { 
             kernel_memory_mgr::suspend_user_frame();
-            for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); } 
+            kfx_save();
+            for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }    
+            kfx_load();
             kernel_memory_mgr::resume_user_frame();
         }
-        kfx_load();
         // Other stuff as needed
     }
     void idt_init()

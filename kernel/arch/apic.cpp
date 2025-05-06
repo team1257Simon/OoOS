@@ -36,8 +36,8 @@ bool apic::init() volatile
         }
     }
     if(!ioapic_physical_base) ioapic_physical_base = ioapic_default_physical_base;
-    addr_t the_apic = kmm.map_mmio_region(physical_base, sizeof(apic_map));
-    addr_t the_ioapic = kmm.map_mmio_region(ioapic_physical_base, sizeof(ioapic));
+    addr_t the_apic = kmm.map_uncached_mmio(physical_base, sizeof(apic_map));
+    addr_t the_ioapic = kmm.map_uncached_mmio(ioapic_physical_base, sizeof(ioapic));
     uint8_t k_pic1 = inb(data_pic1);
     uint8_t k_pic2 = inb(data_pic2);
     outb(data_pic1, 0xFFUC);
@@ -50,6 +50,13 @@ bool apic::init() volatile
     __apic_mem->dest_fmt.value = 0xFFFFFFFFU;
     barrier();
     __apic_mem->spurious_iv.value = 0x1FF;
+    barrier();
+    __apic_mem->timer_divide.value = 0b1011;
+    barrier();
+    uint32_t tvec = __apic_mem->lvt_timer.value;
+    tvec &= 0xFFFEFF00;
+    tvec |= 0x20;
+    __apic_mem->lvt_timer.value = tvec;
     barrier();
     for(size_t i = 0; i < 16; i++)
     {

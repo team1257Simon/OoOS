@@ -3,6 +3,7 @@
 #include "arch/com_amd64.h"
 #include "arch/kb_amd64.hpp"
 #include "arch/apic.hpp"
+#include "arch/hpet_amd64.hpp"
 #include "kernel_mm.hpp"
 #include "prog_manager.hpp"
 #include "kdebug.hpp"
@@ -366,6 +367,19 @@ void elf64_tests()
     }
     catch(std::exception& e) { panic(e.what()); }
 }
+uint64_t end_read = 0;
+__isrcall void fn() { end_read = hpet_amd64::count_usec(); }
+void hpet_tests()
+{
+    if(hpet_amd64::init_instance())
+    {
+        uint64_t start_read = hpet_amd64::count_usec();
+        hpet_amd64::delay_usec(1000, fn);
+        startup_tty.print_line("time 0: " + std::to_string(start_read));
+        startup_tty.print_line("time 1: " + std::to_string(end_read));
+    }
+    else panic("hpet init failed");
+}
 static const char* codes[] = 
 {
     "#DE [Division by Zero]",
@@ -403,7 +417,7 @@ static const char* codes[] =
 };
 constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
 {
-//    if(get_gs_base<task_t>() != std::addressof(kproc)) return;
+    if(get_gs_base<task_t>() != std::addressof(kproc)) return;
     if(idx < 0x20) 
     {
         startup_tty.print_text(codes[idx]);
@@ -447,6 +461,8 @@ void run_tests()
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
     startup_tty.print_line("ahci test...");
     if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_partition_table());
+    startup_tty.print_line("hpet test...");
+    hpet_tests();
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();   
@@ -533,7 +549,6 @@ extern "C"
         fx_enable = true;
         scheduler::init_instance();
         startup_tty.print_line(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
-       
         try
         {
             // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.

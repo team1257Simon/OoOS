@@ -69,9 +69,9 @@ typedef struct __cpuid_leaf
 } cpuid_leaf;
 inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
+inline cpuid_leaf cpuid(uint32_t a, uint32_t c) { cpuid_leaf l; asm volatile("cpuid" : "=a"(l.eax), "=b"(l.ebx), "=c"(l.ecx), "=d"(l.edx) : "0"(a), "2"(c) : "memory"); return l; }
 #ifdef __cplusplus
 }
-template<typename T> concept integral_structure = std::is_integral_v<T> || std::is_same_v<T, byte> || std::is_same_v<T, word> || std::is_same_v<T, dword> || std::is_same_v<T, qword>;
 template<integral_structure I = byte> constexpr I in(uint16_t from) { I result; asm volatile("in %1, %0" : "=a"(result) : "Nd"(from) : "memory"); return result; }
 template<integral_structure I = byte> constexpr void out(uint16_t to, I value) { asm volatile("out %0, %1" :: "a"(value), "Nd"(to) : "memory"); }
 constexpr void outb(uint16_t to, byte value) { out(to, value); }

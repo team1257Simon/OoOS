@@ -33,9 +33,9 @@ static bool          __is_code_page(addr_t addr) { return addr_t(addressof(__cod
 static inline size_t full_kernel_size() { return static_cast<size_t>(addressof(__end) - addressof(__start)); }
 constexpr uint32_t   calculate_block_index(size_t size) { return size < min_block_size ? 0 : size > max_block_size ? max_block_index : (st_bits - __builtin_clzl(size)) - min_exponent; }
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
-constexpr size_t     region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, S512)) : nearest(sz); }
+constexpr size_t     region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, page_size)) : nearest(sz); }
 static paging_table __get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
-constexpr size_t     add_align_size(addr_t tag, size_t align) { return align > 1 ? (up_to_nearest(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.full + bt_offset)) : 0; }
+constexpr size_t     add_align_size(addr_t tag, size_t align) { return align > 1 ? (up_to_nearest<size_t>(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.full + bt_offset)) : 0; }
 kernel_memory_mgr& kernel_memory_mgr::get() { return *__instance; }
 uintptr_t          kernel_memory_mgr::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
 void kernel_memory_mgr::__lock() { lock(addressof(__heap_mutex)); __suspend_frame(); }
@@ -206,6 +206,28 @@ static addr_t __map_mmio_pages(addr_t start, size_t pages)
             .write            = true,
             .user_access      = false,
             .write_thru       = true,
+            .global           = true,
+            .physical_address = curr.full >> 12,
+        };
+    }
+    tlb_flush();
+    return start;
+}
+static addr_t __map_uncached_mmio_pages(addr_t start, size_t pages)
+{
+    if(!start) return nullptr;
+    addr_t       curr = start;
+    paging_table pt   = __get_table(curr, true);
+    if(!pt) return nullptr;
+    for(size_t i = 0; i < pages; i++, curr += page_size)
+    {
+        if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, true);
+        new(addressof(pt[curr.page_idx])) pt_entry
+        {
+            .present          = true,
+            .write            = true,
+            .user_access      = false,
+            .cache_disable    = true,
             .global           = true,
             .physical_address = curr.full >> 12,
         };
@@ -399,6 +421,15 @@ addr_t kernel_memory_mgr::map_mmio_region(uintptr_t addr, size_t sz)
     size_t npage    = div_round_up(sz, page_size);
     __lock();
     addr_t result   = __map_mmio_pages(addr_t(addr), npage);
+    if(result) { __mark_used(addr, npage); }
+    __unlock();
+    return result;
+}
+addr_t kernel_memory_mgr::map_uncached_mmio(uintptr_t addr, size_t sz)
+{
+    size_t npage    = div_round_up(sz, page_size);
+    __lock();
+    addr_t result   = __map_uncached_mmio_pages(addr_t(addr), npage);
     if(result) { __mark_used(addr, npage); }
     __unlock();
     return result;

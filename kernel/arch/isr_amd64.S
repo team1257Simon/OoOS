@@ -7,11 +7,16 @@
     .global     task_signal_code
     .global     kernel_isr_stack_top
     .global     kernel_isr_stack_base
+    .global     delay_flag
     .global     debug_stop_flag
+    .global     test_fault
     .extern     isr_dispatch
     .extern     set_task_signal
+    .global     no_waiting_op
+    .type       test_fault,             @function
     .type       isr_dispatch,           @function
     .type       set_task_signal,        @function
+    .type       no_waiting_op,          @function
     .type       ecode,                  @object
     .type       errinst,                @object
     .type       svinst,                 @object
@@ -19,6 +24,7 @@
     .type       task_signal_code,       @object
     .type       kernel_isr_stack_top,   @object
     .type       kernel_isr_stack_base,  @object
+    .type       delay_flag,             @object
     .type       debug_stop_flag,        @object
     .data
     .align      4096
@@ -28,23 +34,26 @@ kernel_isr_stack_top:
     .size       kernel_isr_stack_base,  .-kernel_isr_stack_base
     .size       kernel_isr_stack_top,   .-kernel_isr_stack_base
 ecode:
-    .quad 0
+    .quad       0
     .size       ecode,          .-ecode
 errinst:
-    .quad 0
+    .quad       0
     .size       errinst,        .-errinst
 svinst:
-    .quad 0
+    .quad       0
     .size       svinst,         .-svinst
 task_change_flag:
-    .byte 0
+    .byte       0
     .size       task_change_flag,   .-task_change_flag
 task_signal_code:
-    .byte 0
+    .byte       0
     .size       task_signal_code,   .-task_signal_code
 debug_stop_flag:
-    .byte 0
+    .byte       0
     .size       debug_stop_flag,    .-debug_stop_flag
+delay_flag:
+    .byte       0
+    .size       delay_flag,         .-delay_flag
     .text
     // The one time exponential growth actually comes in handy...
     // Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size.
@@ -98,10 +107,34 @@ debug_stop_flag:
             movq    8(%rsp),    %rax
             movq    %rax,       svinst
             .endif
+            pushq   %rbx
             pushq   %rdi
             movq    $\i,        %rdi
+            pushq   %rsi
+            pushq   %rdx
+            pushq   %rcx
+            pushq   %r8
+            pushq   %r9
+            pushq   %r10
+            pushq   %r11
+            pushq   %r12
+            pushq   %r13
+            pushq   %r14
+            pushq   %r15
             call    isr_dispatch
+            popq    %r15
+            popq    %r14
+            popq    %r13
+            popq    %r12
+            popq    %r11
+            popq    %r10
+            popq    %r9
+            popq    %r8
+            popq    %rcx
+            popq    %rdx
+            popq    %rsi
             popq    %rdi
+            popq    %rbx
             popq    %rax
             .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
@@ -123,8 +156,6 @@ debug_stop_flag:
         .quad isr_\i
     .endm
     xm256 wrapper
-    .global test_fault
-    .type test_fault,           @function
 test_fault:
     // Classic "divide by zero" fault to test the handler established in kmain
     xorq        %rcx,           %rcx
@@ -137,7 +168,10 @@ debug_stop:
     // stop here in case of a fault; register state will be mostly intact, and the faulting instruction's address will have been displayed
 1:  jmp 1b
     .size       debug_stop,     .-debug_stop
-    .section    .data
+no_waiting_op:
+    ret
+    .size       no_waiting_op,  .-no_waiting_op
+    .data
     .global     isr_table
     .type       isr_table,      @object    
 isr_table:

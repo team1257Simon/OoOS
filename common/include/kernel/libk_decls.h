@@ -2,7 +2,6 @@
 #define __LIBK
 #include "kernel/kernel_defs.h"
 #ifdef __cplusplus
-#include "concepts"
 #include "new"
 #include "memory"
 extern "C"
@@ -58,9 +57,9 @@ template<nontrivial_copy T, typename ... Args> requires std::constructible_from<
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
 template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); } } }
-constexpr uint64_t div_round_up(size_t num, size_t denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
-constexpr uint64_t truncate(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : n - (n % unit); }
-constexpr uint64_t up_to_nearest(uint64_t n, uint64_t unit) { return (n % unit == 0) ? n : (unit * div_round_up(n, unit)); }
+template<integral_structure I, integral_structure J> constexpr I div_round_up(I num, J denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
+template<integral_structure I, integral_structure J> constexpr I truncate(I n, J unit) { return (n % unit == 0) ? n : n - (n % unit); }
+template<integral_structure I, integral_structure J> constexpr I up_to_nearest(I n, J unit) { return (n % unit == 0) ? n : (unit * div_round_up(n, unit)); }
 template<typename T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); array_zero(src, n); }
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from) { return ((yr - from) * 365U + (yr - up_to_nearest(from, 4)) / 4U + 1U); }

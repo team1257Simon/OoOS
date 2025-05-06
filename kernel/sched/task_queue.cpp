@@ -1,6 +1,10 @@
 #include "sched/task_queue.hpp"
 #include "arch/arch_amd64.h"
 extern "C" tss system_tss;
+constexpr word pit_divisor                  { 760US };
+constexpr byte pit_mode                     { 0x34UC };
+constexpr word port_pit_data                { 0x40US };
+constexpr word port_pit_cmd                 { 0x43US };
 extern "C" void init_pit() { outb(port_pit_cmd, pit_mode); outb(port_pit_data, pit_divisor.lo); outb(port_pit_data, pit_divisor.hi); }
 extern "C" void init_tss(addr_t k_rsp) { system_tss.rsp[0] = k_rsp; system_tss.rsp[1] = k_rsp; system_tss.rsp[2] = k_rsp; for(int i = 0; i < 7; i++) { system_tss.ist[i] = k_rsp; } }
 __isrcall void task_pl_queue::on_skipped() noexcept { if(!empty() && !at_end()) { next()->task_ctl.skips++; } }

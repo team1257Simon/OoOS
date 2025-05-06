@@ -367,6 +367,7 @@ typedef struct __pt_entry
 } __pack __align(1) pt_entry;
 typedef pt_entry* paging_table;
 #ifdef __cplusplus 
+#include "concepts"
 typedef union __may_alias __vaddr
 #else
 typedef struct __vaddr
@@ -937,6 +938,7 @@ typedef struct __s_le64
 typedef __le16 word;
 typedef __le32 dword;
 typedef __le64 qword;
+template<typename T> concept integral_structure = std::integral<T> || std::convertible_to<T, byte> || std::convertible_to<T, word> || std::convertible_to<T, dword> || std::convertible_to<T, qword>;
 /**
  * These structures are for use with drivers that require working with numbers in big endian (amd64 is little endian).
  * The region pragma is for making it easier to use preprocessor directives in case I ever decide to add another supported architecture (and that arch uses big endian).

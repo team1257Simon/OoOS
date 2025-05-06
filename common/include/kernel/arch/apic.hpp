@@ -43,9 +43,9 @@ struct apic_map
 struct ioapic
 {
     uint32_t select_reg;
-    uint32_t unused[2];
+    uint32_t unused[3];
     uint32_t data_reg;
-} attribute(packed, aligned(4));
+} __pack;
 class apic
 {
     apic_map volatile* __apic_mem;

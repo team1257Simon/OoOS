@@ -1,5 +1,6 @@
 #include "sched/scheduler.hpp"
 #include "isr_table.hpp"
+#include "arch/arch_amd64.h"
 extern "C" 
 {
     extern std::atomic<bool> task_change_flag;
@@ -11,9 +12,32 @@ bool scheduler::__has_init{ false };
 bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
-scheduler::scheduler() = default;
-bool scheduler::__set_untimed_wait(task_t* task) { try { __non_timed_sleepers.push_back(task); task->task_ctl.block = true; task->task_ctl.can_interrupt = true; return true; } catch(std::exception& e) { panic(e.what()); return false; } }
 void scheduler::register_task(task_t* task) { __queues[task->task_ctl.prio_base].push(task); __total_tasks++; }
+scheduler::scheduler()      :
+    __queues                {},
+    __sleepers              {},
+    __non_timed_sleepers    {},
+    __cycle_subticks        { 0U },
+    __tick_rate             {},
+    __sub_cycle_divisor     {},
+    __cycle_divisor         { 100U },
+    __tick_cycles           {},
+    __running               { false },
+    __total_tasks           { 0UZ }
+                            {}
+bool scheduler::__set_untimed_wait(task_t* task)
+{
+    try 
+    {
+        __non_timed_sleepers.push_back(task); 
+        task->task_ctl.block = true;
+        task->task_ctl.can_interrupt = true;
+        return true;
+    }
+    catch(std::exception& e) { panic(e.what()); }
+     return false;
+}
+
 bool scheduler::interrupt_wait(task_t* waiting)
 {
     if(task_wait_queue::const_iterator i = __sleepers.find(waiting); i != __sleepers.end()) { return __sleepers.interrupt_wait(i); } 
@@ -140,19 +164,25 @@ bool scheduler::init()
     }
     catch(std::exception& e) { panic(e.what()); return false; }
     task_change_flag.store(0);
-    init_pit();
+    uint32_t timer_frequency = cpuid(0x15, 0).ecx;
+    if(!timer_frequency) timer_frequency = cpuid(0x16, 0).ecx * 1000000;
+    __tick_rate = timer_frequency / __cycle_divisor;
+    if(timer_frequency % __cycle_divisor) __sub_cycle_divisor = __cycle_divisor;
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(__running)
         {
-            __cycle_subticks++;
-            if(__cycle_subticks >= sub_tick_ratio)
+            __tick_cycles += __tick_rate;
+            if(__sub_cycle_divisor) 
             {
-                on_tick();
-                __cycle_subticks = 0;
-                __tick_cycles++;
-                if(__tick_cycles >= early_trunc_thresh) { __cycle_subticks++; if(__tick_cycles >= cycle_max) __tick_cycles = 0; }
+                __cycle_subticks += __tick_rate;
+                if(__cycle_subticks >= __sub_cycle_divisor)
+                    __tick_cycles++;
+                __cycle_subticks = __cycle_subticks % __sub_cycle_divisor;
             }
+            if(__tick_cycles >= __cycle_divisor) 
+                on_tick();
+            __tick_cycles = __tick_cycles % __cycle_divisor;
         }
     }));
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword) 
