@@ -53,8 +53,8 @@ namespace std
         pos_type pubseekpos(pos_type pos, ios_base::openmode mode = ios_base::in | ios_base::out) { return seekpos(pos, mode); }
         int pubsync() { return sync(); }
         streamsize in_avail() { const streamsize result = egptr() - gptr(); return result ? result : showmanyc(); }
-        int_type sbumpc() { int_type result; if(char_type* p = gptr(); __builtin_expect(p && < egptr(), true)) { result = traits_type::to_int_type(*p); gbump(1); } else result = uflow(); return result; }
-        int_type sgetc() { int_type result; if(char_type* p = gptr(); __builtin_expect(p && < egptr(), true)) { result = traits_type::to_int_type(*p); } else result = underflow(); return result; }
+        int_type sbumpc() { int_type result; if(char_type* p = gptr(); __builtin_expect(p && p < egptr(), true)) { result = traits_type::to_int_type(*p); gbump(1); } else result = uflow(); return result; }
+        int_type sgetc() { int_type result; if(char_type* p = gptr(); __builtin_expect(p && p < egptr(), true)) { result = traits_type::to_int_type(*p); } else result = underflow(); return result; }
         int_type snextc() { int_type result = traits_type::eof(); if(__builtin_expect(!traits_type::eq_int_type(sbumpc(), result), true)) result = sgetc(); return result; }
         streamsize sgetn(char_type* s, streamsize n) { return xsgetn(s, n); }
         int_type sputbackc(char_type c) { int_type result; const bool testpos = eback() < gptr(); if (__builtin_expect(!testpos || !traits_type::eq(c, gptr()[-1]), false)) result = pbackfail(traits_type::to_int_type(c)); else { gbump(-1); result = traits_type::to_int_type(*gptr()); } return result; }
