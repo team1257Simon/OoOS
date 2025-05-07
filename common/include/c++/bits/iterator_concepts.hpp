@@ -20,7 +20,7 @@ namespace std
         template<typename T> concept __dereferenceable = requires(T& __t) { { *__t } -> __can_reference; };
         template<typename IT, typename T2> concept __points_to = convertible_to<decltype(*declval<IT>()), T2>;
     }
-    template<__detail::__dereferenceable T> using iter_reference_t = decltype(*std::declval<T&>());
+    template<__detail::__dereferenceable T> using iter_reference_t = decltype(*declval<T&>());
     namespace ranges
     {
         namespace __cust_imove
@@ -31,9 +31,9 @@ namespace std
             {
             private:
                 template<typename T> struct __result { using type = iter_reference_t<T>; };
-                template<typename T> requires __adl_imove<T> struct __result<T> { using type = decltype(iter_move(std::declval<T>())); };
+                template<typename T> requires __adl_imove<T> struct __result<T> { using type = decltype(iter_move(declval<T>())); };
                 template<typename T> requires (!__adl_imove<T>) && is_lvalue_reference_v<iter_reference_t<T>> struct __result<T> { using type = remove_reference_t<iter_reference_t<T>>&&; };
-                template<typename T> static constexpr bool _is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(std::declval<T>())); else return noexcept(*std::declval<T>()); }
+                template<typename T> static constexpr bool _is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(declval<T>())); else return noexcept(*declval<T>()); }
             public:
                 template<std::__detail::__dereferenceable T> using __type = typename __result<T>::type; 
                 template<std::__detail::__dereferenceable T> constexpr __type<T> operator()(T&& __e) const noexcept(_is_noexcept<T>()) { if constexpr (__adl_imove<T>) return iter_move(static_cast<T&&>(__e)); else if constexpr (is_lvalue_reference_v<iter_reference_t<T>>) return static_cast<__type<T>>(*__e); else return *__e; }
@@ -46,7 +46,7 @@ namespace std
     template<typename T> requires is_object_v<T> struct incrementable_traits<T*> { using difference_type = ptrdiff_t; };
     template<typename IT> struct incrementable_traits<const IT> : incrementable_traits<IT> {};
     template<typename T> requires requires { typename T::difference_type; } struct incrementable_traits<T> { using difference_type = typename T::difference_type; };
-    template<typename T> requires (!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; }) struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(std::declval<T>() - std::declval<T>())>::type; };
+    template<typename T> requires (!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; }) struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(declval<T>() - declval<T>())>::type; };
     #if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
     template<> struct incrementable_traits<__int128> { using difference_type = __int128; };
     template<> struct incrementable_traits<unsigned __int128> { using difference_type = __int128; };
@@ -127,7 +127,7 @@ namespace std
         template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_fwd_iterator<JT> struct __cat<JT> { using type = forward_iterator_tag; };
         template<typename JT> struct __ptr { using type = void; };
         template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
-        template<typename JT> requires (!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(std::declval<JT&>().operator->()); };
+        template<typename JT> requires (!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(declval<JT&>().operator->()); };
         template<typename JT> struct __ref { using type = iter_reference_t<JT>; };
         template<typename JT> requires requires { typename JT::reference; } struct __ref<JT> { using type = typename JT::reference; };
     public:
@@ -172,10 +172,10 @@ namespace std
     template<indirectly_readable T> using iter_common_reference_t = common_reference_t<iter_reference_t<T>, iter_value_t<T>&>;
     template<typename O, typename T> concept indirectly_writable = requires(O&& __o, T&& __t)
     {
-        *__o = std::forward<T>(__t);
-        *std::forward<O>(__o) = std::forward<T>(__t);
-        const_cast<const iter_reference_t<O>&&>(*__o) = std::forward<T>(__t);
-        const_cast<const iter_reference_t<O>&&>(*std::forward<O>(__o)) = std::forward<T>(__t);
+        *__o = forward<T>(__t);
+        *forward<O>(__o) = forward<T>(__t);
+        const_cast<const iter_reference_t<O>&&>(*__o) = forward<T>(__t);
+        const_cast<const iter_reference_t<O>&&>(*forward<O>(__o)) = forward<T>(__t);
     };
     namespace ranges::__detail
     {
@@ -197,7 +197,7 @@ namespace std
     template<typename ST, typename IT> inline constexpr bool disable_sized_sentinel_for = false;
     template<typename ST, typename IT> concept sized_sentinel_for = sentinel_for<ST, IT> && !disable_sized_sentinel_for<remove_cv_t<ST>, remove_cv_t<IT>> && requires(const IT& __i, const ST& __s) { { __s - __i } -> same_as<iter_difference_t<IT>>; { __i - __s } -> same_as<iter_difference_t<IT>>; };
     template<typename IT> concept input_iterator = input_or_output_iterator<IT> && indirectly_readable<IT> && requires { typename __detail::__iter_concept<IT>; } && derived_from<__detail::__iter_concept<IT>, input_iterator_tag>;
-    template<typename IT, typename T> concept output_iterator = input_or_output_iterator<IT> && indirectly_writable<IT, T> && requires(IT __i, T&& __t) { *__i++ = std::forward<T>(__t); };
+    template<typename IT, typename T> concept output_iterator = input_or_output_iterator<IT> && indirectly_writable<IT, T> && requires(IT __i, T&& __t) { *__i++ = forward<T>(__t); };
     template<typename IT> concept forward_iterator = input_iterator<IT> && derived_from<__detail::__iter_concept<IT>, forward_iterator_tag> && incrementable<IT> && sentinel_for<IT, IT>;
     template<typename IT> concept bidirectional_iterator = forward_iterator<IT> && derived_from<__detail::__iter_concept<IT>, bidirectional_iterator_tag> && requires(IT __i) { { --__i } -> same_as<IT&>; { __i-- } -> same_as<IT>; };
     template<typename IT> concept random_access_iterator = bidirectional_iterator<IT> && derived_from<__detail::__iter_concept<IT>, random_access_iterator_tag> && totally_ordered<IT> && sized_sentinel_for<IT, IT> && requires(IT __i, const IT __j, const iter_difference_t<IT> __n)
@@ -209,7 +209,7 @@ namespace std
         { __j -  __n } -> same_as<IT>;
         {  __j[__n]  } -> same_as<iter_reference_t<IT>>; 
     };
-    template<typename IT> concept contiguous_iterator = random_access_iterator<IT> && derived_from<__detail::__iter_concept<IT>, contiguous_iterator_tag> && is_lvalue_reference_v<iter_reference_t<IT>> && same_as<iter_value_t<IT>, remove_cvref_t<iter_reference_t<IT>>> && requires(const IT& __i) { { std::to_address(__i) } -> same_as<add_pointer_t<iter_reference_t<IT>>>; };
+    template<typename IT> concept contiguous_iterator = random_access_iterator<IT> && derived_from<__detail::__iter_concept<IT>, contiguous_iterator_tag> && is_lvalue_reference_v<iter_reference_t<IT>> && same_as<iter_value_t<IT>, remove_cvref_t<iter_reference_t<IT>>> && requires(const IT& __i) { { to_address(__i) } -> same_as<add_pointer_t<iter_reference_t<IT>>>; };
     template<typename FT, typename IT> concept indirectly_unary_invocable = indirectly_readable<IT> && copy_constructible<FT> && invocable<FT&, iter_value_t<IT>&> && invocable<FT&, iter_reference_t<IT>> && invocable<FT&, iter_common_reference_t<IT>> && common_reference_with<invoke_result_t<FT&, iter_value_t<IT>&>, invoke_result_t<FT&, iter_reference_t<IT>>>;
     template<typename FT, typename IT> concept indirectly_regular_unary_invocable = indirectly_readable<IT> && copy_constructible<FT> && regular_invocable<FT&, iter_value_t<IT>&> && regular_invocable<FT&, iter_reference_t<IT>> && regular_invocable<FT&, iter_common_reference_t<IT>> && common_reference_with<invoke_result_t<FT&, iter_value_t<IT>&>, invoke_result_t<FT&, iter_reference_t<IT>>>;
     template<typename FT, typename IT> concept indirect_unary_predicate = indirectly_readable<IT> && copy_constructible<FT> && predicate<FT&, iter_value_t<IT>&> && predicate<FT&, iter_reference_t<IT>> && predicate<FT&, iter_common_reference_t<IT>>;
@@ -233,7 +233,7 @@ namespace std
             struct __iter_swap
             {
             private:
-                template<typename T, typename U> static constexpr bool _is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(std::declval<T>(), std::declval<U>())); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*std::declval<T>(), *std::declval<U>())); else return noexcept(*std::declval<T>() = __iter_exchange_move(std::declval<U>(), std::declval<T>())); }
+                template<typename T, typename U> static constexpr bool _is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(declval<T>(), declval<U>())); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*declval<T>(), *declval<U>())); else return noexcept(*declval<T>() = __iter_exchange_move(declval<U>(), declval<T>())); }
             public:
                 template<typename T, typename U> requires __adl_iswap<T, U> || (indirectly_readable<remove_reference_t<T>> && indirectly_readable<remove_reference_t<U>> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) || (indirectly_movable_storable<T, U> && indirectly_movable_storable<U, T>)
                 constexpr void operator()(T&& __e1, U&& __e2) const noexcept(_is_noexcept<T, U>()) { if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2)); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2); else *__e1 = __iter_exchange_move(__e2, __e1); }
@@ -259,17 +259,23 @@ namespace std
     namespace ranges::__cust_access
     {
         using std::__detail::__class_or_enum;
-        struct __decay_copy final { template<typename T> constexpr decay_t<T> operator()(T&& __t) const { return std::forward<T>(__t); } } inline constexpr __decay_copy{};
+        struct __decay_copy final { template<typename T> constexpr decay_t<T> operator()(T&& __t) const { return forward<T>(__t); } } inline constexpr __decay_copy{};
         template<typename T> concept __member_begin = requires(T& __t) { { __decay_copy(__t.begin()) } -> input_or_output_iterator; };
         void begin(auto&) = delete;
         void begin(const auto&) = delete;
         template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
         template<typename T> requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> auto __begin(T& __t) { if constexpr (is_array_v<T>) return __t + 0; else if constexpr (__member_begin<T&>) return __t.begin(); else return begin(__t); }
     }
-    namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(std::declval<T&>())); }
-#pragma region nonstandard useful concepts
-    extension template<typename IT, typename T2> concept matching_input_iterator = std::input_iterator<IT> && __detail::__points_to<IT, T2>;
-    extension template<typename IT, typename T2> concept matching_forward_iterator = std::forward_iterator<IT> && __detail::__points_to<IT, T2>;
+    namespace __detail
+    {
+        template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(declval<T&>()));
+        
+    }
+#pragma region nonstandard useful concepts and typedefs
+    extension template<typename IT, typename T2> concept matching_input_iterator = input_iterator<IT> && __detail::__points_to<IT, T2>;
+    extension template<typename IT, typename T2> concept matching_forward_iterator = forward_iterator<IT> && __detail::__points_to<IT, T2>;
+    template<typename C, typename T> concept iterable = output_iterator<decltype(declval<C>().begin()), T> && output_iterator<decltype(declval<C>().end()), T>;
+    template<typename C, typename T> concept const_iterable = matching_input_iterator<decltype(declval<C const&>().begin()), T> && matching_input_iterator<decltype(declval<C const&>().end()), T>;
 #pragma endregion
 }
 #endif

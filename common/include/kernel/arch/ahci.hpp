@@ -18,10 +18,10 @@ constexpr uint16_t hba_control_det =  0x0001US;
 constexpr uint32_t hba_enable_interrupts_all = 0xFDC000FFU;
 constexpr uint32_t hba_error = 0x78000000U;
 constexpr uint32_t hba_enable_ahci = 0x80000002;
-constexpr unsigned prdt_entries_count = 8U;
+constexpr uint32_t prdt_entries_count = 8U;
 constexpr byte port_active = 0x01UC;
 constexpr byte port_present = 0x03UC;
-constexpr uint32_t port_power_on = (1<<28);
+constexpr uint32_t port_power_on = (1U << 28);
 constexpr uint8_t busy_bit = 7u;
 constexpr uint8_t drq_bit = 3u;
 constexpr uint8_t cr_bit = 15u;
@@ -33,7 +33,7 @@ constexpr uint8_t soft_reset_bit = 0b10;
 constexpr uint8_t nien_bit = 0b1;
 constexpr uint8_t dev_class_storage_controller = 1;
 constexpr uint8_t subclass_sata_controller = 6;
-constexpr uint64_t max_wait = 10000000uL;
+constexpr uint64_t max_wait = 10000000UL;
 constexpr uint64_t max_ext_wait = max_wait * max_wait;
 constexpr uint8_t i_state_hi_byte_error = 0x78UC;
 constexpr uint8_t oos_bit = 2;
@@ -402,12 +402,12 @@ typedef volatile struct tmem
 } __pack hba_mem;
 class ahci
 {
-    pci_config_space* __my_ahci_controller{ nullptr };
-    hba_mem* __my_abar{ nullptr }; // this will be stored in the BAR numbered 5
-    ahci_device __my_devices[32]{ none };
-    size_t __num_ports{};
-    addr_t __my_block{};
-	int __last_command_on_port[32]{};
+    pci_config_space* __pci_ahci_controller;
+    hba_mem* __abar; 		// this will be stored in the BAR numbered 5
+    ahci_device __devices[32];
+    size_t __num_ports;
+    addr_t __ahci_block;
+	int __last_command_on_port[32];
 	static bool __has_init;
 	static ahci __instance;
 	void __issue_command(uint8_t port_idx, int slot);

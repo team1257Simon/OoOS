@@ -8,7 +8,7 @@ namespace std
     namespace ext
     {
         template<char_type CT, char_traits_type<CT> TT = char_traits<CT>, allocator_object<CT> AT = allocator<CT>>
-        class dynamic_queue_streambuf : public virtual basic_streambuf<CT, TT>, protected __impl::__dynamic_queue<CT, AT>
+        class dynamic_queue_streambuf : public virtual basic_streambuf<CT, TT>, protected std::__impl::__dynamic_queue<CT, AT>
         {
             typedef std::__impl::__dynamic_queue<CT, AT> __base;
             using typename __base::__ptr_container;
@@ -28,18 +28,19 @@ namespace std
             dynamic_queue_streambuf(const_pointer start, const_pointer end, off_type n = 0L, size_type e = 0UZ) : __base(static_cast<size_type>(end - start)) { this->__qcopy(this->__qbeg(), start, static_cast<size_type>(end - start)); if(n > 0L) this->__qsetn(static_cast<size_type>(n)); if(e) this->__qsete(e); }
             dynamic_queue_streambuf& operator=(dynamic_queue_streambuf const&) = delete;
             dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__qmove(forward<__base>(that)); return *this; }
-            dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type{}) : __base{ sz, alloc } {}
+            dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type{}) : __base(sz, alloc) {}
             virtual void reset() { this->__qrst(); }
             pointer data() { return this->__qbeg(); }
-            std::streamsize count() const noexcept { return this->__qsize(); }
+            const_pointer data() const { return this->__qbeg(); }
+            streamsize count() const noexcept { return this->__qsize(); }
         protected:
             virtual streamsize xsputn(const_pointer src,  streamsize n) override { pointer old_end = this->__end(); return size_type(this->__push_elements(src, src + n) - old_end); }
             virtual streamsize xsgetn(pointer dest, streamsize n) override { return this->__pop_elements(dest, dest + n); }
             virtual pos_type seekpos(pos_type pos, ios_base::openmode = ios_base::in) noexcept override { this->__qsetn(static_cast<size_type>(pos)); return pos_type(this->__tell()); }
             virtual pos_type seekoff(off_type off, ios_base::seekdir way, ios_base::openmode = ios_base::in) noexcept override { this->__qsetn((way < 0 ? this->__qbeg() : (way > 0 ? this->__end() : this->__qcur())) + off); return pos_type(this->__tell()); }
             virtual void on_modify_queue() override { this->sync(); }
-            virtual int sync() override { this->setg(this->__qbeg(), this->__qcur(), this->__qmax()); this->__fullsetp(this->__qbeg(), this->__end(), this->__qmax()); return 0; }
-            virtual std::streamsize showmanyc() override { return this->__qrem(); }
+            virtual int sync() override { this->setg(this->__qbeg(), this->__qcur(), this->__qmax()); this->setp(this->__qbeg(), this->__end(), this->__qmax()); return 0; }
+            virtual streamsize showmanyc() override { return this->__qrem(); }
         };
     }
 }

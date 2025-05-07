@@ -19,7 +19,7 @@ scheduler::scheduler()      :
     __non_timed_sleepers    {},
     __cycle_subticks        { 0U },
     __tick_rate             {},
-    __subtick_rate     {},
+    __subtick_rate          {},
     __cycle_divisor         {},
     __tick_cycles           {},
     __running               { false },
@@ -154,12 +154,19 @@ __isrcall void scheduler::on_tick()
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
 }
-static uint32_t normalize_dec(uint32_t num)
+static uint32_t significance(uint32_t num)
 {
-    uint32_t i = num;
-    while(i > 10) i /= 10;
+    uint32_t i;
+    for(i = 1; num > 10U; i *= 10, num /= 10);
     return i;
 }
+static uint32_t leading_digit(uint32_t num)
+{
+    uint32_t i;
+    for(i = num; i > 10U; i /= 10);
+    return i;
+}
+#include "kdebug.hpp"
 bool scheduler::init()
 {
     try
@@ -170,11 +177,11 @@ bool scheduler::init()
     }
     catch(std::exception& e) { panic(e.what()); return false; }
     task_change_flag.store(0);
-    uint32_t timer_frequency = cpuid(0x15, 0).ecx;
-    if(!timer_frequency) timer_frequency = cpuid(0x16, 0).ecx * 1000000;
-    __cycle_divisor = normalize_dec(timer_frequency) * 1000;
-    __tick_rate = __cycle_divisor / 25;
-    if(timer_frequency % (__cycle_divisor)) __subtick_rate = timer_frequency % (__cycle_divisor);
+    uint32_t timer_frequency = cpuid(0x15U, 0).ecx;
+    if(!timer_frequency) timer_frequency = cpuid(0x16U, 0).ecx * 1000000;
+    __cycle_divisor = leading_digit(timer_frequency) * significance(timer_frequency);
+    __tick_rate = (__cycle_divisor * 1000) / timer_frequency;
+    if((__cycle_divisor * 1000) % timer_frequency) __subtick_rate = ((__cycle_divisor % timer_frequency) * 1000) / timer_frequency;
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(__running)
@@ -184,12 +191,9 @@ bool scheduler::init()
             {
                 __cycle_subticks += __subtick_rate;
                 if(__cycle_subticks >= __cycle_divisor)
-                    __tick_cycles++;
-                __cycle_subticks = __cycle_subticks % __cycle_divisor;
+                    __tick_cycles++, __cycle_subticks = __cycle_subticks % __cycle_divisor;
             }
-            if(__tick_cycles >= __cycle_divisor) 
-                on_tick();
-            __tick_cycles = __tick_cycles % __cycle_divisor;
+            if(__tick_cycles >= __cycle_divisor) on_tick(), __tick_cycles = __tick_cycles % __cycle_divisor;
         }
     }));
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword) 

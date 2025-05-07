@@ -7,12 +7,12 @@ struct hpet_desc_table
     acpi_header header; // "HPET"
     struct
     {
-        uint8_t rev_id                      : 8;
+        uint8_t rev_id;
         uint8_t comparator_count            : 5;
         bool counter_size_x64               : 1;
         bool                                : 1;
         bool legacy_replacement_capable     : 1;
-        uint16_t pci_vendor_id              : 16;
+        uint16_t pci_vendor_id;
     } __pack;
     generic_address_structure base_addr;
     uint8_t hpet_seq_num;
@@ -62,13 +62,12 @@ public:
     static hpet_amd64& get();
     static bool init_instance();
     void delay_us(time_t usec);
-    void delay_us(time_t usec, awaiting_action action);
+    void delay_us(time_t usec, void (*action)());
     uint64_t read_counter();
     static void delay_usec(time_t usec);
-    static void delay_usec(time_t usec, awaiting_action action);
+    static void delay_usec(time_t usec, void (*action)());
     static uint64_t count();
     static time_t count_usec();
 };
-constexpr auto test = offsetof(hpet_t, main_counter);
 #define hpet hpet_amd64::get()
 #endif

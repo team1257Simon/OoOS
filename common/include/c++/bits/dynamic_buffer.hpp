@@ -38,11 +38,13 @@ namespace std::__impl
         void __move_ptrs(__buf_ptrs&& that) { __copy_ptrs(that); that.__reset(); }
         void __swap_ptrs(__buf_ptrs& that) { __buf_ptrs tmp; tmp.__copy_ptrs(*this); __copy_ptrs(that); that.__copy_ptrs(tmp); }
         void __set_ptrs(__ptr begin, __ptr end, __ptr max) { __begin = begin; __end = end; __max = max; }
+        void __set_ptrs(__ptr begin, __size_type ncap) { __size_type s = min(ncap, static_cast<__size_type>(__end - __begin)); __set_ptrs(begin, begin + s, begin + ncap); }
         __ptr __get_ptr(__size_type offs) { return __begin + offs; }
         void __setc(__ptr where) { __end = where; }
         void __setc(__size_type offs) { __end = __begin + offs; }
         void __adv(__size_type n) { __end += n; }
         void __bck(__size_type n) { __end -= n; }
+        __size_type __capacity() const { return static_cast<__size_type>(__max - __begin); }
     };
     /**
      * This base-type implements the functionality shared by the dynamic-container types (mainly string and vector). 

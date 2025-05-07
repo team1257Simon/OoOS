@@ -44,21 +44,7 @@ namespace std
         template<typename ... Args> concept __zero_size = sizeof...(Args) == 0;
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
     }
-#pragma region non-standard memory functions
-    extension template<typename T> [[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount) 
-    {
-        if consteval
-        {
-            __base_allocator<T> alloc{};
-            T* result = alloc.__allocate(ncount);
-            size_t ccount = ncount < ocount ? ncount : ocount;
-            for(size_t i = 0; i < ccount; i++) { ::new(static_cast<void*>(addressof(result[i]))) T(std::move(array[i])); }
-            alloc.__deallocate(array, ocount);
-            return result;
-        }
-        else { return static_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
-    }
-#pragma endregion
+
     template<typename T>
     struct allocator : __base_allocator<T>
     {
@@ -118,5 +104,20 @@ namespace std
         [[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; return static_cast<pointer>(::operator new(n * __size_val, __align)); }
         [[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
     };
+#pragma region non-standard memory functions
+    extension template<typename T, allocator_object<T> AT = allocator<T>> [[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT alloc = AT{})
+    {
+        if consteval
+        {
+            T* result = alloc.allocate(ncount);
+            size_t ccount = ncount < ocount ? ncount : ocount;
+            for(size_t i = 0; i < ccount; i++) { ::new(static_cast<void*>(addressof(result[i]))) T(std::move(array[i])); }
+            alloc.deallocate(array, ocount);
+            return result;
+        }
+        else { return static_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
+    }
+#pragma endregion
+    
 }
 #endif

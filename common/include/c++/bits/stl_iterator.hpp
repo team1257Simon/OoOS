@@ -83,8 +83,8 @@ namespace std
     template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator>=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() <= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() <= __that.base(); }
     template<bidirectional_iterator IT, bidirectional_iterator JT> requires three_way_comparable_with<JT, IT> constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
     template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr typename std::iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
-    template<input_iterator IT> struct deref { typedef decltype(*declval<IT>()) type; };
-    template<input_iterator IT> using deref_t = typename deref<IT>::type;
+    template<__detail::__dereferenceable IT> struct deref { typedef decltype(*declval<IT>()) type; };
+    template<__detail::__dereferenceable IT> using deref_t = typename deref<IT>::type;
 }
 namespace __impl
 {

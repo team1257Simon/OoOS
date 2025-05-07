@@ -257,7 +257,7 @@ public:
     paging_table allocate_pt();
     uintptr_t frame_translate(addr_t addr);
     addr_t allocate_kernel_block(size_t sz);
-    addr_t allocate_mmio_block(size_t sz);
+    addr_t allocate_dma_block(size_t sz);
     addr_t map_mmio_region(uintptr_t addr, size_t sz);
     addr_t map_uncached_mmio(uintptr_t addr, size_t sz);
     addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);

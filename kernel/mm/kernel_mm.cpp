@@ -408,7 +408,7 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
     __instance->__watermark = heap;
     __set_kernel_page_flags(sb_addr);
 }
-addr_t kernel_memory_mgr::allocate_mmio_block(size_t sz)
+addr_t kernel_memory_mgr::allocate_dma_block(size_t sz)
 {
     __lock();
     addr_t result = nullptr;

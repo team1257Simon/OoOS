@@ -20,7 +20,7 @@ namespace std
             using typename std::basic_streambuf<CT, TT>::__sb_type;
             using typename std::basic_streambuf<CT, TT>::__ptr_container;
             bool is_dirty{ false };
-            virtual void sync_ptrs() { if(!this->__in_region.__end) { this->__in_region.__end = this->__beg(); } if(this->__beg()) { this->__fullsetp(this->__beg(), this->__cur(), this->__max()); this->setg(this->__beg(), this->gptr(), this->__max()); } }
+            virtual void sync_ptrs() { if(!this->__in_region.__end) { this->__in_region.__end = this->__beg(); } if(this->__beg()) { this->setp(this->__beg(), this->__cur(), this->__max()); this->setg(this->__beg(), this->gptr(), this->__max()); } }
             virtual std::basic_string<CT, TT, AT> __str() const& { return std::basic_string<CT, TT, AT>{ this->__beg(), this->__max() }; }
             virtual std::basic_string<CT, TT, AT> __str() && { size_t s = this->__capacity(); std::basic_string<CT, TT, AT> result{ this->__beg(), this->__max() }; this->__clear(); this->__allocate_storage(s); this->on_modify(); return result; }
             virtual void __str(std::basic_string<CT, TT, AT> const& that) { this->__clear(); this->__allocate_storage(that.size() + 1); this->__copy(this->__beg(), that.data(), that.size()); this->__advance(that.size()); this->on_modify(); }
