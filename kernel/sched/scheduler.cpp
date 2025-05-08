@@ -180,8 +180,8 @@ bool scheduler::init()
     uint32_t timer_frequency = cpuid(0x15U, 0).ecx;
     if(!timer_frequency) timer_frequency = cpuid(0x16U, 0).ecx * 1000000;
     __cycle_divisor = leading_digit(timer_frequency) * significance(timer_frequency);
-    __tick_rate = (__cycle_divisor * 1000) / timer_frequency;
-    if((__cycle_divisor * 1000) % timer_frequency) __subtick_rate = ((__cycle_divisor % timer_frequency) * 1000) / timer_frequency;
+    __tick_rate = (__cycle_divisor * 500) / timer_frequency;
+    if((__cycle_divisor * 500) % timer_frequency) __subtick_rate = ((__cycle_divisor % timer_frequency) * 500) / timer_frequency;
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(__running)

@@ -11,13 +11,15 @@ public:
     constexpr ~simple_io_port() = default;
     constexpr simple_io_port(simple_io_port const&) = default;
     constexpr simple_io_port(simple_io_port&&) = default;
-    constexpr void put(IT i) { out(__port_num, i); }
-    constexpr IT get() { return in<IT>(__port_num); }
+    constexpr void put(IT i) volatile { out(__port_num, i); }
+    constexpr IT get() volatile { return in<IT>(__port_num); }
     constexpr simple_io_port& operator=(simple_io_port const&) = default;
     constexpr simple_io_port& operator=(simple_io_port&&) = default;
     constexpr simple_io_port& operator<<(IT i) { put(i); return *this; }
     constexpr simple_io_port& operator>>(IT& i) { i = get(); return *this; }
     template<std::const_iterable<IT> CT> constexpr simple_io_port& operator<<(CT const& c) { for(IT i = c.begin(); i != c.end(); i++) { put(*i); } return *this; }
     template<std::iterable<IT> CT> constexpr simple_io_port& operator>>(CT& c) { for(IT i = c.begin(); i != c.end(); i++) { *i = get(); } return *this; }
+    template<integral_structure I> constexpr uint16_t operator+(I i) const noexcept { return __port_num + static_cast<uint16_t>(i); }
+    constexpr operator bool() const noexcept { return __port_num != 0; }
 };
 #endif

@@ -13,7 +13,6 @@ constexpr size_t prdt_size = prdt_entries_count * sizeof(hba_prdt_entry);
 ahci ahci::__instance{};
 bool ahci::__has_init = false;
 void ahci::__init_irq() { for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __abar->i_status |= BIT(i); barrier(); uint32_t s1 = __abar->ports[i].i_state; barrier(); __abar->ports[i].i_state = s1; barrier(); } }  if(interrupt_table::add_irq_handler(__pci_ahci_controller->header_0x0.interrupt_line, std::move(LAMBDA_ISR() { this->handle_irq(); }))) irq_clear_mask(__pci_ahci_controller->header_0x0.interrupt_line); }
-static inline bool await_result(std::function<bool()> const& fn, uint64_t max_dur = max_wait) { for(uint64_t spin = 0UL; !fn() && spin < max_dur; barrier(), spin++); return fn(); }
 static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /*drq*/ }
 static inline bool __port_cmd_busy(hba_port* port, int slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo.b5 /* processed */ && i[slot]; }
 static inline bool __port_nack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return i.lo.hi.b7 /* cr */ || i.lo.hi.b6; /* fr */ }
@@ -64,7 +63,7 @@ void ahci::__build_h2d_fis(qword start, dword count, addr_t buffer, ata_command 
     for(uint16_t i = 0; i < l; i++, addr += main_op_bcnt)
     {
         barrier();
-        new (std::addressof(cmdtbl->prdt_entries[i])) hba_prdt_entry 
+        new(std::addressof(cmdtbl->prdt_entries[i])) hba_prdt_entry 
         {
             .data_base = addr.lo,
             .data_base_hi = addr.hi,
@@ -74,7 +73,7 @@ void ahci::__build_h2d_fis(qword start, dword count, addr_t buffer, ata_command 
         barrier();
     }
     barrier();
-    new (static_cast<void*>(cmdtbl->cmd_fis)) fis_reg_h2d
+    new(static_cast<void*>(cmdtbl->cmd_fis)) fis_reg_h2d
 	{
 		.type = reg_h2d,
 		.ctype = true,
@@ -102,8 +101,9 @@ bool ahci::init(pci_config_space* ps) noexcept
     try
     {
         __pci_ahci_controller = ps;
-        __abar = compute_base(ps->header_0x0.bar[5]);
-        __ahci_block = kmm.allocate_dma_block(S128);
+        uint32_t bar = ps->header_0x0.bar[5];
+        __abar = compute_base(bar);
+        __ahci_block = kmm.allocate_dma(S128, (bar & (1 << 3)) != 0);
         barrier();
         __pci_ahci_controller->command.bus_master = true;
         __pci_ahci_controller->command.memory_space = true;

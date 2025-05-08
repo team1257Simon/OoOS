@@ -1,0 +1,117 @@
+#ifndef __TYPEINDEX
+#define __TYPEINDEX
+#include "bits/typeinfo.h"
+#include "bits/stl_hash.hpp"
+#include "bits/stdexcept.h"
+#include "functional"
+namespace std
+{
+    class type_index
+    {
+    protected:
+        type_info const* info;
+    public:
+        type_index(type_info const& i);
+        const char* name() const;
+        size_t hash_code() const;
+        friend inline strong_ordering operator<=>(type_index const& __this, type_index const& __that) { return strcmp(__this.info->name(), __that.info->name()) <=> 0; }
+    };
+    extension namespace ext
+    {
+        class type_erasure : public type_index
+        {
+        public:
+            type_erasure(type_info const& i);
+            bool is_derived_from(type_info const& that);
+            void* cast(void* obj, type_info const& ti);
+            void* cast_from(void* obj, type_erasure const& that);
+            template<typename T> void* cast(T& t);
+            template<object T> requires (!is_array_v<T>) void* cast(T& t) { return cast(addressof(t), typeid(t)); }
+            template<typename T> requires (!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
+            template<typename T> bool matches(T const& t) { if(*info == typeid(t)) return true; return type_erasure(typeid(t)).is_derived_from(*info); }
+            friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
+        };
+        template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
+        template<typename T> concept polymorphic = is_polymorphic_v<T>;
+        namespace __impl
+        {
+            struct __generic_arg_tuple_container
+            {
+                void* __args_tuple;
+                void (*__dtor)(void*);
+                constexpr __generic_arg_tuple_container(void* a, void(*d)(void*)) : __args_tuple{ a }, __dtor{ d } {}
+                constexpr ~__generic_arg_tuple_container() { if(__args_tuple && __dtor) (*__dtor)(__args_tuple); }
+            };
+            template<polymorphic T, allocator_object<void> A>
+            struct __dynamic_ptr
+            {
+                template<derived_from<T> U> using __allocator = typename A::template rebind<U>;
+                using __base_alloc = typename A::template rebind<T>;
+                template<derived_from<T> U> 
+                struct __alloc_helper
+                {
+                    constexpr static __allocator<U> __ualloc{};
+                    constexpr static T* __allocate() { return __ualloc.allocate(1UZ); }
+                    constexpr static void __deallocate(void* ptr) { __ualloc.deallocate(static_cast<U*>(ptr), 1UZ); }
+                };
+                typedef void (*__dealloc_fn)(void*);
+                constexpr static __base_alloc __base{};
+                type_erasure __obj_erasure;
+                T* __ptr;
+                __dealloc_fn __dfn;
+                static void __base_dealloc(void* ptr) { __base.deallocate(static_cast<T*>(ptr), 1UZ); }
+                ~__dynamic_ptr() { if(__ptr && __dfn) (*__dfn)(__ptr); }
+                template<derived_from<T> U, typename ... Args>
+                requires constructible_from<U, Args...>
+                __dynamic_ptr(Args&& ... args) :
+                    __obj_erasure   { typeid(U) },
+                    __ptr           { construct_at(__alloc_helper<U>::allocate(), forward<Args>(args)...) },
+                    __dfn           { __alloc_helper<U>::__deallocate }
+                                    {}
+                __dynamic_ptr() requires (!is_default_constructible_v<T>) :
+                    __obj_erasure   { typeid(T) },
+                    __ptr           { nullptr },
+                    __dfn           { nullptr }
+                                    {}
+                __dynamic_ptr() requires is_default_constructible_v<T> :
+                    __obj_erasure   { typeid(T) },
+                    __ptr           { construct_at(__base.allocate(1UZ)) },
+                    __dfn           { __base_dealloc }
+                                    {}
+                template<derived_from<T> U> __dynamic_ptr(U* ptr) :
+                    __obj_erasure   { typeid(*ptr) },
+                    __ptr           { ptr },
+                    __dfn           { __alloc_helper<U>::__deallocate }
+                                    {}
+                void __reset() 
+                { 
+                    if(__ptr && __dfn) (*__dfn)(__ptr); 
+                    __ptr = nullptr; 
+                    __obj_erasure = typeid(T); 
+                    if constexpr(is_default_constructible_v<T>) { __ptr = construct_at(__base.allocate(1)); __dfn = __base_dealloc; } 
+                    else { __dfn = nullptr; } 
+                }
+            };
+        }
+        template<polymorphic T, allocator_object<T> A = allocator<T>>
+        class dynamic_ptr : protected __impl::__dynamic_ptr<T, typename A::template rebind<void>>
+        {
+            typedef __impl::__dynamic_ptr<T, typename A::template rebind<void>> __base;
+        public:
+            type_erasure const& erasure() const& { return this->__obj_erasure; }
+            T* operator->() & { return this->__ptr; }
+            T const* operator->() const& { return this->__ptr; }
+            T& operator*() & { return *this->__ptr; }
+            T const& operator*() const& { return *this->__ptr; }
+            template<derived_from<T> U> U& cast() & { return dynamic_cast<U&>(*this->__ptr); }
+            template<derived_from<T> U> U const& cast() const& { return dynamic_cast<U const&>(*this->__ptr); }
+            template<derived_from<T> U> U* weak_cast() & { return dynamic_cast<U*>(this->__ptr); }
+            template<derived_from<T> U> U const* weak_cast() const& { return dynamic_cast<U*>(this->__ptr); }
+            template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> dynamic_ptr(Args&& ... args) : __base(forward<Args>(args)...) {}
+            template<derived_from<T> U> dynamic_ptr(U* ptr) : __base(ptr) {}
+            dynamic_ptr() : __base() {}
+            void reset() { this->__reset(); }
+        };
+    }
+}
+#endif

@@ -2,6 +2,7 @@
 #define __AHCI
 #include "kernel/libk_decls.h"
 #include "kernel/arch/pci.hpp"
+#include "functional"
 #pragma region magic_numbers
 constexpr uint32_t sig_sata = 0x00000101U;
 constexpr uint32_t sig_atapi = 0xEB140101U;
@@ -33,7 +34,6 @@ constexpr uint8_t soft_reset_bit = 0b10;
 constexpr uint8_t nien_bit = 0b1;
 constexpr uint8_t dev_class_storage_controller = 1;
 constexpr uint8_t subclass_sata_controller = 6;
-constexpr uint64_t max_wait = 10000000UL;
 constexpr uint64_t max_ext_wait = max_wait * max_wait;
 constexpr uint8_t i_state_hi_byte_error = 0x78UC;
 constexpr uint8_t oos_bit = 2;

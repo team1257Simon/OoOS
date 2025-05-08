@@ -2,10 +2,10 @@
 #define __DELEGATE_PTR
 #include "bits/stl_allocator.h"
 #include "bits/typeinfo.h"
-#include "ext/type_token.hpp"
 #include "vector"
 #include "unordered_map"
 #include "functional"
+#include "stdexcept"
 /**
  * A delegate pointer is a non-owning pointer (as a weak pointer) to a shared object, the owner of which need not be known to the requestor.
  * Essentially, it's like a shared pointer, but the reference-counting is globally implementation-backed.
@@ -84,7 +84,7 @@ namespace std
             template<typename T> struct __object_type_managed_ptrs : __generic_ptr_container
             {
                 template<typename ... Args> requires constructible_from<T, Args...>
-                size_t add_new(type_token<T>, Args&& ... args)
+                size_t add_new(Args&& ... args)
                 {
                     size_t result = __target_idx();
                     at(result) = new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, forward<Args>(args)...);
@@ -150,7 +150,7 @@ namespace std
             delegate_ptr(size_t id) : __base(id) {}
             delegate_ptr(T&& t) requires move_constructible<T> : __base(__impl::__get_ptrs<T>().add(move(t))) {}
             delegate_ptr(T const& t) requires copy_constructible<T> : __base(__impl::__get_ptrs<T>().add(t)) {}
-            template<typename ... Args> requires constructible_from<T, Args...> delegate_ptr(Args&& ... args) : __base(__impl::__get_ptrs<T>().template add_new(type_token<T>(), forward<Args>(args)...)) {}
+            template<typename ... Args> requires constructible_from<T, Args...> delegate_ptr(Args&& ... args) : __base(__impl::__get_ptrs<T>().template add_new(forward<Args>(args)...)) {}
             // Registers any action that must be performed on a per-reference basis with regard to a given object when acquiring or releasing a delegate pointer.
             static void on_acquire_release(delegate_callback&& acq, delegate_callback&& rel) { __impl::__register_acq_rel_fns<T>(move(acq), move(rel)); }
             friend constexpr strong_ordering operator<=>(delegate_ptr const& __this, delegate_ptr const& __that) noexcept { return __this.__idx <=> __that.__idx; }

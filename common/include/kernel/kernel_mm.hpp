@@ -243,6 +243,7 @@ public:
     static void init_instance(mmap_t* mmap);
     static kernel_memory_mgr& get();
     static size_t aligned_size(addr_t start, size_t requested);
+    static size_t dma_size(size_t requested);
     static void suspend_user_frame();
     static void resume_user_frame();
     constexpr uintptr_t open_wm() const { return __watermark; }
@@ -257,16 +258,14 @@ public:
     paging_table allocate_pt();
     uintptr_t frame_translate(addr_t addr);
     addr_t allocate_kernel_block(size_t sz);
-    addr_t allocate_dma_block(size_t sz);
-    addr_t map_mmio_region(uintptr_t addr, size_t sz);
-    addr_t map_uncached_mmio(uintptr_t addr, size_t sz);
+    addr_t allocate_dma(size_t sz, bool prefetchable);
+    addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
     addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);
     addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
     addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
     void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
     addr_t copy_kernel_mappings(paging_table target);
 };
-#define use_kmm(name)
 #define kmm kernel_memory_mgr::get()
 extern "C" void* aligned_malloc(size_t size, size_t align);
 extern "C" addr_t syscall_sbrk(ptrdiff_t incr);                                                             // void* sbrk(ptrdiff_t incr);

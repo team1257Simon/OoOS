@@ -43,6 +43,7 @@ void kernel_memory_mgr::__unlock() { release(addressof(__heap_mutex)); __resume_
 void kernel_memory_mgr::__userlock() { lock(addressof(__user_mutex)); }
 void kernel_memory_mgr::__userunlock() { release(addressof(__user_mutex)); }
 void kernel_memory_mgr::__mark_used(uintptr_t start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, start += region_size) __get_sb(start)->set_used(ALL); }
+size_t kernel_memory_mgr::dma_size(size_t requested) { return region_size_for(requested); }
 size_t    kernel_memory_mgr::aligned_size(addr_t start, size_t requested) { return static_cast<size_t>(start.plus(requested).next_page_aligned() - start.page_aligned()); }
 void      kernel_memory_mgr::suspend_user_frame() { __instance->__suspend_frame(); }
 void      kernel_memory_mgr::resume_user_frame() { __instance->__resume_frame(); }
@@ -408,28 +409,25 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
     __instance->__watermark = heap;
     __set_kernel_page_flags(sb_addr);
 }
-addr_t kernel_memory_mgr::allocate_dma_block(size_t sz)
+addr_t kernel_memory_mgr::allocate_dma(size_t sz, bool prefetchable)
 {
     __lock();
     addr_t result = nullptr;
-    if(uintptr_t phys = __find_and_claim(sz)) { result = __map_mmio_pages(addr_t(phys), div_round_up(region_size_for(sz), page_size)); __watermark = std::max(phys, __watermark); }
+    if(uintptr_t phys = __find_and_claim(sz)) 
+    {
+        size_t total_sz = div_round_up(region_size_for(sz), page_size);
+        if(prefetchable) result = __map_mmio_pages(addr_t(phys), total_sz); 
+        else result = __map_uncached_mmio_pages(addr_t(phys), total_sz);
+        __watermark = std::max(phys, __watermark);
+    }
     __unlock();
     return result;
 }
-addr_t kernel_memory_mgr::map_mmio_region(uintptr_t addr, size_t sz)
+addr_t kernel_memory_mgr::map_dma(uintptr_t addr, size_t sz, bool prefetchable)
 {
     size_t npage    = div_round_up(sz, page_size);
     __lock();
-    addr_t result   = __map_mmio_pages(addr_t(addr), npage);
-    if(result) { __mark_used(addr, npage); }
-    __unlock();
-    return result;
-}
-addr_t kernel_memory_mgr::map_uncached_mmio(uintptr_t addr, size_t sz)
-{
-    size_t npage    = div_round_up(sz, page_size);
-    __lock();
-    addr_t result   = __map_uncached_mmio_pages(addr_t(addr), npage);
+    addr_t result   = prefetchable ?  __map_mmio_pages(addr_t(addr), npage) : __map_uncached_mmio_pages(addr_t(addr), npage);
     if(result) { __mark_used(addr, npage); }
     __unlock();
     return result;

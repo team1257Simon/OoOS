@@ -36,8 +36,8 @@ bool apic::init() volatile
         }
     }
     if(!ioapic_physical_base) ioapic_physical_base = ioapic_default_physical_base;
-    addr_t the_apic = kmm.map_uncached_mmio(physical_base, sizeof(apic_map));
-    addr_t the_ioapic = kmm.map_uncached_mmio(ioapic_physical_base, sizeof(ioapic));
+    addr_t the_apic = kmm.map_dma(physical_base, sizeof(apic_map), false);
+    addr_t the_ioapic = kmm.map_dma(ioapic_physical_base, sizeof(ioapic), false);
     uint8_t k_pic1 = inb(data_pic1);
     uint8_t k_pic2 = inb(data_pic2);
     outb(data_pic1, 0xFFUC);

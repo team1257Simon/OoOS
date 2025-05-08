@@ -134,7 +134,7 @@ namespace ABI_NAMESPACE
 	{
 		virtual ~__si_class_type_info();
 		const __class_type_info *__base_type;
-		virtual bool __do_upcast( const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const override;
+		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const override;
 		virtual void *cast_to(void *obj, const struct __class_type_info *other) const override;
 	};
 	/**

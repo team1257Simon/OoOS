@@ -1,6 +1,6 @@
 #ifndef __ARCH_AMD64
 #define __ARCH_AMD64
-#include "kernel/kernel_defs.h"
+#include "kernel/libk_decls.h"
 #include "kernel/sched/task.h"
 #ifdef __cplusplus
 #include "concepts"

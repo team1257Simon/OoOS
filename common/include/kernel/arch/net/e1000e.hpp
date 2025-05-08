@@ -3,6 +3,7 @@
 #include "arch/pci.hpp"
 #include "arch/simple_io_port.hpp"
 #include "kernel_mm.hpp"
+#include "arch/net/e1000e_constants.hpp"
 struct e1000e_device_control_register
 {
     bool full_duplex                    : 1;
@@ -138,17 +139,24 @@ struct e1000e_extended_control_register
     bool host_data_fifo_parity      : 1;
     bool                            : 1;
 } attribute(packed, aligned(4));
-template<typename T> union e1000e_register_dword
+template<typename T> union [[gnu::may_alias]] e1000e_register_dword
 {
+    typedef uint32_t& dw_ref;
+    typedef uint32_t const& dw_cref;
     uint32_t data_dword{};
     T data_struct;
-    constexpr operator uint32_t&() & noexcept { return data_dword; }
-    constexpr operator uint32_t() const noexcept { return data_dword; }
-    constexpr operator T&() & noexcept { return data_struct; }
-    constexpr operator T const&() const& noexcept { return data_struct; }
-    constexpr operator T volatile&() volatile& noexcept { return data_struct; }
-    constexpr operator T const volatile&() const volatile& noexcept { return data_struct; }
+    constexpr operator dw_ref() & noexcept { return data_dword; }
+    constexpr operator dw_cref() const& noexcept { return data_dword; }
+    constexpr T* operator->() & noexcept { return std::addressof(data_struct); }
+    constexpr T const* operator->() const& noexcept { return std::addressof(data_struct); }
 };
+typedef e1000e_register_dword<e1000e_device_control_register> dev_ctrl;
+typedef e1000e_register_dword<e1000e_device_status_register> dev_status;
+typedef e1000e_register_dword<e1000e_eeprom_flash_control_register> nvm_ctrl;
+typedef e1000e_register_dword<e1000e_eeprom_read_register> ee_read;
+typedef e1000e_register_dword<e1000e_flash_access_register> fl_access;
+typedef e1000e_register_dword<e1000e_mdi_control_register> mdic;
+typedef e1000e_register_dword<e1000e_extended_control_register> ext_ctrl;
 struct e1000e_nvm_config_table
 {
     word ethernet_address[3];
@@ -249,7 +257,7 @@ struct e1000e_nvm_config_table
     uint16_t vpd_ptr;
     uint16_t pxe_words[14];
     uint16_t checksum;                      // checksum of the above block, such that adding the whole thing equals 0xBABA
-} __pack;
+};
 union e1000e_receive_descriptor
 {
 	struct
@@ -259,19 +267,19 @@ union e1000e_receive_descriptor
 	} read;
 	struct
     {
-		__le32 multi_queue;
+		uint32_t multi_queue;
         union
         {
-            __le32 rss;	                    /* RSS Hash */
+            uint32_t rss;	                    /* RSS Hash */
             struct
             {
-                __le16 ip_id;               /* IP id */
-                __le16 csum;                /* Packet Checksum */
+                uint16_t ip_id;               /* IP id */
+                uint16_t csum;                /* Packet Checksum */
             } __pack;
         } __pack;
-		__le32 status_error;                /* ext status/error */
-        __le16 length;
-        __le16 vlan;	                    /* VLAN tag */
+		uint32_t status_error;                /* ext status/error */
+        uint16_t length;
+        uint16_t vlan;	                    /* VLAN tag */
 	} __pack wb;                            /* writeback */
 };
 union e1000e_receive_descriptor_packet_split
@@ -279,21 +287,21 @@ union e1000e_receive_descriptor_packet_split
 	struct { uintptr_t buffer_addr[4]; } read; /* one buffer for protocol header(s), three data buffers */
 	struct 
     {
-		__le32 multi_queue;
+		uint32_t multi_queue;
         union 
         {
-            __le32 rss;	            /* RSS Hash */
+            uint32_t rss;	            /* RSS Hash */
             struct 
             {
-                __le16 ip_id;       /* IP id */
-                __le16 csum;        /* Packet Checksum */
+                uint16_t ip_id;       /* IP id */
+                uint16_t csum;        /* Packet Checksum */
             } __pack;
         } __pack;
-		__le32 status_error;        /* ext status/error */
-        __le16 length0;             /* Length of buffer 0 */
-        __le16 vlan;	            /* VLAN tag */
-		__le16 header_status;
-		__le16 length[3];           /* length of buffers 1-3 */
+		uint32_t status_error;        /* ext status/error */
+        uint16_t length0;             /* Length of buffer 0 */
+        uint16_t vlan;	            /* VLAN tag */
+		uint16_t header_status;
+		uint16_t length[3];           /* length of buffers 1-3 */
 		uint64_t reserved;
 	} __pack wb;                    /* writeback */
 };
@@ -302,22 +310,22 @@ struct e1000e_transmit_descriptor
 	uintptr_t buffer_addr;          /* Address of the descriptor's data buffer */
 	union 
     {
-		__le32 data_lower;
+		uint32_t data_lower;
 		struct 
         {
-			__le16 length;          /* Data buffer length */
-			byte cso;	            /* Checksum offset */
-			byte cmd;	            /* Descriptor control */
+			uint16_t length;          /* Data buffer length */
+			uint8_t cso;	            /* Checksum offset */
+			uint8_t cmd;	            /* Descriptor control */
 		} flags;
 	};
 	union 
     {
-		__le32 data_upper;
+		uint32_t data_upper;
 		struct 
         {
-			byte status;            /* Descriptor status */
-			byte css;	            /* Checksum start */
-			__le16 special;
+			uint8_t status;            /* Descriptor status */
+			uint8_t css;	            /* Checksum start */
+			uint16_t special;
 		} fields;
 	};
 };
@@ -325,33 +333,33 @@ struct e1000e_offload_context_descriptor
 {
 	union 
     {
-		__le32 ip_config;
+		uint32_t ip_config;
 		struct 
         {
-			byte ipcss;             /* IP checksum start */
-			byte ipcso;             /* IP checksum offset */
-			__le16 ipcse;           /* IP checksum end */
+			uint8_t ipcss;             /* IP checksum start */
+			uint8_t ipcso;             /* IP checksum offset */
+			uint16_t ipcse;           /* IP checksum end */
 		} ip_fields;
 	};
 	union 
     {
-		__le32 tcp_config;
+		uint32_t tcp_config;
 		struct 
         {
-			byte tucss;         /* TCP checksum start */
-			byte tucso;         /* TCP checksum offset */
-			__le16 tucse;       /* TCP checksum end */
+			uint8_t tucss;         /* TCP checksum start */
+			uint8_t tucso;         /* TCP checksum offset */
+			uint16_t tucse;       /* TCP checksum end */
 		} tcp_fields;
 	};
-	__le32 cmd_and_length;
+	uint32_t cmd_and_length;
 	union 
     {
-		__le32 seg_config;
+		uint32_t seg_config;
 		struct 
         {
-			byte status;        /* Descriptor status */
-			byte hdr_len;       /* Header length */
-			__le16 mss;         /* Maximum segment size */
+			uint8_t status;        /* Descriptor status */
+			uint8_t hdr_len;       /* Header length */
+			uint16_t mss;         /* Maximum segment size */
 		} seg_fields;
 	};
 };
@@ -360,22 +368,22 @@ struct e1000e_offload_data_descriptor
 	uintptr_t buffer_addr;   /* Address of the descriptor's buffer address */
 	union 
     {
-		__le32 data_lower;
+		uint32_t data_lower;
 		struct
         {
-			__le16 length;    /* Data buffer length */
-			byte typ_len_ext;
-			byte cmd;
+			uint16_t length;    /* Data buffer length */
+			uint8_t typ_len_ext;
+			uint8_t cmd;
 		} flags;
 	};
 	union 
     {
-		__le32 data_upper;
+		uint32_t data_upper;
 		struct 
         {
-			byte status;     /* Descriptor status */
-			byte popts;      /* Packet Options */
-			__le16 special;
+			uint8_t status;     /* Descriptor status */
+			uint8_t popts;      /* Packet Options */
+			uint16_t special;
 		} fields;
 	};
 };
@@ -389,20 +397,28 @@ struct e1000e_ring
     addr_t buffer_region_start;
     size_t buffer_region_size;
 };
-// note: when this is done, it will be a class, not a struct
-struct e1000e
+class e1000e_base
 {
+    bool __has_init;
+    addr_t __mmio_region;
     pci_config_space* __pcie_e1000e_controller;
     simple_io_port<uint32_t> __io_addr_port;
     simple_io_port<uint32_t> __io_data_port;
-    e1000e_ring<e1000e_receive_descriptor> __rx_ring;
-    e1000e_ring<e1000e_transmit_descriptor> __tx_ring;
-    bool __has_init;
-    static e1000e __instance;
-    bool __init(size_t descriptor_count_factor = 16UZ);
-    e1000e();
+protected:
+    e1000e_ring<e1000e_receive_descriptor> rx_ring;
+    e1000e_ring<e1000e_transmit_descriptor> tx_ring;
+    virtual bool configure_model_specific(dev_status&) = 0;
+    virtual bool configure_rx(dev_status&) = 0;
+    virtual bool configure_tx(dev_status&) = 0;
+    virtual bool configure_mac_phy(dev_status&) = 0;
+    virtual bool configure_interrupts(dev_status&) = 0;
+    bool initialize();
+    bool read_io(int reg_id, uint32_t& r_out);
+    bool write_io(int reg_id, uint32_t const& w_in);
+    void read_dma(int reg_id, uint32_t& r_out);
+    void write_dma(int reg_id, uint32_t const& w_in);
 public:
-    static e1000e& get_instance();
-    static bool init_instance();
+    e1000e_base(pci_config_space* device, size_t descriptor_count_factor = 32UZ);
+    virtual ~e1000e_base();
 };
 #endif

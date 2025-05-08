@@ -24,7 +24,7 @@ bool hpet_amd64::__init()
     void* tbl = find_system_table("HPET");
     if(!tbl) return false;
     hpet_desc_table* dtbl = static_cast<hpet_desc_table*>(tbl);
-    addr_t mapped = kmm.map_uncached_mmio(dtbl->base_addr.address, sizeof(hpet_t));
+    addr_t mapped = kmm.map_dma(dtbl->base_addr.address, sizeof(hpet_t), false);
     if(!mapped) return false;
     __hpet = mapped.as<hpet_t volatile>();
     uint32_t period = __hpet->period;
