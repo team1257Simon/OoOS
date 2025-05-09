@@ -479,9 +479,9 @@ class e1000e : public net_device
 protected:
     e1000e_ring<e1000e_receive_descriptor> rx_ring;
     e1000e_ring<e1000e_transmit_descriptor> tx_ring;
-    bool configure_rx(dev_status& st);
-    bool configure_tx(dev_status& st);
-    bool configure_mac_phy(dev_status& st);
+    virtual bool configure_rx(dev_status& st);
+    virtual bool configure_tx(dev_status& st);
+    virtual bool configure_mac_phy(dev_status& st);
     bool configure_interrupts(dev_status& st);
     bool read_io(int reg_id, uint32_t& r_out);
     bool write_io(int reg_id, uint32_t const& w_in);
