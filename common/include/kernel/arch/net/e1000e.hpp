@@ -327,29 +327,31 @@ struct e1000e_nvm_config_table
 };
 union alignas(int128_t) e1000e_receive_descriptor
 {
-	struct
+	struct __pack
     {
 		uintptr_t buffer_addr;
-		uint32_t status_error;                  /* ext status/error */
-        uint16_t length;
         uint16_t vlan;	                        /* VLAN tag */
+		uint8_t errors;
+        uint8_t status;
+        uint16_t csum;
+        uint16_t length;
 	} read;
-	struct
+	struct __pack
     {
 		uint32_t multi_queue;
-        union
+        union __pack
         {
             uint32_t rss;	                    /* RSS Hash */
-            struct
+            struct __pack
             {
                 uint16_t ip_id;                 /* IP id */
                 uint16_t csum;                  /* Packet Checksum */
-            } __pack;
-        } __pack;
+            };
+        };
 		uint32_t status_error_wb;               /* ext status/error */
         uint16_t length_wb;
         uint16_t vlan_wb;	                    /* VLAN tag */
-	} __pack wb;                                /* writeback */
+	} wb;                                /* writeback */
 };
 union alignas(int128_t) e1000e_receive_descriptor_packet_split
  {
@@ -462,11 +464,15 @@ template<typename T>
 struct e1000e_ring
 {
     std::allocator<T> alloc;
-    T* head_descriptor;
-    T* tail_descriptor;
+    T* descriptors;
     T* max_descriptor;
-    constexpr e1000e_ring(size_t count_factor) : alloc(), head_descriptor(alloc.allocate(count_factor * e1000_rxtxdesclen_base)), tail_descriptor(head_descriptor), max_descriptor(head_descriptor + count_factor * e1000_rxtxdesclen_base) {}
-    constexpr ~e1000e_ring() { if(head_descriptor && max_descriptor) alloc.deallocate(head_descriptor, static_cast<size_t>(max_descriptor - head_descriptor)); }
+    uint32_t head_descriptor;
+    uint32_t tail_descriptor;
+    constexpr T& tail() { return descriptors[tail_descriptor]; }
+    constexpr T& head() { return descriptors[head_descriptor]; }
+    constexpr size_t count() const { return static_cast<size_t>(max_descriptor - descriptors); }
+    constexpr e1000e_ring(size_t count_factor) : alloc(), descriptors(alloc.allocate(count_factor * e1000_rxtxdesclen_base)), max_descriptor(descriptors + count_factor * e1000_rxtxdesclen_base) {}
+    constexpr ~e1000e_ring() { if(descriptors && max_descriptor) alloc.deallocate(descriptors, count()); }
 };
 class e1000e : public net_device
 {
@@ -499,5 +505,7 @@ public:
     virtual void enable_receive() override;
     virtual void disable_transmit() override;
     virtual void disable_receive() override;
+    virtual int poll_tx(netstack_buffer& buff);
+    virtual int poll_rx();
 };
 #endif

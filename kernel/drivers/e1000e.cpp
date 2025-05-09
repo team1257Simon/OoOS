@@ -2,6 +2,7 @@
 #include "isr_table.hpp"
 #include "functional"
 #include "stdexcept"
+#include "errno.h"
 static std::alignas_allocator<char, int128_t> __buffer_alloc;
 __isrcall void e1000e::on_interrupt() {} // TODO
 void e1000e::enable_transmit()
@@ -34,7 +35,7 @@ void e1000e::disable_receive()
 }
 e1000e::~e1000e()
 {
-    for(e1000e_receive_descriptor* d = rx_ring.head_descriptor; d < rx_ring.max_descriptor; d++)
+    for(e1000e_receive_descriptor* d = rx_ring.descriptors; d < rx_ring.max_descriptor; d++)
         if(d->read.buffer_addr)
             __buffer_alloc.deallocate(reinterpret_cast<char*>(d->read.buffer_addr), max_single_rx_buffer);
 }
@@ -185,6 +186,9 @@ bool e1000e::initialize()
     if(!configure_rx(status)) return false;
     if(!configure_tx(status)) return false;
     if(!configure_interrupts(status)) return false;
+    netstack_buffer::poll_functor tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
+    for(size_t i = 0; i < rx_ring.count(); i++)
+        transfer_buffers.emplace(64UZ, 64UZ, netstack_buffer::poll_functor(up_stack_functor), std::move(tx_poll), max_single_rx_buffer, max_single_tx_buffer);
     return (__has_init = true);
 }
 bool e1000e::configure_interrupts(dev_status& st)
@@ -218,7 +222,7 @@ bool e1000e::configure_mac_phy(dev_status& st)
 }
 bool e1000e::configure_tx(dev_status& st)
 {
-    for(e1000e_transmit_descriptor* d = tx_ring.head_descriptor; d < tx_ring.max_descriptor; d++) std::construct_at(d);
+    for(e1000e_transmit_descriptor* d = tx_ring.descriptors; d < tx_ring.max_descriptor; d++) std::construct_at(d);
     constexpr int txbase_hi = e1000_tdbah(0);
     constexpr int txbase_lo = e1000_tdbal(0);
     constexpr int txlen = e1000_tdlen(0);
@@ -226,8 +230,8 @@ bool e1000e::configure_tx(dev_status& st)
     constexpr int txt = e1000_tdt(0);
     constexpr int txdctl = e1000_txdctl(0);
     uint32_t tx_head = 0;
-    uint32_t tx_tail = static_cast<uint32_t>(tx_ring.max_descriptor - tx_ring.head_descriptor);
-    qword txbase = reinterpret_cast<uintptr_t>(tx_ring.head_descriptor);
+    uint32_t tx_tail = static_cast<uint32_t>(tx_ring.max_descriptor - tx_ring.descriptors);
+    qword txbase = reinterpret_cast<uintptr_t>(tx_ring.descriptors);
     uint32_t tx_total_len = tx_tail * 16U;
     write_dma(txbase_hi, txbase.hi);
     write_dma(txbase_lo, txbase.lo);
@@ -263,7 +267,7 @@ bool e1000e::configure_tx(dev_status& st)
 }
 bool e1000e::configure_rx(dev_status& st)
 {
-    for(e1000e_receive_descriptor* d = rx_ring.head_descriptor; d < rx_ring.max_descriptor; d++)
+    for(e1000e_receive_descriptor* d = rx_ring.descriptors; d < rx_ring.max_descriptor; d++)
     {
         std::construct_at(d);
         char* buffer = __buffer_alloc.allocate(max_single_rx_buffer);
@@ -276,8 +280,8 @@ bool e1000e::configure_rx(dev_status& st)
     constexpr int rxh = e1000_rdh(0);
     constexpr int rxt = e1000_rdt(0);
     uint32_t rx_head = 0;
-    uint32_t rx_tail = static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.head_descriptor);
-    qword rxbase = reinterpret_cast<uintptr_t>(rx_ring.head_descriptor);
+    uint32_t rx_tail = static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.descriptors);
+    qword rxbase = reinterpret_cast<uintptr_t>(rx_ring.descriptors);
     uint32_t rx_total_len = rx_tail * 16U;
     write_dma(rxbase_hi, rxbase.hi);
     write_dma(rxbase_lo, rxbase.lo);
@@ -315,4 +319,36 @@ bool e1000e::configure_rx(dev_status& st)
     write_dma(e1000_rctl, ctrl_reg);
     read_dma(e1000_status, st);
     return true;
+}
+int e1000e::poll_tx(netstack_buffer& buff)
+{
+    e1000e_transmit_descriptor& tail = tx_ring.tail();
+    addr_t txbuf = tail.buffer_addr ? addr_t(tail.buffer_addr) : addr_t(__buffer_alloc.allocate(max_single_tx_buffer));
+    tail.flags.length = static_cast<uint16_t>(buff.getp(txbuf, max_single_tx_buffer));
+    tail.flags.cmd = 0b1011;
+    tail.buffer_addr = txbuf;
+    write_dma(e1000_tdt(0), (tx_ring.tail_descriptor = (tx_ring.tail_descriptor + 1) % tx_ring.count()));
+    if(await_result([&]() -> bool { return (tail.fields.status & 0xF) != 0; })) return 0;
+    return -ENETDOWN;
+}
+int e1000e::poll_rx()
+{
+    while(rx_ring.tail().read.status & 1)
+    {
+        e1000e_receive_descriptor& tail = rx_ring.tail();
+        addr_t packet(tail.read.buffer_addr);
+        if((tail.read.status & 2) && tail.read.errors)
+        {
+            if(transfer_buffers.at_end()) transfer_buffers.restart();
+            netstack_buffer& buff = transfer_buffers.pop();
+            size_t len = tail.read.length;
+            try { buff.putg(packet, len); } catch(std::overflow_error& e) { panic(e.what()); return -EOVERFLOW; }
+            int e = buff.pubsync();
+            if(e != 0) return e;
+        }
+        tail.read.status = 0UC;
+        write_dma(e1000_rdt(0), (rx_ring.tail_descriptor = (rx_ring.tail_descriptor + 1) % rx_ring.count()));
+        fence();
+    }
+    return 0;
 }

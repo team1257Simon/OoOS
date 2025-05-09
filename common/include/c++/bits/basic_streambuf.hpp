@@ -106,6 +106,7 @@ namespace std
             if(i >= n) break;
             const int_type c = overflow(*s);
             if(!traits_type::eq_int_type(c, traits_type::eof())) { s++; i++; }
+            else break;
         }
         return i;
     }
