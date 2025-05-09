@@ -364,7 +364,7 @@ struct ext_mmp
 class extfs;
 struct ext_vnode;
 struct ext_node_extent_tree;
-constexpr __be32 jbd2_magic = 0xC03B3998_be32;
+constexpr __be32 jbd2_magic = 0xC03B3998UBE;
 constexpr size_t jbd2_checksum_size_dwords = (32 / sizeof(uint32_t));
 typedef unsigned int transaction_id;
 struct jbd2_header
@@ -375,26 +375,26 @@ struct jbd2_header
 };
 enum jbd_block_type : uint32_t
 {
-    descriptor  = 0x1U,
-    commit      = 0x2U,
-    sbv1        = 0x3U,
-    sbv2        = 0x4U,
-    revocation  = 0x5U
+    descriptor  = 0x1UBE,
+    commit      = 0x2UBE,
+    sbv1        = 0x3UBE,
+    sbv2        = 0x4UBE,
+    revocation  = 0x5UBE
 };
 enum jbd_feature_flags
 {
-    revocation_records  = 0x1,
-    x64_support         = 0x2,
-    async_commit        = 0x4,
-    csum_v2             = 0x8,
-    csum_v3             = 0x10,
-    fast_commits        = 0x20
+    revocation_records  = 0x1UBE,
+    x64_support         = 0x2UBE,
+    async_commit        = 0x4UBE,
+    csum_v2             = 0x8UBE,
+    csum_v3             = 0x10UBE,
+    fast_commits        = 0x20UBE
 };
 enum jbd_block_flags
 {
-    escape      = 0x1,
-    same_uuid   = 0x2,
-    last_block  = 0x8
+    escape      = 0x1UBE,
+    same_uuid   = 0x2UBE,
+    last_block  = 0x8UBE
 };
 enum ext_jbd2_mode
 {

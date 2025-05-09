@@ -183,7 +183,7 @@ namespace std::__impl
         if(!added) return true; // Zero elements -> vacuously true completion
         __size_type num_elements = __size();
         __size_type target = min(max(num_elements << 1, __capacity() + added), __max_capacity());
-        try { __setn(resize(__beg(), __capacity(), target), num_elements, target); if constexpr(__end_zero) { __zero(__cur(), added); } } 
+        try { __setn(resize(__beg(), __capacity(), target, __allocator), num_elements, target); if constexpr(__end_zero) { __zero(__cur(), added); } } 
         catch(...) { return false; }
         return true;
     }

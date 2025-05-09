@@ -1,12 +1,12 @@
 #ifndef __APIC
 #define __APIC
 #include "arch/arch_amd64.h"
-struct apic_reg 
+struct attribute(packed, aligned(16)) apic_reg 
 {
     uint32_t value;
     uint32_t align_bytes[3];
-} attribute(packed, aligned(16));
-struct apic_map
+};
+struct attribute(packed, aligned(16)) apic_map
 {
     int128_t rsv0[2]; 
     apic_reg lapic_id;
@@ -39,13 +39,13 @@ struct apic_map
     int128_t rsv3[4];
     apic_reg timer_divide;
     int128_t rsv4;
-} attribute(packed, aligned(16));
-struct ioapic
+};
+struct __pack ioapic
 {
     uint32_t select_reg;
     uint32_t unused[3];
     uint32_t data_reg;
-} __pack;
+};
 class apic
 {
     apic_map volatile* __apic_mem;

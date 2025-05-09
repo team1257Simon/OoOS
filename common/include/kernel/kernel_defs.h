@@ -988,14 +988,16 @@ typedef struct __s_be64
     constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
     constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
 } __pack __be64;
-constexpr __be16 operator""_be16(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
-constexpr __be32 operator""_be32(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
-constexpr __be64 operator""_be64(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
 #pragma endregion
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
 constexpr uint8_t operator""UC(unsigned long long i) noexcept { return static_cast<uint8_t>(i); }
 constexpr uint16_t operator""US(unsigned long long i) noexcept { return static_cast<uint16_t>(i); }
+constexpr int8_t operator""SC(unsigned long long i) noexcept { return static_cast<int8_t>(i); }
+constexpr int16_t operator""S(unsigned long long i) noexcept { return static_cast<int16_t>(i); }
+constexpr __be16 operator""SBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
+constexpr __be32 operator""UBE(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
+constexpr __be64 operator""LBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;

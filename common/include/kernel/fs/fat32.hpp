@@ -10,7 +10,7 @@ constexpr uint32_t fsinfo_tail = 0xAA550000;
 constexpr uint32_t fat32_cluster_mask = 0x0FFFFFFF;
 constexpr uint32_t fat32_cluster_pres = 0xF0000000;
 constexpr uint32_t fat32_cluster_eof = 0x0FFFFFF8;
-union [[gnu::may_alias]] fat_filetime
+union [[gnu::may_alias]] attribute(packed, aligned(1)) fat_filetime
 {
     struct 
     {
@@ -25,8 +25,8 @@ union [[gnu::may_alias]] fat_filetime
     constexpr fat_filetime(uint16_t val) noexcept : value{ val } {}
     constexpr fat_filetime() noexcept = default;
     constexpr operator time_t() const noexcept { return static_cast<time_t>(half_seconds) * 2000UL + static_cast<time_t>(minutes) * 60000UL + static_cast<time_t>(hours) * 3600000UL;  }
-} __pack __align(1);
-union [[gnu::may_alias]] fat_filedate
+};
+union [[gnu::may_alias]] attribute(packed, aligned(1)) fat_filedate
 {
     struct
     {
@@ -41,7 +41,7 @@ union [[gnu::may_alias]] fat_filedate
     constexpr fat_filedate(uint16_t val) noexcept : value{ val } {}
     constexpr fat_filedate() noexcept = default;
     constexpr operator time_t() const noexcept{ return (static_cast<time_t>(day) + static_cast<time_t>(day_of_year(month, day, (year + fat_year_base) % 4 == 0)) + static_cast<time_t>(years_to_days(year + fat_year_base, unix_year_base))) * 86400000UL; }
-} __pack __align(1);
+};
 struct fsinfo
 {
     uint32_t magic; 
@@ -52,7 +52,7 @@ struct fsinfo
     uint8_t more_reserved_bytes[12];
     uint32_t trail;
 } __pack;
-struct fat32_bootsect
+struct attribute(packed, aligned(1)) fat32_bootsect
 {
     uint8_t bpb_boot_guard[3];      // 0xEB 0xNN 0x90 or 0xE9 0xNN 0x90 -> JMP 0xNN(%rip); NOP. The value NN will be the offset of some bootable code
     uint8_t oem_id[8];
@@ -84,8 +84,8 @@ struct fat32_bootsect
     char sid_string[8];
     uint8_t boot_code[420];
     uint16_t boot_signature;        // 0xAA55
-} __pack __align(1);
-struct fat32_regular_entry
+};
+struct attribute(packed, aligned(1)) fat32_regular_entry
 {
     char filename[11];
     uint8_t attributes;
@@ -99,14 +99,14 @@ struct fat32_regular_entry
     fat_filedate modified_date;
     uint16_t first_cluster_lo;
     uint32_t size_bytes;
-} __pack __align(1);
+};
 constexpr uint8_t sn_checksum(fat32_regular_entry const& e)
 {
     uint8_t result = 0;
     for(uint8_t i = 0; i < 11; i++) { result = (result & 0x01 ? 0x80 : 0) + (result >> 1) + static_cast<uint8_t>(e.filename[i]); }
     return result;
 }
-struct fat32_longname_entry
+struct attribute(packed, aligned(1)) fat32_longname_entry
 {
     uint8_t ordinal;
     char16_t text_1[5];
@@ -116,9 +116,9 @@ struct fat32_longname_entry
     char16_t text_2[6];
     uint16_t reserved;
     char16_t text_3[2];
-} __pack __align(1);
+};
 constexpr bool is_last_longname(fat32_longname_entry const& e) noexcept { return (e.ordinal & 0x40) != 0; }
-union [[gnu::may_alias]] fat32_directory_entry 
+union [[gnu::may_alias]] attribute(packed, aligned(1)) fat32_directory_entry 
 { 
     fat32_regular_entry regular_entry; 
     fat32_longname_entry longname_entry;
@@ -128,7 +128,7 @@ union [[gnu::may_alias]] fat32_directory_entry
     inline fat32_directory_entry() : full{} {}
     constexpr fat32_directory_entry& operator=(fat32_directory_entry const& that) { array_copy(full, that.full, 32); return *this; }
     constexpr fat32_directory_entry& operator=(fat32_directory_entry&& that) { array_move(full, that.full, 32); return *this; }
-} __pack __align(1);
+};
 constexpr bool is_unused(fat32_directory_entry const& e) { return e.longname_entry.ordinal == 0xE8 || e.longname_entry.ordinal == 0; }
 constexpr bool is_longname(fat32_directory_entry const& e) { return (e.longname_entry.attributes & 0x0F) == 0x0F; }
 constexpr dword start_of(fat32_regular_entry const& e) { return dword{ e.first_cluster_lo, e.first_cluster_hi }; }

@@ -160,7 +160,7 @@ namespace std::__impl
         __size_type num_elements = __qsize();
         __size_type nx_offs = __stell();
         __size_type target_cap = __qcapacity() + added;
-        try { __my_queue_data.__set_ptrs(resize(__qbeg(), __qcapacity(), target_cap), nx_offs, num_elements, target_cap); }
+        try { __my_queue_data.__set_ptrs(resize(__qbeg(), __qcapacity(), target_cap, __qallocator), nx_offs, num_elements, target_cap); }
         catch(...) { return false; }
         return true;
     }

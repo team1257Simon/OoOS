@@ -16,7 +16,7 @@ enum
     CID_SATA = 0x12,
     // ...
 };
-struct pci_config_space
+struct attribute(packed, aligned(4)) pci_config_space
 {
     uint16_t vendor_id;
     uint16_t device_id;
@@ -136,8 +136,8 @@ struct pci_config_space
         } header_0x2;
     } __pack;
     uint8_t device_specific[3948];
-} attribute(packed, aligned(4));
-struct pci_capabilities_register
+};
+struct attribute(packed, aligned(4)) pci_capabilities_register
 {
     uint8_t capability_id;
     uint8_t next;           // offset to the next register
@@ -214,8 +214,8 @@ struct pci_capabilities_register
             } __pack device_specific_capabilities;
         } __pack pcie_device_capability;
     } __pack;
-} attribute(packed, aligned(4));
-struct pci_config_ptr
+};
+struct __pack pci_config_ptr
 {
     pci_config_space* config_start;
     struct
@@ -225,13 +225,13 @@ struct pci_config_ptr
         uint8_t end_bus;
     };
     uint32_t reserved;
-} __pack;
-struct pci_config_table
+};
+struct __pack pci_config_table
 {
     struct acpi_header hdr;
     uint8_t reserved[8];
     pci_config_ptr addr_allocations[];
-} __pack;
+};
 pci_config_table* find_pci_config();
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
 pci_capabilities_register* get_first_capability_register(pci_config_space* device);

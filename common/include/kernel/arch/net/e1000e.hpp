@@ -3,8 +3,9 @@
 #include "arch/pci.hpp"
 #include "arch/simple_io_port.hpp"
 #include "kernel_mm.hpp"
+#include "net/netdev.hpp"
 #include "arch/net/e1000e_constants.hpp"
-struct e1000e_device_control_register
+struct attribute(packed, aligned(4)) e1000e_device_control_register
 {
     bool full_duplex                    : 1;
     bool                                : 1;
@@ -17,10 +18,8 @@ struct e1000e_device_control_register
     bool                                : 1;
     bool speed_force                    : 1;
     bool duplex_force                   : 1;
-    bool                                : 3;
-    bool                                : 3;
+    bool                                : 5;
     bool sdp0_data                      : 1;
-    bool dock_undock_status             : 1;
     bool sdp1_data                      : 1;
     bool d2cold_wakeup_capability_adv   : 1;
     bool                                : 1;
@@ -33,8 +32,8 @@ struct e1000e_device_control_register
     bool                                : 1;
     bool vlan_mode_enable               : 1;
     bool phy_reset                      : 1;
-} attribute(packed, aligned(4));
-struct e1000e_device_status_register
+};
+struct attribute(packed, aligned(4)) e1000e_device_status_register
 {
     bool full_duplex                : 1;
     bool link_up                    : 1;
@@ -49,8 +48,8 @@ struct e1000e_device_status_register
     bool gio_master_status          : 1;
     bool                            : 4;
     bool                            : 8;
-} attribute(packed, aligned(4));
-struct e1000e_eeprom_flash_control_register
+};
+struct attribute(packed, aligned(4)) e1000e_eeprom_flash_control_register
 {
     bool nvm_clock_bit                 : 1;
     bool nvm_chip_select               : 1;
@@ -70,15 +69,15 @@ struct e1000e_eeprom_flash_control_register
     bool sector_1_valid                : 1;
     const bool nvm_type                : 1;  // 0 = eeprom, 1 = flash
     uint8_t rsvd;
-} attribute(packed, aligned(4));
-struct e1000e_eeprom_read_register
+};
+struct attribute(packed, aligned(4)) e1000e_eeprom_read_register
 {
     bool read_start         : 1;
     bool read_done          : 1;
     uint16_t read_address   : 14;
     uint16_t read_data;
-} attribute(packed, aligned(4));
-struct e1000e_flash_access_register
+};
+struct attribute(packed, aligned(4)) e1000e_flash_access_register
 {
     bool clock                 : 1;
     bool chip_select           : 1;
@@ -94,19 +93,19 @@ struct e1000e_flash_access_register
     bool                       : 6;
     bool flash_busy            : 1;
     bool flash_erase_command   : 1;
-} attribute(packed, aligned(4));
-struct e1000e_mdi_control_register
+};
+struct attribute(packed, aligned(4)) e1000e_mdi_control_register
 {
     uint16_t data;
     uint8_t phy_register_address   : 5;
-    uint8_t phy_address            : 5;
+    uint8_t phy_address            : 5; // always 1 for our purposes
     uint8_t operation              : 2; // 0b01 = read, 0b10 = write
     bool ready                     : 1;
     bool interrupt_enable          : 1;
     bool error                     : 1;
     bool                           : 1;
-} attribute(packed, aligned(4));
-struct e1000e_extended_control_register
+};
+struct attribute(packed, aligned(4)) e1000e_extended_control_register
 {
     bool                            : 2;
     bool sdp2_gpi_enable            : 1;
@@ -128,8 +127,6 @@ struct e1000e_extended_control_register
     bool phy_power_down_enable      : 1;
     bool                            : 1;
     uint8_t link_mode               : 2;
-    bool large_send                 : 1;
-    bool large_send_flow_off        : 1;
     bool packet_parity              : 1;
     bool descriptor_parity          : 1;
     bool                            : 1;
@@ -138,8 +135,74 @@ struct e1000e_extended_control_register
     bool                            : 1;
     bool host_data_fifo_parity      : 1;
     bool                            : 1;
-} attribute(packed, aligned(4));
-template<typename T> union [[gnu::may_alias]] e1000e_register_dword
+};
+struct attribute(packed, aligned(4)) e1000e_rx_control_register
+{
+    bool                            : 1;
+    bool enable                     : 1;
+    bool store_bad_packets          : 1;
+    bool unicast_promiscuous        : 1;
+    bool multicast_promiscuous      : 1;
+    bool long_packet_enable         : 1;
+    uint8_t loopback_mode           : 2; // use (0->normal, 1->MAC) loopback
+    uint8_t rdtms                   : 2; // sets the RDMT interrupt when the number of free descriptors equals one (0->half, 1 -> quarter, 2->eighth) of total descriptors
+    uint8_t desc_type               : 2; // use (0->legacy, 1->packet-split) descriptors
+    uint8_t multicast_offset        : 2; // filter multicast packets based on bits (0->47-36, 1->46-35, 2->45-34, 3->43-32) of multicast address
+    bool                            : 1;
+    bool broadcast_accept           : 1;
+    uint8_t buffer_size_shift       : 2; // buffer_size = (extended_buffer_size ? 4096 : 256) << (3 - buffer_size_shift); value 0 is reserved if the extended size bit is set
+    bool vlan_filter_enable         : 1;
+    bool canonical_form_enable      : 1;
+    bool canonical_form_indicator   : 1;
+    bool                            : 1;
+    bool discard_pause_frames       : 1;
+    bool pass_mac_control_frames    : 1;
+    bool                            : 1;
+    bool extended_buffer_size       : 1;
+    bool strip_ethernet_crc         : 1;
+    uint8_t flex_buffer_size        : 4; // overrides buffer size calculation above, value in KiB
+    bool                            : 1;
+};
+struct attribute(packed, aligned(4)) e1000e_tx_control_register
+{
+    bool                            : 1;
+    bool enable                     : 1;
+    bool                            : 1;
+    bool pad_short_packets          : 1;
+    uint8_t collision_threshold     : 8;
+    uint16_t collision_distance     : 10;
+    bool software_xoff              : 1;
+    bool                            : 1;
+    bool retransmit_late_collision  : 1;
+    bool underrun_no_retransmit     : 1;
+    uint8_t tdtms                   : 2; // as rdtms but for transmit desccriptors
+    bool multi_request_support      : 1;
+    bool                            : 3;
+};
+struct attribute(packed, aligned(4)) e1000e_rx_desc_control_register
+{
+    uint8_t prefetch_thresh         : 6;
+    bool                            : 2;
+    uint8_t host_thresh             : 6;
+    bool                            : 2;
+    uint8_t writeback_thresh        : 6;
+    bool                            : 2;
+    bool descriptor_granularity     : 1; // 0 means cache line granularity
+    bool           					: 7;
+};
+struct attribute(packed, aligned(4)) e1000e_tx_desc_control_register
+{
+    uint8_t prefetch_thresh         : 6;
+    bool                            : 2;
+    uint8_t host_thresh             : 6;
+    bool                            : 2;
+    uint8_t writeback_thresh        : 6;
+    bool rsv_preserved              : 1; // a reserved bit that will be in its correct state on boot (depends on model)
+    bool                            : 1;
+    bool descriptor_granularity     : 1; // 0 means cache line granularity
+    uint8_t low_threshold           : 7;
+};
+template<std::same_size<uint32_t> T> union [[gnu::may_alias]] e1000e_register_dword
 {
     typedef uint32_t& dw_ref;
     typedef uint32_t const& dw_cref;
@@ -157,6 +220,10 @@ typedef e1000e_register_dword<e1000e_eeprom_read_register> ee_read;
 typedef e1000e_register_dword<e1000e_flash_access_register> fl_access;
 typedef e1000e_register_dword<e1000e_mdi_control_register> mdic;
 typedef e1000e_register_dword<e1000e_extended_control_register> ext_ctrl;
+typedef e1000e_register_dword<e1000e_rx_control_register> rx_ctrl;
+typedef e1000e_register_dword<e1000e_tx_control_register> tx_ctrl;
+typedef e1000e_register_dword<e1000e_rx_desc_control_register> rx_desc_ctrl;
+typedef e1000e_register_dword<e1000e_tx_desc_control_register> tx_desc_ctrl;
 struct e1000e_nvm_config_table
 {
     word ethernet_address[3];
@@ -258,12 +325,14 @@ struct e1000e_nvm_config_table
     uint16_t pxe_words[14];
     uint16_t checksum;                      // checksum of the above block, such that adding the whole thing equals 0xBABA
 };
-union e1000e_receive_descriptor
+union alignas(int128_t) e1000e_receive_descriptor
 {
 	struct
     {
 		uintptr_t buffer_addr;
-		uint64_t reserved;
+		uint32_t status_error;                  /* ext status/error */
+        uint16_t length;
+        uint16_t vlan;	                        /* VLAN tag */
 	} read;
 	struct
     {
@@ -273,16 +342,16 @@ union e1000e_receive_descriptor
             uint32_t rss;	                    /* RSS Hash */
             struct
             {
-                uint16_t ip_id;               /* IP id */
-                uint16_t csum;                /* Packet Checksum */
+                uint16_t ip_id;                 /* IP id */
+                uint16_t csum;                  /* Packet Checksum */
             } __pack;
         } __pack;
-		uint32_t status_error;                /* ext status/error */
-        uint16_t length;
-        uint16_t vlan;	                    /* VLAN tag */
-	} __pack wb;                            /* writeback */
+		uint32_t status_error_wb;               /* ext status/error */
+        uint16_t length_wb;
+        uint16_t vlan_wb;	                    /* VLAN tag */
+	} __pack wb;                                /* writeback */
 };
-union e1000e_receive_descriptor_packet_split
+union alignas(int128_t) e1000e_receive_descriptor_packet_split
  {
 	struct { uintptr_t buffer_addr[4]; } read; /* one buffer for protocol header(s), three data buffers */
 	struct 
@@ -293,27 +362,27 @@ union e1000e_receive_descriptor_packet_split
             uint32_t rss;	            /* RSS Hash */
             struct 
             {
-                uint16_t ip_id;       /* IP id */
-                uint16_t csum;        /* Packet Checksum */
+                uint16_t ip_id;         /* IP id */
+                uint16_t csum;          /* Packet Checksum */
             } __pack;
         } __pack;
-		uint32_t status_error;        /* ext status/error */
-        uint16_t length0;             /* Length of buffer 0 */
-        uint16_t vlan;	            /* VLAN tag */
+		uint32_t status_error;          /* ext status/error */
+        uint16_t length0;               /* Length of buffer 0 */
+        uint16_t vlan;	                /* VLAN tag */
 		uint16_t header_status;
-		uint16_t length[3];           /* length of buffers 1-3 */
+		uint16_t length[3];             /* length of buffers 1-3 */
 		uint64_t reserved;
-	} __pack wb;                    /* writeback */
+	} __pack wb;                        /* writeback */
 };
-struct e1000e_transmit_descriptor
+struct alignas(int128_t) e1000e_transmit_descriptor
 {
-	uintptr_t buffer_addr;          /* Address of the descriptor's data buffer */
+	uintptr_t buffer_addr;              /* Address of the descriptor's data buffer */
 	union 
     {
 		uint32_t data_lower;
 		struct 
         {
-			uint16_t length;          /* Data buffer length */
+			uint16_t length;            /* Data buffer length */
 			uint8_t cso;	            /* Checksum offset */
 			uint8_t cmd;	            /* Descriptor control */
 		} flags;
@@ -323,7 +392,7 @@ struct e1000e_transmit_descriptor
 		uint32_t data_upper;
 		struct 
         {
-			uint8_t status;            /* Descriptor status */
+			uint8_t status;             /* Descriptor status */
 			uint8_t css;	            /* Checksum start */
 			uint16_t special;
 		} fields;
@@ -336,9 +405,9 @@ struct e1000e_offload_context_descriptor
 		uint32_t ip_config;
 		struct 
         {
-			uint8_t ipcss;             /* IP checksum start */
-			uint8_t ipcso;             /* IP checksum offset */
-			uint16_t ipcse;           /* IP checksum end */
+			uint8_t ipcss;              /* IP checksum start */
+			uint8_t ipcso;              /* IP checksum offset */
+			uint16_t ipcse;             /* IP checksum end */
 		} ip_fields;
 	};
 	union 
@@ -346,9 +415,9 @@ struct e1000e_offload_context_descriptor
 		uint32_t tcp_config;
 		struct 
         {
-			uint8_t tucss;         /* TCP checksum start */
-			uint8_t tucso;         /* TCP checksum offset */
-			uint16_t tucse;       /* TCP checksum end */
+			uint8_t tucss;              /* TCP checksum start */
+			uint8_t tucso;              /* TCP checksum offset */
+			uint16_t tucse;             /* TCP checksum end */
 		} tcp_fields;
 	};
 	uint32_t cmd_and_length;
@@ -357,21 +426,21 @@ struct e1000e_offload_context_descriptor
 		uint32_t seg_config;
 		struct 
         {
-			uint8_t status;        /* Descriptor status */
-			uint8_t hdr_len;       /* Header length */
-			uint16_t mss;         /* Maximum segment size */
+			uint8_t status;             /* Descriptor status */
+			uint8_t hdr_len;            /* Header length */
+			uint16_t mss;               /* Maximum segment size */
 		} seg_fields;
 	};
 };
 struct e1000e_offload_data_descriptor 
 {
-	uintptr_t buffer_addr;   /* Address of the descriptor's buffer address */
+	uintptr_t buffer_addr;              /* Address of the descriptor's buffer address */
 	union 
     {
 		uint32_t data_lower;
 		struct
         {
-			uint16_t length;    /* Data buffer length */
+			uint16_t length;            /* Data buffer length */
 			uint8_t typ_len_ext;
 			uint8_t cmd;
 		} flags;
@@ -381,8 +450,8 @@ struct e1000e_offload_data_descriptor
 		uint32_t data_upper;
 		struct 
         {
-			uint8_t status;     /* Descriptor status */
-			uint8_t popts;      /* Packet Options */
+			uint8_t status;             /* Descriptor status */
+			uint8_t popts;              /* Packet Options */
 			uint16_t special;
 		} fields;
 	};
@@ -392,33 +461,43 @@ constexpr size_t max_single_rx_buffer = 16384UZ;
 template<typename T>
 struct e1000e_ring
 {
-    T* descriptors;
-    size_t descriptor_count;
-    addr_t buffer_region_start;
-    size_t buffer_region_size;
+    std::allocator<T> alloc;
+    T* head_descriptor;
+    T* tail_descriptor;
+    T* max_descriptor;
+    constexpr e1000e_ring(size_t count_factor) : alloc(), head_descriptor(alloc.allocate(count_factor * e1000_rxtxdesclen_base)), tail_descriptor(head_descriptor), max_descriptor(head_descriptor + count_factor * e1000_rxtxdesclen_base) {}
+    constexpr ~e1000e_ring() { if(head_descriptor && max_descriptor) alloc.deallocate(head_descriptor, static_cast<size_t>(max_descriptor - head_descriptor)); }
 };
-class e1000e_base
+class e1000e : public net_device
 {
     bool __has_init;
     addr_t __mmio_region;
     pci_config_space* __pcie_e1000e_controller;
     simple_io_port<uint32_t> __io_addr_port;
     simple_io_port<uint32_t> __io_data_port;
+    bool __mdio_await(mdic& mdic_reg);
 protected:
     e1000e_ring<e1000e_receive_descriptor> rx_ring;
     e1000e_ring<e1000e_transmit_descriptor> tx_ring;
-    virtual bool configure_model_specific(dev_status&) = 0;
-    virtual bool configure_rx(dev_status&) = 0;
-    virtual bool configure_tx(dev_status&) = 0;
-    virtual bool configure_mac_phy(dev_status&) = 0;
-    virtual bool configure_interrupts(dev_status&) = 0;
-    bool initialize();
+    bool configure_rx(dev_status& st);
+    bool configure_tx(dev_status& st);
+    bool configure_mac_phy(dev_status& st);
+    bool configure_interrupts(dev_status& st);
     bool read_io(int reg_id, uint32_t& r_out);
     bool write_io(int reg_id, uint32_t const& w_in);
     void read_dma(int reg_id, uint32_t& r_out);
     void write_dma(int reg_id, uint32_t const& w_in);
+    uint16_t read_phy(int phy_reg);
+    void write_phy(int phy_reg, uint16_t data);
+    uint16_t read_eeprom(uint16_t eep_addr);
+    __isrcall void on_interrupt();
 public:
-    e1000e_base(pci_config_space* device, size_t descriptor_count_factor = 32UZ);
-    virtual ~e1000e_base();
+    e1000e(pci_config_space* device, size_t descriptor_count_factor = 32UZ);
+    virtual ~e1000e();
+    virtual bool initialize() override;
+    virtual void enable_transmit() override;
+    virtual void enable_receive() override;
+    virtual void disable_transmit() override;
+    virtual void disable_receive() override;
 };
 #endif

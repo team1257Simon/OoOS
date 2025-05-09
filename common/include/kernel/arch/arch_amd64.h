@@ -31,7 +31,7 @@ constexpr byte sig_keybd_enable  =   0xF4UC;        /* Send to enable the keyboa
 extern "C" 
 {
 #endif
-typedef struct __tss_bits
+typedef struct attribute(packed, aligned(4)) __tss_bits
 {
     uint32_t : 32;
     addr_t rsp[3];
@@ -49,8 +49,8 @@ typedef struct __tss_bits
         } __pack;
         uint32_t : 32;
     } __pack;
-} __align(4) __pack tss;
-typedef struct __tss_descriptor
+} tss;
+typedef struct __pack __tss_descriptor
 {
     uint16_t limit_lo;
     uint32_t base_lo    : 24;
@@ -59,7 +59,7 @@ typedef struct __tss_descriptor
     uint8_t flags       : 4;
     uint8_t base_mid    : 8;
     uint64_t base_hi;
-} __pack tss_descriptor;
+} tss_descriptor;
 typedef struct __cpuid_leaf
 {
     uint32_t eax;

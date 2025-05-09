@@ -118,6 +118,5 @@ namespace std
         else { return static_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
     }
 #pragma endregion
-    
 }
 #endif

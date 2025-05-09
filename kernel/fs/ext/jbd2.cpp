@@ -122,7 +122,7 @@ bool jbd2::execute_pending_txns()
 uint32_t jbd2::calculate_sb_checksum()
 {
     uint32_t sb_cs_val = sb->checksum;
-    sb->checksum = 0_be32;
+    sb->checksum = 0UBE;
     uint32_t result = crc32c(*sb);
     sb->checksum = __be32(sb_cs_val);
     return result;
@@ -205,7 +205,7 @@ log_read_state jbd2::read_log_transaction()
     char* block_st = start;
     char* block_ed;
     uint32_t cb_csum_checkval = ch->checksum[0];
-    ch->checksum[0] = 0_be32;
+    ch->checksum[0] = 0UBE;
     uint32_t csum_base = crc32c(uuid_checksum, ch->header.sequence);
     uint32_t cb_csum = crc32c(csum_base, end, bs);
     ch->checksum[0] = __be32(cb_csum_checkval);
@@ -221,7 +221,7 @@ log_read_state jbd2::read_log_transaction()
             block_ed = block_st + bs;
             __be32* db_csum_pos = reinterpret_cast<__be32*>(block_ed - sizeof(__be32));
            uint32_t checkval = *db_csum_pos;
-           *db_csum_pos = 0_be32;
+           *db_csum_pos = 0UBE;
            uint32_t db_csum = crc32c(csum_base, block_st, bs);
            *db_csum_pos = __be32(checkval); 
             if(db_csum != checkval) goto skip_txn;
