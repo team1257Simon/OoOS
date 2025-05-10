@@ -4,7 +4,22 @@
 #include "stdexcept"
 #include "errno.h"
 static std::alignas_allocator<char, int128_t> __buffer_alloc;
-__isrcall void e1000e::on_interrupt() {} // TODO
+__isrcall void e1000e::on_interrupt() 
+{
+    irq_state icr{};
+    read_dma(e1000_icr, icr);
+    if(icr->link_status_change)
+    {
+        dev_ctrl ctl{};
+        read_dma(e1000_ctrl, ctl);
+        ctl->set_link_up = true;
+        write_dma(e1000_ctrl, ctl);
+    }
+    if(icr->rxdt_min_thresh || icr->rx_timer) poll_rx();
+    // read again to make sure the status clears
+    read_dma(e1000_icr, icr);
+    // more as needed
+}
 void e1000e::enable_transmit()
 {
     tx_ctrl ctl{};

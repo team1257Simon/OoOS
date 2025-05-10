@@ -202,6 +202,32 @@ struct attribute(packed, aligned(4)) e1000e_tx_desc_control_register
     bool descriptor_granularity     : 1; // 0 means cache line granularity
     uint8_t low_threshold           : 7;
 };
+struct attribute(packed, aligned(4)) e1000e_interrupt_cause_register
+{
+    bool tx_desc_writeback          : 1;
+    bool tx_queue_empty             : 1;
+    bool link_status_change         : 1;
+    bool                            : 1;
+    bool rxdt_min_thresh            : 1;
+    bool                            : 1;
+    bool rx_data_overrun            : 1;
+    bool rx_timer                   : 1;
+    bool                            : 1;
+    bool mdio_access_done           : 1;
+    bool                            : 5;
+    bool txdt_min_thresh            : 1;
+    bool rx_small_receive           : 1;
+    bool ack_frame                  : 1;
+    bool manageability_event        : 1;
+    bool                            : 1;
+    bool rxq0                       : 1;
+    bool rxq1                       : 1;
+    bool txq0                       : 1;
+    bool txq1                       : 1;
+    bool other                      : 1;
+    bool                            : 6;
+    bool asserted                   : 1; 
+};
 template<std::same_size<uint32_t> T> union [[gnu::may_alias]] e1000e_register_dword
 {
     typedef uint32_t& dw_ref;
@@ -224,6 +250,7 @@ typedef e1000e_register_dword<e1000e_rx_control_register> rx_ctrl;
 typedef e1000e_register_dword<e1000e_tx_control_register> tx_ctrl;
 typedef e1000e_register_dword<e1000e_rx_desc_control_register> rx_desc_ctrl;
 typedef e1000e_register_dword<e1000e_tx_desc_control_register> tx_desc_ctrl;
+typedef e1000e_register_dword<e1000e_interrupt_cause_register> irq_state;
 struct e1000e_nvm_config_table
 {
     word ethernet_address[3];
