@@ -1,7 +1,7 @@
 #include "ow-crypt.h"
 #include "kernel/libk_decls.h"
-#include "kernel/arch/entro_amd64.hpp"
-static std::allocator<char> ch_alloc{};
+#include "kernel/entropy_source.hpp"
+constexpr static std::allocator<char> ch_alloc{};
 std::string create_hash_setting_string(size_t n)
 {
     char* buffer = ch_alloc.allocate(n * sizeof(uint64_t));

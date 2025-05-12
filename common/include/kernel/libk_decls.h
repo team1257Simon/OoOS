@@ -60,6 +60,8 @@ template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { 
 template<integral_structure I, integral_structure J> constexpr I div_round_up(I num, J denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
 template<integral_structure I, integral_structure J> constexpr I truncate(I n, J unit) { return (n % unit == 0) ? n : n - (n % unit); }
 template<integral_structure I, integral_structure J> constexpr I up_to_nearest(I n, J unit) { return (n % unit == 0) ? n : (unit * div_round_up(n, unit)); }
+// Returns the power of 10 with the same number of digits as the input in standard (i.e. not scientific) base-10 notation.
+template<integral_structure I> constexpr I magnitude(I num) { I i; for(i = I(1); num > I(10); i *= I(10), num /= I(10)); return i; }
 template<typename T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); array_zero(src, n); }
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2U) return leap ? 29U : 28U; if(month == 1U || month == 3U || month == 5U || month == 7U || month == 10U || month == 12U) return 31U; return 30U; }
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from) { return ((yr - from) * 365U + (yr - up_to_nearest(from, 4)) / 4U + 1U); }

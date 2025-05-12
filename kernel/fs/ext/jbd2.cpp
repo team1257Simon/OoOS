@@ -3,7 +3,7 @@
 #include "unordered_set"
 #include "kdebug.hpp"
 typedef std::hash_set<qword, uint64_t, std::hash<uint64_t>, std::equal_to<void>, std::allocator<qword>, decltype([](qword const& qw) -> uint64_t const& { return *reinterpret_cast<uint64_t const*>(&qw); })> blocknum_set;
-std::allocator<jbd2_superblock> sb_alloc{};
+constexpr static std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2() = default;
 jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }

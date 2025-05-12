@@ -434,7 +434,7 @@ namespace std
 	u32string to_u32string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_hex_string(value); }
 	u32string to_u32string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_hex_string(value); }
 	u32string to_u32string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_hex_string(value); }
-        string to_string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char>::__to_bare_hex_string(value); }
+    string to_string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char>::__to_bare_hex_string(value); }
     string to_string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char>::__to_bare_hex_string(value); }
     string to_string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char>::__to_bare_hex_string(value); }
     string to_string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char>::__to_bare_hex_string(value); }

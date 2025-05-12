@@ -12,7 +12,6 @@ constexpr uint64_t table_offs_base = fis_offs_base + 32UL * sizeof(hba_fis);
 constexpr size_t prdt_size = prdt_entries_count * sizeof(hba_prdt_entry);
 ahci ahci::__instance{};
 bool ahci::__has_init = false;
-void ahci::__init_irq() { for(int i = 0; i < 32; i++, __sync_synchronize()) { if(has_port(i)) { __abar->i_status |= BIT(i); barrier(); uint32_t s1 = __abar->ports[i].i_state; barrier(); __abar->ports[i].i_state = s1; barrier(); } }  if(interrupt_table::add_irq_handler(__pci_ahci_controller->header_0x0.interrupt_pin, std::move(LAMBDA_ISR() { this->handle_irq(); }))) irq_clear_mask(__pci_ahci_controller->header_0x0.interrupt_pin); }
 static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /*drq*/ }
 static inline bool __port_cmd_busy(hba_port* port, int slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo.b5 /* processed */ && i[slot]; }
 static inline bool __port_nack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return i.lo.hi.b7 /* cr */ || i.lo.hi.b6; /* fr */ }
@@ -26,6 +25,22 @@ ahci_device ahci::get_device_type(uint8_t i) { return __devices[i]; }
 uint32_t ahci::last_read_count(uint8_t i) { barrier(); return __abar->ports[i].command_list[__last_command_on_port[i]].prd_count; }
 bool ahci::is_busy(uint8_t i) { barrier(); uint32_t c = __abar->ports[i].cmd; barrier(); return __port_data_busy(std::addressof(__abar->ports[i])) || (c & hba_command_cr) == 0; }
 bool ahci::is_done(uint8_t i) { uint32_t st = __abar->ports[i].i_state; barrier(); return !(st == 0 || __port_cmd_busy(std::addressof(__abar->ports[i]), __last_command_on_port[i])) && !is_busy(i); }
+void ahci::__init_irq() 
+{ 
+    for(int i = 0; i < 32; i++, __sync_synchronize())
+    {
+        if(has_port(i))
+        {
+            __abar->i_status |= BIT(i); 
+            barrier(); 
+            uint32_t s1 = __abar->ports[i].i_state; 
+            barrier(); 
+            __abar->ports[i].i_state = s1;
+            barrier();
+        }
+    }
+    interrupt_table::add_irq_handler(__pci_ahci_controller->header_0x0.interrupt_line, std::bind(&ahci::handle_irq, this)); 
+}
 static inline ahci_device check_type(hba_port const& p)
 {
     barrier();
@@ -103,7 +118,7 @@ bool ahci::init(pci_config_space* ps) noexcept
         __pci_ahci_controller = ps;
         uint32_t bar = ps->header_0x0.bar[5];
         __abar = compute_base(bar);
-        __ahci_block = kmm.allocate_dma(S128, (bar & (1 << 3)) != 0);
+        __ahci_block = kmm.allocate_dma(S128, (bar & BIT(3)) != 0);
         barrier();
         __pci_ahci_controller->command.bus_master = true;
         __pci_ahci_controller->command.memory_space = true;

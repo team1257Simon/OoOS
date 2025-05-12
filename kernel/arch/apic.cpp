@@ -1,8 +1,9 @@
 #include "arch/apic.hpp"
 #include "kernel_mm.hpp"
+#include "kdebug.hpp"
 constexpr uint64_t ioapic_default_physical_base = 0xFEC00000UL;
 apic::apic(unsigned id) : __apic_mem{ nullptr }, __local_id{ id } {}
-void apic::eoi() volatile { if(__apic_mem) __apic_mem->eoi.value = 0; } // writing a 0 to this register signals an eoi in apic mode
+void apic::eoi() volatile { if(__apic_mem) __apic_mem->eoi.value = 0U; } // writing a 0 to this register signals an eoi in apic mode
 bool apic::init() volatile
 {
     madt_t* madt = static_cast<madt_t*>(find_system_table("APIC"));
@@ -38,8 +39,8 @@ bool apic::init() volatile
     if(!ioapic_physical_base) ioapic_physical_base = ioapic_default_physical_base;
     addr_t the_apic = kmm.map_dma(physical_base, sizeof(apic_map), false);
     addr_t the_ioapic = kmm.map_dma(ioapic_physical_base, sizeof(ioapic), false);
-    uint8_t k_pic1 = inb(data_pic1);
-    uint8_t k_pic2 = inb(data_pic2);
+    uint32_t count_target = magnitude(cpuid(0x16U, 0).ecx) * 1000;
+    fence();
     outb(data_pic1, 0xFFUC);
     outb(data_pic2, 0xFFUC);
     write_msr<ia32_apic_base>(qword((physical_base & 0xFFFFF000) | apic_enable, (physical_base >> 32) & 0x0F));
@@ -53,24 +54,19 @@ bool apic::init() volatile
     barrier();
     __apic_mem->timer_divide.value = 0b1011;
     barrier();
-    uint32_t tvec = __apic_mem->lvt_timer.value;
-    tvec &= 0xFFFEFF00;
-    tvec |= 0x20;
+    uint32_t tvec = (__apic_mem->lvt_timer.value & 0xFFFEFF00) | 0x20;
+    barrier();
     __apic_mem->lvt_timer.value = tvec;
     barrier();
-    for(size_t i = 0; i < 16; i++)
+    __apic_mem->timer_count_init.value = count_target;
+    barrier();
+    for(size_t i = 0; i < 16; i++, barrier())
     {
         __ioapic_mem->select_reg = (0x10 + i * 2);
         barrier();
-        uint32_t data = __ioapic_mem->data_reg;
+        uint32_t data = (__ioapic_mem->data_reg & ~0x100FF) | (0x20 + i);
         barrier();
-        data &= ~0x100FF;
-        data |= (0x20 + i);
         __ioapic_mem->data_reg = data;
-        barrier();
     }
-    // TODO: use the APIC LVT mechanism instead of reenabling legacy PIC
-    outb(data_pic1, k_pic1);
-    outb(data_pic2, k_pic2);
     return true;
 }

@@ -20,7 +20,7 @@ namespace interrupt_table
 }
 inline void pic_eoi(byte irq) 
 {
-    if(bsp_lapic.valid()) { bsp_lapic.eoi(); }
+    if(bsp_lapic.valid()) { bsp_lapic.eoi(); return; }
     if(irq > 7) outb(command_pic2, sig_pic_eoi); 
     outb(command_pic1, sig_pic_eoi); 
 }

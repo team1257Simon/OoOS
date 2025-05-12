@@ -1,7 +1,7 @@
 #include "users.hpp"
 #include "stdexcept"
 #include "ow-crypt.h"
-#include "arch/entro_amd64.hpp"
+#include "entropy_source.hpp"
 using std::addressof;
 char __user_file_instance_data[sizeof(user_file)]{};
 user_file* user_file::__instance = reinterpret_cast<user_file*>(__user_file_instance_data);

@@ -102,7 +102,7 @@ bool com_amd64::init_instance(line_ctl_byte mode, trigger_level_t trigger_level,
         outb(port_com1_modem_ctl, modem_ctl_byte{ true, true, true, true, false });
         init_ier.receive_data = true;
         outb(port_com1_ier, init_ier);
-        if(interrupt_table::add_irq_handler(4UC, std::move(LAMBDA_ISR() { __instance.read_dev(0UZ); }))) irq_clear_mask<4UC>();
+        interrupt_table::add_irq_handler(4UC, std::move(LAMBDA_ISR() { __instance.read_dev(0UZ); }));
         try { __instance.__dev_id = device_registry::get_instance().add(std::addressof(__instance), COM); } catch(std::exception& e) { panic(e.what()); return false; }
         return true; 
     }

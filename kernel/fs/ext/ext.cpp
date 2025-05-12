@@ -6,9 +6,9 @@
 #include "bitmap.hpp"
 #include "kdebug.hpp"
 using std::addressof;
-static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
-static std::allocator<ext_superblock> sb_alloc{};
-static std::allocator<block_group_descriptor> bg_alloc{};
+constexpr static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
+constexpr static std::allocator<ext_superblock> sb_alloc{};
+constexpr static std::allocator<block_group_descriptor> bg_alloc{};
 constexpr static uint16_t isize_val = sizeof(ext_inode) - offsetof(ext_inode, extra_isize);
 void ext_block_group::increment_dir_ct() { dword dir_ct(descr->num_directories, descr->num_directories_hi); dir_ct++; descr->num_directories = dir_ct.lo; descr->num_directories_hi = dir_ct.hi; }
 void ext_block_group::decrement_dir_ct() { dword dir_ct(descr->num_directories, descr->num_directories_hi); dir_ct--; descr->num_directories = dir_ct.lo; descr->num_directories_hi = dir_ct.hi; }

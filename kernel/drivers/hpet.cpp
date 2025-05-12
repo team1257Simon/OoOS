@@ -2,14 +2,14 @@
 #include "kernel_mm.hpp"
 #include "isr_table.hpp"
 #include "kdebug.hpp"
-constexpr static uint8_t get_irq_vector(hpet_t::hpet_timer_t const volatile& t) { return (t.caps_and_config & timer_n_irq_mask) >> timer_n_irq_shift; }
-constexpr static void set_irq_vector(hpet_t::hpet_timer_t volatile& t, uint8_t n) { t.caps_and_config |= (n << timer_n_irq_shift); }
 extern "C"
 {
     extern void no_waiting_op();
     extern void (*callback_8)();    // sounds mysterious but is just a function pointer for a one-off callback on IRQ 8
     extern volatile bool delay_flag;
 }
+constexpr static uint8_t get_irq_vector(hpet_t::hpet_timer_t const volatile& t) { return (t.caps_and_config & timer_n_irq_mask) >> timer_n_irq_shift; }
+constexpr static void set_irq_vector(hpet_t::hpet_timer_t volatile& t, uint8_t n) { t.caps_and_config |= (n << timer_n_irq_shift); }
 hpet_amd64 hpet_amd64::__instance{};
 hpet_amd64::hpet_amd64() = default;
 hpet_amd64& hpet_amd64::get() { return __instance; }

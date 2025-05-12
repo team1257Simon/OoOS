@@ -8,9 +8,7 @@ class scheduler
     prio_level_task_queues __queues;
     task_wait_queue __sleepers;
     std::vector<task_t*> __non_timed_sleepers;
-    std::atomic<unsigned> __cycle_subticks;
     unsigned int __tick_rate;
-    unsigned int __subtick_rate;
     unsigned int __cycle_divisor;
     std::atomic<unsigned> __tick_cycles;
     bool __running;
