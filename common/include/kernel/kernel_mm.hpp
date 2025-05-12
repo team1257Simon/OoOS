@@ -43,24 +43,24 @@ struct block_tag
     uint64_t magic          { block_magic };
     size_t block_size;
     size_t held_size;
-    int64_t index;
     block_tag* left_split   { nullptr };
     block_tag* right_split  { nullptr };
     block_tag* previous     { nullptr };
     block_tag* next         { nullptr };
-    size_t align_bytes      { 0UL };
+    int index;
+    uint32_t align_bytes;
     constexpr block_tag() = default;
-    constexpr block_tag(size_t size, size_t held, int64_t idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, size_t align = 0) noexcept :
+    constexpr block_tag(size_t size, size_t held, int idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, uint32_t align = 0U) noexcept :
         block_size      { size },
         held_size       { held },
-        index           { idx },
         left_split      { left },
         right_split     { right },
         previous        { prev },
         next            { nxt },
+        index           { idx },
         align_bytes     { align }
                         {}
-    constexpr block_tag(size_t size, size_t held, int64_t idx = -1, size_t align = 0) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
+    constexpr block_tag(size_t size, size_t held, int idx = -1, uint32_t align = 0U) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
     constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
     constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
     constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }
@@ -188,7 +188,7 @@ enum block_size : uint32_t
  *      5. The kernel heap is initially allocated and mapped by the bootloader and consists of all addresses between the status byte array
  *         and the address corresponding to the end of the identity-mapped region (1GB by default) at startup.
  */
-typedef struct mem_status_byte
+typedef struct attribute(packed, aligned(1)) mem_status_byte
 {
     uint8_t the_byte : 8;
 private:
@@ -205,7 +205,7 @@ private:
     constexpr bool operator!() const noexcept { return all_used(); }
     constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
     constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
-} __align(1) __pack status_byte, gb_status[512];
+} status_byte, gb_status[512];
 class kernel_memory_mgr
 {
     spinlock_t __heap_mutex;                    // Calls to kernel allocations lock this mutex to prevent comodification

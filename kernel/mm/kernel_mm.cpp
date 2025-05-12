@@ -35,7 +35,7 @@ constexpr uint32_t   calculate_block_index(size_t size) { return size < min_bloc
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t     region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, page_size)) : nearest(sz); }
 static paging_table __get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
-constexpr size_t     add_align_size(addr_t tag, size_t align) { return align > 1 ? (up_to_nearest<size_t>(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.full + bt_offset)) : 0; }
+constexpr uint32_t  add_align_size(addr_t tag, size_t align) { return static_cast<uint32_t>(align > 1 ? (up_to_nearest<size_t>(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.full + bt_offset)) : 0); }
 kernel_memory_mgr& kernel_memory_mgr::get() { return *__instance; }
 uintptr_t          kernel_memory_mgr::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
 void kernel_memory_mgr::__lock() { lock(addressof(__heap_mutex)); __suspend_frame(); }
@@ -528,7 +528,7 @@ block_tag* kframe_tag::__create_tag(size_t size, size_t align)
     size_t actual_size = std::max(size + bt_offset, align) + align;
     addr_t allocated   = kmm.allocate_kernel_block(actual_size);
     if(!allocated) return nullptr;
-    return new(allocated) block_tag(region_size_for(actual_size), size, -1L, add_align_size(allocated, align));
+    return new(allocated) block_tag(region_size_for(actual_size), size, -1, add_align_size(allocated, align));
 }
 block_tag* kframe_tag::__melt_left(block_tag* tag) noexcept
 {
