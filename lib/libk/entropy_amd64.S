@@ -1,9 +1,9 @@
     .code64
     .text
     .global __fill_entropy
-    .type   __fill_entropy, @function
+    .type   __fill_entropy,     @function
 __fill_entropy:
-    movq    %rsi,   %rcx
+    movq    %rsi,               %rcx
     jrcxz   3f
 1:
     rdseed  %rax
@@ -11,6 +11,6 @@ __fill_entropy:
     stosq
     loop    1b
 3:
-    movq    %rdi,   %rax
+    movq    %rdi,               %rax
     ret
-    .size   __fill_entropy, .-__fill_entropy
+    .size   __fill_entropy,     .-__fill_entropy

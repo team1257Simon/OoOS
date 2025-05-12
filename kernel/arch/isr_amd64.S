@@ -55,9 +55,6 @@ delay_flag:
     .byte       0
     .size       delay_flag,         .-delay_flag
     .text
-    // The one time exponential growth actually comes in handy...
-    // Though I suppose that makes this logarithmic complexity, i.e. O(log(n)) macro expansions where n is table size.
-    // Actually, it's just straight up 1+log(n) assuming you're in log base 2...
     .macro xm_1 macro at
         \macro \at
         \macro %(at+1)
@@ -98,7 +95,7 @@ delay_flag:
         .type       isr_\i,     @function
         isr_\i:
             pushq   %rax
-            .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
+            .ifeq   (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             movq    8(%rsp),    %rax
             movq    %rax,       ecode
             movq    16(%rsp),   %rax
@@ -136,7 +133,7 @@ delay_flag:
             popq    %rdi
             popq    %rbx
             popq    %rax
-            .ifeq (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
+            .ifeq   (\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
             addq    $8,         %rsp
             .endif
             cmpb    $0,         task_signal_code

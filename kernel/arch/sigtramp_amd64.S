@@ -33,3 +33,4 @@ signal_exit:
 	.data
 exception_signals:
 	.byte 8, 5, 7, 5, 21, 21, 4, 8, 6, 11, 11, 11, 11, 11, 11, 0, 8, 10, 6, 8, 7, 11, 0, 0, 0, 0, 0, 0, 6, 6, 6, 0
+	.size	exception_signals,	.-exception_signals

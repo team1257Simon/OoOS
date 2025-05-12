@@ -13,7 +13,6 @@
     .type       gdt_setup,              @function
     .type       idt_register,           @function
     .type       idt_set_entry,          @function
-    .type       fill_tss_descriptor,    @function
     .type       kernel_stack_base,      @object
     .type       kernel_stack_top,       @object
     .type       gdt_table,              @object
@@ -32,7 +31,7 @@ kernel_stack_top:
 system_tss:
     .zero       102
     .word       104
-    .size       system_tss,         .-system_tss
+    .size       system_tss,             .-system_tss
 gdt_table:                              // The actual GDT
     .quad       0                       // Null Descriptor
     .quad       0x00AF9A000000FFFF      // Code Segment for Ring 0; offset 0x8
@@ -42,60 +41,52 @@ gdt_table:                              // The actual GDT
 local_tss_descr:
     .zero       16
     .zero       4040
-    .size       local_tss_descr,    .-local_tss_descr
-    .size       gdt_table,          .-gdt_table
+    .size       local_tss_descr,        .-local_tss_descr
+    .size       gdt_table,              .-gdt_table
 gdt_descriptor:                         // The GDT pointer struct
     .word       0x0FFF
     .quad       gdt_table
-    .size       gdt_descriptor,     .-gdt_descriptor
+    .size       gdt_descriptor,         .-gdt_descriptor
 idt_table:
     .zero       4096
-    .size       idt_table,          .-idt_table
+    .size       idt_table,              .-idt_table
     .text
-fill_tss_descriptor:
-	movl	$104,       %edx
-	movq	%rsi,       %rax
-	movl	$16521,     %ecx
-	movb	%sil,       2(%rdi)
-	movw	%dx,        (%rdi)
-	movq	%rsi,       %rdx
-	shrq	$16,        %rdx
-	movb	%ah,        3(%rdi)
-	movb	%dl,        4(%rdi)
-	movq	%rsi,       %rdx
-	shrq	$24,        %rdx
-	movw	%cx,        5(%rdi)
-	movb	%dl,        7(%rdi)
-	movq	%rsi,       %rdx
-	movl	$104,       %esi
-	shrq	$32,        %rdx
-	movq	%rdx,       8(%rdi)
-	ret
-    .size   fill_tss_descriptor,    .-fill_tss_descriptor
 gdt_setup:
-    leaq    local_tss_descr,        %rdi
-    leaq    system_tss,             %rsi
-    call    fill_tss_descriptor
-    lgdt    gdt_descriptor
-    push    $0x8
-    leaq    .local_reload_segments, %rax
-    pushq   %rax
+    leaq        local_tss_descr,        %rdi
+    leaq        system_tss,             %rsi
+	movq	    %rsi,                   %rax
+	movb	    %sil,                   2(%rdi)
+	movw	    $0x68,                  (%rdi)
+	movq	    %rsi,                   %rdx
+	shrq	    $16,                    %rdx
+	movb	    %ah,                    3(%rdi)
+	movb	    %dl,                    4(%rdi)
+	movq	    %rsi,                   %rdx
+	shrq	    $24,                    %rdx
+	movw	    $0x4089,                5(%rdi)
+	movb	    %dl,                    7(%rdi)
+	shrq	    $32,                    %rsi
+	movq	    %rsi,                   8(%rdi)
+    lgdt        gdt_descriptor
+    push        $0x8
+    leaq        .Lreload_segments,      %rax
+    pushq       %rax
     lretq
-.local_reload_segments:
-    movw    $0x10,  %ax
-    movw    %ax,    %ds
-    movw    %ax,    %es
-    movw    %ax,    %fs
-    movw    %ax,    %gs
-    movw    %ax,    %ss
-    movw    $0x28,  %ax
-    ltr     %ax
+.Lreload_segments:
+    movw        $0x10,                  %ax
+    movw        %ax,                    %ds
+    movw        %ax,                    %es
+    movw        %ax,                    %fs
+    movw        %ax,                    %gs
+    movw        %ax,                    %ss
+    movw        $0x28,                  %ax
+    ltr         %ax
     ret
-    .size       gdt_setup,      .-gdt_setup
+    .size       gdt_setup,              .-gdt_setup
 idt_register:
     lidt        idt_descriptor
-    movq        %cr4,           %rax
-    orq         $0x10000,       %rax
-    movq        %rax,           %cr4
+    movq        %cr4,                   %rax
+    orq         $0x10000,               %rax
+    movq        %rax,                   %cr4
     ret
-    .size       idt_register,   .-idt_register
+    .size       idt_register,           .-idt_register
