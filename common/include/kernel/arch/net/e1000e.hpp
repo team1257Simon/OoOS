@@ -516,6 +516,7 @@ protected:
     virtual bool configure_tx(dev_status& st);
     virtual bool configure_mac_phy(dev_status& st);
     bool configure_interrupts(dev_status& st);
+    void read_status(dev_status& st);
     bool read_io(int reg_id, uint32_t& r_out);
     bool write_io(int reg_id, uint32_t const& w_in);
     void read_dma(int reg_id, uint32_t& r_out);

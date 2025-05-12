@@ -4,6 +4,7 @@
 #include "stdexcept"
 #include "errno.h"
 static std::alignas_allocator<char, int128_t> __buffer_alloc;
+void e1000e::read_status(dev_status& status) { read_dma(e1000_status, status); }
 __isrcall void e1000e::on_interrupt() 
 {
     irq_state icr{};
@@ -106,6 +107,7 @@ bool e1000e::__mdio_await(mdic& mdic_reg)
 {
     return await_result([&]() -> bool 
     {
+        io_wait();
         read_dma(e1000_mdic, mdic_reg);
         if(mdic_reg->error) throw std::runtime_error{ "e1000e mdic read error" };
         return mdic_reg->ready;
@@ -142,7 +144,7 @@ uint16_t e1000e::read_eeprom(uint16_t eep_addr)
         }
     };
     write_dma(e1000_eerd, rd);
-    await_result([&]() -> bool { read_dma(e1000_eerd, rd); return rd->read_done; });
+    await_result([&]() -> bool { io_wait(); read_dma(e1000_eerd, rd); return rd->read_done; });
     return rd->read_data;
 }
 void e1000e::write_phy(int phy_reg, uint16_t data)
@@ -188,13 +190,13 @@ bool e1000e::initialize()
     barrier();
     ctrl->reset = true;
     write_dma(e1000_ctrl, ctrl);
-    if(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; })) return false;
+    if(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; })) { panic("e1000e hung on reset"); return false; }
     barrier();
     write_dma(e1000_imc, ~0U);
     barrier();
     read_dma(e1000_status, status);
     barrier();
-    if(!configure_mac_phy(status)) return false;
+    if(!configure_mac_phy(status)) { panic("e1000e hung on link-up signal"); return false; }
     uint32_t init_zero = 0U;
     for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i, (init_zero = 0U)); read_dma(e1000_status, status); }
     for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, (init_zero = 0U)); read_dma(e1000_status, status); }
@@ -211,9 +213,10 @@ bool e1000e::configure_interrupts(dev_status& st)
     uint32_t enable_all = 0x1F6DCU;
     write_dma(e1000_ims, enable_all);
     read_dma(e1000_icr, enable_all); // read the register to clear it
-    read_dma(e1000_status, st);
-    interrupt_table::add_irq_handler(__pcie_e1000e_controller->header_0x0.interrupt_pin, std::bind(&e1000e::on_interrupt, this));
-    irq_clear_mask(__pcie_e1000e_controller->header_0x0.interrupt_pin);
+    read_status(st);
+    uint8_t ivec = __pcie_e1000e_controller->header_0x0.interrupt_pin;
+    interrupt_table::add_irq_handler(ivec, std::bind(&e1000e::on_interrupt, this));
+    irq_clear_mask(ivec);
     __pcie_e1000e_controller->command.interrupt_disable = false;
     return true;
 }
@@ -232,8 +235,7 @@ bool e1000e::configure_mac_phy(dev_status& st)
     read_dma(e1000_ctrl, ctl);
     ctl->set_link_up = true;
     write_dma(e1000_ctrl, ctl);
-    read_dma(e1000_status, st);
-    return st->link_up;
+    return await_result([&]() -> bool { io_wait(); read_status(st); return st->link_up; });
 }
 bool e1000e::configure_tx(dev_status& st)
 {
@@ -250,9 +252,9 @@ bool e1000e::configure_tx(dev_status& st)
     uint32_t tx_total_len = tx_tail * 16U;
     write_dma(txbase_hi, txbase.hi);
     write_dma(txbase_lo, txbase.lo);
-    read_dma(e1000_status, st);
+    read_status(st);
     write_dma(txlen, tx_total_len);
-    read_dma(e1000_status, st);
+    read_status(st);
     write_dma(txh, tx_head);
     write_dma(txt, tx_tail);
     tx_desc_ctrl tctl;
@@ -260,7 +262,7 @@ bool e1000e::configure_tx(dev_status& st)
     tctl->writeback_thresh = 1;
     tctl->descriptor_granularity = 1;
     write_dma(txdctl, tctl);
-    read_dma(e1000_status, st);
+    read_status(st);
     tx_ctrl ctrl_reg
     {
         .data_struct
@@ -277,7 +279,7 @@ bool e1000e::configure_tx(dev_status& st)
         }
     };
     write_dma(e1000_tctl, ctrl_reg);
-    read_dma(e1000_status, st);
+    read_status(st);
     return true;
 }
 bool e1000e::configure_rx(dev_status& st)
@@ -300,12 +302,12 @@ bool e1000e::configure_rx(dev_status& st)
     uint32_t rx_total_len = rx_tail * 16U;
     write_dma(rxbase_hi, rxbase.hi);
     write_dma(rxbase_lo, rxbase.lo);
-    read_dma(e1000_status, st);
+    read_status(st);
     write_dma(rxlen, rx_total_len);
-    read_dma(e1000_status, st);
+    read_status(st);
     write_dma(rxh, rx_head);
     write_dma(rxt, rx_tail);
-    read_dma(e1000_status, st);
+    read_status(st);
     rx_ctrl ctrl_reg
     {
         .data_struct
@@ -332,7 +334,7 @@ bool e1000e::configure_rx(dev_status& st)
         }
     };
     write_dma(e1000_rctl, ctrl_reg);
-    read_dma(e1000_status, st);
+    read_status(st);
     return true;
 }
 int e1000e::poll_tx(netstack_buffer& buff)

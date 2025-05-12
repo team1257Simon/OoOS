@@ -180,7 +180,7 @@ void extfs::initialize()
         blk_group_descs[i].group_checksum = 0;
         uint32_t cs0 = crc32c(uuid_csum, dword(i));
         dword dw_cs = crc32c(cs0, blk_group_descs[i]);
-        if(dw_cs.lo != cs) throw std::runtime_error{ "checksums on block group did not match" };
+        if(dw_cs.lo != cs) throw std::runtime_error{ "checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex) };
         blk_group_descs[i].group_checksum = cs;
     }
     std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);

@@ -67,6 +67,8 @@ namespace std
 	{
 		struct hex_t{};
 		constexpr inline hex_t hex;
+		struct nphex_t{};
+		constexpr inline nphex_t nphex;
 		std::string fcvt(float f, int ndigits);
 		std::string fcvtd(double d, int ndigits);
 		std::string fcvtl(long double ld, int ndigits);
@@ -106,6 +108,36 @@ namespace std
 	extension u32string to_u32string(unsigned int value, ext::hex_t);
 	extension u32string to_u32string(unsigned long value, ext::hex_t);
 	extension u32string to_u32string(unsigned long long value, ext::hex_t);
+	extension string to_string(int value, ext::nphex_t);
+	extension string to_string(long value, ext::nphex_t);
+	extension string to_string(long long value, ext::nphex_t);
+	extension string to_string(unsigned int value, ext::nphex_t);
+	extension string to_string(unsigned long value, ext::nphex_t);
+	extension string to_string(unsigned long long value, ext::nphex_t);
+	extension wstring to_wstring(int value, ext::nphex_t);
+	extension wstring to_wstring(long value, ext::nphex_t);
+	extension wstring to_wstring(long long value, ext::nphex_t);
+	extension wstring to_wstring(unsigned int value, ext::nphex_t);
+	extension wstring to_wstring(unsigned long value, ext::nphex_t);
+	extension wstring to_wstring(unsigned long long value, ext::nphex_t);
+	extension u8string to_u8string(int value, ext::nphex_t);
+	extension u8string to_u8string(long value, ext::nphex_t);
+	extension u8string to_u8string(long long value, ext::nphex_t);
+	extension u8string to_u8string(unsigned int value, ext::nphex_t);
+	extension u8string to_u8string(unsigned long value, ext::nphex_t);
+	extension u8string to_u8string(unsigned long long value, ext::nphex_t);
+	extension u16string to_u16string(int value, ext::nphex_t);
+	extension u16string to_u16string(long value, ext::nphex_t);
+	extension u16string to_u16string(long long value, ext::nphex_t);
+	extension u16string to_u16string(unsigned int value, ext::nphex_t);
+	extension u16string to_u16string(unsigned long value, ext::nphex_t);
+	extension u16string to_u16string(unsigned long long value, ext::nphex_t);
+	extension u32string to_u32string(int value, ext::nphex_t);
+	extension u32string to_u32string(long value, ext::nphex_t);
+	extension u32string to_u32string(long long value, ext::nphex_t);
+	extension u32string to_u32string(unsigned int value, ext::nphex_t);
+	extension u32string to_u32string(unsigned long value, ext::nphex_t);
+	extension u32string to_u32string(unsigned long long value, ext::nphex_t);
 #ifdef INST_STR
 #define STR_EXTERN_IMPL
 #else

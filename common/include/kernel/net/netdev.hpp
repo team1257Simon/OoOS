@@ -18,6 +18,7 @@ public:
     virtual void disable_receive()  = 0;
     virtual int poll_rx()           = 0;
     void register_stack(netstack_buffer::poll_functor&& f);
+    constexpr uint8_t const* get_mac_addr() const { return mac_addr; }
     // ...
 };
 #endif

@@ -235,6 +235,17 @@ namespace std
                 hstr.shrink_to_fit();
                 return basic_string<CT>(hstr.rend(), hstr.rbegin());
             }
+            constexpr static std::basic_string<CT> __to_bare_hex_string(IT i)
+            {
+                if(!i) return basic_string(1U, __digi_type::digits[0]);
+                size_t nd = __xdigits(i);
+                std::basic_string<CT> hstr(static_cast<size_t>(nd + 1));
+                IT j = __abs(i);
+                for(size_t n = 0; n < nd; n++) hstr.append(__get_hex_digit(j, n));
+                if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
+                hstr.shrink_to_fit();
+                return basic_string<CT>(hstr.rend(), hstr.rbegin());
+            }
         };
         inline std::string __fptocs_conv(float f, int digits)
         {
@@ -423,6 +434,36 @@ namespace std
 	u32string to_u32string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_hex_string(value); }
 	u32string to_u32string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_hex_string(value); }
 	u32string to_u32string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_hex_string(value); }
+        string to_string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char>::__to_bare_hex_string(value); }
+    string to_string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char>::__to_bare_hex_string(value); }
+    string to_string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char>::__to_bare_hex_string(value); }
+    string to_string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char>::__to_bare_hex_string(value); }
+    string to_string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char>::__to_bare_hex_string(value); }
+    string to_string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char>::__to_bare_hex_string(value); }
+    wstring to_wstring(int value, ext::nphex_t) { return __impl::__ntos_conv<int, wchar_t>::__to_bare_hex_string(value); }
+	wstring to_wstring(long value, ext::nphex_t) { return __impl::__ntos_conv<long, wchar_t>::__to_bare_hex_string(value); }
+	wstring to_wstring(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, wchar_t>::__to_bare_hex_string(value); }
+	wstring to_wstring(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, wchar_t>::__to_bare_hex_string(value); }
+	wstring to_wstring(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, wchar_t>::__to_bare_hex_string(value); }
+	wstring to_wstring(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, wchar_t>::__to_bare_hex_string(value); }
+    u8string to_u8string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char8_t>::__to_bare_hex_string(value); }
+	u8string to_u8string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char8_t>::__to_bare_hex_string(value); }
+	u8string to_u8string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char8_t>::__to_bare_hex_string(value); }
+	u8string to_u8string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char8_t>::__to_bare_hex_string(value); }
+	u8string to_u8string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char8_t>::__to_bare_hex_string(value); }
+	u8string to_u8string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char8_t>::__to_bare_hex_string(value); }
+    u16string to_u16string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char16_t>::__to_bare_hex_string(value); }
+	u16string to_u16string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char16_t>::__to_bare_hex_string(value); }
+	u16string to_u16string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char16_t>::__to_bare_hex_string(value); }
+	u16string to_u16string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char16_t>::__to_bare_hex_string(value); }
+	u16string to_u16string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char16_t>::__to_bare_hex_string(value); }
+	u16string to_u16string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char16_t>::__to_bare_hex_string(value); }
+    u32string to_u32string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char32_t>::__to_bare_hex_string(value); }
+	u32string to_u32string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char32_t>::__to_bare_hex_string(value); }
+	u32string to_u32string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char32_t>::__to_bare_hex_string(value); }
+	u32string to_u32string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_bare_hex_string(value); }
+	u32string to_u32string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_bare_hex_string(value); }
+	u32string to_u32string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_bare_hex_string(value); }
     namespace ext
     {
         std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }

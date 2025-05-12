@@ -4,6 +4,7 @@
 #include "arch/kb_amd64.hpp"
 #include "arch/apic.hpp"
 #include "arch/hpet_amd64.hpp"
+#include "arch/net/e1000e.hpp"
 #include "kernel_mm.hpp"
 #include "prog_manager.hpp"
 #include "kdebug.hpp"
@@ -29,7 +30,6 @@
 #include "ext/delegate_ptr.hpp"
 #include "algorithm"
 #include "map"
-#include "list"
 sysinfo_t* sysinfo;
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
@@ -41,6 +41,7 @@ static bool direct_print_enable{ false };
 static bool fx_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
 const char* test_argv{ "Hello task world " };
+static char test_e1000e_drv[sizeof(e1000e)]{};
 std::atomic<bool> dbg_hold{ false };
 extern uintptr_t saved_stack_ptr;
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
@@ -79,93 +80,34 @@ static void descr_pt(partition_table const& pt)
         startup_tty.print_line(std::to_string(i->end_lba));
     }
 }
+static int rx_test_poll(netstack_buffer& packet)
+{
+    startup_tty.print_text(" [received packet of " + std::to_string(packet.size(std::ios_base::in)) + "bytes] ");
+    return 0;
+}
+void net_tests()
+{
+    if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))
+    {
+        e1000e* test_dev = new(test_e1000e_drv) e1000e(net_pci);
+        test_dev->register_stack(rx_test_poll);
+        if(!test_dev->initialize()) panic("init failed");
+        else
+        {
+            const uint8_t* mac = test_dev->get_mac_addr();
+            startup_tty.print_text("MAC: ");
+            for(int i = 0; i < 6; i++)
+            {
+                startup_tty.print_text(std::to_string(mac[i], std::ext::nphex));
+                if(i < 5)
+                    startup_tty.print_text(":");
+            }
+            startup_tty.endl();
+        }
+    }
+    else panic("net device not found on PCI bus");
+}
 void map_tests()
-{
-    using map_type = std::map<std::string, int>;
-    map_type m{};
-    m.insert(std::make_pair("meep", 21));
-    m["gyeep"] = 63;
-    m.insert_or_assign("bweep", 42);
-    m["fweep"] = 84;
-    m.insert_or_assign("dreep", 105);
-    startup_tty.print_text("initial map values: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
-    {
-        startup_tty.print_text(i->first);
-        startup_tty.print_text(": ");
-        startup_tty.print_text(std::to_string(i->second));
-        startup_tty.print_text("; ");
-    }
-    startup_tty.endl();
-    m.erase("gyeep");
-    startup_tty.print_text("map values after erase: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
-    {
-        startup_tty.print_text(i->first);
-        startup_tty.print_text(": ");
-        startup_tty.print_text(std::to_string(i->second));
-        startup_tty.print_text("; ");
-    }
-    startup_tty.endl();
-    m["dreep"] = 45;
-    m.insert_or_assign("fweep", 37);
-    startup_tty.print_text("map values after reassign: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
-    {
-        startup_tty.print_text(i->first);
-        startup_tty.print_text(": ");
-        startup_tty.print_text(std::to_string(i->second));
-        startup_tty.print_text("; ");
-    }
-    startup_tty.endl();
-    m.clear();
-    m.insert(std::make_pair("meep", 21));
-    m["gyeep"] = 63;
-    m.insert_or_assign("bweep", 42);
-    m["fweep"] = 84;
-    m.insert_or_assign("dreep", 105);
-    startup_tty.print_text("map values after reset: ");
-    for(map_type::iterator i = m.begin(); i != m.end(); ++i)
-    {
-        startup_tty.print_text(i->first);
-        startup_tty.print_text(": ");
-        startup_tty.print_text(std::to_string(i->second));
-        startup_tty.print_text("; ");
-    }
-    startup_tty.endl();
-}
-void list_tests()
-{
-    typedef std::list<std::string> list_type;
-    list_type l;
-    l.push_back("meep");
-    l.push_back("bweep");
-    l.push_front("fweep");
-    list_type::iterator i = l.insert(l.begin(), "gyeep");
-    i = l.insert(i, "dreep");
-    startup_tty.print_text("initial list values: ");
-    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
-    startup_tty.endl();
-    i++;
-    i = l.erase(i);
-    startup_tty.print_text("list values after erase: ");
-    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
-    startup_tty.endl();
-    *i = "kweep";
-    startup_tty.print_text("list values after reassign: ");
-    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
-    startup_tty.endl();
-    l.clear();
-    l.push_back("meep");
-    l.push_back("bweep");
-    l.push_front("fweep");
-    i = l.insert(l.begin(), "gyeep");
-    i = l.insert(i, "dreep");
-    startup_tty.print_text("list values after reset: ");
-    for(std::string const& s : l) { startup_tty.print_text(s + "; "); }
-    startup_tty.endl();
-}
-void hash_map_tests()
 {
     using map_type = std::unordered_map<std::string, int>;
     map_type m{};
@@ -453,9 +395,7 @@ void run_tests()
     startup_tty.print_line("string test...");
     str_tests();
     startup_tty.print_line("map test...");
-    hash_map_tests();
-    startup_tty.print_line("list test...");
-    list_tests();
+    map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     startup_tty.print_line("serial test...");
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
@@ -463,6 +403,8 @@ void run_tests()
     if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_partition_table());
     startup_tty.print_line("hpet test...");
     hpet_tests();
+    startup_tty.print_line("net test...");
+    net_tests();
     // Test the complicated stuff
     startup_tty.print_line("vfs tests...");
     vfs_tests();   
