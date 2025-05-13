@@ -3,7 +3,7 @@ CXX := $(TARGET_HOSTED)-g++
 AR := $(TARGET_HOSTED)-ar
 CC := $(TARGET_HOSTED)-gcc
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32
-CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++2c -nostdinc++
+CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++23 -nostdinc++
 CCFLAGS := $(CFLAGS) -std=gnu23
 ARFLAGS := -rcs
 OUT_A := $(OUTDIR)/libk.a

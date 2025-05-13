@@ -64,6 +64,8 @@ namespace std
                 constexpr static allocator<__managed_object_node<T>> __alloc{};
                 static void* __allocate() { return __alloc.allocate(1UZ); }
                 static void __deallocate(void* p) { __alloc.deallocate(static_cast<__managed_object_node<T>*>(p), 1UZ); }
+                template<typename ... Args> requires constructible_from<T, Args...> static T* __create(Args&& ... args) { return new(__allocate()) T(forward<Args>(args)...); }
+                static void* __copy_construct(const void* ptr) requires copy_constructible<decay_t<T>> { return new(__allocate()) T(*static_cast<const T*>(ptr)); }
             };
             struct __generic_ptr_container : vector<void*> 
             {

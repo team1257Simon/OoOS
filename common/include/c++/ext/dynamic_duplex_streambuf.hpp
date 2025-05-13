@@ -11,7 +11,7 @@ namespace std
         {
         protected:
             typedef basic_streambuf<CT, TT> __base;
-            typedef __impl::__buf_ptrs<CT> __ptr_container;
+            typedef std::__impl::__buf_ptrs<CT> __ptr_container;
             typedef AT __alloc_type;
             __alloc_type __allocator;
             bool __readonly_input = false;

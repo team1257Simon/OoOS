@@ -46,6 +46,7 @@ inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 constexpr inline size_t gigabyte = 0x40000000;
 template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
+template<typename T> concept standard_layout = std::is_standard_layout_v<T>;
 template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { if consteval { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(array[i])); } } } }
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_fill(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++, dest++) { *dest = value; } }
 template<nontrivial_copy T> constexpr void array_copy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++, ++dest, ++src) std::construct_at(dest, *src); }

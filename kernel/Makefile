@@ -2,7 +2,7 @@ OUTDIR := $(BUILD_DIR)/SYS
 OBJDIR := $(CURDIR)/build
 KINCLUDES := $(INCLUDES)/kernel
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(KINCLUDES)) -Wno-packed-bitfield-compat -D__KERNEL__ -mcrc32
-CXXFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++2c -nostdinc++
+CXXFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++23 -nostdinc++
 CCFLAGS := $(CFLAGS) -std=gnu23
 ASFLAGS := -I$(PROJECT_DIR)/common/include/asm -I$(PROJECT_DIR)/common/include/asm-generated
 LDSCRIPT := $(CURDIR)/linker.lds

@@ -1,6 +1,6 @@
 #ifndef __NETDEV
 #define __NETDEV
-#include "net/netstack_buffer.hpp"
+#include "net/protocol/generic_packet.hpp"
 #include "bits/stl_queue.hpp"
 class net_device
 {
@@ -11,14 +11,17 @@ protected:
 public:
     net_device();
     virtual ~net_device();
-    virtual bool initialize()       = 0;
-    virtual void enable_transmit()  = 0;
-    virtual void enable_receive()   = 0;
-    virtual void disable_transmit() = 0;
-    virtual void disable_receive()  = 0;
-    virtual int poll_rx()           = 0;
+    virtual bool initialize()                   = 0;
+    virtual void enable_transmit()              = 0;
+    virtual void enable_receive()               = 0;
+    virtual void disable_transmit()             = 0;
+    virtual void disable_receive()              = 0;
+    virtual int poll_rx()                       = 0;
+    virtual int poll_tx(netstack_buffer& buff)  = 0;
     void register_stack(netstack_buffer::poll_functor&& f);
+    int transmit(generic_packet_base& p);
     constexpr uint8_t const* get_mac_addr() const { return mac_addr; }
+    
     // ...
 };
 #endif

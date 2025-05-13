@@ -12,21 +12,26 @@ namespace std
         type_info const* info;
     public:
         type_index(type_info const& i);
+        constexpr type_index() noexcept : info{ addressof(typeid(void)) } {}
         const char* name() const;
         size_t hash_code() const;
         friend inline strong_ordering operator<=>(type_index const& __this, type_index const& __that) { return strcmp(__this.info->name(), __that.info->name()) <=> 0; }
+        constexpr void swap(type_index& that) { type_info const* i = this->info; this->info = that.info; that.info = i; }
     };
+    template<> struct hash<type_index> { size_t operator()(type_index const& ti) const noexcept { return ti.hash_code(); } };
     extension namespace ext
     {
         class type_erasure : public type_index
         {
         public:
             type_erasure(type_info const& i);
+            constexpr type_erasure() noexcept : type_index() {}
+            constexpr type_info const& get_type_info() const { return *info; }
             bool is_derived_from(type_info const& that);
-            void* cast(void* obj, type_info const& ti);
-            void* cast_from(void* obj, type_erasure const& that);
+            void* cast_to(void* obj, type_info const& ti) const;
+            void* cast_from(void* obj, type_erasure const& that) const;
             template<typename T> void* cast(T& t);
-            template<object T> requires (!is_array_v<T>) void* cast(T& t) { return cast(addressof(t), typeid(t)); }
+            template<object T> requires (!is_array_v<T>) void* cast(T& t) { return cast_from(addressof(t), typeid(t)); }
             template<typename T> requires (!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
             template<typename T> bool matches(T const& t) { if(*info == typeid(t)) return true; return type_erasure(typeid(t)).is_derived_from(*info); }
             friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
@@ -35,13 +40,6 @@ namespace std
         template<typename T> concept polymorphic = is_polymorphic_v<T>;
         namespace __impl
         {
-            struct __generic_arg_tuple_container
-            {
-                void* __args_tuple;
-                void (*__dtor)(void*);
-                constexpr __generic_arg_tuple_container(void* a, void(*d)(void*)) : __args_tuple{ a }, __dtor{ d } {}
-                constexpr ~__generic_arg_tuple_container() { if(__args_tuple && __dtor) (*__dtor)(__args_tuple); }
-            };
             template<polymorphic T, allocator_object<void> A>
             struct __dynamic_ptr
             {
@@ -73,23 +71,25 @@ namespace std
                     __ptr           { nullptr },
                     __dfn           { nullptr }
                                     {}
-                __dynamic_ptr() requires is_default_constructible_v<T> :
-                    __obj_erasure   { typeid(T) },
-                    __ptr           { construct_at(__base.allocate(1UZ)) },
-                    __dfn           { __base_dealloc }
-                                    {}
                 template<derived_from<T> U> __dynamic_ptr(U* ptr) :
                     __obj_erasure   { typeid(*ptr) },
                     __ptr           { ptr },
                     __dfn           { __alloc_helper<U>::__deallocate }
                                     {}
-                void __reset() 
+                void reset() 
                 { 
                     if(__ptr && __dfn) (*__dfn)(__ptr); 
                     __ptr = nullptr; 
                     __obj_erasure = typeid(T); 
                     if constexpr(is_default_constructible_v<T>) { __ptr = construct_at(__base.allocate(1)); __dfn = __base_dealloc; } 
                     else { __dfn = nullptr; } 
+                }
+                template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> decay_t<U>& emplace(Args&& ... args) 
+                {
+                    if(__ptr) reset();
+                    __obj_erasure = typeid(U);
+                    __ptr = construct_at(__alloc_helper<U>::allocate(), forward<Args>(args)...);
+                    __dfn = __alloc_helper<U>::__deallocate;
                 }
             };
         }
@@ -110,7 +110,6 @@ namespace std
             template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> dynamic_ptr(Args&& ... args) : __base(forward<Args>(args)...) {}
             template<derived_from<T> U> dynamic_ptr(U* ptr) : __base(ptr) {}
             dynamic_ptr() : __base() {}
-            void reset() { this->__reset(); }
         };
     }
 }
