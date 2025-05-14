@@ -14,6 +14,8 @@ public:
 protected:
     int sync() override;
     virtual int_type overflow(int_type c) override;
+    virtual std::streamsize xsputn(const char* s, size_type n) override;
+    virtual std::streamsize xsgetn(char* s, size_type n) override;
 public:
     virtual std::streamsize putg(const void* data, size_type n);
     virtual std::streamsize getp(void* out, size_type n);

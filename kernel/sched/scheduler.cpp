@@ -33,7 +33,7 @@ bool scheduler::__set_untimed_wait(task_t* task)
         return true;
     }
     catch(std::exception& e) { panic(e.what()); }
-     return false;
+    return false;
 }
 
 bool scheduler::interrupt_wait(task_t* waiting)
@@ -107,16 +107,30 @@ __isrcall task_t* scheduler::select_next()
             task_t* result;
             do {
                 if(queue.at_end()) queue.restart();
-                asm volatile("mfence" ::: "memory");
+                fence();
                 result = queue.pop();
-                asm volatile("mfence" ::: "memory");
+                fence();
                 j = queue.current();
             } while (result->task_ctl.block && i != j);
             if(result->task_ctl.block) continue;
             result->task_ctl.skips = 0;
-            if(result->task_ctl.prio_base != pv) { __queues[pv].unpop(); __queues[pv].transfer_next(__queues[deescalate(pv)]); asm volatile("mfence" ::: "memory"); }
+            if(result->task_ctl.prio_base != pv)
+            { 
+                __queues[pv].unpop();
+                __queues[pv].transfer_next(__queues[deescalate(pv)]);
+                fence();
+            }
             target = result;
-            for(priority_val qv = priority_val(int8_t(pv) - 1); qv >= priority_val::PVLOW; qv = priority_val(int8_t(qv) - 1)) { queue.on_skipped(); if(queue.skip_flag()) { queue.transfer_next(__queues[escalate(qv)]); __queues[escalate(qv)].back()->task_ctl.skips = 0; } }
+            for(priority_val qv = priority_val(static_cast<int8_t>(pv) - 1); qv >= priority_val::PVLOW; qv = priority_val(static_cast<int8_t>(qv) - 1)) 
+            { 
+                queue.on_skipped(); 
+                if(queue.skip_flag()) 
+                { 
+                    priority_val rv = escalate(qv);
+                    queue.transfer_next(__queues[rv]);
+                    __queues[rv].back()->task_ctl.skips = 0;
+                }
+            }
             break;
         }
     }
@@ -147,7 +161,16 @@ bool scheduler::set_wait_timed(task_t *task, unsigned int time, bool can_interru
 __isrcall void scheduler::on_tick()
 {
     __sleepers.tick_wait();
-    if(!__sleepers.at_end()) { task_t* front_sleeper = __sleepers.next(); while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta == 0) { __queues[front_sleeper->task_ctl.prio_base].push(__sleepers.pop()); front_sleeper = __sleepers.next(); } }
+    if(!__sleepers.at_end())
+    { 
+        task_t* front_sleeper = __sleepers.next();
+        while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta == 0)
+        {
+            task_t* wakee = __sleepers.pop();
+            __queues[wakee->task_ctl.prio_base].push(wakee);
+            front_sleeper = __sleepers.next();
+        } 
+    }
     task_t* cur = get_gs_base<task_t>();
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
@@ -183,7 +206,7 @@ bool scheduler::init()
     });
     return true;
 }
-task_t* scheduler::manual_yield()
+task_t* scheduler::yield()
 {
     task_t* cur = std::addressof(active_task_context()->task_struct);
     cur->quantum_rem = 0;

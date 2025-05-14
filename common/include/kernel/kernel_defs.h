@@ -331,6 +331,7 @@ constexpr size_t physical_block_size = 512UL;
 #define restrict __restrict__
 #include "compare"
 #include "bits/move.h"
+#include "concepts"
 template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
 template<class T> concept non_void = !std::is_void_v<T>;
 #endif
@@ -346,7 +347,7 @@ typedef enum mem_type
     BADRAM = 5,
     MMIO = 6
 } memtype_t;
-typedef struct __pt_entry
+typedef struct attribute(packed) __pt_entry
 {
     bool present                 : 1;
     bool write                   : 1;
@@ -364,17 +365,16 @@ typedef struct __pt_entry
     uint16_t avl4                : 11;
     uint8_t pk                   : 4;
     bool execute_disable         : 1;
-} __pack __align(1) pt_entry;
+} pt_entry;
 typedef pt_entry* paging_table;
 #ifdef __cplusplus 
-#include "concepts"
-typedef union __may_alias __vaddr
+typedef union __pack __may_alias __vaddr
 #else
-typedef struct __vaddr
+typedef struct attribute(packed) __vaddr
 #endif
 {
 #ifdef __cplusplus 
-	struct 
+	struct attribute(packed)
 	{
 #endif
 		uint16_t offset     : 12;
@@ -384,7 +384,7 @@ typedef struct __vaddr
 		uint16_t pml4_idx   :  9;
 		uint16_t ext        : 16;
 #ifdef __cplusplus 
-	} __pack __align(1);
+	};
 	uintptr_t full  { 0UL };
     constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
         offset      { offs },
@@ -452,7 +452,7 @@ typedef struct __vaddr
     friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.full <=> __that; }
     constexpr bool is_canonical() const noexcept { return (((pml4_idx & 0x100) == 0) && (ext == 0)) || (((pml4_idx & 0x100) != 0) && (ext == 0xFFFF)); }
 #endif
-} __pack __align(1) addr_t;
+} addr_t;
 #ifndef __cplusplus
 typedef union __may_alias __idx_addr
 {
@@ -990,6 +990,12 @@ typedef struct __s_be64
 } __pack __be64;
 #pragma endregion
 #pragma GCC diagnostic push
+// C++ compilers will yell at you for creating literal operators without an underscore preceding their suffix. 
+// This is intended to allow adding literal operators to the standard in the future.
+// Seeing as it's a huge pain to build the cross-compilers, odds are we'll be on the same standard for a while (TM).
+// As such, I opted to omit the frankly-ugly underscore and create normal-looking suffixes for my literal operators.
+// UC stands for unsigned char, US stands for unsigned short, SC stands for signed char, and S stands for short.
+// SBE stands for short big-endian, UBE stands for unsigned big-endian, and LBE stands for long big-endian.
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
 constexpr uint8_t operator""UC(unsigned long long i) noexcept { return static_cast<uint8_t>(i); }
 constexpr uint16_t operator""US(unsigned long long i) noexcept { return static_cast<uint16_t>(i); }

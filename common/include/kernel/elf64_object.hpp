@@ -30,12 +30,12 @@ protected:
     virtual bool load_segments() = 0;
     virtual bool xvalidate() = 0;
     virtual void frame_enter() = 0;
+    virtual void set_frame(uframe_tag*) = 0;
+    virtual uframe_tag* get_frame() const = 0;
     void release_segments();
     off_t segment_index(size_t offset) const;
     off_t segment_index(elf64_sym const* sym) const;
     void cleanup();
-    virtual void set_frame(uframe_tag*) = 0;
-    virtual uframe_tag* get_frame() const = 0;
 public:
     elf64_object(file_node* n);
     elf64_object(addr_t start, size_t size);

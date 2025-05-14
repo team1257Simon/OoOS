@@ -17,7 +17,6 @@ extern "C"
 {
     void user_entry(addr_t);
     [[noreturn]] void kernel_reentry();
-    void init_pit();
     void init_tss(addr_t k_rsp);
 }
 enum class execution_state

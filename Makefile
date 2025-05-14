@@ -38,10 +38,12 @@ SUBDIRS = headergen lib boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)
 EMUFLAGS := -rtc base=utc -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=$(OVMF)/OVMF_VARS.fd,readonly=on\
-	-cpu max,+sse2,+sse4.1,+sse4.2,+sse4a,+ssse3 -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -device intel-iommu,intremap=on -nic user,model=e1000e -monitor vc -smp cores=$(CORES) -serial stdio
+	-cpu max,+sse2,+sse4.1,+sse4.2,+sse4a,+ssse3 -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -device intel-iommu,intremap=on\
+	-nic tap,helper=/usr/lib/qemu/qemu-bridge-helper,model=e1000e,id=nd0,br=virtbr0 -monitor vc -smp cores=$(CORES) -serial stdio
 .PHONY: all $(SUBDIRS) asmtest
 all: $(LOG_DIR) $(OUT_IMG) 
 run: $(LOG_DIR) $(OUT_IMG)
+	brctl show virtbr0 > /dev/null 2>/dev/null || sudo brctl addbr virtbr0
 	$(EMULATE) $(EMUFLAGS) -drive file=$(OUT_IMG),if=ide,format=raw
 $(BUILD_DIR): 
 	@mkdir -p $@

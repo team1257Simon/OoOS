@@ -17,6 +17,29 @@ netstack_buffer::int_type netstack_buffer::overflow(int_type c)
         throw std::overflow_error{ "cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes" };
     return __base::overflow(c);
 }
+std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
+{
+    size_type tx_capacity = __out_region.__capacity();
+    size_type tx_cur = static_cast<size_type>(__out_region.__end - __out_region.__begin);
+    if(tx_cur + n > tx_capacity)
+    {
+        size_type target = tx_cur + n;
+        if(tx_limit && target > tx_limit)
+            throw std::overflow_error{ "cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes" };
+        else size(target, std::ios_base::out);
+    }
+    array_copy(__out_region.__end, s, n);
+    pbump(n);
+    return n;
+}
+std::streamsize netstack_buffer::xsgetn(char* s, size_type n)
+{
+    size_type avail = static_cast<size_type>(__in_region.__max - __in_region.__end);
+    n = std::min(n, avail);
+    array_copy(s, __in_region.__end, n);
+    gbump(n);
+    return n;
+}
 std::streamsize netstack_buffer::putg(const void* data, size_type n)
 {
     if(rx_limit && n > rx_limit) throw std::overflow_error{ "rx buffer target size cannot be larger than " + std::to_string(rx_limit) + " bytes" };
@@ -37,10 +60,19 @@ netstack_buffer::netstack_buffer() :
     tx_poll     {},
     rx_limit    {},
     tx_limit    {}
-                { size(32UZ); }
+                {}
 netstack_buffer::netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type txl, size_type rxl) :
     rx_poll     { std::move(rxp) },
     tx_poll     { std::move(txp) },
     rx_limit    { rxl },
     tx_limit    { txl }
-                { size(initial_rx_cap, std::ios_base::in); size(initial_tx_cap, std::ios_base::out); }
+{ 
+    __in_region.__begin = __allocator.allocate(initial_rx_cap);
+    __in_region.__end = __in_region.__begin;
+    __in_region.__max = __in_region.__begin + initial_rx_cap;
+    __out_region.__begin = __allocator.allocate(initial_tx_cap);
+    __out_region.__end = __out_region.__begin;
+    __out_region.__max = __out_region.__begin + initial_tx_cap;
+    array_zero(__in_region.__begin, initial_rx_cap);
+    array_zero(__out_region.__begin, initial_tx_cap); 
+}

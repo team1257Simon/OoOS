@@ -8,6 +8,7 @@
 #include "fs/ext.hpp"
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
+#include "net/protocol/arp.hpp"
 #include "sched/scheduler.hpp"
 #include "sched/task_ctx.hpp"
 #include "sched/task_list.hpp"
@@ -99,6 +100,14 @@ void net_tests()
                     startup_tty.print_text(":");
             }
             startup_tty.endl();
+            arp_packet p{};
+            p->protocol_type = ethertype_arp;
+            p->opcode = 0x1SBE;
+            p->dst_pr = 0xAC1F3C9DUBE;
+            p->src_pr = 0x7F000001UBE;
+            array_copy(p->source_mac, mac, 6);
+            array_copy(p->src_hw, mac, 6);
+            test_dev->transmit(p);
         }
     }
     else panic("net device not found on PCI bus");

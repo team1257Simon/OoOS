@@ -190,7 +190,6 @@ bool e1000e::initialize()
     if(__has_init) return true;
     dev_status status;
     dev_ctrl ctrl;
-    __pcie_e1000e_controller->command.interrupt_disable = true;
     __pcie_e1000e_controller->command.memory_space = true;
     __pcie_e1000e_controller->command.io_space = true;
     __pcie_e1000e_controller->command.bus_master = true;
@@ -210,13 +209,12 @@ bool e1000e::initialize()
     if(!configure_mac_phy(status)) { panic("e1000e hung on link-up signal"); return false; }
     uint32_t init_zero = 0U;
     for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i, (init_zero = 0U)); read_dma(e1000_status, status); }
-    for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, (init_zero = 0U)); read_dma(e1000_status, status); }
-    if(!configure_rx(status)) return false;
-    if(!configure_tx(status)) return false;
-    if(!configure_interrupts(status)) return false;
-    netstack_buffer::poll_functor tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
+    for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, (init_zero = 0U)); read_dma(e1000_status, status); }netstack_buffer::poll_functor tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
     for(size_t i = 0; i < rx_ring.count(); i++)
         transfer_buffers.emplace(64UZ, 64UZ, netstack_buffer::poll_functor(up_stack_functor), std::move(tx_poll), max_single_rx_buffer, max_single_tx_buffer);
+    if(!configure_interrupts(status)) return false;
+    if(!configure_rx(status)) return false;
+    if(!configure_tx(status)) return false;
     return (__has_init = true);
 }
 bool e1000e::configure_interrupts(dev_status& st)
@@ -341,11 +339,14 @@ int e1000e::poll_tx(netstack_buffer& buff)
 {
     e1000e_transmit_descriptor& tail = tx_ring.tail();
     addr_t txbuf = tail.buffer_addr ? addr_t(tail.buffer_addr) : addr_t(__buffer_alloc.allocate(max_single_tx_buffer));
+    array_zero<uint64_t>(txbuf, max_single_tx_buffer / sizeof(uint64_t));
     tail.flags.length = static_cast<uint16_t>(buff.getp(txbuf, max_single_tx_buffer));
     tail.flags.cmd = 0b1011UC;
     tail.buffer_addr = txbuf;
+    tail.fields.status = 0;
     write_dma(txt, (tx_ring.tail_descriptor = (tx_ring.tail_descriptor + 1) % tx_ring.count()));
-    if(await_result([&]() -> bool { return (tail.fields.status & 0xF) != 0; })) return 0;
+    buff.flushp();
+    if(await_result([&]() -> bool { io_wait(); return (tail.fields.status & 0x1) != 0; })) return 0;
     return -ENETDOWN;
 }
 int e1000e::poll_rx()

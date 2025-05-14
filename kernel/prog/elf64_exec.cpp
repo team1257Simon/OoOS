@@ -45,15 +45,15 @@ elf64_executable::elf64_executable(elf64_executable&& that) :
     entry               { std::move(that.entry) },
     frame_tag           { std::move(that.frame_tag) },
     program_descriptor  { std::move(that.program_descriptor) }
-    {
-        that.frame_base = nullptr;
-        that.frame_extent = nullptr;
-        that.stack_base = nullptr;
-        that.tls_base = nullptr;
-        that.entry = nullptr;
-        that.frame_tag = nullptr;
-        program_descriptor.object_handle = this;
-    }
+{
+    that.frame_base = nullptr;
+    that.frame_extent = nullptr;
+    that.stack_base = nullptr;
+    that.tls_base = nullptr;
+    that.entry = nullptr;
+    that.frame_tag = nullptr;
+    program_descriptor.object_handle = this;
+}
 elf64_executable::elf64_executable(elf64_executable const& that) :
     elf64_object        ( that ),
     stack_size          { that.stack_size },

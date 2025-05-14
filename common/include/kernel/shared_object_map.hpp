@@ -24,6 +24,9 @@ class shared_object_map : protected std::hash_set<elf64_shared_object, std::stri
 public:
     uframe_tag* shared_frame;
 #pragma GCC diagnostic push
+//  GCC will yell at us for using offsetof on a non-standard-layout type, except the part of the node we're sizing is standard-layout in effect.
+//  The purpose of this is really just to allow for theoretical future changes to that data structure without breaking this code.
+//  This offset is used to compute the location of a containing node given a shared object's handle.
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
     constexpr static off_t node_offset = offsetof(__node_type, __data.__my_storage);
 #pragma GCC diagnostic pop

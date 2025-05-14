@@ -28,7 +28,7 @@ extern "C"
     {
         if(task_ctx* task = active_task_context(); sch.set_wait_timed(reinterpret_cast<task_t*>(task), seconds * 1000, false)) 
         { 
-            task_t* next = sch.manual_yield();
+            task_t* next = sch.yield();
             if(next == reinterpret_cast<task_t*>(task))
             {
                 sti();
@@ -50,7 +50,7 @@ extern "C"
         {
             task->notif_target = sc_out;
             task->task_struct.task_ctl.notify_cterm = true;
-            task_t* next = sch.manual_yield();
+            task_t* next = sch.yield();
             if(next == reinterpret_cast<task_t*>(task)) { return -ECHILD; }
             return next->saved_regs.rax;
         }
@@ -80,7 +80,7 @@ extern "C"
             task->task_struct.task_ctl.notify_cterm = true;
             clone->task_struct.saved_regs.rax = 0;
             task->task_struct.saved_regs.rax = clone->get_pid();
-            task_t* next = sch.manual_yield();
+            task_t* next = sch.yield();
             if(next == reinterpret_cast<task_t*>(task))
             { 
                 next = clone->task_struct.self;
