@@ -70,4 +70,6 @@ namespace std
     };
     template<typename T, typename ... Us> array(T, Us...) -> array<enable_if_t<(is_same_v<T, Us> && ...), T>, 1 + sizeof...(Us)>;
 }
+template<typename T, size_t N> void array_copy(std::array<T, N>& dest, const void* src) { array_copy(dest.data(), static_cast<T const*>(src), N); }
+template<typename T, size_t N, std::convertible_to<T> U = T> void array_copy(std::array<T, N>& dest, std::array<U, N> const& src) { array_copy(dest, src.data()); }
 #endif

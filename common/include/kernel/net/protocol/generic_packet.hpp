@@ -3,6 +3,7 @@
 #include "typeindex"
 #include "bits/aligned_buffer.hpp"
 #include "net/netstack_buffer.hpp"
+#include "net/net_types.hpp"
 struct generic_packet_base
 {
     void* packet_data;
@@ -24,11 +25,5 @@ public:
     constexpr T const& operator->() const noexcept { return __packet_data.__get_ptr(); }
     constexpr T& operator*() noexcept { return *__packet_data.__get_ptr(); }
     constexpr T const& operator*() const noexcept { return *__packet_data.__get_ptr(); }
-};
-struct __pack ethernet_packet
-{
-    uint8_t destination_mac[6];
-    uint8_t source_mac[6];
-    __be16 protocol_type;
 };
 #endif

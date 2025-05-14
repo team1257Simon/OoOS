@@ -5,7 +5,7 @@
 class net_device
 {
 protected:
-    uint8_t mac_addr[6];
+    mac_t mac_addr;
     std::ext::resettable_queue<netstack_buffer> transfer_buffers;
     netstack_buffer::poll_functor up_stack_functor;
 public:
@@ -20,8 +20,7 @@ public:
     virtual int poll_tx(netstack_buffer& buff)  = 0;
     void register_stack(netstack_buffer::poll_functor&& f);
     int transmit(generic_packet_base& p);
-    constexpr uint8_t const* get_mac_addr() const { return mac_addr; }
-    
+    constexpr mac_t const& get_mac_addr() const { return mac_addr; }
     // ...
 };
 #endif

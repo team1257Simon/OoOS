@@ -1,5 +1,6 @@
 #include "net/netstack_buffer.hpp"
 #include "stdexcept"
+ethernet_packet const* netstack_buffer::peek_rx() const noexcept { return reinterpret_cast<ethernet_packet const*>(__in_region.__begin); }
 void netstack_buffer::flushp() { array_zero(__out_region.__begin, __out_region.__capacity()); __out_region.__setc(0UZ); }
 int netstack_buffer::sync()
 {

@@ -2,6 +2,7 @@
 #define __NETSKB
 #include "ext/dynamic_duplex_streambuf.hpp"
 #include "functional"
+#include "net/net_types.hpp"
 class netstack_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
     typedef std::ext::dynamic_duplex_streambuf<char> __base;
@@ -22,5 +23,6 @@ public:
     virtual void flushp();
     netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type tx_limit, size_type rx_limit);
     netstack_buffer();
+    ethernet_packet const* peek_rx() const noexcept;
 };
 #endif

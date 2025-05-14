@@ -79,7 +79,11 @@ static void descr_pt(partition_table const& pt)
 }
 static int rx_test_poll(netstack_buffer& packet)
 {
-    startup_tty.print_text(" [received packet of " + std::to_string(packet.size(std::ios_base::in)) + "bytes] ");
+    startup_tty.print_text(" [received packet of " + std::to_string(packet.size(std::ios_base::in)) + "bytes, type: ");
+    ethernet_packet const* eth_packet = packet.peek_rx();
+    if(eth_packet) { startup_tty.print_text(std::to_string(eth_packet->protocol_type, std::ext::hex)); }
+    else startup_tty.print_text("<unknown>");
+    startup_tty.print_text("] ");
     return 0;
 }
 void net_tests()
@@ -91,7 +95,7 @@ void net_tests()
         if(!test_dev->initialize()) panic("init failed");
         else
         {
-            const uint8_t* mac = test_dev->get_mac_addr();
+            mac_t mac = test_dev->get_mac_addr();
             startup_tty.print_text("MAC: ");
             for(int i = 0; i < 6; i++)
             {
@@ -100,13 +104,7 @@ void net_tests()
                     startup_tty.print_text(":");
             }
             startup_tty.endl();
-            arp_packet p{};
-            p->protocol_type = ethertype_arp;
-            p->opcode = 0x1SBE;
-            p->dst_pr = 0xAC1F3C9DUBE;
-            p->src_pr = 0x7F000001UBE;
-            array_copy(p->source_mac, mac, 6);
-            array_copy(p->src_hw, mac, 6);
+            arp_packet p(std::forward<mac_t>({}), std::move(mac), 0x1SBE, 0x0A000001UBE, 0x7F000001UBE);
             test_dev->transmit(p);
         }
     }
