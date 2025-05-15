@@ -104,7 +104,7 @@ void net_tests()
                     startup_tty.print_text(":");
             }
             startup_tty.endl();
-            arp_packet p(std::forward<mac_t>({}), std::move(mac), 0x1SBE, 0x0A000001UBE, 0x7F000001UBE);
+            arp_packet p(std::forward<mac_t>({}), std::move(mac), arp_req, "10.0.0.1"IPV4, "127.0.0.1"IPV4);
             test_dev->transmit(p);
         }
     }

@@ -2,6 +2,8 @@
 #define __ARP
 #include "net/protocol/generic_packet.hpp"
 constexpr net16 ethertype_arp = 0x0806SBE;
+constexpr net16 arp_req = 0x0001SBE;
+constexpr net16 arp_res = 0x0002SBE;
 struct attribute(packed) arp_ipv4_packet : ethernet_packet
 {
     net16 htype = htype_ethernet;

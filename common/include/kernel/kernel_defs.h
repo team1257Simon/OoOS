@@ -876,6 +876,7 @@ typedef struct __s_le32
     constexpr __s_le32() noexcept = default;
     constexpr __s_le32(__le16 l, __le16 h) noexcept : lo{ l }, hi{ h } {}
     constexpr __s_le32(uint32_t value) noexcept : lo{ static_cast<uint16_t>(value & 0x0000FFFF) }, hi{ static_cast<uint16_t>((value & 0xFFFF0000) >> 16) } {}
+    constexpr __s_le32(uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
     template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __s_le32(IT it) noexcept : __s_le32{ static_cast<uint32_t>(it) } {}
     constexpr __s_le32(__s_le32 const&) noexcept = default;
     constexpr __s_le32(__s_le32&&) noexcept = default;
@@ -909,6 +910,7 @@ typedef struct __s_le64
     constexpr __s_le64() noexcept = default;
     constexpr __s_le64(__le32 l, __le32 h) noexcept : lo{ l }, hi{ h } {}
     constexpr __s_le64(uint64_t value) noexcept : lo{ static_cast<uint32_t>(value & 0x00000000FFFFFFFF) }, hi{ static_cast<uint32_t>((value & 0xFFFFFFFF00000000) >> 32) } {}
+    constexpr __s_le64(uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
     template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __s_le64(IT it) noexcept : __s_le64{ static_cast<uint64_t>(it) } {}
     constexpr __s_le64(__s_le64 const&) noexcept = default;
     constexpr __s_le64(__s_le64&&) noexcept = default;
@@ -951,11 +953,13 @@ typedef struct __s_be16
     uint8_t hi;
     uint8_t lo;
     constexpr explicit __s_be16(uint16_t i) noexcept : hi{ static_cast<uint8_t>((i >> 8) & 0xFF) }, lo{ static_cast<uint8_t>(i & 0xFF) } {}
+    constexpr __s_be16(uint8_t h, uint8_t l) noexcept : hi{ h }, lo{ l } {}
     constexpr __s_be16() noexcept = default;
     constexpr __s_be16(__s_be16&&) noexcept = default;
     constexpr __s_be16(__s_be16 const&) noexcept = default;
     constexpr ~__s_be16() noexcept = default;
     constexpr operator uint16_t() const noexcept { return word(lo, hi); }
+    constexpr uint16_t raw() const noexcept { return word(hi, lo); }
     constexpr __s_be16& operator=(__s_be16 const&) noexcept = default;
     constexpr __s_be16& operator=(__s_be16&&) noexcept = default;
     constexpr __s_be16& operator=(uint16_t i) noexcept { return (*this = __s_be16(i)); }
@@ -965,11 +969,15 @@ typedef struct __s_be32
     __be16 hi;
     __be16 lo;
     constexpr explicit __s_be32(uint32_t i) noexcept : hi{ static_cast<uint16_t>((i >> 16) & 0xFFFF) }, lo{ static_cast<uint16_t>(i & 0xFFFF) } {}
+    constexpr __s_be32(__be16 h, __be16 l) noexcept : hi{ h }, lo{ l } {}
+    constexpr __s_be32(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll) noexcept : hi(hh, hl), lo(lh, ll) {}
+    constexpr __s_be32(uint8_t bytes[4]) noexcept : hi(bytes[0], bytes[1]), lo(bytes[2], bytes[3]) {}
     constexpr __s_be32() noexcept = default;
     constexpr __s_be32(__s_be32&&) noexcept = default;
     constexpr __s_be32(__s_be32 const&) noexcept = default;
     constexpr ~__s_be32() noexcept = default;
     constexpr operator uint32_t() const noexcept { return dword(lo, hi); }
+    constexpr uint32_t raw() const noexcept { return dword(hi, lo); }
     constexpr __s_be32& operator=(__s_be32&&) noexcept = default;
     constexpr __s_be32& operator=(__s_be32 const&) noexcept = default;
     constexpr __s_be32& operator=(uint32_t i) noexcept { return (*this = __s_be32(i)); }
@@ -979,11 +987,16 @@ typedef struct __s_be64
     __be32 hi;
     __be32 lo;
     constexpr explicit __s_be64(uint64_t i) noexcept : hi{ static_cast<uint32_t>((i >> 32) & 0xFFFFFFFF) }, lo{ static_cast<uint32_t>(i & 0xFFFFFFFF) } {}
+    constexpr __s_be64(__be32 h, __be32 l) noexcept : hi{ h }, lo{ l } {}
+    constexpr __s_be64(__be16 hh, __be16 hl, __be16 lh, __be16 ll) noexcept : hi(hh, hl), lo(lh, ll) {}
+    constexpr __s_be64(uint8_t hhh, uint8_t hhl, uint8_t hlh, uint8_t hll, uint8_t lhh, uint8_t lhl, uint8_t llh, uint8_t lll) : hi(hhh, hhl, hlh, hll), lo(lhh, lhl, llh, lll) {}
+    constexpr __s_be64(uint8_t bytes[8]) noexcept : hi(bytes[0], bytes[1], bytes[2], bytes[3]), lo(bytes[4], bytes[5], bytes[6], bytes[7]) {}
     constexpr __s_be64() noexcept = default;
     constexpr __s_be64(__s_be64&&) noexcept = default;
     constexpr __s_be64(__s_be64 const&) noexcept = default;
     constexpr ~__s_be64() noexcept = default;
     constexpr operator uint64_t() const noexcept { return qword(lo, hi); }
+    constexpr uint64_t raw() const noexcept { return qword(hi, lo); }
     constexpr __s_be64& operator=(__s_be64&&) noexcept = default;
     constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
     constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }

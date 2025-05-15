@@ -118,6 +118,8 @@
         "*.hpp": "cpp",
         "signal.h": "c",
         "types.h": "c",
-        "strstream": "cpp"
+        "strstream": "cpp",
+        "internet": "cpp",
+        "io_context": "cpp"
     }
 }

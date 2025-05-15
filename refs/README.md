@@ -1,0 +1,2 @@
+# References
+This folder contains some specification references that I'd rather not have to manually download on every PC I use for developing this project. If you're reading this, feel free to ignore these if you don't care about this stuff. All these documents are free to download on the RFC and/or IANA websites, and extremely easy to find, but require a sufficiently high number of link clicks that I decided to save myself the time.

@@ -11,9 +11,7 @@ build/*
 */build/*
 kernel/asm_test/*
 lib/asm_test/*
-*.txt
-*/*.txt
-syms/*.*
+syms/*
 img/usr/*
 img/lib/*
 common/include/asm-generated/*
