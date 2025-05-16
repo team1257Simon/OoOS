@@ -18,8 +18,8 @@ enum ipv4_transport_protocol : net8
     OSPF    = 89,
     SCTP    = 132,
 };
-constexpr net16 htype_ethernet = 0x0001SBE;
-constexpr net16 ethertype_ipv4 = 0x0800SBE;
+constexpr net16 htype_ethernet = 0x0001USBE;
+constexpr net16 ethertype_ipv4 = 0x0800USBE;
 struct attribute(packed) ethernet_packet
 {
     mac_t destination_mac;
@@ -30,6 +30,9 @@ struct attribute(packed) ethernet_packet
     constexpr ethernet_packet(ethernet_packet&&) noexcept = default;
     constexpr ethernet_packet& operator=(ethernet_packet const&) noexcept = default;
     constexpr ethernet_packet& operator=(ethernet_packet&&) noexcept = default;
+    constexpr ethernet_packet(mac_t const& dest, mac_t const& src) noexcept : destination_mac(dest), source_mac(src) {}
+    constexpr ethernet_packet(mac_t&& dest, mac_t&& src) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)) {}
+    constexpr ethernet_packet(mac_t const& dest, mac_t const& src, net16 proto) noexcept : destination_mac(dest), source_mac(src), protocol_type(proto) {}
     constexpr ethernet_packet(mac_t&& dest, mac_t&& src, net16 proto) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)), protocol_type(proto) {}
 };
 #pragma GCC diagnostic push
@@ -43,4 +46,7 @@ constexpr ipv4_addr operator""IPV4(const char* str, std::size_t)
 }
 #pragma GCC diagnostic pop
 constexpr ipv4_addr loopback = "127.0.0.1"IPV4;
+constexpr ipv4_addr broadcast = "255.255.255.255"IPV4;
+constexpr mac_t broadcast_mac = { 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC };
+constexpr mac_t empty_mac = {};
 #endif

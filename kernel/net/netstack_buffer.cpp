@@ -20,11 +20,11 @@ netstack_buffer::int_type netstack_buffer::overflow(int_type c)
 }
 std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
 {
-    size_type tx_capacity = __out_region.__capacity();
-    size_type tx_cur = static_cast<size_type>(__out_region.__end - __out_region.__begin);
+    size_type tx_capacity   = __out_region.__capacity();
+    size_type tx_cur        = static_cast<size_type>(__out_region.__end - __out_region.__begin);
     if(tx_cur + n > tx_capacity)
     {
-        size_type target = tx_cur + n;
+        size_type target    = tx_cur + n;
         if(tx_limit && target > tx_limit)
             throw std::overflow_error{ "cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes" };
         else size(target, std::ios_base::out);
@@ -36,7 +36,7 @@ std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
 std::streamsize netstack_buffer::xsgetn(char* s, size_type n)
 {
     size_type avail = static_cast<size_type>(__in_region.__max - __in_region.__end);
-    n = std::min(n, avail);
+    n               = std::min(n, avail);
     array_copy(s, __in_region.__end, n);
     gbump(n);
     return n;
@@ -68,12 +68,12 @@ netstack_buffer::netstack_buffer(size_type initial_rx_cap, size_type initial_tx_
     rx_limit    { rxl },
     tx_limit    { txl }
 { 
-    __in_region.__begin = __allocator.allocate(initial_rx_cap);
-    __in_region.__end = __in_region.__begin;
-    __in_region.__max = __in_region.__begin + initial_rx_cap;
-    __out_region.__begin = __allocator.allocate(initial_tx_cap);
-    __out_region.__end = __out_region.__begin;
-    __out_region.__max = __out_region.__begin + initial_tx_cap;
+    __in_region.__begin     = __allocator.allocate(initial_rx_cap);
+    __in_region.__end       = __in_region.__begin;
+    __in_region.__max       = __in_region.__begin + initial_rx_cap;
+    __out_region.__begin    = __allocator.allocate(initial_tx_cap);
+    __out_region.__end      = __out_region.__begin;
+    __out_region.__max      = __out_region.__begin + initial_tx_cap;
     array_zero(__in_region.__begin, initial_rx_cap);
     array_zero(__out_region.__begin, initial_tx_cap); 
 }

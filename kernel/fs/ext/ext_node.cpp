@@ -83,9 +83,9 @@ bool ext_vnode_base::update_inode()
 {
     qword timestamp = sys_time(nullptr);
     on_disk_node->modified_time = timestamp.lo;
-    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03;
+    on_disk_node->mod_time_extra = (timestamp.hi.hi.hi >> 4) & 0x03U;
     on_disk_node->accessed_time = timestamp.lo;
-    on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
+    on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03U;
     if(fs_node* fn = dynamic_cast<fs_node*>(this))
     {
         fn->modif_time = timestamp;
@@ -318,7 +318,7 @@ bool ext_directory_vnode::add_dir_entry(ext_vnode_base* vnode, ext_dirent_type t
         if(__cur() < __max())
         {
             ext_dir_entry* dirent = __current_ent();
-            size_t nsz = up_to_nearest(dirent->name_len + 8UL, 4);
+            size_t nsz = up_to_nearest(dirent->name_len + 8UL, 4UZ);
             size_t rem = dirent->entry_size - nsz;
             dirent->entry_size = nsz;
             mark_write(dirent);
@@ -359,9 +359,9 @@ bool ext_directory_vnode::unlink(std::string const& name)
             __setc(__beg() + j->second.block_num * bs + j->second.block_offs);
             ext_dir_entry* dirent = __current_ent();
             array_zero(dirent->name, dirent->name_len);
-            dirent->name_len = 0;
-            dirent->inode_idx = 0;
-            dirent->type_ind = 0;
+            dirent->name_len = 0UC;
+            dirent->inode_idx = 0U;
+            dirent->type_ind = 0UC;
             char* cblk = __current_block_start();
             ext_dir_tail* tail = new(static_cast<void*>(cblk + bs - 12)) ext_dir_tail(0U);
             uint32_t csum = crc32c(parent_fs->get_uuid_csum(), cblk, bs);
@@ -393,7 +393,7 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
         }
         qword timestamp = sys_time(nullptr);
         on_disk_node->accessed_time = timestamp.lo;
-        on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03;
+        on_disk_node->access_time_hi = (timestamp.hi.hi.hi >> 4) & 0x03U;
         return update_inode();
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -409,11 +409,11 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
         __setc(0UZ);
         ext_dir_entry* dirent = __current_ent();
         dirent->entry_size = 12;
-        __write_dir_entry(this, dti_dir, ".", 1);
+        __write_dir_entry(this, dti_dir, ".", 1UZ);
         __bumpc(12L);
         dirent = __current_ent();
         dirent->entry_size = bs - 24; // need 12 bytes at the end for the checksum
-        __write_dir_entry(parent, dti_dir, "..", 2);
+        __write_dir_entry(parent, dti_dir, "..", 2UZ);
         mark_write(__cur());
         parent->on_disk_node->referencing_dirents++;
         on_disk_node->referencing_dirents++;

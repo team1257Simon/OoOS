@@ -9,6 +9,7 @@
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
 #include "net/protocol/arp.hpp"
+#include "net/protocol/dhcp.hpp"
 #include "sched/scheduler.hpp"
 #include "sched/task_ctx.hpp"
 #include "sched/task_list.hpp"
@@ -95,7 +96,7 @@ void net_tests()
         if(!test_dev->initialize()) panic("init failed");
         else
         {
-            mac_t mac = test_dev->get_mac_addr();
+            mac_t const& mac = test_dev->get_mac_addr();
             startup_tty.print_text("MAC: ");
             for(int i = 0; i < 6; i++)
             {
@@ -104,8 +105,12 @@ void net_tests()
                     startup_tty.print_text(":");
             }
             startup_tty.endl();
-            arp_packet p(std::forward<mac_t>({}), std::move(mac), arp_req, "10.0.0.1"IPV4, "127.0.0.1"IPV4);
+            arp_packet p(empty_mac, mac, arp_req, "10.0.2.2"IPV4, "10.0.2.15"IPV4);
             test_dev->transmit(p);
+            std::vector<net8> requests{ DOMAIN_NAME, DOMAIN_NAME_SERVER, ROUTER, SUBNET_MASK };
+            dhcp_protocol_handler dh(mac);
+            dhcp_request r = dh.build_dhcp_discover(requests);
+            test_dev->transmit(r);
         }
     }
     else panic("net device not found on PCI bus");
@@ -319,7 +324,7 @@ void hpet_tests()
     if(hpet_amd64::init_instance())
     {
         uint64_t start_read = hpet_amd64::count_usec();
-        hpet_amd64::delay_usec(1000, fn);
+        hpet_amd64::delay_usec(1000UL, fn);
         startup_tty.print_line("time 0: " + std::to_string(start_read));
         startup_tty.print_line("time 1: " + std::to_string(end_read));
     }

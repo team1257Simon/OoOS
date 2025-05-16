@@ -357,11 +357,11 @@ union alignas(int128_t) e1000e_receive_descriptor
 	struct __pack
     {
 		uintptr_t buffer_addr;
-        uint16_t vlan;	                        /* VLAN tag */
-		uint8_t errors;
-        uint8_t status;
-        uint16_t csum;
         uint16_t length;
+        uint16_t csum;
+        uint8_t status;
+		uint8_t errors;
+        uint16_t vlan;	                        /* VLAN tag */
 	} read;
 	struct __pack
     {
@@ -380,6 +380,7 @@ union alignas(int128_t) e1000e_receive_descriptor
         uint16_t vlan_wb;	                    /* VLAN tag */
 	} wb;                                /* writeback */
 };
+constexpr auto test = offsetof(e1000e_receive_descriptor, read.status);
 union alignas(int128_t) e1000e_receive_descriptor_packet_split
  {
 	struct { uintptr_t buffer_addr[4]; } read; /* one buffer for protocol header(s), three data buffers */

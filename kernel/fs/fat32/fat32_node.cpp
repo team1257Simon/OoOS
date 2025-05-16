@@ -119,7 +119,7 @@ bool fat32_directory_node::parse_dir_data()
 void fat32_directory_node::get_short_name(std::string const& full, std::string& result)
 {
     std::string upper = std::ext::to_upper(full);
-    if(upper.size() < 13) { result = std::string(upper.c_str(), std::min(static_cast<std::string::size_type>(12UL), upper.size())); return; }
+    if(upper.size() < 13UZ) { result = std::string(upper.c_str(), std::min(12UZ, upper.size())); return; }
     bool have_dot = upper.contains('.');
     std::string trimmed = upper.without_any_of(". ");
     unsigned i = 1;
@@ -134,7 +134,7 @@ void fat32_directory_node::get_short_name(std::string const& full, std::string& 
         result = std::string(trimmed.c_str(), j);
         result.append(tail);
         i++;
-    } while(directory_tnodes.contains(result) && i <= 999999);
+    } while(directory_tnodes.contains(result) && i <= 999999U);
     if(directory_tnodes.contains(result)) throw std::logic_error{ "could not get a unique short name from " + upper };
 }
 bool fat32_directory_node::fsync()

@@ -230,7 +230,7 @@ log_read_state jbd2::read_log_transaction()
                 if(sb->required_features & csum_v3)
                 {
                     jbd2_block_tag3* tag = reinterpret_cast<jbd2_block_tag3*>(pos);
-                    qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0U);
+                    qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0UBE);
                     __bumpc(bs);
                     txn_blocks.emplace_back(blocknum, __cur(), true, 1);
                     uint32_t csum = crc32c(csum_base, __cur(), bs);
@@ -242,7 +242,7 @@ log_read_state jbd2::read_log_transaction()
                 else
                 {
                     jbd2_block_tag* tag = reinterpret_cast<jbd2_block_tag*>(pos);
-                    qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0U);
+                    qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0UBE);
                     __bumpc(bs);
                     uint32_t csum = crc32c(csum_base, __cur(), bs);
                     uint16_t checkval = tag->checksum;

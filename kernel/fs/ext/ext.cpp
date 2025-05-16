@@ -340,7 +340,7 @@ directory_node* extfs::open_directory(std::string const& path, bool create)
 directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
-    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
+    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03UC;
     if(uint32_t inode_num = claim_inode(true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
@@ -357,9 +357,9 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
                     .header
                     { 
                         .magic          { ext_extent_magic },
-                        .entries        { 0 },
-                        .max_entries    { 4 },
-                        .depth          { 0 }
+                        .entries        { 0US },
+                        .max_entries    { 4US },
+                        .depth          { 0US }
                     } 
                 } 
             },
@@ -404,9 +404,9 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
                     .header
                     { 
                         .magic          { ext_extent_magic },
-                        .entries        { 0 },
-                        .max_entries    { 4 },
-                        .depth          { 0 } 
+                        .entries        { 0US },
+                        .max_entries    { 4US },
+                        .depth          { 0US } 
                     } 
                 } 
             },

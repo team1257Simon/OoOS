@@ -3,13 +3,13 @@
 #include "kernel/fs/fs.hpp"
 #include "map"
 #include "sys/time.h"
-constexpr uint16_t fat_year_base = 1980u;
+constexpr uint16_t fat_year_base = 1980U;
 constexpr uint32_t fsinfo_magic = 0x41615252U;      // Alex was killed by magic
 constexpr uint32_t fsinfo_more_magic = 0x61417272U; // Steve was killed by more magic
-constexpr uint32_t fsinfo_tail = 0xAA550000;
-constexpr uint32_t fat32_cluster_mask = 0x0FFFFFFF;
-constexpr uint32_t fat32_cluster_pres = 0xF0000000;
-constexpr uint32_t fat32_cluster_eof = 0x0FFFFFF8;
+constexpr uint32_t fsinfo_tail = 0xAA550000U;
+constexpr uint32_t fat32_cluster_mask = 0x0FFFFFFFU;
+constexpr uint32_t fat32_cluster_pres = 0xF0000000U;
+constexpr uint32_t fat32_cluster_eof = 0x0FFFFFF8U;
 union [[gnu::may_alias]] attribute(packed, aligned(1)) fat_filetime
 {
     struct 

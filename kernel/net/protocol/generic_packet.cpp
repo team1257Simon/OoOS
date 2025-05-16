@@ -48,3 +48,10 @@ int generic_packet_base::write_to(netstack_buffer& buff) const
     catch(std::bad_alloc&) { return -ENOMEM; }
     return 0;
 }
+net16 ip_checksum(net16* words, size_t n) 
+{
+    net32 result{}, intermediate{};
+    for(size_t i = 0; i < n; i++) result = result + words[i];
+    do { intermediate = result.hi + result.lo, result = intermediate; } while(result.hi);
+    return net16(~result.lo);
+}

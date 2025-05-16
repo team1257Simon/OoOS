@@ -10,11 +10,11 @@ enum ecn_t : net8
 };
 enum dscp_t : net8
 {
-    DS_STANDARD             = 0b00000UC,
-    DS_LOWER_EFFORT         = 0b00001UC,
-    DS_HIGH_THROUGHPUT_AF11 = 0b01010UC,
-    DS_HIGH_THROUGHPUT_AF12 = 0b01100UC,
-    DS_HIGH_THROUGHPUT_AF13 = 0b01110UC,
+    DS_STANDARD             = 0b000000UC,
+    DS_LOWER_EFFORT         = 0b000001UC,
+    DS_HIGH_THROUGHPUT_AF11 = 0b001010UC,
+    DS_HIGH_THROUGHPUT_AF12 = 0b001100UC,
+    DS_HIGH_THROUGHPUT_AF13 = 0b001110UC,
     DS_OAM                  = 0b010000UC,
     DS_LOW_LATENCY_AF21     = 0b010010UC,
     DS_LOW_LATENCY_AF22     = 0b010100UC,
@@ -50,9 +50,9 @@ enum ihl_t : net8
     IHL56B = 0xE,
     IHL60B = 0xF
 };
-constexpr inline net16 fragment_offset_mask = 0x1FFFSBE;
-constexpr inline net16 no_fragment_bit = 0x2000SBE;
-constexpr inline net16 more_fragments_bit = 0x4000SBE;
+constexpr inline net16 fragment_offset_mask = 0x1FFFUSBE;
+constexpr inline net16 no_fragment_bit = 0x2000USBE;
+constexpr inline net16 more_fragments_bit = 0x4000USBE;
 template<ihl_t L>
 struct attribute(packed) ipv4_packet_with_options : ethernet_packet
 {
@@ -63,10 +63,10 @@ struct attribute(packed) ipv4_packet_with_options : ethernet_packet
         dscp_t dscp     : 6 = DS_STANDARD;      // differentiated services codepoint
         ecn_t ecn       : 2 = NON_ECT;          // explicit congestion notification
     };
-    net16 total_length;                         // length of the whole packet
-    net16 identification;
-    net16 fragment_info;                        // 0b0DMXXXXXXXXXXXXX; D = don't fragment, M = more fragments remain, X... = fragment offset
-    net8 time_to_live;
+    net16 total_length;                     // length of the whole packet
+    net16 identification    = 0USBE;
+    net16 fragment_info     = 0USBE;        // 0b0DMXXXXXXXXXXXXX; D = don't fragment, M = more fragments remain, X... = fragment offset
+    net8 time_to_live       = 0x40UC;
     ipv4_transport_protocol protocol;
     net16 header_checksum;
     net32 source_addr;

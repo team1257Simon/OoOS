@@ -61,7 +61,7 @@ bool ext_node_extent_tree::parse_legacy()
         // if we made it all the way here, there are even more blocks, this time in triply-indirect pointers
         uint64_t ind3 = tracked_node->on_disk_node->block_info.legacy_extent.triply_indirect_block;
         disk_block* tri_pointer_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind3, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
-        base = std::addressof(tracked_extents.emplace_back(tri_pointer_block, tracked_node, uint16_t(3)));
+        base = std::addressof(tracked_extents.emplace_back(tri_pointer_block, tracked_node, 3US));
         exnode = base_extent_level.insert(std::move(std::make_pair(cur_file_block, cached_node_pos(base)))).first;
         if(!tracked_node->parent_fs->read_hd(*tri_pointer_block)) { panic("read on triple pointer block failed"); return false; }
         base->nl_recurse_legacy(this, exnode->first);
@@ -96,7 +96,7 @@ bool ext_node_extent_tree::parse_ext4()
         else 
         {
             cur_file_block = nodes[i].leaf.file_node_start;
-            size_t ext_sz = nodes[i].leaf.extent_size % 0x8000;
+            size_t ext_sz = nodes[i].leaf.extent_size % 0x8000US;
             uint64_t blknum = qword(nodes[i].leaf.extent_start_lo, uint32_t(nodes[i].leaf.extent_start_hi));
             tracked_node->block_data.reserve(tracked_node->block_data.size() + ext_sz);
             disk_block* blk = tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, std::move(disk_block{ blknum, nullptr, false, 1U })).base();

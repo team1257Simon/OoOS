@@ -6,7 +6,7 @@ bool fat32::__has_init{ false };
 fat32* fat32::__instance;
 constexpr static std::alignas_allocator<fat32, filesystem> fat_alloc{};
 static void set_filename(char* fname, std::string const& sname) { size_t pos_dot = sname.find('.'), l = std::min(8UL, sname.size()); if(pos_dot != std::string::npos && pos_dot < l) l = pos_dot; std::string::const_iterator i = sname.begin(); for(size_t j = 0; j < 8; j++) { if(j < l) { fname[j] = *i; i++; } else { fname[j] = ' '; } } ++i; for(size_t j = 8; j < 11; j++, i++) { fname[j] = (i < sname.end()) ? *i : ' '; } }
-uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect) { for(uint32_t i = 3; i < tb.size(); i++) { if((tb[i] & fat32_cluster_mask) == 0) { if(last_sect > 2) { tb[last_sect] |= (i & fat32_cluster_mask); } tb[i] |= fat32_cluster_eof; tb.mark_dirty(); return i; } } return 0; }
+uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect) { for(uint32_t i = 3U; i < tb.size(); i++) { if((tb[i] & fat32_cluster_mask) == 0) { if(last_sect > 2) { tb[last_sect] |= (i & fat32_cluster_mask); } tb[i] |= fat32_cluster_eof; tb.mark_dirty(); return i; } } return 0; }
 uint64_t figure_start_sector() { if(hda_ahci::is_initialized() && !hda_ahci::get_partition_table().empty()) { return hda_ahci::get_partition_table().front().start_lba; } return 2048UL; /* default value assumed for now */ }
 fat32_allocation_table::fat32_allocation_table(size_t num_sectors, size_t bytes_per_sector, uint64_t start_sector, fat32* parent) : __base{ num_sectors * bytes_per_sector / sizeof(uint32_t) }, __num_sectors{ num_sectors }, __start_sector{ start_sector }, __parent{ parent } { get_from_disk(); }
 bool fat32_allocation_table::sync_to_disk() const { if(__dirty) { if(__parent->write_sectors(__start_sector, reinterpret_cast<char const*>(__beg()), __num_sectors)) { __dirty = false; } } return !__dirty; }
@@ -98,7 +98,7 @@ directory_node* fat32::mkdirnode(directory_node* parent, std::string const& name
     rtc_time t = rtc::get_instance().get_time();
     new(std::addressof(avail->regular_entry)) fat32_regular_entry
     {
-        .attributes         { 0x10 },
+        .attributes         { 0x10UC },
         .created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
         .created_date       { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
         .first_cluster_hi   { cl.hi },

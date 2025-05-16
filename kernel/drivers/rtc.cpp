@@ -21,7 +21,7 @@ __isrcall void rtc::rtc_time_update() volatile noexcept
         .sec = read_rtc_register<0x00UC>(),
         .min = read_rtc_register<0x02UC>(),
         .hr = read_rtc_register<0x04UC>(),
-        .wkday = 0U,
+        .wkday = 0UC,
         .day = read_rtc_register<0x07UC>(),
         .month = read_rtc_register<0x08UC>(),
         .year = read_rtc_register<0x09UC>()

@@ -40,7 +40,7 @@ static bool com1_loopback_test()
     cur_ctl.rts_enable = true;
     outb(port_com1_modem_ctl, cur_ctl);
     outb(port_com1, 0xAE);
-    bool result = (inb(port_com1) == 0xAE);
+    bool result = (inb(port_com1) == 0xAEUC);
     outb(port_com1_modem_ctl, prev_ctl);
     return result;
 }
@@ -52,7 +52,7 @@ void com_amd64::__do_echo()
     {
         for(size_t i = 0; i < 16 && ptr < __end(); i++, __pos_echo++, ++ptr)
         {
-            if(*ptr == '\b' || *ptr == 127) { write_seq(seq_backspace); i += 5; }
+            if(*ptr == '\b' || *ptr == 127SC) { write_seq(seq_backspace); i += 5; }
             else if(ptr + 3 < __end() && *ptr == '\033' && ptr[1] == '[' && ptr[2] == '2' && ptr[3] == '~') { write_seq(seq_ins); ptr += 3; __pos_echo += 3; i += 2; }
             else if(ptr + 3 < __end() && *ptr == '\033' && ptr[1] == '[' && ptr[2] == '3' && ptr[3] == '~') { write_seq(seq_del); ptr += 3; __pos_echo += 3; i += 3; }
             else if(*ptr == 13) outb(port_com1, '\n');

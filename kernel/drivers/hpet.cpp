@@ -29,7 +29,7 @@ bool hpet_amd64::__init()
     __hpet = mapped.as<hpet_t volatile>();
     uint32_t period = __hpet->period;
     __frequency_megahertz = period_dividend / period;
-    set_irq_vector(__hpet->timers[2], 8);
+    set_irq_vector(__hpet->timers[2], 8UC);
     fence();
     uint64_t cfg = __hpet->timers[2].caps_and_config;
     cfg |= timer_n_interrupt_enable;
@@ -37,8 +37,8 @@ bool hpet_amd64::__init()
     __hpet->timers[2].caps_and_config = cfg;
     fence();
     cfg = __hpet->general_config;
-    cfg |= 0x1;
-    cfg &= ~0x2;
+    cfg |= 0x1UL;
+    cfg &= ~0x2UL;
     barrier();
     __hpet->general_config = cfg;
     fence();

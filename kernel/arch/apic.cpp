@@ -43,18 +43,18 @@ bool apic::init() volatile
     fence();
     outb(data_pic1, 0xFFUC);
     outb(data_pic2, 0xFFUC);
-    write_msr<ia32_apic_base>(qword((physical_base & 0xFFFFF000) | apic_enable, (physical_base >> 32) & 0x0F));
+    write_msr<ia32_apic_base>(qword((physical_base & 0xFFFFF000U) | apic_enable, (physical_base >> 32) & 0x0FU));
     __apic_mem = the_apic;
     __ioapic_mem = the_ioapic;
     __apic_mem->logical_dest.value = (0x0F << 24);
     barrier();
     __apic_mem->dest_fmt.value = 0xFFFFFFFFU;
     barrier();
-    __apic_mem->spurious_iv.value = 0x1FF;
+    __apic_mem->spurious_iv.value = 0x1FFU;
     barrier();
-    __apic_mem->timer_divide.value = 0b1011;
+    __apic_mem->timer_divide.value = 0b1011U;
     barrier();
-    uint32_t tvec = (__apic_mem->lvt_timer.value & 0xFFFEFF00) | 0x20;
+    uint32_t tvec = (__apic_mem->lvt_timer.value & 0xFFFEFF00U) | 0x20U;
     barrier();
     __apic_mem->lvt_timer.value = tvec;
     barrier();
@@ -62,9 +62,9 @@ bool apic::init() volatile
     barrier();
     for(size_t i = 0; i < 16; i++, barrier())
     {
-        __ioapic_mem->select_reg = (0x10 + i * 2);
+        __ioapic_mem->select_reg = (0x10U + i * 2);
         barrier();
-        uint32_t data = (__ioapic_mem->data_reg & ~0x100FF) | (0x20 + i);
+        uint32_t data = (__ioapic_mem->data_reg & ~0x100FFU) | (0x20U + i);
         barrier();
         __ioapic_mem->data_reg = data;
     }

@@ -20,7 +20,7 @@ bool ahci::is_initialized() { return __has_init; }
 bool ahci::has_port(uint8_t i) { return __devices[i] != none; }
 void ahci::hard_reset_fallback(uint8_t idx)  { xdirect_write("hard reset required for port " + std::to_string(idx) + "\n"); port_hard_reset(idx); }
 bool ahci::__handoff_busy() { return (dword(__abar->bios_os_handoff)[bos_bit] || dword(__abar->bios_os_handoff)[bb_bit]); }
-int8_t ahci::which_port(ahci_device d) { for(int8_t i = 0; i < 32; i++) if(__devices[i] == d) return i; return -1; }
+int8_t ahci::which_port(ahci_device d) { for(int8_t i = 0; i < 32SC; i++) if(__devices[i] == d) return i; return -1SC; }
 ahci_device ahci::get_device_type(uint8_t i) { return __devices[i]; }
 uint32_t ahci::last_read_count(uint8_t i) { barrier(); return __abar->ports[i].command_list[__last_command_on_port[i]].prd_count; }
 bool ahci::is_busy(uint8_t i) { barrier(); uint32_t c = __abar->ports[i].cmd; barrier(); return __port_data_busy(std::addressof(__abar->ports[i])) || (c & hba_command_cr) == 0; }
@@ -44,7 +44,7 @@ void ahci::__init_irq()
 static inline ahci_device check_type(hba_port const& p)
 {
     barrier();
-    if((dword(p.s_status).lo.lo & 0x0F) != port_present || (dword(p.s_status).lo.hi & 0x0F) != port_active) return none;
+    if((dword(p.s_status).lo.lo & 0x0FUC) != port_present || (dword(p.s_status).lo.hi & 0x0FUC) != port_active) return none;
     barrier();
     switch(p.sig)
     {

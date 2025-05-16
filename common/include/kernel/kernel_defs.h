@@ -1006,17 +1006,17 @@ typedef struct __s_be64
 // C++ compilers will yell at you for creating literal operators without an underscore preceding their suffix. 
 // This is intended to allow adding literal operators to the standard in the future.
 // Seeing as it's a huge pain to build the cross-compilers, odds are we'll be on the same standard for a while (TM).
-// As such, I opted to omit the frankly-ugly underscore and create normal-looking suffixes for my literal operators.
+// As such, I opted to omit the (frankly, pretty ugly in this context) underscore and create normal-looking suffixes for my literal operators.
 // UC stands for unsigned char, US stands for unsigned short, SC stands for signed char, and S stands for short.
-// SBE stands for short big-endian, UBE stands for unsigned big-endian, and LBE stands for long big-endian.
+// USBE stands for unsigned short big-endian, UBE stands for unsigned big-endian, and ULBE stands for unsigned long big-endian.
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
 constexpr uint8_t operator""UC(unsigned long long i) noexcept { return static_cast<uint8_t>(i); }
 constexpr uint16_t operator""US(unsigned long long i) noexcept { return static_cast<uint16_t>(i); }
 constexpr int8_t operator""SC(unsigned long long i) noexcept { return static_cast<int8_t>(i); }
 constexpr int16_t operator""S(unsigned long long i) noexcept { return static_cast<int16_t>(i); }
-constexpr __be16 operator""SBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
+constexpr __be16 operator""USBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
 constexpr __be32 operator""UBE(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
-constexpr __be64 operator""LBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
+constexpr __be64 operator""ULBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;

@@ -38,4 +38,5 @@ public:
     constexpr T& operator*() noexcept { return *static_cast<T*>(packet_data); }
     constexpr T const& operator*() const noexcept { return *static_cast<T*>(packet_data); }
 };
+net16 ip_checksum(net16* words, size_t n);
 #endif

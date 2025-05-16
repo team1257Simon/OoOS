@@ -380,6 +380,6 @@ int main(int argc, char** argv)
     // execute the kernel
     exit_bs();
     (*fn)(sysinfo, map);
-    while (1);
+    while(1);
     return OK;
 }

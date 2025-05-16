@@ -3,17 +3,17 @@
 #include "functional"
 #include "stdexcept"
 #include "errno.h"
-constexpr int rxbase_hi = e1000_rdbah(0);
-constexpr int rxbase_lo = e1000_rdbal(0);
-constexpr int rxlen = e1000_rdlen(0);
-constexpr int rxh = e1000_rdh(0);
-constexpr int rxt = e1000_rdt(0);
-constexpr int txbase_hi = e1000_tdbah(0);
-constexpr int txbase_lo = e1000_tdbal(0);
-constexpr int txlen = e1000_tdlen(0);
-constexpr int txh = e1000_tdh(0);
-constexpr int txt = e1000_tdt(0);
-constexpr int txdctl = e1000_txdctl(0);
+constexpr int rxbase_hi     = e1000_rdbah(0);
+constexpr int rxbase_lo     = e1000_rdbal(0);
+constexpr int rxlen         = e1000_rdlen(0);
+constexpr int rxh           = e1000_rdh(0);
+constexpr int rxt           = e1000_rdt(0);
+constexpr int txbase_hi     = e1000_tdbah(0);
+constexpr int txbase_lo     = e1000_tdbal(0);
+constexpr int txlen         = e1000_tdlen(0);
+constexpr int txh           = e1000_tdh(0);
+constexpr int txt           = e1000_tdt(0);
+constexpr int txdctl        = e1000_txdctl(0);
 constexpr std::alignas_allocator<char, int128_t> __buffer_alloc;
 void e1000e::read_status(dev_status& status) { read_dma(e1000_status, status); }
 __isrcall void e1000e::on_interrupt() 
@@ -79,7 +79,7 @@ static inline uint16_t get_io_bar(pci_config_space* device)
 static inline addr_t map_device_mmio(pci_config_space* device)
 {
     uint32_t bar = device->header_0x0.bar[0];
-    addr_t base = kmm.map_dma(compute_base(bar), 0x20000, (bar & BIT(3)) != 0);
+    addr_t base = kmm.map_dma(compute_base(bar), 0x20000UZ, (bar & BIT(3)) != 0);
     if(!base) throw std::bad_alloc();
     return base;
 }
@@ -210,8 +210,7 @@ bool e1000e::initialize()
     uint32_t init_zero = 0U;
     for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i, (init_zero = 0U)); read_dma(e1000_status, status); }
     for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, (init_zero = 0U)); read_dma(e1000_status, status); }netstack_buffer::poll_functor tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
-    for(size_t i = 0; i < rx_ring.count(); i++)
-        transfer_buffers.emplace(64UZ, 64UZ, netstack_buffer::poll_functor(up_stack_functor), std::move(tx_poll), max_single_rx_buffer, max_single_tx_buffer);
+    for(size_t i = 0; i < rx_ring.count(); i++) transfer_buffers.emplace(64UZ, 64UZ, netstack_buffer::poll_functor(up_stack_functor), std::move(tx_poll), max_single_rx_buffer, max_single_tx_buffer);
     if(!configure_interrupts(status)) return false;
     if(!configure_rx(status)) return false;
     if(!configure_tx(status)) return false;
@@ -229,29 +228,28 @@ bool e1000e::configure_interrupts(dev_status& st)
 }
 bool e1000e::configure_mac_phy(dev_status& st)
 {
-    word mac_word = read_eeprom(0US);
-    mac_addr[0] = mac_word.lo;
-    mac_addr[1] = mac_word.hi;
-    mac_word = read_eeprom(1US);
-    mac_addr[2] = mac_word.lo;
-    mac_addr[3] = mac_word.hi;
-    mac_word = read_eeprom(2US);
-    mac_addr[4] = mac_word.lo;
-    mac_addr[5] = mac_word.hi;
+    word mac_word       = read_eeprom(0US);
+    mac_addr[0]         = mac_word.lo;
+    mac_addr[1]         = mac_word.hi;
+    mac_word            = read_eeprom(1US);
+    mac_addr[2]         = mac_word.lo;
+    mac_addr[3]         = mac_word.hi;
+    mac_word            = read_eeprom(2US);
+    mac_addr[4]         = mac_word.lo;
+    mac_addr[5]         = mac_word.hi;
     dev_ctrl ctl{};
     read_dma(e1000_ctrl, ctl);
-    ctl->set_link_up = true;
+    ctl->set_link_up    = true;
     write_dma(e1000_ctrl, ctl);
     return await_result([&]() -> bool { io_wait(); read_status(st); return st->link_up; });
 }
 bool e1000e::configure_tx(dev_status& st)
 {
     for(e1000e_transmit_descriptor* d = tx_ring.descriptors; d < tx_ring.max_descriptor; d++) std::construct_at(d);
-
-    uint32_t tx_head = 0;
-    uint32_t tx_tail = static_cast<uint32_t>(tx_ring.max_descriptor - tx_ring.descriptors);
-    qword txbase = reinterpret_cast<uintptr_t>(tx_ring.descriptors);
-    uint32_t tx_total_len = tx_tail * 16U;
+    uint32_t tx_head        = 0;
+    uint32_t tx_tail        = static_cast<uint32_t>(tx_ring.max_descriptor - tx_ring.descriptors);
+    qword txbase            = reinterpret_cast<uintptr_t>(tx_ring.descriptors);
+    uint32_t tx_total_len   = tx_tail * 16U;
     write_dma(txbase_hi, txbase.hi);
     write_dma(txbase_lo, txbase.lo);
     read_status(st);
@@ -261,8 +259,8 @@ bool e1000e::configure_tx(dev_status& st)
     write_dma(txt, tx_tail);
     tx_desc_ctrl tctl;
     read_dma(txdctl, tctl);
-    tctl->writeback_thresh = 1;
-    tctl->descriptor_granularity = 1;
+    tctl->writeback_thresh          = 1UC;
+    tctl->descriptor_granularity    = 1UC;
     write_dma(txdctl, tctl);
     read_status(st);
     tx_ctrl ctrl_reg
@@ -289,14 +287,14 @@ bool e1000e::configure_rx(dev_status& st)
     for(e1000e_receive_descriptor* d = rx_ring.descriptors; d < rx_ring.max_descriptor; d++)
     {
         std::construct_at(d);
-        char* buffer = __buffer_alloc.allocate(max_single_rx_buffer);
+        char* buffer        = __buffer_alloc.allocate(max_single_rx_buffer);
         if(!buffer) return false;
         d->read.buffer_addr = translate_vaddr(buffer);
     }
 
-    uint32_t rx_head = 0U;
-    uint32_t rx_tail = static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.descriptors);
-    qword rxbase = reinterpret_cast<uintptr_t>(rx_ring.descriptors);
+    uint32_t rx_head    = 0U;
+    uint32_t rx_tail    = static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.descriptors);
+    qword rxbase        = reinterpret_cast<uintptr_t>(rx_ring.descriptors);
     uint32_t rx_total_len = rx_tail * 16U;
     write_dma(rxbase_hi, rxbase.hi);
     write_dma(rxbase_lo, rxbase.lo);
@@ -338,12 +336,12 @@ bool e1000e::configure_rx(dev_status& st)
 int e1000e::poll_tx(netstack_buffer& buff)
 {
     e1000e_transmit_descriptor& tail = tx_ring.tail();
-    addr_t txbuf = tail.buffer_addr ? addr_t(tail.buffer_addr) : addr_t(__buffer_alloc.allocate(max_single_tx_buffer));
+    addr_t txbuf        = tail.buffer_addr ? addr_t(tail.buffer_addr) : addr_t(__buffer_alloc.allocate(max_single_tx_buffer));
     array_zero<uint64_t>(txbuf, max_single_tx_buffer / sizeof(uint64_t));
-    tail.flags.length = static_cast<uint16_t>(buff.getp(txbuf, max_single_tx_buffer));
-    tail.flags.cmd = 0b1011UC;
-    tail.buffer_addr = txbuf;
-    tail.fields.status = 0;
+    tail.flags.length   = static_cast<uint16_t>(buff.getp(txbuf, max_single_tx_buffer));
+    tail.flags.cmd      = 0b1011UC;
+    tail.buffer_addr    = txbuf;
+    tail.fields.status  = 0UC;
     write_dma(txt, (tx_ring.tail_descriptor = (tx_ring.tail_descriptor + 1) % tx_ring.count()));
     buff.flushp();
     if(await_result([&]() -> bool { io_wait(); return (tail.fields.status & 0x1) != 0; })) return 0;
@@ -355,14 +353,14 @@ int e1000e::poll_rx()
     {
         e1000e_receive_descriptor& tail = rx_ring.tail();
         addr_t packet(tail.read.buffer_addr);
-        if((tail.read.status & 2) && tail.read.errors)
+        if((tail.read.status & 2) && !tail.read.errors)
         {
             if(transfer_buffers.at_end()) transfer_buffers.restart();
-            netstack_buffer& buff = transfer_buffers.pop();
-            size_t len = tail.read.length;
+            netstack_buffer& buff   = transfer_buffers.pop();
+            size_t len              = tail.read.length;
             try { buff.putg(packet, len); } catch(std::overflow_error& e) { panic(e.what()); return -EOVERFLOW; }
-            int e = buff.pubsync();
-            if(e != 0) return e;
+            int err                 = up_stack_functor(buff);
+            if(err) return err;
         }
         tail.read.status = 0UC;
         write_dma(rxt, (rx_ring.tail_descriptor = (rx_ring.tail_descriptor + 1) % rx_ring.count()));

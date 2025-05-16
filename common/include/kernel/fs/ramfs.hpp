@@ -2,7 +2,7 @@
 #define __RAMFS
 #include "kernel/fs/fs.hpp"
 #include "ext/dynamic_queue_streambuf.hpp"
-constexpr dev_t ramfs_magic = 0xC001;
+constexpr dev_t ramfs_magic = 0x0000C001U;
 class ramfs_directory_node : public directory_node
 {
 public:
