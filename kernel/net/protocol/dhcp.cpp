@@ -1,13 +1,13 @@
 #include "net/protocol/dhcp.hpp"
 #include "stdlib.h" // rand()
 constexpr static std::allocator<net16> udp_pseudo_alloc;
-dhcp_request dhcp_protocol_handler::build_dhcp_discover(std::vector<net8> const& param_requests) 
+dhcp_packet dhcp_protocol_handler::build_dhcp_discover(std::vector<net8> const& param_requests) 
 {
 	size_t num_requests     = param_requests.size();
     size_t parameters_size  = num_requests + 6UZ; // 3 bytes for the message type, 2 bytes for the request list type and size, 1 byte for the EOT mark
     size_t target_size      = total_dhcp_size(parameters_size);
     size_t actual_size      = up_to_nearest(target_size, 2UZ);
-    dhcp_request result(actual_size, std::in_place_type<dhcp_packet>, std::forward<ipv4_standard_packet>(ethernet_packet(broadcast_mac, mac_addr)));
+    dhcp_packet result(actual_size, std::in_place_type<dhcp_packet_base>, std::forward<ipv4_standard_packet>(ethernet_packet(broadcast_mac, mac_addr)));
     array_copy(result->client_hw, result->source_mac.data(), 6UZ);
     result->total_length                = net16(static_cast<uint16_t>(result.packet_size - sizeof(ethernet_packet)));
     result->udp_length                  = net16(static_cast<uint16_t>(result.packet_size - sizeof(ipv4_standard_packet)));

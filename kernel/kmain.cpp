@@ -109,7 +109,7 @@ void net_tests()
             test_dev->transmit(p);
             std::vector<net8> requests{ DOMAIN_NAME, DOMAIN_NAME_SERVER, ROUTER, SUBNET_MASK };
             dhcp_protocol_handler dh(mac);
-            dhcp_request r = dh.build_dhcp_discover(requests);
+            dhcp_packet r = dh.build_dhcp_discover(requests);
             test_dev->transmit(r);
         }
     }

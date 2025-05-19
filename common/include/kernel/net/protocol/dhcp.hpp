@@ -116,7 +116,7 @@ struct attribute(packed) dhcp_parameter
     constexpr net8 const& length() const& noexcept { return parameter_octets[0]; }
     constexpr void* start() noexcept { return std::addressof(parameter_octets[1]); }
 };
-struct attribute(packed) dhcp_packet : udp_packet_base
+struct attribute(packed) dhcp_packet_base : udp_packet_base
 {
     dhcp_operation_type operation;
     net8                hw_type = 0x1UC;
@@ -134,19 +134,18 @@ struct attribute(packed) dhcp_packet : udp_packet_base
     char                boot_file_name[128];
     net32               magic = dhcp_magic;
     dhcp_parameter      parameters[];
-    constexpr dhcp_packet() noexcept = default;
-    constexpr dhcp_packet(udp_packet_base const& that) noexcept : udp_packet_base(that) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
-    constexpr dhcp_packet(udp_packet_base && that) noexcept : udp_packet_base(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
+    constexpr dhcp_packet_base() noexcept = default;
+    constexpr dhcp_packet_base(udp_packet_base const& that) noexcept : udp_packet_base(that) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
+    constexpr dhcp_packet_base(udp_packet_base&& that) noexcept : udp_packet_base(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
 };
-constexpr size_t total_dhcp_size(size_t parameters_size) noexcept { return parameters_size + sizeof(dhcp_packet); }
-typedef generic_packet<dhcp_packet> dhcp_request;
-
+constexpr size_t total_dhcp_size(size_t parameters_size) noexcept { return parameters_size + sizeof(dhcp_packet_base); }
+typedef generic_packet<dhcp_packet_base> dhcp_packet;
 struct dhcp_protocol_handler
 {
     mac_t const& mac_addr;
     ipv4_addr my_addr;
     constexpr dhcp_protocol_handler(mac_t const& mac) noexcept : mac_addr{ mac } {}
-    dhcp_request build_dhcp_discover(std::vector<net8> const& param_requests);
+    dhcp_packet build_dhcp_discover(std::vector<net8> const& param_requests);
     // ...
 };
 #endif
