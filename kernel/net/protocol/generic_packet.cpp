@@ -15,6 +15,12 @@ generic_packet_base::generic_packet_base(generic_packet_base&& that) :
     packet_size { that.packet_size },
     release_fn  { that.release_fn }
                 { that.packet_data = nullptr; }
+generic_packet_base::generic_packet_base(netstack_buffer& buffer, std::type_info const& type) :
+    packet_data { ::operator new(buffer.count(std::ios_base::in)) },
+    packet_type { type },
+    packet_size { buffer.count(std::ios_base::in) },
+    release_fn  { ::operator delete }
+                { array_copy(packet_data, buffer.eback(), packet_size); }
 generic_packet_base& generic_packet_base::operator=(generic_packet_base const& that)
 {
     if(packet_data) (*release_fn)(packet_data, packet_size);
@@ -37,8 +43,9 @@ generic_packet_base& generic_packet_base::operator=(generic_packet_base&& that)
 }
 int generic_packet_base::read_from(netstack_buffer& buff)
 {
-    size_t read_size = buff.sgetn(static_cast<char*>(packet_data), packet_size);
+    size_t read_size = buff.count(std::ios_base::in);
     if(read_size < packet_size) return -EPROTO;
+    array_copy(packet_data, buff.eback(), packet_size);
     return 0;
 }
 int generic_packet_base::write_to(netstack_buffer& buff) const
@@ -47,11 +54,4 @@ int generic_packet_base::write_to(netstack_buffer& buff) const
     catch(std::overflow_error&) { return -EOVERFLOW; }
     catch(std::bad_alloc&) { return -ENOMEM; }
     return 0;
-}
-net16 ip_checksum(net16* words, size_t n) 
-{
-    net32 result{}, intermediate{};
-    for(size_t i = 0; i < n; i++) result = result + words[i];
-    do { intermediate = result.hi + result.lo, result = intermediate; } while(result.hi);
-    return net16(~result.lo);
 }

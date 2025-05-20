@@ -36,6 +36,7 @@ namespace std
             virtual pos_type seekpos(pos_type pos, ios_base::openmode mode) override;
         public:
             virtual size_type size(ios_base::openmode which = ios_base::in | ios_base::out);
+            virtual size_type count(ios_base::openmode which = ios_base::in | ios_base::out);
             virtual void expand(size_type amount, ios_base::openmode which = ios_base::in | ios_base::out);
             constexpr dynamic_duplex_streambuf() = default;
             virtual ~dynamic_duplex_streambuf();
@@ -56,6 +57,16 @@ namespace std
                 result += this->__in_region.__capacity();
             if(which.out)
                 result += this->__out_region.__capacity();
+            return result;
+        }
+        template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
+        typename dynamic_duplex_streambuf<CT, TT, AT>::size_type dynamic_duplex_streambuf<CT, TT, AT>::count(ios_base::openmode which)
+        {
+            size_type result = 0UZ;
+            if(which.in)
+                result += static_cast<size_type>(this->__in_region.__end - this->__in_region.__begin);
+            if(which.out)
+                result += static_cast<size_type>(this->__out_region.__end - this->__out_region.__begin);
             return result;
         }
         template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>

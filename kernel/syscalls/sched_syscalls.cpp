@@ -48,9 +48,9 @@ extern "C"
         if(task->last_notified) { if(sc_out) *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } 
         else if(sch.set_wait_untimed(reinterpret_cast<task_t*>(task))) 
         {
-            task->notif_target = sc_out;
+            task->notif_target                      = sc_out;
             task->task_struct.task_ctl.notify_cterm = true;
-            task_t* next = sch.yield();
+            task_t* next                            = sch.yield();
             if(next == reinterpret_cast<task_t*>(task)) { return -ECHILD; }
             return next->saved_regs.rax;
         }
@@ -58,13 +58,14 @@ extern "C"
     }
     long syscall_fork()
     {
-        task_ctx* task = active_task_context();
-        if(task_ctx* clone = tl.task_vfork(task); clone && clone->set_fork())
+        task_ctx* task  = active_task_context();
+        task_ctx* clone = tl.task_vfork(task);
+        if( clone && clone->set_fork())
         {
             try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
-            clone->current_state = execution_state::RUNNING;
+            clone->current_state                = execution_state::RUNNING;
             task->add_child(clone);
-            clone->task_struct.saved_regs.rax = 0;
+            clone->task_struct.saved_regs.rax   = 0UL;
             return clone->get_pid();
         }
         else return -EAGAIN;
@@ -75,16 +76,16 @@ extern "C"
         if(task_ctx* clone = tl.task_vfork(task); clone && sch.set_wait_untimed(reinterpret_cast<task_t*>(task)))
         {
             try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
-            clone->current_state = execution_state::RUNNING;
+            clone->current_state                    = execution_state::RUNNING;
             task->add_child(clone);
             task->task_struct.task_ctl.notify_cterm = true;
-            clone->task_struct.saved_regs.rax = 0;
-            task->task_struct.saved_regs.rax = clone->get_pid();
-            task_t* next = sch.yield();
+            clone->task_struct.saved_regs.rax       = 0UL;
+            task->task_struct.saved_regs.rax        = clone->get_pid();
+            task_t* next                            = sch.yield();
             if(next == reinterpret_cast<task_t*>(task))
             { 
-                next = clone->task_struct.self;
-                next->quantum_rem = next->quantum_val;
+                next                = clone->task_struct.self;
+                next->quantum_rem   = next->quantum_val;
                 asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory");
             }
             return next->saved_regs.rax;
@@ -93,8 +94,8 @@ extern "C"
     }
     int syscall_execve(char* restrict name, char** restrict argv, char** restrict env)
     {
-        task_ctx* task = active_task_context();
-        filesystem* fs_ptr = get_fs_instance();
+        task_ctx* task      = active_task_context();
+        filesystem* fs_ptr  = get_fs_instance();
         if(!fs_ptr) return -ENOSYS;
         name = translate_user_pointer(name);
         if(!name) return -EFAULT;

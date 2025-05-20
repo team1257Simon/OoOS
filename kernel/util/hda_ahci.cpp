@@ -17,7 +17,7 @@ hda_ahci* hda_ahci::get_instance() { return __has_init ? std::addressof(__instan
 bool hda_ahci::__read_pt()
 {
     pt_header_t* hdr;
-    try { hdr = pt_header_alloc.allocate(1); }
+    try { hdr = pt_header_alloc.allocate(1UZ); }
     catch(std::bad_alloc&) { panic("no heap available"); return false; }
     if(!read(reinterpret_cast<char*>(hdr), 1U, 1U)) { panic("bad read on header"); pt_header_alloc.deallocate(hdr, 1); return false; }
     unsigned sz_multi = hdr->part_entry_size / sizeof(partition_entry_t);
@@ -44,8 +44,8 @@ bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
 {
     if(!__instance.__driver) { panic("cannot write disk before initializing write accessor"); return false; }
     uint16_t const* src = static_cast<uint16_t const*>(in);
-    size_t t_write = 0;
-    size_t s_write = 0;
+    size_t t_write = 0UZ;
+    size_t s_write = 0UZ;
     size_t rem = count;
     while(rem)
     {
@@ -63,8 +63,8 @@ bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
     if(!__instance.__driver) { panic("cannot read disk before initializing read accessor"); return false; }
     uint16_t* target = static_cast<uint16_t*>(out);
     size_t rem = count;
-    size_t t_read = 0;
-    size_t s_read = 0;
+    size_t t_read = 0UZ;
+    size_t s_read = 0UZ;
     fence();
     while(rem)
     {

@@ -34,7 +34,7 @@ void user_file::__write_block_csum(size_t idx)
 {
     user_file_superblock& sb    = get_superblock();
     user_file_block_data& data  = blocks()[idx];
-    data.tail.block_checksum    = 0;
+    data.tail.block_checksum    = 0U;
     uint32_t sb_csum            = crc32c(crc32c(sb.system_uuid), data);
     data.tail.block_checksum    = sb_csum;
 }
@@ -43,7 +43,7 @@ bool user_file::__verify_block_csum(size_t idx)
     uint32_t sb_seed            = crc32c(get_superblock().system_uuid);
     user_file_block_data& data  = blocks()[idx];
     uint32_t checkval           = data.tail.block_checksum;
-    data.tail.block_checksum    = 0;
+    data.tail.block_checksum    = 0U;
     uint32_t csum               = crc32c(sb_seed, data);
     data.tail.block_checksum    = checkval;
     return csum == checkval;
@@ -57,7 +57,7 @@ void user_file::add_block(user_file_block_type type)
         user_file_index_entry& ent  = resolve_object_ptr(sb.next_available_index_slot, BT_INDEX).ref<user_file_index_entry>();
         ent.block_idx               = sb.total_blocks++;
         ent.type                    = type;
-        ent.checksum                = 0;
+        ent.checksum                = 0U;
         uint32_t csum               = crc32c(crc32c(sb.system_uuid), ent);
         ent.checksum                = csum;
         size_t idx_slot             = sb.next_available_index_slot.entry_block_idx;
@@ -70,7 +70,7 @@ void user_file::advance_object_slot(user_file_block_type type)
     user_file_superblock& sb = get_superblock();
     if(type == BT_STRING) // this will be called only when the string needs a new block
     {
-        sb.next_available_string_slot.offset_in_block = 0;
+        sb.next_available_string_slot.offset_in_block = 0UZ;
         sb.next_available_string_slot.entry_block_idx = sb.total_blocks;
         add_block(BT_STRING);
         __write_block_csum(0UZ);
@@ -83,7 +83,7 @@ void user_file::advance_object_slot(user_file_block_type type)
         else
         {
             size_t block_num        = sb.total_blocks;
-            obj.offset_in_block     = 0;
+            obj.offset_in_block     = 0UZ;
             obj.entry_block_idx     = block_num;
             add_block(type);        // need to do this after because resizing the buffer will otherwise create a dangling reference
         }
@@ -172,7 +172,7 @@ void user_file::parse_index_entry(user_file_index_entry& ent)
 }
 void user_file::write_string(std::string const& str)
 {
-    size_t needed               = str.size() + 1;
+    size_t needed               = str.size() + 1UZ;
     size_t rem                  = static_cast<size_t>(usable_block_size - get_superblock().next_available_string_slot.offset_in_block);
     if(needed > rem) 
         advance_object_slot(BT_STRING); // after this there shouldn't be a dangling reference problem
@@ -222,7 +222,7 @@ void user_file::persist_user_info(user_info const& inf)
             .capabilities_ptr   { caps_ptr },
             .contact_string_ptr { contact_str_slot },
             .home_dir_ptr       { home_str_slot },
-            .checksum           { 0 }  
+            .checksum           { 0U }  
         };
         uint32_t csum       = crc32c(crc32c(sb->system_uuid), *persisted);
         persisted->checksum = csum;
@@ -318,23 +318,23 @@ bool user_file::__initialize()
                 .next_available_cred_slot   { 2UZ, 0UZ },
                 .next_available_caps_slot   { 3UZ, 0UZ },
                 .next_available_string_slot { 4UZ, 0UZ },
-                .next_available_index_slot  { 0UZ, initial_idx0_offset + 4 }
+                .next_available_index_slot  { 0UZ, initial_idx0_offset + 4UZ }
             };
             __fill_entropy(addressof(sb->system_uuid), sizeof(guid_t) / sizeof(uint64_t));
             uint32_t csum_seed          = crc32c(sb->system_uuid);
             user_file_index_entry* idx0 = blocks()[0].idx0;
-            idx0[0].block_idx           = 1;
+            idx0[0].block_idx           = 1UZ;
             idx0[0].type                = BT_USER_INFO;
-            idx0[0].checksum            = 0;
-            idx0[1].block_idx           = 2;
+            idx0[0].checksum            = 0U;
+            idx0[1].block_idx           = 2UZ;
             idx0[1].type                = BT_CREDENTIALS;
-            idx0[1].checksum            = 0;
-            idx0[2].block_idx           = 3;
+            idx0[1].checksum            = 0U;
+            idx0[2].block_idx           = 3UZ;
             idx0[2].type                = BT_CAPABILITIES;
-            idx0[2].checksum            = 0;
-            idx0[3].block_idx           = 4;
+            idx0[2].checksum            = 0U;
+            idx0[3].block_idx           = 4UZ;
             idx0[3].type                = BT_STRING;
-            idx0[3].checksum            = 0;
+            idx0[3].checksum            = 0U;
             uint32_t csum               = crc32c(csum_seed, idx0[0]);
             idx0[0].checksum            = csum;
             csum                        = crc32c(csum_seed, idx0[1]);

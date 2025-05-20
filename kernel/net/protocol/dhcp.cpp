@@ -1,8 +1,24 @@
+#define DHCP_INST
 #include "net/protocol/dhcp.hpp"
 #include "stdlib.h" // rand()
 constexpr static std::allocator<net16> udp_pseudo_alloc;
-dhcp_packet dhcp_protocol_handler::build_dhcp_discover(std::vector<net8> const& param_requests) 
+template<> template<> generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base&& that) : generic_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, std::move(that)) {}
+template<> template<> generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base const& that) : generic_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, that) {}
+template<> template<> generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base&& that) : generic_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, std::move(that)) {}
+template<> template<> generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base const& that) : generic_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, that) {}
+template class generic_packet<dhcp_packet_base>;
+template generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base&&);
+template generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base const&);
+template generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base&&);
+template generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base const&);
+template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base const&);
+template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base&&);
+template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>);
+template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base&&);
+template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base const&);
+generic_packet<dhcp_packet_base> dhcp_protocol_handler::build_dhcp_discover(std::vector<net8> const& param_requests) 
 {
+    typedef generic_packet<dhcp_packet_base> dhcp_packet;
 	size_t num_requests     = param_requests.size();
     size_t parameters_size  = num_requests + 6UZ; // 3 bytes for the message type, 2 bytes for the request list type and size, 1 byte for the EOT mark
     size_t target_size      = total_dhcp_size(parameters_size);
@@ -14,10 +30,6 @@ dhcp_packet dhcp_protocol_handler::build_dhcp_discover(std::vector<net8> const& 
     result->operation                   = DISCOVER;
     result->transaction_id              = net32(static_cast<uint32_t>(rand()));
     result->destination_addr            = broadcast;
-    result->client_ip                   = 0UBE;
-    result->server_ip                   = 0UBE;
-    result->your_ip                     = 0UBE;
-    result->relay_ip                    = 0UBE;
     addr_t pos                          = result->parameters;
     dhcp_parameter* param               = pos;
     param->type_code                    = MESSAGE_TYPE;
@@ -31,20 +43,7 @@ dhcp_packet dhcp_protocol_handler::build_dhcp_discover(std::vector<net8> const& 
     pos                                             += num_requests + 2Z;
     if(target_size != actual_size) pos.ref<net8>()  = 0UC, pos += 1L;
     pos.ref<net8>()                                 = 0xFFUC;
-    pos                                             = addr_t(result.packet_data).plus(sizeof(ethernet_packet));
-    result->header_checksum                         = ip_checksum(static_cast<net16*>(pos), result->ihl * 2UZ);
-    pos                                             += result->ihl * 4Z;
-    size_t num_words                                = static_cast<size_t>((result->udp_length + 12UZ) / sizeof(net16));
-    net16* pseudo_header                            = udp_pseudo_alloc.allocate(num_words);
-    array_zero(pseudo_header, num_words);
-    pseudo_header[0] = result->source_addr.hi;
-    pseudo_header[1] = result->source_addr.lo;
-    pseudo_header[2] = result->destination_addr.hi;
-    pseudo_header[3] = result->destination_addr.lo;
-    pseudo_header[4] = net16(0UC, result->protocol);
-    pseudo_header[5] = result->total_length;
-    array_copy(std::addressof(pseudo_header[6]), static_cast<net16*>(pos), static_cast<size_t>(num_words - 6));
-    result->udp_checksum = ip_checksum(pseudo_header, num_words);
-    udp_pseudo_alloc.deallocate(pseudo_header, num_words);
+    result->compute_ipv4_csum();
+    result->compute_udp_csum();
     return result;
 }

@@ -78,13 +78,14 @@ static void descr_pt(partition_table const& pt)
         startup_tty.print_line(std::to_string(i->end_lba));
     }
 }
-static int rx_test_poll(netstack_buffer& packet)
+static int poll_test(netstack_buffer& buff)
 {
-    startup_tty.print_text(" [received packet of " + std::to_string(packet.size(std::ios_base::in)) + "bytes, type: ");
-    ethernet_packet const* eth_packet = packet.peek_rx();
-    if(eth_packet) { startup_tty.print_text(std::to_string(eth_packet->protocol_type, std::ext::hex)); }
-    else startup_tty.print_text("<unknown>");
-    startup_tty.print_text("] ");
+    if(buff.rx_packet_type() == ethertype_ipv4)
+    {
+        dhcp_packet pkt(buff);
+        net32 ipaddr = pkt->your_ip;
+        startup_tty.print_text(" [offered IP: " + std::to_string(ipaddr.hi.hi) + "." + std::to_string(ipaddr.hi.lo) + "." + std::to_string(ipaddr.lo.hi) + "." + std::to_string(ipaddr.lo.lo) + "]");
+    }
     return 0;
 }
 void net_tests()
@@ -92,10 +93,10 @@ void net_tests()
     if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))
     {
         e1000e* test_dev = new(test_e1000e_drv) e1000e(net_pci);
-        test_dev->register_stack(rx_test_poll);
         if(!test_dev->initialize()) panic("init failed");
         else
         {
+            test_dev->register_stack(poll_test);
             mac_t const& mac = test_dev->get_mac_addr();
             startup_tty.print_text("MAC: ");
             for(int i = 0; i < 6; i++)
@@ -104,13 +105,11 @@ void net_tests()
                 if(i < 5)
                     startup_tty.print_text(":");
             }
-            startup_tty.endl();
-            arp_packet p(empty_mac, mac, arp_req, "10.0.2.2"IPV4, "10.0.2.15"IPV4);
-            test_dev->transmit(p);
-            std::vector<net8> requests{ DOMAIN_NAME, DOMAIN_NAME_SERVER, ROUTER, SUBNET_MASK };
+            std::vector<net8> requests{ ROUTER, SUBNET_MASK };
             dhcp_protocol_handler dh(mac);
             dhcp_packet r = dh.build_dhcp_discover(requests);
             test_dev->transmit(r);
+            startup_tty.endl();
         }
     }
     else panic("net device not found on PCI bus");

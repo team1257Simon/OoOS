@@ -57,14 +57,14 @@ extern "C"
     }
     int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset)
     {
-        task_ctx* task = active_task_context();
-        sigset_t const* rset = translate_user_pointer(set);
+        task_ctx* task          = active_task_context();
+        sigset_t const* rset    = translate_user_pointer(set);
         if(!rset) return -EFAULT;
         if(oset)
         {
-            oset = translate_user_pointer(oset);
+            oset    = translate_user_pointer(oset);
             if(!oset) return -EFAULT;
-            *oset = task->task_sig_info.blocked_signals;
+            *oset   = task->task_sig_info.blocked_signals;
         }
         if(how == SIG_BLOCK) { task->task_sig_info.blocked_signals |= *rset; }
         else if(how == SIG_UNBLOCK) { task->task_sig_info.blocked_signals &= ~(*rset); }

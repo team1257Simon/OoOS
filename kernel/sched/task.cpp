@@ -98,7 +98,7 @@ void task_ctx::init_task_state()
     }
     else
     {
-        task_struct.saved_regs.rsp.ref<uintptr_t>() = addr_t(std::addressof(sys_task_exit));
+        task_struct.saved_regs.rsp.assign(std::addressof(sys_task_exit));
         rt_argv_ptr = arg_vec.data();
         rt_env_ptr = env_vec.data();
     }
@@ -366,7 +366,7 @@ void task_ctx::stack_push(register_t val)
 {
     task_struct.saved_regs.rsp -= sizeof(register_t);
     addr_t stack = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
-    stack.ref<register_t>() = val;
+    stack.assign(val);
 }
 register_t task_ctx::stack_pop()
 {
@@ -390,12 +390,12 @@ void task_ctx::set_signal(int sig, bool save_state)
 }
 register_t task_ctx::end_signal()
 {
-    addr_t end_rsp = task_struct.saved_regs.rsp;
-    addr_t end_rip = task_struct.saved_regs.rip;
-    task_struct.saved_regs = task_sig_info.sigret_frame;
-    task_struct.saved_regs.rsp = end_rsp;
-    task_struct.saved_regs.rip = end_rip;
-    task_struct.fxsv = task_sig_info.sigret_fxsave;
+    addr_t end_rsp              = task_struct.saved_regs.rsp;
+    addr_t end_rip              = task_struct.saved_regs.rip;
+    task_struct.saved_regs      = task_sig_info.sigret_frame;
+    task_struct.saved_regs.rsp  = end_rsp;
+    task_struct.saved_regs.rip  = end_rip;
+    task_struct.fxsv            = task_sig_info.sigret_fxsave;
     task_sig_info.active_signal = 0;
     stack_push(task_sig_info.sigret_frame.r11);
     stack_push(task_sig_info.sigret_frame.rcx);
@@ -449,14 +449,14 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
     }
     uframe_tag* new_tag = static_cast<uframe_tag*>(desc.frame_ptr);
     if(!new_tag) throw std::invalid_argument{ "frame must not be null" };
-    task_struct.frame_ptr = new_tag;
-    allocated_stack = desc.prg_stack;
-    stack_allocated_size = desc.stack_size;
-    tls = desc.prg_tls;
-    tls_size = desc.tls_size;
-    pid_t pid = get_pid();
-    priority_val prio = task_struct.task_ctl.prio_base;
-    uint16_t quantum = task_struct.quantum_val;
+    task_struct.frame_ptr   = new_tag;
+    allocated_stack         = desc.prg_stack;
+    stack_allocated_size    = desc.stack_size;
+    tls                     = desc.prg_tls;
+    tls_size                = desc.tls_size;
+    pid_t pid               = get_pid();
+    priority_val prio       = task_struct.task_ctl.prio_base;
+    uint16_t quantum        = task_struct.quantum_val;
     new(std::addressof(task_struct)) task_t
     {
         .self               { std::addressof(task_struct) },

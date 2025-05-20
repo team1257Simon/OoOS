@@ -9,34 +9,34 @@ static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st)
     size_t bs = fsptr->block_size();
     new(st) stat
     { 
-        .st_dev = fsptr->get_dev_id(), 
-        .st_ino = n->cid(), 
-        .st_mode = n->mode, 
-        .st_nlink = n->num_refs(),
-        .st_uid = 0,    // WIP
-        .st_gid = 0,    // WIP
-        .st_rdev = n->is_device() ? dynamic_cast<device_node*>(n)->get_device_id() : 0U, 
-        .st_size = static_cast<long>(n->size()),
-        .st_atim = timestamp_to_timespec(n->create_time),
-        .st_mtim = timestamp_to_timespec(n->modif_time), 
-        .st_ctim = timestamp_to_timespec(n->modif_time), 
+        .st_dev     = fsptr->get_dev_id(), 
+        .st_ino     = n->cid(), 
+        .st_mode    = n->mode, 
+        .st_nlink   = n->num_refs(),
+        .st_uid     = 0,    // WIP
+        .st_gid     = 0,    // WIP
+        .st_rdev    = n->is_device() ? dynamic_cast<device_node*>(n)->get_device_id() : 0U, 
+        .st_size    = static_cast<long>(n->size()),
+        .st_atim    = timestamp_to_timespec(n->create_time),
+        .st_mtim    = timestamp_to_timespec(n->modif_time), 
+        .st_ctim    = timestamp_to_timespec(n->modif_time), 
         .st_blksize = bs,
-        .st_blocks = div_round_up(n->size(), bs) 
+        .st_blocks  = div_round_up(n->size(), bs) 
     };  
 }
 extern "C"
 {
     int syscall_open(char* name, int flags, ...)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        name                = translate_user_pointer(name);
         if(!fsptr) return -ENOSYS;
-        name = translate_user_pointer(name);
         if(!name) return -EFAULT;
         std::ios_base::openmode mode;
-        mode.app = (flags & O_APPEND) != 0;
-        mode.in = (flags & O_RDONLY) || (flags & O_RDWR);
-        mode.out = (flags & O_WRONLY) || (flags & O_RDWR);
-        mode.trunc = (flags & O_TRUNC);
+        mode.app    = (flags & O_APPEND) != 0;
+        mode.in     = (flags & O_RDONLY) || (flags & O_RDWR);
+        mode.out    = (flags & O_WRONLY) || (flags & O_RDWR);
+        mode.trunc  = (flags & O_TRUNC);
         try 
         {
             if(fs_node* existing = fsptr->find_node(name, false, mode))
@@ -52,12 +52,12 @@ extern "C"
             else if(file_node* n = fsptr->open_file(name, mode)) 
                 return n->vid();
         }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
-        catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }
-        catch(std::domain_error& e) { panic(e.what()); return -ENOLCK; }
-        catch(std::runtime_error& e) { panic(e.what()); return -ENOSPC; }
-        catch(std::exception& e) { panic(e.what()); return -ENOMEM; }
+        catch(std::out_of_range& e)     { panic(e.what()); return -ENOENT; }
+        catch(std::domain_error& e)     { panic(e.what()); return -ENOLCK; }
+        catch(std::runtime_error& e)    { panic(e.what()); return -ENOSPC; }
+        catch(std::exception& e)        { panic(e.what()); return -ENOMEM; }
         return -EINVAL;
     }
     int syscall_close(int fd)
@@ -69,9 +69,9 @@ extern "C"
     }
     int syscall_write(int fd, char* ptr, int len)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        ptr                 = translate_user_pointer(ptr);
         if(!fsptr) return -ENOSYS;
-        ptr = translate_user_pointer(ptr);
         if(!ptr) return -EFAULT;
         try
         { 
@@ -95,9 +95,9 @@ extern "C"
     }
     int syscall_read(int fd, char* ptr, int len)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        ptr                 = translate_user_pointer(ptr);
         if(!fsptr) return -ENOSYS;
-        ptr = translate_user_pointer(ptr);
         if(!ptr) return -EFAULT;
         try 
         { 
@@ -120,10 +120,10 @@ extern "C"
     }
     int syscall_link(char* restrict old, char* restrict __new)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        old                 = translate_user_pointer(old);
+        __new               = translate_user_pointer(__new);
         if(!fsptr) return -ENOSYS;
-        old = translate_user_pointer(old);
-        __new = translate_user_pointer(__new);
         if(!old || !__new) return -EFAULT;
         try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOSPC; }
         catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
@@ -139,9 +139,9 @@ extern "C"
             if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) 
             {
                 std::ios_base::seekdir xway;
-                if(way == 0) xway = std::ios_base::beg;
-                else if(way == 1) xway = std::ios_base::cur;
-                else if(way == 2) xway = std::ios_base::end;
+                if(way == 0) xway       = std::ios_base::beg;
+                else if(way == 1) xway  = std::ios_base::cur;
+                else if(way == 2) xway  = std::ios_base::end;
                 else return -EINVAL;
                 off_t result = n->seek(offs, xway);
                 if(result < 0) return -EOVERFLOW;
@@ -159,8 +159,8 @@ extern "C"
         name = translate_user_pointer(name);
         if(!name) return -EFAULT;
         try { return fsptr->unlink(name) ? 0 : -ENOENT; }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
-        catch(std::exception& e) { panic(e.what()); }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
+        catch(std::exception& e)        { panic(e.what()); }
         return -ENOMEM;
     }
     int syscall_isatty(int fd)
@@ -192,7 +192,7 @@ extern "C"
             if(fn) { __stat_init(fn, fsptr, st); return 0; } 
             return -ENOENT;
         }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; } 
         return -ENOMEM;
     }
@@ -200,18 +200,37 @@ extern "C"
     {
         filesystem* fsptr = get_fs_instance();
         if(!fsptr) return -ENOSYS;
-        try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { n->mode = m; n->fsync(); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+        try 
+        { 
+            if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) 
+            {
+                n->mode = m;
+                n->fsync();
+                return 0;
+            }
+            else return -EBADF; 
+        } 
+        catch(std::exception& e) { panic(e.what()); }
         return -ENOMEM;
     }
     int syscall_chmod(const char* name, mode_t m)
     {
         filesystem* fsptr = get_fs_instance();
-        if(!fsptr) return -ENOSYS;
         name = translate_user_pointer(name);
+        if(!fsptr) return -ENOSYS;
         if(!name) return -EFAULT;
-        try { if(file_node* n = fsptr->get_file(name)) { n->mode = m; n->fsync(); return 0; } else return -EISDIR; } 
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
-        catch(std::exception& e) { panic(e.what()); }
+        try
+        { 
+            if(file_node* n = fsptr->get_file(name))
+            {
+                n->mode = m;
+                n->fsync();
+                return 0;
+            } 
+            else return -EISDIR;
+        } 
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
+        catch(std::exception& e)        { panic(e.what()); }
         return -ENOENT;
     }
     int syscall_mkdir(const char* path, mode_t mode)
@@ -224,11 +243,11 @@ extern "C"
         if(fsptr->get_directory_or_null(path, false)) return -EEXIST;
         mode_t full_mode = mode | 0040000;
         try { fsptr->create_node(nullptr, path, full_mode); return 0; }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
-        catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }
-        catch(std::runtime_error& e) { panic(e.what()); return -ENOSPC; }
-        catch(std::exception& e) { panic(e.what()); }
+        catch(std::out_of_range& e)     { panic(e.what()); return -ENOENT; }
+        catch(std::runtime_error& e)    { panic(e.what()); return -ENOSPC; }
+        catch(std::exception& e)        { panic(e.what()); }
         return -ENOMEM;
     }
     addr_t syscall_fdopendir(int fd)
@@ -238,10 +257,10 @@ extern "C"
         task_ctx* task = active_task_context();
         try
         {
-            fs_node* node = fsptr->get_fd_node(fd);
-            if(!node) return addr_t(static_cast<uintptr_t>(-EBADF));
+            fs_node* node       = fsptr->get_fd_node(fd);
             directory_node* dir = dynamic_cast<directory_node*>(node);
-            if(!dir) return addr_t(static_cast<uintptr_t>(-ENOTDIR));
+            if(!node)   return addr_t(static_cast<uintptr_t>(-EBADF));
+            if(!dir)    return addr_t(static_cast<uintptr_t>(-ENOTDIR));
             return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first->second.get_dir_struct_vaddr();
         }
         catch(std::exception& e) { panic(e.what()); }
@@ -249,11 +268,11 @@ extern "C"
     }
     addr_t syscall_opendir(const char* name)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        name                = translate_user_pointer(name);
+        task_ctx* task      = active_task_context();
         if(!fsptr) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-        name = translate_user_pointer(name);
         if(!name) return addr_t(static_cast<uintptr_t>(-EFAULT));
-        task_ctx* task = active_task_context();
         try
         {
             directory_node* dir = fsptr->get_directory_or_null(name, false);
@@ -266,9 +285,9 @@ extern "C"
     }
     int syscall_closedir(addr_t dirp)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        dirp                = translate_user_pointer(dirp);
         if(!fsptr) return -ENOSYS;
-        dirp = translate_user_pointer(dirp);
         if(!dirp) return -EFAULT;
         task_ctx* task = active_task_context();
         task->opened_directories.erase(dirp.ref<DIR>().fd);
@@ -276,10 +295,10 @@ extern "C"
     }
     int syscall_lstat(const char* restrict name, stat* restrict st)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        name                = translate_user_pointer(name);
+        st                  = translate_user_pointer(st);
         if(!fsptr) return -ENOSYS;
-        name = translate_user_pointer(name);
-        st = translate_user_pointer(st);
         if(!st || !name) return -EFAULT;
         try
         {
@@ -287,23 +306,23 @@ extern "C"
             if(fn) { __stat_init(fn, fsptr, st); return 0; } 
             return -ENOENT;
         }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; } 
         return -ENOMEM;
     }
     int syscall_mknod(const char* name, mode_t mode, dev_t dev)
     {
-        filesystem* fsptr = get_fs_instance();
+        filesystem* fsptr   = get_fs_instance();
+        name                = translate_user_pointer(name);
         if(!fsptr) return -ENOSYS;
-        name = translate_user_pointer(name);
         if(!name) return -EFAULT;
         try { fsptr->create_node(nullptr, name, mode, dev); }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
-        catch(std::domain_error& e) { panic(e.what()); return -EEXIST; }
-        catch(std::runtime_error& e) { panic(e.what()); return -ENOSPC; }
-        catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }
-        catch(std::exception& e) { panic(e.what()); return -ENOMEM; }
+        catch(std::domain_error& e)     { panic(e.what()); return -EEXIST; }
+        catch(std::runtime_error& e)    { panic(e.what()); return -ENOSPC; }
+        catch(std::out_of_range& e)     { panic(e.what()); return -ENOENT; }
+        catch(std::exception& e)        { panic(e.what()); return -ENOMEM; }
         return 0;
     }
     int syscall_mknodat(int fd, const char* name, mode_t mode, dev_t dev)
@@ -317,12 +336,12 @@ extern "C"
         directory_node* dirnode = dynamic_cast<directory_node*>(node);
         if(!node) return -ENOTDIR;
         try { fsptr->create_node(dirnode, name, mode, dev); }
-        catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
+        catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
         catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; } 
-        catch(std::domain_error& e) { panic(e.what()); return -EEXIST; }
-        catch(std::runtime_error& e) { panic(e.what()); return -ENOSPC; }
-        catch(std::out_of_range& e) { panic(e.what()); return -ENOENT; }
-        catch(std::exception& e) { panic(e.what()); return -ENOMEM; }
+        catch(std::domain_error& e)     { panic(e.what()); return -EEXIST; }
+        catch(std::runtime_error& e)    { panic(e.what()); return -ENOSPC; }
+        catch(std::out_of_range& e)     { panic(e.what()); return -ENOENT; }
+        catch(std::exception& e)        { panic(e.what()); return -ENOMEM; }
         return 0;
     }
     int syscall_pipe(int* out)

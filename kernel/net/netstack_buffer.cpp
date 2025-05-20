@@ -1,16 +1,23 @@
 #include "net/netstack_buffer.hpp"
+#include "net/protocol/ipv4.hpp"
 #include "stdexcept"
-ethernet_packet const* netstack_buffer::peek_rx() const noexcept { return reinterpret_cast<ethernet_packet const*>(__in_region.__begin); }
-void netstack_buffer::flushp() { array_zero(__out_region.__begin, __out_region.__capacity()); __out_region.__setc(0UZ); }
-int netstack_buffer::sync()
+net16 netstack_buffer::rx_packet_type() const { return reinterpret_cast<ethernet_packet const*>(__in_region.__begin)->protocol_type; }
+size_t netstack_buffer::ipv4_size() const { return reinterpret_cast<ipv4_standard_packet const*>(__in_region.__begin)->total_length; }
+int netstack_buffer::tx_flush()
 {
-    int result = 0;
-    if(rx_poll && __in_region.__begin && __in_region.__end > __in_region.__begin)
-        result = rx_poll(*this);
-    if(result) return result;
-    if(tx_poll && __out_region.__begin && __out_region.__end > __out_region.__begin)
-        result = tx_poll(*this);
-    return result;
+    if(tx_poll) if(int err = tx_poll(*this)) return err;
+    fence();
+    array_zero(__out_region.__begin, __out_region.__capacity()); 
+    __out_region.__setc(0UZ);
+    return 0;
+}
+int netstack_buffer::rx_flush()
+{
+    if(rx_poll) { if(int err = rx_poll(*this)) return err; }
+    fence();
+    array_zero(__in_region.__begin, __in_region.__capacity()); 
+    __in_region.__setc(0UZ);
+    return 0;
 }
 netstack_buffer::int_type netstack_buffer::overflow(int_type c)
 {
@@ -40,21 +47,6 @@ std::streamsize netstack_buffer::xsgetn(char* s, size_type n)
     array_copy(s, __in_region.__end, n);
     gbump(n);
     return n;
-}
-std::streamsize netstack_buffer::putg(const void* data, size_type n)
-{
-    if(rx_limit && n > rx_limit) throw std::overflow_error{ "rx buffer target size cannot be larger than " + std::to_string(rx_limit) + " bytes" };
-    __in_region.__set_ptrs(std::resize(__in_region.__begin, __in_region.__capacity(), n, __allocator), n);
-    array_zero(__in_region.__begin, __in_region.__capacity());
-    const char* cdata = static_cast<const char*>(data);
-    array_copy(__in_region.__begin, cdata, n);
-    return n;
-}
-std::streamsize netstack_buffer::getp(void* out, size_type n)
-{
-    size_type len = std::min(n, static_cast<size_type>(__out_region.__end - __out_region.__begin));
-    array_copy(out, __out_region.__begin, len);
-    return len;
 }
 netstack_buffer::netstack_buffer() :
     rx_poll     {},

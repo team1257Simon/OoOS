@@ -8,8 +8,8 @@ extern "C"
     {
         uframe_tag* ctask_frame = active_frame();
         if(ctask_frame->magic != uframe_magic) return addr_t(static_cast<uintptr_t>(-EINVAL));
-        addr_t result = ctask_frame->extent;
-        bool success = ctask_frame->shift_extent(incr);
+        addr_t result   = ctask_frame->extent;
+        bool success    = ctask_frame->shift_extent(incr);
         if(success) { return result; }
         else return addr_t(static_cast<uintptr_t>(-ENOMEM));
     }

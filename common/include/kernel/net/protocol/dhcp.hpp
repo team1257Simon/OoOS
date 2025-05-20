@@ -139,13 +139,25 @@ struct attribute(packed) dhcp_packet_base : udp_packet_base
     constexpr dhcp_packet_base(udp_packet_base&& that) noexcept : udp_packet_base(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
 };
 constexpr size_t total_dhcp_size(size_t parameters_size) noexcept { return parameters_size + sizeof(dhcp_packet_base); }
+#ifndef DHCP_INST
+extern template struct generic_packet<dhcp_packet_base>;
+extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>);
+extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base const&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base&&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base&&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base const&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base&&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base const&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base&&);
+extern template generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base const&);
 typedef generic_packet<dhcp_packet_base> dhcp_packet;
+#endif
 struct dhcp_protocol_handler
 {
     mac_t const& mac_addr;
     ipv4_addr my_addr;
     constexpr dhcp_protocol_handler(mac_t const& mac) noexcept : mac_addr{ mac } {}
-    dhcp_packet build_dhcp_discover(std::vector<net8> const& param_requests);
+    generic_packet<dhcp_packet_base> build_dhcp_discover(std::vector<net8> const& param_requests);
     // ...
 };
 #endif

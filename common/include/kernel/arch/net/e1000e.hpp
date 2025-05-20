@@ -107,15 +107,8 @@ struct attribute(packed, aligned(4)) e1000e_mdi_control_register
 };
 struct attribute(packed, aligned(4)) e1000e_extended_control_register
 {
-    bool                            : 2;
-    bool sdp2_gpi_enable            : 1;
-    bool sdp3_gpi_enable            : 1;
-    bool                            : 2;
-    bool sdp2_data                  : 1;
-    bool sdp3_data                  : 1;
-    bool                            : 2;
-    bool sdp2_dir                   : 1;
-    bool sdp3_dir                   : 1;
+    bool                            : 8;
+    bool                            : 4;
     bool auto_speed_detection_check : 1;
     bool eeprom_reset               : 1;
     bool                            : 1;
@@ -127,14 +120,13 @@ struct attribute(packed, aligned(4)) e1000e_extended_control_register
     bool phy_power_down_enable      : 1;
     bool                            : 1;
     uint8_t link_mode               : 2;
-    bool packet_parity              : 1;
-    bool descriptor_parity          : 1;
-    bool                            : 1;
-    bool interrupt_ack_auto_mask    : 1;
+    bool ext_interrupt_auto_mask    : 1;
+    bool                            : 2;
+    bool interrupt_auto_mask        : 1;
     bool driver_loaded              : 1;
+    bool interrupt_timer_clear      : 1;
     bool                            : 1;
-    bool host_data_fifo_parity      : 1;
-    bool                            : 1;
+    bool pba_support_enable         : 1;
 };
 struct attribute(packed, aligned(4)) e1000e_rx_control_register
 {
@@ -144,7 +136,7 @@ struct attribute(packed, aligned(4)) e1000e_rx_control_register
     bool unicast_promiscuous        : 1;
     bool multicast_promiscuous      : 1;
     bool long_packet_enable         : 1;
-    uint8_t loopback_mode           : 2; // use (0->normal, 1->MAC) loopback
+    uint8_t loopback_mode           : 2; // use (0->normal, 1->MAC loopback) mode
     uint8_t rdtms                   : 2; // sets the RDMT interrupt when the number of free descriptors equals one (0->half, 1 -> quarter, 2->eighth) of total descriptors
     uint8_t desc_type               : 2; // use (0->legacy, 1->packet-split) descriptors
     uint8_t multicast_offset        : 2; // filter multicast packets based on bits (0->47-36, 1->46-35, 2->45-34, 3->43-32) of multicast address
@@ -228,6 +220,22 @@ struct attribute(packed, aligned(4)) e1000e_interrupt_cause_register
     bool                            : 6;
     bool asserted                   : 1; 
 };
+struct attribute(packed, aligned(4)) e1000e_rx_filter_control_register
+{
+    bool iscsi_disable              : 1;
+    uint8_t iscsi_dword_count       : 5;
+    bool nfs_write_filter_disable   : 1;
+    bool nfs_read_filter_disable    : 1;
+    uint8_t nfs_version             : 2;    // version number is this plus 2; there is no version 5 (i.e. 0b11 is reserved)
+    bool ipv6_disable               : 1;    // do not filter ipv6 packets
+    bool ipv6_xsum_disable          : 1;
+    bool ack_accelerate_disable     : 1;
+    bool ack_data_disable           : 1;
+    bool ip_fragment_split_disable  : 1;
+    bool extend_status_enable       : 1;
+    bool                            : 8;
+    bool                            : 8;
+};
 template<std::same_size<uint32_t> T> union [[gnu::may_alias]] e1000e_register_dword
 {
     typedef uint32_t& dw_ref;
@@ -251,107 +259,34 @@ typedef e1000e_register_dword<e1000e_tx_control_register> tx_ctrl;
 typedef e1000e_register_dword<e1000e_rx_desc_control_register> rx_desc_ctrl;
 typedef e1000e_register_dword<e1000e_tx_desc_control_register> tx_desc_ctrl;
 typedef e1000e_register_dword<e1000e_interrupt_cause_register> irq_state;
-struct e1000e_nvm_config_table
+typedef e1000e_register_dword<e1000e_rx_filter_control_register> rx_filter_ctrl;
+struct attribute(packed, aligned(2)) e1000e_phy_autonegotiation_capability_word
 {
-    word ethernet_address[3];
-    struct alignas(uint16_t)
-    {
-        bool                        : 2;
-        bool pci_bridge_present     : 1;
-        bool                        : 1;
-        bool smbus_connected        : 1;
-        bool                        : 3;
-        bool is_oem                 : 1;
-        bool is_client              : 1;
-        bool is_server              : 1;
-        bool is_lom                 : 1;
-        bool asf_smbus_connected    : 1;
-        bool                        : 3;
-    } __pack;
-    struct alignas(uint16_t)
-    {
-        uint8_t led_0_control       : 4;
-        uint8_t led_1_control       : 4;
-        uint8_t led_2_control       : 4;
-        uint8_t                     : 4;
-    } __pack;
-    uint16_t rsv0[3];
-    uint16_t printed_board_assembly_number[2];
-    uint16_t icw1;
-    uint16_t subsystem_id;
-    uint16_t subsystem_vendor_id;
-    uint16_t device_id;
-    uint16_t rsv1;
-    uint16_t icw2;
-    uint16_t nvm_protected[3];
-    uint16_t rsv2[4];
-    uint16_t pcie_electrical_delay;
-    uint16_t pcie_icw[3];
-    struct alignas(uint16_t)
-    {
-        uint8_t l1_latency              : 2;
-        bool electrical_idle            : 1;
-        bool                            : 1;
-        bool skip_disable               : 1;
-        bool l2_disable                 : 1;
-        bool                            : 1;
-        uint8_t msi_x_num               : 3;
-        bool leaky_bucket_disable       : 1;
-        bool force_recovery             : 1;
-        bool pcie_ltssm                 : 1;
-        bool pcie_down_reset_disable    : 1;
-        uint8_t l1_latency_hi           : 1;
-        bool pcie_receive_valid         : 1;
-    } __pack;
-    struct alignas(uint16_t)
-    {
-        uint8_t led1_mode               : 4;
-        bool                            : 1;
-        bool led1_blink_mode            : 1;
-        bool led1_inver                 : 1;
-        bool led1_blink                 : 1;
-        bool                            : 1;
-        bool d0_low_power_link_up       : 1;
-        bool low_power_link_up          : 1;
-        bool non_d0a_gigabit_disable    : 1;
-        bool class_a_mode               : 1;
-        bool rsv7                       : 1;
-        bool gigabit_disable            : 1;
-        bool                            : 1;
-    } __pack;
-    uint16_t rsv3[2];
-    struct alignas(uint16_t)
-    {
-        uint8_t led0_mode       : 4;
-        bool                    : 1;
-        bool led0_blink_mode    : 1;
-        bool led0_invert        : 1;
-        bool led0_blink         : 1;
-        uint8_t led2_mode       : 4;
-        bool                    : 1;
-        bool led2_blink_mode    : 1;
-        bool led2_invert        : 1;
-        bool led2_blink         : 1;
-    } __pack;
-    uint16_t flash_param;
-    struct alignas(uint16_t)
-    {
-        bool                                : 7;
-        bool lan_expansion_disable          : 1;
-        uint8_t lan_flash_address_addend    : 4;
-        uint8_t lan_flash_size_shift        : 3;
-        bool lan_flash_disable              : 1;
-    } __pack;
-    uint16_t lan_power_consumption;
-    uint16_t flash_sw_detection_word;       // 0xFFFF enables vendor detection; otherwise keep as 0x3FFF
-    uint16_t icw3;
-    uint16_t apt_hw_words[6];
-    uint16_t firmware_id[2];
-    uint16_t ncsi_config[2];
-    uint16_t vpd_ptr;
-    uint16_t pxe_words[14];
-    uint16_t checksum;                      // checksum of the above block, such that adding the whole thing equals 0xBABA
+    uint8_t selector_field      : 5;
+    bool half_duplex_10base     : 1;
+    bool full_duplex_10base     : 1;
+    bool half_duplex_100base    : 1;
+    bool full_duplex_100base    : 1;
+    bool t4_100base             : 1;
+    bool mac_pause_capable      : 1;
+    bool asymmetric_pause       : 1;
+    bool                        : 1;
+    bool remote_fault           : 1;
+    bool                        : 1;
+    bool next_page              : 1;
 };
+template<std::same_size<uint16_t> T> union e1000e_phy_register_word
+{
+    typedef uint16_t& w_ref;
+    typedef uint16_t const& w_cref;
+    uint16_t data_word{};
+    T data_struct;
+    constexpr operator w_ref() & noexcept { return data_word; }
+    constexpr operator w_cref() const& noexcept { return data_word; }
+    constexpr T* operator->() & noexcept { return std::addressof(data_struct); }
+    constexpr T const* operator->() const& noexcept { return std::addressof(data_struct); }
+};
+typedef e1000e_phy_register_word<e1000e_phy_autonegotiation_capability_word> phy_autonegotiation;
 union alignas(int128_t) e1000e_receive_descriptor
 {
 	struct __pack
@@ -359,9 +294,19 @@ union alignas(int128_t) e1000e_receive_descriptor
 		uintptr_t buffer_addr;
         uint16_t length;
         uint16_t csum;
-        uint8_t status;
+        struct __pack
+        {
+            bool done                   : 1;
+            bool end_of_packet          : 1;
+            bool                        : 1;
+            bool is_vet_packet          : 1;
+            bool udp_csum_calculated    : 1;
+            bool tcp_csum_calculated    : 1;
+            bool ipv4_csum_calculated   : 1;
+            bool                        : 1;
+        } status;
 		uint8_t errors;
-        uint16_t vlan;	                        /* VLAN tag */
+        uint16_t vlan;
 	} read;
 	struct __pack
     {
@@ -378,7 +323,7 @@ union alignas(int128_t) e1000e_receive_descriptor
 		uint32_t status_error_wb;               /* ext status/error */
         uint16_t length_wb;
         uint16_t vlan_wb;	                    /* VLAN tag */
-	} wb;                                /* writeback */
+	} wb;                                       /* writeback */
 };
 constexpr auto test = offsetof(e1000e_receive_descriptor, read.status);
 union alignas(int128_t) e1000e_receive_descriptor_packet_split
@@ -510,6 +455,7 @@ class e1000e : public net_device
     simple_io_port<uint32_t> __io_addr_port;
     simple_io_port<uint32_t> __io_data_port;
     bool __mdio_await(mdic& mdic_reg);
+    friend void net_tests();
 protected:
     e1000e_ring<e1000e_receive_descriptor> rx_ring;
     e1000e_ring<e1000e_transmit_descriptor> tx_ring;
@@ -517,12 +463,14 @@ protected:
     virtual bool configure_tx(dev_status& st);
     virtual bool configure_mac_phy(dev_status& st);
     bool configure_interrupts(dev_status& st);
+    bool dev_reset();
     void read_status(dev_status& st);
     bool read_io(int reg_id, uint32_t& r_out);
     bool write_io(int reg_id, uint32_t const& w_in);
+    uint32_t read_dma(int reg_id);
     void read_dma(int reg_id, uint32_t& r_out);
     void write_dma(int reg_id, uint32_t const& w_in);
-    uint16_t read_phy(int phy_reg);
+    void read_phy(int phy_reg, uint16_t& out);
     void write_phy(int phy_reg, uint16_t data);
     uint16_t read_eeprom(uint16_t eep_addr);
     __isrcall void on_interrupt();

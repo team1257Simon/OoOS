@@ -87,7 +87,7 @@ void elf64_dynamic_object::apply_relocations()
         if(is_dynamic_relocation(r.rela_entry)) continue; // these will be resolved later
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
         addr_t phys_target = get_frame()->translate(result.target);
-        if(phys_target && result.value) phys_target.ref<uint64_t>() = result.value;
+        if(phys_target && result.value) phys_target.assign(result.value);
         else klog("W: invalid relocation");
     }
 }
@@ -310,7 +310,7 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
     {
         addr_t got_table = get_frame()->translate(global_offset_table());
         if(!got_table) return;
-        got_table.as<addr_t>()[2] = ptr;
+        got_table.plus(sizeof(addr_t) * 2Z).assign(ptr);
     }
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 

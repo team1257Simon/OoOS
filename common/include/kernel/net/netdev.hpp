@@ -8,6 +8,9 @@ protected:
     mac_t mac_addr;
     std::ext::resettable_queue<netstack_buffer> transfer_buffers;
     netstack_buffer::poll_functor up_stack_functor;
+    static int poll_nop(netstack_buffer&) noexcept;
+    constexpr void* tx_base(std::ext::resettable_queue<netstack_buffer>::iterator i) { return i->pbase(); }
+    constexpr void* rx_base(std::ext::resettable_queue<netstack_buffer>::iterator i) { return i->eback(); }
 public:
     net_device();
     virtual ~net_device();

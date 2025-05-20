@@ -75,6 +75,34 @@ struct attribute(packed) ipv4_packet_with_options : ethernet_packet
     constexpr ipv4_packet_with_options() noexcept = default;
     constexpr ipv4_packet_with_options(ethernet_packet const& ep) noexcept : ethernet_packet(ep) { protocol_type = ethertype_ipv4; }
     constexpr ipv4_packet_with_options(ethernet_packet&& ep) noexcept : ethernet_packet(std::move(ep)) { protocol_type = ethertype_ipv4; }
+    constexpr void compute_ipv4_csum()
+    {
+        constexpr size_t num_words  = static_cast<size_t>(L) * sizeof(uint32_t) / sizeof(uint16_t);
+        header_checksum             = 0USBE;
+        net16* words                = addr_t(std::addressof(total_length)).minus(sizeof(net16));
+        uint32_t intermediate_csum  = 0U;
+        for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
+        dword dw_csum       = intermediate_csum;
+        intermediate_csum   = dw_csum.hi + dw_csum.lo;
+        dw_csum             = intermediate_csum;
+        intermediate_csum   = dw_csum.hi + dw_csum.lo;
+        header_checksum     = net16(~(static_cast<uint16_t>(intermediate_csum)));
+    }
 };
+#ifndef IP_INST
+extern template struct ipv4_packet_with_options<IHL20B>;
+extern template class generic_packet<ipv4_packet_with_options<IHL20B>>;
+typedef generic_packet<ipv4_packet_with_options<IHL20B>> ipv4_packet;
 typedef ipv4_packet_with_options<IHL20B> ipv4_standard_packet;
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet();
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(ethernet_packet const&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(ethernet_packet&&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(ipv4_packet_with_options<IHL20B> const&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(ipv4_packet_with_options<IHL20B>&&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(size_t, std::in_place_type_t<ipv4_packet_with_options<IHL20B>>);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(size_t, std::in_place_type_t<ipv4_packet_with_options<IHL20B>>, ethernet_packet const&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(size_t, std::in_place_type_t<ipv4_packet_with_options<IHL20B>>, ethernet_packet&&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(size_t, std::in_place_type_t<ipv4_packet_with_options<IHL20B>>, ipv4_packet_with_options<IHL20B> const&);
+extern template generic_packet<ipv4_packet_with_options<IHL20B>>::generic_packet(size_t, std::in_place_type_t<ipv4_packet_with_options<IHL20B>>, ipv4_packet_with_options<IHL20B>&&);
+#endif
 #endif

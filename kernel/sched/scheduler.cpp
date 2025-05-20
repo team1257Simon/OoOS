@@ -28,8 +28,8 @@ bool scheduler::__set_untimed_wait(task_t* task)
     try 
     {
         __non_timed_sleepers.push_back(task); 
-        task->task_ctl.block = true;
-        task->task_ctl.can_interrupt = true;
+        task->task_ctl.block            = true;
+        task->task_ctl.can_interrupt    = true;
         return true;
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -41,8 +41,8 @@ bool scheduler::interrupt_wait(task_t* waiting)
     if(task_wait_queue::const_iterator i = __sleepers.find(waiting); i != __sleepers.end()) { return __sleepers.interrupt_wait(i); } 
     else if(std::vector<task_t*>::iterator i = __non_timed_sleepers.find(waiting); i != __non_timed_sleepers.end()) 
     {
-        task_t* task = *i;
-        task->task_ctl.block = false;
+        task_t* task            = *i;
+        task->task_ctl.block    = false;
         __non_timed_sleepers.erase(i);
         return true;
     }
@@ -50,9 +50,9 @@ bool scheduler::interrupt_wait(task_t* waiting)
 }
 bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interrupt)
 {
-    task->task_ctl.block = true;
-    task->task_ctl.can_interrupt = can_interrupt;
-    unsigned int total = __sleepers.cumulative_remaining_ticks();
+    task->task_ctl.block            = true;
+    task->task_ctl.can_interrupt    = can_interrupt;
+    unsigned int total              = __sleepers.cumulative_remaining_ticks();
     if(time < total)
     {
         unsigned int cumulative = 0;
@@ -69,12 +69,12 @@ bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interr
 }
 __isrcall void scheduler::__do_task_change(task_t* cur, task_t* next)
 {
-    next->quantum_rem = next->quantum_val;
-    cur->next = next;
+    next->quantum_rem   = next->quantum_val;
+    cur->next           = next;
     task_change_flag.store(true);
-    uint64_t ts = sys_time(nullptr);
+    uint64_t ts     = sys_time(nullptr);
     next->run_split = ts;
-    cur->run_time += (ts - cur->run_split);
+    cur->run_time   += (ts - cur->run_split);
 }
 bool scheduler::unregister_task(task_t* task) 
 {
@@ -88,7 +88,7 @@ bool scheduler::unregister_task(task_t* task)
 bool scheduler::unregister_task_tree(task_t* task)
 {
     if(!task->num_child_procs || !task->child_procs) return unregister_task(task);
-    bool result = true;
+    bool result     = true;
     task_ctx* xtask = task->self;
     for(task_ctx* c : xtask->child_tasks) { result &= unregister_task_tree(c->task_struct.self); }
     return result && unregister_task(task);
@@ -188,7 +188,7 @@ bool scheduler::init()
     uint32_t timer_frequency = cpuid(0x15U, 0).ecx;
     if(!timer_frequency) timer_frequency = cpuid(0x16U, 0).ecx;
     __cycle_divisor = timer_frequency;
-    __tick_rate = magnitude(timer_frequency);
+    __tick_rate     = magnitude(timer_frequency);
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(__running)
@@ -208,9 +208,9 @@ bool scheduler::init()
 }
 task_t* scheduler::yield()
 {
-    task_t* cur = std::addressof(active_task_context()->task_struct);
-    cur->quantum_rem = 0;
-    task_t* next = select_next();
+    task_t* cur         = std::addressof(active_task_context()->task_struct);
+    cur->quantum_rem    = 0;
+    task_t* next        = select_next();
     if(!next) { next = cur; }
     else { asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory"); }
     next->quantum_rem = next->quantum_val;
