@@ -116,7 +116,7 @@ struct attribute(packed) dhcp_parameter
     constexpr net8 const& length() const& noexcept { return parameter_octets[0]; }
     constexpr void* start() noexcept { return std::addressof(parameter_octets[1]); }
 };
-struct attribute(packed) dhcp_packet_base : udp_packet_base
+struct __pack dhcp_packet_base : udp_packet_base
 {
     dhcp_operation_type operation;
     net8                hw_type = 0x1UC;
@@ -134,30 +134,32 @@ struct attribute(packed) dhcp_packet_base : udp_packet_base
     char                boot_file_name[128];
     net32               magic = dhcp_magic;
     dhcp_parameter      parameters[];
-    constexpr dhcp_packet_base() noexcept = default;
-    constexpr dhcp_packet_base(udp_packet_base const& that) noexcept : udp_packet_base(that) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
-    constexpr dhcp_packet_base(udp_packet_base&& that) noexcept : udp_packet_base(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
+    dhcp_packet_base() noexcept;
+    dhcp_packet_base(udp_packet_base const& that) noexcept;
+    dhcp_packet_base(udp_packet_base&& that) noexcept;
 };
 constexpr size_t total_dhcp_size(size_t parameters_size) noexcept { return parameters_size + sizeof(dhcp_packet_base); }
 #ifndef DHCP_INST
-extern template struct generic_packet<dhcp_packet_base>;
-extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>);
-extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base const&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base&&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base&&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base const&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base&&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(udp_packet_base const&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base&&);
-extern template generic_packet<dhcp_packet_base>::generic_packet(dhcp_packet_base const&);
-typedef generic_packet<dhcp_packet_base> dhcp_packet;
+extern template struct abstract_packet<dhcp_packet_base>;
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base const&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base&&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base&&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base const&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base&&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base const&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base&&);
+extern template abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base const&);
+typedef abstract_packet<dhcp_packet_base> dhcp_packet;
 #endif
-struct dhcp_protocol_handler
+struct protocol_dhcp : abstract_protocol_handler
 {
-    mac_t const& mac_addr;
-    ipv4_addr my_addr;
-    constexpr dhcp_protocol_handler(mac_t const& mac) noexcept : mac_addr{ mac } {}
-    generic_packet<dhcp_packet_base> build_dhcp_discover(std::vector<net8> const& param_requests);
-    // ...
+    ipv4_addr_set* const ip_addrs;
+    protocol_dhcp(protocol_udp* n);
+    virtual ~protocol_dhcp();
+    virtual std::type_info const& packet_type() const override;
+    virtual int transmit(abstract_packet_base& p) override;
+    virtual int receive(abstract_packet_base& p) override;
+    int discover(std::vector<net8> const& param_requests);
 };
 #endif

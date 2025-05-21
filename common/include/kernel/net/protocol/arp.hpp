@@ -1,10 +1,10 @@
 #ifndef __ARP
 #define __ARP
-#include "net/protocol/generic_packet.hpp"
+#include "net/protocol/net_abstract.hpp"
 constexpr net16 ethertype_arp   = 0x0806USBE;
 constexpr net16 arp_req         = 0x0001USBE;
 constexpr net16 arp_res         = 0x0002USBE;
-struct attribute(packed) arpv4_packet : ethernet_packet
+struct __pack arpv4_packet : ethernet_packet
 {
     net16 htype = htype_ethernet;
     net16 ptype = ethertype_ipv4;
@@ -15,28 +15,36 @@ struct attribute(packed) arpv4_packet : ethernet_packet
     net32 src_pr;
     mac_t dst_hw;
     net32 dst_pr;
-    constexpr arpv4_packet() noexcept = default;
-    constexpr arpv4_packet(ethernet_packet const& that) noexcept : ethernet_packet(that) { protocol_type = ethertype_arp; array_copy(src_hw, source_mac); array_copy(dst_hw, destination_mac); }
-    constexpr arpv4_packet(ethernet_packet&& that) noexcept : ethernet_packet(std::move(that)) { protocol_type = ethertype_arp; array_copy(src_hw, source_mac); array_copy(dst_hw, destination_mac); }
-    constexpr arpv4_packet(mac_t&& dst, mac_t&& src, net16 op, net32 dst_ip, net32 src_ip) noexcept : ethernet_packet(std::move(dst), std::move(src), ethertype_arp), opcode(op), src_hw(std::move(src)), src_pr(src_ip), dst_hw(std::move(dst)), dst_pr(dst_ip) {}
-    constexpr arpv4_packet(mac_t const& dst, mac_t const& src, net16 op, net32 dst_ip, net32 src_ip) noexcept : ethernet_packet(dst, src, ethertype_arp), opcode(op), src_hw(src), src_pr(src_ip), dst_hw(dst), dst_pr(dst_ip) {}
+    arpv4_packet() noexcept;
+    arpv4_packet(ethernet_packet const& that) noexcept;
+    arpv4_packet(ethernet_packet&& that) noexcept;
+    arpv4_packet(mac_t&& dst, mac_t&& src, net16 op, net32 dst_ip, net32 src_ip) noexcept;
+    arpv4_packet(mac_t const& dst, mac_t const& src, net16 op, net32 dst_ip, net32 src_ip) noexcept;
 };
 #ifndef ARP_INST
-typedef generic_packet<arpv4_packet> arp_packet;
-extern template class generic_packet<arpv4_packet>;
-extern template generic_packet<arpv4_packet>::generic_packet();
-extern template generic_packet<arpv4_packet>::generic_packet(ethernet_packet const&);
-extern template generic_packet<arpv4_packet>::generic_packet(ethernet_packet&&);
-extern template generic_packet<arpv4_packet>::generic_packet(arpv4_packet const&);
-extern template generic_packet<arpv4_packet>::generic_packet(arpv4_packet&&);
-extern template generic_packet<arpv4_packet>::generic_packet(mac_t&&, mac_t&&, net16&&, net32&&, net32&&);
-extern template generic_packet<arpv4_packet>::generic_packet(mac_t const&, mac_t const&, net16 const&, net32 const&, net32 const&);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>, ethernet_packet const&);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>, ethernet_packet&&);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>, arpv4_packet const&);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>, arpv4_packet&&);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>, mac_t&&, mac_t&&, net16&&, net32&&, net32&&);
-extern template generic_packet<arpv4_packet>::generic_packet(size_t, std::in_place_type_t<arpv4_packet>, mac_t const&, mac_t const&, net16 const&, net32 const&, net32 const&);
+typedef abstract_packet<arpv4_packet> arp_packet;
+extern template class abstract_packet<arpv4_packet>;
+extern template abstract_packet<arpv4_packet>::abstract_packet();
+extern template abstract_packet<arpv4_packet>::abstract_packet(ethernet_packet const&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(ethernet_packet&&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(arpv4_packet const&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(arpv4_packet&&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(mac_t&&, mac_t&&, net16&&, net32&&, net32&&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(mac_t const&, mac_t const&, net16 const&, net32 const&, net32 const&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, ethernet_packet const&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, ethernet_packet&&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, arpv4_packet const&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, arpv4_packet&&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, mac_t&&, mac_t&&, net16&&, net32&&, net32&&);
+extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, mac_t const&, mac_t const&, net16 const&, net32 const&, net32 const&);
 #endif
+struct protocol_arp : abstract_protocol_handler, abstract_ip_resolver
+{
+    protocol_arp(protocol_ethernet* eth);
+    virtual ~protocol_arp();
+    virtual int receive(abstract_packet_base& p) override;
+    virtual std::type_info const& packet_type() const override;
+    virtual mac_t resolve(ipv4_addr addr) override;
+};
 #endif

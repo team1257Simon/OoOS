@@ -11,14 +11,14 @@
 namespace std
 {
     __isrcall [[noreturn]] void __throw_bad_function_call();
-    class bad_function_call : public std::exception
+    class bad_function_call : public exception
     {
     public:
         virtual ~bad_function_call() noexcept;
         const char* what() const noexcept;
     };
     template<typename FT> class function;
-    template<typename T> concept __location_invariant = std::is_trivially_copyable_v<T>;
+    template<typename T> concept __location_invariant = is_trivially_copyable_v<T>;
     class __undefined;
     union __no_copy
     {
@@ -201,6 +201,21 @@ namespace std
             };
         };
         template<typename CT, typename MT, MT CT::*MO> using field_access_t = typename field_access<CT, MT>::template bind<MO>;
+        template<typename CT, typename RT>
+        struct getter_access
+        {
+            typedef RT (CT::*getter_fn)();
+            typedef RT return_type;
+            typedef CT object_type;
+            template<getter_fn G>
+            struct bind
+            {
+                constexpr static getter_fn getter = G;
+                constexpr return_type operator()(object_type o) const noexcept { return ((o).*(getter))(); }
+                constexpr return_type operator()(object_type* o) const noexcept { return ((o)->*(getter))(); }
+            };
+        };
+        template<typename CT, typename RT, RT (CT::*G)()> using getter_t = typename getter_access<CT, RT>::template bind<G>;
     }
 }
 #endif

@@ -17,9 +17,6 @@
 #include "ext/delegate_ptr.hpp"
 #include "sys/stat.h"
 #include "sys/fcntl.h"
-template<typename FT, typename TT> using cast_t = std::ext::static_cast_t<FT, TT>;
-template<typename CT, typename MT, MT CT::*MO> using access_t = std::ext::field_access_t<CT, MT, MO>;
-typedef std::equal_to<void> equals_t;
 typedef std::ext::delegate_ptr<simplex_pipe> pipe_handle;
 struct file_mode
 {

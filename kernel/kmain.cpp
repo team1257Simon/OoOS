@@ -78,16 +78,6 @@ static void descr_pt(partition_table const& pt)
         startup_tty.print_line(std::to_string(i->end_lba));
     }
 }
-static int poll_test(netstack_buffer& buff)
-{
-    if(buff.rx_packet_type() == ethertype_ipv4)
-    {
-        dhcp_packet pkt(buff);
-        net32 ipaddr = pkt->your_ip;
-        startup_tty.print_text(" [offered IP: " + std::to_string(ipaddr.hi.hi) + "." + std::to_string(ipaddr.hi.lo) + "." + std::to_string(ipaddr.lo.hi) + "." + std::to_string(ipaddr.lo.lo) + "]");
-    }
-    return 0;
-}
 void net_tests()
 {
     if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))
@@ -96,7 +86,6 @@ void net_tests()
         if(!test_dev->initialize()) panic("init failed");
         else
         {
-            test_dev->register_stack(poll_test);
             mac_t const& mac = test_dev->get_mac_addr();
             startup_tty.print_text("MAC: ");
             for(int i = 0; i < 6; i++)
@@ -105,11 +94,11 @@ void net_tests()
                 if(i < 5)
                     startup_tty.print_text(":");
             }
-            std::vector<net8> requests{ ROUTER, SUBNET_MASK };
-            dhcp_protocol_handler dh(mac);
-            dhcp_packet r = dh.build_dhcp_discover(requests);
-            test_dev->transmit(r);
-            startup_tty.endl();
+            protocol_ipv4& p_ip = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
+            protocol_udp& p_udp = p_ip.add_transport_handler<protocol_udp>(UDP);
+            protocol_dhcp& p_dhcp = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
+            std::vector<net8> params{ SUBNET_MASK, DOMAIN_NAME_SERVER };
+            p_dhcp.discover(params);
         }
     }
     else panic("net device not found on PCI bus");

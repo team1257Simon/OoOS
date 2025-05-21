@@ -6,7 +6,7 @@
 class netstack_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
     friend class net_device;
-    friend struct generic_packet_base;
+    friend struct abstract_packet_base;
     typedef std::ext::dynamic_duplex_streambuf<char> __base;
 public:
     typedef std::function<int(netstack_buffer&)> poll_functor;

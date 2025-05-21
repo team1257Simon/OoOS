@@ -209,6 +209,7 @@ e1000e::e1000e(pci_config_space* device, size_t descriptor_count_factor) :
 bool e1000e::initialize()
 {
     typedef decltype(std::bind(&e1000e::poll_tx, this, std::placeholders::_1)) tx_bind;
+    typedef decltype(std::bind(&e1000e::rx_transfer, this, std::placeholders::_1)) rx_bind;
     if(__has_init) return true;
     dev_status status;
     __pcie_e1000e_controller->command.memory_space  = true;
@@ -219,7 +220,8 @@ bool e1000e::initialize()
     for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i); read_status(status); }
     for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, 0U); read_status(status); }
     tx_bind tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
-    for(size_t i = 0; i < rx_ring.count(); i++) transfer_buffers.emplace(max_single_rx_buffer, max_single_tx_buffer, poll_nop, tx_poll, max_single_rx_buffer, max_single_tx_buffer);
+    rx_bind rx_poll = std::bind(&e1000e::rx_transfer, this, std::placeholders::_1);
+    for(size_t i = 0; i < rx_ring.count(); i++) transfer_buffers.emplace(max_single_rx_buffer, max_single_tx_buffer, rx_poll, tx_poll, max_single_rx_buffer, max_single_tx_buffer);
     if(!configure_rx(status)) return false;
     if(!configure_tx(status)) return false;
     if(!configure_interrupts(status)) return false;
