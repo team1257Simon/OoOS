@@ -71,9 +71,9 @@ int abstract_packet_base::write_to(netstack_buffer& buff) const
 }
 mac_t const& abstract_ip_resolver::operator[](ipv4_addr addr)
 {
-    if(previously_resolved.contains(addr)) return previously_resolved[addr];
-    mac_t res = resolve(addr);
-    return (previously_resolved[addr] = res);
+    if(previously_resolved.contains(addr)) 
+        return previously_resolved[addr];
+    return resolve(addr);
 }
 int protocol_ethernet::receive(abstract_packet_base& p) 
 { 

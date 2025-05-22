@@ -29,27 +29,27 @@ int protocol_arp::receive(abstract_packet_base& p)
 {
     arpv4_packet* pkt = p.get_as<arpv4_packet>();
     if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
-    previously_resolved.insert_or_assign(pkt->src_pr, std::move(pkt->src_hw));
-    return 0;
+    if(pkt->src_pr) previously_resolved.insert_or_assign(pkt->src_pr, std::move(pkt->src_hw));
+    if(pkt->opcode == arp_res) return 0;
+    if(__unlikely(pkt->opcode != arp_req)) return -EPROTO;
+    if(__unlikely(!base->ipv4_client_config->leased_addr) || __builtin_memcmp(base->mac_addr.data(), pkt->dst_hw.data(), 6UZ) != 0) return 0;
+    ethernet_packet base_pkt = base->create_packet(pkt->src_hw);
+    abstract_packet<arpv4_packet> response(std::move(base_pkt));
+    pkt->src_pr = base->ipv4_client_config->leased_addr;
+    pkt->dst_pr = pkt->src_pr;
+    pkt->opcode = arp_res;
+    return next->transmit(response);
 }
-mac_t protocol_arp::resolve(ipv4_addr addr)
+mac_t& protocol_arp::resolve(ipv4_addr addr)
 {
-    ethernet_packet base_result = base->create_packet(empty_mac);
-    abstract_packet<arpv4_packet> pkt(std::move(base_result));
-    pkt->src_hw         = base->mac_addr;
-    pkt->dst_pr         = addr;
-    pkt->opcode         = arp_req;
-    if(base->ipv4_client_config->current_state == ipv4_client_state::BOUND) { pkt->src_pr = base->ipv4_client_config->leased_addr; }
-    else pkt->src_pr    = 0UBE;
-    if(base->transmit(pkt) != 0) throw std::runtime_error{ "[ARP] packet transmission failed" };
-    if(!await_result([&]() -> bool { return previously_resolved.contains(addr); })) throw std::runtime_error{ "[ARP] could not resolve IP " + stringify(addr) + " because its owner did not respond" };
+    if(!await_result([&]() -> bool { return check_presence(addr); }))
+        throw std::runtime_error{ "[ARP] could not resolve IP " + stringify(addr) + " because its owner did not respond" };
     return previously_resolved[addr];
 }
 bool protocol_arp::check_presence(ipv4_addr addr)
 {
-    ethernet_packet base_result = base->create_packet(empty_mac);
-    abstract_packet<arpv4_packet> pkt(std::move(base_result));
-    pkt->src_hw         = base->mac_addr;
+    ethernet_packet base_pkt = base->create_packet(empty_mac);
+    abstract_packet<arpv4_packet> pkt(std::move(base_pkt));
     pkt->dst_pr         = addr;
     pkt->opcode         = arp_req;
     if(base->ipv4_client_config->current_state == ipv4_client_state::BOUND) { pkt->src_pr = base->ipv4_client_config->leased_addr; }

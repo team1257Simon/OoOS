@@ -88,14 +88,13 @@ void net_tests()
         {
             mac_t const& mac = test_dev->get_mac_addr();
             startup_tty.print_line("MAC: " + stringify(mac));
-            protocol_ipv4& p_ip = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
-            protocol_udp& p_udp = p_ip.add_transport_handler<protocol_udp>(UDP);
-            protocol_dhcp& p_dhcp = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
+            protocol_ipv4& p_ip     = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
+            protocol_udp& p_udp     = p_ip.add_transport_handler<protocol_udp>(UDP);
+            protocol_dhcp& p_dhcp   = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
             p_dhcp.base->ip_resolver->check_presence("10.0.2.2"IPV4);
-            std::vector<net8> params{ SUBNET_MASK, DOMAIN_NAME_SERVER, ROUTER };
-            p_dhcp.discover(params);
+            p_dhcp.transition_state(ipv4_client_state::INIT);
             hpet.delay_us(2000UL);
-            startup_tty.print_line("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", and default gateway " + stringify(p_dhcp.ipconfig.gateway_addrs[0]) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
+            startup_tty.print_line("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway) + ", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
             startup_tty.print_line("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) +"; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
         }
     }

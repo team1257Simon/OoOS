@@ -45,7 +45,7 @@ struct protocol_arp : abstract_protocol_handler, abstract_ip_resolver
     virtual ~protocol_arp();
     virtual int receive(abstract_packet_base& p) override;
     virtual std::type_info const& packet_type() const override;
-    virtual mac_t resolve(ipv4_addr addr) override;
+    virtual mac_t& resolve(ipv4_addr addr) override;
     virtual bool check_presence(ipv4_addr addr);
 };
 #endif

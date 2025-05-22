@@ -39,7 +39,7 @@ void ext_file_vnode::force_write() { for(disk_block& b : block_data) { b.dirty =
 ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, device_stream* dev, int fd) : ext_vnode_base(parent, inode_num, inode), device_node("", fd, dev, inode->device_hardlink_id) { mode = on_disk_node->mode; }
 ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, device_stream* dev, int fd) : ext_device_vnode(parent, inode_num, parent->get_inode(inode_num), dev, fd) {}
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd) {}
-ext_pipe_vnode::ext_pipe_vnode(extfs *parent, uint32_t inode_number, int fd, size_t pipe_id) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd, pipe_id) {}
+ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd, size_t pipe_id) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd, pipe_id) {}
 ext_device_vnode::~ext_device_vnode() = default;
 bool ext_device_vnode::fsync() { return update_inode() && device_node::fsync(); }
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd, size_t pipe_id) : file_node(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_node(fd, pipe_id) { mode = on_disk_node->mode; }
@@ -389,6 +389,13 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
                 if(!dirent->inode_idx) break;
                 tnode* tn = directory_tnodes.emplace(parent_fs->dirent_to_vnode(dirent), std::move(std::string(dirent->name, dirent->name_len))).first.base();
                 __dir_index.insert_or_assign(tn, std::move(dirent_idx{ .block_num = static_cast<uint32_t>(i), .block_offs = static_cast<uint32_t>(n) }));
+                if(ext_vnode* vn = dynamic_cast<ext_vnode*>(tn->ptr()))
+                {
+                    if(vn->on_disk_node->extra_flags & EAGER_LOAD)
+                        vn->initialize();
+                    if(vn->on_disk_node->extra_flags & SYSTEM_ONLY)
+                        tn->ptr()->mode &= ~0777US;
+                }
             }
         }
         qword timestamp                 = sys_time(nullptr);

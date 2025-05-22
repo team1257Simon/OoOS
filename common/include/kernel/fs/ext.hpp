@@ -262,6 +262,13 @@ struct ext_inode
     uint32_t version_hi;
     uint32_t proj_id;
 } __pack;
+enum ooos_extra_flags : uint16_t
+{
+    SYSTEM_ONLY             = 0x0001,
+    CONFIG_DESCRIPTOR       = 0x0002,
+    EAGER_LOAD              = 0x0004,
+    FORCE_JOURNAL           = 0x0008
+};
 struct ext_dir_entry
 {
     uint32_t inode_idx;

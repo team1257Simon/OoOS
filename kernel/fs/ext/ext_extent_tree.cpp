@@ -111,8 +111,8 @@ bool ext_node_extent_tree::parse_ext4()
 size_t cached_extent_node::nl_recurse_legacy(ext_node_extent_tree* parent, uint64_t start_file_block)
 {
     if(!depth) return start_file_block + 1; // if this is a direct block, the file block for the next extent node is simply the subsequent one
-    uint32_t* blk_ptrs = reinterpret_cast<uint32_t*>(block()->data_buffer);
-    size_t total_dwords = tracked_node->parent_fs->block_size() / 4;
+    uint32_t* blk_ptrs      = reinterpret_cast<uint32_t*>(block()->data_buffer);
+    size_t total_dwords     = tracked_node->parent_fs->block_size() / 4;
     uint64_t cur_file_block = start_file_block;
     for(size_t i = 0; i < total_dwords; i++, parent->total_extent++)
     {
@@ -132,8 +132,8 @@ bool cached_extent_node::nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t 
     disk_block* my_block = block();
     ext_extent_header* h = reinterpret_cast<ext_extent_header*>(my_block->data_buffer);
     if(h->magic != ext_extent_magic) { panic("invalid extent tree header"); return false; }
-    size_t n_nodes = h->entries;
-    ext_extent_node* nodes = reinterpret_cast<ext_extent_node*>(my_block->data_buffer + sizeof(ext_extent_header));
+    size_t n_nodes          = h->entries;
+    ext_extent_node* nodes  = reinterpret_cast<ext_extent_node*>(my_block->data_buffer + sizeof(ext_extent_header));
     for(size_t i = 0; i < n_nodes; i++)
     {
         uint16_t depth = h->depth;

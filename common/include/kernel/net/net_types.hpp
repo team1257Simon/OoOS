@@ -27,11 +27,11 @@ struct attribute(packed) ethernet_packet
     mac_t destination_mac;
     mac_t source_mac;
     net16 protocol_type;
-    constexpr ethernet_packet() noexcept = default;
-    constexpr ethernet_packet(ethernet_packet const&) noexcept = default;
-    constexpr ethernet_packet(ethernet_packet&&) noexcept = default;
-    constexpr ethernet_packet& operator=(ethernet_packet const&) noexcept = default;
-    constexpr ethernet_packet& operator=(ethernet_packet&&) noexcept = default;
+    constexpr ethernet_packet() noexcept                                    = default;
+    constexpr ethernet_packet(ethernet_packet const&) noexcept              = default;
+    constexpr ethernet_packet(ethernet_packet&&) noexcept                   = default;
+    constexpr ethernet_packet& operator=(ethernet_packet const&) noexcept   = default;
+    constexpr ethernet_packet& operator=(ethernet_packet&&) noexcept        = default;
     constexpr ethernet_packet(mac_t const& dest, mac_t const& src) noexcept : destination_mac(dest), source_mac(src) {}
     constexpr ethernet_packet(mac_t&& dest, mac_t&& src) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)) {}
     constexpr ethernet_packet(mac_t const& dest, mac_t const& src, net16 proto) noexcept : destination_mac(dest), source_mac(src), protocol_type(proto) {}
@@ -48,6 +48,7 @@ constexpr ipv4_addr operator""IPV4(const char* str, std::size_t)
 }
 #pragma GCC diagnostic pop
 constexpr ipv4_addr loopback    = "127.0.0.1"IPV4;
+constexpr ipv4_addr empty       = "0.0.0.0"IPV4;
 constexpr ipv4_addr broadcast   = "255.255.255.255"IPV4;
 constexpr mac_t broadcast_mac   = { 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC };
 constexpr mac_t empty_mac       = {};
@@ -60,18 +61,23 @@ enum class ipv4_client_state : uint8_t
     RENEWING,   // state after T1 but before T2
     REBINDING,  // state entered if no response is received before T2
 };
-struct ipv4_config
+struct ipv4_state_info
 {
     ipv4_client_state current_state     = ipv4_client_state::REBOOT;
-    ipv4_addr leased_addr               = 0UBE;
-    ipv4_addr subnet_mask               = 0UBE;
     std::vector<ipv4_addr> gateway_addrs;
     std::vector<ipv4_addr> dns_server_addrs;
-    ipv4_addr dhcp_server_addr          = 0UBE;
+};
+struct ipv4_config : ipv4_state_info
+{
+    ipv4_addr primary_gateway;
+    ipv4_addr primary_dns_server;
+    ipv4_addr dhcp_server_addr;
+    ipv4_addr leased_addr;
+    ipv4_addr subnet_mask;
     time_t lease_acquired_time;
-    uint32_t lease_duration;    // Given by server; 0xFFFFFFFF indicates no limit 
-    uint32_t lease_renew_time;  // T1 interval; if not given by server, defaults to lease_duration / 2
-    uint32_t lease_rebind_time; // T2 interval; if not given by server, defaults to (7 * lease_duration) / 8
+    uint32_t lease_duration;                        // Given by server; 0xFFFFFFFF indicates no limit 
+    uint32_t lease_renew_time;                      // T1 interval; if not given by server, defaults to lease_duration / 2
+    uint32_t lease_rebind_time;                     // T2 interval; if not given by server, defaults to (7 * lease_duration) / 8
     uint8_t time_to_live_default        = 0x40UC;
     uint8_t time_to_live_tcp_default    = 0x40UC;
 };

@@ -77,6 +77,7 @@ struct file_mode
         );
     }
     constexpr operator mode_t() const noexcept { return static_cast<mode_t>(static_cast<uint16_t>(*this)); }
+    constexpr operator mode_t&() & noexcept { return addr_t(this).ref<mode_t>(); }
     constexpr bool is_symlink() const noexcept { return t_regular && t_chardev && !t_fifo && !t_directory; }
     constexpr bool is_socket() const noexcept { return t_regular && t_directory && !t_fifo && !t_chardev; }
     constexpr bool is_blockdev() const noexcept { return t_chardev && t_directory && !t_regular && !t_fifo; }

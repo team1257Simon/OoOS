@@ -138,7 +138,7 @@ struct __pack dhcp_packet_base : udp_packet_base
     net32                   client_hw[4];
     char                    server_name_optional[64];
     char                    boot_file_name[128];
-    net32                   magic = dhcp_magic;
+    net32                   magic   = dhcp_magic;
     dhcp_parameter          parameters[];
     dhcp_packet_base() noexcept;
     dhcp_packet_base(udp_packet_base const& that) noexcept;
@@ -161,17 +161,24 @@ typedef abstract_packet<dhcp_packet_base> dhcp_packet;
 struct protocol_dhcp : abstract_protocol_handler
 {
     ipv4_config& ipconfig;
-    std::unordered_map<uint32_t, time_t> transaction_timers;
+    abstract_ip_resolver& ipresolve;
     protocol_dhcp(protocol_udp* n);
     virtual ~protocol_dhcp();
     virtual std::type_info const& packet_type() const override;
     virtual int receive(abstract_packet_base& p) override;
+    int transition_state(ipv4_client_state to_state);
+protected:
+    std::unordered_map<uint32_t, time_t> transaction_timers;
+    uint32_t active_renewal_xid;
+    int rebind();
+    int renew();
+    void reset();
+    void discover(std::vector<net8> const& param_requests);
+    net8 process_packet_parameter(dhcp_parameter const& param);
     abstract_packet<dhcp_packet_base> create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid);
     int process_offer_packet(dhcp_packet_base const& p);
     int process_ack_packet(dhcp_packet_base const& p);
     int request(ipv4_addr addr, uint32_t xid);
     int decline(ipv4_addr addr, uint32_t xid);
-    net8 process_packet_parameter(dhcp_parameter const& param);
-    void discover(std::vector<net8> const& param_requests);
 };
 #endif

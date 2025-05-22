@@ -34,7 +34,7 @@ namespace std
         constexpr __base_allocator(__base_allocator const&) noexcept = default;
         constexpr ~__base_allocator() = default;
         template<class U> constexpr __base_allocator(__base_allocator<U, alignof(U)> const&) noexcept {}
-        [[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const { if(!n) return nullptr; return static_cast<T*>(::operator new(n * __size_val, static_cast<std::align_val_t>(__align_val))); }
+        [[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const { if(!n) return nullptr; std::size_t total = n * __size_val; return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total)); }
         [[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
     };
     namespace __detail
@@ -101,7 +101,7 @@ namespace std
     public:
         constexpr alignval_allocator() noexcept = default;
         constexpr ~alignval_allocator() noexcept = default;
-        [[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; return static_cast<pointer>(::operator new(n * __size_val, __align)); }
+        [[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new(total, __align), 0, total)); }
         [[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
     };
 #pragma region non-standard memory functions
