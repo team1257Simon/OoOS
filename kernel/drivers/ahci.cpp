@@ -297,11 +297,11 @@ void ahci::port_hard_reset(uint8_t idx)
 }
 void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 {
-    if(!has_port(idx)) { throw std::out_of_range("port " + std::to_string(idx) + " does not exist"); }
-    hba_port* port = std::addressof(__abar->ports[idx]);
-    int slot = find_cmdslot(port);
+    if(__unlikely(!has_port(idx))) { throw std::out_of_range("port " + std::to_string(idx) + " does not exist"); }
+    hba_port* port  = std::addressof(__abar->ports[idx]);
+    int slot        = find_cmdslot(port);
     barrier();
-    if(slot < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
+    if(__unlikely(slot < 0)) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
 	{
 		.cmd_fis_len = (sizeof(fis_reg_h2d) / sizeof(uint32_t)),
@@ -317,9 +317,9 @@ void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 }
 void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t* buffer)
 {
-    if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
-    hba_port* port = std::addressof(__abar->ports[idx]);
-    int slot = find_cmdslot(port);
+    if(__unlikely(!has_port(idx))) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
+    hba_port* port  = std::addressof(__abar->ports[idx]);
+    int slot        = find_cmdslot(port);
     barrier();
     if(slot < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
@@ -353,10 +353,10 @@ __isrcall void ahci::handle_irq()
 }
 void ahci::p_identify(uint8_t idx, identify_data* data)
 {
-    if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " is out of range ");
-    hba_port* port = std::addressof(__abar->ports[idx]);
-    int slot = find_cmdslot(port);
-    if(slot < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
+    if(__unlikely(!has_port(idx))) throw std::out_of_range("port " + std::to_string(idx) + " is out of range ");
+    hba_port* port  = std::addressof(__abar->ports[idx]);
+    int slot        = find_cmdslot(port);
+    if(__unlikely(slot < 0)) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
     qword addr = reinterpret_cast<uintptr_t>(data);
     barrier();
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header

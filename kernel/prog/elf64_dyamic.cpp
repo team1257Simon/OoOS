@@ -86,7 +86,7 @@ void elf64_dynamic_object::apply_relocations()
     {
         if(is_dynamic_relocation(r.rela_entry)) continue; // these will be resolved later
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
-        addr_t phys_target = get_frame()->translate(result.target);
+        addr_t phys_target  = get_frame()->translate(result.target);
         if(phys_target && result.value) phys_target.assign(result.value);
         else klog("W: invalid relocation");
     }
@@ -119,18 +119,18 @@ bool elf64_dynamic_object::xload()
 }
 void elf64_dynamic_object::process_dt_relas()
 {
-    size_t rela_offs = 0, rela_sz = 0;
-    size_t unrec_rela_ct = 0;
+    size_t rela_offs        = 0, rela_sz = 0;
+    size_t unrec_rela_ct    = 0;
     for(size_t i = 0; i < num_dyn_entries; i++)
     {
-        if(dyn_entries[i].d_tag == DT_RELA) rela_offs = dyn_entries[i].d_ptr;
-        else if(dyn_entries[i].d_tag == DT_RELASZ) rela_sz = dyn_entries[i].d_val;
+        if(dyn_entries[i].d_tag == DT_RELA)         rela_offs   = dyn_entries[i].d_ptr;
+        else if(dyn_entries[i].d_tag == DT_RELASZ)  rela_sz     = dyn_entries[i].d_val;
         if(rela_sz && rela_offs) break;
     }
     if(rela_sz && rela_offs)
     {
-        elf64_rela* rela = img_ptr(to_image_offset(rela_offs));
-        size_t n = rela_sz / sizeof(elf64_rela);
+        elf64_rela* rela    = img_ptr(to_image_offset(rela_offs));
+        size_t n            = rela_sz / sizeof(elf64_rela);
         for(size_t i = 0; i < n; i++)
         {
             if(is_object_rela(rela[i])) { object_relas.push_back(rela[i]); }
@@ -159,16 +159,16 @@ bool elf64_dynamic_object::post_load_init()
         if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
         if(init_array_size && init_array_ptr) 
         {
-            addr_t init_ptrs_vaddr = resolve(init_array_ptr);
-            uintptr_t* init_ptrs = get_frame()->translate(init_ptrs_vaddr);
-            if(!init_ptrs) { panic("initialization array pointer is non-null but is invalid"); return false; }
+            addr_t init_ptrs_vaddr  = resolve(init_array_ptr);
+            uintptr_t* init_ptrs    = get_frame()->translate(init_ptrs_vaddr);
+            if(__builtin_expect(!init_ptrs, false)) { panic("initialization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
         if(fini_array_size && fini_array_ptr)
         {
-            addr_t fini_ptrs_vaddr = resolve(fini_array_ptr);
-            uintptr_t* fini_ptrs = get_frame()->translate(fini_ptrs_vaddr);
-            if(!fini_ptrs) { panic("finalization array pointer is non-null but is invalid"); return false; }
+            addr_t fini_ptrs_vaddr  = resolve(fini_array_ptr);
+            uintptr_t* fini_ptrs    = get_frame()->translate(fini_ptrs_vaddr);
+            if(__builtin_expect(!fini_ptrs, false)) { panic("finalization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
         }
         if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
@@ -181,16 +181,16 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
     switch(dyn_entries[i].d_tag)
     {
     case DT_INIT:
-        init_fn = dyn_entries[i].d_ptr;
+        init_fn         = dyn_entries[i].d_ptr;
         break;
     case DT_FINI:
-        fini_fn = dyn_entries[i].d_ptr;
+        fini_fn         = dyn_entries[i].d_ptr;
         break;
     case DT_INIT_ARRAY:
-        init_array_ptr = dyn_entries[i].d_ptr;
+        init_array_ptr  = dyn_entries[i].d_ptr;
         break;
     case DT_FINI_ARRAY:
-        fini_array_ptr = dyn_entries[i].d_ptr;
+        fini_array_ptr  = dyn_entries[i].d_ptr;
         break;
     case DT_INIT_ARRAYSZ:
         init_array_size = (dyn_entries[i].d_val / sizeof(addr_t));
@@ -202,7 +202,7 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
         dependencies.emplace_back(symstrtab[dyn_entries[i].d_val]);
         break;
     case DT_RUNPATH:
-        ld_paths = std::move(std::ext::split(std::forward<std::string>(symstrtab[dyn_entries[i].d_val]), ':'));
+        ld_paths        = std::move(std::ext::split(std::forward<std::string>(symstrtab[dyn_entries[i].d_val]), ':'));
         break;
     default:
         break;
@@ -218,9 +218,9 @@ bool elf64_dynamic_object::load_syms()
         if(is_dynamic(ph))
         {
             num_dyn_entries = ph.p_filesz / sizeof(elf64_dyn);
-            dyn_entries = dynseg_alloc.allocate(num_dyn_entries);
+            dyn_entries     = dynseg_alloc.allocate(num_dyn_entries);
             array_copy<elf64_dyn>(dyn_entries, segment_ptr(n), num_dyn_entries);
-            have_dyn = true;
+            have_dyn        = true;
             dyn_segment_idx = n;
         }
     }
@@ -231,15 +231,15 @@ bool elf64_dynamic_object::load_syms()
     {
         if(dyn_entries[i].d_tag == DT_GNU_HASH)
         {
-            addr_t ht_addr = img_ptr(to_image_offset(dyn_entries[i].d_ptr));
-            elf64_gnu_htbl::hdr* h = ht_addr;
-            uint64_t* bloom_filter = q_alloc.allocate(h->maskwords);
-            uint64_t* og_filter = ht_addr.plus(sizeof(elf64_gnu_htbl::hdr));
-            uint32_t* buckets = w_alloc.allocate(h->nbucket);
-            uint32_t* og_buckets = addr_t(og_filter).plus(h->maskwords * sizeof(uint64_t));
-            size_t n_hvals = static_cast<size_t>((symtab.total_size / symtab.entry_size) - h->symndx);
-            uint32_t* hval_array = w_alloc.allocate(n_hvals);
-            uint32_t* og_hvals = addr_t(og_buckets).plus(h->nbucket * sizeof(uint32_t));
+            addr_t ht_addr          = img_ptr(to_image_offset(dyn_entries[i].d_ptr));
+            elf64_gnu_htbl::hdr* h  = ht_addr;
+            uint64_t* bloom_filter  = q_alloc.allocate(h->maskwords);
+            uint64_t* og_filter     = ht_addr.plus(sizeof(elf64_gnu_htbl::hdr));
+            uint32_t* buckets       = w_alloc.allocate(h->nbucket);
+            uint32_t* og_buckets    = addr_t(og_filter).plus(h->maskwords * sizeof(uint64_t));
+            size_t n_hvals          = static_cast<size_t>((symtab.total_size / symtab.entry_size) - h->symndx);
+            uint32_t* hval_array    = w_alloc.allocate(n_hvals);
+            uint32_t* og_hvals      = addr_t(og_buckets).plus(h->nbucket * sizeof(uint32_t));
             array_copy(bloom_filter, og_filter, h->maskwords);
             array_copy(buckets, og_buckets, h->nbucket);
             array_copy(hval_array, og_hvals, n_hvals);
@@ -260,14 +260,14 @@ bool elf64_dynamic_object::load_syms()
         }
         else process_dyn_entry(i);
     }
-    if((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size)) { panic("mismatched init and/or fini array entries"); return false; }
+    if(__builtin_expect((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size), false)) { panic("mismatched init and/or fini array entries"); return false; }
     if(have_ht) return process_got();
     panic("Symbol hash data missing"); 
     return false;
 }
 std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
-    if(!segments || !num_seg_descriptors || !symbol_index) { panic("cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
+    if(__builtin_expect(!segments || !num_seg_descriptors || !symbol_index, false)) { panic("cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
     elf64_sym const* sym = symbol_index[symbol];
     return sym ? std::make_pair(*sym, resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
@@ -276,18 +276,18 @@ bool elf64_dynamic_object::process_got()
     size_t got_offs = 0, rela_offs = 0, rela_sz = 0;
     for(size_t i = 0; i < num_dyn_entries; i++)
     {
-        if(dyn_entries[i].d_tag == DT_JMPREL) rela_offs = dyn_entries[i].d_ptr;
-        else if(dyn_entries[i].d_tag == DT_PLTGOT) got_offs = dyn_entries[i].d_ptr;
-        else if(dyn_entries[i].d_tag == DT_PLTRELSZ) rela_sz = dyn_entries[i].d_val;
+        if(dyn_entries[i].d_tag == DT_JMPREL)           rela_offs   = dyn_entries[i].d_ptr;
+        else if(dyn_entries[i].d_tag == DT_PLTGOT)      got_offs    = dyn_entries[i].d_ptr;
+        else if(dyn_entries[i].d_tag == DT_PLTRELSZ)    rela_sz     = dyn_entries[i].d_val;
         if(got_offs && rela_offs && rela_sz) break;
     }
     if(got_offs && rela_offs && rela_sz) 
     {
-        got_vaddr = got_offs;
-        num_plt_relas = rela_sz / sizeof(elf64_rela);
-        plt_relas = r_alloc.allocate(num_plt_relas);
-        if(!plt_relas) { panic("failed to allocate rela array"); return false; }
-        elf64_rela* rela = img_ptr(to_image_offset(rela_offs));
+        got_vaddr           = got_offs;
+        num_plt_relas       = rela_sz / sizeof(elf64_rela);
+        plt_relas           = r_alloc.allocate(num_plt_relas);
+        if(__builtin_expect(!plt_relas, false)) { panic("failed to allocate rela array"); return false; }
+        elf64_rela* rela    = img_ptr(to_image_offset(rela_offs));
         array_copy(plt_relas, rela, num_plt_relas);
         return true;
     }
@@ -295,9 +295,9 @@ bool elf64_dynamic_object::process_got()
     {
         for(size_t i = 0; i < ehdr().e_shnum; i++)
         {
-            const char* name = shstrtab[shdr(i).sh_name];
+            const char* name    = shstrtab[shdr(i).sh_name];
             if(std::strncmp(name, ".got.plt", 8) != 0) continue;
-            got_vaddr = shdr(i).sh_addr;
+            got_vaddr           = shdr(i).sh_addr;
             return true; 
         }
     }
@@ -334,10 +334,10 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
     fini_array_size     { that.fini_array_size },
     symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ .header{ that.symbol_index.htbl.header } } }
 {
-    symbol_index.htbl.bloom_filter_words = q_alloc.allocate(symbol_index.htbl.header.maskwords);
-    symbol_index.htbl.buckets = w_alloc.allocate(symbol_index.htbl.header.nbucket);
-    size_t nhash = static_cast<size_t>((symtab.total_size / symtab.entry_size) - symbol_index.htbl.header.symndx);
-    symbol_index.htbl.hash_value_array =  w_alloc.allocate(nhash);
+    symbol_index.htbl.bloom_filter_words    = q_alloc.allocate(symbol_index.htbl.header.maskwords);
+    symbol_index.htbl.buckets               = w_alloc.allocate(symbol_index.htbl.header.nbucket);
+    size_t nhash                            = static_cast<size_t>((symtab.total_size / symtab.entry_size) - symbol_index.htbl.header.symndx);
+    symbol_index.htbl.hash_value_array      = w_alloc.allocate(nhash);
     array_copy(symbol_index.htbl.bloom_filter_words, that.symbol_index.htbl.bloom_filter_words, symbol_index.htbl.header.maskwords);
     array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
     array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
@@ -365,8 +365,8 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
     fini_array_size     { that.fini_array_size },
     symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ std::move(that.symbol_index.htbl) } }
 {
-    that.symbol_index.htbl.bloom_filter_words = nullptr;
-    that.symbol_index.htbl.buckets = nullptr;
-    that.symbol_index.htbl.hash_value_array = nullptr;
-    that.plt_relas = nullptr;
+    that.symbol_index.htbl.bloom_filter_words   = nullptr;
+    that.symbol_index.htbl.buckets              = nullptr;
+    that.symbol_index.htbl.hash_value_array     = nullptr;
+    that.plt_relas                              = nullptr;
 }

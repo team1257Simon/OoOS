@@ -55,7 +55,7 @@ bool udp_packet_base::verify_udp_csum() const
 int protocol_udp::transmit(abstract_packet_base& p)
 {
     udp_packet_base* pkt = p.get_as<udp_packet_base>();
-    if(__builtin_expect(!pkt, false)) throw std::bad_cast();
+    if(__unlikely(!pkt)) throw std::bad_cast();
     pkt->udp_length = net16(static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_packet)));
     pkt->compute_udp_csum();
     return next->transmit(p);
@@ -63,8 +63,8 @@ int protocol_udp::transmit(abstract_packet_base& p)
 int protocol_udp::receive(abstract_packet_base& p)
 {
     udp_packet_base* pkt = p.get_as<udp_packet_base>();
-    if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
-    if(__builtin_expect(!pkt->verify_udp_csum(), false)) return -EPROTO;
+    if(__unlikely(!pkt)) return -EPROTOTYPE;
+    if(__unlikely(!pkt->verify_udp_csum())) return -EPROTO;
     if(ports.contains(pkt->destination_port))
     {
         protocol_handler& ph    = ports[pkt->destination_port];

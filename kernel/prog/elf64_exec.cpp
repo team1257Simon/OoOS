@@ -77,8 +77,8 @@ bool elf64_executable::xvalidate()
 void elf64_executable::process_headers()
 {
     elf64_object::process_headers();
-    stack_size = std::max(stack_size, min_blk_sz);
-    tls_size = std::max(tls_size, min_blk_sz);
+    stack_size  = std::max(stack_size, min_blk_sz);
+    tls_size    = std::max(tls_size, min_blk_sz);
     for(size_t n = 0; n < ehdr().e_phnum; n++)
     {
         elf64_phdr const& h = phdr(n);
@@ -86,10 +86,10 @@ void elf64_executable::process_headers()
         if(!frame_base || frame_base > h.p_vaddr) frame_base = addr_t(h.p_vaddr);
         frame_extent = std::max(frame_extent, addr_t(h.p_vaddr + h.p_memsz));
     }
-    frame_base = frame_base.page_aligned();
-    stack_base = frame_extent.next_page_aligned();
-    tls_base = stack_base.plus(stack_size).next_page_aligned();
-    frame_extent = tls_base.plus(tls_size).next_page_aligned();
+    frame_base      = frame_base.page_aligned();
+    stack_base      = frame_extent.next_page_aligned();
+    tls_base        = stack_base.plus(stack_size).next_page_aligned();
+    frame_extent    = tls_base.plus(tls_size).next_page_aligned();
 }
 bool elf64_executable::load_segments()
 {
@@ -101,10 +101,10 @@ bool elf64_executable::load_segments()
         {
             elf64_phdr const& h = phdr(n);
             if(!is_load(h) || !h.p_memsz) continue;
-            addr_t addr = segment_vaddr(n);
-            addr_t target = addr.trunc(h.p_align);
-            size_t full_size = h.p_memsz + (addr - target);
-            addr_t img_dat = segment_ptr(n);
+            addr_t addr         = segment_vaddr(n);
+            addr_t target       = addr.trunc(h.p_align);
+            size_t full_size    = h.p_memsz + (addr - target);
+            addr_t img_dat      = segment_ptr(n);
             if(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h))) { panic("could not allocate blocks for executable"); return false; }
             addr_t idmap = frame_tag->translate(addr);
             array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
@@ -122,20 +122,20 @@ bool elf64_executable::load_segments()
         block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
         block_descriptor* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
         if(__builtin_expect(!s || !t, false)) { panic("could not allocate blocks for stack/tls");  return false; }
-        frame_extent = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
-        frame_tag->extent = frame_extent;
-        frame_tag->mapped_max = frame_extent;
+        frame_extent            = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
+        frame_tag->extent       = frame_extent;
+        frame_tag->mapped_max   = frame_extent;
         new(std::addressof(program_descriptor)) elf64_program_descriptor
         { 
-            .frame_ptr = frame_tag,
-            .prg_stack = s->virtual_start,
-            .stack_size = s->size,
-            .prg_tls = t->virtual_start, 
-            .tls_size = t->size,
-            .entry = entry,
-            .ld_path = nullptr,
-            .ld_path_count = 0,
-            .object_handle = this
+            .frame_ptr      = frame_tag,
+            .prg_stack      = s->virtual_start,
+            .stack_size     = s->size,
+            .prg_tls        = t->virtual_start, 
+            .tls_size       = t->size,
+            .entry          = entry,
+            .ld_path        = nullptr,
+            .ld_path_count  = 0,
+            .object_handle  = this
         };
         return true;
     }

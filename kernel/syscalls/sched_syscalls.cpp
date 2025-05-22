@@ -51,7 +51,7 @@ extern "C"
             task->notif_target                      = sc_out;
             task->task_struct.task_ctl.notify_cterm = true;
             task_t* next                            = sch.yield();
-            if(next == reinterpret_cast<task_t*>(task)) { return -ECHILD; }
+            if(__unlikely(next == reinterpret_cast<task_t*>(task))) { return -ECHILD; }
             return next->saved_regs.rax;
         }
         return -ENOMEM;
@@ -96,13 +96,13 @@ extern "C"
     {
         task_ctx* task      = active_task_context();
         filesystem* fs_ptr  = get_fs_instance();
-        if(!fs_ptr) return -ENOSYS;
+        if(__unlikely(!fs_ptr)) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EFAULT;
+        if(__unlikely(!name)) return -EFAULT;
         file_node* n;
         try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         elf64_executable* ex = prog_manager::get_instance().add(n);
-        if(!ex) return -ENOEXEC;
+        if(__unlikely(!ex)) return -ENOEXEC;
         std::vector<const char*> argv_v{}, env_v{};
         for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
         for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
@@ -115,21 +115,21 @@ extern "C"
             else return -ENOMEM;
         }
         catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
-        catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
-        catch(std::bad_alloc&) { panic("no memory for argument vectors"); return -ENOMEM; }
+        catch(std::out_of_range& e)     { panic(e.what()); return -EFAULT; }
+        catch(std::bad_alloc&)          { panic("no memory for argument vectors"); return -ENOMEM; }
         __builtin_unreachable();
     }
     long syscall_spawn(char* restrict name, char** restrict argv, char** restrict env)
     {
         task_ctx* task = active_task_context();
         filesystem* fs_ptr = get_fs_instance();
-        if(!fs_ptr) return -ENOSYS;
+        if(__unlikely(!fs_ptr)) return -ENOSYS;
         name = translate_user_pointer(name);
-        if(!name) return -EFAULT;
+        if(__unlikely(!name)) return -EFAULT;
         file_node* n;
         try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
         elf64_executable* ex = prog_manager::get_instance().add(n);
-        if(!ex) return -ENOEXEC;
+        if(__unlikely(!ex)) return -ENOEXEC;
         std::vector<const char*> argv_v{}, env_v{};
         for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
         for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
@@ -145,8 +145,8 @@ extern "C"
                 else return -ENOMEM;
             }
             catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
-            catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
-            catch(std::bad_alloc&) { panic("no memory for argument vectors"); return -ENOMEM; }            
+            catch(std::out_of_range& e)     { panic(e.what()); return -EFAULT; }
+            catch(std::bad_alloc&)          { panic("no memory for argument vectors"); return -ENOMEM; }            
         }
         return -EAGAIN;
     }

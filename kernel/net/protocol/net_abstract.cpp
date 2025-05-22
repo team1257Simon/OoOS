@@ -48,11 +48,11 @@ abstract_packet_base& abstract_packet_base::operator=(abstract_packet_base const
 abstract_packet_base& abstract_packet_base::operator=(abstract_packet_base&& that)
 {
     if(packet_data) (*release_fn)(packet_data, packet_size);
-    packet_data = that.packet_data;
-    packet_type = std::move(that.packet_type);
-    packet_size = that.packet_size;
-    release_fn  = that.release_fn;
-    that.packet_data = nullptr;
+    packet_data         = that.packet_data;
+    packet_type         = std::move(that.packet_type);
+    packet_size         = that.packet_size;
+    release_fn          = that.release_fn;
+    that.packet_data    = nullptr;
     return *this;
 }
 int abstract_packet_base::read_from(netstack_buffer& buff)
@@ -81,7 +81,7 @@ int protocol_ethernet::receive(abstract_packet_base& p)
     if(handlers.contains(pkt->protocol_type))
     {
         protocol_handler& h = handlers[pkt->protocol_type];
-        p.packet_type = h->packet_type();
+        p.packet_type       = h->packet_type();
         return h->receive(p);
     }
     return -EPROTONOSUPPORT;

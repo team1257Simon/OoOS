@@ -48,9 +48,9 @@ namespace std
             constexpr __buckets_ptr __allocate_buckets(size_type n) { __buckets_ptr result = std::allocator<__bucket>().allocate(n); array_zero(result, n); return result; }
             constexpr size_type __size() const noexcept { return __element_count; }
             constexpr size_type __range(size_type idx) const noexcept { return idx % __bucket_count; }
-            constexpr size_type __range(size_type idx, size_type max) const noexcept { if(!max) return 0UL; return idx % max; }
+            constexpr size_type __range(size_type idx, size_type max) const noexcept { if(__unlikely(!max)) return 0UL; return idx % max; }
             constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UL; __element_count = 0UL; __bucket_count = 2UL; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
-            constexpr void __deallocate_buckets() { if(!__builtin_expect(__is_singularity(), false)) { std::allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
+            constexpr void __deallocate_buckets() { if(!__unlikely(__is_singularity())) { std::allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
             constexpr void __init_buckets(size_type n) { if(__builtin_expect(n < 2UL, false)) { __my_buckets = std::addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
             constexpr void __insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n);
             constexpr void __remove_first_at(__buckets_ptr buckets, size_type idx, __base_ptr n_next, size_type next_bucket);
@@ -242,7 +242,7 @@ namespace std
         template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
         constexpr void __hashtable<KT, VT, HT, XT, ET, AT>::__run_rehash(size_type target_count) 
         {
-            if(__builtin_expect(target_count < 2UL, false)) target_count = 2UL;
+            if(__unlikely(target_count < 2UL)) target_count = 2UL;
             __buckets_ptr nbkts = this->__allocate_buckets(target_count); 
             __node_ptr orig = __begin();
             this->__after_root_idx = 0; 
@@ -255,7 +255,7 @@ namespace std
         template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
         constexpr typename __hashtable<KT, VT, HT, XT, ET, AT>::iterator __hashtable<KT, VT, HT, XT, ET, AT>::__erase_node(size_type idx, __base_ptr prev, __node_ptr n)
         {
-            if(!n) return iterator(nullptr);
+            if(__unlikely(!n)) return iterator(nullptr);
             if(prev == this->__my_buckets[idx]) { this->__remove_first_at(idx, n->__next, n->__next ? __index(n->__get_next()) : 0UL); } 
             else if(n->__next) { size_t subs_idx = __index(n->__get_next()); if(idx != subs_idx) this->__my_buckets[subs_idx] = prev; } 
             prev->__next = n->__next; 

@@ -85,14 +85,14 @@ extern "C"
         // References to objects in the GOT must be resolved now
         for(elf64_rela const& r : obj_handle->get_object_relas())
         {
-            addr_t target = translate_user_pointer(obj_handle->resolve_rela_target(r));
+            addr_t target       = translate_user_pointer(obj_handle->resolve_rela_target(r));
             if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
-            search_result sr = full_search(obj_handle, task, obj_handle->symbol_name(obj_handle->get_sym(r.r_info.sym_index)));
+            search_result sr    = full_search(obj_handle, task, obj_handle->symbol_name(obj_handle->get_sym(r.r_info.sym_index)));
             if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
-            target.ref<addr_t>() = sr.first;
+            target.assign(sr.first);
         }
-        size_t len = obj_handle->get_init().size() + 1;
-        addr_t result = sysres_add(len * sizeof(addr_t));
+        size_t len      = obj_handle->get_init().size() + 1;
+        addr_t result   = sysres_add(len * sizeof(addr_t));
         if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
         addr_t res_real = translate_user_pointer(result);
         if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
@@ -102,10 +102,10 @@ extern "C"
     addr_t syscall_dlfini(addr_t handle)
     {
         elf64_dynamic_object* obj_handle = validate_handle(handle);
-        if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
+        if(__unlikely(!obj_handle)) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         size_t len      = obj_handle->get_fini().size() + 1;
         addr_t result   = sysres_add(len * sizeof(addr_t));
-        if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+        if(__unlikely(!result)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
         addr_t res_real = translate_user_pointer(result);
         if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
         res_real.plus((len - 1) * sizeof(addr_t)).assign(nullptr);
@@ -120,28 +120,28 @@ extern "C"
             active_task_context()->dynamic_exit = endfn;
             size_t len                          = x->get_preinit().size() + 1;
             addr_t result                       = sysres_add(len * sizeof(addr_t));
-            if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-            addr_t res_real = translate_user_pointer(result);        
+            if(__unlikely(!result)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+            addr_t res_real                     = translate_user_pointer(result);        
             if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
-            res_real.as<addr_t>()[len - 1] = nullptr;
+            res_real.plus((len - 1) * sizeof(addr_t)).assign(nullptr);
             return result;
         }
         else
         {
             addr_t result = sysres_add(sizeof(addr_t));
             if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-            translate_user_pointer(result).ref<addr_t>() = nullptr;
+            translate_user_pointer(result).assign(nullptr);
             return result;
         }
     }
     addr_t syscall_dlopen(const char* name, int flags)
     {
-        task_ctx* task = active_task_context();
-        filesystem* fs_ptr = get_fs_instance();
-        if(!fs_ptr || !task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        task_ctx* task      = active_task_context();
+        filesystem* fs_ptr  = get_fs_instance();
+        if(__unlikely(!fs_ptr || !task->local_so_map)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(!name) return task->program_handle; // dlopen(nullptr, ...) gives a "self" handle which resolves to a global lookup when used with dlsym
         name = translate_user_pointer(name);
-        if(!name) return addr_t(static_cast<uintptr_t>(-EFAULT));
+        if(__unlikely(!name)) return addr_t(static_cast<uintptr_t>(-EFAULT));
         std::string xname(name, std::strnlen(name, 256UL));
         shared_object_map::iterator result;
         if(shared_object_map::iterator cached = global_object_search(xname, flags); cached != shared_object_map::get_globals().end()) { result = cached; }
@@ -172,7 +172,7 @@ extern "C"
             {
                 shared_object_map& sm   = flags & RTLD_GLOBAL ? shared_object_map::get_globals() : *task->local_so_map;
                 result                  = sm.add(n);
-                if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+                if(__unlikely(!result)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
                 sm.set_path(result, *found_path);
             }
             fs_ptr->close_file(n);
@@ -186,10 +186,10 @@ extern "C"
     int syscall_dlclose(addr_t handle)
     {
         task_ctx* task = active_task_context();
-        if(!task->local_so_map) return -ENOSYS;
+        if(__unlikely(!task->local_so_map)) return -ENOSYS;
         if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->program_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
-        if(!so) { return -EINVAL; }
+        if(__unlikely(!so)) { return -EINVAL; }
         shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
         if(!task->local_so_map) return -ENOSYS;
         if(task->local_so_map->contains(so->get_soname())) { task->local_so_map->remove(it); }
@@ -199,9 +199,9 @@ extern "C"
     addr_t syscall_dlsym(addr_t handle, const char* name)
     {
         task_ctx* task = active_task_context();
-        if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        if(__unlikely(!task->local_so_map)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         name = translate_user_pointer(name);
-        if(!name) return addr_t(static_cast<uintptr_t>(-EFAULT));
+        if(__unlikely(!name)) return addr_t(static_cast<uintptr_t>(-EFAULT));
         if(!handle)
         {
             search_result sr = global_search(name);
@@ -215,19 +215,19 @@ extern "C"
             return sr.first;
         }
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
-        if(!so) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
+        if(__unlikely(!so)) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
         std::pair<elf64_sym, addr_t> result_pair = so->resolve_by_name(name);
         if(!result_pair.second && result_pair.first.st_info.bind == SB_WEAK) return nullptr;
-        else if(!result_pair.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
+        else if(__unlikely(!result_pair.second)) return addr_t(static_cast<uintptr_t>(-ENOENT));
         return result_pair.second;
     }
     addr_t syscall_resolve(uint32_t sym_idx, addr_t got_loaded_id)
     {
         task_ctx* task = active_task_context();
-        if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
+        if(__unlikely(!task->local_so_map)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
         if(elf64_dynamic_object* obj = validate_handle(got_loaded_id))
         {
-            if(!obj->has_plt_relas()) { return addr_t(static_cast<uintptr_t>(-ENOEXEC)); }
+            if(__unlikely(!obj->has_plt_relas())) { return addr_t(static_cast<uintptr_t>(-ENOEXEC)); }
             elf64_rela const& rela  = obj->get_plt_rela(sym_idx);
             if(rela.r_info.type != R_X86_64_JUMP_SLOT) return addr_t(static_cast<uintptr_t>(-ELIBSCN));
             addr_t target_pos       = translate_user_pointer(obj->resolve_rela_target(rela));
@@ -241,9 +241,9 @@ extern "C"
     int syscall_dlpath(const char* path_str)
     {
         task_ctx* task = active_task_context();
-        if(!task->local_so_map) return -ENOSYS;
+        if(__unlikely(!task->local_so_map)) return -ENOSYS;
         path_str = translate_user_pointer(path_str);
-        if(!path_str) return -EFAULT;
+        if(__unlikely(!path_str)) return -EFAULT;
         try
         {
             size_t end_pos                  = std::distance(path_str, static_cast<const char*>(std::find(path_str, std::strlen(path_str), ';')));
@@ -255,12 +255,12 @@ extern "C"
     }
     int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent)
     {
-        task_ctx* task = active_task_context();
-        if(!task->local_so_map) return -ENOSYS;
+        task_ctx* task          = active_task_context();
+        if(__unlikely(!task->local_so_map)) return -ENOSYS;
         elf64_shared_object* so = dynamic_cast<elf64_shared_object*>(obj);
-        if(!so) return -EBADF;
+        if(__unlikely(!so)) return -EBADF;
         ent = translate_user_pointer(ent);
-        if(!ent) return -EFAULT;
+        if(__unlikely(!ent)) return -EFAULT;
         ent->dynamic_section        = so->dyn_segment_ptr();
         ent->dynamic_section_length = so->dyn_segment_len();
         shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
@@ -268,7 +268,7 @@ extern "C"
         if(!fp) fp              = so->get_soname().data();
         size_t len              = std::strlen(fp) + 1;
         ent->absolute_pathname  = sysres_add(len);
-        if(!ent->absolute_pathname) return -ENOMEM;
+        if(__unlikely(!ent->absolute_pathname)) return -ENOMEM;
         char* target_real = translate_user_pointer(ent->absolute_pathname);
         array_copy(target_real, fp, len - 1);
         target_real[len]                = '\0';
@@ -286,7 +286,7 @@ extern "C"
         size_t ndep                             = deps.size();
         char** result                           = sysres_add((ndep + 1) * sizeof(char*));
         char** result_real                      = translate_user_pointer(result);
-        if(!result || !result_real) return addr_t(static_cast<uintptr_t>(-ENOMEM));
+        if(__unlikely(!result || !result_real)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
         size_t n;
         for(n = 0; n < ndep; n++)
         {
@@ -305,9 +305,9 @@ extern "C"
     int syscall_dladdr(addr_t sym_addr, dl_addr_info* info)
     {
         task_ctx* task = active_task_context();
-        if(!task->local_so_map) return -ENOSYS;
+        if(__unlikely(!task->local_so_map)) return -ENOSYS;
         info = translate_user_pointer(info);
-        if(!info) return -EFAULT;
+        if(__unlikely(!info)) return -EFAULT;
         array_zero(reinterpret_cast<uint64_t*>(info), sizeof(dl_addr_info) / sizeof(uint64_t));
         size_t n = task->attached_so_handles.size();
         for(size_t i = 0; i < n; i++)
@@ -318,7 +318,7 @@ extern "C"
             std::string const& oname    = so->get_soname();
             size_t len                  = oname.size() + 1;
             info->so_name               = sysres_add(len);
-            if(!info->so_name) return -ENOMEM;
+            if(__unlikely(!info->so_name)) return -ENOMEM;
             array_copy(translate_user_pointer(info->so_name), oname.data(), len);
             const char* sname = so->sym_lookup(sym_addr);
             if(sname) 

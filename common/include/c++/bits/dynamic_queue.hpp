@@ -156,7 +156,7 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr bool __dynamic_queue<T, A>::__q_grow_buffer(typename __dynamic_queue<T, A>::__size_type added)
     {
-        if(!added) return true; // Vacuously true success value
+        if(__unlikely(!added)) return true; // Vacuously true success value
         __size_type num_elements = __qsize();
         __size_type nx_offs = __stell();
         __size_type target_cap = __qcapacity() + added;
@@ -167,7 +167,7 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(T const& t, typename __dynamic_queue<T, A>::__size_type count)
     {
-        if(__qmax() <= __end() + count && !__q_grow_buffer(static_cast<__size_type>(count - __cap_rem()))) return nullptr;
+        if(__qmax() <= __end() + count && __unlikely(!__q_grow_buffer(static_cast<__size_type>(count - __cap_rem())))) return nullptr;
         __qset(__end(), t, count);
         __bumpe(count);
         __op_cnt++;
@@ -177,7 +177,7 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(T&& t, typename __dynamic_queue<T, A>::__size_type count)
     {
-        if(__qmax() <= __end() + count && !__q_grow_buffer(static_cast<__size_type>(count - __cap_rem()))) return nullptr;
+        if(__qmax() <= __end() + count && __unlikely(!__q_grow_buffer(static_cast<__size_type>(count - __cap_rem())))) return nullptr;
         __qassign(__end(), move(t), count);
         __bumpe(count);
         __op_cnt++;
@@ -187,10 +187,10 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(__const_ptr start, __const_ptr end)
     {
-        if(end < start) return nullptr;
+        if(__unlikely(end < start)) return nullptr;
         if(end == start) return __end();
         __size_type n = end - start;
-        if(__qmax() <= __end() + n && !__q_grow_buffer(static_cast<__size_type>(n - __cap_rem()))) return nullptr;
+        if(__qmax() <= __end() + n && __unlikely(!__q_grow_buffer(static_cast<__size_type>(n - __cap_rem())))) return nullptr;
         __qcopy(__end(), start, n);
         __bumpe(n);
         __op_cnt++;
@@ -200,7 +200,7 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(__ptr out_start, __ptr out_end)
     {
-        if(out_end <= out_start) return 0UL;
+        if(__unlikely(out_end <= out_start)) return 0UL;
         __size_type count = min(__qrem(), static_cast<__size_type>(out_end - out_start));
         __qcopy(out_start, __qcur(), count);
         __bumpn(count);
@@ -213,7 +213,7 @@ namespace std::__impl
     constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__push_elements(IT start, IT end)
     requires(!is_same_v<IT, typename __dynamic_queue<T, A>::__const_ptr>)
     {
-        if(end < start) return nullptr;
+        if(__unlikely(end < start)) return nullptr;
         if(end == start) return __end();
         __size_type n = end - start;
         if(__qmax() <= __end() + n && !__q_grow_buffer(static_cast<__size_type>(n - __cap_rem()))) return nullptr;
@@ -228,7 +228,7 @@ namespace std::__impl
     constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(IT out_start, IT out_end)
     requires(!is_same_v<IT, typename __dynamic_queue<T, A>::__ptr>)
     {
-        if(out_end <= out_start) return 0UL;
+        if(__unlikely(out_end <= out_start)) return 0UL;
         __size_type n = 0UZ;
         for(IT i = out_start; i != out_end && __qcur() != __end(); ++i, ++n, __bumpn()) *i = *__qcur();
         __op_cnt = 0;
@@ -238,7 +238,7 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__erase_elements(__const_ptr start, __size_type n)
     {
-        if(__q_out_of_range(start)) return 0UL;
+        if(__unlikely(__q_out_of_range(start))) return 0UL;
         if(start + n > __qmax()) { n = static_cast<__size_type>(__qmax() - start); }
         try 
         {
@@ -270,8 +270,8 @@ namespace std::__impl
     template <typename T, allocator_object<T> A>
     constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__insert(__const_ptr where, __const_ref what, __size_type how_many)
     {
-        if(__q_out_of_range(where)) return nullptr;
-        if(!how_many) return nullptr;
+        if(__unlikely(__q_out_of_range(where))) return nullptr;
+        if(__unlikely(!how_many)) return nullptr;
         try
         {
             __ptr_container tmp{ __qallocator.allocate(__qcapacity() + how_many), __qcapacity() + how_many };

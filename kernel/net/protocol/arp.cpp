@@ -36,11 +36,11 @@ mac_t protocol_arp::resolve(ipv4_addr addr)
 {
     ethernet_packet base_result = base->create_packet(empty_mac);
     abstract_packet<arpv4_packet> pkt(std::move(base_result));
-    pkt->src_hw = base->mac_addr;
-    pkt->dst_pr = addr;
-    pkt->opcode = arp_req;
+    pkt->src_hw         = base->mac_addr;
+    pkt->dst_pr         = addr;
+    pkt->opcode         = arp_req;
     if(base->ipv4_client_config->current_state == ipv4_client_state::BOUND) { pkt->src_pr = base->ipv4_client_config->leased_addr; }
-    else { pkt->src_pr = 0UBE; }
+    else pkt->src_pr    = 0UBE;
     if(base->transmit(pkt) != 0) throw std::runtime_error{ "[ARP] packet transmission failed" };
     if(!await_result([&]() -> bool { return previously_resolved.contains(addr); })) throw std::runtime_error{ "[ARP] could not resolve IP " + stringify(addr) + " because its owner did not respond" };
     return previously_resolved[addr];
@@ -49,11 +49,11 @@ bool protocol_arp::check_presence(ipv4_addr addr)
 {
     ethernet_packet base_result = base->create_packet(empty_mac);
     abstract_packet<arpv4_packet> pkt(std::move(base_result));
-    pkt->src_hw = base->mac_addr;
-    pkt->dst_pr = addr;
-    pkt->opcode = arp_req;
+    pkt->src_hw         = base->mac_addr;
+    pkt->dst_pr         = addr;
+    pkt->opcode         = arp_req;
     if(base->ipv4_client_config->current_state == ipv4_client_state::BOUND) { pkt->src_pr = base->ipv4_client_config->leased_addr; }
-    else { pkt->src_pr = 0UBE; }
+    else pkt->src_pr    = 0UBE;
     if(base->transmit(pkt) != 0) throw std::runtime_error{ "[ARP] packet transmission failed" };
     hpet.delay_us(100UL);
     return previously_resolved.contains(addr);

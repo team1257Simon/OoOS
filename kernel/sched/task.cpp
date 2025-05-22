@@ -40,10 +40,10 @@ void task_ctx::init_task_state()
     register_t rdi_val;
     if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle))
     {
-        rdi_val = reinterpret_cast<register_t>(dyn);
-        task_struct.saved_regs.rbx = static_cast<register_t>(entry.full);
-        shared_object_map::iterator ldso = shared_object_map::get_ldso_object(ctx_filesystem);
-        if(addr_t ldso_entry = ldso->entry_point()) { task_struct.saved_regs.rip = ldso_entry; }
+        rdi_val                             = reinterpret_cast<register_t>(dyn);
+        task_struct.saved_regs.rbx          = static_cast<register_t>(entry.full);
+        shared_object_map::iterator ldso    = shared_object_map::get_ldso_object(ctx_filesystem);
+        if(addr_t ldso_entry = ldso->entry_point(); __builtin_expect(static_cast<bool>(ldso_entry), true)) { task_struct.saved_regs.rip = ldso_entry; }
         else { throw std::runtime_error{ "dynamic linker object has no entry point" }; }
         attach_object(ldso.base());
     }
@@ -59,48 +59,48 @@ void task_ctx::init_task_state()
     if(is_user())
     {
         array_zero(reinterpret_cast<void**>(task_sig_info.signal_handlers), num_signals);
-        uframe_tag* tag = task_struct.frame_ptr;
-        addr_t old_ext = tag->extent;
-        size_t total_len = (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
+        uframe_tag* tag     = task_struct.frame_ptr;
+        addr_t old_ext      = tag->extent;
+        size_t total_len    = (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
         for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
         for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
         if(!tag->shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
-        rt_argv_ptr = old_ext;
-        char** argv_real = tag->translate(rt_argv_ptr);
-        rt_env_ptr = old_ext.plus((arg_vec.size() + 1) * sizeof(char*));
-        old_ext = rt_env_ptr;
-        char** env_real = tag->translate(rt_env_ptr);
-        old_ext += (env_vec.size() + 1) * sizeof(char*);
+        rt_argv_ptr         = old_ext;
+        char** argv_real    = tag->translate(rt_argv_ptr);
+        rt_env_ptr          = old_ext.plus((arg_vec.size() + 1) * sizeof(char*));
+        old_ext             = rt_env_ptr;
+        char** env_real     = tag->translate(rt_env_ptr);
+        old_ext             += (env_vec.size() + 1) * sizeof(char*);
         for(const char* str : arg_vec)
         {
-            addr_t target_ptr = old_ext;
-            char* target_real = tag->translate(target_ptr);
-            size_t len = std::strlen(str);
+            addr_t target_ptr   = old_ext;
+            char* target_real   = tag->translate(target_ptr);
+            size_t len          = std::strlen(str);
             array_copy(target_real, str, len);
-            target_real[len] = 0;
-            *argv_real = target_ptr;
+            target_real[len]    = 0;
+            *argv_real          = target_ptr;
             argv_real++;
-            old_ext += len + 1;
+            old_ext             += len + 1;
         }
         *argv_real = nullptr;
         for(const char* str : env_vec)
         {
-            addr_t target_ptr = old_ext;
-            char* target_real = tag->translate(target_ptr);
-            size_t len = std::strlen(str);
+            addr_t target_ptr   = old_ext;
+            char* target_real   = tag->translate(target_ptr);
+            size_t len          = std::strlen(str);
             array_copy(target_real, str, len);
-            target_real[len] = 0;
-            *env_real = target_ptr;
+            target_real[len]    = 0;
+            *env_real           = target_ptr;
             env_real++;
-            old_ext += len + 1;
+            old_ext             += len + 1;
         }
         *env_real = nullptr;
     }
     else
     {
         task_struct.saved_regs.rsp.assign(std::addressof(sys_task_exit));
-        rt_argv_ptr = arg_vec.data();
-        rt_env_ptr = env_vec.data();
+        rt_argv_ptr     = arg_vec.data();
+        rt_env_ptr      = env_vec.data();
     }
     set_arg_registers(rdi_val, rt_argv_ptr.full, rt_env_ptr.full);
 }
@@ -275,28 +275,28 @@ task_ctx::task_ctx(task_ctx&& that) :
     opened_directories      { std::move(that.opened_directories) }
     { 
         array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / 8)); 
-        task_struct.self = this;
-        task_struct.task_ctl.signal_info = std::addressof(task_sig_info);
-        that.task_struct.frame_ptr = nullptr;
+        task_struct.self                    = this;
+        task_struct.task_ctl.signal_info    = std::addressof(task_sig_info);
+        that.task_struct.frame_ptr          = nullptr;
     }
 void task_ctx::start_task(addr_t exit_fn)
 {
-    exit_target = exit_fn;
+    exit_target     = exit_fn;
     sch.register_task(task_struct.self);
-    current_state = execution_state::RUNNING;
+    current_state   = execution_state::RUNNING;
 }
 void task_ctx::restart_task(addr_t exit_fn)
 {
     if(current_state != execution_state::TERMINATED)
     {
-        exit_target = exit_fn;
+        exit_target                 = exit_fn;
         set_arg_registers(arg_vec.size(), reinterpret_cast<register_t>(arg_vec.data()), reinterpret_cast<register_t>(env_vec.data()));
-        task_struct.saved_regs.rip = entry;
-        task_struct.saved_regs.rbp = task_struct.saved_regs.rsp = allocated_stack.plus(stack_allocated_size);
+        task_struct.saved_regs.rip  = entry;
+        task_struct.saved_regs.rbp  = task_struct.saved_regs.rsp = allocated_stack.plus(stack_allocated_size);
         __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
         for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
-        exit_code = 0;
-        current_state = execution_state::RUNNING;
+        exit_code       = 0;
+        current_state   = execution_state::RUNNING;
     }
 }
 void task_ctx::set_exit(int n) 
@@ -307,8 +307,8 @@ void task_ctx::set_exit(int n)
         task_ctx* c = this, *p = nullptr;
         while(c->get_parent_pid() > 0 && tl.contains(static_cast<uint64_t>(c->get_parent_pid())))
         {
-            p = std::addressof(*tl.find(static_cast<uint64_t>(c->get_parent_pid())));
-            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target) p->notif_target.ref<int>() = n;
+            p = tl.find(static_cast<uint64_t>(c->get_parent_pid())).base();
+            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target) p->notif_target.assign(n);
             p->last_notified = this;
             p->remove_child(this);
             p->task_struct.saved_regs.rax = get_pid();
@@ -319,9 +319,9 @@ void task_ctx::set_exit(int n)
             if(n != 0) { xklog("D: process " + std::to_string(get_pid()) + " exited with code " + std::to_string(n)); }
             else
             {
-                task_struct.saved_regs.rdi = reinterpret_cast<register_t>(dyn);
-                task_struct.saved_regs.rip = dynamic_exit;
-                current_state = execution_state::IN_DYN_EXIT;
+                task_struct.saved_regs.rdi  = reinterpret_cast<register_t>(dyn);
+                task_struct.saved_regs.rip  = dynamic_exit;
+                current_state               = execution_state::IN_DYN_EXIT;
                 user_reentry();
                 __builtin_unreachable();
             }
@@ -354,8 +354,8 @@ tms task_ctx::get_times() const noexcept
 }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
 {
-    task_ctx* ctx = tl.create_user_task(prg, std::move(args), parent_pid, pv, quantum);
-    ctx->env_vec = std::move(env);
+    task_ctx* ctx   = tl.create_user_task(prg, std::move(args), parent_pid, pv, quantum);
+    ctx->env_vec    = std::move(env);
     ctx->init_task_state();
     ctx->set_stdio_ptrs(std::move(stdio_ptrs));
     if(exit_fn) { ctx->start_task(exit_fn); }
@@ -364,28 +364,28 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 }
 void task_ctx::stack_push(register_t val)
 {
-    task_struct.saved_regs.rsp -= sizeof(register_t);
-    addr_t stack = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
+    task_struct.saved_regs.rsp  -= sizeof(register_t);
+    addr_t stack                = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
     stack.assign(val);
 }
 register_t task_ctx::stack_pop()
 {
-    addr_t stack = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
-    register_t result = stack.ref<register_t>();
-    task_struct.saved_regs.rsp += sizeof(register_t);
+    addr_t stack                = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
+    register_t result           = stack.ref<register_t>();
+    task_struct.saved_regs.rsp  += sizeof(register_t);
     return result;
 }
 void task_ctx::set_signal(int sig, bool save_state)
 {
     if((ignored_mask & BIT(sig)) && !(task_sig_info.signal_handlers[sig])) { task_sig_info.pending_signals.btr(sig); return; }
     if(save_state) { task_sig_info.sigret_frame = task_struct.saved_regs; task_sig_info.sigret_fxsave = task_struct.fxsv; }
-    task_sig_info.active_signal = sig;
-    task_struct.saved_regs.rdi = sig;
-    signal_handler handler = task_sig_info.signal_handlers[sig];
-    if(!handler) handler = signal_exit;
-    task_struct.saved_regs.rsi = reinterpret_cast<register_t>(handler);
-    task_sig_info.signal_handlers[sig] = nullptr;
-    task_struct.saved_regs.rip = addr_t(sigtramp_enter);
+    task_sig_info.active_signal         = sig;
+    task_struct.saved_regs.rdi          = sig;
+    signal_handler handler              = task_sig_info.signal_handlers[sig];
+    if(!handler) handler                = signal_exit;
+    task_struct.saved_regs.rsi          = reinterpret_cast<register_t>(handler);
+    task_sig_info.signal_handlers[sig]  = nullptr;
+    task_struct.saved_regs.rip          = addr_t(sigtramp_enter);
     stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.full));
 }
 register_t task_ctx::end_signal()
@@ -405,12 +405,12 @@ bool task_ctx::set_fork()
 {
     try 
     {
-        uframe_tag* old_frame = task_struct.frame_ptr;
-        shared_object_map* old_so_map = local_so_map;
-        uframe_tag* new_frame = std::addressof(fm.fork_frame(old_frame));
-        task_struct.frame_ptr = new_frame;
-        task_struct.saved_regs.cr3 = new_frame->pml4;
-        if(old_so_map) local_so_map = sm_alloc.allocate(1);
+        uframe_tag* old_frame           = task_struct.frame_ptr;
+        shared_object_map* old_so_map   = local_so_map;
+        uframe_tag* new_frame           = std::addressof(fm.fork_frame(old_frame));
+        task_struct.frame_ptr           = new_frame;
+        task_struct.saved_regs.cr3      = new_frame->pml4;
+        if(old_so_map) local_so_map     = sm_alloc.allocate(1);
         if(local_so_map)
         { 
             std::construct_at(local_so_map, new_frame);
@@ -447,7 +447,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
         local_so_map = sm_alloc.allocate(1);
         if(!local_so_map) return false;
     }
-    uframe_tag* new_tag = static_cast<uframe_tag*>(desc.frame_ptr);
+    uframe_tag* new_tag     = static_cast<uframe_tag*>(desc.frame_ptr);
     if(!new_tag) throw std::invalid_argument{ "frame must not be null" };
     task_struct.frame_ptr   = new_tag;
     allocated_stack         = desc.prg_stack;

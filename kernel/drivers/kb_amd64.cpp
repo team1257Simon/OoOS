@@ -5,8 +5,8 @@ constexpr static char sc_shift[] = { '\0', '\0', '!', '@', '#', '$', '%', '^', '
 constexpr char case_diff = ('a' - 'A');
 __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool extd)
 {
-    byte scan = kb_get();
-    byte id = scan & ~KEY_UP;
+    byte scan   = kb_get();
+    byte id     = scan & ~KEY_UP;
     if(scan == KEYDN_SPECIAL) { __skip = true; return __get_next(current_state, true); }
     kb_data result{};
     result.k_code = id;
@@ -15,15 +15,15 @@ __isrcall kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool
         result.k_char = '\0';
         if((scan & KEY_UP) != 0)
         { 
-            result.k_code = id & ~KEY_UP;
-            result.event_code = byte(KEYUP_SPECIAL); 
+            result.k_code       = id & ~KEY_UP;
+            result.event_code   = byte(KEYUP_SPECIAL); 
             if(id == K_LALT) { result.state.alt = false; return result; }
             else if(id == K_LCTRL) { result.state.ctrl = false; return result; }
         }
         else 
         { 
-            result.k_code = id;
-            result.event_code = byte(KEYDN_SPECIAL);
+            result.k_code       = id;
+            result.event_code   = byte(KEYDN_SPECIAL);
             if(id == K_INSERT) result.state.mode = write_mode(!current_state.mode); 
             else if(id == K_LALT) { result.state.alt = true; return result; }
             else if(id == K_LCTRL) { result.state.ctrl = true; return result; }

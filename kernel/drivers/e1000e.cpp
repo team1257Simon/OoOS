@@ -92,7 +92,7 @@ bool e1000e::dev_reset()
     barrier();
     ctrl->reset = true;
     write_dma(e1000_ctrl, ctrl);
-    if(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; })) { panic("e1000e hung on reset"); return false; }
+    if(__unlikely(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) { panic("e1000e hung on reset"); return false; }
     barrier();
     write_dma(e1000_imc, ~0U);
     barrier();
@@ -118,7 +118,7 @@ bool e1000e::write_io(int reg_id, uint32_t const& w_in)
 void e1000e::read_dma(int reg_id, uint32_t& r_out)
 {
     addr_t where = __mmio_region.plus(reg_id);
-    if(where % 4UL) throw std::invalid_argument{ "e1000e dma access must be on dword boundary" };
+    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "e1000e dma access must be on dword boundary" };
     r_out = where.ref<uint32_t>();
     fence();
 }
@@ -131,7 +131,7 @@ uint32_t e1000e::read_dma(int reg_id)
 void e1000e::write_dma(int reg_id, uint32_t const& w_in)
 {
     addr_t where = __mmio_region.plus(reg_id);
-    if(where % 4UL) throw std::invalid_argument{ "e1000e dma access must be on dword boundary" };
+    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "e1000e dma access must be on dword boundary" };
     where.assign(w_in);
     fence();
 }
@@ -215,16 +215,16 @@ bool e1000e::initialize()
     __pcie_e1000e_controller->command.memory_space  = true;
     __pcie_e1000e_controller->command.io_space      = true;
     __pcie_e1000e_controller->command.bus_master    = true;
-    if(!dev_reset()) return false;
-    if(!configure_mac_phy(status)) return false; 
+    if(__unlikely(!dev_reset())) return false;
+    if(__unlikely(!configure_mac_phy(status))) return false; 
     for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i); read_status(status); }
     for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, 0U); read_status(status); }
     tx_bind tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
     rx_bind rx_poll = std::bind(&e1000e::rx_transfer, this, std::placeholders::_1);
     for(size_t i = 0; i < rx_ring.count(); i++) transfer_buffers.emplace(max_single_rx_buffer, max_single_tx_buffer, rx_poll, tx_poll, max_single_rx_buffer, max_single_tx_buffer);
-    if(!configure_rx(status)) return false;
-    if(!configure_tx(status)) return false;
-    if(!configure_interrupts(status)) return false;
+    if(__unlikely(!configure_rx(status))) return false;
+    if(__unlikely(!configure_tx(status))) return false;
+    if(__unlikely(!configure_interrupts(status))) return false;
     enable_receive();
     return (__has_init = true);
 }

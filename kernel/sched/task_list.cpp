@@ -37,7 +37,7 @@ task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&
 bool task_list::destroy_task(uint64_t pid)
 {
     iterator i = find(pid);
-    if(i == end()) return false;
+    if(__unlikely(i == end())) return false;
     erase(i);
     return true;
 }

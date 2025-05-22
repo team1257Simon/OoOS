@@ -115,12 +115,12 @@ int protocol_dhcp::process_offer_packet(dhcp_packet_base const& p)
         catch(std::bad_alloc&)          { return -ENOMEM; }
         if(__builtin_expect(base->ip_resolver->check_presence(req_addr), false))
         {
-            if(int err = __builtin_expect(decline(req_addr, p.transaction_id), 0)) return err;
+            if(int err = decline(req_addr, p.transaction_id); __unlikely(err != 0)) return err;
             try                             { discover(std::vector<net8>()); }
             catch(std::runtime_error& e)    { panic(e.what()); return -ENETDOWN; }
             catch(std::bad_alloc&)          { return -ENOMEM; }
         }
-        else if(int err = __builtin_expect(request(req_addr, p.transaction_id), 0)) return err;
+        else if(int err = request(req_addr, p.transaction_id); __unlikely(err != 0)) return err;
     }
     return 0;
 }
@@ -132,7 +132,7 @@ int protocol_dhcp::process_ack_packet(dhcp_packet_base const& p)
     try { while(pos.ref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.ref<dhcp_parameter>()); }
     catch(std::invalid_argument& e) { panic(e.what()); return -EPROTO; }
     catch(std::bad_alloc&)          { return -ENOMEM; }
-    if(!ipconfig.lease_duration) return -EPROTO;
+    if(__unlikely(!ipconfig.lease_duration)) return -EPROTO;
     if(ipconfig.lease_duration != 0xFFFFFFFFU)
     {
         if(!ipconfig.lease_renew_time)
@@ -153,21 +153,21 @@ net8 protocol_dhcp::process_packet_parameter(dhcp_parameter const& param)
     case END_OF_TRANSMISSION:
         return 0UC;
     case SUBNET_MASK:
-        ipconfig.subnet_mask = param.start().ref<net32>();
+        ipconfig.subnet_mask            = param.start().ref<net32>();
         break;
     case SERVER_IDENTIFIER:
         if(!ipconfig.dhcp_server_addr) ipconfig.dhcp_server_addr = param.start().ref<net32>();
         break;
     case ROUTER:
         if(param.length() % 4UC) throw std::invalid_argument("[DHCP] malformed packet");
-        ipconfig.gateway_addrs = std::move(consume_variadic_dword_parameter(param));
+        ipconfig.gateway_addrs          = std::move(consume_variadic_dword_parameter(param));
         break;
     case DOMAIN_NAME_SERVER:
         if(param.length() % 4UC) throw std::invalid_argument("[DHCP] malformed packet");
-        ipconfig.dns_server_addrs = std::move(consume_variadic_dword_parameter(param));
+        ipconfig.dns_server_addrs       = std::move(consume_variadic_dword_parameter(param));
         break;
     case DEFAULT_TTL:
-        ipconfig.time_to_live_default = param.start().ref<net8>();
+        ipconfig.time_to_live_default   = param.start().ref<net8>();
         break;
     case RENEWAL_TIME_VALUE:
         if(ipconfig.current_state != ipv4_client_state::BOUND) ipconfig.lease_renew_time    = param.start().ref<net32>();

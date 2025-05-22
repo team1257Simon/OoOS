@@ -162,24 +162,24 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
             case 'i':
             case 'd':
                 if(lenarg > 1) cnt += __arg_insert_dec(va_arg(args, long long), stream, minwid, zeropad, left, sign);
-                else if (lenarg == 1) cnt += __arg_insert_dec(va_arg(args, long), stream, minwid, zeropad, left, sign);
-                else if (lenarg == 0) cnt += __arg_insert_dec(va_arg(args, int), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 1) cnt += __arg_insert_dec(va_arg(args, long), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 0) cnt += __arg_insert_dec(va_arg(args, int), stream, minwid, zeropad, left, sign);
                 else
                 {
                     tmpint = va_arg(args, int);
-                    if (lenarg == -1) cnt += __arg_insert_dec(static_cast<short>(tmpint), stream, minwid, zeropad, left, sign);
+                    if(lenarg == -1) cnt += __arg_insert_dec(static_cast<short>(tmpint), stream, minwid, zeropad, left, sign);
                     else cnt += __arg_insert_dec(static_cast<signed char>(tmpint), stream, minwid, zeropad, left, sign);
                 }
                 finish = true;
                 break;
             case 'u':
                 if(lenarg > 1) cnt += __arg_insert_dec(va_arg(args, unsigned long long), stream, minwid, zeropad, left, sign);
-                else if (lenarg == 1) cnt += __arg_insert_dec(va_arg(args, unsigned long), stream, minwid, zeropad, left, sign);
-                else if (lenarg == 0) cnt += __arg_insert_dec(va_arg(args, unsigned int), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 1) cnt += __arg_insert_dec(va_arg(args, unsigned long), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 0) cnt += __arg_insert_dec(va_arg(args, unsigned int), stream, minwid, zeropad, left, sign);
                 else
                 {
                     tmpint = va_arg(args, int);
-                    if (lenarg == -1) cnt += __arg_insert_dec(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign);
+                    if(lenarg == -1) cnt += __arg_insert_dec(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign);
                     else cnt += __arg_insert_dec(static_cast<unsigned char>(tmpint), stream, minwid, zeropad, left, sign);
                 }
                 finish = true;
@@ -188,12 +188,12 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
                 caps = true;
             case 'x':
                 if(lenarg > 1) cnt += __arg_insert_hex(va_arg(args, unsigned long long), stream, minwid, zeropad, left, caps, alt);
-                else if (lenarg == 1) cnt += __arg_insert_hex(va_arg(args, unsigned long), stream, minwid, zeropad, left, caps, alt);
-                else if (lenarg == 0) cnt += __arg_insert_hex(va_arg(args, unsigned int), stream, minwid, zeropad, left, caps, alt);
+                else if(lenarg == 1) cnt += __arg_insert_hex(va_arg(args, unsigned long), stream, minwid, zeropad, left, caps, alt);
+                else if(lenarg == 0) cnt += __arg_insert_hex(va_arg(args, unsigned int), stream, minwid, zeropad, left, caps, alt);
                 else 
                 {
                     tmpint = va_arg(args, int);
-                    if (lenarg == -1) cnt += __arg_insert_hex(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign, alt);
+                    if(lenarg == -1) cnt += __arg_insert_hex(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign, alt);
                     else cnt += __arg_insert_hex(static_cast<unsigned char>(tmpint), stream, minwid, zeropad, left, sign, alt);
                 }
                 finish = true;

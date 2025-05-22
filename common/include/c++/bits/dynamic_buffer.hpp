@@ -124,19 +124,19 @@ namespace std::__impl
         constexpr void __trim_buffer() { __size_type num_elements = __size(); __setn(resize(__beg(), __capacity(), num_elements), num_elements, num_elements); __post_modify_check_nt(); }
         constexpr void __size_buffer(__size_type n) { __size_type num_elements = __size(); __setn(resize(__beg(), __capacity(), n), std::min(n, num_elements), n); __post_modify_check_nt(); }
         constexpr void __allocate_storage(__size_type n) { if(n) __setn(__allocator.allocate(n), n); }
-        constexpr void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); }  }
-        constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); __post_modify_check_nt(); return __cur(); }
-        constexpr __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(!__grow_buffer(count - __capacity())) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); __post_modify_check_nt(); return __cur(); }
+        constexpr void __construct_element(__ptr pos, T const& t) { if(!__out_of_range(pos)) { construct_at(pos, t); if(pos > __cur()) __setc(pos); } }
+        constexpr __ptr __assign_elements(__size_type count, T const& t) { if(count > __capacity()) { if(__unlikely(!__grow_buffer(count - __capacity()))) return nullptr; } __set(__beg(), t, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); __post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __assign_elements(__const_ptr start, __const_ptr end) { __size_type count = end - start; if(count > __capacity()) { if(__unlikely(!__grow_buffer(count - __capacity()))) return nullptr; } __copy(__beg(), start, count); if (count < __size()) { __zero(__get_ptr(count), __size() - count); } __setc(count); __post_modify_check_nt(); return __cur(); }
         constexpr __ptr __replace_elements(__const_ptr start, __const_ptr end, __const_ptr from, __size_type count) { if(!__out_of_range(start, end)) return __replace_elements(start - __beg(), end - start, from, count); else return nullptr; }
         constexpr __ptr __assign_elements(initializer_list<T> ini) { return __assign_elements(ini.begin(), ini.end()); }
-        constexpr __ptr __append_elements(__size_type count, T const& t) { if(__max() <= __cur() + count) { if(!__grow_buffer(__size_type(count - __rem()))) return nullptr; } for(__size_type i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); __post_modify_check_nt(); return __cur(); }
-        constexpr __ptr __append_element(T const& t) { if(!(__max() > __cur())) { if(!__grow_buffer(1UZ)) return nullptr; } construct_at(__cur(), t); __advance(1); __post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __append_elements(__size_type count, T const& t) { if(__max() <= __cur() + count) { if(__unlikely(!__grow_buffer(__size_type(count - __rem())))) return nullptr; } for(__size_type i = 0; i < count; i++, __advance(1)) construct_at(__cur(), t); __post_modify_check_nt(); return __cur(); }
+        constexpr __ptr __append_element(T const& t) { if(!(__max() > __cur())) { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; } construct_at(__cur(), t); __advance(1); __post_modify_check_nt(); return __cur(); }
         constexpr void __clear() { __size_type cap = __capacity(); __destroy(); __allocate_storage(cap); __post_modify_check_nt(); __zero(__beg(), __capacity()); }
         constexpr __ptr __erase_at_end(__size_type how_many) { if(how_many >= __size()) __clear(); else { __backtrack(how_many); __zero(__cur(), how_many); } __post_modify_check_nt(); return __cur(); }
         constexpr __ptr __erase(__const_ptr pos) { return __erase_range(pos, pos + 1); }
         constexpr void __destroy() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); __my_data.__reset(); } }
         constexpr void __swap(__dynamic_buffer& that) { __my_data.__swap_ptrs(that.__my_data); __post_modify_check_nt(); that.__post_modify_check_nt(); }
-        constexpr void __copy_assign(__dynamic_buffer const& that) { __destroy(); if(!that.__beg()) return; __allocate_storage(that.__capacity()); __copy(__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
+        constexpr void __copy_assign(__dynamic_buffer const& that) { __destroy(); if(__unlikely(!that.__beg())) return; __allocate_storage(that.__capacity()); __copy(__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
         constexpr void __move_assign(__dynamic_buffer&& that) { __destroy(); __my_data.__move_ptrs(std::move(that.__my_data)); }
         constexpr explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
@@ -192,7 +192,7 @@ namespace std::__impl
     {
         __size_type rem = __rem();
         __size_type num = distance(start_it, end_it);
-        if(!__beg() || num > rem) { if(!__grow_buffer(num - rem)) return nullptr; }
+        if(!__beg() || num > rem) { if(__unlikely(!__grow_buffer(num - rem))) return nullptr; }
         for(IT i = start_it; i < end_it; i++, __advance(1UZ)) construct_at(__cur(), *i);
         __post_modify_check_nt();
         return __cur();
@@ -246,7 +246,7 @@ namespace std::__impl
     requires constructible_from<T, Args...>
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__emplace_element(__const_ptr pos, Args&& ... args)
     {
-        if(pos < __beg()) return nullptr;
+        if(__unlikely(pos < __beg())) return nullptr;
         if(pos >= __max()) { return __emplace_at_end(forward<Args>(args)...); }
         __size_type start_pos = __diff(pos);
         __size_type rem = __ediff(pos);
@@ -265,7 +265,7 @@ namespace std::__impl
     requires constructible_from<T, Args...>
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__emplace_at_end(Args && ...args)
     {
-        if(__size() == __capacity() && !__grow_buffer(1UZ)) return nullptr;
+        if(__size() == __capacity() && __unlikely(!__grow_buffer(1UZ))) return nullptr;
         __ptr p = construct_at(__cur(), forward<Args>(args)...);
         __bumpc(1L);
         __post_modify_check_nt();

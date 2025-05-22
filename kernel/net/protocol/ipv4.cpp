@@ -22,7 +22,7 @@ protocol_handler& protocol_ipv4::add_transport(ipv4_transport_protocol id, proto
 int protocol_ipv4::transmit(abstract_packet_base& p)
 {
     ipv4_packet_with_options<IHL20B>* pkt = p.get_as<ipv4_packet_with_options<IHL20B>>();
-    if(__builtin_expect(!pkt, false)) throw std::bad_cast();
+    if(__unlikely(!pkt)) throw std::bad_cast();
     pkt->time_to_live = pkt->protocol_type == TCP ? client_config.time_to_live_tcp_default : client_config.time_to_live_default;
     pkt->total_length = net16(static_cast<uint16_t>(p.packet_size - sizeof(ethernet_packet)));
     pkt->compute_ipv4_csum();
@@ -31,13 +31,13 @@ int protocol_ipv4::transmit(abstract_packet_base& p)
 int protocol_ipv4::receive(abstract_packet_base& p)
 {
     ipv4_packet_with_options<IHL20B>* pkt = p.get_as<ipv4_packet_with_options<IHL20B>>();
-    if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
-    if(__builtin_expect(pkt->ihl != IHL20B, false)) return -EPROTOTYPE;
-    if(__builtin_expect(!pkt->verify_ipv4_csum(), false)) return -EPROTO;
+    if(__unlikely(!pkt)) return -EPROTOTYPE;
+    if(__unlikely(pkt->ihl != IHL20B)) return -EPROTOTYPE;
+    if(__unlikely(!pkt->verify_ipv4_csum())) return -EPROTO;
     if(transports.contains(pkt->protocol))
     {
-        protocol_handler& ph = transports[pkt->protocol];
-        p.packet_type = ph->packet_type();
+        protocol_handler& ph    = transports[pkt->protocol];
+        p.packet_type           = ph->packet_type();
         return ph->receive(p);
     }
     return -EPROTONOSUPPORT;

@@ -10,7 +10,7 @@ simplex_pipe::pos_type simplex_pipe::tell(std::ios_base::openmode which) const
 }
 bool simplex_pipe::grow(size_type added)
 {
-    if(!__q_grow_buffer(added)) return false;
+    if(__unlikely(!__q_grow_buffer(added))) return false;
     on_modify_queue();
     return true;
 }
@@ -37,16 +37,14 @@ simplex_pipe::pos_type simplex_pipe::seekoff(off_type off, std::ios_base::seekdi
     if(mode.in)
     {
         pointer pos = (way > 0 ? (__end() + off) : way < 0 ? (__qbeg() + off) : __qcur() + off);
-        if(__q_out_of_range(pos))
-            return pos_type(off_type(-1));
+        if(__unlikely(__q_out_of_range(pos))) return pos_type(off_type(-1));
         __qsetn(pos);
         sync();
     }
     if(mode.out)
     {
         pointer pos = (way > 0 ? (__end() + off) : way < 0 ? (__qbeg() + off) : __end() + off);
-        if(__q_out_of_range(pos))
-            return pos_type(off_type(-1));
+        if(__unlikely(__q_out_of_range(pos))) return pos_type(off_type(-1));
         __qsete(pos);
         sync();
         return __qsize();

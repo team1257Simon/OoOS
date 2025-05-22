@@ -14,7 +14,7 @@ fadt_t* find_fadt() { return static_cast<fadt_t*>(find_system_table("FACP")); }
 extern "C" { uint64_t sys_time(uint64_t* tm_target) { uint64_t t = rtc::get_instance().get_timestamp(); if(tm_target) __atomic_store_n(tm_target, t, __ATOMIC_SEQ_CST); return t; } }
 __isrcall void rtc::rtc_time_update() volatile noexcept
 {
-    while(is_cmos_update_in_progress());
+    while(is_cmos_update_in_progress()) pause();
     uint16_t century = (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20UC);
     rtc_time nt
     {

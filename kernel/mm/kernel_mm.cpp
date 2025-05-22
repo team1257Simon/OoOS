@@ -608,8 +608,8 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
         {
             tag->held_size   = 0;
             tag->align_bytes = 0;
-            while(tag->left_split && (tag->left_split->index >= 0)) tag = __melt_left(tag);
-            while(tag->right_split && (tag->right_split->index >= 0)) tag = __melt_right(tag);
+            while(tag->left_split && (tag->left_split->index >= 0))   tag   = __melt_left(tag);
+            while(tag->right_split && (tag->right_split->index >= 0)) tag   = __melt_right(tag);
             int64_t idx = calculate_block_index(tag->allocated_size());
             if(!tag->left_split && !tag->right_split && complete_regions[idx] >= region_cap)
             {
@@ -689,10 +689,10 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
 }
 addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
 {
-    addr                = addr.page_aligned();
-    bool use_extent     = !addr;
-    if(use_extent) addr = extent;
-    block_descriptor* result = add_block(len, addr, page_size, write, exec);
+    addr                        = addr.page_aligned();
+    bool use_extent             = !addr;
+    if(use_extent) addr         = extent;
+    block_descriptor* result    = add_block(len, addr, page_size, write, exec);
     if(__builtin_expect(result != nullptr, true))
     {
         size_t actual   = kernel_memory_mgr::aligned_size(addr, len);
@@ -752,10 +752,10 @@ addr_t uframe_tag::translate(addr_t addr)
 block_descriptor* uframe_tag::add_block(size_t sz, addr_t start, size_t align, bool write, bool execute, bool allow_global_shared)
 {
     if(allow_global_shared && !write) { return fm.get_global_shared(this, sz, start, align, execute); }
-    block_descriptor* result = nullptr;
+    block_descriptor* result    = nullptr;
     __lock();
     kmm.enter_frame(this);
-    addr_t allocated = kmm.allocate_user_block(sz, start, align, write, execute);
+    addr_t allocated            = kmm.allocate_user_block(sz, start, align, write, execute);
     kmm.exit_frame();
     if(allocated) { result = std::addressof(usr_blocks.emplace_back(allocated, start, sz, align, write, execute)); }
     __unlock();
@@ -783,10 +783,10 @@ addr_t uframe_tag::sysres_add(size_t n)
         kmm.exit_frame();
         if(__builtin_expect(!allocated, false)) { return nullptr; }
         kernel_allocated_blocks.push_back(allocated);
-        sysres_extent += kernel_memory_mgr::aligned_size(mapping_target, n);
+        sysres_extent   += kernel_memory_mgr::aligned_size(mapping_target, n);
     }
-    addr_t result = sysres_wm;
-    sysres_wm = sysres_wm.plus(n).alignup(alignof(void*));
+    addr_t result       = sysres_wm;
+    sysres_wm           = sysres_wm.plus(n).alignup(alignof(void*));
     return result;
 }
 extern "C"

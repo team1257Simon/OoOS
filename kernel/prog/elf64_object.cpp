@@ -31,7 +31,7 @@ elf64_object::elf64_object(addr_t start, size_t size):
                         {}
 elf64_object::elf64_object(file_node* n) : elf64_object(elf_alloc.allocate(n->size()), n->size())
 {
-    if(!n->read(__image_start, __image_size))
+    if(__unlikely(!n->read(__image_start, __image_size)))
     {
         panic("elf object file read failed");
         elf_alloc.deallocate(__image_start, __image_size);
@@ -42,20 +42,20 @@ elf64_object::elf64_object(file_node* n) : elf64_object(elf_alloc.allocate(n->si
 bool elf64_object::load_syms()
 {
     elf64_shdr const& shstrtab_shdr = shdr(ehdr().e_shstrndx);
-    shstrtab.total_size = shstrtab_shdr.sh_size;
-    shstrtab.data = aligned_malloc(shstrtab_shdr.sh_size, shstrtab_shdr.sh_addralign);
+    shstrtab.total_size             = shstrtab_shdr.sh_size;
+    shstrtab.data                   = aligned_malloc(shstrtab_shdr.sh_size, shstrtab_shdr.sh_addralign);
     array_copy<char>(shstrtab.data, img_ptr(shstrtab_shdr.sh_offset), shstrtab_shdr.sh_size);
     for(size_t i = 0; i < ehdr().e_shnum; i++)
     {
         elf64_shdr const& h = shdr(i);
         if(h.sh_type == ST_DYNSYM || h.sh_type == ST_SYMTAB)
         {
-            elf64_shdr const& strtab_shdr = shdr(h.sh_link);
-            symstrtab.total_size = strtab_shdr.sh_size;
-            symtab.total_size = h.sh_size;
-            symtab.entry_size = h.sh_entsize;
-            symstrtab.data = aligned_malloc(strtab_shdr.sh_size, strtab_shdr.sh_addralign);
-            symtab.data = aligned_malloc(h.sh_size, h.sh_addralign);
+            elf64_shdr const& strtab_shdr   = shdr(h.sh_link);
+            symstrtab.total_size            = strtab_shdr.sh_size;
+            symtab.total_size               = h.sh_size;
+            symtab.entry_size               = h.sh_entsize;
+            symstrtab.data                  = aligned_malloc(strtab_shdr.sh_size, strtab_shdr.sh_addralign);
+            symtab.data                     = aligned_malloc(h.sh_size, h.sh_addralign);
             array_copy<char>(symstrtab.data, img_ptr(strtab_shdr.sh_offset), strtab_shdr.sh_size);
             array_copy<char>(symtab.data, img_ptr(h.sh_offset), h.sh_size);
             return true;
@@ -79,7 +79,7 @@ std::vector<block_descriptor> elf64_object::segment_blocks() const
     { 
         if(segments[i].size)
         {
-            size_t align = segments[i].seg_align;
+            size_t align        = segments[i].seg_align;
             elf_segment_prot pr = segments[i].perms;
             result.emplace_back(segments[i].absolute_addr.trunc(align), segments[i].virtual_addr.trunc(align), segments[i].size, segments[i].seg_align, is_write(pr), is_exec(pr));
         }
@@ -117,16 +117,16 @@ elf64_object::elf64_object(elf64_object&& that) :
     symstrtab           { std::move(that.symstrtab) },
     shstrtab            { std::move(that.shstrtab) }
 {
-    that.__validated = false;
-    that.__loaded = false;
-    that.__image_size = 0;
-    that.__image_start = nullptr;
-    that.segments = nullptr;
-    that.num_seg_descriptors = 0;
+    that.__validated            = false;
+    that.__loaded               = false;
+    that.__image_size           = 0;
+    that.__image_start          = nullptr;
+    that.segments               = nullptr;
+    that.num_seg_descriptors    = 0;
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {
-    if(!new_frame) { throw std::invalid_argument{ "frame tag must not be null" }; }
+    if(__unlikely(!new_frame)) { throw std::invalid_argument{ "frame tag must not be null" }; }
     set_frame(new_frame);
     for(size_t i = 0; i < num_seg_descriptors; i++)
     {

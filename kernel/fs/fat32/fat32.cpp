@@ -82,7 +82,7 @@ file_node* fat32::mkfilenode(directory_node* parent, std::string const& name)
         .first_cluster_lo   { cl.lo }
     };
     set_filename(avail->regular_entry.filename, sfname);
-    size_t idx = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
+    size_t idx              = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
     fat32_file_node* result = put_file_node(name, std::addressof(fparent), cl, idx);
     add_start_cluster_ref(result->start_cluster());
     return result;
@@ -91,8 +91,8 @@ directory_node* fat32::mkdirnode(directory_node* parent, std::string const& name
 {
     dword cl = claim_cluster(__the_table);
     if(!cl) return nullptr;
-    fat32_directory_node& fparent = dynamic_cast<fat32_directory_node&>(*parent);
-    std::vector<fat32_directory_entry>::iterator avail = fparent.first_unused_entry();
+    fat32_directory_node& fparent                       = dynamic_cast<fat32_directory_node&>(*parent);
+    std::vector<fat32_directory_entry>::iterator avail  = fparent.first_unused_entry();
     std::string sfname{};
     fparent.get_short_name(name, sfname);
     rtc_time t = rtc::get_instance().get_time();
@@ -107,18 +107,18 @@ directory_node* fat32::mkdirnode(directory_node* parent, std::string const& name
         .first_cluster_lo   { cl.lo }
     };
     set_filename(avail->regular_entry.filename, sfname);
-    size_t idx = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
-    fat32_directory_node* result = this->put_directory_node(name, std::addressof(fparent), cl, idx);
+    size_t idx                      = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
+    fat32_directory_node* result    = this->put_directory_node(name, std::addressof(fparent), cl, idx);
     add_start_cluster_ref(result->start_cluster());
     return result;
 }
 bool fat32::init_instance()
 {
     if(__has_init) return true;
-    if(!hda_ahci::is_initialized()) return false;
+    if(__unlikely(!hda_ahci::is_initialized())) return false;
     fat32_bootsect bootsect{};
     uint64_t ss = figure_start_sector();
-    if(!hda_ahci::read_object(bootsect, ss)) return false;
+    if(__unlikely(!hda_ahci::read_object(bootsect, ss))) return false;
     __instance = new fat32(bootsect.root_cluster_num, bootsect.sectors_per_cluster, bootsect.bytes_per_sector, ss + bootsect.num_reserved_sectors, bootsect.num_fats * bootsect.fat_size, bootsect.volume_serial);
     __has_init = __instance->init();
     return __has_init;

@@ -60,8 +60,7 @@ static int _crypt_data_alloc(void **data, int *size, int need)
 	return 0;
 }
 
-static char *_crypt_retval_magic(char *retval, const char *setting,
-	char *output, int size)
+static char *_crypt_retval_magic(char *retval, const char *setting, char *output, int size)
 {
 	if (retval)
 		return retval;
@@ -141,8 +140,7 @@ char *__crypt_gensalt_rn(const char *prefix, unsigned long count,
 	return use(prefix, count, input, size, output, output_size);
 }
 
-char *__crypt_gensalt_ra(const char *prefix, unsigned long count,
-	const char *input, int size)
+char *__crypt_gensalt_ra(const char *prefix, unsigned long count, const char *input, int size)
 {
 	char output[CRYPT_GENSALT_OUTPUT_SIZE];
 	char *retval;
@@ -162,8 +160,7 @@ char *__crypt_gensalt_ra(const char *prefix, unsigned long count,
 	return retval;
 }
 
-char *__crypt_gensalt(const char *prefix, unsigned long count,
-	const char *input, int size)
+char *__crypt_gensalt(const char *prefix, unsigned long count, const char *input, int size)
 {
 	static char output[CRYPT_GENSALT_OUTPUT_SIZE];
 

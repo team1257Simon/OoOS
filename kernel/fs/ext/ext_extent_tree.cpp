@@ -1,8 +1,8 @@
 #include "fs/ext.hpp"
 #include "kdebug.hpp"
 ext_node_extent_tree::ext_node_extent_tree(ext_vnode* tracked) : tracked_node{ tracked } {}
-ext_node_extent_tree::ext_node_extent_tree() = default;
-ext_node_extent_tree::~ext_node_extent_tree() = default;
+ext_node_extent_tree::ext_node_extent_tree()    = default;
+ext_node_extent_tree::~ext_node_extent_tree()   = default;
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const* n) { return n - tracked_extents.begin().base(); }
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const& n) { return cached_node_pos(std::addressof(n)); }
 cached_extent_node* ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
@@ -193,9 +193,9 @@ bool ext_node_extent_tree::push_extent_legacy(disk_block* blk)
         {
             if(base->depth < 3)
             {
-                uint16_t nd = base->depth + 1;
-                if(nd > base_depth) base_depth = nd;
-                disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(this);
+                uint16_t nd                     = base->depth + 1;
+                if(nd > base_depth) base_depth  = nd;
+                disk_block* nl_blk              = tracked_node->parent_fs->claim_metadata_block(this);
                 if(nl_blk) 
                 { 
                     cached_extent_node* base = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, nd));
@@ -288,9 +288,9 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree* parent
         {
             if(!bptrs[i]) 
             { 
-                bptrs[i] = static_cast<uint32_t>(blk->block_number); 
+                bptrs[i]        = static_cast<uint32_t>(blk->block_number); 
                 next_level_extents.insert_or_assign(parent->total_extent++, parent->cached_node_pos(parent->tracked_extents.emplace_back(blk, tracked_node, 0US))); 
-                my_blk->dirty = true;
+                my_blk->dirty   = true;
                 return true;
             }
         }
@@ -332,7 +332,7 @@ bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree* parent, 
         }
         return false;
     }
-    uint16_t nd     = this->depth - 1;
+    uint16_t nd     = depth - 1US;
     auto last       = next_level_extents.max();
     if(last == next_level_extents.end() || !parent->get_cached(last->second)->push_extent_recurse_ext4(parent, blk))
     {

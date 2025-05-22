@@ -73,8 +73,8 @@ shared_object_map::iterator shared_object_map::get_ldso_object(filesystem* fs)
     if(__ld_so == __globals.end())
     {
         if(!fs) throw std::invalid_argument{ "need fs pointer to initialize ld.so object" };
-        file_node* n = fs->open_file("lib/ld-ooos.so", std::ios_base::in);
-        __ld_so = __globals.add(n);
+        file_node* n    = fs->open_file("lib/ld-ooos.so", std::ios_base::in);
+        __ld_so         = __globals.add(n);
         fs->close_file(n);
     }
     return __ld_so;

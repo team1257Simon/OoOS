@@ -70,11 +70,7 @@ int com_amd64::write_dev()
         { 
             outb(port_com1, byte(*ptr)); 
             // newlines can take a while to process; give the console time to sync up or we might lose characters 
-            if(*ptr == '\n') 
-            {
-                ptr++; 
-                break; 
-            } 
+            if(*ptr == '\n') { ptr++; break; } 
         }
         while(!serial_empty_transmit()) { pause(); }
     }

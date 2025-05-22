@@ -118,11 +118,11 @@ bool fat32_directory_node::parse_dir_data()
 }
 void fat32_directory_node::get_short_name(std::string const& full, std::string& result)
 {
-    std::string upper = std::ext::to_upper(full);
+    std::string upper   = std::ext::to_upper(full);
     if(upper.size() < 13UZ) { result = std::string(upper.c_str(), std::min(12UZ, upper.size())); return; }
-    bool have_dot = upper.contains('.');
+    bool have_dot       = upper.contains('.');
     std::string trimmed = upper.without_any_of(". ");
-    unsigned i = 1;
+    unsigned i          = 1;
     size_t j;
     do {
         std::string tail = "~" + std::to_string(i);

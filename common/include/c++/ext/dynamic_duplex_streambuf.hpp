@@ -142,18 +142,18 @@ namespace std
             if(mode.in)
             {
                 pointer inptr = this->eback() + pos;
-                if(inptr > this->egptr()) return pos_type(off_type(-1));
+                if(__unlikely(inptr > this->egptr())) return pos_type(off_type(-1));
                 this->__in_region.__setc(inptr);
                 result = this->__in_region.__end - this->__in_region.__begin;
             }
             if(mode.out)
             {
                 pointer outptr = this->pbase() + pos;
-                if(outptr > this->epptr()) return pos_type(off_type(-1));
+                if(__unlikely(outptr > this->epptr())) return pos_type(off_type(-1));
                 this->__out_region.__setc(outptr);
                 result = this->__out_region.__end - this->__out_region.__begin;
             }
-            if(mode.in && mode.out) return pos_type(off_type(0));
+            if(__unlikely(mode.in && mode.out)) return pos_type(off_type(0));
             return pos_type(result);
         }
         template <char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>

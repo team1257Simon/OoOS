@@ -77,11 +77,11 @@ namespace std
         char __toupper(char c)  { return __islower(c) ? (c - ('a' - 'A')) : c; }
         template <std::char_type CT> struct __char_encode
         {
-            constexpr static CT minus = static_cast<CT>(0);
-            constexpr static const CT digits[] = {};
+            constexpr static CT minus           = static_cast<CT>(0);
+            constexpr static const CT digits[]  = {};
             constexpr static const CT hexpref[] = {};
-            constexpr static int casediff = 32;
-            constexpr static CT dot = static_cast<CT>(0);
+            constexpr static int casediff       = 32;
+            constexpr static CT dot             = static_cast<CT>(0);
             template <std::char_type DT> constexpr static DT __to_other(CT ct) { return static_cast<DT>(ct); }
             constexpr static bool __is_upper(CT c) { return false; }
             constexpr static bool __is_lower(CT c) { return false; }
@@ -91,11 +91,11 @@ namespace std
         template<> 
         struct __char_encode<char>
         {
-            constexpr static char minus = '-';
-            constexpr static const char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-            constexpr static const char hexpref[] = "x0";
-            constexpr static int casediff = 'a' - 'A';
-            constexpr static char dot = '.';
+            constexpr static char minus             = '-';
+            constexpr static const char digits[]    = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+            constexpr static const char hexpref[]   = "x0";
+            constexpr static int casediff           = 'a' - 'A';
+            constexpr static char dot               = '.';
             constexpr static char __to_other(char c) { return c; }
             constexpr static bool __is_upper(char c) { return c >= 'A' && c <= 'Z'; }
             constexpr static bool __is_lower(char c) { return c >= 'a' && c <= 'z';  }
@@ -112,11 +112,11 @@ namespace std
         template<> 
         struct __char_encode<wchar_t> 
         {
-            constexpr static wchar_t minus = L'-';
-            constexpr static const wchar_t digits[] = { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' };
-            constexpr static const wchar_t hexpref[] = L"x0";
-            constexpr static int casediff = L'a' - L'A';
-            constexpr static wchar_t dot = L'.';
+            constexpr static wchar_t minus              = L'-';
+            constexpr static const wchar_t digits[]     = { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' };
+            constexpr static const wchar_t hexpref[]    = L"x0";
+            constexpr static int casediff               = L'a' - L'A';
+            constexpr static wchar_t dot                = L'.';
             constexpr static wchar_t __to_other(wchar_t c) { return c; }
             constexpr static bool __is_upper(wchar_t c) { return c >= L'A' && c <= L'Z'; }
             constexpr static bool __is_lower(wchar_t c) { return c >= L'a' && c <= L'z';  }
@@ -133,11 +133,11 @@ namespace std
         template<> 
         struct  __char_encode<char8_t> 
         {
-            constexpr static char8_t minus = u8'-';
-            constexpr static const char8_t digits[] = { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' };
-            constexpr static const char8_t hexpref[] = u8"x0";
-            constexpr static int casediff = u8'a' - u8'A';
-            constexpr static char8_t dot = u8'.';
+            constexpr static char8_t minus              = u8'-';
+            constexpr static const char8_t digits[]     = { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' };
+            constexpr static const char8_t hexpref[]    = u8"x0";
+            constexpr static int casediff               = u8'a' - u8'A';
+            constexpr static char8_t dot                = u8'.';
             constexpr static char8_t __to_other(char8_t c) { return c; }
             constexpr static bool __is_upper(char8_t c) { return c >= u8'A' && c <= u8'Z'; }
             constexpr static bool __is_lower(char8_t c) { return c >= u8'a' && c <= u8'z';  }
@@ -154,11 +154,11 @@ namespace std
         template<>
         struct __char_encode<char16_t> 
         {
-            constexpr static char16_t minus = u'-';
-            constexpr static const char16_t digits[] = { u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8', u'9', u'A', u'B', u'C', u'D', u'E', u'F' };
-            constexpr static const char16_t hexpref[] = u"x0";
-            constexpr static int casediff = u'a' - u'A';
-            constexpr static char16_t dot = u'.';
+            constexpr static char16_t minus             = u'-';
+            constexpr static const char16_t digits[]    = { u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8', u'9', u'A', u'B', u'C', u'D', u'E', u'F' };
+            constexpr static const char16_t hexpref[]   = u"x0";
+            constexpr static int casediff               = u'a' - u'A';
+            constexpr static char16_t dot               = u'.';
             constexpr static char16_t __to_other(char16_t c) { return c; }
             constexpr static bool __is_upper(char16_t c) { return c >= u'A' && c <= u'Z'; }
             constexpr static bool __is_lower(char16_t c) { return c >= u'a' && c <= u'z';  }
@@ -175,11 +175,11 @@ namespace std
         template <> 
         struct __char_encode<char32_t> 
         {
-            constexpr static char32_t minus = U'-';
-            constexpr static const char32_t digits[] = { U'0', U'1', U'2', U'3', U'4', U'5', U'6', U'7', U'8', U'9', U'A', U'B', U'C', U'D', U'E', U'F' };
-            constexpr static const char32_t hexpref[] = U"x0";
-            constexpr static int casediff = U'a' - U'A';
-            constexpr static char32_t dot = U'.';
+            constexpr static char32_t minus             = U'-';
+            constexpr static const char32_t digits[]    = { U'0', U'1', U'2', U'3', U'4', U'5', U'6', U'7', U'8', U'9', U'A', U'B', U'C', U'D', U'E', U'F' };
+            constexpr static const char32_t hexpref[]   = U"x0";
+            constexpr static int casediff               = U'a' - U'A';
+            constexpr static char32_t dot               = U'.';
             constexpr static char32_t __to_other(char32_t c) { return c; }
             constexpr static bool __is_upper(char32_t c) { return c >= U'A' && c <= U'Z'; }
             constexpr static bool __is_lower(char32_t c) { return c >= U'a' && c <= U'z';  }
@@ -201,10 +201,10 @@ namespace std
         }
         template<std::integral IT, std::char_type CT> struct __ntos_conv
         {
-            using __digi_type = __char_encode<CT>;
-            using __trait_type = std::char_traits<CT>;
-            constexpr static size_t __max_dec = __max_dec_digits<IT>();
-            constexpr static size_t __max_hex = 2 * sizeof(IT);
+            using __digi_type                   = __char_encode<CT>;
+            using __trait_type                  = std::char_traits<CT>;
+            constexpr static size_t __max_dec   = __max_dec_digits<IT>();
+            constexpr static size_t __max_hex   = 2 * sizeof(IT);
             constexpr static size_t __xdigits(IT i) noexcept { using UIT = typename std::make_unsigned<IT>::type; return div_round_up(sizeof(IT) * CHAR_BIT - __clzg(static_cast<UIT>(i)), 4); }
             constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
             constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
@@ -226,9 +226,9 @@ namespace std
             constexpr static std::basic_string<CT> __to_hex_string(IT i)
             {
                 if(!i) return basic_string(1U, __digi_type::digits[0]);
-                size_t nd = __xdigits(i);
+                size_t nd   = __xdigits(i);
                 std::basic_string<CT> hstr(static_cast<size_t>(nd + 3));
-                IT j = __abs(i);
+                IT j        = __abs(i);
                 for(size_t n = 0; n < nd; n++) hstr.append(__get_hex_digit(j, n));
                 hstr.append(__digi_type::hexpref);
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
@@ -238,9 +238,9 @@ namespace std
             constexpr static std::basic_string<CT> __to_bare_hex_string(IT i)
             {
                 if(!i) return basic_string(1U, __digi_type::digits[0]);
-                size_t nd = __xdigits(i);
+                size_t nd   = __xdigits(i);
                 std::basic_string<CT> hstr(static_cast<size_t>(nd + 1));
-                IT j = __abs(i);
+                IT j        = __abs(i);
                 for(size_t n = 0; n < nd; n++) hstr.append(__get_hex_digit(j, n));
                 if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
                 hstr.shrink_to_fit();
@@ -249,10 +249,10 @@ namespace std
         };
         inline std::string __fptocs_conv(float f, int digits)
         {
-            int dp = 0, sign = 0;
-            char* rve = nullptr;
-            char* result = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
-            if(!result) { return "ERROR"; }
+            int dp          = 0, sign = 0;
+            char* rve       = nullptr;
+            char* result    = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
+            if(__unlikely(!result)) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -260,10 +260,10 @@ namespace std
         }
         inline std::string __fptocs_conv(double d, int digits)
         {
-            int dp = 0, sign = 0;
-            char* rve = nullptr;
-            char* result = __dtoa(d, 0, digits, &dp, &sign, &rve);
-            if(!result) { return "ERROR"; }
+            int dp          = 0, sign = 0;
+            char* rve       = nullptr;
+            char* result    = __dtoa(d, 0, digits, &dp, &sign, &rve);
+            if(__unlikely(!result)) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -271,10 +271,10 @@ namespace std
         }
         inline std::string __fptocs_conv(long double ld, int digits)
         {
-            int dp = 0, sign = 0;
-            char* rve = nullptr;
-            char* result = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
-            if(!result) { return "ERROR"; }
+            int dp          = 0, sign = 0;
+            char* rve       = nullptr;
+            char* result    = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
+            if(__unlikely(!result)) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
@@ -282,10 +282,10 @@ namespace std
         }
         inline std::string __fptohs_conv(float f, int digits)
         {
-            int dp = 0, sign = 0;
-            char* rve = nullptr;
-            char* result = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
-            if(!result) { return "ERROR"; }
+            int dp          = 0, sign = 0;
+            char* rve       = nullptr;
+            char* result    = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            if(__unlikely(!result)) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -293,10 +293,10 @@ namespace std
         }
         inline std::string __fptohs_conv(double d, int digits)
         {
-            int dp = 0, sign = 0;
-            char* rve = nullptr;
-            char* result = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
-            if(!result) { return "ERROR"; }
+            int dp          = 0, sign = 0;
+            char* rve       = nullptr;
+            char* result    = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            if(__unlikely(!result)) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -304,10 +304,10 @@ namespace std
         }
         inline std::string __fptohs_conv(long double ld, int digits)
         {
-            int dp = 0, sign = 0;
-            char* rve = nullptr;
-            char* result = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
-            if(!result) { return "ERROR"; }
+            int dp          = 0, sign = 0;
+            char* rve       = nullptr;
+            char* result    = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
+            if(__unlikely(!result)) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
@@ -517,7 +517,7 @@ extern "C"
     {
         std::string s = std::to_string(n);
         *out = std::allocator<char>().allocate(s.size() + 1);
-        if(!out) return -1;
+        if(__unlikely(!out)) return -1;
         std::strncpy(*out, s.c_str(), s.size());
         (*out)[s.size()] = 0;
         return static_cast<int>(s.size());

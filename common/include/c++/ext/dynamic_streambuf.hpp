@@ -63,7 +63,7 @@ namespace std
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)
         {
             char_type* ptr = (way == std::ios_base::cur ? (which.out ? this->__cur() : this->gptr()) : (way == std::ios_base::end ? this->__max() : this->__beg())) + off;
-            if(ptr > this->__max()) return pos_type(off_type(-1));
+            if(__unlikely(ptr > this->__max())) return pos_type(off_type(-1));
             if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
                 if(which.in) this->__in_region.__end = ptr;
@@ -76,7 +76,7 @@ namespace std
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekpos(pos_type pos, std::ios_base::openmode which)
         {
             char_type* ptr = this->__get_ptr(pos);
-            if(ptr > this->__max()) return pos_type(off_type(-1));
+            if(__unlikely(ptr > this->__max())) return pos_type(off_type(-1));
             if(__builtin_expect(which.in || which.out, true) && ptr != this->__cur())
             {
                 if(which.in) this->__in_region.__end = ptr;
@@ -100,9 +100,9 @@ namespace std
         {
             std::streamsize l = std::min(n, std::streamsize(this->epptr() - this->pptr()));
             if(l < n) { l += this->on_overflow(std::streamsize(n - l)); }
-            char_type* old = this->pptr();
-            char_type* result = this->__append_elements(s, s + l);
-            if(!result) return std::streamsize(0);
+            char_type* old      = this->pptr();
+            char_type* result   = this->__append_elements(s, s + l);
+            if(__unlikely(!result)) return std::streamsize(0);
             this->on_modify();
             return std::streamsize(result - old);
         }

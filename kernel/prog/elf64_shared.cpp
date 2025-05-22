@@ -56,12 +56,12 @@ static const char* find_so_name(addr_t image_start, file_node* so_file)
     for(size_t i = 0; i < eh.e_phnum; i++)
     {
         elf64_phdr const* phptr = image_start.plus(eh.e_phoff + i * eh.e_phentsize);
-        elf64_phdr const& ph = *phptr;
+        elf64_phdr const& ph    = *phptr;
         if(is_dynamic(ph))
         {
-            elf64_dyn* dyn_ent = image_start.plus(ph.p_offset);
-            size_t n = ph.p_filesz / sizeof(elf64_dyn);
-            size_t strtab_off = 0UZ, name_off = 0UZ;
+            elf64_dyn* dyn_ent  = image_start.plus(ph.p_offset);
+            size_t n            = ph.p_filesz / sizeof(elf64_dyn);
+            size_t strtab_off   = 0UZ, name_off = 0UZ;
             for(size_t j = 0; j < n; j++)
             {
                 if(dyn_ent[j].d_tag == DT_STRTAB) strtab_off = dyn_ent[j].d_ptr;
@@ -76,7 +76,7 @@ static const char* find_so_name(addr_t image_start, file_node* so_file)
 }
 const char* elf64_shared_object::sym_lookup(addr_t addr) const
 {
-    if(!could_contain(addr)) return nullptr;
+    if(__unlikely(!could_contain(addr))) return nullptr;
     size_t nsym = symtab.entries();
     for(size_t i = 0; i < nsym; i++) 
     {
@@ -89,7 +89,7 @@ const char* elf64_shared_object::sym_lookup(addr_t addr) const
 program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_vaddr) const
 {
     off_t seg_idx = segment_index(symbol_vaddr - virtual_load_base);
-    if(seg_idx < 0) return nullptr;
+    if(__unlikely(seg_idx < 0)) return nullptr;
     return segments + seg_idx;
 }
 bool elf64_shared_object::xvalidate()
@@ -115,7 +115,7 @@ bool elf64_shared_object::load_segments()
             addr_t target = addr.trunc(h.p_align);
             size_t full_size = h.p_memsz + (addr - target);
             block_descriptor* bd = frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), is_global());
-            if(!bd) { throw std::bad_alloc{}; }
+            if(__unlikely(!bd)) { throw std::bad_alloc{}; }
             addr_t idmap = frame_tag->translate(addr);
             size_t actual_size = kernel_memory_mgr::aligned_size(target, full_size);
             if(fm.count_references(bd->virtual_start) < 2)
@@ -133,9 +133,9 @@ bool elf64_shared_object::load_segments()
                 .seg_align     = h.p_align, 
                 .perms         = static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
             };
-            frame_tag->dynamic_extent = std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
-            total_segment_size += actual_size;
-            have_loads = true;
+            frame_tag->dynamic_extent   = std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
+            total_segment_size          += actual_size;
+            have_loads                  = true;
         }
     }
     return have_loads;

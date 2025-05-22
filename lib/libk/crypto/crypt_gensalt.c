@@ -31,8 +31,7 @@
 unsigned char _crypt_itoa64[64 + 1] =
 	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-char *_crypt_gensalt_traditional_rn(const char *prefix, unsigned long count,
-	const char *input, int size, char *output, int output_size)
+char *_crypt_gensalt_traditional_rn(const char *prefix, unsigned long count, const char *input, int size, char *output, int output_size)
 {
 	(void) prefix;
 
@@ -49,8 +48,7 @@ char *_crypt_gensalt_traditional_rn(const char *prefix, unsigned long count,
 	return output;
 }
 
-char *_crypt_gensalt_extended_rn(const char *prefix, unsigned long count,
-	const char *input, int size, char *output, int output_size)
+char *_crypt_gensalt_extended_rn(const char *prefix, unsigned long count, const char *input, int size, char *output, int output_size)
 {
 	unsigned long value;
 
@@ -84,8 +82,7 @@ char *_crypt_gensalt_extended_rn(const char *prefix, unsigned long count,
 	return output;
 }
 
-char *_crypt_gensalt_md5_rn(const char *prefix, unsigned long count,
-	const char *input, int size, char *output, int output_size)
+char *_crypt_gensalt_md5_rn(const char *prefix, unsigned long count, const char *input, int size, char *output, int output_size)
 {
 	unsigned long value;
 

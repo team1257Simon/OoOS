@@ -5,7 +5,7 @@ net16 netstack_buffer::rx_packet_type() const { return reinterpret_cast<ethernet
 size_t netstack_buffer::ipv4_size() const { return reinterpret_cast<ipv4_standard_packet const*>(__in_region.__begin)->total_length; }
 int netstack_buffer::tx_flush()
 {
-    if(tx_poll) if(int err = __builtin_expect(tx_poll(*this), 0)) return err;
+    if(tx_poll) if(int err = tx_poll(*this); __unlikely(err != 0)) return err;
     fence();
     array_zero(__out_region.__begin, __out_region.__capacity()); 
     __out_region.__setc(0UZ);
@@ -13,7 +13,7 @@ int netstack_buffer::tx_flush()
 }
 int netstack_buffer::rx_flush()
 {
-    if(rx_poll) { if(int err = __builtin_expect(rx_poll(*this), 0)) return err; }
+    if(rx_poll) { if(int err = rx_poll(*this); __unlikely(err != 0)) return err; }
     fence();
     array_zero(__in_region.__begin, __in_region.__capacity()); 
     __in_region.__setc(0UZ);
@@ -21,7 +21,7 @@ int netstack_buffer::rx_flush()
 }
 netstack_buffer::int_type netstack_buffer::overflow(int_type c)
 {
-    if(tx_limit && (__out_region.__capacity() << 1) > tx_limit)
+    if(__unlikely(tx_limit && (__out_region.__capacity() << 1) > tx_limit))
         throw std::overflow_error{ "cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes" };
     return __base::overflow(c);
 }
@@ -29,7 +29,7 @@ std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
 {
     size_type tx_capacity   = __out_region.__capacity();
     size_type tx_cur        = static_cast<size_type>(__out_region.__end - __out_region.__begin);
-    if(__builtin_expect(tx_cur + n > tx_capacity, false))
+    if(__unlikely(tx_cur + n > tx_capacity))
     {
         size_type target    = tx_cur + n;
         if(tx_limit && target > tx_limit)

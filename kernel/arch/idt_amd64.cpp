@@ -81,8 +81,8 @@ extern "C"
     {
         pic_remap<0x20UC, 0x28UC>();
         for(int i = 0; i < 256; i++) idt_set_descriptor(i, isr_table[i]);
-        idt_descriptor.size = 4095US;
-        idt_descriptor.idt_ptr = idt_table;
+        idt_descriptor.size     = 4095US;
+        idt_descriptor.idt_ptr  = idt_table;
         idt_register();
     }
 }

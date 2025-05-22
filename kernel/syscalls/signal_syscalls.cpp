@@ -36,14 +36,14 @@ extern "C"
     }
     int syscall_kill(long pid, unsigned long sig)
     {
-        if(sig > num_signals) { return -EINVAL; }
+        if(__unlikely(sig > num_signals)) { return -EINVAL; }
         task_ctx* task = active_task_context();
         if(pid < 0) { return kill_all(task, static_cast<int>(sig)); }
         task_list::iterator target = tl.find(pid);
         if(target == tl.end()) return -ESRCH;
         if(!target->is_system())
         { 
-            if(!check_kill(task, target)) return -EPERM;
+            if(__unlikely(!check_kill(task, target))) return -EPERM;
             if(sig) kill_one(target.base(), static_cast<int>(sig));
             return 0;
         }
@@ -51,7 +51,7 @@ extern "C"
     }
     int syscall_raise(int sig)
     {
-        if(sig > num_signals) { return -EINVAL; }
+        if(__unlikely(sig > num_signals)) { return -EINVAL; }
         kill_one(active_task_context(), sig);
         return 0;
     }
@@ -59,7 +59,7 @@ extern "C"
     {
         task_ctx* task          = active_task_context();
         sigset_t const* rset    = translate_user_pointer(set);
-        if(!rset) return -EFAULT;
+        if(__unlikely(!rset)) return -EFAULT;
         if(oset)
         {
             oset    = translate_user_pointer(oset);

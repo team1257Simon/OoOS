@@ -8,7 +8,7 @@ int net_device::transmit(abstract_packet_base& p)
     if(transfer_buffers.at_end()) transfer_buffers.restart();
     netstack_buffer& buffer = transfer_buffers.pop();
     int err                 = p.write_to(buffer);
-    if(err) return err;
+    if(__unlikely(err != 0)) return err;
     return buffer.tx_flush();
 }
 int net_device::rx_transfer(netstack_buffer& b) noexcept
@@ -18,8 +18,8 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
         abstract_packet<ethernet_packet> p(b);
         if(p->protocol_type == ethertype_arp) 
         {
-            p.packet_type = arp_handler.packet_type();
-            if(int err = __builtin_expect(arp_handler.receive(p), 0)) return err;
+            p.packet_type   = arp_handler.packet_type();
+            if(int err      = arp_handler.receive(p); __unlikely(err != 0)) return err;
             return 0;
         }
         int result = base_handler.receive(p);
