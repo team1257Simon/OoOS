@@ -136,9 +136,8 @@ namespace std::__impl
         constexpr __ptr __erase(__const_ptr pos) { return __erase_range(pos, pos + 1); }
         constexpr void __destroy() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); __my_data.__reset(); } }
         constexpr void __swap(__dynamic_buffer& that) { __my_data.__swap_ptrs(that.__my_data); __post_modify_check_nt(); that.__post_modify_check_nt(); }
-        constexpr void __move(__dynamic_buffer&& that) { __my_data.__move_ptrs(move(that.__my_data)); }
-        constexpr void __copy_assign(__dynamic_buffer const& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); __copy(__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
-        constexpr void __realloc_move(__dynamic_buffer&& that) { if(!that.__beg()) return; __destroy(); __allocate_storage(that.__capacity()); array_move(__beg(), that.__beg(), that.__size()); __advance(that.__size()); that.__destroy(); }
+        constexpr void __copy_assign(__dynamic_buffer const& that) { __destroy(); if(!that.__beg()) return; __allocate_storage(that.__capacity()); __copy(__beg(), that.__beg(), that.__capacity()); __advance(that.__size()); }
+        constexpr void __move_assign(__dynamic_buffer&& that) { __destroy(); __my_data.__move_ptrs(std::move(that.__my_data)); }
         constexpr explicit __dynamic_buffer(A const& alloc) : __allocator{ alloc }, __my_data{} {}
         constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator{ A() }, __my_data{} {}
         template<matching_input_iterator<T> IT> constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __allocator{ alloc }, __my_data{ __allocator.allocate(__size_type(std::distance(start, end))), __size_type(std::distance(start, end)) } { __size_type n = std::distance(start, end); __transfer(__beg(), start, end); __advance(n); }
@@ -154,7 +153,7 @@ namespace std::__impl
         constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator{ alloc }, __my_data{ move(that.__my_data) } {}
         constexpr ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
         constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { __copy_assign(that); return *this; }
-        constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __destroy(); __move(move(that)); return *this; }
+        constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { __move_assign(move(that)); return *this; }
     };
     template<typename T, allocator_object<T> A, bool NT>
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__replace_elements(__size_type pos, __size_type count, __const_ptr from, __size_type count2)

@@ -148,8 +148,8 @@ static void* __so_open(char* name, int flags)
 static bool __finalize(void* handle)
 {
     fini_fn* fini = dlfini(handle);
-    if(fini) { for(size_t i = 0; fini[i]; i++) fini[i](); }
-    else { last_error_action = DLA_FINI; return false; }
+    if(__builtin_expect(!fini, false)) { last_error_action = DLA_FINI; return false; }
+    for(size_t i = 0; fini[i]; i++) fini[i]();
     return true;
 }
 static bool __so_close(void* handle)
@@ -176,7 +176,7 @@ static bool __load_deps(void* handle)
         if(!so) return false;
         res_pair result = rtld_map.add(so);
         if(!result.second) continue;
-        if(dlmap(handle, result.first) < 0) { last_error_action = DLA_LMAP; }
+        if(__builtin_expect(dlmap(handle, result.first) < 0, false)) { last_error_action = DLA_LMAP; }
         const char* name_str = result.first->l_name;
         if(name_str)
         {
@@ -186,10 +186,10 @@ static bool __load_deps(void* handle)
             __copy(result.first->l_name, name_str, len);
             result.first->l_name[len] = 0;
         }
-        if(!__load_deps(so)) return false;
+        if(__builtin_expect(!__load_deps(so), false)) return false;
     }
     init_fn* ini = dlinit(handle);
-    if(!ini) { last_error_action = DLA_INIT; return false; }
+    if(__builtin_expect(!ini, false)) { last_error_action = DLA_INIT; return false; }
     for(size_t i = 0; ini[i]; i++) { ini[i](argc, argv, env); }
     return true;
 }
@@ -255,16 +255,16 @@ extern "C"
             if(!__strncmp(*str, path_var_str, name_str_size))
             {
                 int result = dlpath(*str + name_str_size);
-                if(result < 0) { last_error_action = DLA_SETPATH; return errno; }
+                if(__builtin_expect(result < 0, false)) { last_error_action = DLA_SETPATH; return errno; }
                 break;
             }
         }
         alloc_init();
         init_fn* preinit = dlpreinit(phandle);
-        if(!preinit) { last_error_action = DLA_PREINIT; return errno; }
+        if(__builtin_expect(!preinit, false)) { last_error_action = DLA_PREINIT; return errno; }
         for(size_t i = 0; preinit[i]; i++) preinit[i](argc, argv, env);
-        if(!rtld_map.initialize(256)) return -1;
-        if(__load_deps(phandle)) return 0;
+        if(__builtin_expect(!rtld_map.initialize(256), false)) return -1;
+        if(__builtin_expect(__load_deps(phandle), true)) return 0;
         else return errno;
     }
     __hidden [[noreturn]] void dlend(void* phandle)
@@ -273,27 +273,27 @@ extern "C"
         // The handle is the program handle to pass to syscalls as part of the cleanup.
         // Here we will call the destructors for the object (per dlfini()) before returning to the kernel.
         for(node* l = rtld_map.begin(); l; l = l->chain_next) { __finalize(l->__so_handle); }
-        if(!__finalize(phandle)) { last_error_action = DLA_FINI; exit(errno); }
+        if(__builtin_expect(!__finalize(phandle), false)) { last_error_action = DLA_FINI; exit(errno); }
         exit(0);
         __builtin_unreachable();
     }
     void* dlopen(char* name, int flags)
     {
         void* result = __so_open(name, flags);
-        if(result && __load_deps(result)) return result;
+        if(__builtin_expect(result && __load_deps(result), true)) return result;
         else return nullptr;
     }
     void* dlsym(void* handle, const char* symbol)
     {
         long result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLSYM), "D"(handle), "S"(symbol) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); last_error_action = DLA_RESOLVE; }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); last_error_action = DLA_RESOLVE; }
         else return reinterpret_cast<void*>(result);
         return nullptr;
     }
     int dlclose(void* handle)
     {
-        if(__so_close(handle)) return 0;
+        if(__builtin_expect(__so_close(handle), true)) return 0;
         if(last_error_action == DLA_FINI) return 1;
         return -1;
     }
@@ -307,7 +307,7 @@ extern "C"
             *static_cast<long*>(info) = 0L;
             break;
         case RTLD_DI_LINKMAP:
-            if(!(lm = rtld_map.find(handle)))
+            if(__builtin_expect(!(lm = rtld_map.find(handle)), false))
             {
                 errno             = EINVAL;
                 last_error_action = DLA_GETINFO;
@@ -316,7 +316,7 @@ extern "C"
             *static_cast<link_map**>(info) = lm;
             break;
         case RTLD_DI_ORIGIN:
-            if(!(lm = rtld_map.find(handle)))
+            if(__builtin_expect(!(lm = rtld_map.find(handle)), false))
             {
                 errno             = EINVAL;
                 last_error_action = DLA_GETINFO;
@@ -334,13 +334,13 @@ extern "C"
     {
         int result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLADDR), "D"(addr), "S"(info) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         return result;
     }
     char* dlerror()
     {
         __zero(dl_error_str, sizeof(dl_error_str));
-        if(!errno || !last_error_action) return nullptr;
+        if(__builtin_expect(!errno || !last_error_action, false)) return nullptr;
         const char* err_str = __get_dl_error();
         last_error_action = DLA_NONE;
         errno = 0;

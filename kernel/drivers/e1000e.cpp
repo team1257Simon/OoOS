@@ -4,6 +4,7 @@
 #include "stdexcept"
 #include "errno.h"
 #include "kdebug.hpp"
+constexpr uint32_t all_ints = 0x1F6DCU;
 constexpr int rxbase_hi     = e1000_rdbah(0);
 constexpr int rxbase_lo     = e1000_rdbal(0);
 constexpr int rxlen         = e1000_rdlen(0);
@@ -22,6 +23,7 @@ __isrcall void e1000e::on_interrupt()
 {
     irq_state icr{};
     read_dma(e1000_icr, icr);
+    write_dma(e1000_icr, icr);
     if(icr->link_status_change)
     {
         dev_ctrl ctl{};
@@ -31,8 +33,6 @@ __isrcall void e1000e::on_interrupt()
     }
     if(icr->rxdt_min_thresh || icr->rx_timer || icr->rxq0) poll_rx();
     read_dma(tx_ring.head_descriptor);
-    // read again to make sure the status clears
-    read_dma(e1000_icr, icr);
     // more as needed
 }
 void e1000e::enable_transmit()
@@ -230,8 +230,7 @@ bool e1000e::initialize()
 }
 bool e1000e::configure_interrupts(dev_status& st)
 {
-    uint32_t enable_all = 0x1F6DCU;
-    write_dma(e1000_ims, enable_all);
+    write_dma(e1000_ims, all_ints);
     read_dma(e1000_icr); // read the register to clear it
     read_status(st);
     interrupt_table::add_irq_handler(__pcie_e1000e_controller->header_0x0.interrupt_line, std::bind(&e1000e::on_interrupt, this));
@@ -357,6 +356,7 @@ int e1000e::poll_rx()
 {
     uint32_t head = rx_ring.head_descriptor;
     read_dma(rxh, rx_ring.head_descriptor);
+    std::vector<netstack_buffer*> to_process;
     for(uint32_t i = head; i < rx_ring.head_descriptor; fence(), i++)
     {
         e1000e_receive_descriptor& desc = rx_ring.descriptors[i];
@@ -364,12 +364,15 @@ int e1000e::poll_rx()
         if(desc.read.status.done && desc.read.status.end_of_packet && !desc.read.errors)
         {
             buff.pubseekpos(std::streampos(desc.read.length), std::ios_base::in);
-            int err = buff.rx_flush();
-            if(err) return err;
+            try { to_process.push_back(std::addressof(buff)); }
+            catch(...) { return -ENOMEM; }
         }
         addr_t(std::addressof(desc.read.status)).assign(0UC);
         rx_ring.tail_descriptor = (rx_ring.tail_descriptor + 1) % rx_ring.count();
+        addr_t(std::addressof(rx_ring.tail())).plus(sizeof(uintptr_t)).assign(0UL);
     }
     write_dma(rxt, rx_ring.tail_descriptor);
+    fence();
+    for(netstack_buffer* buff : to_process) buff->rx_flush();
     return 0;
 }

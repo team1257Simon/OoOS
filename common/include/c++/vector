@@ -33,7 +33,7 @@ namespace std
         constexpr vector(vector&& that, allocator_type const& alloc) : __base{ forward<__base>(that), alloc } {}
         constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type{}) : __base{ init, alloc } {}
         constexpr vector& operator=(vector const& that) { this->__copy_assign(that); return *this; }
-        constexpr vector& operator=(vector&& that) { this->__realloc_move(move(that)); return *this; }
+        constexpr vector& operator=(vector&& that) { this->__move_assign(move(that)); return *this; }
         constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
         constexpr pointer data() noexcept { return this->__beg(); }
         constexpr const_pointer data() const noexcept { return this->__beg(); }
@@ -69,7 +69,7 @@ namespace std
         constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
         template<std::matching_input_iterator<value_type> IT> constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator{ this->template __insert_elements<IT>(pos.base(), start, end) }; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator{ this->__emplace_element(pos.base(), forward<Args>(args)...) }; }
-        template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { return *(this->__emplace_at_end(std::forward<Args>(args)...)); }
+        template<typename ... Args> requires constructible_from<T, Args...> constexpr reference emplace_back(Args&& ... args) { return *(this->__emplace_at_end(forward<Args>(args)...)); }
         constexpr void push_back(const_reference value) { this->__append_element(value); }
         template<std::matching_input_iterator<value_type> IT> constexpr void push_back(IT start, IT end) { this->__append_elements(start, end); }
         constexpr void pop_back() { this->__erase_at_end(1); }
@@ -78,7 +78,7 @@ namespace std
         constexpr void swap(vector& that) { this->__swap(that); }
         extension constexpr vector reverse() const { return vector{ this->crend(), this->crbegin(), this->__allocator }; }
         extension constexpr void expand_to_size() noexcept { this->__setc(this->__max()); }
-        extension template<typename ... Args> requires constructible_from<T, Args...> constexpr bool set_at(size_t i, Args&& ... args) { if(i < capacity()) { std::construct_at(this->__get_ptr(i), std::forward<Args>(args)...); if(i >= size()) this->__setc(i); return true; } return false; }
+        extension template<typename ... Args> requires constructible_from<T, Args...> constexpr bool set_at(size_t i, Args&& ... args) { if(i < capacity()) { construct_at(this->__get_ptr(i), forward<Args>(args)...); if(i >= size()) this->__setc(i); return true; } return false; }
     };
 }
 #endif

@@ -107,15 +107,15 @@ uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela c
 }
 bool elf64_dynamic_object::xload()
 {
-        // allocate the array to have enough space for all indices, but the non-load segments will be zeroed
-        bool success = true;
-        process_headers();
-        if(!load_segments()) { panic("object contains no loadable segments"); success = false; }
-        else if(!load_syms()) { panic("failed to load symbols"); success = false; }
-        else if(!post_load_init()) { panic("failed to initialize program image"); success = false; }
-        // other segments and sections, if/when needed, can be handled here; free the rest up
-        cleanup();
-        return success;
+    // allocate the array to have enough space for all indices, but the non-load segments will be zeroed
+    bool success = true;
+    process_headers();
+    if(!load_segments()) { panic("object contains no loadable segments"); success = false; }
+    else if(!load_syms()) { panic("failed to load symbols"); success = false; }
+    else if(!post_load_init()) { panic("failed to initialize program image"); success = false; }
+    // other segments and sections, if/when needed, can be handled here; free the rest up
+    cleanup();
+    return success;
 }
 void elf64_dynamic_object::process_dt_relas()
 {
@@ -148,13 +148,13 @@ bool elf64_dynamic_object::post_load_init()
     if(got_vaddr)
     {
         addr_t* got = get_frame()->translate(global_offset_table());
-        if(got) { got[1] = this; }
+        if(__builtin_expect(got != nullptr, true)) { got[1] = this; }
         else { panic("GOT pointer is non-null but is invalid"); return false; }
     }
     try
     {
         std::vector<addr_t> fini_reverse_array{};
-        if(!load_preinit()) return false;
+        if(__builtin_expect(!load_preinit(), false)) return false;
         if(init_fn) { init_array.push_back(resolve(init_fn)); }
         if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
         if(init_array_size && init_array_ptr) 

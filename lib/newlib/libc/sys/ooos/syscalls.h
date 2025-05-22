@@ -80,7 +80,7 @@ int pipe(int out[2]);
 #define XSYSCALL6(name, ret, arg0, arg1, arg2, arg3, arg4, arg5) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1), "d"(arg2), "r"(arg3), "r"(arg4), "r"(arg5) : "memory", "%r11", "%rcx")
 #define SYSCALL_RETVAL(type, ret) do \
 { \
-   if((signed long)(ret) < 0L) { errno = -(int)(ret); return (type)(-1); } \
+   if(__builtin_expect((signed long)(ret) < 0L, 0)) { errno = -(int)(ret); return (type)(-1); } \
    else return (type)(ret); \
 } while(0)
 #define DEF_SYSCALL0(rt, name) rt name() \

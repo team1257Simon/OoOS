@@ -15,20 +15,20 @@ elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t 
         return result.base();
     }
     __static_base::iterator result = __static_base::emplace_back(img_start, img_size, stack_sz, tls_sz);
-    if(!result->load()) { __static_base::erase(result); return nullptr; }
+    if(__builtin_expect(!result->load(), false)) { __static_base::erase(result); return nullptr; }
     return result.base();
 }
 elf64_executable* prog_manager::add(file_node* exec_file, size_t stack_sz, size_t tls_sz)
 {
     size_t size = static_cast<size_t>(exec_file->size() - exec_file->tell());
     addr_t start = elf_alloc.allocate(size);
-    if(!exec_file->read(start, size))
+    if(__builtin_expect(!exec_file->read(start, size), false))
     { 
         elf_alloc.deallocate(start, size); 
         panic("read failed"); 
         return nullptr;
     }
-    if(elf64_executable* result = __add(start, size, stack_sz, tls_sz)) return result;
+    if(elf64_executable* result = __add(start, size, stack_sz, tls_sz); __builtin_expect(result != nullptr, true)) return result;
     else
     {
         elf_alloc.deallocate(start, size);

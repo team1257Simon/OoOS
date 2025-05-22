@@ -45,9 +45,9 @@ bool fat32_directory_node::__dir_ent_erase(std::string const& what)
         try 
         { 
             parent_fs->rm_start_cluster_ref(start_of(*e));
-            size_t sz = __my_dir_data.capacity();
-            size_t erased = std::distance(j, i + 1);
-            std::vector<fat32_directory_entry>::iterator r = __my_dir_data.erase(j, i + 1);
+            size_t sz                                       = __my_dir_data.capacity();
+            size_t erased                                   = std::distance(j, i + 1);
+            std::vector<fat32_directory_entry>::iterator r  = __my_dir_data.erase(j, i + 1);
             size_t n = static_cast<size_t>(r - __my_dir_data.begin());
             __my_dir_data.reserve(sz);
             for(tnode_dir::iterator tn = directory_tnodes.begin(); tn != directory_tnodes.end(); tn++) { if(fat32_node* fn = dynamic_cast<fat32_node*>(tn->ptr()); fn->dirent_index >= n) { fn->dirent_index -= erased; } }
@@ -61,10 +61,10 @@ bool fat32_directory_node::__dir_ent_erase(std::string const& what)
 bool fat32_directory_node::__read_disk_data()
 {
     std::allocator<char> b_alloc{};
-    size_t bpc = physical_block_size * parent_fs->__sectors_per_cluster;
-    size_t total = bpc * __my_covered_clusters.size();
-    char* buffer = b_alloc.allocate(total);
-    bool success = false;
+    size_t bpc      = physical_block_size * parent_fs->__sectors_per_cluster;
+    size_t total    = bpc * __my_covered_clusters.size();
+    char* buffer    = b_alloc.allocate(total);
+    bool success    = false;
     try
     {
         for(size_t i = 0; i < __my_covered_clusters.size(); i++) { if(!parent_fs->read_clusters(buffer + i * bpc, __my_covered_clusters[i])) throw std::runtime_error{ "cluster " + std::to_string(__my_covered_clusters[i]) }; }
@@ -78,7 +78,7 @@ bool fat32_directory_node::__read_disk_data()
 }
 void fat32_directory_node::__add_parsed_entry(fat32_regular_entry const& e, size_t j)
 {
-    bool dotted = false; 
+    bool dotted     = false; 
     size_t c_spaces = 0;
     std::string name{};
     for(int i = 0; i < 8; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0; k < c_spaces; k++) { name.append(' '); } name.append(e.filename[i]); c_spaces = 0; } }

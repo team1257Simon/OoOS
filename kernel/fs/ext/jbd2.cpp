@@ -233,8 +233,8 @@ log_read_state jbd2::read_log_transaction()
                     qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0UBE);
                     __bumpc(bs);
                     txn_blocks.emplace_back(blocknum, __cur(), true, 1);
-                    uint32_t csum = crc32c(csum_base, __cur(), bs);
-                    uint32_t checkval = tag->checksum;
+                    uint32_t csum       = crc32c(csum_base, __cur(), bs);
+                    uint32_t checkval   = tag->checksum;
                     if(csum != checkval) goto skip_txn;
                     if(tag->flags & last_block) pos = block_ed;
                     else pos += desc_tag_size(tag->flags & same_uuid);
@@ -244,8 +244,8 @@ log_read_state jbd2::read_log_transaction()
                     jbd2_block_tag* tag = reinterpret_cast<jbd2_block_tag*>(pos);
                     qword blocknum(tag->block_number, sb->required_features & x64_support ? tag->block_number_hi : 0UBE);
                     __bumpc(bs);
-                    uint32_t csum = crc32c(csum_base, __cur(), bs);
-                    uint16_t checkval = tag->checksum;
+                    uint32_t csum       = crc32c(csum_base, __cur(), bs);
+                    uint16_t checkval   = tag->checksum;
                     if(dword(csum).lo != checkval) goto skip_txn;
                     txn_blocks.emplace_back(blocknum, __cur(), true, 1);
                     if(tag->flags & last_block) pos = block_ed;

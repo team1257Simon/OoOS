@@ -67,7 +67,7 @@ struct attribute(packed) ipv4_packet_with_options : ethernet_packet
     net16 total_length;                     // length of the whole packet
     net16 identification    = 0USBE;
     net16 fragment_info     = 0USBE;        // 0b0DMXXXXXXXXXXXXX; D = don't fragment, M = more fragments remain, X... = fragment offset
-    net8 time_to_live       = 0x40UC;
+    net8 time_to_live;
     ipv4_transport_protocol protocol;
     net16 header_checksum;
     net32 source_addr;
@@ -124,7 +124,7 @@ typedef std::hash_set<ipv4_addr, uint32_t, cast_t<uint32_t, size_t>, equals_t, s
 struct protocol_ipv4 : abstract_protocol_handler
 {
     transport_map transports;
-    ipv4_addr_set held_addrs;
+    ipv4_config client_config;
     protocol_ipv4(protocol_ethernet* eth);
     virtual ~protocol_ipv4();
     virtual int transmit(abstract_packet_base& p) override;

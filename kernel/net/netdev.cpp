@@ -19,7 +19,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
         if(p->protocol_type == ethertype_arp) 
         {
             p.packet_type = arp_handler.packet_type();
-            if(int err = arp_handler.receive(p)) return err;
+            if(int err = __builtin_expect(arp_handler.receive(p), 0)) return err;
             return 0;
         }
         int result = base_handler.receive(p);

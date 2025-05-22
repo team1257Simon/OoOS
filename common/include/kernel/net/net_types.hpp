@@ -1,7 +1,9 @@
 #ifndef __NET_TYPES
 #define __NET_TYPES
 #include "libk_decls.h"
+#include "sys/types.h"
 #include "array"
+#include "vector"
 typedef uint8_t net8;
 typedef __be16 net16;
 typedef __be32 net32;
@@ -45,8 +47,32 @@ constexpr ipv4_addr operator""IPV4(const char* str, std::size_t)
     return net32(values);
 }
 #pragma GCC diagnostic pop
-constexpr ipv4_addr loopback = "127.0.0.1"IPV4;
-constexpr ipv4_addr broadcast = "255.255.255.255"IPV4;
-constexpr mac_t broadcast_mac = { 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC };
-constexpr mac_t empty_mac = {};
+constexpr ipv4_addr loopback    = "127.0.0.1"IPV4;
+constexpr ipv4_addr broadcast   = "255.255.255.255"IPV4;
+constexpr mac_t broadcast_mac   = { 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC, 0xFFUC };
+constexpr mac_t empty_mac       = {};
+enum class ipv4_client_state : uint8_t
+{
+    REBOOT,     // state on reboot
+    INIT,       // state on booting without a saved lease
+    SELECTING,  // state after receiving a DHCPOFFER
+    BOUND,      // state after lease is acquired
+    RENEWING,   // state after T1 but before T2
+    REBINDING,  // state entered if no response is received before T2
+};
+struct ipv4_config
+{
+    ipv4_client_state current_state     = ipv4_client_state::REBOOT;
+    ipv4_addr leased_addr               = 0UBE;
+    ipv4_addr subnet_mask               = 0UBE;
+    std::vector<ipv4_addr> gateway_addrs;
+    std::vector<ipv4_addr> dns_server_addrs;
+    ipv4_addr dhcp_server_addr          = 0UBE;
+    time_t lease_acquired_time;
+    uint32_t lease_duration;    // Given by server; 0xFFFFFFFF indicates no limit 
+    uint32_t lease_renew_time;  // T1 interval; if not given by server, defaults to lease_duration / 2
+    uint32_t lease_rebind_time; // T2 interval; if not given by server, defaults to (7 * lease_duration) / 8
+    uint8_t time_to_live_default        = 0x40UC;
+    uint8_t time_to_live_tcp_default    = 0x40UC;
+};
 #endif

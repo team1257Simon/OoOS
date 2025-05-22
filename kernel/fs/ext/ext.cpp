@@ -167,19 +167,19 @@ void extfs::initialize()
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
     for(size_t i = 0; i < num_blk_groups; i++)
     {
-        ext_block_group& bg = block_groups.emplace_back(this, blk_group_descs + i);
-        bg.inode_usage_bmp.chain_len = div_round_up(sb->blocks_per_group, block_size() * CHAR_BIT);
-        bg.blk_usage_bmp.chain_len = div_round_up(sb->inodes_per_group, block_size() * CHAR_BIT);
-        bg.inode_block.chain_len = inode_blocks_per_group;
+        ext_block_group& bg             = block_groups.emplace_back(this, blk_group_descs + i);
+        bg.inode_usage_bmp.chain_len    = div_round_up(sb->blocks_per_group, block_size() * CHAR_BIT);
+        bg.blk_usage_bmp.chain_len      = div_round_up(sb->inodes_per_group, block_size() * CHAR_BIT);
+        bg.inode_block.chain_len        = inode_blocks_per_group;
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);
         allocate_block_buffer(bg.inode_block);
         if(!read_hd(bg.inode_usage_bmp) || !read_hd(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
         if(!read_hd(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
-        uint16_t cs = blk_group_descs[i].group_checksum;
-        blk_group_descs[i].group_checksum = 0;
-        uint32_t cs0 = crc32c(uuid_csum, dword(i));
-        dword dw_cs = crc32c(cs0, blk_group_descs[i]);
+        uint16_t cs                         = blk_group_descs[i].group_checksum;
+        blk_group_descs[i].group_checksum   = 0;
+        uint32_t cs0                        = crc32c(uuid_csum, dword(i));
+        dword dw_cs                         = crc32c(cs0, blk_group_descs[i]);
         if(dw_cs.lo != cs) throw std::runtime_error{ "checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex) };
         blk_group_descs[i].group_checksum = cs;
     }
@@ -196,16 +196,16 @@ void extfs::initialize()
 }
 bool extfs::persist_sb()
 {
-    qword tstamp = sys_time(nullptr);
-    sb->last_write_time = tstamp.lo;
-    sb->last_write_time_hi = tstamp.hi.lo.lo;
-    sb->checksum = __sb_checksum();
+    qword tstamp            = sys_time(nullptr);
+    sb->last_write_time     = tstamp.lo;
+    sb->last_write_time_hi  = tstamp.hi.lo.lo;
+    sb->checksum            = __sb_checksum();
     return write_hd(superblock_lba, sb, sb_sectors);
 }
 bool extfs::update_free_block_count(int diff)
 {
     uint64_t num_blocks = qword(sb->unallocated_blocks_lo, sb->unallocated_blocks_hi);
-    num_blocks += diff;
+    num_blocks          += diff;
     qword qwblocks(num_blocks);
     sb->unallocated_blocks_lo = qwblocks.lo;
     sb->unallocated_blocks_hi = qwblocks.hi;
@@ -217,9 +217,9 @@ uint32_t extfs::claim_inode(bool dir)
     {
         if(block_groups[i].has_available_inode())
         {
-            unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
-            uint32_t result = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
+            unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
+            off_t avail         = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
+            uint32_t result     = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
             bitmap_set_bit(bmp, avail);
             if(!(block_groups[i].decrement_inode_ct())) return 0U;
             if(dir) block_groups[i].increment_dir_ct();
@@ -232,9 +232,9 @@ uint32_t extfs::claim_inode(bool dir)
 bool extfs::release_inode(uint32_t num, bool dir)
 {
     if(!num) return false;
-    size_t i = num / sb->inodes_per_group;
-    off_t bit_off = static_cast<off_t>(num % sb->inodes_per_group);
-    unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
+    size_t i            = num / sb->inodes_per_group;
+    off_t bit_off       = static_cast<off_t>(num % sb->inodes_per_group);
+    unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
     bitmap_clear_bit(bmp, bit_off);
     if(!block_groups[i].increment_inode_ct()) return false;
     if(dir) block_groups[i].decrement_dir_ct();
@@ -242,9 +242,9 @@ bool extfs::release_inode(uint32_t num, bool dir)
 }
 void extfs::release_blocks(uint64_t start, size_t num)
 {
-    size_t i = start / sb->blocks_per_group;
-    off_t off = static_cast<off_t>(start % sb->blocks_per_group);
-    unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
+    size_t i            = start / sb->blocks_per_group;
+    off_t off           = static_cast<off_t>(start % sb->blocks_per_group);
+    unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
     bitmap_clear_chain_bits(bmp, off, num);
     block_groups[i].alter_available_blocks(static_cast<int>(+num));
     persist_group_metadata(i);
@@ -299,8 +299,8 @@ filesystem::target_pair extfs::get_parent(directory_node* start, std::string con
 }
 file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
-    target_pair parent = filesystem::get_parent(path, false);
-    tnode* node = parent.first->find(parent.second);
+    target_pair parent  = filesystem::get_parent(path, false);
+    tnode* node         = parent.first->find(parent.second);
     if(node && node->is_directory()) throw std::logic_error{ "path " + path + " exists and is a directory" };
     file_node* result;
     bool pipe = false;
@@ -319,8 +319,8 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
 directory_node* extfs::open_directory(std::string const& path, bool create)
 {
     if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
-    target_pair parent = filesystem::get_parent(path, create);
-    tnode* node = parent.first->find(parent.second);
+    target_pair parent  = filesystem::get_parent(path, create);
+    tnode* node         = parent.first->find(parent.second);
     directory_node* result;
     if(!node)
     {
@@ -339,9 +339,9 @@ directory_node* extfs::open_directory(std::string const& path, bool create)
 }
 directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name)
 {
-    qword tstamp = sys_time(nullptr);
-    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03UC;
-    if(uint32_t inode_num = claim_inode(true)) try
+    qword tstamp            = sys_time(nullptr);
+    uint8_t extrabits       = (tstamp.hi.hi >> 4) & 0x03UC;
+    if(uint32_t inode_num = claim_inode(true); __builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -370,8 +370,8 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
             .created_time       { tstamp.lo },
             .created_time_hi    { extrabits }
         };
-        ext_directory_vnode* vnode = dir_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
-        ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
+        ext_directory_vnode* vnode      = dir_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
+        ext_directory_vnode& exparent   = dynamic_cast<ext_directory_vnode&>(*parent);
         if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size())) 
         {
             if(!vnode->init_dir_blank(std::addressof(exparent))) { panic("failed to initialize directory"); return nullptr; }
@@ -388,7 +388,7 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
     uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
-    if(uint32_t inode_num = claim_inode(false)) try
+    if(uint32_t inode_num = claim_inode(false); __builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -419,9 +419,9 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
         };
         ext_file_vnode* vnode = file_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
-        if(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size())) 
+        if(__builtin_expect(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size()), true)) 
         {
-            if(!vnode->initialize()) { panic("failed to initialize node"); return nullptr; };
+            if(__builtin_expect(!vnode->initialize(), false)) { panic("failed to initialize node"); return nullptr; };
             vnode->fsync();
             return vnode;
         }
@@ -437,7 +437,7 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
     if(!dev) { throw std::invalid_argument{"no device found with that id"}; }
     qword tstamp = sys_time(nullptr);
     uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
-    if(uint32_t inode_num = claim_inode(false)) try
+    if(uint32_t inode_num = claim_inode(false); __builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -468,7 +468,7 @@ pipe_pair extfs::mkpipe(directory_node* parent, std::string const& name)
 {
     qword tstamp = sys_time(nullptr);
     uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
-    if(uint32_t inode_num = claim_inode(false)) try
+    if(uint32_t inode_num = claim_inode(false); __builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -487,7 +487,7 @@ pipe_pair extfs::mkpipe(directory_node* parent, std::string const& name)
         array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
         ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent);
         ext_pipe_pair& result = __init_pipes(inode_num, name);
-        if(exparent.add_dir_entry(addressof(result.in), dti_fifo, name.c_str(), name.size()) && result.in.update_inode()) { return { addressof(result.in), addressof(result.out) }; }
+        if(__builtin_expect(exparent.add_dir_entry(addressof(result.in), dti_fifo, name.c_str(), name.size()) && result.in.update_inode(), true)) { return { addressof(result.in), addressof(result.out) }; }
         else panic("failed to add directory entry");
     }
     catch(std::exception& e) { panic(e.what()); }
@@ -506,9 +506,9 @@ void extfs::release_all(ext_vnode& extn)
 void extfs::dldirnode(directory_node* dd)
 {
     if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete non-empty directory " } + dd->name() }; }
-    uint64_t cid = dd->cid();
-    ext_directory_vnode& exdn = dynamic_cast<ext_directory_vnode&>(*dd);
-    uint32_t inode_num = exdn.inode_number;
+    uint64_t cid                = dd->cid();
+    ext_directory_vnode& exdn   = dynamic_cast<ext_directory_vnode&>(*dd);
+    uint32_t inode_num          = exdn.inode_number;
     release_all(exdn);
     release_inode(inode_num, true);
     array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
@@ -517,9 +517,9 @@ void extfs::dldirnode(directory_node* dd)
 }
 void extfs::dlfilenode(file_node* fd)
 {
-    uint64_t cid = fd->cid();
-    ext_file_vnode& exfn = dynamic_cast<ext_file_vnode&>(*fd);
-    uint32_t inode_num = exfn.inode_number;
+    uint64_t cid            = fd->cid();
+    ext_file_vnode& exfn    = dynamic_cast<ext_file_vnode&>(*fd);
+    uint32_t inode_num      = exfn.inode_number;
     release_all(exfn);
     release_inode(inode_num, false);
     array_zero(reinterpret_cast<char*>(exfn.on_disk_node), sb->inode_size);
@@ -528,9 +528,9 @@ void extfs::dlfilenode(file_node* fd)
 }
 void extfs::dldevnode(device_node* dd)
 {
-    ext_device_vnode& exdn = dynamic_cast<ext_device_vnode&>(*dd);
-    dev_t dn = dd->get_device_id();
-    uint32_t inode_num = exdn.inode_number;
+    ext_device_vnode& exdn  = dynamic_cast<ext_device_vnode&>(*dd);
+    dev_t dn                = dd->get_device_id();
+    uint32_t inode_num      = exdn.inode_number;
     release_inode(inode_num, false);
     array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
     persist_inode(inode_num);
@@ -555,8 +555,8 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
     {
         if(block_groups[i].has_available_blocks(how_many))
         {
-            unsigned long* bmp = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-            off_t avail = bitmap_scan_chain_zeroes(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
+            unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
+            off_t avail         = bitmap_scan_chain_zeroes(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
             if(avail < 0) continue;
             bitmap_set_chain_bits(bmp, avail, how_many);
             if(!block_groups[i].alter_available_blocks(static_cast<int>(-how_many))) return nullptr;
@@ -565,9 +565,9 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
             disk_block* blk = std::addressof(requestor->block_data.emplace_back(result, nullptr, false, how_many));
             if(!((requestor->on_disk_node->flags & use_extents) ? requestor->extents.push_extent_ext4(blk) : requestor->extents.push_extent_legacy(blk))) return nullptr;
             dword blcnt(requestor->on_disk_node->blocks_count_lo, requestor->on_disk_node->blocks_count_hi);
-            blcnt += how_many;
-            requestor->on_disk_node->blocks_count_lo = blcnt.lo;
-            requestor->on_disk_node->blocks_count_hi = blcnt.hi;
+            blcnt                                       += how_many;
+            requestor->on_disk_node->blocks_count_lo    = blcnt.lo;
+            requestor->on_disk_node->blocks_count_hi    = blcnt.hi;
             return blk;
         }
     }
@@ -612,7 +612,7 @@ bool extfs::persist(ext_vnode* n)
 }
 bool extfs::persist_group_metadata(size_t group_num)
 {
-    if(group_num < block_groups.size())
+    if(__builtin_expect(group_num < block_groups.size(), true))
     {
         block_groups[group_num].compute_checksums(group_num);
         std::vector<disk_block> blks{};
@@ -627,11 +627,11 @@ bool extfs::persist_group_metadata(size_t group_num)
 bool extfs::persist_inode(uint32_t inode_num)
 {
     size_t grp = group_num_for_inode(inode_num);
-    if(grp >= block_groups.size()) { panic("invalid group number"); return false; }
+    if(__builtin_expect(grp >= block_groups.size(), false)) { panic("invalid group number"); return false; }
     std::vector<disk_block> blks{};
-    size_t bs = block_size();
-    uint64_t iblk = inode_to_block(inode_num);
-    off_t ipos = inode_block_offset(inode_num);
+    size_t bs       = block_size();
+    uint64_t iblk   = inode_to_block(inode_num);
+    off_t ipos      = inode_block_offset(inode_num);
     blks.emplace_back(iblk, block_groups[grp].inode_block.data_buffer + (ipos - (ipos % bs)), true, 1UL);
     return fs_journal.create_txn(blks);
 }
@@ -666,7 +666,7 @@ fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
     }
     else 
     { 
-        next_fd = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
+        next_fd         = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
         fs_node* result = file_nodes.emplace(this, idx, next_fd++).first.base();
         return result;
     }
@@ -688,7 +688,7 @@ device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool creat
 }
 bool extfs::truncate_node(ext_vnode* n)
 {
-    if(!n->on_disk_node->size_hi && !n->on_disk_node->size_lo) return true;
+    if(__builtin_expect(!n->on_disk_node->size_hi && !n->on_disk_node->size_lo, false)) return true;
     release_all(*n);
     n->truncate_buffer();
     return n->update_inode();

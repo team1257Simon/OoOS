@@ -4,7 +4,7 @@ extern void *memalign(size_t alignment, size_t size);
 extern int rand();
 __attribute__((weak)) int posix_memalign(void** memptr, size_t alignment, size_t size)
 {
-    if(alignment % sizeof(void*) != 0 || __builtin_popcount(alignment) > 1) { *memptr = NULL; return EINVAL; }
+    if(__builtin_expect(alignment % sizeof(void*) != 0 || __builtin_popcount(alignment) > 1, 0)) { *memptr = NULL; return EINVAL; }
     void* result = memalign(alignment, size);
     if(!result) return ENOMEM;
     *memptr = result;
@@ -18,7 +18,7 @@ __attribute__((weak)) int fcntl(int, int, ...)
 }
 __attribute__((weak)) int getentropy(void* buffer, unsigned long length)
 {
-    if(length > 256) { errno = EIO; return -1; }
+    if(__builtin_expect(length > 256, 0)) { errno = EIO; return -1; }
     void* buf_end = ((unsigned char*)buffer) + length;
     while(buffer < buf_end) { *((unsigned char*)buffer++) = rand() % 256; }
     return 0;

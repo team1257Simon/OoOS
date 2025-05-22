@@ -52,7 +52,7 @@ namespace std
             dynamic_streambuf(dynamic_streambuf&& that) : __sb_type{}, __dynamic_base{ std::move(that) } { this->on_modify(); }
             virtual ~dynamic_streambuf() = default;
             dynamic_streambuf& operator=(dynamic_streambuf const&) = delete;
-            dynamic_streambuf& operator=(dynamic_streambuf&& that) { this->__realloc_move(std::move(that)); return *this; }
+            dynamic_streambuf& operator=(dynamic_streambuf&& that) { this->__move_assign(std::move(that)); return *this; }
             pos_type tell() const noexcept { return pos_type(this->__cur() - this->__beg()); }
             char_type* data() noexcept { return this->__beg(); }
             char_type const* data() const noexcept { return this->__beg(); }

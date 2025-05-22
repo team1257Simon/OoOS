@@ -141,10 +141,8 @@ delay_flag:
             cmpb    $0,         debug_stop_flag
             jnz     debug_stop
             cmpb    $0,         task_change_flag
-            jz      1f
             movb    $0,         task_change_flag
-            jmp     task_change
-        1:
+            jnz     task_change
             sti
             iretq
         .size       isr_\i,     .-isr_\i

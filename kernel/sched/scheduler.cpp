@@ -111,7 +111,7 @@ __isrcall task_t* scheduler::select_next()
                 result = queue.pop();
                 fence();
                 j = queue.current();
-            } while (result->task_ctl.block && i != j);
+            } while(result->task_ctl.block && i != j);
             if(result->task_ctl.block) continue;
             result->task_ctl.skips = 0;
             if(result->task_ctl.prio_base != pv)

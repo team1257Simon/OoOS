@@ -30,7 +30,7 @@ extern template abstract_packet<udp_packet_base>::abstract_packet(ipv4_standard_
 struct protocol_udp : abstract_protocol_handler
 {
     udp_port_map ports;
-    ipv4_addr_set* const ip_addrs;
+    ipv4_config& ipconfig;
     protocol_udp(protocol_ipv4* n);
     protocol_handler& add_port_handler(uint16_t port, protocol_handler&& ph);
     virtual int transmit(abstract_packet_base& p) override;

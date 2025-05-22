@@ -87,18 +87,16 @@ void net_tests()
         else
         {
             mac_t const& mac = test_dev->get_mac_addr();
-            startup_tty.print_text("MAC: ");
-            for(int i = 0; i < 6; i++)
-            {
-                startup_tty.print_text(std::to_string(mac[i], std::ext::nphex));
-                if(i < 5)
-                    startup_tty.print_text(":");
-            }
+            startup_tty.print_line("MAC: " + stringify(mac));
             protocol_ipv4& p_ip = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
             protocol_udp& p_udp = p_ip.add_transport_handler<protocol_udp>(UDP);
             protocol_dhcp& p_dhcp = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
-            std::vector<net8> params{ SUBNET_MASK, DOMAIN_NAME_SERVER };
+            p_dhcp.base->ip_resolver->check_presence("10.0.2.2"IPV4);
+            std::vector<net8> params{ SUBNET_MASK, DOMAIN_NAME_SERVER, ROUTER };
             p_dhcp.discover(params);
+            hpet.delay_us(2000UL);
+            startup_tty.print_line("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", and default gateway " + stringify(p_dhcp.ipconfig.gateway_addrs[0]) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
+            startup_tty.print_line("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) +"; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
         }
     }
     else panic("net device not found on PCI bus");
@@ -313,8 +311,7 @@ void hpet_tests()
     {
         uint64_t start_read = hpet_amd64::count_usec();
         hpet_amd64::delay_usec(1000UL, fn);
-        startup_tty.print_line("time 0: " + std::to_string(start_read));
-        startup_tty.print_line("time 1: " + std::to_string(end_read));
+        startup_tty.print_line("time split: " + std::to_string(end_read - start_read));
     }
     else panic("hpet init failed");
 }
@@ -486,6 +483,7 @@ extern "C"
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         fx_enable = true;
         scheduler::init_instance();
+        hpet_amd64::init_instance();
         startup_tty.print_line(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
         try
         {

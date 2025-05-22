@@ -1,6 +1,9 @@
 #include "net/protocol/net_abstract.hpp"
 #include "sys/errno.h"
 #include "stdexcept"
+constexpr static inline std::string digits(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC] }; }
+std::string stringify(ipv4_addr ip) { return std::to_string(ip.hi.hi) + "." + std::to_string(ip.hi.lo) + "." + std::to_string(ip.lo.hi) + "." + std::to_string(ip.lo.lo); }
+std::string stringify(mac_t const& mac) { return digits(mac[0]) + ":" + digits(mac[1]) + ":" + digits(mac[2]) + ":" + digits(mac[3]) + ":" + digits(mac[4]) + ":" + digits(mac[5]); }
 abstract_packet_base::abstract_packet_base(void* data, std::type_info const& type, size_t sz, void (*dealloc)(void*, size_t)) : packet_data(data), packet_type(type), packet_size(sz), release_fn(dealloc) {}
 abstract_packet_base::~abstract_packet_base() { if(packet_data) (*release_fn)(packet_data, packet_size); }
 abstract_ip_resolver::abstract_ip_resolver() : previously_resolved(1024UZ) {}

@@ -245,10 +245,10 @@ namespace std
         constexpr __b_ptr& __rightmost() noexcept { return this->__trunk.__my_right; }
         constexpr __link __l_begin() noexcept {  return static_cast<__link>(this->__trunk.__my_left); }
         constexpr __link __l_rightmost() noexcept {  return static_cast<__link>(this->__trunk.__my_right); }
-        constexpr __iterator __begin() noexcept { return __iterator { __l_begin() }; }
+        constexpr __iterator __begin() noexcept { return __iterator{ __l_begin() }; }
         constexpr __const_link __l_begin() const noexcept { return static_cast<__const_link>(this->__trunk.__my_left); }
         constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(this->__trunk.__my_right); }
-        constexpr __const_iterator __begin() const noexcept { return __const_iterator { __l_begin() }; }
+        constexpr __const_iterator __begin() const noexcept { return __const_iterator{ __l_begin() }; }
         template<typename ... Args> requires constructible_from<T, Args...> constexpr __link __construct_node(Args&& ... args) { __link l = construct_at(__alloc.allocate(1UL)); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
         constexpr void __destroy_node(__b_ptr n) { if(n) { __alloc.deallocate(static_cast<__link>(n), 1); } }
         constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { bool left = (x || p == __end() || __compare_l(l->__get_ref(), p)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; } 
@@ -282,7 +282,7 @@ namespace std
         template<matching_input_iterator<T> IT> constexpr __rb_tree(IT st, IT ed) : __rb_tree{} { this->__insert_range_unique(st, ed); }
         constexpr __rb_tree(__rb_tree const& that) : __rb_tree(__const_iterator(that.__l_begin()), __const_iterator(that.__end())) {}
         constexpr __rb_tree(__rb_tree&& that) : __tree_base{ forward<__tree_base>(that) }, __alloc{} {}
-        constexpr __rb_tree& operator=(__rb_tree const& that) { __clear();  this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
+        constexpr __rb_tree& operator=(__rb_tree const& that) { __clear(); this->__insert_range_unique(__const_iterator(that.__l_begin()), __const_iterator(that.__end())); return *this; }
         constexpr __rb_tree& operator=(__rb_tree&& that) { __clear(); this->__trunk = that.__trunk; this->__count = that.__count; return *this; }
     };
     template<typename T, __valid_comparator<T> CP, allocator_object<T> A>

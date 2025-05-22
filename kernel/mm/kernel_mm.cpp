@@ -154,12 +154,12 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
     addr_t       curr = start;
     uintptr_t    phys = curr;
     paging_table pt   = __get_table(curr, false);
-    if(!pt) return nullptr;
+    if(__builtin_expect(!pt, false)) return nullptr;
     bool modified = false;
     for(size_t i = 0; i < pages; i++, curr += page_size, phys += page_size)
     {
         uint16_t p_idx = curr.page_idx;
-        if(i != 0 && p_idx == 0) pt = __get_table(curr, false);
+        if(i != 0 && p_idx == 0) { pt = __get_table(curr, false); if(__builtin_expect(!pt, false)) return nullptr; }
         pt_entry& entry = pt[p_idx];
         if(entry.present && (entry.global || entry.physical_address == phys >> 12)) continue;
         new(addressof(entry)) pt_entry
@@ -180,11 +180,16 @@ static addr_t __copy_kernel_mappings(addr_t start, size_t pages, paging_table pm
     addr_t       curr   = start;
     paging_table pt     = __get_table(curr, false);
     paging_table upt    = __get_table(curr, false, pml4);
-    if(!upt || !pt) return nullptr;
+    if(__builtin_expect(!upt || !pt, false)) return nullptr;
     for(size_t i = 0; i < pages; i++, curr += page_size)
     {
         uint16_t p_idx = curr.page_idx;
-        if(i != 0 && p_idx == 0) { pt = __get_table(curr, true); upt = __get_table(curr, false, pml4); }
+        if(i != 0 && p_idx == 0)
+        { 
+            pt = __get_table(curr, true); 
+            upt = __get_table(curr, false, pml4);
+            if(__builtin_expect(!upt || !pt, false)) return nullptr;
+        }
         pt_entry& u_entry = upt[p_idx];
         pt_entry& k_entry = pt[p_idx];
         array_copy<uint64_t>(addressof(u_entry), addr_t(addressof(k_entry)), sizeof(pt_entry) / sizeof(uint64_t));
@@ -197,7 +202,7 @@ static addr_t __map_mmio_pages(addr_t start, size_t pages)
     if(!start) return nullptr;
     addr_t       curr = start;
     paging_table pt   = __get_table(curr, true);
-    if(!pt) return nullptr;
+    if(__builtin_expect(!pt, false)) return nullptr;
     for(size_t i = 0; i < pages; i++, curr += page_size)
     {
         if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, true);
@@ -219,10 +224,10 @@ static addr_t __map_uncached_mmio_pages(addr_t start, size_t pages)
     if(!start) return nullptr;
     addr_t       curr = start;
     paging_table pt   = __get_table(curr, true);
-    if(!pt) return nullptr;
+    if(__builtin_expect(!pt, false)) return nullptr;
     for(size_t i = 0; i < pages; i++, curr += page_size)
     {
-        if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, true);
+        if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, true); if(__builtin_expect(!pt, false)) return nullptr; }
         new(addressof(pt[curr.page_idx])) pt_entry
         {
             .present          = true,
@@ -243,10 +248,10 @@ static addr_t __map_user_pages(addr_t start_vaddr, uintptr_t start_paddr, size_t
         addr_t       curr = start_vaddr;
         uintptr_t    phys = start_paddr;
         paging_table pt   = __get_table(curr, false, pml4);
-        if(!pt) return nullptr;
+        if(__builtin_expect(!pt, false)) return nullptr;
         for(size_t i = 0; i < pages; i++, curr += page_size, phys += page_size)
         {
-            if(i != 0 && curr.page_idx == 0) pt = __get_table(curr, false, pml4);
+            if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, false, pml4); if(__builtin_expect(!pt, false)) return nullptr; }
             new(addressof(pt[curr.page_idx])) pt_entry
             { 
                 .present = true, 
@@ -304,7 +309,7 @@ void kernel_memory_mgr::deallocate_block(addr_t const& base, size_t sz, bool sho
     uintptr_t phys = frame_translate(base);
     addr_t    pml4 = __active_frame ? __active_frame->pml4 : nullptr;
     __lock();
-    if(phys)
+    if(__builtin_expect(phys != 0, true))
     {
         __release_region(sz, phys);
         if(should_unmap && __active_frame) __unmap_pages(base, div_round_up(sz, page_size), pml4);
@@ -413,7 +418,7 @@ addr_t kernel_memory_mgr::allocate_dma(size_t sz, bool prefetchable)
 {
     __lock();
     addr_t result = nullptr;
-    if(uintptr_t phys = __find_and_claim(sz)) 
+    if(uintptr_t phys = __find_and_claim(sz); __builtin_expect(phys != 0, true)) 
     {
         size_t total_sz = div_round_up(region_size_for(sz), page_size);
         if(prefetchable) result = __map_mmio_pages(addr_t(phys), total_sz); 
@@ -428,7 +433,7 @@ addr_t kernel_memory_mgr::map_dma(uintptr_t addr, size_t sz, bool prefetchable)
     size_t npage    = div_round_up(sz, page_size);
     __lock();
     addr_t result   = prefetchable ?  __map_mmio_pages(addr_t(addr), npage) : __map_uncached_mmio_pages(addr_t(addr), npage);
-    if(result) { __mark_used(addr, npage); }
+    if(__builtin_expect(static_cast<bool>(result), true)) { __mark_used(addr, npage); }
     __unlock();
     return result;
 }
@@ -464,7 +469,7 @@ paging_table kernel_memory_mgr::allocate_pt()
     if(!tag)
     {
         addr_t allocated(__find_and_claim(rsz));
-        if(!allocated) return nullptr;
+        if(__builtin_expect(!allocated, false)) return nullptr;
         if(!translate_vaddr(allocated)) { __map_kernel_pages(allocated, rsz / page_size, true); }
         tag         = new(allocated) block_tag(rsz, 0);
         __watermark = std::max(allocated.full, __watermark);
@@ -474,7 +479,7 @@ paging_table kernel_memory_mgr::allocate_pt()
     addr_t result    = tag->actual_start();
     __builtin_memset(result, 0, page_size);
     if(tag->available_size() >= min_block_size + bt_offset) __kernel_frame_tag->insert_block(tag->split(), -1);
-    if(result && __active_frame)
+    if(__builtin_expect(static_cast<bool>(result), true) && __active_frame)
     {
         bool lk = test_lock(addressof(__heap_mutex));
         if(lk) __unlock();
@@ -488,7 +493,7 @@ addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz)
     __lock();
     addr_t phys(__find_and_claim(sz));
     addr_t result = nullptr;
-    if(phys) { result = __map_kernel_pages(phys, div_round_up(region_size_for(sz), page_size), true); __watermark = std::max(uintptr_t(phys), __watermark); }
+    if(__builtin_expect(static_cast<bool>(phys), true)) { result = __map_kernel_pages(phys, div_round_up(region_size_for(sz), page_size), true); __watermark = std::max(uintptr_t(phys), __watermark); }
     __unlock();
     return result;
 }
@@ -497,7 +502,7 @@ addr_t kernel_memory_mgr::duplicate_user_block(size_t sz, addr_t start, bool wri
     addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
     __lock();
     addr_t result = nullptr;
-    if(uintptr_t result_phys = __find_and_claim(sz)) array_copy<uint8_t>(result = __map_user_pages(start, result_phys, div_round_up(region_size_for(sz), page_size), pml4, write, execute), start, sz);
+    if(uintptr_t result_phys = __find_and_claim(sz); __builtin_expect(result_phys != 0, true)) array_copy<uint8_t>(result = __map_user_pages(start, result_phys, div_round_up(region_size_for(sz), page_size), pml4, write, execute), start, sz);
     __unlock();
     return result;
 }
@@ -527,7 +532,7 @@ block_tag* kframe_tag::__create_tag(size_t size, size_t align)
 {
     size_t actual_size = std::max(size + bt_offset, align) + align;
     addr_t allocated   = kmm.allocate_kernel_block(actual_size);
-    if(!allocated) return nullptr;
+    if(__builtin_expect(!allocated, false)) return nullptr;
     return new(allocated) block_tag(region_size_for(actual_size), size, -1, add_align_size(allocated, align));
 }
 block_tag* kframe_tag::__melt_left(block_tag* tag) noexcept
@@ -577,7 +582,7 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
     }
     if(!tag)
     {
-        if(!(tag = __create_tag(size, align)))
+        if(__builtin_expect(!(tag = __create_tag(size, align)), false))
         {
             __unlock();
             panic("allocation failed");
@@ -599,7 +604,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
         block_tag* tag = ptr - bt_offset;
         for(size_t i = 0; (tag && (tag->magic != block_magic) && (!align || i < align)); i++) tag = addr_t(tag).minus(1L);
         if(tag && tag->magic != block_magic) { tag = ptr.page_aligned(); }
-        if(tag && tag->magic == block_magic)
+        if(__builtin_expect(tag && tag->magic == block_magic, true))
         {
             tag->held_size   = 0;
             tag->align_bytes = 0;
@@ -644,7 +649,7 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
 addr_t kframe_tag::array_allocate(size_t num, size_t size)
 {
     addr_t result = allocate(num * size, size);
-    if(result) __builtin_memset(result, 0, num * size);
+    if(__builtin_expect(static_cast<bool>(result), true)) __builtin_memset(result, 0, num * size);
     return result;
 }
 block_tag* block_tag::split()
@@ -662,7 +667,7 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     {
         __lock();
         uintptr_t amt_freed = -amount;
-        if(static_cast<size_t>(extent - base) > amt_freed)
+        if(__builtin_expect(static_cast<size_t>(extent - base) > amt_freed, true))
         {
             addr_t target = extent + amount;
             std::vector<block_descriptor>::reverse_iterator i;
@@ -677,7 +682,7 @@ bool uframe_tag::shift_extent(ptrdiff_t amount)
     }
     size_t added                = kernel_memory_mgr::aligned_size(extent, static_cast<size_t>(amount));
     block_descriptor* allocated = add_block(added, extent, page_size, true, false);
-    if(allocated == nullptr) return false;
+    if(__builtin_expect(allocated == nullptr, false)) return false;
     extent                      = allocated->virtual_start.plus(allocated->size);
     array_zero(allocated->physical_start.as<uint64_t>(), allocated->size / sizeof(uint64_t));
     return true;
@@ -688,7 +693,7 @@ addr_t uframe_tag::mmap_add(addr_t addr, size_t len, bool write, bool exec)
     bool use_extent     = !addr;
     if(use_extent) addr = extent;
     block_descriptor* result = add_block(len, addr, page_size, write, exec);
-    if(result)
+    if(__builtin_expect(result != nullptr, true))
     {
         size_t actual   = kernel_memory_mgr::aligned_size(addr, len);
         array_zero(result->physical_start.as<uint64_t>(), actual / sizeof(uint64_t));
@@ -776,7 +781,7 @@ addr_t uframe_tag::sysres_add(size_t n)
         kmm.enter_frame(this);
         addr_t allocated      = kmm.allocate_user_block(up_to_nearest(n, alignof(void*)), mapping_target, 0UL, false, false);
         kmm.exit_frame();
-        if(!allocated) { return nullptr; }
+        if(__builtin_expect(!allocated, false)) { return nullptr; }
         kernel_allocated_blocks.push_back(allocated);
         sysres_extent += kernel_memory_mgr::aligned_size(mapping_target, n);
     }

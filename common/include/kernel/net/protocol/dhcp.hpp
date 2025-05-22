@@ -2,10 +2,16 @@
 #define __DHCP
 #include "net/protocol/udp.hpp"
 #include "vector"
+#include "unordered_map"
 constexpr net32 dhcp_magic = 0x63825363UBE;
 constexpr net16 dhcp_client_port = 68USBE;
 constexpr net16 dhcp_server_port = 67USBE;
-enum dhcp_operation_type : net8
+enum bootp_operation_type : net8
+{
+    BOOTREQUEST = 1,
+    BOOTREPLY   = 2
+};
+enum dhcp_message_type : net8
 {
     DISCOVER           = 0x01UC,
     OFFER              = 0x02UC,
@@ -54,7 +60,7 @@ enum dhcp_parameter_type : net8
     DEFAULT_TTL                        = 23UC,
     PATH_MTU_AGING_TIMEOUT             = 24UC,
     PATH_MTU_PLATEAU_TABLE             = 25UC,
-    INTERFAE_MTU                       = 26UC,
+    INTERFACE_MTU                      = 26UC,
     ALL_SUBNETS_LOCAL                  = 27UC,
     BROADCAST_ADDRESS                  = 28UC,
     PERFORM_MASK_DISCOVERY             = 29UC,
@@ -86,8 +92,8 @@ enum dhcp_parameter_type : net8
     PARAMETER_REQUEST_LIST             = 55UC,
     MESSAGE                            = 56UC,
     MAXIMUM_MESSAGE_SIZE               = 57UC,
-    RENEWAL_TIME_vALUE                 = 58UC,
-    REBINDING_TIME_vALUE               = 59UC,
+    RENEWAL_TIME_VALUE                 = 58UC,
+    REBINDING_TIME_VALUE               = 59UC,
     VENDOR_CLASS_IDENTIFIER            = 60UC,
     CLIENT_IDENTIFIER                  = 61UC,
     NIS_PLUS_DOMAIN                    = 64UC,
@@ -107,33 +113,33 @@ enum dhcp_parameter_type : net8
     CAPTIVE_PORTAL                     = 114UC,
     END_OF_TRANSMISSION                = 255UC
 };
-struct attribute(packed) dhcp_parameter
+struct __pack dhcp_parameter
 {
     dhcp_parameter_type type_code;
     // The length is always the first byte of this array if present; some types (such as padding and EOT) do not even have a length byte
     net8 parameter_octets[];
     constexpr net8& length() & noexcept { return parameter_octets[0]; }
     constexpr net8 const& length() const& noexcept { return parameter_octets[0]; }
-    constexpr void* start() noexcept { return std::addressof(parameter_octets[1]); }
+    constexpr addr_t start() const noexcept { return std::addressof(parameter_octets[1]); }
 };
 struct __pack dhcp_packet_base : udp_packet_base
 {
-    dhcp_operation_type operation;
-    net8                hw_type = 0x1UC;
-    net8                hw_len  = 0x6UC;
-    net8                hops    = 0x0UC;
-    net32               transaction_id;
-    net16               seconds = 0USBE;
-    net16               flags   = 0USBE;
-    net32               client_ip;
-    net32               your_ip;
-    net32               server_ip;
-    net32               relay_ip;
-    net32               client_hw[4];
-    char                server_name_optional[64];
-    char                boot_file_name[128];
-    net32               magic = dhcp_magic;
-    dhcp_parameter      parameters[];
+    bootp_operation_type    operation;
+    net8                    hw_type = 0x1UC;
+    net8                    hw_len  = 0x6UC;
+    net8                    hops    = 0x0UC;
+    net32                   transaction_id;
+    net16                   seconds = 0USBE;
+    net16                   flags   = 0USBE;
+    net32                   client_ip;
+    net32                   your_ip;
+    net32                   server_ip;
+    net32                   relay_ip;
+    net32                   client_hw[4];
+    char                    server_name_optional[64];
+    char                    boot_file_name[128];
+    net32                   magic = dhcp_magic;
+    dhcp_parameter          parameters[];
     dhcp_packet_base() noexcept;
     dhcp_packet_base(udp_packet_base const& that) noexcept;
     dhcp_packet_base(udp_packet_base&& that) noexcept;
@@ -154,12 +160,18 @@ typedef abstract_packet<dhcp_packet_base> dhcp_packet;
 #endif
 struct protocol_dhcp : abstract_protocol_handler
 {
-    ipv4_addr_set* const ip_addrs;
+    ipv4_config& ipconfig;
+    std::unordered_map<uint32_t, time_t> transaction_timers;
     protocol_dhcp(protocol_udp* n);
     virtual ~protocol_dhcp();
     virtual std::type_info const& packet_type() const override;
-    virtual int transmit(abstract_packet_base& p) override;
     virtual int receive(abstract_packet_base& p) override;
-    int discover(std::vector<net8> const& param_requests);
+    abstract_packet<dhcp_packet_base> create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid);
+    int process_offer_packet(dhcp_packet_base const& p);
+    int process_ack_packet(dhcp_packet_base const& p);
+    int request(ipv4_addr addr, uint32_t xid);
+    int decline(ipv4_addr addr, uint32_t xid);
+    net8 process_packet_parameter(dhcp_parameter const& param);
+    void discover(std::vector<net8> const& param_requests);
 };
 #endif

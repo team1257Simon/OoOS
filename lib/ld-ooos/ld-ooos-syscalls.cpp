@@ -5,7 +5,7 @@ extern "C"
     {
         long result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLINIT), "D"(handle), "S"(resolve) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         else { return reinterpret_cast<init_fn*>(result); }
         return nullptr;
     }
@@ -13,7 +13,7 @@ extern "C"
     {
         long result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLFINI), "D"(handle) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         else { return reinterpret_cast<fini_fn*>(result); }
         return nullptr;
     }
@@ -21,7 +21,7 @@ extern "C"
     {
         long result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DEPENDS), "D"(handle) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         else { return reinterpret_cast<char**>(result); }
         return nullptr;
     }
@@ -29,21 +29,21 @@ extern "C"
     {
         int result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLPATH), "D"(path_str) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         return result;
     }
     __hidden int dlmap(void* handle, link_map* lm)
     {
         int result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLMAP), "D"(handle), "S"(lm) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         return result;
     }
     __hidden init_fn* dlpreinit(void* handle)
     {
         long result;
         asm volatile("syscall" : "=a"(result) : "0"(SCV_DLPREINIT), "D"(handle), "S"(dlend) : "memory", "%r11", "%rcx");
-        if(result < 0 && result > -4096) { errno = static_cast<int>(result * -1); }
+        if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
         else { return reinterpret_cast<init_fn*>(result); }
         return nullptr;
     }

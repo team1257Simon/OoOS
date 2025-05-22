@@ -64,7 +64,7 @@ struct [[gnu::may_alias]] block_tag
 };
 static block_tag* available_blocks[max_block_index - min_exponent];
 __hidden void alloc_init() { __zero(available_blocks, sizeof(available_blocks)); }
-static void* __min_sbrk(ptrdiff_t amt) { void* result; asm volatile("syscall" : "=a"(result) : "0"(6), "D"(amt) : "%r11", "%rcx", "memory"); if(long test = reinterpret_cast<long>(result); test < 0 && test > -4096) { errno = static_cast<int>(test); return nullptr; } return result; }
+static void* __min_sbrk(ptrdiff_t amt) { void* result; asm volatile("syscall" : "=a"(result) : "0"(6), "D"(amt) : "%r11", "%rcx", "memory"); if(long test = reinterpret_cast<long>(result); __builtin_expect(test < 0 && test > -4096, false)) { errno = static_cast<int>(test); return nullptr; } return result; }
 constexpr static uint32_t calculate_block_index(size_t size) { if(size < min_block_size) return 0; if(size > max_block_size) return max_block_index; return (st_bits - __builtin_clzl(size)) - min_exponent; }
 static void alloc_lock() { while(__atomic_test_and_set(&__mutex, __ATOMIC_SEQ_CST)) { asm volatile("pause" ::: "memory"); } }
 static void alloc_unlock() { __atomic_clear(&__mutex, __ATOMIC_SEQ_CST); }
@@ -92,7 +92,7 @@ static block_tag* create_tag(size_t size, size_t align)
 {
     size_t actual = __max(size + sizeof(block_tag), align) + align;
     void* allocated = allocate_pages(__pages(actual));
-    if(!allocated) return nullptr;
+    if(__builtin_expect(!allocated, false)) return nullptr;
     block_tag* tag = (new(allocated) block_tag(__pages(actual) * page_size, size))->set_align(align);
     if(tag->available_size() >= min_block_size + sizeof(block_tag)) tag->split()->insert_at(-1);
     return tag;
@@ -115,13 +115,13 @@ static block_tag* find_tag(size_t size, size_t al)
 }
 __hidden void deallocate(void* ptr, size_t al) 
 {
-    if(!ptr) return;
+    if(__builtin_expect(!ptr, false)) return;
     block_tag* tag = locate_tag(ptr, al);
     if(tag) replace_tag(tag);
 }
 __hidden void* allocate(size_t count, size_t al)
 {
-    if(!count) return nullptr;
+    if(__builtin_expect(!count, false)) return nullptr;
     alloc_lock();
     block_tag* tag = find_tag(count, al);
     if(!tag) tag = create_tag(count, al);

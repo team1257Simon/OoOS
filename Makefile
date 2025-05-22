@@ -55,11 +55,12 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 clean:
 	rm -rf $(OUT_IMG) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
+	rm *.bin || true
 	rm -rf common/include/asm-generated/* || true
 	for dir in $(SUBDIRS); do \
-		cd $$dir;\
-		make clean ; \
-		cd .. ;\
+		cd $$dir; \
+		$(MAKE) clean ; \
+		cd .. ; \
 	done
 $(OUT_IMG): $(BUILD_DIR) create_image.sh $(SUBDIRS)
 	sh create_image.sh $@ $(BUILD_DIR) $(IMAGE_FILE_DIR)

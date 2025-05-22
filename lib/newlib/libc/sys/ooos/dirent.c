@@ -10,14 +10,14 @@ DIR* opendir(const char* dirname)
 {
     DIR* result;
     asm volatile("syscall" : "=a"(result) : "0"(SYSCVEC_N_opendir), "D"(dirname) : "memory", "%r11", "%rcx");
-    if((long)result < 0 && (long)result > -4095) { errno = (int)(-1*(long)result); return NULL; }
+    if(__builtin_expect((long)result < 0 && (long)result > -4095, 0)) { errno = (int)(-1*(long)result); return NULL; }
     return result;
 }
 DIR* fdopendir(int fd)
 {
     DIR* result;
     asm volatile("syscall" : "=a"(result) : "0"(SYSCVEC_N_fdopendir), "D"(fd)  : "memory", "%r11", "%rcx");
-    if((long)result < 0 && (long)result > -4095) { errno = (int)(-1*(long)result); return NULL; }
+    if(__builtin_expect((long)result < 0 && (long)result > -4095, 0)) { errno = (int)(-1*(long)result); return NULL; }
     return result;
 }
 int closedir(DIR* dir)
@@ -25,7 +25,7 @@ int closedir(DIR* dir)
     if(dir == NULL) { errno = EINVAL; return -1; }
     int result;
     asm volatile("syscall" : "=a"(result) : "0"(SYSCVEC_N_closedir), "D"(dir) : "memory", "%r11", "%rcx");
-    if(result < 0 && result > -4095) { errno = -result; return -1; }
+    if(__builtin_expect(result < 0 && result > -4095, 0)) { errno = -result; return -1; }
     return 0;
 }
 struct dirent* readdir(DIR* dirp)

@@ -11,7 +11,7 @@ std::type_info const& generic_udp_handler::packet_type() const { return typeid(u
 udp_packet_base::udp_packet_base() noexcept = default;
 udp_packet_base::udp_packet_base(ipv4_standard_packet const& that) noexcept : ipv4_standard_packet(that) { protocol = UDP; }
 udp_packet_base::udp_packet_base(ipv4_standard_packet&& that) noexcept : ipv4_standard_packet(std::move(that)) { protocol = UDP; }
-protocol_udp::protocol_udp(protocol_ipv4* n) : abstract_protocol_handler(n), ports(1024UZ), ip_addrs(std::addressof(n->held_addrs)) {}
+protocol_udp::protocol_udp(protocol_ipv4* n) : abstract_protocol_handler(n), ports(1024UZ), ipconfig(n->client_config) {}
 std::type_info const& protocol_udp::packet_type() const { return typeid(udp_packet_base); }
 protocol_handler& protocol_udp::add_port_handler(uint16_t port, protocol_handler&& ph) { return ports.emplace(std::piecewise_construct, std::forward_as_tuple(port), std::forward_as_tuple(std::move(ph))).first->second; }
 void udp_packet_base::compute_udp_csum()
@@ -55,7 +55,7 @@ bool udp_packet_base::verify_udp_csum() const
 int protocol_udp::transmit(abstract_packet_base& p)
 {
     udp_packet_base* pkt = p.get_as<udp_packet_base>();
-    if(!pkt) return -EPROTOTYPE;
+    if(__builtin_expect(!pkt, false)) throw std::bad_cast();
     pkt->udp_length = net16(static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_packet)));
     pkt->compute_udp_csum();
     return next->transmit(p);
@@ -63,12 +63,12 @@ int protocol_udp::transmit(abstract_packet_base& p)
 int protocol_udp::receive(abstract_packet_base& p)
 {
     udp_packet_base* pkt = p.get_as<udp_packet_base>();
-    if(!pkt) return -EPROTOTYPE;
-    if(!pkt->verify_udp_csum()) return -EPROTO;
+    if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
+    if(__builtin_expect(!pkt->verify_udp_csum(), false)) return -EPROTO;
     if(ports.contains(pkt->destination_port))
     {
-        protocol_handler& ph = ports[pkt->destination_port];
-        p.packet_type = ph->packet_type();
+        protocol_handler& ph    = ports[pkt->destination_port];
+        p.packet_type           = ph->packet_type();
         return ph->receive(p);
     }
     return -EPIPE;

@@ -46,13 +46,13 @@ elf64_executable::elf64_executable(elf64_executable&& that) :
     frame_tag           { std::move(that.frame_tag) },
     program_descriptor  { std::move(that.program_descriptor) }
 {
-    that.frame_base = nullptr;
-    that.frame_extent = nullptr;
-    that.stack_base = nullptr;
-    that.tls_base = nullptr;
-    that.entry = nullptr;
-    that.frame_tag = nullptr;
-    program_descriptor.object_handle = this;
+    that.frame_base                     = nullptr;
+    that.frame_extent                   = nullptr;
+    that.stack_base                     = nullptr;
+    that.tls_base                       = nullptr;
+    that.entry                          = nullptr;
+    that.frame_tag                      = nullptr;
+    program_descriptor.object_handle    = this;
 }
 elf64_executable::elf64_executable(elf64_executable const& that) :
     elf64_object        ( that ),
@@ -93,7 +93,8 @@ void elf64_executable::process_headers()
 }
 bool elf64_executable::load_segments()
 {
-    if((frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent))))
+    frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent)); 
+    if(__builtin_expect(frame_tag != nullptr, true))
     {
         size_t i = 0;
         for(size_t n = 0; n < ehdr().e_phnum; n++)
@@ -120,7 +121,7 @@ bool elf64_executable::load_segments()
         }
         block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
         block_descriptor* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
-        if(!s || !t) { panic("could not allocate blocks for stack/tls");  return false; }
+        if(__builtin_expect(!s || !t, false)) { panic("could not allocate blocks for stack/tls");  return false; }
         frame_extent = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
         frame_tag->extent = frame_extent;
         frame_tag->mapped_max = frame_extent;
