@@ -13,6 +13,9 @@ bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
 void scheduler::register_task(task_t* task) { __queues[task->task_ctl.prio_base].push(task); __total_tasks++; }
+using priority_val::PVLOW;
+using priority_val::PVEXTRA;
+using priority_val::PVSYS;
 scheduler::scheduler()      :
     __queues                {},
     __sleepers              {},
@@ -38,7 +41,7 @@ bool scheduler::__set_untimed_wait(task_t* task)
 
 bool scheduler::interrupt_wait(task_t* waiting)
 {
-    if(task_wait_queue::const_iterator i = __sleepers.find(waiting); i != __sleepers.end()) { return __sleepers.interrupt_wait(i); } 
+    if(task_wait_queue::const_iterator i = __sleepers.find(waiting); i != __sleepers.end() && (*i)->task_ctl.can_interrupt) { return __sleepers.interrupt_wait(i); } 
     else if(std::vector<task_t*>::iterator i = __non_timed_sleepers.find(waiting); i != __non_timed_sleepers.end()) 
     {
         task_t* task            = *i;
@@ -79,8 +82,8 @@ __isrcall void scheduler::__do_task_change(task_t* cur, task_t* next)
 bool scheduler::unregister_task(task_t* task) 
 {
     bool result = false;
-    if(task->task_ctl.prio_base == priority_val::PVSYS) { if(task_pl_queue::const_iterator i = __queues[priority_val::PVSYS].find(task, true); i != __queues[priority_val::PVSYS].end()) { result = __queues[priority_val::PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __queues[pv].find(task, true); i != __queues[pv].end()) { result = __queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
+    if(task->task_ctl.prio_base == PVSYS) { if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task, true); i != __queues[PVSYS].end()) { result = __queues[PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
+    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __queues[pv].find(task, true); i != __queues[pv].end()) { result = __queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
     __sync_synchronize();
     if(__total_tasks) __total_tasks--;
     return result;
@@ -96,9 +99,9 @@ bool scheduler::unregister_task_tree(task_t* task)
 __isrcall task_t* scheduler::select_next()
 {
     // first check system priority (I/O drivers and such will go here; most of the time they will be sleeping)
-    if(!__queues[priority_val::PVSYS].empty()) { if(__queues[priority_val::PVSYS].at_end()) __queues[priority_val::PVSYS].restart(); return __queues[priority_val::PVSYS].pop(); }
+    if(!__queues[PVSYS].empty()) { if(__queues[PVSYS].at_end()) __queues[PVSYS].restart(); return __queues[PVSYS].pop(); }
     task_t* target = nullptr;
-    for(priority_val pv = priority_val::PVEXTRA; pv >= priority_val::PVLOW; pv = priority_val(int8_t(pv) - 1))
+    for(priority_val pv = PVEXTRA; pv >= PVLOW; pv = priority_val(int8_t(pv) - 1))
     {
         task_pl_queue& queue = __queues[pv];
         if(!queue.empty())
@@ -121,7 +124,7 @@ __isrcall task_t* scheduler::select_next()
                 fence();
             }
             target = result;
-            for(priority_val qv = priority_val(static_cast<int8_t>(pv) - 1); qv >= priority_val::PVLOW; qv = priority_val(static_cast<int8_t>(qv) - 1)) 
+            for(priority_val qv = priority_val(static_cast<int8_t>(pv) - 1); qv >= PVLOW; qv = priority_val(static_cast<int8_t>(qv) - 1)) 
             { 
                 queue.on_skipped(); 
                 if(queue.skip_flag()) 
@@ -138,22 +141,20 @@ __isrcall task_t* scheduler::select_next()
 }
 bool scheduler::set_wait_untimed(task_t* task)
 {
-    using priority_val::PVSYS;
     if(task->task_ctl.prio_base == PVSYS) 
         if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task); i != __queues[PVSYS].end()) 
              return __set_untimed_wait(task);
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1))
+    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = priority_val(int8_t(pv) + 1))
         if(task_pl_queue::const_iterator i = __queues[pv].find(task); i != __queues[pv].end()) 
             return __set_untimed_wait(task); 
     return false;
 }
-bool scheduler::set_wait_timed(task_t *task, unsigned int time, bool can_interrupt)
+bool scheduler::set_wait_timed(task_t* task, unsigned int time, bool can_interrupt)
 {
-    using priority_val::PVSYS;
     if(task->task_ctl.prio_base == PVSYS)
         if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task); i != __queues[PVSYS].end())
             return __set_wait_time(task, time, can_interrupt); 
-    for(priority_val pv = task->task_ctl.prio_base; pv <= priority_val::PVEXTRA; pv = priority_val(int8_t(pv) + 1))
+    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = priority_val(int8_t(pv) + 1))
         if(task_pl_queue::const_iterator i = __queues[pv].find(task); i != __queues[pv].end())
             return __set_wait_time(task, time, can_interrupt);
     return false;
@@ -166,9 +167,9 @@ __isrcall void scheduler::on_tick()
         task_t* front_sleeper = __sleepers.next();
         while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta == 0)
         {
-            task_t* wakee = __sleepers.pop();
-            __queues[wakee->task_ctl.prio_base].push(wakee);
-            front_sleeper = __sleepers.next();
+            task_t* wakee           = __sleepers.pop();
+            wakee->task_ctl.block   = false;
+            front_sleeper           = __sleepers.next();
         } 
     }
     task_t* cur = get_gs_base<task_t>();
@@ -179,8 +180,8 @@ bool scheduler::init()
 {
     try
     {
-        __sleepers.reserve(16);
-        __non_timed_sleepers.reserve(16);
+        __sleepers.reserve(16UZ);
+        __non_timed_sleepers.reserve(16UZ);
         for(prio_level_task_queues::iterator i = __queues.begin(); i != __queues.end(); i++) i->reserve(16);
     }
     catch(std::exception& e) { panic(e.what()); return false; }

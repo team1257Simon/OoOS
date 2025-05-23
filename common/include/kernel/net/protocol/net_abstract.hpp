@@ -74,7 +74,7 @@ struct protocol_ethernet : abstract_protocol_handler
     protocol_handler_map<uint16_t> handlers;
     mac_t const& mac_addr;
     ipv4_config* ipv4_client_config;
-    ethernet_packet create_packet(mac_t const& dest);
+    ethernet_header create_packet(mac_t const& dest);
     virtual std::type_info const& packet_type() const;
     virtual int transmit(abstract_packet_base& p);
     virtual int receive(abstract_packet_base& p);

@@ -6,30 +6,30 @@
 constexpr static std::allocator<net16> udp_pseudo_alloc;
 constexpr const char must_decline_msg[] = "That address is already in use by another client.";
 static std::vector<net32> consume_variadic_dword_parameter(dhcp_parameter const& p) { return std::vector<net32>(p.start().as<net32>(), p.start().plus(p.length()).as<net32>()); }
-template<> template<> abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, std::move(that)) {}
-template<> template<> abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base const& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, that) {}
-template<> template<> abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, std::move(that)) {}
-template<> template<> abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base const& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet_base>, that) {}
-template class abstract_packet<dhcp_packet_base>;
-template abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base&&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base const&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base&&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base const&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base const&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base&&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>);
-template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base&&);
-template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base const&);
-dhcp_packet_base::dhcp_packet_base() noexcept = default;
-dhcp_packet_base::dhcp_packet_base(udp_packet_base const& that) noexcept : udp_packet_base(that) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
-dhcp_packet_base::dhcp_packet_base(udp_packet_base&& that) noexcept : udp_packet_base(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
-std::type_info const& protocol_dhcp::packet_type() const { return typeid(dhcp_packet_base); }
+template<> template<> abstract_packet<dhcp_packet>::abstract_packet(udp_header&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, std::move(that)) {}
+template<> template<> abstract_packet<dhcp_packet>::abstract_packet(udp_header const& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, that) {}
+template<> template<> abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, std::move(that)) {}
+template<> template<> abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet const& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, that) {}
+template class abstract_packet<dhcp_packet>;
+template abstract_packet<dhcp_packet>::abstract_packet(udp_header&&);
+template abstract_packet<dhcp_packet>::abstract_packet(udp_header const&);
+template abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet&&);
+template abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet const&);
+template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, dhcp_packet const&);
+template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, dhcp_packet&&);
+template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>);
+template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, udp_header&&);
+template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, udp_header const&);
+dhcp_packet::dhcp_packet() noexcept = default;
+dhcp_packet::dhcp_packet(udp_header const& that) noexcept : udp_header(that) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
+dhcp_packet::dhcp_packet(udp_header&& that) noexcept : udp_header(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
+std::type_info const& protocol_dhcp::packet_type() const { return typeid(dhcp_packet); }
 protocol_dhcp::~protocol_dhcp() = default;
 protocol_dhcp::protocol_dhcp(protocol_udp* n) : abstract_protocol_handler(n), ipconfig(n->ipconfig), ipresolve(*n->base->ip_resolver), transaction_timers(32UZ) {}
 int protocol_dhcp::rebind() { return request(ipconfig.leased_addr, active_renewal_xid); }
 int protocol_dhcp::receive(abstract_packet_base& p)
 {
-    dhcp_packet_base* pkt = p.get_as<dhcp_packet_base>();
+    dhcp_packet* pkt = p.get_as<dhcp_packet>();
     if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
     addr_t pos = pkt->parameters;
     while(pos.ref<net8>() != 0xFFUC)
@@ -58,9 +58,9 @@ int protocol_dhcp::receive(abstract_packet_base& p)
     }
     return -EPROTO;
 }
-abstract_packet<dhcp_packet_base> protocol_dhcp::create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid)
+abstract_packet<dhcp_packet> protocol_dhcp::create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid)
 {
-    abstract_packet<dhcp_packet_base> result(total_size, std::in_place_type<dhcp_packet_base>, std::forward<ipv4_standard_packet>(base->create_packet(dest_mac)));
+    abstract_packet<dhcp_packet> result(total_size, std::in_place_type<dhcp_packet>, std::forward<ipv4_standard_header>(base->create_packet(dest_mac)));
     if(transaction_timers.contains(xid)) 
         result->seconds         = net16(static_cast<uint16_t>(sys_time(nullptr) - transaction_timers[xid]));
     result->transaction_id      = net32(xid);
@@ -81,7 +81,7 @@ void protocol_dhcp::discover(std::vector<net8> const& param_requests)
     size_t actual_size                              = up_to_nearest(target_size, 2UZ);
     uint32_t xid                                    = static_cast<uint32_t>(rand());
     while(transaction_timers.contains(xid)) xid     = static_cast<uint32_t>(rand());
-    abstract_packet<dhcp_packet_base> discover_pkt  = create_packet(broadcast_mac, broadcast, actual_size, xid);
+    abstract_packet<dhcp_packet> discover_pkt  = create_packet(broadcast_mac, broadcast, actual_size, xid);
     transaction_timers[xid]                         = sys_time(nullptr);
     addr_t pos                                      = discover_pkt->parameters;
     pos.plus(total_param_size - 1Z).assign(0xFFUC);
@@ -99,7 +99,7 @@ void protocol_dhcp::discover(std::vector<net8> const& param_requests)
     }
     if(next->transmit(discover_pkt) != 0) throw std::runtime_error{ "[DHCP] packet transmission failed" };
 }
-int protocol_dhcp::process_offer_packet(dhcp_packet_base const& p)
+int protocol_dhcp::process_offer_packet(dhcp_packet const& p)
 {
     if(ipconfig.current_state == ipv4_client_state::INIT && transaction_timers.contains(p.transaction_id))
     {
@@ -121,7 +121,7 @@ int protocol_dhcp::process_offer_packet(dhcp_packet_base const& p)
     }
     return 0;
 }
-int protocol_dhcp::process_ack_packet(dhcp_packet_base const& p)
+int protocol_dhcp::process_ack_packet(dhcp_packet const& p)
 {
     sys_time(std::addressof(ipconfig.lease_acquired_time));
     ipconfig.leased_addr = p.your_ip;
@@ -194,7 +194,7 @@ int protocol_dhcp::decline(ipv4_addr addr, uint32_t xid)
     constexpr size_t total_param_size               = (sizeof(must_decline_msg) + 2UZ) + (sizeof(ipv4_addr) + 2UZ) * 2UZ + 4UZ;
     constexpr size_t target_size                    = total_dhcp_size(total_param_size);
     constexpr size_t actual_size                    = up_to_nearest(target_size, 2UZ);
-    abstract_packet<dhcp_packet_base> decline_pkt   = create_packet(broadcast_mac, broadcast, actual_size, xid);
+    abstract_packet<dhcp_packet> decline_pkt        = create_packet(broadcast_mac, broadcast, actual_size, xid);
     decline_pkt->seconds                            = 0USBE;
     addr_t pos                                      = decline_pkt->parameters;
     pos.plus(total_param_size - 1Z).assign(0xFFUC);
@@ -222,7 +222,7 @@ int protocol_dhcp::request(ipv4_addr addr, uint32_t xid)
 {
     size_t total_param_size                         = (sizeof(ipv4_addr) + 2UZ) * (ipconfig.current_state == ipv4_client_state::SELECTING ? 2UZ : ipconfig.current_state == ipv4_client_state::REBOOT ? 1UZ : 0UZ) + 4UZ;
     size_t actual_size                              = total_dhcp_size(total_param_size);    // the above number cannot possibly be odd; it will be either 4, 10, or 16
-    abstract_packet<dhcp_packet_base> request_pkt   = create_packet(broadcast_mac, broadcast, actual_size, xid);
+    abstract_packet<dhcp_packet> request_pkt        = create_packet(broadcast_mac, broadcast, actual_size, xid);
     addr_t pos                                      = request_pkt->parameters;
     pos.plus(total_param_size - 1Z).assign(0xFFUC);
     dhcp_parameter* param                           = pos;
@@ -253,7 +253,7 @@ int protocol_dhcp::renew()
     constexpr size_t total_param_size           = 4UZ;
     constexpr size_t actual_size                = total_dhcp_size(total_param_size); 
     mac_t server_mac                            = ipresolve[ipconfig.dhcp_server_addr];
-    abstract_packet<dhcp_packet_base> renew_pkt = create_packet(server_mac, ipconfig.dhcp_server_addr, actual_size, active_renewal_xid);
+    abstract_packet<dhcp_packet> renew_pkt      = create_packet(server_mac, ipconfig.dhcp_server_addr, actual_size, active_renewal_xid);
     addr_t pos                                  = renew_pkt->parameters;
     pos.plus(total_param_size - 1Z).assign(0xFFUC);
     dhcp_parameter* param                           = pos;
@@ -264,20 +264,23 @@ int protocol_dhcp::renew()
 }
 void protocol_dhcp::reset()
 {
-    ipconfig.lease_duration             = 0U;
-    ipconfig.lease_renew_time           = 0U;
-    ipconfig.lease_rebind_time          = 0U;
-    ipconfig.leased_addr                = 0UBE;
-    ipconfig.subnet_mask                = 0UBE;
-    ipconfig.dhcp_server_addr           = 0UBE;
-    ipconfig.primary_dns_server         = 0UBE;
-    ipconfig.primary_gateway            = 0UBE;
-    ipconfig.time_to_live_default       = 40UC;
-    ipconfig.time_to_live_tcp_default   = 40UC;
-    ipconfig.dns_server_addrs.clear();
-    ipconfig.gateway_addrs.clear();
-    std::vector<net8> params{ SUBNET_MASK, DOMAIN_NAME_SERVER, DOMAIN_NAME, ROUTER };
-    discover(params);
+    new(std::addressof(ipconfig)) ipv4_config
+    {
+        .primary_gateway            { empty },
+        .primary_dns_server         { empty },
+        .dhcp_server_addr           { empty },
+        .leased_addr                { empty },
+        .subnet_mask                { empty },
+        .lease_acquired_time        { 0UL },
+        .lease_duration             { 0U },
+        .lease_rebind_time          { 0U },
+        .time_to_live_default       { 0x40UC },
+        .time_to_live_tcp_default   { 0x40UC },
+        .current_state              { ipv4_client_state::INIT },
+        .gateway_addrs              {},
+        .dns_server_addrs           {}
+    };
+    discover(std::forward<std::vector<net8>>({ SUBNET_MASK, DOMAIN_NAME_SERVER, DOMAIN_NAME, ROUTER }));
 }
 int protocol_dhcp::transition_state(ipv4_client_state to_state)
 {

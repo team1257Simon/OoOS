@@ -15,7 +15,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 {
     try
     {
-        abstract_packet<ethernet_packet> p(b);
+        abstract_packet<ethernet_header> p(b);
         if(p->protocol_type == ethertype_arp) 
         {
             p.packet_type   = arp_handler.packet_type();
@@ -24,7 +24,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
         }
         int result = base_handler.receive(p);
         if(!result) return 0;
-        if(result == -EPROTONOSUPPORT) { klog("[e1000e] W: unrecognized protocol"); return 0; }
+        if(result == -EPROTONOSUPPORT) { klog("[net_device] W: unrecognized protocol"); return 0; }
         return result;
     }
     catch(std::bad_alloc&)      { return -ENOMEM; }

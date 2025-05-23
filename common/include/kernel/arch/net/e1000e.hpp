@@ -482,7 +482,10 @@ public:
     virtual void enable_receive() override;
     virtual void disable_transmit() override;
     virtual void disable_receive() override;
-    virtual int poll_tx(netstack_buffer& buff);
-    virtual int poll_rx();
+    virtual int poll_tx(netstack_buffer& buff) override;
+    virtual int poll_rx() override;
+protected:
+    typedef decltype(std::bind(&e1000e::poll_tx, std::declval<e1000e*>(), std::placeholders::_1)) tx_bind;
+    typedef decltype(std::bind(&e1000e::rx_transfer, std::declval<e1000e*>(), std::placeholders::_1)) rx_bind;
 };
 #endif

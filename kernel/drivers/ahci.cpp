@@ -18,7 +18,7 @@ static inline bool __port_nack_stop(hba_port* port) { barrier(); dword i = port-
 ahci *ahci::get_instance() { return std::addressof(__instance); }
 bool ahci::is_initialized() { return __has_init; }
 bool ahci::has_port(uint8_t i) { return __devices[i] != none; }
-void ahci::hard_reset_fallback(uint8_t idx)  { xdirect_write("hard reset required for port " + std::to_string(idx) + "\n"); port_hard_reset(idx); }
+void ahci::hard_reset_fallback(uint8_t idx) { xklog("[AHCI] hard reset required for port " + std::to_string(idx) + "\n"); port_hard_reset(idx); }
 bool ahci::__handoff_busy() { return (dword(__abar->bios_os_handoff)[bos_bit] || dword(__abar->bios_os_handoff)[bb_bit]); }
 int8_t ahci::which_port(ahci_device d) { for(int8_t i = 0; i < 32SC; i++) if(__devices[i] == d) return i; return -1SC; }
 ahci_device ahci::get_device_type(uint8_t i) { return __devices[i]; }
@@ -58,12 +58,12 @@ static inline ahci_device check_type(hba_port const& p)
 void ahci::__issue_command(uint8_t idx, int slot)
 {
     hba_port* port = std::addressof(__abar->ports[idx]);
-    if(!await_result([&]() -> bool { return !__port_data_busy(port); })) { throw std::runtime_error("Port number " + std::to_string(idx) + " is hung"); }
+    if(!await_result([&]() -> bool { return !__port_data_busy(port); })) { throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " is hung"); }
     barrier();
     port->cmd_issue |= BIT(slot);
     barrier();
     dword st;
-    if(!await_result([&]() -> bool { barrier(); st = port->i_state; barrier(); if(st.hi.hi & i_state_hi_byte_error) { throw std::runtime_error("Port number " + std::to_string(idx) + " i/o error"); } return !__port_data_busy(port); }, max_ext_wait)) { throw std::runtime_error("Port number " + std::to_string(idx) + " hardware error"); }
+    if(!await_result([&]() -> bool { barrier(); st = port->i_state; barrier(); if(st.hi.hi & i_state_hi_byte_error) { throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " i/o error"); } return !__port_data_busy(port); }, max_ext_wait)) { throw std::runtime_error("Port number " + std::to_string(idx) + " hardware error"); }
     barrier();
     __last_command_on_port[idx] = slot;
 }
@@ -132,7 +132,7 @@ bool ahci::init(pci_config_space* ps) noexcept
             barrier();
             unsigned spin = 0;
             while(__handoff_busy() && spin < max_wait) { barrier(); spin++; }
-            if(__handoff_busy()) { panic("AHCI bios handoff error"); return false; }
+            if(__handoff_busy()) { panic("[AHCI] bios handoff error"); return false; }
         }
         barrier();
         for(int i = 0; i < 32; i++)
@@ -154,17 +154,17 @@ bool ahci::init(pci_config_space* ps) noexcept
                 __abar->ports[i].s_err = e;
                 barrier();
             }
-            catch(std::exception& e) { panic(e.what()); xpanic("skipping port " + std::to_string(i)); __devices[i] = none; }
+            catch(std::exception& e) { panic(e.what()); xpanic("[AHCI] skipping port " + std::to_string(i)); __devices[i] = none; }
         }
         for(int i = 0; i < 32; i++) { if(has_port(i)) { __init_irq(); return true; } }
     }
     catch(std::exception& e) { panic(e.what()); return false; }
-    panic("no devices");
+    panic("[AHCI] no devices");
     return false;
 }
 void ahci::start_port(uint8_t i)
 {
-    if(i > __num_ports) throw std::out_of_range("port " + std::to_string(i) + " is out of range ");
+    if(i > __num_ports) throw std::out_of_range("[AHCI] port " + std::to_string(i) + " is out of range ");
     if(!await_result([&]() -> bool { return !dword(__abar->ports[i].cmd).lo.hi.b7; /* CR */ }, max_ext_wait)) throw std::runtime_error("Port number " + std::to_string(i) + " is hung");
     barrier();
     __abar->ports[i].cmd |= hba_command_fre;
@@ -173,7 +173,7 @@ void ahci::start_port(uint8_t i)
 }
 void ahci::stop_port(uint8_t i)
 {
-    if(i > __num_ports) throw std::out_of_range("port " + std::to_string(i) + " is out of range");
+    if(i > __num_ports) throw std::out_of_range("[AHCI] port " + std::to_string(i) + " is out of range");
     barrier();
     __abar->ports[i].cmd &= ~hba_cmd_start;
     barrier();
@@ -212,7 +212,7 @@ static int find_cmdslot(hba_port* port)
 void ahci::port_soft_reset(uint8_t idx)
 {
     hba_port* port = std::addressof(__abar->ports[idx]);
-    if(!await_result([&]() -> bool { return port->cmd_issue == 0; })) throw std::runtime_error("Port number " + std::to_string(idx) + " is hung");   
+    if(!await_result([&]() -> bool { return port->cmd_issue == 0; })) throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " is hung");   
     barrier();
     port->cmd &= ~hba_cmd_start;
     barrier();
@@ -224,23 +224,23 @@ void ahci::port_soft_reset(uint8_t idx)
     dword slots = port->s_active | port->cmd_issue;
     barrier();
     for(int i = 0; i < 32 && s1 < 0 && s2 < 0; i++) { if(!slots[i]) { if(s1 < 0) s1 = i; else s2 = i; } } 
-    if(s1 < 0 && s2 < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
+    if(s1 < 0 && s2 < 0) throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " has no available slots");
     barrier();
     hba_cmd_header* c1 = new(std::addressof(port->command_list[s1])) hba_cmd_header
     {
-        .cmd_fis_len = sizeof(fis_reg_h2d) / sizeof(uint32_t),
-        .reset = true,
-        .cl_busy = true,
-        .command_table = port->command_list[s1].command_table
+        .cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
+        .reset          = true,
+        .cl_busy        = true,
+        .command_table  = port->command_list[s1].command_table
     };
     barrier();
     memset(c1->command_table, 0, sizeof(hba_cmd_table));
     barrier();
     new(static_cast<void*>(c1->command_table->cmd_fis)) fis_reg_h2d
 	{
-		.type = reg_h2d,
-		.ctype = false,
-		.control = soft_reset_bit,
+		.type       = reg_h2d,
+		.ctype      = false,
+		.control    = soft_reset_bit,
 	};
     if(!await_result([&]() -> bool { return !__port_data_busy(port); })) { return hard_reset_fallback(idx); }
     barrier();
@@ -252,10 +252,10 @@ void ahci::port_soft_reset(uint8_t idx)
     if(s2 < 0) s2 = s1;
     hba_cmd_header* c2 = new(std::addressof(port->command_list[s2])) hba_cmd_header
     {
-        .cmd_fis_len = sizeof(fis_reg_h2d) / sizeof(uint32_t),
-        .reset = false,
-        .cl_busy = false,
-        .command_table = port->command_list[s2].command_table
+        .cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
+        .reset          = false,
+        .cl_busy        = false,
+        .command_table  = port->command_list[s2].command_table
     };
     barrier();
     memset(c2->command_table, 0, sizeof(hba_cmd_table));
@@ -273,7 +273,7 @@ void ahci::port_soft_reset(uint8_t idx)
 }
 void ahci::port_hard_reset(uint8_t idx)
 {
-    if(!has_port(idx)) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
+    if(__unlikely(!has_port(idx))) throw std::out_of_range("[AHCI] port " + std::to_string(idx) + " does not exist");
     hba_port* port = std::addressof(__abar->ports[idx]);
     barrier();
     stop_port(idx);
@@ -287,7 +287,7 @@ void ahci::port_hard_reset(uint8_t idx)
     barrier();
     port->s_control &= ~hba_control_det;
     barrier();
-    if(!await_result([&]() -> bool { return (dword(port->s_status).lo.lo & 0x0F) == port_present; })) { throw std::runtime_error("Port number " + std::to_string(idx) + " failed to start"); }
+    if(!await_result([&]() -> bool { return (dword(port->s_status).lo.lo & 0x0F) == port_present; })) { throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " failed to start"); }
     barrier();
     uint32_t bits = port->s_err;
     barrier();
@@ -297,18 +297,18 @@ void ahci::port_hard_reset(uint8_t idx)
 }
 void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 {
-    if(__unlikely(!has_port(idx))) { throw std::out_of_range("port " + std::to_string(idx) + " does not exist"); }
+    if(__unlikely(!has_port(idx))) { throw std::out_of_range("[AHCI] port " + std::to_string(idx) + " does not exist"); }
     hba_port* port  = std::addressof(__abar->ports[idx]);
     int slot        = find_cmdslot(port);
     barrier();
-    if(__unlikely(slot < 0)) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
+    if(__unlikely(slot < 0)) throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " has no available slots");
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
 	{
-		.cmd_fis_len = (sizeof(fis_reg_h2d) / sizeof(uint32_t)),
-		.atapi = false,
-		.w_direction = false, // d2h write
-		.prdt_length = static_cast<uint16_t>(div_round_up(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
-        .command_table = port->command_list[slot].command_table
+		.cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
+		.atapi          = false,
+		.w_direction    = false, // d2h write
+		.prdt_length    = static_cast<uint16_t>(div_round_up(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
+        .command_table  = port->command_list[slot].command_table
 	};
     barrier();
     __build_h2d_fis(start, count, buffer, ata_command::read_dma_ext, cmd->command_table, cmd->prdt_length);
@@ -317,18 +317,18 @@ void ahci::read_sectors(uint8_t idx, qword start, dword count, uint16_t* buffer)
 }
 void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t* buffer)
 {
-    if(__unlikely(!has_port(idx))) throw std::out_of_range("port " + std::to_string(idx) + " does not exist");
+    if(__unlikely(!has_port(idx))) throw std::out_of_range("[AHCI] port " + std::to_string(idx) + " does not exist");
     hba_port* port  = std::addressof(__abar->ports[idx]);
     int slot        = find_cmdslot(port);
     barrier();
-    if(slot < 0) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
+    if(__unlikely(slot < 0)) throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " has no available slots");
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
 	{
-		.cmd_fis_len = (sizeof(fis_reg_h2d) / sizeof(uint32_t)),
-		.atapi = false,
-		.w_direction = true, // h2d write
-		.prdt_length = static_cast<uint16_t>(div_round_up(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
-        .command_table = port->command_list[slot].command_table
+		.cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
+		.atapi          = false,
+		.w_direction    = true, // h2d write
+		.prdt_length    = static_cast<uint16_t>(div_round_up(count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
+        .command_table  = port->command_list[slot].command_table
 	};
     barrier();
     __build_h2d_fis(start, count, buffer, ata_command::write_dma_ext, cmd->command_table, cmd->prdt_length);
@@ -340,7 +340,7 @@ __isrcall void ahci::handle_irq()
     uint32_t s = __abar->i_status;
 	barrier();
     __abar->i_status = s;
-    if(!s) return; // This means the IRQ is for someone else
+    if(__unlikely(!s)) return; // This means the IRQ is for someone else
     for(size_t i = 0; i < 32; i++)
     {
         uint32_t s1 = __abar->ports[i].i_state;
@@ -361,18 +361,18 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
     barrier();
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
     {
-        .cmd_fis_len = 5UC,
-        .w_direction = false,
-        .prdt_length = true,
-        .command_table = new(port->command_list[slot].command_table) hba_cmd_table { .prdt_entries { { .data_base = addr.lo, .data_base_hi = addr.hi, .byte_count = 511U, .interrupt_on_completion = true } } }
+        .cmd_fis_len    = 5UC,
+        .w_direction    = false,
+        .prdt_length    = true,
+        .command_table  = new(port->command_list[slot].command_table) hba_cmd_table { .prdt_entries { { .data_base = addr.lo, .data_base_hi = addr.hi, .byte_count = 511U, .interrupt_on_completion = true } } }
     };
     barrier();
     new(static_cast<void*>(cmd->command_table->cmd_fis)) fis_reg_h2d
 	{
-		.type = reg_h2d,
-		.ctype = true,
-		.command = identify, 
-		.device = 0UC
+		.type       = reg_h2d,
+		.ctype      = true,
+		.command    = identify, 
+		.device     = 0UC
 	};
     try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("error on port identify; attempt soft reset"); port_soft_reset(idx); }
     await_result([&]() -> bool { return is_done(idx); });

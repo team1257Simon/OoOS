@@ -20,8 +20,24 @@ directory_node* filesystem::get_directory(int fd) { return dynamic_cast<director
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return xlink(get_parent(ogpath, false), get_parent(tgpath, create_parents)); }
 dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
 size_t filesystem::block_size() { return physical_block_size; }
+void filesystem::pubsyncdirs() { syncdirs(); }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create) { return get_parent(get_root_directory(), path, create); }
 directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
+file_node* filesystem::get_file_or_null(std::string const& path)
+{
+    try
+    {
+        target_pair parent  = get_parent(path, false);
+        if(tnode* node      = parent.first->find(parent.second))
+        { 
+            file_node* file = on_open(node);
+            if(file) register_fd(file);
+            return file;
+        }
+        return nullptr;
+    }
+    catch(...) { return nullptr; }
+}
 fs_node* fd_map::find_fd(int i) noexcept
 {
     iterator result = find(i);

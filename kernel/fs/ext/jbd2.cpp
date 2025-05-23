@@ -3,10 +3,9 @@
 #include "unordered_set"
 #include "kdebug.hpp"
 typedef std::hash_set<qword, uint64_t, std::hash<uint64_t>, std::equal_to<void>, std::allocator<qword>, decltype([](qword const& qw) -> uint64_t const& { return *reinterpret_cast<uint64_t const*>(&qw); })> blocknum_set;
-constexpr static std::allocator<jbd2_superblock> sb_alloc{};
 jbd2::jbd2() = default;
 jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode{ parent, inode } {}
-jbd2::~jbd2() { if(sb) sb_alloc.deallocate(sb, 1); }
+jbd2::~jbd2() {}
 bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_hd(db)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }

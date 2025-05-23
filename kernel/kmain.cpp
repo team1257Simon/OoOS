@@ -291,7 +291,8 @@ void elf64_tests()
         test_extfs.close_file(tst);
         if(test_exec)
         {
-            file_node* c = test_extfs.lndev("/dev/console", 0, com->get_device_id());
+            file_node* c = test_extfs.get_file_or_null("/dev/console");
+            if(!c) c = test_extfs.lndev("/dev/console", 0, com->get_device_id());
             elf64_program_descriptor const& desc = test_exec->describe();
             startup_tty.print_line("Entry at " + std::to_string(desc.entry));
             sch.start();

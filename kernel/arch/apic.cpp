@@ -37,16 +37,18 @@ bool apic::init() volatile
         }
     }
     if(!ioapic_physical_base) ioapic_physical_base = ioapic_default_physical_base;
-    addr_t the_apic         = kmm.map_dma(physical_base, sizeof(apic_map), false);
-    addr_t the_ioapic       = kmm.map_dma(ioapic_physical_base, sizeof(ioapic), false);
-    uint32_t count_target   = magnitude(cpuid(0x16U, 0).ecx) * 1000;
+    addr_t the_apic             = kmm.map_dma(physical_base, sizeof(apic_map), false);
+    addr_t the_ioapic           = kmm.map_dma(ioapic_physical_base, sizeof(ioapic), false);
+    uint32_t frequency          = cpuid(0x15U, 0U).ecx;
+    if(!frequency) frequency    = cpuid(0x16U, 0U).ecx;
+    uint32_t count_target       = magnitude(frequency) * 1000;
     fence();
     outb(data_pic1, 0xFFUC);
     outb(data_pic2, 0xFFUC);
     write_msr<ia32_apic_base>(qword((physical_base & 0xFFFFF000U) | apic_enable, (physical_base >> 32) & 0x0FU));
     __apic_mem                          = the_apic;
     __ioapic_mem                        = the_ioapic;
-    __apic_mem->logical_dest.value      = (0x0F << 24);
+    __apic_mem->logical_dest.value      = 0x0F000000U;
     barrier();
     __apic_mem->dest_fmt.value          = 0xFFFFFFFFU;
     barrier();
@@ -68,5 +70,6 @@ bool apic::init() volatile
         barrier();
         __ioapic_mem->data_reg      = data;
     }
+    fence();
     return true;
 }

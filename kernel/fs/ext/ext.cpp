@@ -118,24 +118,23 @@ bool ext_block_group::alter_available_blocks(int diff)
 }
 void ext_block_group::compute_checksums(size_t group_num)
 {
-    dword gn(static_cast<uint32_t>(group_num));
+    const dword gn(static_cast<uint32_t>(group_num));
     size_t bs = parent_fs->block_size();
     if(parent_fs->sb->read_only_optional_features & metadata_csum)
     {
-        uint32_t cs_seed = parent_fs->uuid_csum;
-        cs_seed = crc32c(cs_seed, group_num);
-        dword bbmp_cs = crc32c_blk(cs_seed, blk_usage_bmp, bs);
-        dword ibmp_cs = crc32c_blk(cs_seed, inode_usage_bmp, bs);
+        const uint32_t cs_seed      = crc32c(parent_fs->uuid_csum, gn);
+        dword bbmp_cs               = crc32c_blk(cs_seed, blk_usage_bmp, bs);
+        dword ibmp_cs               = crc32c_blk(cs_seed, inode_usage_bmp, bs);
         barrier();
-        descr->block_usage_bmp_checkum = bbmp_cs.lo;
-        descr->block_usage_bmp_checkum_hi = bbmp_cs.hi;
-        descr->inode_usage_bmp_checksum = ibmp_cs.lo;
-        descr->inode_usage_bmp_checksum_hi = ibmp_cs.hi;
-        descr->group_checksum = 0;
+        descr->block_usage_bmp_checkum      = bbmp_cs.lo;
+        descr->block_usage_bmp_checkum_hi   = bbmp_cs.hi;
+        descr->inode_usage_bmp_checksum     = ibmp_cs.lo;
+        descr->inode_usage_bmp_checksum_hi  = ibmp_cs.hi;
+        descr->group_checksum               = 0;
         barrier();
-        dword cs_full = crc32c(cs_seed, *descr);
+        dword cs_full                       = crc32c(cs_seed, *descr);
         barrier();
-        descr->group_checksum = cs_full.lo;
+        descr->group_checksum               = cs_full.lo;
     }
     else if(parent_fs->sb->read_only_optional_features & gdt_csum)
     {
@@ -181,7 +180,7 @@ void extfs::initialize()
         uint32_t cs0                        = crc32c(uuid_csum, dword(i));
         dword dw_cs                         = crc32c(cs0, blk_group_descs[i]);
         if(dw_cs.lo != cs) throw std::runtime_error{ "checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex) };
-        blk_group_descs[i].group_checksum = cs;
+        blk_group_descs[i].group_checksum   = cs;
     }
     std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
     if(!fs_journal.initialize()) throw std::runtime_error{ "journal init failed" };
@@ -221,8 +220,8 @@ uint32_t extfs::claim_inode(bool dir)
             off_t avail         = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
             uint32_t result     = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
             bitmap_set_bit(bmp, avail);
-            if(!(block_groups[i].decrement_inode_ct())) return 0U;
             if(dir) block_groups[i].increment_dir_ct();
+            if(!(block_groups[i].decrement_inode_ct())) return 0U;
             if(!persist_group_metadata(i)) return 0U;
             return result; 
         }
@@ -236,8 +235,8 @@ bool extfs::release_inode(uint32_t num, bool dir)
     off_t bit_off       = static_cast<off_t>(num % sb->inodes_per_group);
     unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
     bitmap_clear_bit(bmp, bit_off);
-    if(!block_groups[i].increment_inode_ct()) return false;
     if(dir) block_groups[i].decrement_dir_ct();
+    if(!block_groups[i].increment_inode_ct()) return false;
     return persist_group_metadata(i);
 }
 void extfs::release_blocks(uint64_t start, size_t num)
@@ -341,7 +340,7 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
 {
     qword tstamp            = sys_time(nullptr);
     uint8_t extrabits       = (tstamp.hi.hi >> 4) & 0x03UC;
-    if(uint32_t inode_num = claim_inode(true); __builtin_expect(inode_num != 0, true)) try
+    if(uint32_t inode_num   = claim_inode(true); __builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -560,7 +559,6 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
             if(avail < 0) continue;
             bitmap_set_chain_bits(bmp, avail, how_many);
             if(!block_groups[i].alter_available_blocks(static_cast<int>(-how_many))) return nullptr;
-            if(!persist_group_metadata(i)) return nullptr;
             uint64_t result = i * sb->blocks_per_group + avail;
             disk_block* blk = std::addressof(requestor->block_data.emplace_back(result, nullptr, false, how_many));
             if(!((requestor->on_disk_node->flags & use_extents) ? requestor->extents.push_extent_ext4(blk) : requestor->extents.push_extent_legacy(blk))) return nullptr;
@@ -568,6 +566,7 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
             blcnt                                       += how_many;
             requestor->on_disk_node->blocks_count_lo    = blcnt.lo;
             requestor->on_disk_node->blocks_count_hi    = blcnt.hi;
+            if(!persist_group_metadata(i)) return nullptr;
             return blk;
         }
     }
@@ -583,8 +582,7 @@ disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
             unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
             off_t avail         = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
             bitmap_set_chain_bits(bmp, avail, 1);
-            if(!block_groups[i].alter_available_blocks(-1)) return nullptr;
-            if(!persist_group_metadata(i)) return nullptr;
+            if(!block_groups[i].alter_available_blocks(-1)) return nullptr; // this only gets called from push extent, which in turn gets called from claim blocks which calls persist metadata
             uint64_t result = i * sb->blocks_per_group + avail;
             dword blcnt(requestor->tracked_node->on_disk_node->blocks_count_lo, requestor->tracked_node->on_disk_node->blocks_count_hi);
             blcnt++;
@@ -608,7 +606,7 @@ bool extfs::persist(ext_vnode* n)
     std::vector<disk_block> dirty_metadata{};
     for(disk_block& mdb : n->cached_metadata) { if(mdb.dirty) { dirty_metadata.push_back(mdb); mdb.dirty = false; } }
     if(dirty_metadata.empty()) return true; // vacuous truth if nothing to do
-    return persist_sb() && fs_journal.create_txn(dirty_metadata);
+    return fs_journal.create_txn(dirty_metadata) && persist_sb();
 }
 bool extfs::persist_group_metadata(size_t group_num)
 {

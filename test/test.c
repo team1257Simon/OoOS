@@ -39,8 +39,7 @@ int main(int argc, char** argv)
         else printf("no file :(\n");
     }
     else printf("no file D:\n");
-    if(mkdir("/files/fleedledeedle", 0774) < 0)
-        printf("no directory creation q.q\n");
+    if((mkdir("/files/fleedledeedle", 0774) < 0) && errno != EEXIST) printf("no directory creation q.q\n");
     else
     {
         FILE* g = fopen("/files/fleedledeedle/flaboogle.txt", "w+");

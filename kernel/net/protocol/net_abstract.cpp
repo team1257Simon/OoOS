@@ -9,9 +9,9 @@ abstract_packet_base::~abstract_packet_base() { if(packet_data) (*release_fn)(pa
 abstract_ip_resolver::abstract_ip_resolver() : previously_resolved(1024UZ) {}
 protocol_ethernet::protocol_ethernet(abstract_ip_resolver* ip_res, std::function<int(abstract_packet_base &)>&& tx_fn, mac_t const& mac) : abstract_protocol_handler(nullptr, this), ip_resolver(ip_res), transmit_fn(std::move(tx_fn)), handlers(64UZ), mac_addr(mac) {}
 protocol_ethernet::~protocol_ethernet() = default;
-std::type_info const& protocol_ethernet::packet_type() const { return typeid(ethernet_packet); }
+std::type_info const& protocol_ethernet::packet_type() const { return typeid(ethernet_header); }
 int protocol_ethernet::transmit(abstract_packet_base& p) { return transmit_fn(p); }
-ethernet_packet protocol_ethernet::create_packet(mac_t const& dest) { return ethernet_packet(dest, mac_addr); }
+ethernet_header protocol_ethernet::create_packet(mac_t const& dest) { return ethernet_header(dest, mac_addr); }
 abstract_ip_resolver::~abstract_ip_resolver() = default;
 abstract_protocol_handler::abstract_protocol_handler(abstract_protocol_handler* n) : next(n), base(next->base) {}
 abstract_protocol_handler::abstract_protocol_handler(abstract_protocol_handler* n, protocol_ethernet* b) : next(n), base(b) {}
@@ -77,10 +77,10 @@ mac_t const& abstract_ip_resolver::operator[](ipv4_addr addr)
 }
 int protocol_ethernet::receive(abstract_packet_base& p) 
 { 
-    ethernet_packet* pkt = static_cast<ethernet_packet*>(p.packet_data);
-    if(handlers.contains(pkt->protocol_type))
+    ethernet_header* hdr    = static_cast<ethernet_header*>(p.packet_data);
+    if(handlers.contains(hdr->protocol_type))
     {
-        protocol_handler& h = handlers[pkt->protocol_type];
+        protocol_handler& h = handlers[hdr->protocol_type];
         p.packet_type       = h->packet_type();
         return h->receive(p);
     }

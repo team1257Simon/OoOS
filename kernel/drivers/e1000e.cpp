@@ -118,7 +118,7 @@ bool e1000e::write_io(int reg_id, uint32_t const& w_in)
 void e1000e::read_dma(int reg_id, uint32_t& r_out)
 {
     addr_t where = __mmio_region.plus(reg_id);
-    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "e1000e dma access must be on dword boundary" };
+    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "[e1000e] dma access must be on dword boundary" };
     r_out = where.ref<uint32_t>();
     fence();
 }
@@ -131,7 +131,7 @@ uint32_t e1000e::read_dma(int reg_id)
 void e1000e::write_dma(int reg_id, uint32_t const& w_in)
 {
     addr_t where = __mmio_region.plus(reg_id);
-    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "e1000e dma access must be on dword boundary" };
+    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "[e1000e] dma access must be on dword boundary" };
     where.assign(w_in);
     fence();
 }
@@ -141,7 +141,7 @@ bool e1000e::__mdio_await(mdic& mdic_reg)
     {
         io_wait();
         read_dma(e1000_mdic, mdic_reg);
-        if(mdic_reg->error) throw std::runtime_error{ "e1000e mdic read error" };
+        if(mdic_reg->error) throw std::runtime_error{ "[e1000e] mdic read error" };
         return mdic_reg->ready;
     });
 }
@@ -208,8 +208,6 @@ e1000e::e1000e(pci_config_space* device, size_t descriptor_count_factor) :
                                 {}
 bool e1000e::initialize()
 {
-    typedef decltype(std::bind(&e1000e::poll_tx, this, std::placeholders::_1)) tx_bind;
-    typedef decltype(std::bind(&e1000e::rx_transfer, this, std::placeholders::_1)) rx_bind;
     if(__has_init) return true;
     dev_status status;
     __pcie_e1000e_controller->command.memory_space  = true;
@@ -253,7 +251,7 @@ bool e1000e::configure_mac_phy(dev_status& st)
     ctl->set_link_up    = true;
     write_dma(e1000_ctrl, ctl);
     if(await_result([&]() -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
-    panic("e1000e hung on link-up signal");
+    panic("[e1000e] device hung on link-up signal");
     return false;
 }
 bool e1000e::configure_tx(dev_status& st)

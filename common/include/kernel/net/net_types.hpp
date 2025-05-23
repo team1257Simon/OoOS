@@ -22,20 +22,20 @@ enum ipv4_transport_protocol : net8
 };
 constexpr net16 htype_ethernet = 0x0001USBE;
 constexpr net16 ethertype_ipv4 = 0x0800USBE;
-struct attribute(packed) ethernet_packet
+struct attribute(packed) ethernet_header
 {
     mac_t destination_mac;
     mac_t source_mac;
     net16 protocol_type;
-    constexpr ethernet_packet() noexcept                                    = default;
-    constexpr ethernet_packet(ethernet_packet const&) noexcept              = default;
-    constexpr ethernet_packet(ethernet_packet&&) noexcept                   = default;
-    constexpr ethernet_packet& operator=(ethernet_packet const&) noexcept   = default;
-    constexpr ethernet_packet& operator=(ethernet_packet&&) noexcept        = default;
-    constexpr ethernet_packet(mac_t const& dest, mac_t const& src) noexcept : destination_mac(dest), source_mac(src) {}
-    constexpr ethernet_packet(mac_t&& dest, mac_t&& src) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)) {}
-    constexpr ethernet_packet(mac_t const& dest, mac_t const& src, net16 proto) noexcept : destination_mac(dest), source_mac(src), protocol_type(proto) {}
-    constexpr ethernet_packet(mac_t&& dest, mac_t&& src, net16 proto) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)), protocol_type(proto) {}
+    constexpr ethernet_header() noexcept                                    = default;
+    constexpr ethernet_header(ethernet_header const&) noexcept              = default;
+    constexpr ethernet_header(ethernet_header&&) noexcept                   = default;
+    constexpr ethernet_header& operator=(ethernet_header const&) noexcept   = default;
+    constexpr ethernet_header& operator=(ethernet_header&&) noexcept        = default;
+    constexpr ethernet_header(mac_t const& dest, mac_t const& src) noexcept : destination_mac(dest), source_mac(src) {}
+    constexpr ethernet_header(mac_t&& dest, mac_t&& src) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)) {}
+    constexpr ethernet_header(mac_t const& dest, mac_t const& src, net16 proto) noexcept : destination_mac(dest), source_mac(src), protocol_type(proto) {}
+    constexpr ethernet_header(mac_t&& dest, mac_t&& src, net16 proto) noexcept : destination_mac(std::move(dest)), source_mac(std::move(src)), protocol_type(proto) {}
 };
 #pragma GCC diagnostic push
 // See the note in kernel_defs.h — this was probably more work than it was worth to write/do correctly, but I was feeling petty at the time and hadn't eaten lunch yet.
@@ -61,13 +61,7 @@ enum class ipv4_client_state : uint8_t
     RENEWING,   // state after T1 but before T2
     REBINDING,  // state entered if no response is received before T2
 };
-struct ipv4_state_info
-{
-    ipv4_client_state current_state     = ipv4_client_state::REBOOT;
-    std::vector<ipv4_addr> gateway_addrs;
-    std::vector<ipv4_addr> dns_server_addrs;
-};
-struct ipv4_config : ipv4_state_info
+struct ipv4_config
 {
     ipv4_addr primary_gateway;
     ipv4_addr primary_dns_server;
@@ -78,7 +72,10 @@ struct ipv4_config : ipv4_state_info
     uint32_t lease_duration;                        // Given by server; 0xFFFFFFFF indicates no limit 
     uint32_t lease_renew_time;                      // T1 interval; if not given by server, defaults to lease_duration / 2
     uint32_t lease_rebind_time;                     // T2 interval; if not given by server, defaults to (7 * lease_duration) / 8
-    uint8_t time_to_live_default        = 0x40UC;
-    uint8_t time_to_live_tcp_default    = 0x40UC;
+    uint8_t time_to_live_default;
+    uint8_t time_to_live_tcp_default;
+    ipv4_client_state current_state;
+    std::vector<ipv4_addr> gateway_addrs;
+    std::vector<ipv4_addr> dns_server_addrs;
 };
 #endif

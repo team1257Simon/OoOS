@@ -1,15 +1,15 @@
-#ifndef __UDP
-#define __UDP
+#ifndef __USER_DATAGRAM_PROTOCOL
+#define __USER_DATAGRAM_PROTOCOL
 #include "net/protocol/ipv4.hpp"
-struct __pack udp_packet_base : ipv4_standard_packet
+struct __pack udp_header : ipv4_standard_header
 {
     net16 source_port;
     net16 destination_port;
     net16 udp_length;
     net16 udp_csum;
-    udp_packet_base() noexcept;
-    udp_packet_base(ipv4_standard_packet const& that) noexcept;
-    udp_packet_base(ipv4_standard_packet&& that) noexcept;
+    udp_header() noexcept;
+    udp_header(ipv4_standard_header const& that) noexcept;
+    udp_header(ipv4_standard_header&& that) noexcept;
     void compute_udp_csum();
     bool verify_udp_csum() const;
 };
@@ -24,8 +24,9 @@ struct generic_udp_handler : abstract_protocol_handler
 };
 typedef protocol_handler_map<uint16_t> udp_port_map;
 #ifndef UDP_INST
-extern template class abstract_packet<udp_packet_base>;
-extern template abstract_packet<udp_packet_base>::abstract_packet(ipv4_standard_packet&&);
+extern template class abstract_packet<udp_header>;
+extern template abstract_packet<udp_header>::abstract_packet(ipv4_standard_header&&);
+typedef abstract_packet<udp_header> udp_packet;
 #endif
 struct protocol_udp : abstract_protocol_handler
 {

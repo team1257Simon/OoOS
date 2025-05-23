@@ -321,6 +321,7 @@ public:
     file_node* get_file(int fd);
     file_node* open_file(const char* path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);
     file_node* get_file(std::string const& path);
+    file_node* get_file_or_null(std::string const& path);
     directory_node* get_directory(int fd);
     directory_node* get_directory_or_null(std::string const& path, bool create = true) noexcept;
     void close_file(file_node* fd);
@@ -329,6 +330,7 @@ public:
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     filesystem();
+    void pubsyncdirs();
     ~filesystem();
 };
 filesystem* create_task_vfs();

@@ -122,7 +122,7 @@ struct __pack dhcp_parameter
     constexpr net8 const& length() const& noexcept { return parameter_octets[0]; }
     constexpr addr_t start() const noexcept { return std::addressof(parameter_octets[1]); }
 };
-struct __pack dhcp_packet_base : udp_packet_base
+struct __pack dhcp_packet : udp_header
 {
     bootp_operation_type    operation;
     net8                    hw_type = 0x1UC;
@@ -140,23 +140,22 @@ struct __pack dhcp_packet_base : udp_packet_base
     char                    boot_file_name[128];
     net32                   magic   = dhcp_magic;
     dhcp_parameter          parameters[];
-    dhcp_packet_base() noexcept;
-    dhcp_packet_base(udp_packet_base const& that) noexcept;
-    dhcp_packet_base(udp_packet_base&& that) noexcept;
+    dhcp_packet() noexcept;
+    dhcp_packet(udp_header const& that) noexcept;
+    dhcp_packet(udp_header&& that) noexcept;
 };
-constexpr size_t total_dhcp_size(size_t parameters_size) noexcept { return parameters_size + sizeof(dhcp_packet_base); }
+constexpr size_t total_dhcp_size(size_t parameters_size) noexcept { return parameters_size + sizeof(dhcp_packet); }
 #ifndef DHCP_INST
-extern template struct abstract_packet<dhcp_packet_base>;
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base const&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, dhcp_packet_base&&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base&&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet_base>, udp_packet_base const&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base&&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(udp_packet_base const&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base&&);
-extern template abstract_packet<dhcp_packet_base>::abstract_packet(dhcp_packet_base const&);
-typedef abstract_packet<dhcp_packet_base> dhcp_packet;
+extern template struct abstract_packet<dhcp_packet>;
+extern template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>);
+extern template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, dhcp_packet const&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, dhcp_packet&&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, udp_header&&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, udp_header const&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(udp_header&&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(udp_header const&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet&&);
+extern template abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet const&);
 #endif
 struct protocol_dhcp : abstract_protocol_handler
 {
@@ -175,9 +174,9 @@ protected:
     void reset();
     void discover(std::vector<net8> const& param_requests);
     net8 process_packet_parameter(dhcp_parameter const& param);
-    abstract_packet<dhcp_packet_base> create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid);
-    int process_offer_packet(dhcp_packet_base const& p);
-    int process_ack_packet(dhcp_packet_base const& p);
+    abstract_packet<dhcp_packet> create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid);
+    int process_offer_packet(dhcp_packet const& p);
+    int process_ack_packet(dhcp_packet const& p);
     int request(ipv4_addr addr, uint32_t xid);
     int decline(ipv4_addr addr, uint32_t xid);
 };
