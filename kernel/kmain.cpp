@@ -1,5 +1,6 @@
 #include "arch/apic.hpp"
 #include "arch/com_amd64.h"
+#include "arch/cpu_time.hpp"
 #include "arch/hpet_amd64.hpp"
 #include "arch/idt_amd64.h"
 #include "arch/kb_amd64.hpp"
@@ -303,15 +304,18 @@ void elf64_tests()
     }
     catch(std::exception& e) { panic(e.what()); }
 }
-uint64_t end_read = 0;
+uint64_t end_read;
 __isrcall void fn() { end_read = hpet_amd64::count_usec(); }
 void hpet_tests()
 {
     if(hpet_amd64::init_instance())
     {
         uint64_t start_read = hpet_amd64::count_usec();
+        fence();
         hpet_amd64::delay_usec(1000UL, fn);
-        startup_tty.print_line("time split: " + std::to_string(end_read - start_read));
+        fence();
+        if(start_read > end_read) startup_tty.print_line("emulator too unstable; start read was " + std::to_string(start_read) + " microseconds"); 
+        else startup_tty.print_line("time split: " + std::to_string(end_read - start_read));
     }
     else panic("hpet init failed");
 }
