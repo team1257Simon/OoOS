@@ -47,4 +47,54 @@ struct __pack tcp_header : ipv4_standard_header
     void compute_tcp_checksum();
     bool verify_tcp_checksum() const;
 };
+struct tcp_transmission_timer
+{
+    time_t retransmission_timeout;
+    time_t smoothed_round_trip_time;
+    time_t round_trip_time_variation;
+    tcp_transmission_timer() noexcept;
+    void update(time_t r);
+};
+enum class tcp_connection_state
+{
+    LISTEN,
+    SYN_SENT,
+    SYN_RECEIVED,
+    ESTABLISHED,
+    FIN_WAIT_1,
+    FIN_WAIT_2,
+    CLOSING,
+    LAST_ACK,
+    TIME_WAIT
+};
+struct tcp_connection
+{
+    struct
+    {
+        uint32_t last_unack;
+        uint32_t next_seq;
+        uint32_t window;
+        uint32_t urgent_ptr;
+        uint32_t last_window_seq;
+        uint32_t last_window_ack;
+        uint32_t initial_seq;
+    } send;
+    struct
+    {
+        uint32_t next_seq;
+        uint32_t window;
+        uint32_t urgent_ptr;
+        uint32_t initial_seq;
+    } receive;
+    struct
+    {
+        uint32_t seq;
+        uint32_t ack;
+        uint32_t len;
+        uint32_t window;
+        uint32_t urgent_ptr;
+    } segment;
+    tcp_transmission_timer timer;
+    tcp_connection_state current_state;
+};
 #endif

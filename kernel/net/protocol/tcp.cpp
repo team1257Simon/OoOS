@@ -1,4 +1,6 @@
 #include "net/protocol/tcp.hpp"
+#include "arch/cpu_time.hpp"
+tcp_transmission_timer::tcp_transmission_timer() noexcept : retransmission_timeout(tsci.us_to_tsc(1000000UL)) {}
 tcp_session_buffer::tcp_session_buffer() = default;
 tcp_header::tcp_header() noexcept { protocol = TCP; }
 tcp_header::tcp_header(ipv4_standard_header const& that) noexcept : ipv4_standard_header(that) { protocol = TCP; }
@@ -77,4 +79,24 @@ bool tcp_header::verify_tcp_checksum() const
     intermediate_csum   = dw_csum.hi + dw_csum.lo;
     dw_csum             = intermediate_csum;
     return static_cast<uint16_t>(~(dw_csum.lo)) == 0US;
+}
+constexpr static time_t abs_diff(time_t a, time_t b) 
+{
+    if(a > b)
+        return a - b;
+    return b - a;
+}
+void tcp_transmission_timer::update(time_t r)
+{
+    if(smoothed_round_trip_time)
+    {
+        round_trip_time_variation *= 3;
+        round_trip_time_variation /= 4;
+        round_trip_time_variation += abs_diff(smoothed_round_trip_time, r) / 4;
+        smoothed_round_trip_time *= 7;
+        smoothed_round_trip_time /= 8;
+        smoothed_round_trip_time += r / 8;
+    }
+    else { smoothed_round_trip_time = r; round_trip_time_variation = r / 2; }
+    retransmission_timeout = smoothed_round_trip_time + std::max(1UL, round_trip_time_variation * 4);
 }

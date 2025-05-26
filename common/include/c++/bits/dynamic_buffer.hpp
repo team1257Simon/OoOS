@@ -44,7 +44,7 @@ namespace std::__impl
         void __setc(__size_type offs) { __end = __begin + offs; }
         void __adv(__size_type n) { __end += n; }
         void __bck(__size_type n) { __end -= n; }
-        __size_type __capacity() const { return static_cast<__size_type>(__max - __begin); }
+        __size_type __capacity() const { return __begin ? static_cast<__size_type>(__max - __begin) : 0UZ; }
     };
     /**
      * This base-type implements the functionality shared by the dynamic-container types (mainly string and vector). 

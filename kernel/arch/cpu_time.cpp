@@ -1,9 +1,8 @@
 #include "arch/cpu_time.hpp"
 #include "arch/arch_amd64.h"
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio();
-extern "C" void read_tsc(time_t* out);
-extern "C" time_t diff_tsc(time_t const* from);
-extern "C" void read_diff_tsc(time_t* out, time_t const* from);
+static inline void read_tsc(addr_t out) { asm volatile("rdtsc" : "=a"(out.ref<uint32_t>()), "=d"(out.plus(4Z).ref<uint32_t>()) :: "memory"); }
+static inline time_t diff_tsc(time_t from) { uint32_t h, l; asm volatile("rdtsc" : "=a"(l), "=d"(h) :: "memory"); return static_cast<time_t>(qword(l, h) - from); }
 const cpu_timer_info cpu_timer_info::instance{ compute_cpu_tsc_ratio() };
 cpu_timer_info::cpu_timer_info(std::pair<time_t, time_t> ratio) : tsc_ratio_numerator(ratio.first), tsc_ratio_denominator(ratio.second) {}
 suseconds_t cpu_timer_info::tsc_to_us(time_t tsc) const { return (tsc * tsc_ratio_denominator) / tsc_ratio_numerator; }
@@ -12,9 +11,9 @@ cpu_timer_stopwatch::cpu_timer_stopwatch() = default;
 cpu_timer_stopwatch::cpu_timer_stopwatch(started_t) { start(); }
 void cpu_timer_stopwatch::reset() { __initial = 0UL; __split = 0UL; }
 void cpu_timer_stopwatch::start() { read_tsc(std::addressof(__initial)); }
-time_t cpu_timer_stopwatch::split() { read_diff_tsc(std::addressof(__split), std::addressof(__initial)); return __split; }
-time_t cpu_timer_stopwatch::get() const { return diff_tsc(std::addressof(__initial)); }
-time_t cpu_timer_stopwatch::get(tsplit_t) const { return diff_tsc(std::addressof(__split)); }
+time_t cpu_timer_stopwatch::split() { read_tsc(std::addressof(__split)); __split -= __initial; return __split; }
+time_t cpu_timer_stopwatch::get() const { return diff_tsc(__initial); }
+time_t cpu_timer_stopwatch::get(tsplit_t) const { return diff_tsc(__split); }
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio()
 {
     cpuid_leaf leaf_0x15 = cpuid(0x15U, 0);
