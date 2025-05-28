@@ -110,6 +110,7 @@ namespace std
         constexpr tuple(tuple&&) = default;
         constexpr tuple& operator=(tuple const& that) noexcept(__nothrow_assignable<ETs const&...>()) requires(__assignable<ETs const&...>()) { this->__assign(that); return *this; }
         constexpr tuple& operator=(tuple&& that) noexcept(__nothrow_assignable<ETs...>()) requires(__assignable<ETs const&...>()) { this->__assign(std::move(that)); return *this; }
+        constexpr void swap(tuple& that) { this->__swap(that); }
     };
     template<> class tuple<>
     {

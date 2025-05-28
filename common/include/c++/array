@@ -69,6 +69,20 @@ namespace std
         constexpr const_reference back() const noexcept { return __trait_type::__ref(__my_array, N ? N - 1 : 0); }
     };
     template<typename T, typename ... Us> array(T, Us...) -> array<enable_if_t<(is_same_v<T, Us> && ...), T>, 1 + sizeof...(Us)>;
+    extension namespace ext
+    {
+        template<typename T> concept generic_enum_type = is_enum_v<T> && requires { T::MAX; };
+        template<generic_enum_type E> constexpr size_t entries = static_cast<size_t>(E::MAX) + 1UZ;
+        template<typename T, generic_enum_type E>
+        struct enumerated_array : array<T, entries<E>>
+        {
+            typedef array<T, entries<E>> base_array;
+            using typename base_array::reference;
+            using typename base_array::const_reference;
+            constexpr reference operator[](E e) { return base_array::operator[](static_cast<size_t>(e)); }
+            constexpr const_reference operator[](E e) const { return base_array::operator[](static_cast<size_t>(e)); }
+        };
+    }
 }
 template<typename T, size_t N> void array_copy(std::array<T, N>& dest, const void* src) { array_copy(dest.data(), static_cast<T const*>(src), N); }
 template<typename T, size_t N, std::convertible_to<T> U = T> void array_copy(std::array<T, N>& dest, std::array<U, N> const& src) { array_copy(dest, src.data()); }

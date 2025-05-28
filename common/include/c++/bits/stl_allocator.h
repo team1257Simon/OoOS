@@ -41,6 +41,7 @@ namespace std
     {
         [[nodiscard]] [[gnu::externally_visible]] void* __aligned_reallocate(void* ptr, size_t n, size_t align);
         template<typename T> concept __non_array = !std::is_array_v<T>;
+        template<typename T> concept __unbounded_array = std::is_unbounded_array_v<T>;
         template<typename ... Args> concept __zero_size = sizeof...(Args) == 0;
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
     }

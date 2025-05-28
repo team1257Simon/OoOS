@@ -84,5 +84,6 @@ int protocol_ethernet::receive(abstract_packet_base& p)
         p.packet_type       = h->packet_type();
         return h->receive(p);
     }
+    
     return -EPROTONOSUPPORT;
 }

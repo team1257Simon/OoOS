@@ -27,7 +27,7 @@ namespace std
             dynamic_queue_streambuf(dynamic_queue_streambuf&& that) : __base(forward<__base>(that)) {}
             dynamic_queue_streambuf(const_pointer start, const_pointer end, off_type n = 0L, size_type e = 0UZ) : __base(static_cast<size_type>(end - start)) { this->__qcopy(this->__qbeg(), start, static_cast<size_type>(end - start)); if(n > 0L) this->__qsetn(static_cast<size_type>(n)); if(e) this->__qsete(e); }
             dynamic_queue_streambuf& operator=(dynamic_queue_streambuf const&) = delete;
-            dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__qmove(forward<__base>(that)); return *this; }
+            dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__q_move_assign(forward<__base>(that)); return *this; }
             dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type{}) : __base(sz, alloc) {}
             virtual void reset() { this->__qrst(); }
             pointer data() { return this->__qbeg(); }

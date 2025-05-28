@@ -1,12 +1,24 @@
 #include "net/protocol/tcp.hpp"
-#include "arch/cpu_time.hpp"
+#include "ow-crypt.h"
+#include "sys/errno.h"
 tcp_transmission_timer::tcp_transmission_timer() noexcept : retransmission_timeout(tsci.us_to_tsc(1000000UL)) {}
+isn_gen::isn_gen() : selector_clock(cpu_timer_stopwatch::started), selector_crypto_salt(create_hash_setting_string()) {}
+void isn_gen::regen_salt() { selector_crypto_salt = std::move(create_hash_setting_string()); }
 tcp_session_buffer::tcp_session_buffer() = default;
 tcp_header::tcp_header() noexcept { protocol = TCP; }
 tcp_header::tcp_header(ipv4_standard_header const& that) noexcept : ipv4_standard_header(that) { protocol = TCP; }
 tcp_header::tcp_header(ipv4_standard_header&& that) noexcept : ipv4_standard_header(std::move(that)) { protocol = TCP; }
 addr_t tcp_header::payload_start() const { return addr_t(std::addressof(source_port)).plus(fields.data_offset * sizeof(net32)); }
 addr_t tcp_header::payload_end() const { return addr_t(this).plus(static_cast<ptrdiff_t>(static_cast<uint16_t>(total_length))); }
+size_t tcp_header::segment_len() const { return static_cast<size_t>(std::max(1Z, static_cast<ptrdiff_t>(total_length) - static_cast<ptrdiff_t>(fields.data_offset * sizeof(net32) + sizeof(ipv4_standard_header)))); }
+bool tcp_header::src_chk(ipv4_addr addr, uint16_t port) const noexcept { return addr == source_addr && net16(port) == source_port; }
+bool tcp_header::seq_chk(uint32_t seq) const noexcept { return net32(seq) == sequence_number; }
+bool tcp_header::ack_chk(uint32_t ack) const noexcept { return net32(ack) == ack_number; }
+bool tcp_header::peer_chk(tcp_connection_info const& connection_info) const noexcept { return src_chk(connection_info.remote_host, connection_info.remote_port) && ack_chk(connection_info.next_send_sequence) && seq_chk(connection_info.next_receive_sequence); }
+protocol_tcp::protocol_tcp(protocol_ipv4 *n) : abstract_protocol_handler(n), ipconfig(n->client_config), generate_isn() {}
+std::type_info const& protocol_tcp::packet_type() const { return typeid(tcp_header); }
+std::type_info const& tcp_port_handler::packet_type() const { return typeid(tcp_header); }
+int tcp_port_handler::receive(abstract_packet_base& p) { if(__unlikely(!p.get_as<tcp_header>())) throw std::bad_cast(); return rx_process(reinterpret_cast<tcp_packet&>(p)); }
 std::streamsize tcp_session_buffer::xsputn(const char* s, size_type n)
 {
     size_type send_capacity   = __out_region.__capacity();
@@ -86,8 +98,9 @@ constexpr static time_t abs_diff(time_t a, time_t b)
         return a - b;
     return b - a;
 }
-void tcp_transmission_timer::update(time_t r)
+void tcp_transmission_timer::update()
 {
+    time_t r = stopwatch.split();
     if(smoothed_round_trip_time)
     {
         round_trip_time_variation *= 3;
@@ -99,4 +112,120 @@ void tcp_transmission_timer::update(time_t r)
     }
     else { smoothed_round_trip_time = r; round_trip_time_variation = r / 2; }
     retransmission_timeout = smoothed_round_trip_time + std::max(1UL, round_trip_time_variation * 4);
+}
+uint32_t isn_gen::operator()(ipv4_addr localip, uint16_t localport, ipv4_addr remoteip, uint16_t remoteport) const
+{
+    std::string keystr = stringify(localip) + ":" + std::to_string(localport) + "::" + stringify(remoteip) + ":" + std::to_string(remoteport);
+    std::string hashstr = create_crypto_string(keystr, selector_crypto_salt);
+    suseconds_t four_usec_ticks = (tsci.tsc_to_us(selector_clock.get())) >> 2;
+    return static_cast<uint32_t>((four_usec_ticks + std::elf64_gnu_hash()(hashstr.data())) & 0xFFFFFFFFU);
+}
+tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, application_listener const& l, uint16_t port) :
+    abstract_protocol_handler   { std::addressof(tcp) },
+    local_host                  { tcp },
+    local_port                  { port },
+    connection_state            { tcp_connection_state::CLOSED },
+    connection_info             {},
+    send_packets                {},
+    receive_packets             {},
+    timer                       {},
+    app                         { l },
+    data                        {}
+                                {}
+void tcp_port_handler::close() 
+{
+    connection_state = tcp_connection_state::CLOSED;
+    new(std::addressof(connection_info)) tcp_connection_info{};
+    send_packets.clear();
+    receive_packets.clear();
+    new(std::addressof(timer)) tcp_transmission_timer();
+    data.reset();
+    timer.stopwatch.reset();
+}
+void tcp_port_handler::open(ipv4_addr peer, uint16_t port, tcp_connection_type local_type, tcp_connection_type remote_type)
+{
+    new(std::addressof(connection_info)) tcp_connection_info
+    {
+        .remote_host            { peer },
+        .remote_port            { port },
+        .local_connection_type  { local_type },
+        .remote_connection_type { remote_type },
+        .initial_send_sequence  { local_host.generate_isn(local_host.ipconfig.leased_addr, local_port, peer, port) }
+    };
+    connection_info.current_send_sequence = connection_info.initial_send_sequence;
+}
+int tcp_port_handler::rx_process(tcp_packet& p)
+{
+    using enum tcp_connection_state;
+    if(connection_state == CLOSED) return -ENOTCONN;
+    if(timer.stopwatch && p->peer_chk(connection_info)) timer.update();
+    if(connection_state == LISTEN)
+    {
+        if(p->fields.syn_flag && !p->fields.ack_flag)
+        {
+            if(p->fields.finish_flag || p->fields.reset_flag) return -EPROTO;
+            open(p->source_addr, p->source_port, tcp_connection_type::PASSIVE, tcp_connection_type::ACTIVE);
+            return rx_initial(p);
+        }
+    }
+    else if(connection_state == SYN_SENT)
+    {
+        if(p->src_chk(connection_info.remote_host, connection_info.remote_port) && p->fields.syn_flag && !p->fields.ack_flag)
+        {
+            if(p->fields.finish_flag || p->fields.reset_flag) return -EPROTO;
+            connection_info.remote_connection_type = tcp_connection_type::ACTIVE;
+            return rx_initial(p);
+        }
+    }
+    return 0;
+}
+tcp_packet& tcp_port_handler::create_packet(size_t payload_size, size_t option_size, uint16_t window_size)
+{
+    size_t padded_option_size                   = option_size ? up_to_nearest(option_size + 1UZ, 4UZ) : 0UZ;
+    abstract_ip_resolver& res                   = *base->ip_resolver;
+    mac_t remote_mac                            = res[res.check_presence(connection_info.remote_host) ? connection_info.remote_host : local_host.ipconfig.primary_gateway];
+    sequence_map::iterator i                    = send_packets.emplace(std::piecewise_construct, std::forward_as_tuple(connection_info.current_send_sequence), std::forward_as_tuple(sizeof(tcp_header) + padded_option_size + payload_size, std::in_place_type<tcp_header>, std::forward<ipv4_standard_header>(base->create_packet(remote_mac)))).first;
+    if(padded_option_size)
+    {
+        addr_t option_start = i->second->options;
+        option_start.plus(padded_option_size - 1Z).assign(0UC);
+        if(option_size != padded_option_size) array_fill(option_start.plus(option_size), 1UC, static_cast<size_t>(padded_option_size - option_size - 1Z));
+    }
+    i->second->total_length                     = net16(static_cast<uint16_t>(i->second.packet_size));
+    i->second->sequence_number                  = net32(i->first);
+    i->second->ack_number                       = net32(connection_info.next_receive_sequence);
+    i->second->window_size                      = net16(window_size);
+    i->second->fields.data_offset               = static_cast<net8>((sizeof(tcp_header) + padded_option_size - sizeof(ipv4_standard_header)) / sizeof(net32));
+    i->second->source_addr                      = local_host.ipconfig.leased_addr;
+    i->second->source_port                      = net16(local_port);
+    i->second->destination_addr                 = connection_info.remote_host;
+    i->second->destination_port                 = net16(connection_info.remote_port);
+    connection_info.next_send_sequence          = static_cast<uint32_t>(i->first + i->second->segment_len());
+    return i->second;
+}
+int tcp_port_handler::rx_initial(tcp_packet& p)
+{
+    using enum tcp_connection_state;
+    try
+    {
+        sequence_map::iterator i                    = receive_packets.emplace(std::piecewise_construct, std::forward_as_tuple(p->sequence_number), std::forward_as_tuple(std::move(p))).first;
+        connection_info.initial_receive_sequence    = i->first;
+        connection_info.current_receive_sequence    = i->first;
+        connection_info.next_receive_sequence       = static_cast<uint32_t>(i->first + i->second->segment_len());
+        tcp_packet& ack_packet                      = create_packet(0UZ);
+        ack_packet->fields.ack_flag                 = true;
+        ack_packet->fields.syn_flag                 = true;
+        ack_packet->compute_tcp_checksum();
+        connection_state                            = SYN_RECEIVED;
+    }
+    catch(std::bad_alloc&) { return -ENOMEM; }
+    return 0;
+}
+int tcp_port_handler::transmit_next()
+{
+    if(!send_packets.contains(connection_info.current_send_sequence))
+        return -ENOTCONN;
+    if(!timer.stopwatch) 
+        timer.stopwatch.start();
+    return local_host.next->transmit(send_packets[connection_info.current_send_sequence]);
 }

@@ -38,6 +38,7 @@ namespace std
             virtual size_type size(ios_base::openmode which = ios_base::in | ios_base::out);
             virtual size_type count(ios_base::openmode which = ios_base::in | ios_base::out);
             virtual void expand(size_type amount, ios_base::openmode which = ios_base::in | ios_base::out);
+            virtual void reset(ios_base::openmode which = ios_base::in | ios_base::out);
             constexpr dynamic_duplex_streambuf() = default;
             virtual ~dynamic_duplex_streambuf();
         };
@@ -163,6 +164,22 @@ namespace std
                 __allocator.deallocate(this->__in_region.__begin, this->__in_region.__capacity());
             if(this->__out_region.__begin)
                 __allocator.deallocate(this->__out_region.__begin, this->__out_region.__capacity());
+        }
+        template <char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
+        void std::ext::dynamic_duplex_streambuf<CT, TT, AT>::reset(ios_base::openmode which)
+        {
+            if(which.in)
+            {
+                if(this->__in_region.__begin)
+                    __allocator.deallocate(this->__in_region.__begin, this->__in_region.__capacity());
+                this->__in_region.__reset();
+            }
+            if(which.out)
+            {
+                if(this->__out_region.__begin)
+                    __allocator.deallocate(this->__out_region.__begin, this->__out_region.__capacity());
+                this->__out_region.__reset();
+            }
         }
     }
 }

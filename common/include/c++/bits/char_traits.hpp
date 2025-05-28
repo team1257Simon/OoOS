@@ -17,8 +17,8 @@ namespace std
     template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return const_cast<CT*>(ptr); }
     extension template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
     extension template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, SIZE_MAX / 2); }
-    extension template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { array_fill(ptr, val, n); return ptr; }
-    extension template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { array_fill<CT>(ptr, c, n); return ptr; }
+    extension template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { fill_n<IT>(static_cast<IT*>(ptr), n, val); return ptr; }
+    extension template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { fill_n(ptr, n, c); return ptr; }
     extension template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }
     extension template<std::char_type CT> constexpr CT to_char_type(int i) { return static_cast<CT>(i); }
     extension template<std::char_type CT> constexpr int to_int_type(CT c) { return static_cast<int>(c); }

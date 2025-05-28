@@ -70,7 +70,7 @@ namespace std::__impl
          * If the iterator happens to be contiguous (e.g. a pointer), this will simplify into the normal copy operation.
          */
         template<matching_input_iterator<T> IT> constexpr void __transfer(T* where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
-        constexpr void __set(__ptr where, T const& val, __size_type n) { array_fill(where, val, n); }
+        constexpr void __set(__ptr where, T const& val, __size_type n) { fill_n(where, n, val); }
         /**
          * Selects the proper function to clear allocated storage of garbage data.
          * If the type T is a nontrivial type which cannot be default-constructed, this function does nothing.
@@ -79,6 +79,7 @@ namespace std::__impl
          */
         constexpr void __zero(__ptr where, __size_type n) { array_zero(where, n); }
         constexpr void __copy(__ptr where, __const_ptr src, __size_type n) { array_copy(where, src, n); }
+        constexpr void __move(__ptr where, __ptr src, __size_type n) { array_move(where, src, n); }
         constexpr bool __grow_buffer(__size_type added);
         extension constexpr void __post_modify_check_nt();
         template<matching_input_iterator<T> IT> constexpr __ptr __append_elements(IT start_it, IT end_it);
@@ -165,9 +166,9 @@ namespace std::__impl
             __size_type target_cap = __capacity() + diff;
             __buf_ptrs nwdat { __allocator.allocate(target_cap), target_cap };
             __size_type rem = __size() - (pos + count);
-            __copy(nwdat.__begin, __beg(), pos);
+            __move(nwdat.__begin, __beg(), pos);
             __copy(nwdat.__get_ptr(pos), from, count2);
-            __copy(nwdat.__get_ptr(pos + count2), __get_ptr(pos + count), rem);
+            __move(nwdat.__get_ptr(pos + count2), __get_ptr(pos + count), rem);
             nwdat.__setc(__size() + diff);
             __allocator.deallocate(__beg(), __capacity());
             __my_data.__copy_ptrs(nwdat);
@@ -202,6 +203,7 @@ namespace std::__impl
     constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr)
     {
         if(__out_of_range(pos)) return nullptr;
+        __ptr ncpos = __get_ptr(__diff(pos));
         try
         {
             __size_type range_size = distance(start_ptr, end_ptr);
@@ -212,9 +214,9 @@ namespace std::__impl
                 {
                     __size_type n = __ediff(pos);
                     __ptr temp = __allocator.allocate(n);
-                    __copy(temp, pos, n);
+                    __move(temp, ncpos, n);
                     __transfer(__get_ptr(offs), start_ptr, end_ptr);
-                    __copy(__get_ptr(offs + range_size), temp, n);
+                    __move(__get_ptr(offs + range_size), temp, n);
                     __allocator.deallocate(temp, n);
                     __advance(range_size);
                 }
@@ -227,11 +229,11 @@ namespace std::__impl
                 if(pos < __cur())
                 {
                     __size_type rem = __ediff(pos);
-                    __copy(nwdat.__begin, __beg(), offs);
-                    __copy(nwdat.__get_ptr(offs + range_size), pos, rem);
+                    __move(nwdat.__begin, __beg(), offs);
+                    __move(nwdat.__get_ptr(offs + range_size), ncpos, rem);
                     nwdat.__setc(__size() + range_size);
                 }
-                else { __copy(nwdat.__begin, __beg(), __size()); nwdat.__setc(__size() + range_size); }
+                else { __move(nwdat.__begin, __beg(), __size()); nwdat.__setc(__size() + range_size); }
                 __allocator.deallocate(__beg(), __size());
                 __my_data.__copy_ptrs(nwdat);
                 __transfer(__get_ptr(offs), start_ptr, end_ptr);
@@ -253,8 +255,8 @@ namespace std::__impl
         __size_type target_cap = (__size() < __capacity()) ? __capacity() : __capacity() + 1;
         __container nwdat{ __allocator.allocate(target_cap), target_cap };
         __ptr result = construct_at(nwdat.__get_ptr(start_pos), forward<Args>(args)...);
-        __copy(nwdat.__begin, __beg(), start_pos);
-        if(rem) __copy(result + 1, __get_ptr(start_pos), rem);
+        __move(nwdat.__begin, __beg(), start_pos);
+        if(rem) __move(result + 1, __get_ptr(start_pos), rem);
         __destroy();
         __my_data.__swap_ptrs(nwdat);
         __post_modify_check_nt();
@@ -282,9 +284,10 @@ namespace std::__impl
         else try
         {
             __ptr temp = __allocator.allocate(rem);
-            __copy(temp, end, rem);
+            __ptr ncend = __get_ptr(__diff(end));
+            __move(temp, ncend, rem);
             __zero(__get_ptr(start_pos), __ediff(start));
-            __copy(__get_ptr(start_pos), temp, rem);
+            __move(__get_ptr(start_pos), temp, rem);
             __allocator.deallocate(temp, rem);
             __setc(start_pos + rem);
         }
@@ -292,7 +295,7 @@ namespace std::__impl
         __post_modify_check_nt();
         return __get_ptr(start_pos);
     }
-    extension template <typename T, allocator_object<T> A, bool NT> constexpr void __dynamic_buffer<T, A, NT>::__post_modify_check_nt() 
+    extension template<typename T, allocator_object<T> A, bool NT> constexpr void __dynamic_buffer<T, A, NT>::__post_modify_check_nt() 
     { 
         if constexpr(__end_zero) 
         { 

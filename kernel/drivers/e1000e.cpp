@@ -352,18 +352,30 @@ int e1000e::poll_tx(netstack_buffer& buff)
 }
 int e1000e::poll_rx()
 {
-    uint32_t head = rx_ring.head_descriptor;
+    uint32_t head                   = rx_ring.head_descriptor;
     read_dma(rxh, rx_ring.head_descriptor);
+    netstack_buffer* active_buffer  = nullptr;
     std::vector<netstack_buffer*> to_process;
     for(uint32_t i = head; i < rx_ring.head_descriptor; fence(), i++)
     {
         e1000e_receive_descriptor& desc = rx_ring.descriptors[i];
         netstack_buffer& buff           = *(transfer_buffers.begin() + i);
-        if(desc.read.status.done && desc.read.status.end_of_packet && !desc.read.errors)
+        if(desc.read.status.done && !desc.read.errors)
         {
             buff.pubseekpos(std::streampos(desc.read.length), std::ios_base::in);
-            try { to_process.push_back(std::addressof(buff)); }
-            catch(...) { return -ENOMEM; }
+            if(desc.read.status.end_of_packet)
+            {
+                try { to_process.push_back(active_buffer ? active_buffer : std::addressof(buff)); }
+                catch(...) { return -ENOMEM; }
+                active_buffer = nullptr;
+            }
+            else
+            {
+                if(!active_buffer)
+                    active_buffer = std::addressof(buff);
+                else
+                    active_buffer->rx_accumulate(buff);
+            }
         }
         addr_t(std::addressof(desc.read.status)).assign(0UC);
         rx_ring.tail_descriptor = (rx_ring.tail_descriptor + 1) % rx_ring.count();

@@ -8,10 +8,10 @@ cpu_timer_info::cpu_timer_info(std::pair<time_t, time_t> ratio) : tsc_ratio_nume
 suseconds_t cpu_timer_info::tsc_to_us(time_t tsc) const { return (tsc * tsc_ratio_denominator) / tsc_ratio_numerator; }
 time_t cpu_timer_info::us_to_tsc(suseconds_t us) const { return (us * tsc_ratio_numerator) / tsc_ratio_denominator; }
 cpu_timer_stopwatch::cpu_timer_stopwatch() = default;
-cpu_timer_stopwatch::cpu_timer_stopwatch(started_t) { start(); }
-void cpu_timer_stopwatch::reset() { __initial = 0UL; __split = 0UL; }
-void cpu_timer_stopwatch::start() { read_tsc(std::addressof(__initial)); }
-time_t cpu_timer_stopwatch::split() { read_tsc(std::addressof(__split)); __split -= __initial; return __split; }
+cpu_timer_stopwatch::cpu_timer_stopwatch(started_t) : __is_started(true) { start(); }
+void cpu_timer_stopwatch::reset() { __initial = 0UL; __split = 0UL; __is_started = false; }
+void cpu_timer_stopwatch::start() { read_tsc(std::addressof(__initial)); __split = __initial; __is_started = true; }
+time_t cpu_timer_stopwatch::split() { time_t old = __split; read_tsc(std::addressof(__split)); __split -= old; return __split; }
 time_t cpu_timer_stopwatch::get() const { return diff_tsc(__initial); }
 time_t cpu_timer_stopwatch::get(tsplit_t) const { return diff_tsc(__split); }
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio()
@@ -24,7 +24,7 @@ void cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function
 {
     time_t tsc_interval = cpu_timer_info::instance.us_to_tsc(interval);
     bool result = false;
-    if(!__initial) start();
+    if(!__is_started) start();
     do {
         split();
         while(get(tsplit) < tsc_interval) pause();
@@ -36,7 +36,7 @@ bool cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function
     time_t tsc_interval = cpu_timer_info::instance.us_to_tsc(interval);
     size_t reps = 0;
     bool result = false;
-    if(!__initial) start();
+    if(!__is_started) start();
     do {
         split();
         while(get(tsplit) < tsc_interval) pause();

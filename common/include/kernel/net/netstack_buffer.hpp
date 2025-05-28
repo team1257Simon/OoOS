@@ -25,5 +25,6 @@ public:
     size_t ipv4_size() const;
     netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type tx_limit, size_type rx_limit);
     netstack_buffer();
+    void rx_accumulate(netstack_buffer& that);
 };
 #endif

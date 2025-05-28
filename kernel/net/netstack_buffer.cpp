@@ -15,7 +15,8 @@ int netstack_buffer::rx_flush()
 {
     if(rx_poll) { if(int err = rx_poll(*this); __unlikely(err != 0)) return err; }
     fence();
-    array_zero(__in_region.__begin, __in_region.__capacity()); 
+    if(__in_region.__capacity() > rx_limit) size(rx_limit, std::ios_base::in);
+    array_zero(__in_region.__begin, __in_region.__capacity());
     __in_region.__setc(0UZ);
     return 0;
 }
@@ -68,4 +69,14 @@ netstack_buffer::netstack_buffer(size_type initial_rx_cap, size_type initial_tx_
     __out_region.__max      = __out_region.__begin + initial_tx_cap;
     array_zero(__in_region.__begin, initial_rx_cap);
     array_zero(__out_region.__begin, initial_tx_cap); 
+}
+void netstack_buffer::rx_accumulate(netstack_buffer& that)
+{
+    size_t incoming = static_cast<size_t>(that.gptr() - that.eback());
+    if(__unlikely(!incoming)) return;
+    expand(incoming, std::ios_base::in);
+    array_copy(gptr(), that.eback(), incoming);
+    gbump(static_cast<int>(incoming));
+    array_zero(that.eback(), incoming);
+    that.seekpos(std::streampos(0Z), std::ios_base::in);
 }

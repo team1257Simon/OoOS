@@ -1,6 +1,8 @@
 #ifndef __TRANSMISSION_CONTROL_PROTOCOL
 #define __TRANSMISSION_CONTROL_PROTOCOL
 #include "net/protocol/ipv4.hpp"
+#include "arch/cpu_time.hpp"
+#include "unordered_map"
 class tcp_session_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
     typedef std::ext::dynamic_duplex_streambuf<char> __base;
@@ -28,6 +30,7 @@ union __pack tcp_fields_word
         bool finish_flag    : 1;
     };
 };
+struct tcp_connection_info;
 struct __pack tcp_header : ipv4_standard_header
 {
     net16 source_port;
@@ -44,18 +47,25 @@ struct __pack tcp_header : ipv4_standard_header
     tcp_header(ipv4_standard_header&& that) noexcept;
     addr_t payload_start() const;
     addr_t payload_end() const;
+    size_t segment_len() const;
     void compute_tcp_checksum();
     bool verify_tcp_checksum() const;
+    bool src_chk(ipv4_addr addr, uint16_t port) const noexcept;
+    bool seq_chk(uint32_t seq) const noexcept;
+    bool ack_chk(uint32_t ack) const noexcept;
+    bool peer_chk(tcp_connection_info const& connection_info) const noexcept;
 };
+typedef abstract_packet<tcp_header> tcp_packet;
 struct tcp_transmission_timer
 {
     time_t retransmission_timeout;
     time_t smoothed_round_trip_time;
     time_t round_trip_time_variation;
+    cpu_timer_stopwatch stopwatch;
     tcp_transmission_timer() noexcept;
-    void update(time_t r);
+    void update();
 };
-enum class tcp_connection_state
+enum class tcp_connection_state : char
 {
     LISTEN,
     SYN_SENT,
@@ -63,38 +73,64 @@ enum class tcp_connection_state
     ESTABLISHED,
     FIN_WAIT_1,
     FIN_WAIT_2,
+    CLOSE_WAIT,
     CLOSING,
     LAST_ACK,
-    TIME_WAIT
+    TIME_WAIT,
+    CLOSED,
+    MAX = CLOSED
 };
-struct tcp_connection
+enum class tcp_connection_type : bool { PASSIVE, ACTIVE };
+struct protocol_tcp;
+typedef std::unordered_map<uint32_t, tcp_packet, cast_t<uint32_t, size_t>> sequence_map;
+typedef std::function<void(tcp_session_buffer&)> application_listener;
+struct tcp_connection_info
 {
-    struct
-    {
-        uint32_t last_unack;
-        uint32_t next_seq;
-        uint32_t window;
-        uint32_t urgent_ptr;
-        uint32_t last_window_seq;
-        uint32_t last_window_ack;
-        uint32_t initial_seq;
-    } send;
-    struct
-    {
-        uint32_t next_seq;
-        uint32_t window;
-        uint32_t urgent_ptr;
-        uint32_t initial_seq;
-    } receive;
-    struct
-    {
-        uint32_t seq;
-        uint32_t ack;
-        uint32_t len;
-        uint32_t window;
-        uint32_t urgent_ptr;
-    } segment;
+    ipv4_addr remote_host;
+    uint16_t remote_port;
+    tcp_connection_type local_connection_type;
+    tcp_connection_type remote_connection_type;
+    uint32_t initial_send_sequence;
+    uint32_t current_send_sequence;
+    uint32_t next_send_sequence;
+    uint32_t initial_receive_sequence;
+    uint32_t current_receive_sequence;
+    uint32_t next_receive_sequence;
+};
+struct tcp_port_handler : abstract_protocol_handler
+{
+    protocol_tcp& local_host;
+    uint16_t local_port;
+    tcp_connection_state connection_state;
+    tcp_connection_info connection_info;
+    sequence_map send_packets;
+    sequence_map receive_packets;
     tcp_transmission_timer timer;
-    tcp_connection_state current_state;
+    application_listener app;
+    tcp_session_buffer data;
+    tcp_port_handler(protocol_tcp& tcp, application_listener const& l, uint16_t port);
+    void open(ipv4_addr peer, uint16_t port, tcp_connection_type local_type, tcp_connection_type remote_type);
+    void close();
+    virtual std::type_info const& packet_type() const override;
+    virtual int receive(abstract_packet_base& p) override;
+    int rx_process(tcp_packet& p);
+    int rx_initial(tcp_packet& p);
+    tcp_packet& create_packet(size_t payload_size, size_t option_size = 0UZ, uint16_t window_size = 16384US);
+    int transmit_next();
+};
+struct isn_gen
+{
+    cpu_timer_stopwatch selector_clock;
+    std::string selector_crypto_salt;
+    isn_gen();
+    void regen_salt();
+    uint32_t operator()(ipv4_addr localip, uint16_t localport, ipv4_addr remoteip, uint16_t remoteport) const;
+};
+struct protocol_tcp : abstract_protocol_handler
+{
+    ipv4_config& ipconfig;
+    isn_gen generate_isn;
+    protocol_tcp(protocol_ipv4* n);
+    virtual std::type_info const& packet_type() const override;
 };
 #endif

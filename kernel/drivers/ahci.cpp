@@ -5,16 +5,15 @@
 #include "stdexcept"
 #include "functional"
 #include "string.h"
-#include "kdebug.hpp"
-constexpr size_t cl_offs_base = 32UL * sizeof(hba_cmd_header);
-constexpr size_t fis_offs_base = 32UL * cl_offs_base;
-constexpr uint64_t table_offs_base = fis_offs_base + 32UL * sizeof(hba_fis);
-constexpr size_t prdt_size = prdt_entries_count * sizeof(hba_prdt_entry);
+constexpr size_t cl_offs_base       = 32UZ * sizeof(hba_cmd_header);
+constexpr size_t fis_offs_base      = 32UZ * cl_offs_base;
+constexpr size_t table_offs_base    = fis_offs_base + 32UZ * sizeof(hba_fis);
+constexpr size_t prdt_size          = prdt_entries_count * sizeof(hba_prdt_entry);
+bool ahci::__has_init               = false;
 ahci ahci::__instance{};
-bool ahci::__has_init = false;
-static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /*drq*/ }
+static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /* drq */ }
 static inline bool __port_cmd_busy(hba_port* port, int slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo.b5 /* processed */ && i[slot]; }
-static inline bool __port_nack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return i.lo.hi.b7 /* cr */ || i.lo.hi.b6; /* fr */ }
+static inline bool __port_ack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return !i.lo.hi.b7 /* cr */ && !i.lo.hi.b6; /* fr */ }
 ahci *ahci::get_instance() { return std::addressof(__instance); }
 bool ahci::is_initialized() { return __has_init; }
 bool ahci::has_port(uint8_t i) { return __devices[i] != none; }
@@ -27,15 +26,16 @@ bool ahci::is_busy(uint8_t i) { barrier(); uint32_t c = __abar->ports[i].cmd; ba
 bool ahci::is_done(uint8_t i) { uint32_t st = __abar->ports[i].i_state; barrier(); return !(st == 0 || __port_cmd_busy(std::addressof(__abar->ports[i]), __last_command_on_port[i])) && !is_busy(i); }
 void ahci::__init_irq() 
 { 
-    for(int i = 0; i < 32; i++, __sync_synchronize())
+    for(int i = 0; i < 32; i++)
     {
         if(has_port(i))
         {
-            __abar->i_status |= BIT(i); 
+            barrier();
+            __abar->i_status            |= BIT(i); 
             barrier(); 
-            uint32_t s1 = __abar->ports[i].i_state; 
+            uint32_t s1                 = __abar->ports[i].i_state; 
             barrier(); 
-            __abar->ports[i].i_state = s1;
+            __abar->ports[i].i_state    = s1;
             barrier();
         }
     }
@@ -70,39 +70,34 @@ void ahci::__issue_command(uint8_t idx, int slot)
 void ahci::__build_h2d_fis(qword start, dword count, addr_t buffer, ata_command command, hba_cmd_table* cmdtbl, uint16_t l)
 {
     constexpr size_t main_op_bcnt = physical_block_size << 4;
-    barrier();
     memset(cmdtbl, 0, sizeof(hba_cmd_table));
-    barrier();
     qword addr = buffer;
     size_t final_bcnt = (count % 16) * physical_block_size;
-    for(uint16_t i = 0; i < l; i++, addr += main_op_bcnt)
+    barrier();
+    for(uint16_t i = 0; i < l; i++, addr += main_op_bcnt, barrier())
     {
-        barrier();
         new(std::addressof(cmdtbl->prdt_entries[i])) hba_prdt_entry 
         {
-            .data_base = addr.lo,
-            .data_base_hi = addr.hi,
-            .byte_count = static_cast<uint32_t>((i == l - 1 ? final_bcnt : main_op_bcnt) - 1),
-            .interrupt_on_completion = true,
+            .data_base                  = addr.lo,
+            .data_base_hi               = addr.hi,
+            .byte_count                 = static_cast<uint32_t>((i == l - 1 ? final_bcnt : main_op_bcnt) - 1),
+            .interrupt_on_completion    = true,
         };
-        barrier();
     }
-    barrier();
     new(static_cast<void*>(cmdtbl->cmd_fis)) fis_reg_h2d
 	{
-		.type = reg_h2d,
-		.ctype = true,
-		.command = command,
-		.lba0 = start.lo.lo.lo,
-		.lba1 = start.lo.lo.hi,
-		.lba2 = start.lo.hi.lo,
-		.device = 0x40UC,
-		.lba3 = start.lo.hi.hi,
-		.lba4 = start.hi.lo.lo,
-		.lba5 = start.hi.lo.hi,
-		.count = count.lo,
+		.type       = reg_h2d,
+		.ctype      = true,
+		.command    = command,
+		.lba0       = start.lo.lo.lo,
+		.lba1       = start.lo.lo.hi,
+		.lba2       = start.lo.hi.lo,
+		.device     = 0x40UC,
+		.lba3       = start.lo.hi.hi,
+		.lba4       = start.hi.lo.lo,
+		.lba5       = start.hi.lo.hi,
+		.count      = count.lo,
 	};
-    barrier();
 }
 bool ahci::init_instance(pci_device_list* ls) noexcept
 {
@@ -115,14 +110,14 @@ bool ahci::init(pci_config_space* ps) noexcept
     if(!ps) return false;
     try
     {
-        __pci_ahci_controller = ps;
-        uint32_t bar = ps->header_0x0.bar[5];
-        __abar = compute_base(bar);
-        __ahci_block = kmm.allocate_dma(S128, (bar & BIT(3)) != 0);
+        __pci_ahci_controller   = ps;
+        uint32_t bar            = ps->header_0x0.bar[5];
+        __abar                  = compute_base(bar);
+        __ahci_block            = kmm.allocate_dma(S128, (bar & BIT(3)) != 0);
         barrier();
-        __pci_ahci_controller->command.bus_master = true;
-        __pci_ahci_controller->command.memory_space = true;
-        __pci_ahci_controller->command.interrupt_disable = false;
+        __pci_ahci_controller->command.bus_master           = true;
+        __pci_ahci_controller->command.memory_space         = true;
+        __pci_ahci_controller->command.interrupt_disable    = false;
         barrier();
         __abar->ghc |= hba_enable_ahci;
         barrier();
@@ -179,13 +174,13 @@ void ahci::stop_port(uint8_t i)
     barrier();
     __abar->ports[i].cmd &= ~hba_command_fre;
     barrier();
-    if(!await_result([&]() -> bool { return !__port_nack_stop(std::addressof(__abar->ports[i])); }, max_ext_wait)) throw std::runtime_error("Port number " + std::to_string(i) + " is hung");
+    if(!await_result([&]() -> bool { return __port_ack_stop(std::addressof(__abar->ports[i])); }, max_ext_wait)) throw std::runtime_error("Port number " + std::to_string(i) + " is hung");
 }
 void ahci::port_rebase(uint8_t idx)
 {
     stop_port(idx);
-    addr_t cl_base = __ahci_block.plus(idx * cl_offs_base);
-    addr_t f_base = __ahci_block.plus(fis_offs_base + idx * sizeof(hba_fis));
+    addr_t cl_base                  = __ahci_block.plus(idx * cl_offs_base);
+    addr_t f_base                   = __ahci_block.plus(fis_offs_base + idx * sizeof(hba_fis));
     __abar->ports[idx].command_list = cl_base;
     memset(cl_base, 0, sizeof(hba_cmd_header) * 32);
     barrier();
@@ -244,7 +239,7 @@ void ahci::port_soft_reset(uint8_t idx)
 	};
     if(!await_result([&]() -> bool { return !__port_data_busy(port); })) { return hard_reset_fallback(idx); }
     barrier();
-    port->s_active = BIT(s1);
+    port->s_active  = BIT(s1);
     barrier();
     port->cmd_issue = BIT(s1);
     barrier();
@@ -262,7 +257,7 @@ void ahci::port_soft_reset(uint8_t idx)
     barrier();
     reinterpret_cast<fis_reg_h2d*>(c2->command_table->cmd_fis)->type = reg_h2d;
     barrier();
-    port->s_active |= BIT(s2);
+    port->s_active  |= BIT(s2);
     barrier();
     port->cmd_issue |= BIT(s2);
     barrier();
@@ -289,9 +284,9 @@ void ahci::port_hard_reset(uint8_t idx)
     barrier();
     if(!await_result([&]() -> bool { return (dword(port->s_status).lo.lo & 0x0F) == port_present; })) { throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " failed to start"); }
     barrier();
-    uint32_t bits = port->s_err;
+    uint32_t bits   = port->s_err;
     barrier();
-    port->s_err |= bits;
+    port->s_err     |= bits;
     barrier();
     start_port(idx);
 }
@@ -337,9 +332,9 @@ void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t* 
 }
 __isrcall void ahci::handle_irq()
 {
-    uint32_t s = __abar->i_status;
+    uint32_t s          = __abar->i_status;
 	barrier();
-    __abar->i_status = s;
+    __abar->i_status    = s;
     if(__unlikely(!s)) return; // This means the IRQ is for someone else
     for(size_t i = 0; i < 32; i++)
     {
@@ -357,14 +352,25 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
     hba_port* port  = std::addressof(__abar->ports[idx]);
     int slot        = find_cmdslot(port);
     if(__unlikely(slot < 0)) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
-    qword addr = reinterpret_cast<uintptr_t>(data);
+    qword addr      = reinterpret_cast<uintptr_t>(data);
     barrier();
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
     {
         .cmd_fis_len    = 5UC,
         .w_direction    = false,
         .prdt_length    = true,
-        .command_table  = new(port->command_list[slot].command_table) hba_cmd_table { .prdt_entries { { .data_base = addr.lo, .data_base_hi = addr.hi, .byte_count = 511U, .interrupt_on_completion = true } } }
+        .command_table  = new(port->command_list[slot].command_table) hba_cmd_table
+        { 
+            .prdt_entries 
+            { 
+                { 
+                    .data_base = addr.lo, 
+                    .data_base_hi = addr.hi, 
+                    .byte_count = 511U, 
+                    .interrupt_on_completion = true
+                }
+            } 
+        }
     };
     barrier();
     new(static_cast<void*>(cmd->command_table->cmd_fis)) fis_reg_h2d
