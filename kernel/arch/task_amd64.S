@@ -12,6 +12,8 @@
     .global     set_task_signal
     .extern     force_signal
     .extern     task_signal_code
+    .extern     kernel_isr_stack_top
+    .extern     kernel_cr3
     .type       fallthrough_reentry,    @function
     .type       task_change,            @function
     .type       user_entry,             @function
@@ -20,6 +22,8 @@
     .type       set_task_signal,        @function
     .type       force_signal,           @function
     .type       task_signal_code,       @object
+    .type       kernel_isr_stack_top,   @object
+    .type       kernel_cr3,             @object
 fallthrough_reentry:
     swapgs
     movq        %rdi,                   %gs:T_OFFS(next)

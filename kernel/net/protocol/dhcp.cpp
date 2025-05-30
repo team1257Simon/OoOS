@@ -81,7 +81,7 @@ void protocol_dhcp::discover(std::vector<net8> const& param_requests)
     size_t actual_size                              = up_to_nearest(target_size, 2UZ);
     uint32_t xid                                    = static_cast<uint32_t>(rand());
     while(transaction_timers.contains(xid)) xid     = static_cast<uint32_t>(rand());
-    abstract_packet<dhcp_packet> discover_pkt  = create_packet(broadcast_mac, broadcast, actual_size, xid);
+    abstract_packet<dhcp_packet> discover_pkt       = create_packet(broadcast_mac, broadcast, actual_size, xid);
     transaction_timers[xid]                         = sys_time(nullptr);
     addr_t pos                                      = discover_pkt->parameters;
     pos.plus(total_param_size - 1Z).assign(0xFFUC);

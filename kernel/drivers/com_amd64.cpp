@@ -22,22 +22,22 @@ __isrcall void com_amd64::on_modify_queue() { ptrdiff_t n = gptr() - eback(); if
 void com_amd64::sync_ptrs() { this->setp(this->__beg(), this->__cur(), this->__max()); }
 static void com1_set_baud_divisor(word value)
 {
-    line_ctl_byte cur_ctl = inb(port_com1_line_ctl);
-    cur_ctl.divisor_latch_access = true;
+    line_ctl_byte cur_ctl           = inb(port_com1_line_ctl);
+    cur_ctl.divisor_latch_access    = true;
     outb(port_com1_line_ctl, cur_ctl);
     outb(port_com1, value.lo);
     outb(port_com1 + 1, value.hi);
-    cur_ctl.divisor_latch_access = false;
+    cur_ctl.divisor_latch_access    = false;
     outb(port_com1_line_ctl, cur_ctl);
 }
 static bool com1_loopback_test()
 {
-    modem_ctl_byte cur_ctl = inb(port_com1_modem_ctl);
+    modem_ctl_byte cur_ctl  = inb(port_com1_modem_ctl);
     modem_ctl_byte prev_ctl = cur_ctl;
     cur_ctl.loopback_enable = true;
-    cur_ctl.out1_enable = true;
-    cur_ctl.out2_enable = true;
-    cur_ctl.rts_enable = true;
+    cur_ctl.out1_enable     = true;
+    cur_ctl.out2_enable     = true;
+    cur_ctl.rts_enable      = true;
     outb(port_com1_modem_ctl, cur_ctl);
     outb(port_com1, 0xAE);
     bool result = (inb(port_com1) == 0xAEUC);

@@ -341,13 +341,13 @@ bool e1000e::configure_rx(dev_status& st)
 }
 int e1000e::poll_tx(netstack_buffer& buff)
 {
-    e1000e_transmit_descriptor& tail = tx_ring.tail();
-    tail.flags.length   = static_cast<uint16_t>(buff.count(std::ios_base::out));
-    tail.flags.cmd      = 0b1011UC;
-    tail.fields.status  = 0UC;
-    tx_ring.tail_descriptor = (tx_ring.tail_descriptor + 1) % tx_ring.count();
+    e1000e_transmit_descriptor& tail    = tx_ring.tail();
+    tail.flags.length                   = static_cast<uint16_t>(buff.count(std::ios_base::out));
+    tail.flags.cmd                      = 0b1011UC;
+    tail.fields.status                  = 0UC;
+    tx_ring.tail_descriptor             = (tx_ring.tail_descriptor + 1U) % tx_ring.count();
     write_dma(txt, tx_ring.tail_descriptor);
-    if(!await_result([&]() -> bool { io_wait(); return (tail.fields.status & 0x1) != 0; })) return -ENETDOWN;
+    if(!await_result([&]() -> bool { io_wait(); return (tail.fields.status & 0x1UC) != 0; })) return -ENETDOWN;
     return 0;
 }
 int e1000e::poll_rx()
@@ -378,7 +378,7 @@ int e1000e::poll_rx()
             }
         }
         addr_t(std::addressof(desc.read.status)).assign(0UC);
-        rx_ring.tail_descriptor = (rx_ring.tail_descriptor + 1) % rx_ring.count();
+        rx_ring.tail_descriptor = (rx_ring.tail_descriptor + 1U) % rx_ring.count();
         addr_t(std::addressof(rx_ring.tail())).plus(sizeof(uintptr_t)).assign(0UL);
     }
     write_dma(rxt, rx_ring.tail_descriptor);

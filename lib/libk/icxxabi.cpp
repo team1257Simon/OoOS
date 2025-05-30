@@ -23,10 +23,10 @@ extern "C"
 	int __cxa_atexit(void (*f)(void*), void* objptr, void* dso)
 	{
 		__cxxabiv1::__cxa_guard_acquire(std::addressof(__atexit_guard));
-		if (__atexit_func_count >= ATEXIT_MAX_FUNCS) {return -1;};
+		if (__atexit_func_count >= ATEXIT_MAX_FUNCS) return -1;
 		__atexit_funcs[__atexit_func_count].destructor_func = f;
-		__atexit_funcs[__atexit_func_count].obj_ptr = objptr;
-		__atexit_funcs[__atexit_func_count].dso_handle = dso;
+		__atexit_funcs[__atexit_func_count].obj_ptr 		= objptr;
+		__atexit_funcs[__atexit_func_count].dso_handle 		= dso;
 		__atexit_func_count++;
 		__cxxabiv1::__cxa_guard_release(std::addressof(__atexit_guard));
 		return 0;

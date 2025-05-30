@@ -79,21 +79,21 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
     for(c = fmt, d = std::find(fmt, n, '%'), end = fmt + n; d && d < end; c = d + 1, d = std::find(c, n, '%'))
     {
         cnt += stream->sputn(c, static_cast<std::streamsize>(d - c));
-        char spec = d[1];
-        bool zeropad = false;
-        bool left = false;
-        bool alt = false;
-        bool sign = false;
-        bool caps = false;
-        bool dot = false;
-        size_t minwid = 0;
-        int lenarg = 0;
-        unsigned int precision = 1;
-        bool have_prec = false;
-        int widarg = 0;
-        bool finish = false;
-        char* tmpptr = nullptr;
-        int tmpint = 0;
+        char spec               = d[1];
+        bool zeropad            = false;
+        bool left               = false;
+        bool alt                = false;
+        bool sign               = false;
+        bool caps               = false;
+        bool dot                = false;
+        size_t minwid           = 0;
+        int lenarg              = 0;
+        unsigned int precision  = 1;
+        bool have_prec          = false;
+        int widarg              = 0;
+        bool finish             = false;
+        char* tmpptr            = nullptr;
+        int tmpint              = 0;
         for(cstr e = d + 1; e < end && !finish; e++) // <ObligatoryReference>E</ObligatoryReference>
         {
             switch(spec)
@@ -131,9 +131,9 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
                 widarg = spec - '0';
                 if(dot)
                 {
-                    precision = widarg > 0 ? widarg : precision;
-                    have_prec = true;
-                    dot = false;
+                    precision   = widarg > 0 ? widarg : precision;
+                    have_prec   = true;
+                    dot         = false;
                 }
                 else { if(widarg < 0) { left = true; widarg *= -1; } minwid = widarg; }
                 break;
@@ -143,10 +143,11 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
                 finish = true;
                 break;
             case 's':
-                tmpptr = va_arg(args, char*);
-                if(!have_prec) precision = std::strlen(tmpptr);
-                cnt += stream->sputn(tmpptr, precision);
-                finish = true;
+                tmpptr          = va_arg(args, char*);
+                if(!have_prec)
+                    precision   = std::strlen(tmpptr);
+                cnt             += stream->sputn(tmpptr, precision);
+                finish          = true;
                 break;
             case 'h':
                 lenarg--;
@@ -161,54 +162,54 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
                 break;
             case 'i':
             case 'd':
-                if(lenarg > 1) cnt += __arg_insert_dec(va_arg(args, long long), stream, minwid, zeropad, left, sign);
-                else if(lenarg == 1) cnt += __arg_insert_dec(va_arg(args, long), stream, minwid, zeropad, left, sign);
-                else if(lenarg == 0) cnt += __arg_insert_dec(va_arg(args, int), stream, minwid, zeropad, left, sign);
+                if(lenarg > 1) cnt          += __arg_insert_dec(va_arg(args, long long), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 1) cnt    += __arg_insert_dec(va_arg(args, long), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 0) cnt    += __arg_insert_dec(va_arg(args, int), stream, minwid, zeropad, left, sign);
                 else
                 {
-                    tmpint = va_arg(args, int);
-                    if(lenarg == -1) cnt += __arg_insert_dec(static_cast<short>(tmpint), stream, minwid, zeropad, left, sign);
-                    else cnt += __arg_insert_dec(static_cast<signed char>(tmpint), stream, minwid, zeropad, left, sign);
+                    tmpint                  = va_arg(args, int);
+                    if(lenarg == -1) cnt    += __arg_insert_dec(static_cast<short>(tmpint), stream, minwid, zeropad, left, sign);
+                    else cnt                += __arg_insert_dec(static_cast<signed char>(tmpint), stream, minwid, zeropad, left, sign);
                 }
                 finish = true;
                 break;
             case 'u':
-                if(lenarg > 1) cnt += __arg_insert_dec(va_arg(args, unsigned long long), stream, minwid, zeropad, left, sign);
-                else if(lenarg == 1) cnt += __arg_insert_dec(va_arg(args, unsigned long), stream, minwid, zeropad, left, sign);
-                else if(lenarg == 0) cnt += __arg_insert_dec(va_arg(args, unsigned int), stream, minwid, zeropad, left, sign);
+                if(lenarg > 1) cnt          += __arg_insert_dec(va_arg(args, unsigned long long), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 1) cnt    += __arg_insert_dec(va_arg(args, unsigned long), stream, minwid, zeropad, left, sign);
+                else if(lenarg == 0) cnt    += __arg_insert_dec(va_arg(args, unsigned int), stream, minwid, zeropad, left, sign);
                 else
                 {
-                    tmpint = va_arg(args, int);
-                    if(lenarg == -1) cnt += __arg_insert_dec(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign);
-                    else cnt += __arg_insert_dec(static_cast<unsigned char>(tmpint), stream, minwid, zeropad, left, sign);
+                    tmpint                  = va_arg(args, int);
+                    if(lenarg == -1) cnt    += __arg_insert_dec(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign);
+                    else cnt                += __arg_insert_dec(static_cast<unsigned char>(tmpint), stream, minwid, zeropad, left, sign);
                 }
                 finish = true;
                 break;
             case 'X': 
                 caps = true;
             case 'x':
-                if(lenarg > 1) cnt += __arg_insert_hex(va_arg(args, unsigned long long), stream, minwid, zeropad, left, caps, alt);
-                else if(lenarg == 1) cnt += __arg_insert_hex(va_arg(args, unsigned long), stream, minwid, zeropad, left, caps, alt);
-                else if(lenarg == 0) cnt += __arg_insert_hex(va_arg(args, unsigned int), stream, minwid, zeropad, left, caps, alt);
+                if(lenarg > 1) cnt          += __arg_insert_hex(va_arg(args, unsigned long long), stream, minwid, zeropad, left, caps, alt);
+                else if(lenarg == 1) cnt    += __arg_insert_hex(va_arg(args, unsigned long), stream, minwid, zeropad, left, caps, alt);
+                else if(lenarg == 0) cnt    += __arg_insert_hex(va_arg(args, unsigned int), stream, minwid, zeropad, left, caps, alt);
                 else 
                 {
-                    tmpint = va_arg(args, int);
-                    if(lenarg == -1) cnt += __arg_insert_hex(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign, alt);
-                    else cnt += __arg_insert_hex(static_cast<unsigned char>(tmpint), stream, minwid, zeropad, left, sign, alt);
+                    tmpint                  = va_arg(args, int);
+                    if(lenarg == -1) cnt    += __arg_insert_hex(static_cast<unsigned short>(tmpint), stream, minwid, zeropad, left, sign, alt);
+                    else cnt                += __arg_insert_hex(static_cast<unsigned char>(tmpint), stream, minwid, zeropad, left, sign, alt);
                 }
                 finish = true;
                 break;
             case 'f':
             case 'F':
-                if(lenarg > 1) cnt += __arg_insert_fp(va_arg(args, long double), stream, minwid, have_prec ? precision : 6, zeropad, left, sign);
-                else cnt += __arg_insert_fp(va_arg(args, double), stream, minwid, have_prec ? precision : 6, zeropad, left, sign);
+                if(lenarg > 1) cnt  += __arg_insert_fp(va_arg(args, long double), stream, minwid, have_prec ? precision : 6, zeropad, left, sign);
+                else cnt            += __arg_insert_fp(va_arg(args, double), stream, minwid, have_prec ? precision : 6, zeropad, left, sign);
                 finish = true;
                 break;
             case 'A':
                 caps = true;
             case 'a':
-                if(lenarg > 1) cnt += __arg_insert_fpx(va_arg(args, long double), stream, minwid, have_prec ? precision : 6, zeropad, left, caps, !alt);
-                else cnt += __arg_insert_fpx(va_arg(args, double), stream, minwid, have_prec ? precision : 6, zeropad, left, caps, !alt);
+                if(lenarg > 1) cnt  += __arg_insert_fpx(va_arg(args, long double), stream, minwid, have_prec ? precision : 6, zeropad, left, caps, !alt);
+                else cnt            += __arg_insert_fpx(va_arg(args, double), stream, minwid, have_prec ? precision : 6, zeropad, left, caps, !alt);
                 finish = true;
                 break;
             case 'n':
@@ -216,12 +217,12 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
                 finish = true;
                 break;
             case 'p':
-                cnt += __arg_insert_ptr(va_arg(args, void*), stream);
-                finish = true;
+                cnt     += __arg_insert_ptr(va_arg(args, void*), stream);
+                finish  = true;
                 break;
             default:
-                cnt += stream->sputn(errstr, sizeof(errstr));
-                finish = true;
+                cnt     += stream->sputn(errstr, sizeof(errstr));
+                finish  = true;
                 break;
             }
         }
@@ -232,9 +233,9 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
 typedef int FILE;
 extern "C"
 {
-    attribute(weak) FILE* stdin = std::addressof(stdout_stdin_placeholder);
-    attribute(weak) FILE* stdout = std::addressof(stdout_stdin_placeholder);
-    attribute(weak) FILE* stderr = std::addressof(stderr_fd_placeholder);
+    attribute(weak) FILE* stdin     = std::addressof(stdout_stdin_placeholder);
+    attribute(weak) FILE* stdout    = std::addressof(stdout_stdin_placeholder);
+    attribute(weak) FILE* stderr    = std::addressof(stderr_fd_placeholder);
     size_t kvfprintf(FILE* fd, const char* fmt, va_list args)
     {
         std::basic_streambuf<char>* stream = get_kstio_stream();
@@ -259,8 +260,8 @@ extern "C"
     size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args)
     {
         std::ext::dynamic_streambuf<char> db;
-        size_t result = __kvfprintf_impl(std::addressof(db), fmt, args);
-        *strp = std::allocator<char>().allocate(result);
+        size_t result   = __kvfprintf_impl(std::addressof(db), fmt, args);
+        *strp           = std::allocator<char>().allocate(result);
         array_copy(*strp, db.data(), result);
         return result;
     }

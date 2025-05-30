@@ -70,6 +70,7 @@
     .extern                         syscall_pipe
     .extern                         on_invalid_syscall
     .global                         syscall_vec
+    .extern                         kernel_cr3
     .type   do_syscall,             @function
     .type   syscall_exit,			@function
     .type   syscall_sleep,			@function
@@ -123,6 +124,7 @@
     .type   syscall_pipe,           @function
     .type   syscall_vec,            @object
     .type   syscv_end,              @object
+    .type   kernel_cr3,             @object
     .type   __held_pc,              @object
     .type   __held_rbx,             @object
 syscall_vec:

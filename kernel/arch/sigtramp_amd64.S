@@ -28,6 +28,7 @@ sigtramp_return:
 signal_exit:
     xorq    %rax,               %rax
     syscall
+	.size	signal_exit,		.-signal_exit
     .align  4096
     .size   sigtramp_code,      .-sigtramp_code
 	.data

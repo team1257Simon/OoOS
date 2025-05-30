@@ -2,7 +2,8 @@
 #define __TRANSMISSION_CONTROL_PROTOCOL
 #include "net/protocol/ipv4.hpp"
 #include "arch/cpu_time.hpp"
-#include "unordered_map"
+#include "map"
+#include "unordered_set"
 class tcp_session_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
     typedef std::ext::dynamic_duplex_streambuf<char> __base;
@@ -48,6 +49,8 @@ struct __pack tcp_header : ipv4_standard_header
     addr_t payload_start() const;
     addr_t payload_end() const;
     size_t segment_len() const;
+    bool has_data() const noexcept;
+    bool is_simple_ack() const noexcept;
     void compute_tcp_checksum();
     bool verify_tcp_checksum() const;
     bool src_chk(ipv4_addr addr, uint16_t port) const noexcept;
@@ -82,7 +85,7 @@ enum class tcp_connection_state : char
 };
 enum class tcp_connection_type : bool { PASSIVE, ACTIVE };
 struct protocol_tcp;
-typedef std::unordered_map<uint32_t, tcp_packet, cast_t<uint32_t, size_t>> sequence_map;
+typedef std::map<uint32_t, tcp_packet> sequence_map;
 typedef std::function<void(tcp_session_buffer&)> application_listener;
 struct tcp_connection_info
 {
@@ -91,11 +94,14 @@ struct tcp_connection_info
     tcp_connection_type local_connection_type;
     tcp_connection_type remote_connection_type;
     uint32_t initial_send_sequence;
+    uint32_t last_send_sequence;
     uint32_t current_send_sequence;
     uint32_t next_send_sequence;
     uint32_t initial_receive_sequence;
     uint32_t current_receive_sequence;
     uint32_t next_receive_sequence;
+    uint32_t receive_commit_sequence;
+    size_t peer_window_size;
 };
 struct tcp_port_handler : abstract_protocol_handler
 {
@@ -115,8 +121,16 @@ struct tcp_port_handler : abstract_protocol_handler
     virtual int receive(abstract_packet_base& p) override;
     int rx_process(tcp_packet& p);
     int rx_initial(tcp_packet& p);
+    int rx_establish(tcp_packet& p);
+    int rx_accept_payload(tcp_packet& p);
+    int rx_begin_close(tcp_packet& p);
     tcp_packet& create_packet(size_t payload_size, size_t option_size = 0UZ, uint16_t window_size = 16384US);
     int transmit_next();
+protected:
+    sequence_map::iterator add_rx_packet(tcp_packet& p);
+    void commit_rx();
+    void rx_reset();
+    uint32_t compute_following_sequence(uint32_t from) const;
 };
 struct isn_gen
 {

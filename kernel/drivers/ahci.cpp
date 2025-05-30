@@ -364,10 +364,10 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
             .prdt_entries 
             { 
                 { 
-                    .data_base = addr.lo, 
-                    .data_base_hi = addr.hi, 
-                    .byte_count = 511U, 
-                    .interrupt_on_completion = true
+                    .data_base                  = addr.lo, 
+                    .data_base_hi               = addr.hi, 
+                    .byte_count                 = 511U, 
+                    .interrupt_on_completion    = true
                 }
             } 
         }
