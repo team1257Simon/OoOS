@@ -172,7 +172,7 @@ protected:
     virtual int write_dev() override;
     __isrcall virtual std::streamsize read_dev(std::streamsize cnt) override;
     virtual std::streamsize unread_size() override;
-    virtual std::streamsize sector_size() override;
+    virtual std::streamsize sector_size() const override;
     __isrcall virtual void on_modify_queue() override;
     virtual void sync_ptrs() override;
     virtual pos_type seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override;

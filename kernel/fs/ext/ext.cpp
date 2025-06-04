@@ -146,15 +146,15 @@ void ext_block_group::compute_checksums(size_t group_num)
 void extfs::initialize()
 {
     if(initialized) return;
-    if(!(sb && read_hd(sb, superblock_lba, sb_sectors))) throw std::runtime_error{ "failed to read superblock" };
+    if(!(sb && read_hd(sb, superblock_lba, sb_sectors))) throw std::runtime_error("failed to read superblock");
     uint32_t checkval = __sb_checksum();
     if(sb->checksum != checkval)
-        throw std::logic_error{ "superblock checksum of " + std::to_string(sb->checksum, std::ext::hex) + " does not match calculated value of " + std::to_string(checkval, std::ext::hex) };
+        throw std::logic_error("superblock checksum of " + std::to_string(sb->checksum, std::ext::hex) + " does not match calculated value of " + std::to_string(checkval, std::ext::hex));
     uuid_csum = crc32c(~0U, sb->fs_uuid);
-    uint64_t block_cnt = qword(sb->block_count, sb->block_count_hi);
-    uint64_t group_count_by_blocks = div_round_up(block_cnt, sb->blocks_per_group);
-    uint64_t group_count_by_inodes = div_round_up(sb->inode_count, sb->inodes_per_group);
-    if(group_count_by_blocks != group_count_by_inodes) { throw std::logic_error{ "inode block group count of " + std::to_string(group_count_by_inodes) + " does not match block group count of " + std::to_string(group_count_by_blocks) }; }
+    uint64_t block_cnt              = qword(sb->block_count, sb->block_count_hi);
+    uint64_t group_count_by_blocks  = div_round_up(block_cnt, sb->blocks_per_group);
+    uint64_t group_count_by_inodes  = div_round_up(sb->inode_count, sb->inodes_per_group);
+    if(group_count_by_blocks != group_count_by_inodes) { throw std::logic_error("inode block group count of " + std::to_string(group_count_by_inodes) + " does not match block group count of " + std::to_string(group_count_by_blocks)); }
     num_blk_groups                  = group_count_by_blocks;
     blk_group_descs                 = bg_alloc.allocate(num_blk_groups);
     size_t bgsz                     = up_to_nearest(num_blk_groups * sizeof(block_group_descriptor), block_size());
@@ -162,7 +162,7 @@ void extfs::initialize()
     size_t inode_blocks_per_group   = div_round_up(sb->inodes_per_group, inodes_per_block());
     bg_table_block.data_buffer      = bg_buffer;
     bg_table_block.chain_len        = div_round_up(bgsz, block_size());
-    if(!(num_blk_groups && blk_group_descs && read_hd(bg_table_block))) throw std::runtime_error{ "failed to read block group table" };
+    if(!(num_blk_groups && blk_group_descs && read_hd(bg_table_block))) throw std::runtime_error("failed to read block group table");
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
     for(size_t i = 0; i < num_blk_groups; i++)
     {
@@ -173,24 +173,24 @@ void extfs::initialize()
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);
         allocate_block_buffer(bg.inode_block);
-        if(!read_hd(bg.inode_usage_bmp) || !read_hd(bg.blk_usage_bmp)) throw std::runtime_error{ "failed to read block group" };
-        if(!read_hd(bg.inode_block)) { throw std::runtime_error{ "failed to read inode table" }; }
+        if(!read_hd(bg.inode_usage_bmp) || !read_hd(bg.blk_usage_bmp)) throw std::runtime_error("failed to read block group");
+        if(!read_hd(bg.inode_block)) { throw std::runtime_error("failed to read inode table"); }
         uint16_t cs                         = blk_group_descs[i].group_checksum;
         blk_group_descs[i].group_checksum   = 0;
         uint32_t cs0                        = crc32c(uuid_csum, dword(i));
         dword dw_cs                         = crc32c(cs0, blk_group_descs[i]);
-        if(dw_cs.lo != cs) throw std::runtime_error{ "checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex) };
+        if(dw_cs.lo != cs) throw std::runtime_error("checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex));
         blk_group_descs[i].group_checksum   = cs;
     }
     std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
-    if(!fs_journal.initialize()) throw std::runtime_error{ "journal init failed" };
+    if(!fs_journal.initialize()) throw std::runtime_error("journal init failed");
     ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U, next_fd++).first.base();
-    if(!rdnode->initialize()) throw std::runtime_error{ "root dir init failed" };
+    if(!rdnode->initialize()) throw std::runtime_error("root dir init failed");
     root_dir                = rdnode;
     qword tstamp            = sys_time(nullptr);
     sb->last_mount_time     = tstamp.lo;
     sb->last_mount_time_hi  = tstamp.hi.lo.lo;
-    if(!persist_sb()) throw std::runtime_error{ "superblock write failed" };
+    if(!persist_sb()) throw std::runtime_error("superblock write failed");
     initialized = true;
 }
 bool extfs::persist_sb()
@@ -257,7 +257,7 @@ uint64_t extfs::inode_to_block(uint32_t inode)
 ext_inode* extfs::get_inode(uint32_t inode_num)
 {
     size_t grp = group_num_for_inode(inode_num);
-    if(grp >= block_groups.size()) throw std::out_of_range{ "invalid inode group" };
+    if(grp >= block_groups.size()) throw std::out_of_range("invalid inode group");
     return reinterpret_cast<ext_inode*>(block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num));
 }
 file_node* extfs::on_open(tnode* fd, std::ios_base::openmode mode)
@@ -275,7 +275,7 @@ file_node* extfs::on_open(tnode* fd, std::ios_base::openmode mode)
 filesystem::target_pair extfs::get_parent(directory_node* start, std::string const& path, bool create)
 {
     std::vector<std::string> pathspec = std::ext::split(path, path_separator());
-    if(pathspec.empty()) throw std::logic_error{ "empty path" };
+    if(pathspec.empty()) throw std::logic_error("empty path");
     directory_node* cur = start;
     for(size_t i = 0; i < pathspec.size() - 1; i++)
     {
@@ -286,13 +286,13 @@ filesystem::target_pair extfs::get_parent(directory_node* start, std::string con
             if(create) 
             {
                 directory_node* created = mkdirnode(cur, pathspec[i]);
-                if(!created) throw std::runtime_error{ "failed to create " + pathspec[i] };
+                if(!created) throw std::runtime_error("failed to create " + pathspec[i]);
                 cur = created;
             } 
-            else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)" }; } 
+            else { throw std::out_of_range("path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)"); } 
         }
         else if(node->is_directory()) cur = node->as_directory();
-        else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
+        else throw std::invalid_argument("path is invalid because entry " + pathspec[i] + " is a file");
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(cur), std::forward_as_tuple(pathspec.back()));
 }
@@ -300,14 +300,14 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
 {
     target_pair parent  = filesystem::get_parent(path, false);
     tnode* node         = parent.first->find(parent.second);
-    if(node && node->is_directory()) throw std::logic_error{ "path " + path + " exists and is a directory" };
+    if(node && node->is_directory()) throw std::logic_error("path " + path + " exists and is a directory");
     file_node* result;
     bool pipe = false;
     if(!node)
     {
-        if(!create) throw std::out_of_range{ "file not found: " + path }; 
+        if(!create) throw std::out_of_range("file not found: " + path); 
         if(file_node* created = mkfilenode(parent.first, parent.second)) result = created;
-        else throw std::runtime_error{ "failed to create file: " + path };
+        else throw std::runtime_error("failed to create file: " + path);
     }
     else result = on_open(node, mode);
     if(ext_file_vnode* exfn = dynamic_cast<ext_file_vnode*>(result)) { exfn->initialize(); }
@@ -326,12 +326,12 @@ directory_node* extfs::open_directory(std::string const& path, bool create)
         if(create) 
         {
             directory_node* cn = mkdirnode(parent.first, parent.second);
-            if(!cn) throw std::runtime_error{ "failed to create " + path };
+            if(!cn) throw std::runtime_error("failed to create " + path);
             result = cn;
         } 
-        else throw std::out_of_range{ "path " + path + " does not exist (use open_directory(\"" + path + "\", true) to create it)" }; 
+        else throw std::out_of_range("path " + path + " does not exist (use open_directory(\"" + path + "\", true) to create it)"); 
     }
-    else if(node->is_file()) throw std::invalid_argument{ "path " + path + " exists and is a file" };
+    else if(node->is_file()) throw std::invalid_argument("path " + path + " exists and is a file");
     else { result = node->as_directory(); }
     if(!current_open_files.contains(result->vid())) { register_fd(result); }
     return result;
@@ -340,7 +340,8 @@ directory_node* extfs::mkdirnode(directory_node* parent, std::string const& name
 {
     qword tstamp            = sys_time(nullptr);
     uint8_t extrabits       = (tstamp.hi.hi >> 4) & 0x03UC;
-    if(uint32_t inode_num   = claim_inode(true); __builtin_expect(inode_num != 0, true)) try
+    uint32_t inode_num      = claim_inode(true);
+    if(__builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -387,7 +388,8 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
 {
     qword tstamp        = sys_time(nullptr);
     uint8_t extrabits   = (tstamp.hi.hi >> 4) & 0x03;
-    if(uint32_t inode_num = claim_inode(false); __builtin_expect(inode_num != 0, true)) try
+    uint32_t inode_num  = claim_inode(false);
+    if(__builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -433,10 +435,11 @@ file_node* extfs::mkfilenode(directory_node* parent, std::string const& name)
 device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd)
 {
     device_stream* dev = dreg[id];
-    if(!dev) { throw std::invalid_argument{"no device found with that id"}; }
+    if(!dev) { throw std::invalid_argument("no device found with that id"); }
     qword tstamp        = sys_time(nullptr);
     uint8_t extrabits   = (tstamp.hi.hi >> 4) & 0x03;
-    if(uint32_t inode_num = claim_inode(false); __builtin_expect(inode_num != 0, true)) try
+    uint32_t inode_num  = claim_inode(false);
+    if(__builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -465,9 +468,10 @@ device_node* extfs::mkdevnode(directory_node* parent, std::string const& name, d
 }
 pipe_pair extfs::mkpipe(directory_node* parent, std::string const& name)
 {
-    qword tstamp = sys_time(nullptr);
-    uint8_t extrabits = (tstamp.hi.hi >> 4) & 0x03;
-    if(uint32_t inode_num = claim_inode(false); __builtin_expect(inode_num != 0, true)) try
+    qword tstamp        = sys_time(nullptr);
+    uint8_t extrabits   = (tstamp.hi.hi >> 4) & 0x03;
+    uint32_t inode_num  = claim_inode(false);
+    if(__builtin_expect(inode_num != 0, true)) try
     {
         ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
         {
@@ -504,7 +508,7 @@ void extfs::release_all(ext_vnode& extn)
 }
 void extfs::dldirnode(directory_node* dd)
 {
-    if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete non-empty directory " } + dd->name() }; }
+    if(!dd->is_empty()) { throw std::logic_error("cannot delete non-empty directory " + std::string(dd->name())); }
     uint64_t cid                = dd->cid();
     ext_directory_vnode& exdn   = dynamic_cast<ext_directory_vnode&>(*dd);
     uint32_t inode_num          = exdn.inode_number;
@@ -672,13 +676,13 @@ fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
 device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool create_parents)
 {
     target_pair parent = filesystem::get_parent(where, create_parents);
-    if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" };
+    if(parent.first->find(parent.second)) throw std::logic_error("cannot create link " + parent.second + " because it already exists");
     ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent.first);
     if(dev_linked_nodes.contains(id))
     {
         ext_device_vnode* node = dev_linked_nodes[id];
         if(exparent.add_dir_entry(node, dti_chardev, parent.second.data(), parent.second.size()) && node->update_inode()) return node;
-        throw std::runtime_error{ "failed to create directory entry" };
+        throw std::runtime_error("failed to create directory entry");
     }
     device_node* result = mkdevnode(parent.first, parent.second, id, fd);
     register_fd(result);
@@ -695,14 +699,14 @@ tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link
 {
     if(!from) from = dynamic_cast<ext_directory_vnode*>(root_dir);
     std::vector<std::string> pathspec = std::ext::split(link, path_separator());
-    if(pathspec.empty()) throw std::logic_error{ "empty path" };
+    if(pathspec.empty()) throw std::logic_error("empty path");
     for(size_t i = 0; i < pathspec.size() - 1; i++)
     {
         if(pathspec[i].empty()) continue;
         tnode* node = from->find_r(pathspec[i], checked);
-        if(!node) throw std::out_of_range{ "broken link" };
+        if(!node) throw std::out_of_range("broken link");
         else if(node->is_directory()) { from = dynamic_cast<ext_directory_vnode*>(node->as_directory()); if(!from) throw std::bad_cast(); }
-        else throw std::invalid_argument{ "symlink path component .../" + pathspec[i] + "/ is a file" };
+        else throw std::invalid_argument("symlink path component .../" + pathspec[i] + "/ is a file");
     }
     return from->find_r(pathspec.back(), checked);
 }

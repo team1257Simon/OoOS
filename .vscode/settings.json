@@ -120,6 +120,7 @@
         "types.h": "c",
         "strstream": "cpp",
         "internet": "cpp",
-        "io_context": "cpp"
+        "io_context": "cpp",
+        "flat_map": "cpp"
     }
 }

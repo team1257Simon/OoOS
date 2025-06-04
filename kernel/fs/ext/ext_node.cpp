@@ -107,7 +107,7 @@ void ext_vnode::truncate_buffer()
 {
     __destroy();
     on_disk_node->blocks_count_hi   = on_disk_node->blocks_count_lo = 0U;
-    on_disk_node->size_hi           = on_disk_node->size_lo = 0U;
+    on_disk_node->size_hi           = on_disk_node->size_lo         = 0U;
 }
 void ext_vnode::update_block_ptrs()
 {
@@ -410,7 +410,8 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
 {
     size_t bs           = parent_fs->block_size();
     extents.has_init    = true;
-    if(disk_block* db = parent_fs->claim_blocks(this); __builtin_expect(db != nullptr, true))
+    disk_block* db      = parent_fs->claim_blocks(this); 
+    if(__builtin_expect(db != nullptr, true))
     {
         if(!expand_buffer(bs * db->chain_len)) return false;
         __setc(0UZ);
@@ -426,7 +427,7 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
         on_disk_node->referencing_dirents++;
         directory_tnodes.emplace(this, ".");
         directory_tnodes.emplace(parent, "..");
-        return (__initialized =  parent->fsync());
+        return (__initialized = parent->fsync());
     }
     return false;
 }

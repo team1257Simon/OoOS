@@ -12,7 +12,7 @@ static bool serial_empty_transmit() { line_status_byte b = inb(port_com1_line_st
 static constexpr void write_seq(const char* str) { for(const char* c = str; *c; c++) outb(port_com1, *c); }
 std::basic_streambuf<char>* get_kstio_stream() { return com_amd64::get_instance(); }
 com_amd64::com_amd64(size_t init_size) : __queue{ init_size }, __base{ init_size } {}
-std::streamsize com_amd64::sector_size() { return std::streamsize(16UL); }
+std::streamsize com_amd64::sector_size() const { return std::streamsize(16UL); }
 std::streamsize com_amd64::unread_size() { return __qrem(); }
 void com_amd64::set_echo(bool mode) noexcept { __mode_echo = mode; }
 com_amd64* com_amd64::get_instance() { return std::addressof(__instance); }

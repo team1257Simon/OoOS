@@ -154,11 +154,11 @@ pipe_pair filesystem::mkpipe(directory_node*, std::string const& name)
 bool filesystem::xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {
     tnode* node = parent->find(what);
-    if(!node) { if(!ignore_nonexistent) throw std::logic_error{ "cannot unlink " + what + " because it does not exist" }; else return false; }
+    if(!node) { if(!ignore_nonexistent) throw std::logic_error("cannot unlink " + what + " because it does not exist"); else return false; }
     if(node->is_directory() && (*node)->num_refs() <= 1)
     { 
         if(!node->as_directory()->is_empty() && !dir_recurse) 
-            throw std::logic_error{ "folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)" };
+            throw std::logic_error("folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)");
         if(dir_recurse) 
             for(std::string s : node->as_directory()->lsdir())
                 this->xunlink(node->as_directory(), s, true, true);
@@ -182,9 +182,9 @@ bool filesystem::xunlink(directory_node* parent, std::string const& what, bool i
 tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
 {
     tnode* node = ogparent.first->find(ogparent.second);
-    if(!node) throw std::runtime_error{ std::string{ "path does not exist: " } + ogparent.first->name() + path_separator() + ogparent.second };
-    if(tgparent.first->find(tgparent.second)) throw std::logic_error{ std::string{ "target " } + tgparent.first->name() + path_separator() + tgparent.second + " already exists" };
-    if(!tgparent.first->link(node, tgparent.second)) throw std::runtime_error{ std::string{ "failed to create link: " } + tgparent.first->name() + path_separator() + tgparent.second };
+    if(!node) throw std::runtime_error(std::string("path does not exist: ") + ogparent.first->name() + path_separator() + ogparent.second);
+    if(tgparent.first->find(tgparent.second)) throw std::logic_error(std::string("target ") + tgparent.first->name() + path_separator() + tgparent.second + " already exists");
+    if(!tgparent.first->link(node, tgparent.second)) throw std::runtime_error(std::string("failed to create link: ") + tgparent.first->name() + path_separator() + tgparent.second);
     return tgparent.first->find(tgparent.second);
 }
 filesystem::target_pair filesystem::get_parent(directory_node* start, std::string const &path, bool create)
@@ -202,10 +202,10 @@ filesystem::target_pair filesystem::get_parent(directory_node* start, std::strin
                 cur                     = start->add(created);
                 start                   = created; 
             } 
-            else { throw std::out_of_range{ "path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)" }; } 
+            else { throw std::out_of_range("path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)"); } 
         }
         else if(cur->is_directory()) start = cur->as_directory();
-        else throw std::invalid_argument{ "path is invalid because entry " + pathspec[i] + " is a file" };
+        else throw std::invalid_argument("path is invalid because entry " + pathspec[i] + " is a file");
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
 }
@@ -226,12 +226,12 @@ file_node* filesystem::open_file(std::string const& path, std::ios_base::openmod
 {
     target_pair parent  = get_parent(path, false);
     tnode* node         = parent.first->find(parent.second);
-    if(node && node->is_directory()) throw std::logic_error{ "path " + path + " exists and is a directory" };
+    if(node && node->is_directory()) throw std::logic_error("path " + path + " exists and is a directory");
     if(!node)
     {
-        if(!create) throw std::out_of_range{ "file not found: " + path }; 
+        if(!create) throw std::out_of_range("file not found: " + path); 
         if(file_node* created = mkfilenode(parent.first, parent.second)) { node = parent.first->add(created); }
-        else throw std::runtime_error{ "failed to create file: " + path }; 
+        else throw std::runtime_error("failed to create file: " + path); 
     }
     file_node* result       = on_open(node, mode);
     register_fd(result);
@@ -247,7 +247,7 @@ file_node* filesystem::get_file(std::string const& path)
         if(file) register_fd(file);
         return file;
     }
-    else throw std::runtime_error{ "file not found: " + path };
+    else throw std::runtime_error("file not found: " + path);
 }
 directory_node* filesystem::open_directory(std::string const& path, bool create)
 {
@@ -259,28 +259,28 @@ directory_node* filesystem::open_directory(std::string const& path, bool create)
         if(create) 
         {
             directory_node* cn = mkdirnode(parent.first, parent.second);
-            if(!cn) throw std::runtime_error{ "failed to create " + path };
+            if(!cn) throw std::runtime_error("failed to create " + path);
             node = parent.first->add(cn);
             register_fd(cn);
             return node->as_directory(); 
         } 
-        else throw std::out_of_range{ "path " + path + " does not exist (use open_directory(\"" + path + "\", true) to create it)" }; 
+        else throw std::out_of_range("path " + path + " does not exist (use open_directory(\"" + path + "\", true) to create it)"); 
     }
-    else if(node->is_file()) throw std::invalid_argument{ "path " + path + " exists and is a file" };
+    else if(node->is_file()) throw std::invalid_argument("path " + path + " exists and is a file");
     else { register_fd(node->ptr()); return node->as_directory(); }
 }
 void filesystem::create_node(directory_node* from, std::string const& path, mode_t mode, dev_t dev)
 {
     if(!from) from      = get_root_directory();
     target_pair parent  = get_parent(from, path, false);
-    if(parent.first->find(parent.second)) { throw std::domain_error{ "target " + path + " already exists" }; }
+    if(parent.first->find(parent.second)) { throw std::domain_error("target " + path + " already exists"); }
     file_mode m(mode);
     fs_node* result;
     if(m.is_directory())    { result            = mkdirnode(parent.first, parent.second); result->mode = mode; }
     else if(m.is_chardev()) { result            = mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
     else if(m.is_fifo())    { pipe_pair pipes   = mkpipe(parent.first, parent.second); pipes.in->mode = mode; pipes.out->mode = mode; return; }
     else                    { result            = mkfilenode(parent.first, parent.second); result->mode = mode; }
-    if(!result)             { throw std::runtime_error{ "failed to create node at " + path }; }
+    if(!result)             { throw std::runtime_error("failed to create node at " + path); }
     result->fsync();
     syncdirs();
 }
@@ -288,5 +288,5 @@ void filesystem::create_pipe(int fds[2])
 {
     pipe_pair result = mkpipe();
     if(result.in && result.out) { fds[0] = result.in->vid(); fds[1] = result.out->vid(); }
-    else throw std::runtime_error{ "failed to create pipe" };
+    else throw std::runtime_error("failed to create pipe");
 }

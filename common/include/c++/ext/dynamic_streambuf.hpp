@@ -28,7 +28,7 @@ namespace std
             virtual int write_dev() { return 0; } // Sync the put region to the file if this stream is output-buffered.
             virtual std::streamsize read_dev(std::streamsize) { return std::streamsize(0); } // Get more bytes from the file if there are any left.
             virtual std::streamsize unread_size() { return 0; } // How many unread bytes are in the file's data sequence.
-            virtual std::streamsize sector_size() { return physical_block_size; }
+            virtual std::streamsize sector_size() const { return physical_block_size; }
             virtual std::streamsize showmanyc() override { return unread_size(); }
             virtual std::streamsize on_overflow(std::streamsize n) { if(this->__grow_buffer(n)) return n; return 0; }
             /**
@@ -56,6 +56,9 @@ namespace std
             pos_type tell() const noexcept { return pos_type(this->__cur() - this->__beg()); }
             char_type* data() noexcept { return this->__beg(); }
             char_type const* data() const noexcept { return this->__beg(); }
+            char_type* sector_ptr(std::streamsize sector) { return this->__beg() + sector_size() * sector; }
+            char_type const* sector_ptr(std::streamsize sector) const { return this->__beg() + sector_size() * sector; }
+            std::streamsize sector_of(std::streampos where) const { return static_cast<std::streamsize>(std::streamoff(where) / sector_size()); }
             void clear() { this->__clear(); }
             std::streamsize count() const noexcept { return this->__size(); }
         };
@@ -98,7 +101,7 @@ namespace std
         template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
         std::streamsize dynamic_streambuf<CT, TT, AT>::xsputn(char_type const* s, std::streamsize n)
         {
-            std::streamsize l = std::min(n, std::streamsize(this->epptr() - this->pptr()));
+            std::streamsize l   = std::min(n, std::streamsize(this->epptr() - this->pptr()));
             if(l < n) { l += this->on_overflow(std::streamsize(n - l)); }
             char_type* old      = this->pptr();
             char_type* result   = this->__append_elements(s, s + l);

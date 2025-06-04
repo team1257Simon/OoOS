@@ -273,7 +273,7 @@ bool ext_node_extent_tree::ext4_root_overflow()
     cached_extent_node* base    = std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, base_depth));
     base->next_level_extents.swap(base_extent_level);
     base_extent_level.insert_or_assign(0UL, cached_node_pos(base));
-    tracked_node->on_disk_node->block_info.ext4_extent.header.entries = 1;
+    tracked_node->on_disk_node->block_info.ext4_extent.header.entries = 1US;
     return true;
 }
 bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree* parent, disk_block* blk)
