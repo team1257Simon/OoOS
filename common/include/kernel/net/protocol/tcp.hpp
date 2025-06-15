@@ -130,6 +130,7 @@ protected:
     sequence_map::iterator add_rx_packet(tcp_packet& p);
     void commit_rx();
     void rx_reset();
+    int tx_reset(uint32_t use_seq);
     uint32_t compute_following_sequence(uint32_t from) const;
 };
 struct isn_gen

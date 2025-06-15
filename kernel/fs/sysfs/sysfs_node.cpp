@@ -26,6 +26,7 @@ std::streamsize sysfs_vnode::xsputn(char const* s, std::streamsize n)
     std::streamsize max_block   = st_block + result / sector_size();
     do { dirty_blocks.push_back(st_block); } while(st_block++ < max_block);
     inode().size_bytes          = std::max(inode().size_bytes, static_cast<size_t>(tell()));
+    on_modify();
     return result;
 }
 int sysfs_vnode::write_dev()

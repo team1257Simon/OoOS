@@ -13,7 +13,8 @@ sysfs::sysfs(sysfs_file_ptrs const& files) :
     __data_file         { *files.data_file },
     __index_file        { *files.index_file },
     __extents_file      { *files.extents_file },
-    __directory_file    { *files.directory_file }
+    __directory_file    { *files.directory_file },
+    __directory_map     { 64UZ }
                         {}
 void sysfs::write_data(size_t st_block, const char* data, size_t n)
 {
@@ -173,4 +174,20 @@ std::pair<sysfs_extent_branch*, size_t> sysfs::next_available_extent_entry(size_
         }
     }
 	return std::pair(nullptr, 0UZ);
+}
+int sysfs::dir_add_object(std::string const& name, uint32_t ino)
+{
+    uint32_t eno            = add_directory_entry();
+    if(__unlikely(!eno)) return -ENOSPC;
+    sysfs_dir_entry& ent    = get_dir_entry(eno);
+    ent.inode_number        = ino;
+    std::strncpy(ent.object_name, name.c_str(), sysfs_object_name_size_max);
+    ent.checksum            = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ent)), offsetof(sysfs_dir_entry, checksum));
+    return 0;
+}
+uint32_t sysfs::find_node(std::string const& name)
+{
+    std::unordered_map<std::string, uint32_t>::iterator result = __directory_map.find(name);
+    if(result != __directory_map.end()) return result->second;
+    return 0;
 }

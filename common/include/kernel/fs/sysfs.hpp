@@ -1,6 +1,9 @@
 #ifndef __SYSFS
 #define __SYSFS
 #include "fs/fs.hpp"
+#include "sys/errno.h"
+#include "typeindex"
+#include "unordered_map"
 constexpr uint32_t sysfs_magic                  = 0xA11C0DED;
 constexpr uint32_t sysfs_extent_magic           = 0xB16F11E5;
 constexpr uint32_t sysfs_directory_magic        = 0xCA11ED17;
@@ -140,6 +143,7 @@ class sysfs
     file_node& __index_file;
     file_node& __extents_file;
     file_node& __directory_file;
+    std::unordered_map<std::string, uint32_t> __directory_map;
     sysfs_index_file& __index();
     sysfs_directory_file& __dir();
     sysfs_extents_file& __extents();
@@ -161,6 +165,8 @@ public:
     uint32_t add_blocks(uint16_t how_many);
     uint32_t add_inode();
     uint32_t add_directory_entry();
+    uint32_t find_node(std::string const& name);
+    int dir_add_object(std::string const& name, uint32_t ino);
     sysfs_extent_branch& extend_to_leaf(size_t from_idx, uint32_t ordinal);
     std::pair<sysfs_extent_branch*, size_t> next_available_extent_entry(size_t from_idx);
 };

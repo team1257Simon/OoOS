@@ -302,7 +302,7 @@ int tcp_port_handler::rx_establish(tcp_packet& p)
         }
     }
     catch(std::bad_alloc&) { return -ENOMEM; }
-    // TODO reset connection if ACK did not match
+    else return tx_reset(p->ack_number);
     return 0;
 }
 void tcp_port_handler::commit_rx()
@@ -363,5 +363,22 @@ uint32_t tcp_port_handler::compute_following_sequence(uint32_t from) const
 int tcp_port_handler::rx_begin_close(tcp_packet& p)
 {
     // TODO
+    return 0;
+}
+int tcp_port_handler::tx_reset(uint32_t use_seq)
+{
+    abstract_ip_resolver& res                   = *base->ip_resolver;
+    mac_t remote_mac                            = res[res.check_presence(connection_info.remote_host) ? connection_info.remote_host : local_host.ipconfig.primary_gateway];
+    sequence_map::iterator i                    = send_packets.emplace(std::piecewise_construct, std::forward_as_tuple(connection_info.next_send_sequence), std::forward_as_tuple(sizeof(tcp_header), std::in_place_type<tcp_header>, std::forward<ipv4_standard_header>(base->create_packet(remote_mac)))).first;
+    i->second->total_length                     = static_cast<uint16_t>(i->second.packet_size);
+    i->second->sequence_number                  = use_seq;
+    i->second->window_size                      = 16384US;
+    i->second->fields.data_offset               = static_cast<net8>((sizeof(tcp_header) - sizeof(ipv4_standard_header)) / sizeof(net32));
+    i->second->source_addr                      = local_host.ipconfig.leased_addr;
+    i->second->source_port                      = net16(local_port);
+    i->second->destination_addr                 = connection_info.remote_host;
+    i->second->destination_port                 = net16(connection_info.remote_port);
+    if(int err = next->transmit(i->second); __unlikely(err != 0)) return err;
+    // we might need to retransmit the correct sequence...add that here if applicable
     return 0;
 }
