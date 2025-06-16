@@ -488,7 +488,7 @@ extern "C"
         fx_enable = true;
         scheduler::init_instance();
         hpet_amd64::init_instance();
-        startup_tty.print_line(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "AHCI HDA init success" : "HDA adapter init failed") : "AHCI init failed") : "PCI enum failed");
+        startup_tty.print_text(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "" : "HDA adapter init failed\n") : "AHCI init failed\n") : "PCI enum failed\n");
         try
         {
             // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
