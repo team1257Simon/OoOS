@@ -29,8 +29,8 @@ off_t bitmap_scan_chain_zeroes(const unsigned long* bitmap, size_t num_ulongs, s
 void bitmap_set_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits)
 {
     if(num_bits == 1) { bitmap_set_bit(bitmap, bit_pos); return; }
-    off_t ulpos = bit_pos / ulsize;
-    off_t bit_off = bit_pos % ulsize;
+    off_t ulpos     = bit_pos / ulsize;
+    off_t bit_off   = bit_pos % ulsize;
     if(__builtin_expect(num_bits >= ulsize, false)) 
     { 
         size_t actual = std::min(num_bits, static_cast<size_t>(ulsize - bit_off));
@@ -47,8 +47,8 @@ void bitmap_set_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits
 void bitmap_clear_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits)
 {
     if(num_bits == 1) { bitmap_clear_bit(bitmap, bit_pos); return; }
-    off_t ulpos = bit_pos / ulsize;
-    off_t bit_off = bit_pos % ulsize;
+    off_t ulpos     = bit_pos / ulsize;
+    off_t bit_off   = bit_pos % ulsize;
     if(__builtin_expect(num_bits >= ulsize, false))
     { 
         size_t actual = std::min(num_bits, static_cast<size_t>(ulsize - bit_off)); 

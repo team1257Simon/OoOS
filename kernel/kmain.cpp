@@ -9,6 +9,7 @@
 #include "fs/ext.hpp"
 #include "fs/hda_ahci.hpp"
 #include "fs/ramfs.hpp"
+#include "fs/sysfs.hpp"
 #include "net/protocol/arp.hpp"
 #include "net/protocol/dhcp.hpp"
 #include "sched/scheduler.hpp"
@@ -287,13 +288,13 @@ void elf64_tests()
 {
     if(test_extfs.has_init()) try
     {
-        file_node* tst = test_extfs.open_file("test.elf");
+        file_node* tst              = test_extfs.open_file("test.elf");
         elf64_executable* test_exec = prog_manager::get_instance().add(tst);
         test_extfs.close_file(tst);
         if(test_exec)
         {
-            file_node* c = test_extfs.get_file_or_null("/dev/console");
-            if(!c) c = test_extfs.lndev("/dev/console", 0, com->get_device_id());
+            file_node* c    = test_extfs.get_file_or_null("/dev/console");
+            if(!c) c        = test_extfs.lndev("/dev/console", 0, com->get_device_id());
             elf64_program_descriptor const& desc = test_exec->describe();
             startup_tty.print_line("Entry at " + std::to_string(desc.entry));
             sch.start();
@@ -318,6 +319,35 @@ void hpet_tests()
         else startup_tty.print_line("time split: " + std::to_string(end_read - start_read));
     }
     else panic("hpet init failed");
+}
+constexpr static sysfs_backup_filenames test_backup_filenames
+{
+    .data_backup_file_name      { "objects.bak" },
+    .index_backup_file_name     { "index.bak" },
+    .extents_backup_file_name   { "blocks.bak" },
+    .directory_backup_file_name { "tags.bak" }
+};
+void sysfs_tests()
+{
+    if(test_extfs.has_init()) try
+    {
+        test_extfs.open_directory("sys/sysfs");
+        sysfs_file_ptrs sys_files
+        {
+            .data_file      { test_extfs.open_file("sys/sysfs/objects.dat") },
+            .index_file     { test_extfs.open_file("sys/sysfs/index.dat") },
+            .extents_file   { test_extfs.open_file("sys/sysfs/blocks.dat") },
+            .directory_file { test_extfs.open_file("sys/sysfs/tags.dat") }
+        };
+        sysfs test_sysfs(sys_files);
+        test_sysfs.init_blank(test_backup_filenames);
+        startup_tty.print_line("Initialized in directory sys/sysfs");
+        test_extfs.close_file(sys_files.data_file);
+        test_extfs.close_file(sys_files.index_file);
+        test_extfs.close_file(sys_files.extents_file);
+        test_extfs.close_file(sys_files.directory_file);
+    }
+    catch(std::exception& e) { panic(e.what()); }
 }
 static const char* codes[] = 
 {
@@ -408,7 +438,9 @@ void run_tests()
     startup_tty.print_line("extfs tests...");
     extfs_tests();
     if(test_extfs.has_init()) 
-    { 
+    {
+        startup_tty.print_line("sysfs tests...");
+        sysfs_tests();
         shared_object_map::get_ldso_object(std::addressof(test_extfs));
         startup_tty.print_line("SO loader tests...");
         dyn_elf_tests();
@@ -483,7 +515,7 @@ extern "C"
         // If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
         set_gs_base(std::addressof(kproc));
         asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
-        __builtin_memset(kproc.fxsv.xmm, 0, sizeof(fx_state::xmm));
+        array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
         for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
         fx_enable = true;
         scheduler::init_instance();
@@ -503,7 +535,7 @@ extern "C"
             abort();
             __builtin_unreachable();
         }
-        __cxa_finalize(0);
+        __cxa_finalize(nullptr);
         __builtin_unreachable();
     }
 }

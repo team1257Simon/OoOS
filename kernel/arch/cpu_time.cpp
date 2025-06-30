@@ -23,7 +23,7 @@ static std::pair<time_t, time_t> compute_cpu_tsc_ratio()
 void cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function<bool()> const& fn)
 {
     time_t tsc_interval = cpu_timer_info::instance.us_to_tsc(interval);
-    bool result = false;
+    bool result         = false;
     if(!__is_started) start();
     do {
         split();

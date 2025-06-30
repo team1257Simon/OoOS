@@ -54,7 +54,7 @@ void task_ctx::init_task_state()
         task_struct.saved_regs.rip = entry;
     }
     fx_save(std::addressof(task_struct));
-    __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
+    array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
     for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
     if(is_user())
     {
@@ -216,7 +216,7 @@ task_ctx::task_ctx(task_ctx const& that) :
             {
                 .signal_info    { std::addressof(task_sig_info) },
                 .parent_pid     { static_cast<int64_t>(that.get_pid()) },
-                .task_id        { tl.__mk_pid() }
+                .task_id        { tl.__upid() }
             }
         },
         .fxsv               { that.task_struct.fxsv },
@@ -274,7 +274,7 @@ task_ctx::task_ctx(task_ctx&& that) :
     task_sig_info           { std::move(that.task_sig_info) },
     opened_directories      { std::move(that.opened_directories) }
     { 
-        array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / 8)); 
+        array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / sizeof(uint64_t))); 
         task_struct.self                    = this;
         task_struct.task_ctl.signal_info    = std::addressof(task_sig_info);
         that.task_struct.frame_ptr          = nullptr;
@@ -293,26 +293,28 @@ void task_ctx::restart_task(addr_t exit_fn)
         set_arg_registers(arg_vec.size(), reinterpret_cast<register_t>(arg_vec.data()), reinterpret_cast<register_t>(env_vec.data()));
         task_struct.saved_regs.rip  = entry;
         task_struct.saved_regs.rbp  = task_struct.saved_regs.rsp = allocated_stack.plus(stack_allocated_size);
-        __builtin_memset(task_struct.fxsv.xmm, 0, sizeof(task_struct.fxsv.xmm));
+        array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
         for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
         exit_code       = 0;
         current_state   = execution_state::RUNNING;
     }
 }
-void task_ctx::set_exit(int n) 
+void task_ctx::set_exit(int n)
 {
     exit_code = n;
     if(current_state == execution_state::RUNNING)
     {
-        task_ctx* c = this, *p = nullptr;
+        task_ctx* c = this;
+        task_ctx* p = nullptr;
         while(c->get_parent_pid() > 0 && tl.contains(static_cast<uint64_t>(c->get_parent_pid())))
         {
-            p = tl.find(static_cast<uint64_t>(c->get_parent_pid())).base();
-            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target) p->notif_target.assign(n);
-            p->last_notified = this;
+            p                               = tl.find(static_cast<uint64_t>(c->get_parent_pid())).base();
+            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target)
+                p->notif_target.assign(n);
+            p->last_notified                = this;
             p->remove_child(this);
-            p->task_struct.saved_regs.rax = get_pid();
-            c = p;
+            p->task_struct.saved_regs.rax   = get_pid();
+            c                               = p;
         }
         if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle); dyn && dynamic_exit)
         {
@@ -444,7 +446,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
             fm.destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
             sm_alloc.deallocate(local_so_map, 1);
         }
-        local_so_map = sm_alloc.allocate(1);
+        local_so_map = sm_alloc.allocate(1UZ);
         if(!local_so_map) return false;
     }
     uframe_tag* new_tag     = static_cast<uframe_tag*>(desc.frame_ptr);

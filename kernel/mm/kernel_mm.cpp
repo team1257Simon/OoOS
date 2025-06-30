@@ -415,13 +415,14 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
 addr_t kernel_memory_mgr::allocate_dma(size_t sz, bool prefetchable)
 {
     __lock();
-    addr_t result = nullptr;
-    if(uintptr_t phys = __find_and_claim(sz); __builtin_expect(phys != 0, true)) 
+    addr_t result   = nullptr;
+    uintptr_t phys  = __find_and_claim(sz);
+    if(__builtin_expect(phys != 0, true)) 
     {
-        size_t total_sz = div_round_up(region_size_for(sz), page_size);
+        size_t total_sz         = div_round_up(region_size_for(sz), page_size);
         if(prefetchable) result = __map_mmio_pages(addr_t(phys), total_sz); 
-        else result = __map_uncached_mmio_pages(addr_t(phys), total_sz);
-        __watermark = std::max(phys, __watermark);
+        else result             = __map_uncached_mmio_pages(addr_t(phys), total_sz);
+        __watermark             = std::max(phys, __watermark);
     }
     __unlock();
     return result;
@@ -600,8 +601,8 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
     {
         __lock();
         block_tag* tag = ptr - bt_offset;
-        for(size_t i = 0; (tag && (tag->magic != block_magic) && (!align || i < align)); i++) tag = addr_t(tag).minus(1L);
-        if(tag && tag->magic != block_magic) { tag = ptr.page_aligned(); }
+        for(size_t i = 0; tag && (tag->magic != block_magic) && (!align || i < align); i++) tag = addr_t(tag).minus(1L);
+        if(tag && tag->magic != block_magic) tag = ptr.page_aligned(); 
         if(__builtin_expect(tag && tag->magic == block_magic, true))
         {
             tag->held_size   = 0;

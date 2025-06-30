@@ -1,5 +1,16 @@
 #ifndef __SYSFS
 #define __SYSFS
+/**
+ * While sysfs isn't technically a proper filesystem, it is a part of the filesystem and uses many of the same concepts.
+ * It's how the various configurations and other system objects (such as user account info) are persisted.
+ * A given object will be tagged in the directory file with a name up to 23 characters long.
+ * This limit allows directory entries to be precisely 32 bytes in length and still include a checksum.
+ * Each object's index node specifies a type code (such as user info, network config, etc) and points to an extent tree.
+ * The extent trees are essentially simplified versions of the ext4 extent system.
+ * All extent nodes beyond those in the index itself are stored in a separate file, with non-leaf nodes pointing to an ordinal within that file.
+ * Leaf nodes, of course, point to blocks in the data file itself.
+ * Eventually, I might expand sysfs to support a sort-of registry that applications and drivers can also use.
+ */
 #include "fs/fs.hpp"
 #include "sys/errno.h"
 #include "typeindex"
@@ -10,8 +21,8 @@ constexpr uint32_t sysfs_directory_magic        = 0xCA11ED17;
 constexpr uint32_t sysfs_index_magic            = 0xD1617A15;
 constexpr size_t sysfs_extent_branch_size       = 128UZ;
 constexpr size_t sysfs_data_block_size          = 1024UZ;
-constexpr size_t sysfs_object_name_size_max     = 22UZ;
-enum class sysfs_object_type : uint16_t
+constexpr size_t sysfs_object_name_size_max     = 23UZ;
+enum class sysfs_object_type : uint8_t
 {
     NONE,
     GENERAL_CONFIG,
@@ -137,6 +148,13 @@ struct sysfs_file_ptrs
     file_node* extents_file;
     file_node* directory_file;
 };
+struct sysfs_backup_filenames
+{
+    char data_backup_file_name[16];
+    char index_backup_file_name[16];
+    char extents_backup_file_name[16];
+    char directory_backup_file_name[16];
+};
 class sysfs
 {
     file_node& __data_file;
@@ -152,6 +170,7 @@ class sysfs
     size_t __num_blocks() const;
 public:
     sysfs(sysfs_file_ptrs const& files);
+    void init_blank(sysfs_backup_filenames const& bak);
     void write_data(size_t start_block, const char* data, size_t n);
     void read_data(char* out, size_t start_block, size_t n);
     bool sync();

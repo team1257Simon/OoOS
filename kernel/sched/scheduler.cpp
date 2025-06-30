@@ -9,6 +9,8 @@ extern "C"
 }
 scheduler scheduler::__instance{};
 bool scheduler::__has_init{ false };
+constexpr static priority_val incr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) + 1); }
+constexpr static priority_val decr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) - 1); }
 bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
@@ -83,7 +85,7 @@ bool scheduler::unregister_task(task_t* task)
 {
     bool result = false;
     if(task->task_ctl.prio_base == PVSYS) { if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task, true); i != __queues[PVSYS].end()) { result = __queues[PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
-    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = priority_val(int8_t(pv) + 1)) { if(task_pl_queue::const_iterator i = __queues[pv].find(task, true); i != __queues[pv].end()) { result = __queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
+    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = incr_pv(pv)) { if(task_pl_queue::const_iterator i = __queues[pv].find(task, true); i != __queues[pv].end()) { result = __queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
     __sync_synchronize();
     if(__total_tasks) __total_tasks--;
     return result;
@@ -101,7 +103,7 @@ __isrcall task_t* scheduler::select_next()
     // first check system priority (I/O drivers and such will go here; most of the time they will be sleeping)
     if(!__queues[PVSYS].empty()) { if(__queues[PVSYS].at_end()) __queues[PVSYS].restart(); return __queues[PVSYS].pop(); }
     task_t* target = nullptr;
-    for(priority_val pv = PVEXTRA; pv >= PVLOW; pv = priority_val(int8_t(pv) - 1))
+    for(priority_val pv = PVEXTRA; pv >= PVLOW; pv = decr_pv(pv))
     {
         task_pl_queue& queue = __queues[pv];
         if(!queue.empty())
@@ -124,7 +126,7 @@ __isrcall task_t* scheduler::select_next()
                 fence();
             }
             target = result;
-            for(priority_val qv = priority_val(static_cast<int8_t>(pv) - 1); qv >= PVLOW; qv = priority_val(static_cast<int8_t>(qv) - 1)) 
+            for(priority_val qv = decr_pv(pv); qv >= PVLOW; qv = decr_pv(qv)) 
             { 
                 queue.on_skipped(); 
                 if(queue.skip_flag()) 
@@ -144,7 +146,7 @@ bool scheduler::set_wait_untimed(task_t* task)
     if(task->task_ctl.prio_base == PVSYS) 
         if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task); i != __queues[PVSYS].end()) 
              return __set_untimed_wait(task);
-    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = priority_val(int8_t(pv) + 1))
+    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = incr_pv(pv))
         if(task_pl_queue::const_iterator i = __queues[pv].find(task); i != __queues[pv].end()) 
             return __set_untimed_wait(task); 
     return false;
@@ -154,7 +156,7 @@ bool scheduler::set_wait_timed(task_t* task, unsigned int time, bool can_interru
     if(task->task_ctl.prio_base == PVSYS)
         if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task); i != __queues[PVSYS].end())
             return __set_wait_time(task, time, can_interrupt); 
-    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = priority_val(int8_t(pv) + 1))
+    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = incr_pv(pv))
         if(task_pl_queue::const_iterator i = __queues[pv].find(task); i != __queues[pv].end())
             return __set_wait_time(task, time, can_interrupt);
     return false;

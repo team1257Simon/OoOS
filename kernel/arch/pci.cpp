@@ -31,6 +31,6 @@ pci_capabilities_register* get_first_capability_register(pci_config_space* devic
 pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r)
 {
     char* dev_space = reinterpret_cast<char*>(device);
-    uint8_t next = r->next;
+    uint8_t next    = r->next;
     return reinterpret_cast<pci_capabilities_register*>(dev_space + next);
 }

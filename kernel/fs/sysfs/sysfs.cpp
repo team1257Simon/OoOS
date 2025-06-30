@@ -191,3 +191,29 @@ uint32_t sysfs::find_node(std::string const& name)
     if(result != __directory_map.end()) return result->second;
     return 0;
 }
+void sysfs::init_blank(sysfs_backup_filenames const& bak)
+{
+    size_t needed_data      = sizeof(sysfs_data_file_header) - std::min(__data_file.size(), sizeof(sysfs_data_file_header));
+    size_t needed_index     = sizeof(sysfs_index_file) - std::min(__index_file.size(), sizeof(sysfs_index_file));
+    size_t needed_extents   = sizeof(sysfs_extents_file) - std::min(__extents_file.size(), sizeof(sysfs_extents_file));
+    size_t needed_directory = sizeof(sysfs_directory_file) - std::min(__directory_file.size(), sizeof(sysfs_directory_file));
+    if((needed_data && __unlikely(!__data_file.grow(needed_data))) || (needed_index && __unlikely(!__index_file.grow(needed_index))) || (needed_extents && __unlikely(!__extents_file.grow(needed_extents))) || (needed_directory && __unlikely(!__directory_file.grow(needed_directory))))
+        throw std::runtime_error("[sysfs] no space on disk for storage");
+    sysfs_data_file_header* data    = new(std::addressof(__header())) sysfs_data_file_header{};
+    sysfs_index_file* idx           = new(std::addressof(__index())) sysfs_index_file{};
+    sysfs_extents_file* exts        = new(std::addressof(__extents())) sysfs_extents_file{};
+    sysfs_directory_file* dirfile   = new(std::addressof(__dir())) sysfs_directory_file{};
+    array_copy(data->backup_file_name, bak.data_backup_file_name, 16UZ);
+    array_copy(idx->backup_file_name, bak.index_backup_file_name, 16UZ);
+    array_copy(exts->backup_file_name, bak.extents_backup_file_name, 16UZ);
+    array_copy(dirfile->backup_file_name, bak.directory_backup_file_name, 16UZ);
+    data->header_checksum           = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(data), offsetof(sysfs_data_file_header, header_checksum));
+    idx->header_checksum            = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(idx), offsetof(sysfs_index_file, header_checksum));
+    exts->header_checksum           = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(exts), offsetof(sysfs_extents_file, header_checksum));
+    dirfile->header_checksum        = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(dirfile), offsetof(sysfs_directory_file, header_checksum));
+    __data_file.force_write();
+    __index_file.force_write();
+    __extents_file.force_write();
+    __directory_file.force_write();
+    sync();
+}

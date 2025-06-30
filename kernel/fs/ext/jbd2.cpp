@@ -75,8 +75,8 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
     uint64_t timestamp = sys_time(nullptr);
     jbd2_commit_header* ch = new(static_cast<void*>(dblk_tar)) jbd2_commit_header
     { 
-        .checksum_type  = 4,
-        .checksum_size  = 4,
+        .checksum_type  = 4UC,
+        .checksum_size  = 4UC,
         .commit_seconds = __be64(timestamp / 1000UL),
         .commit_nanos   = __be32((timestamp % 1000U) * 1000U)
     };

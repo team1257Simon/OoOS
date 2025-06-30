@@ -6,31 +6,21 @@
 using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
 task_list task_list::__instance{};
+uint64_t task_list::__upid() const noexcept { uint64_t pid; do { pid = static_cast<unsigned long>(rand()); } while(pid == 0 || contains(pid)); return pid; }
 task_list& task_list::get() { return __instance; }
-uint64_t task_list::__mk_pid() const noexcept { uint64_t pid; do { pid = static_cast<unsigned long>(rand()); } while(pid == 0 || contains(pid)); return pid; }
-task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size_t stack_size, size_t tls_size, priority_val pv, uint16_t quantum)
+task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size_t st_sz, size_t tls_sz, priority_val pv, uint16_t qv)
 {
-    kframe_tag* ft = __kernel_frame_tag;
-    iterator result = emplace
-    (
-        task,
-        std::move(args), 
-        ft->allocate(stack_size, page_size),
-        static_cast<ptrdiff_t>(stack_size),
-        ft->allocate(tls_size, stack_size),
-        tls_size,
-        ft,
-        __mk_pid(),
-        0L,
-        pv,
-        quantum
-    ).first;
+    kframe_tag* ft  = __kernel_frame_tag;
+    addr_t stk      = ft->allocate(st_sz, page_size);
+    addr_t tls      = ft->allocate(tls_sz, st_sz);
+    if(__unlikely(!stk || !tls)) throw std::bad_alloc();
+    iterator result = emplace(task, move(args), stk, static_cast<ptrdiff_t>(st_sz), tls, tls_sz, ft, __upid(), 0L, pv, qv).first;
     result->init_task_state();
     return result.base();
 }
-task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, int64_t parent_pid, priority_val pv, uint16_t quantum, pid_t pid) 
+task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, int64_t parent_pid, priority_val pv, uint16_t qv, pid_t pid) 
 {
-    iterator result = emplace(program_desc, std::move(args), pid ? pid : __mk_pid(), parent_pid, pv, quantum).first; 
+    iterator result = emplace(program_desc, move(args), pid ? pid : __upid(), parent_pid, pv, qv).first; 
     result->init_task_state(); 
     return result.base(); 
 }

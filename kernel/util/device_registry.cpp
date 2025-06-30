@@ -13,8 +13,8 @@ device_stream* device_registry::operator[](dword id) const
 }
 uint32_t device_registry::add(device_stream* dev, device_type type)
 {
-    dev_class_map& m = (*static_cast<__base*>(this))[type];
-    uint16_t minor = static_cast<uint16_t>(m.size());
+    dev_class_map& m    = (*static_cast<__base*>(this))[type];
+    uint16_t minor      = static_cast<uint16_t>(m.size());
     m.emplace(minor, dev);
     return dword(minor, type);
 }

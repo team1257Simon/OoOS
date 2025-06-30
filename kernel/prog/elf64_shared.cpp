@@ -80,8 +80,8 @@ const char* elf64_shared_object::sym_lookup(addr_t addr) const
     size_t nsym = symtab.entries();
     for(size_t i = 0; i < nsym; i++) 
     {
-        elf64_sym const& sym = symtab[i];
-        addr_t sym_base = resolve(sym);
+        elf64_sym const& sym    = symtab[i];
+        addr_t sym_base         = resolve(sym);
         if(addr >= sym_base && sym_base.plus(sym.st_size) > addr) return symstrtab[sym.st_name];
     }
     return nullptr;
@@ -111,13 +111,13 @@ bool elf64_shared_object::load_segments()
         if(!h.p_memsz) continue;
         if(is_load(h))
         {
-            addr_t addr = virtual_load_base.plus(h.p_vaddr);
-            addr_t target = addr.trunc(h.p_align);
-            size_t full_size = h.p_memsz + (addr - target);
-            block_descriptor* bd = frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), is_global());
+            addr_t addr             = virtual_load_base.plus(h.p_vaddr);
+            addr_t target           = addr.trunc(h.p_align);
+            size_t full_size        = h.p_memsz + (addr - target);
+            block_descriptor* bd    = frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), is_global());
             if(__unlikely(!bd)) { throw std::bad_alloc{}; }
-            addr_t idmap = frame_tag->translate(addr);
-            size_t actual_size = kernel_memory_mgr::aligned_size(target, full_size);
+            addr_t idmap            = frame_tag->translate(addr);
+            size_t actual_size      = kernel_memory_mgr::aligned_size(target, full_size);
             if(fm.count_references(bd->virtual_start) < 2)
             {
                 addr_t img_dat = segment_ptr(n);
