@@ -91,7 +91,7 @@ void sysfs_extent_tree::push(uint16_t n_blocks)
     {
         __overflow_root();
         sysfs_extent_branch& root = __root();
-        new(std::addressof(root[1])) sysfs_extent_entry
+        new(std::addressof(root[0])) sysfs_extent_entry
         {
             .ordinal    { static_cast<uint32_t>(__total_extent) },
             .length     { n_blocks },
@@ -112,4 +112,5 @@ void sysfs_extent_tree::push(uint16_t n_blocks)
         uint32_t csum       = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(leaf_br)), offsetof(sysfs_extent_branch, checksum));
         leaf_br.checksum    = csum;
     }
+    __total_extent += n_blocks;
 }

@@ -327,6 +327,24 @@ constexpr static sysfs_backup_filenames test_backup_filenames
     .extents_backup_file_name   { "blocks.bak" },
     .directory_backup_file_name { "tags.bak" }
 };
+struct test_sys_struct
+{
+    int something;
+    guid_t something_else;
+    char another_thing[8];
+};
+typedef decltype([](test_sys_struct const& tst) -> const char* { return tst.another_thing; }) test_extract;
+typedef decltype([](const char* a, const char* b) -> bool { return std::strncmp(a, b, 8) == 0; }) test_pred;
+typedef sysfs_hash_table<const char*, test_sys_struct, test_extract, std::hash<const char*>, test_pred> test_map;
+void sysfs_node_test(sysfs& s)
+{
+    test_map tm(s, "some_test_data", sysfs_object_type::GENERAL_CONFIG);
+    std::pair<test_map::value_handle, bool> added = tm.add({ 0, { .data_full{ 0x12345UL, 0xABCDEUL } }, "abcdefg" });
+    added.first->something = 43;
+    std::pair<test_map::value_handle, bool> again = tm.add({ 42, {}, "hijklmn" });
+    again.first->something_else.data_full[0] = 0xEDCBAUL;
+    again.first->something_else.data_full[1] = 0x54321UL;
+}
 void sysfs_tests()
 {
     if(test_extfs.has_init()) try
@@ -342,6 +360,17 @@ void sysfs_tests()
         sysfs test_sysfs(sys_files);
         test_sysfs.init_blank(test_backup_filenames);
         startup_tty.print_line("Initialized in directory sys/sysfs");
+        sysfs_node_test(test_sysfs);
+        test_sysfs.sync();
+        uint32_t ino = test_sysfs.find_node("some_test_data");
+        if(ino)
+        {
+            sysfs_vnode& n = test_sysfs.open(ino);
+            test_map tm(n);
+            test_map::value_handle hdl = tm.get("abcdefg");
+            startup_tty.print_line("string abcdefg is associated with the number " + std::to_string(hdl->something));
+        }
+        else startup_tty.print_line("[sysfs directory did not contain expected key]");
         test_extfs.close_file(sys_files.data_file);
         test_extfs.close_file(sys_files.index_file);
         test_extfs.close_file(sys_files.extents_file);

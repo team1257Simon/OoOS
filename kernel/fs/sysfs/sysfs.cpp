@@ -1,5 +1,6 @@
 #include "fs/sysfs.hpp"
 #include "stdexcept"
+static bool verify_dirent_csum(sysfs_dir_entry const& ent) { return ent.checksum == crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ent)), offsetof(sysfs_dir_entry, checksum)); }
 sysfs_index_file& sysfs::__index() { return *reinterpret_cast<sysfs_index_file*>(__index_file.data()); }
 sysfs_directory_file& sysfs::__dir() { return *reinterpret_cast<sysfs_directory_file*>(__directory_file.data()); }
 sysfs_extents_file& sysfs::__extents() { return *reinterpret_cast<sysfs_extents_file*>(__extents_file.data()); }
@@ -14,7 +15,8 @@ sysfs::sysfs(sysfs_file_ptrs const& files) :
     __index_file        { *files.index_file },
     __extents_file      { *files.extents_file },
     __directory_file    { *files.directory_file },
-    __directory_map     { 64UZ }
+    __directory_map     { 64UZ },
+    __opened_nodes      { 64UZ }
                         {}
 void sysfs::write_data(size_t st_block, const char* data, size_t n)
 {
@@ -57,7 +59,7 @@ sysfs_extent_branch& sysfs::get_extent_branch(size_t idx)
 sysfs_inode& sysfs::get_inode(size_t ino)
 {
     if(__unlikely(!ino))
-        throw std::out_of_range("[sysfs] extent branch index must be at least 1");
+        throw std::out_of_range("[sysfs] inode index must be at least 1");
     if(__unlikely(ino > __index().total_inodes))
         throw std::out_of_range("[sysfs] inode number " + std::to_string(ino) + " does not exist");
     --ino;
@@ -76,7 +78,7 @@ sysfs_dir_entry& sysfs::get_dir_entry(size_t num)
 }
 uint32_t sysfs::add_extent_branch()
 {
-    uint32_t n = static_cast<uint32_t>(__extents().total_branches);
+    uint32_t n = static_cast<uint32_t>(__extents().total_branches) + 1;
     if(__extents_file.grow(sizeof(sysfs_extent_branch)))
     {
         sysfs_extents_file& ext = __extents();
@@ -90,7 +92,7 @@ uint32_t sysfs::add_extent_branch()
 }
 uint32_t sysfs::add_blocks(uint16_t how_many)
 {
-    uint32_t n = static_cast<uint32_t>(__num_blocks());
+    uint32_t n = static_cast<uint32_t>(__num_blocks()) + 1;
     if(__data_file.grow(how_many * sysfs_data_block_size))
     {
         sysfs_data_file_header& hdr = __header();
@@ -104,7 +106,7 @@ uint32_t sysfs::add_blocks(uint16_t how_many)
 }
 uint32_t sysfs::add_inode()
 {
-    uint32_t n = static_cast<uint32_t>(__index().total_inodes);
+    uint32_t n = static_cast<uint32_t>(__index().total_inodes) + 1;
     if(__index_file.grow(sizeof(sysfs_inode)))
     {
         sysfs_index_file& idx   = __index();
@@ -118,7 +120,7 @@ uint32_t sysfs::add_inode()
 }
 uint32_t sysfs::add_directory_entry()
 {
-    uint32_t n = static_cast<uint32_t>(__dir().total_entries);
+    uint32_t n = static_cast<uint32_t>(__dir().total_entries) + 1;
     if(__directory_file.grow(sizeof(sysfs_dir_entry)))
     {
         sysfs_directory_file& dir   = __dir();
@@ -175,15 +177,16 @@ std::pair<sysfs_extent_branch*, size_t> sysfs::next_available_extent_entry(size_
     }
 	return std::pair(nullptr, 0UZ);
 }
-int sysfs::dir_add_object(std::string const& name, uint32_t ino)
+void sysfs::dir_add_object(std::string const& name, uint32_t ino)
 {
     uint32_t eno            = add_directory_entry();
-    if(__unlikely(!eno)) return -ENOSPC;
+    if(__unlikely(!eno)) throw std::runtime_error("[sysfs] failed to expand directory file");
+    std::pair<std::string, uint32_t> map_entry(name, ino);
     sysfs_dir_entry& ent    = get_dir_entry(eno);
     ent.inode_number        = ino;
     std::strncpy(ent.object_name, name.c_str(), sysfs_object_name_size_max);
     ent.checksum            = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ent)), offsetof(sysfs_dir_entry, checksum));
-    return 0;
+    __directory_map.insert(map_entry);
 }
 uint32_t sysfs::find_node(std::string const& name)
 {
@@ -216,4 +219,36 @@ void sysfs::init_blank(sysfs_backup_filenames const& bak)
     __extents_file.force_write();
     __directory_file.force_write();
     sync();
+}
+void sysfs::init_load()
+{
+    sysfs_directory_file& dirfile = __dir();
+    for(size_t i = 0; i < dirfile.total_entries; i++)
+    {
+        uint32_t ino = dirfile.entries[i].inode_number;
+        if(verify_dirent_csum(dirfile.entries[i]))
+            __directory_map.insert(std::make_pair(std::string(dirfile.entries[i].object_name, std::strnlen(dirfile.entries[i].object_name, sizeof(sysfs_dir_entry::object_name))), ino));
+        else xklog("[sysfs] W: directory entry checksum of " + std::to_string(dirfile.entries[i].checksum, std::ext::hex) + " is incorrect; skipping");
+    }
+}
+sysfs_vnode& sysfs::open(uint32_t ino)
+{
+    std::unordered_map<uint32_t, sysfs_vnode>::iterator result = __opened_nodes.find(ino);
+    if(result != __opened_nodes.end())
+        return result->second;
+    if(__unlikely(ino > __index().total_inodes))
+        throw std::out_of_range("[sysfs] inode number " + std::to_string(ino) + " does not exist");
+    return __opened_nodes.emplace(std::piecewise_construct, std::tuple<uint32_t>(ino), std::forward_as_tuple(*this, ino)).first->second;
+}
+uint32_t sysfs::mknod(std::string const& name, sysfs_object_type type)
+{
+    uint32_t result     = add_inode();
+    if(__unlikely(!result)) throw std::runtime_error("[sysfs] failed to expand index file");
+    sysfs_inode& node   = get_inode(result);
+    node.type           = type;
+    node.checksum       = 0U;
+    uint32_t csum       = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(node)), offsetof(sysfs_inode, checksum));
+    node.checksum       = csum;
+    dir_add_object(name, result);
+    return result;
 }

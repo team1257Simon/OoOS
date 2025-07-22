@@ -19,15 +19,17 @@ constexpr uint32_t sysfs_magic                  = 0xA11C0DED;
 constexpr uint32_t sysfs_extent_magic           = 0xB16F11E5;
 constexpr uint32_t sysfs_directory_magic        = 0xCA11ED17;
 constexpr uint32_t sysfs_index_magic            = 0xD1617A15;
+constexpr uint32_t sysfs_htbl_magic             = 0xED6E108D;
 constexpr size_t sysfs_extent_branch_size       = 128UZ;
 constexpr size_t sysfs_data_block_size          = 1024UZ;
-constexpr size_t sysfs_object_name_size_max     = 23UZ;
-enum class sysfs_object_type : uint8_t
+constexpr size_t sysfs_object_name_size_max     = 22UZ;
+enum class sysfs_object_type : uint16_t
 {
     NONE,
     GENERAL_CONFIG,
     USER_INFO,
     NET_CONFIG,
+    HASH_TABLE,
     // ...
 };
 struct sysfs_extent_entry 
@@ -97,6 +99,16 @@ struct __pack sysfs_data_file_header
     size_t total_size;
     uint32_t header_checksum;
 };
+struct __pack sysfs_hashtable_entry { size_t object_index; size_t next_in_chain; };
+struct sysfs_hashtable_header
+{
+    uint32_t magic = sysfs_htbl_magic;
+    uint32_t values_object_ino;
+    size_t num_buckets;
+    size_t num_entries;
+    size_t buckets[];
+    constexpr sysfs_hashtable_entry* entries() { return addr_t(std::addressof(buckets[num_buckets])); }
+};
 class sysfs;
 struct sysfs_vnode;
 class sysfs_extent_tree
@@ -121,6 +133,7 @@ public:
     sysfs_extent_entry const& operator[](size_t i) const;
     size_t total_extent() const;
 };
+struct block_range { size_t start; size_t end; };
 struct sysfs_vnode : std::ext::dynamic_streambuf<char>
 {
     sysfs_inode& inode();
@@ -128,6 +141,11 @@ struct sysfs_vnode : std::ext::dynamic_streambuf<char>
     sysfs& parent();
     uint32_t inode_number() const;
     void init();
+    pos_type commit(size_t target_pos);
+    bool expand_to_size(size_t target);
+    bool expand_by_size(size_t added);
+    void* raw_data();
+    const void* raw_data() const;
     sysfs_vnode(sysfs& sysfs_parent, uint32_t inode_num);
 protected:
     friend class sysfs_extent_tree;
@@ -135,11 +153,12 @@ protected:
     sysfs& parent_fs;
     uint32_t ino;
     sysfs_extent_tree extent_tree;
-    std::vector<size_t> dirty_blocks;
+    std::vector<block_range> dirty_blocks;
     virtual int write_dev() override;
     virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual std::streamsize sector_size() const override;
     virtual std::streamsize xsputn(char const* s, std::streamsize n) override;
+    uint32_t actual_block(size_t ordinal) const;
 };
 struct sysfs_file_ptrs
 {
@@ -162,6 +181,7 @@ class sysfs
     file_node& __extents_file;
     file_node& __directory_file;
     std::unordered_map<std::string, uint32_t> __directory_map;
+    std::unordered_map<uint32_t, sysfs_vnode> __opened_nodes;
     sysfs_index_file& __index();
     sysfs_directory_file& __dir();
     sysfs_extents_file& __extents();
@@ -170,6 +190,7 @@ class sysfs
     size_t __num_blocks() const;
 public:
     sysfs(sysfs_file_ptrs const& files);
+    void init_load();
     void init_blank(sysfs_backup_filenames const& bak);
     void write_data(size_t start_block, const char* data, size_t n);
     void read_data(char* out, size_t start_block, size_t n);
@@ -185,8 +206,129 @@ public:
     uint32_t add_inode();
     uint32_t add_directory_entry();
     uint32_t find_node(std::string const& name);
-    int dir_add_object(std::string const& name, uint32_t ino);
+    void dir_add_object(std::string const& name, uint32_t ino);
     sysfs_extent_branch& extend_to_leaf(size_t from_idx, uint32_t ordinal);
     std::pair<sysfs_extent_branch*, size_t> next_available_extent_entry(size_t from_idx);
+    uint32_t mknod(std::string const& name, sysfs_object_type type);
+    sysfs_vnode& open(uint32_t ino);
 };
+template<typename T>
+struct sysfs_object_handle
+{
+    sysfs_vnode& object_node;
+    typedef T value_type;
+    typedef T* pointer;
+    typedef T const* const_pointer;
+    typedef T& reference;
+    typedef T const& const_reference;
+    sysfs_object_handle(sysfs_vnode& n) : object_node(n) { if(!object_node.expand_to_size(sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); }
+    sysfs_object_handle(sysfs& parent, uint32_t ino) : sysfs_object_handle(parent.open(ino)) {}
+    reference operator*() & { return *static_cast<pointer>(object_node.raw_data()); }
+    const_reference operator*() const& { return *static_cast<const_pointer>(object_node.raw_data()); }
+    pointer operator->() & { return static_cast<pointer>(object_node.raw_data()); }
+    const_pointer operator->() const& { return static_cast<const_pointer>(object_node.raw_data()); }
+    ~sysfs_object_handle() { object_node.commit(sizeof(T)); object_node.pubsync(); }
+};
+struct sysfs_hash_table_base
+{
+    sysfs_vnode& table_node;
+    sysfs_hash_table_base(sysfs_vnode& n);
+    sysfs_hash_table_base(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets = 32UZ);
+    size_t total_table_bytes() const;
+    bool add_entry(size_t object_hash, size_t object_index);
+    sysfs_hashtable_entry* get_chain_start(size_t object_hash);
+    sysfs_hashtable_entry* get_chain_next(sysfs_hashtable_entry* e);
+    sysfs_hashtable_header* header();
+    sysfs_hashtable_header const* header() const;
+};
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET> struct sysfs_hash_table;
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET> struct sysfs_table_entry_handle
+{
+    typedef sysfs_hash_table<KT, VT, XT, HT, ET> parent_table_type;
+    parent_table_type& parent;
+    size_t value_index;
+    sysfs_table_entry_handle(parent_table_type& p, size_t i) : parent(p), value_index(i) {}
+    sysfs_table_entry_handle(sysfs_table_entry_handle const& that) : parent(that.parent), value_index(that.value_index) {}
+    sysfs_table_entry_handle(sysfs_table_entry_handle&& that) : parent(that.parent), value_index(that.value_index) { that.value_index = 0UZ; }
+    ~sysfs_table_entry_handle();
+    VT* ptr();
+    VT const* ptr() const;
+    VT* operator->();
+    VT const* operator->() const;
+    VT& operator*();
+    VT const& operator*() const;
+    template<typename ... Args> requires std::constructible_from<VT, Args...> void emplace(Args&& ... args) { std::construct_at(ptr(), std::forward<Args>(args)...); }
+};
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+struct sysfs_hash_table : sysfs_hash_table_base
+{
+    constexpr static size_t nxobj = 0UZ;
+    typedef sysfs_table_entry_handle<KT, VT, XT, HT, ET> value_handle;
+    sysfs_vnode& object_node;
+    VT* values() { return static_cast<VT*>(object_node.raw_data()); }
+    VT const* values() const { return static_cast<VT const*>(object_node.raw_data()); }
+    constexpr static size_t hash_of(KT const& key) { return HT{}(key); }
+    constexpr static KT key_of(VT const& value) { return XT{}(value); }
+    constexpr static bool key_matches(KT const& key, VT const& value) { return ET{}(key, XT{}(value)); }
+    size_t find_value_index(KT const& key);
+    sysfs_hash_table(sysfs_vnode& n) : sysfs_hash_table_base(n), object_node(n.parent().open(header()->values_object_ino)) {}
+    sysfs_hash_table(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets = 32UZ) : sysfs_hash_table_base(parent, name, type, buckets), object_node(parent.open(header()->values_object_ino)) {}
+    size_t size() const { return header()->num_entries; }
+    value_handle get(KT const& key);
+    bool contains(KT const& key) { return find_value_index(key) == nxobj; }
+    std::pair<value_handle, bool> add(VT const& value);
+};
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+sysfs_table_entry_handle<KT, VT, XT, HT, ET>::~sysfs_table_entry_handle() { if(value_index) { parent.object_node.commit((value_index - 1) * sizeof(VT)); parent.object_node.pubsync();} }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+VT* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::ptr() { return std::addressof(parent.values()[value_index - 1]); }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+VT const* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::ptr() const { return std::addressof(parent.values()[value_index - 1]); }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+VT* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator->() { return ptr(); }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+VT const* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator->() const { return ptr(); }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+VT& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() { return parent.values()[value_index - 1]; }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+VT const& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() const { return parent.values()[value_index - 1]; }
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+size_t sysfs_hash_table<KT, VT, XT, HT, ET>::find_value_index(KT const& key)
+{
+    VT* vs = values();
+    for(sysfs_hashtable_entry* e = get_chain_start(hash_of(key)); e != nullptr; e = get_chain_next(e)) 
+    {
+        VT& v = vs[e->object_index - 1];
+        if(key_matches(key, v)) 
+            return e->object_index;
+    }
+    return nxobj;
+}
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+typename sysfs_hash_table<KT, VT, XT, HT, ET>::value_handle sysfs_hash_table<KT, VT, XT, HT, ET>::get(KT const& key)
+{
+    size_t existing = find_value_index(key);
+    if(existing == nxobj)
+    {
+        size_t target_index = size();
+        if(__unlikely(!object_node.expand_by_size(sizeof(VT)) || !add_entry(hash_of(key), target_index))) throw std::bad_alloc();
+        return value_handle(*this, target_index + 1);
+    }
+    else return value_handle(*this, existing);
+}
+template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
+std::pair<typename sysfs_hash_table<KT, VT, XT, HT, ET>::value_handle, bool> sysfs_hash_table<KT, VT, XT, HT, ET>::add(VT const& value)
+{
+    typedef std::pair<typename sysfs_hash_table<KT, VT, XT, HT, ET>::value_handle, bool> result_type;
+    size_t existing = find_value_index(key_of(value));
+    if(existing == nxobj)
+    {
+        size_t target_index = size();
+        if(__unlikely(!object_node.expand_by_size(sizeof(VT)) || !add_entry(hash_of(key_of(value)), target_index))) throw std::bad_alloc();
+        value_handle result(*this, target_index + 1);
+        *result = value;
+        return result_type(result, true);
+    }
+    else return result_type(std::move(value_handle(*this, existing)), false);
+}
 #endif
