@@ -367,7 +367,7 @@ void sysfs_tests()
         {
             sysfs_vnode& n = test_sysfs.open(ino);
             test_map tm(n);
-            test_map::value_handle hdl = tm.get("abcdefg");
+            test_map::value_handle hdl = tm.find("abcdefg");
             startup_tty.print_line("string abcdefg is associated with the number " + std::to_string(hdl->something));
         }
         else startup_tty.print_line("[sysfs directory did not contain expected key]");

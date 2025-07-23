@@ -9,6 +9,7 @@
  * The extent trees are essentially simplified versions of the ext4 extent system.
  * All extent nodes beyond those in the index itself are stored in a separate file, with non-leaf nodes pointing to an ordinal within that file.
  * Leaf nodes, of course, point to blocks in the data file itself.
+ * All checksums are calculated as crc32c(~0, object) with the computation stopping just before the checksum field.
  * Eventually, I might expand sysfs to support a sort-of registry that applications and drivers can also use.
  */
 #include "fs/fs.hpp"
@@ -36,7 +37,7 @@ struct sysfs_extent_entry
 {
     uint32_t ordinal;   // x: nth block in this sequence -> (n+x)th block in data entry
     uint32_t length;    // length in blocks if this is a leaf
-    size_t start;       // points to a block in the data file if the depth is 0; otherwise points to another branch
+    size_t start;       // points to a block in the data file if this is a leaf; otherwise points to another branch
 };
 struct sysfs_data_block
 { 
@@ -47,7 +48,7 @@ struct sysfs_data_block
 struct sysfs_extent_branch
 {
     constexpr static size_t num_entries = (sysfs_extent_branch_size - (sizeof(uint64_t) + sizeof(uint64_t))) / sizeof(sysfs_extent_entry);
-    uint64_t depth;                 
+    uint64_t depth;                 // 0 if the branch contains leaves; otherwise, the number of branches to be traversed before reaching leaves.
     sysfs_extent_entry entries[num_entries];
     uint64_t checksum;              // 32-bit checksum, but we had extra space
     constexpr sysfs_extent_entry& operator[](size_t i) & { return entries[i]; }
@@ -56,7 +57,7 @@ struct sysfs_extent_branch
 struct __pack sysfs_inode
 {
     sysfs_object_type type;
-    uint16_t root_depth;
+    uint16_t root_depth;            // at least 1 — the entry stored here might point to a branch containing leaves, but will never itself be a leaf
     size_t size_bytes;
     sysfs_extent_entry extent_root;
     uint32_t checksum;
@@ -64,7 +65,7 @@ struct __pack sysfs_inode
 struct __pack sysfs_dir_entry
 {
     uint32_t inode_number;
-    sysfs_object_type object_type;
+    sysfs_object_type object_type;  // this is also stored in the inode
     char object_name[sysfs_object_name_size_max];
     uint32_t checksum;
 };
@@ -103,9 +104,9 @@ struct __pack sysfs_hashtable_entry { size_t object_index; size_t next_in_chain;
 struct sysfs_hashtable_header
 {
     uint32_t magic = sysfs_htbl_magic;
-    uint32_t values_object_ino;
-    size_t num_buckets;
-    size_t num_entries;
+    uint32_t values_object_ino;     // inode number for the actual object data; it will be tagged as table_name#DATA where table_name is this table's tag
+    size_t num_buckets;             // length of the buckets array; 32 by default
+    size_t num_entries;             // the actual table size
     size_t buckets[];
     constexpr sysfs_hashtable_entry* entries() { return addr_t(std::addressof(buckets[num_buckets])); }
 };
@@ -130,7 +131,17 @@ class sysfs_extent_tree
 public:
     sysfs_extent_tree(sysfs_vnode& n);
     void push(uint16_t n_blocks);
+    /**
+     * Gets the entry corresponding to the block in the file at ordinal i.
+     * If the index is part of a block of length greater than 1, the entry's ordinal might be less than i.
+     * In these cases, the actual block number in the data file is ((i - e.ordinal) + e.start), where e is the returned entry.
+     */
     sysfs_extent_entry const& operator[](size_t i) const;
+    /**
+     * The total extent of the file, in blocks.
+     * Note that this value multiplied by the sector size might be greater than the size in bytes stored in the inode.
+     * It will never be less, however.
+     */
     size_t total_extent() const;
 };
 struct block_range { size_t start; size_t end; };
@@ -140,8 +151,8 @@ struct sysfs_vnode : std::ext::dynamic_streambuf<char>
     sysfs_inode const& inode() const;
     sysfs& parent();
     uint32_t inode_number() const;
-    void init();
-    pos_type commit(size_t target_pos);
+    void init();                        // performs some setup; the constructor automatically calls this.
+    pos_type commit(size_t target_pos); // marks all blocks in the object up to and including the given position as needing to be written to disk.
     bool expand_to_size(size_t target);
     bool expand_by_size(size_t added);
     void* raw_data();
@@ -212,6 +223,14 @@ public:
     uint32_t mknod(std::string const& name, sysfs_object_type type);
     sysfs_vnode& open(uint32_t ino);
 };
+/**
+ * Represents a non-owning reference to an object stored in the sysfs.
+ * The handle can be used to read and modify the object.
+ * It automatically invokes the commit and sync methods on the object's handle when it goes out of scope.
+ * Alternatively, these can be manually called via commit_object.
+ * Note that, because these are non-owning references, they are copy-constructible but not assignable.
+ * However, if repeatedly copied, they will repeatedly commit the node, potentially with no actual changes, which is somewhat inefficient.
+ */
 template<typename T>
 struct sysfs_object_handle
 {
@@ -223,12 +242,23 @@ struct sysfs_object_handle
     typedef T const& const_reference;
     sysfs_object_handle(sysfs_vnode& n) : object_node(n) { if(!object_node.expand_to_size(sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); }
     sysfs_object_handle(sysfs& parent, uint32_t ino) : sysfs_object_handle(parent.open(ino)) {}
+    sysfs_object_handle(sysfs_object_handle const& that) : object_node(that.object_node) {}
+    sysfs_object_handle(sysfs_object_handle&& that) : object_node(that.object_node) {}
     reference operator*() & { return *static_cast<pointer>(object_node.raw_data()); }
     const_reference operator*() const& { return *static_cast<const_pointer>(object_node.raw_data()); }
     pointer operator->() & { return static_cast<pointer>(object_node.raw_data()); }
     const_pointer operator->() const& { return static_cast<const_pointer>(object_node.raw_data()); }
-    ~sysfs_object_handle() { object_node.commit(sizeof(T)); object_node.pubsync(); }
+    void commit_object() { object_node.commit(sizeof(T)); object_node.pubsync(); }
+    ~sysfs_object_handle() { commit_object(); }
 };
+/**
+ * Tabulated data in sysfs is stored in hashtables.
+ * These take up two objects: one containing the table's pointers and the other containing the actual data.
+ * The table header contains a number of buckets (32 by default) which in turn point entries in the table.
+ * The entries themselves consist of an index into the data and a pointer to the next entry in a chain (in case of hash collisions).
+ * A value of zero indicates the end of a chain.
+ * The index is a multiple of the size of the stored object type (i.e. as though indexing a C-style array).
+ */
 struct sysfs_hash_table_base
 {
     sysfs_vnode& table_node;
@@ -242,6 +272,10 @@ struct sysfs_hash_table_base
     sysfs_hashtable_header const* header() const;
 };
 template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET> struct sysfs_hash_table;
+/**
+ * Similar to a sysfs_object_handle<VT>, except represents an object stored in a hashtable.
+ * The destructor syncs the table's data up to and including the block containing the object.
+ */
 template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET> struct sysfs_table_entry_handle
 {
     typedef sysfs_hash_table<KT, VT, XT, HT, ET> parent_table_type;
@@ -259,6 +293,14 @@ template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std:
     VT const& operator*() const;
     template<typename ... Args> requires std::constructible_from<VT, Args...> void emplace(Args&& ... args) { std::construct_at(ptr(), std::forward<Args>(args)...); }
 };
+/**
+ * Implements the logic that is dependent on the stored object type.
+ * This structure is still a non-owning reference but, unlike the object handle, does not commit when it goes out of scope.
+ * Instead, certain accesses (in particular, insertions) will call the commit and sync functions on the table object node.
+ * The value handles returned by all accesses will commit the data object node in the same manner and under the same circumstances as a regular object handle.
+ * Note that this structure, while it uses many of the same concepts as an std::unordered_map, is entirely contained within the sysfs data buffers.
+ * It does not allocate memory directly, nor can it safely store types whose constructors have side-effects.
+ */
 template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
 struct sysfs_hash_table : sysfs_hash_table_base
 {
@@ -274,8 +316,9 @@ struct sysfs_hash_table : sysfs_hash_table_base
     sysfs_hash_table(sysfs_vnode& n) : sysfs_hash_table_base(n), object_node(n.parent().open(header()->values_object_ino)) {}
     sysfs_hash_table(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets = 32UZ) : sysfs_hash_table_base(parent, name, type, buckets), object_node(parent.open(header()->values_object_ino)) {}
     size_t size() const { return header()->num_entries; }
-    value_handle get(KT const& key);
-    bool contains(KT const& key) { return find_value_index(key) == nxobj; }
+    value_handle find(KT const& key);
+    value_handle get(KT const& key) { size_t existing = find_value_index(key); if(existing == nxobj) throw std::out_of_range("[sysfs] key not found"); return value_handle(*this, existing); }
+    bool contains(KT const& key) { return find_value_index(key) != nxobj; }
     std::pair<value_handle, bool> add(VT const& value);
 };
 template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
@@ -305,7 +348,7 @@ size_t sysfs_hash_table<KT, VT, XT, HT, ET>::find_value_index(KT const& key)
     return nxobj;
 }
 template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
-typename sysfs_hash_table<KT, VT, XT, HT, ET>::value_handle sysfs_hash_table<KT, VT, XT, HT, ET>::get(KT const& key)
+typename sysfs_hash_table<KT, VT, XT, HT, ET>::value_handle sysfs_hash_table<KT, VT, XT, HT, ET>::find(KT const& key)
 {
     size_t existing = find_value_index(key);
     if(existing == nxobj)
