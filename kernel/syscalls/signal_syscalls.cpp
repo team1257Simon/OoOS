@@ -4,7 +4,7 @@ static bool check_kill(task_ctx* caller, task_list::iterator target) { if(caller
 static void kill_one(task_ctx* target, int sig, bool force = false) 
 {
     if(!force && target->task_sig_info.blocked_signals.btc(sig)) return;
-    if(!target->task_sig_info.signal_handlers[sig]) target->task_struct.task_ctl.sigkill = true;
+    if(!target->task_sig_info.signal_handlers[sig]) target->task_struct.task_ctl.killed = true;
     target->task_sig_info.pending_signals.bts(sig); 
     target->set_signal(sig, true);
 }

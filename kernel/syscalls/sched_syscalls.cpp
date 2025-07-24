@@ -22,7 +22,7 @@ extern "C"
     }
     clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context(); task->is_user()) { new(out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -ENOSYS; }
     int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
-    long syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0L; /* Not an error technically; system tasks are PID 0 */ }
+    spid_t syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
     int syscall_sleep(unsigned long seconds)
     {
@@ -49,14 +49,14 @@ extern "C"
         else if(sch.set_wait_untimed(reinterpret_cast<task_t*>(task))) 
         {
             task->notif_target                      = sc_out;
-            task->task_struct.task_ctl.notify_cterm = true;
+            task->task_struct.task_ctl.should_notify = true;
             task_t* next                            = sch.yield();
             if(__unlikely(next == reinterpret_cast<task_t*>(task))) { return -ECHILD; }
             return next->saved_regs.rax;
         }
         return -ENOMEM;
     }
-    long syscall_fork()
+    spid_t syscall_fork()
     {
         task_ctx* task  = active_task_context();
         task_ctx* clone = tl.task_vfork(task);
@@ -70,7 +70,7 @@ extern "C"
         }
         else return -EAGAIN;
     }
-    long syscall_vfork()
+    spid_t syscall_vfork()
     {
         task_ctx* task = active_task_context();
         if(task_ctx* clone = tl.task_vfork(task); clone && sch.set_wait_untimed(reinterpret_cast<task_t*>(task)))
@@ -78,7 +78,7 @@ extern "C"
             try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
             clone->current_state                    = execution_state::RUNNING;
             task->add_child(clone);
-            task->task_struct.task_ctl.notify_cterm = true;
+            task->task_struct.task_ctl.should_notify = true;
             clone->task_struct.saved_regs.rax       = 0UL;
             task->task_struct.saved_regs.rax        = clone->get_pid();
             task_t* next                            = sch.yield();
@@ -119,7 +119,7 @@ extern "C"
         catch(std::bad_alloc&)          { panic("no memory for argument vectors"); return -ENOMEM; }
         __builtin_unreachable();
     }
-    long syscall_spawn(char* restrict name, char** restrict argv, char** restrict env)
+    spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env)
     {
         task_ctx* task = active_task_context();
         filesystem* fs_ptr = get_fs_instance();

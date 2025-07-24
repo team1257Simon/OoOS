@@ -1,5 +1,6 @@
 #include "users.hpp"
 #include "ow-crypt.h"
+#include "sys/errno.h"
 static char account_manager_space[sizeof(user_accounts_manager)]{};
 user_accounts_manager* user_accounts_manager::__instance{};
 static inline sysfs_vnode& get_global_account_info(sysfs& s);
@@ -36,16 +37,15 @@ void user_accounts_manager::init_instance(sysfs& config_src)
         __instance                          = new(account_manager_space) user_accounts_manager(config_src);
         user_info root_info
         {
-            .uid            { 0UL },
-            .gid            { 0UL },
+            .uid            { 0U },
+            .gid            { 0U },
             .credentials    { .user_login_name      { "root" } },
-            .capabilities   { .system_permissions   { ~0UL } },
-            .home_directory { "/root" }
+            .capabilities   { .system_permissions   { static_cast<permission_flag>(-1) } }
         };
-        user_handle root_handle             = __instance->__table.add(root_info).first;
+        user_handle root_handle   = __instance->__table.add(root_info).first;
         global_accounts_info& inf = *__instance->__global_info;
-        inf.next_gid = 100UL;
-        inf.next_uid = 1000UL;
+        inf.next_gid = 100U;
+        inf.next_uid = 1000U;
         inf.num_users++;
         inf.num_groups++;
         sys_time(std::addressof(inf.last_updated));
@@ -54,43 +54,23 @@ void user_accounts_manager::init_instance(sysfs& config_src)
         config_src.sync();
     }
 }
-user_handle user_accounts_manager::create_account(std::string const& name, std::string const& password, uint64_t permission_flags)
+user_handle user_accounts_manager::add_user(user_info const& info)
 {
-    if(!can_create_user(name)) throw std::invalid_argument("[account config] username " + name + " already exists or is invalid");
-    std::string crypto_settings = create_hash_setting_string();
-    std::string pass_hash = create_crypto_string(password, crypto_settings);
-    std::string homedir = "/home/" + name;
-    global_accounts_info& inf = *__instance->__global_info;
-    user_info user
-    {
-        .uid                            { inf.next_uid },
-        .gid                            { inf.next_gid },
-        .credentials
-        {
-            .login_require_interval     { inf.login_require_interval_default },
-            .forced_logout_interval     { inf.forced_logout_interval_default },
-            .pw_change_require_interval { inf.pw_change_require_interval_default },
-            .pw_change_warning_interval { inf.pw_change_warning_interval_default }
-        },
-        .capabilities
-        {
-            .thread_quota               { inf.thread_quota_default },
-            .process_quota              { inf.process_quota_default },
-            .disk_quota                 { inf.disk_quota_default },
-            .system_permissions         { permission_flags }
-        }
-    };
-    std::strncpy(user.credentials.user_login_name, name.c_str(), name.size());
-    std::strncpy(user.credentials.crypto_setting_str, crypto_settings.c_str(), crypto_settings.size());
-    std::strncpy(user.credentials.password_hash_str, pass_hash.c_str(), pass_hash.size());
-    std::strncpy(user.home_directory, homedir.c_str(), homedir.size());
-    user.compute_csum();
-    inf.num_groups++;
-    inf.num_users++;
-    inf.next_gid++;
-    inf.next_uid++;
+    std::pair<user_handle, bool> result = __table.add(info);
+    if(!result.second) throw std::invalid_argument("[acount config] an account with that name already exists");
+    result.first->compute_csum();
+    __global_info->num_users++;
     __global_info.commit_object();
-    user_handle result = __table.add(user).first;
-    __sysfs.sync();
-    return result;
+    return result.first;
+}
+int user_accounts_manager::create_credentials(user_credentials& out, std::string const& name, std::string const& pw)
+{
+    if(__unlikely(name.size() > username_max_len)) return -ENAMETOOLONG;
+    if(__unlikely(user_exists(name))) return -EEXIST;
+    std::string setting = create_hash_setting_string();
+    std::string pw_hash = create_crypto_string(pw, setting);
+    std::strncpy(out.crypto_setting_str, setting.c_str(), crypto_setting_len);
+    std::strncpy(out.password_hash_str, pw_hash.c_str(), crypto_hash_len);
+    std::strncpy(out.user_login_name, name.c_str(), std::min(name.size(), username_max_len));
+    return 0;
 }

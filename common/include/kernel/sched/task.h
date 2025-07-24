@@ -2,6 +2,7 @@
 #define __TASK
 #include "sys/types.h"
 #ifndef __KERNEL__
+typedef int32_t spid_t;
 typedef void* addr_t;
 typedef unsigned long qword;
 typedef bool spinlock_t;
@@ -103,8 +104,8 @@ typedef struct __task_control
     {
         bool            block           : 1;        // true if the task is in a sleeping or waiting state
         bool            can_interrupt   : 1;        // true if the wait can be interrupted
-        bool            notify_cterm    : 1;        // true if the wait should be interrupted on a child process termination
-        bool            sigkill         : 1;        // true if the process has stopped due to an abnormal termination (e.g. kill signal)
+        bool            should_notify   : 1;        // true if the wait should be interrupted on a child process termination
+        bool            killed          : 1;        // true if the process has stopped due to an abnormal termination (e.g. kill signal)
         priority_val    prio_base       : 4;        // the base priority of the thread/process
     } attribute(packed, aligned(1));
     struct
@@ -112,10 +113,10 @@ typedef struct __task_control
         uint8_t             skips;                      // the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
         task_signal_info_t* signal_info;                // points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
         uint32_t            wait_ticks_delta;           // for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
-        int64_t             parent_pid;                 // a negative number indicates no parent
-        uint64_t            task_id;                    // pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
-        int64_t             task_uid;                   // WIP
-        int64_t             task_gid;                   // WIP
+        spid_t              parent_pid;                 // a negative number indicates no parent
+        pid_t               task_id;                    // pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
+        uid_t               task_uid;                   // WIP
+        gid_t               task_gid;                   // WIP
     } attribute(packed, aligned(1));
 } __pack tcb_t;
 typedef struct __task_info

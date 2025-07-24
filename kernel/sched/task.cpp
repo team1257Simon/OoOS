@@ -110,7 +110,7 @@ void task_ctx::set_arg_registers(register_t rdi, register_t rsi, register_t rdx)
     task_struct.saved_regs.rsi = rsi;
     task_struct.saved_regs.rdx = rdx;
 }
-task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) : 
+task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum) : 
     task_struct
     { 
         .self               { std::addressof(task_struct) }, 
@@ -131,8 +131,8 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
             {
                 .block          { false },
                 .can_interrupt  { false },
-                .notify_cterm   { false },
-                .sigkill        { false },
+                .should_notify   { false },
+                .killed        { false },
                 .prio_base      { prio }
             }, 
             {
@@ -152,7 +152,7 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
     ctx_filesystem          { create_task_vfs() },
     local_so_map            { is_user() ? sm_alloc.allocate(1) : nullptr }
                             { if(local_so_map) { std::construct_at(local_so_map, frame_ptr); } }
-task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char *>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum) :
+task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char *>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum) :
     task_struct
     {
         .self               { std::addressof(task_struct) },
@@ -173,8 +173,8 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
             {
                 .block          { false },
                 .can_interrupt  { false },
-                .notify_cterm   { false },
-                .sigkill        { false },
+                .should_notify  { false },
+                .killed         { false },
                 .prio_base      { prio }
             }, 
             {
@@ -209,13 +209,13 @@ task_ctx::task_ctx(task_ctx const& that) :
             {
                 .block          { false },
                 .can_interrupt  { false },
-                .notify_cterm   { false },
-                .sigkill        { false },
+                .should_notify  { false },
+                .killed         { false },
                 .prio_base      { that.task_struct.task_ctl.prio_base }
             },
             {
                 .signal_info    { std::addressof(task_sig_info) },
-                .parent_pid     { static_cast<int64_t>(that.get_pid()) },
+                .parent_pid     { static_cast<spid_t>(that.get_pid()) },
                 .task_id        { tl.__upid() }
             }
         },
@@ -309,7 +309,7 @@ void task_ctx::set_exit(int n)
         while(c->get_parent_pid() > 0 && tl.contains(static_cast<uint64_t>(c->get_parent_pid())))
         {
             p                               = tl.find(static_cast<uint64_t>(c->get_parent_pid())).base();
-            if(p->task_struct.task_ctl.notify_cterm && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target)
+            if(p->task_struct.task_ctl.should_notify && p->task_struct.task_ctl.block && sch.interrupt_wait(p->task_struct.self) && p->notif_target)
                 p->notif_target.assign(n);
             p->last_notified                = this;
             p->remove_child(this);
@@ -437,7 +437,7 @@ bool task_ctx::set_fork()
 }
 bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env)
 {
-    int64_t parent_pid = task_struct.task_ctl.parent_pid;
+    spid_t parent_pid = task_struct.task_ctl.parent_pid;
     if(local_so_map)
     {
         if(parent_pid < 0)
@@ -479,8 +479,8 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
             {
                 .block          { false },
                 .can_interrupt  { false },
-                .notify_cterm   { false },
-                .sigkill        { false },
+                .should_notify   { false },
+                .killed        { false },
                 .prio_base      { prio }
             }, 
             {

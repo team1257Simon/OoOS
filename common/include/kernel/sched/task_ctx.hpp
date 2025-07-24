@@ -53,21 +53,21 @@ struct task_ctx
     addr_t rt_env_ptr                                       { nullptr };
     task_signal_info_t task_sig_info                        {};
     std::map<int, posix_directory> opened_directories       {};
-    task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
-    task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, uint64_t pid, int64_t parent_pid, priority_val prio, uint16_t quantum);
+    task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum);
+    task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(task_ctx const& that);
     task_ctx(task_ctx&& that);
     ~task_ctx();
-    constexpr uint64_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
-    constexpr int64_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
-    constexpr void change_pid(uint64_t pid, int64_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
+    constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
+    constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
+    constexpr void change_pid(pid_t pid, spid_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
     constexpr bool is_system() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == kframe_magic; }
     constexpr bool is_user() const noexcept { return *static_cast<uint64_t*>(task_struct.frame_ptr) == uframe_magic; }
     constexpr static uint16_t code_segment(uint64_t fmagic) noexcept { return fmagic == kframe_magic ? 0x08 : 0x23; }
     constexpr static uint16_t data_segment(uint64_t fmagic) noexcept { return fmagic == kframe_magic ? 0x10 : 0x1B; }
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.get_pid() <=> __that.get_pid(); }
-    friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, uint64_t __that) noexcept { return __this.get_pid() <=> __that; }
-    friend constexpr std::strong_ordering operator<=>(uint64_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
+    friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, pid_t __that) noexcept { return __this.get_pid() <=> __that; }
+    friend constexpr std::strong_ordering operator<=>(pid_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
     friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
     void set_stdio_ptrs(std::array<file_node*, 3>&& ptrs);
     void set_stdio_ptrs(file_node* ptrs[3]);
@@ -105,15 +105,15 @@ extern "C"
     void sigtramp_enter(int sig, signal_handler handler);
     void sigtramp_return();
     clock_t syscall_times(struct tms* out);                                                                     // clock_t times(struct tms* out);
-    long syscall_getpid();                                                                                      // pid_t getpid();
-    long syscall_fork();                                                                                        // pid_t fork();
-    long syscall_vfork();                                                                                       // pid_t vfork();
+    spid_t syscall_getpid();                                                                                    // pid_t getpid();
+    spid_t syscall_fork();                                                                                      // pid_t fork();
+    spid_t syscall_vfork();                                                                                     // pid_t vfork();
     void syscall_exit(int n);                                                                                   // void exit(int code) __attribute__((noreturn));
     int syscall_kill(long pid, unsigned long sig);                                                              // int kill(pid_t pid, int sig);
     pid_t syscall_wait(int* sc_out);                                                                            // pid_t wait(int* sc_out);
     int syscall_sleep(unsigned long seconds);                                                                   // int sleep(time_t seconds);
     int syscall_execve(char* restrict name, char** restrict argv, char** restrict env);                         // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
-    long syscall_spawn(char* restrict name, char** restrict argv, char** restrict env);                         // pid_t spawn(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
+    spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env);                       // pid_t spawn(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
     long syscall_sigret();                                                                                      // (only called from the signal trampoline)
     signal_handler syscall_signal(int sig, signal_handler new_handler);                                         // int (*signal(int sig, void(*new_handler)(int)))(int);
     int syscall_raise(int sig);                                                                                 // int raise(int sig);

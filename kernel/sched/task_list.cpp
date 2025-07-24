@@ -6,7 +6,7 @@
 using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
 task_list task_list::__instance{};
-uint64_t task_list::__upid() const noexcept { uint64_t pid; do { pid = static_cast<unsigned long>(rand()); } while(pid == 0 || contains(pid)); return pid; }
+pid_t task_list::__upid() const noexcept { pid_t pid; do { pid = static_cast<pid_t>(rand()); } while(pid == 0 || contains(pid)); return pid; }
 task_list& task_list::get() { return __instance; }
 task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size_t st_sz, size_t tls_sz, priority_val pv, uint16_t qv)
 {
@@ -14,17 +14,17 @@ task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size
     addr_t stk      = ft->allocate(st_sz, page_size);
     addr_t tls      = ft->allocate(tls_sz, st_sz);
     if(__unlikely(!stk || !tls)) throw std::bad_alloc();
-    iterator result = emplace(task, move(args), stk, static_cast<ptrdiff_t>(st_sz), tls, tls_sz, ft, __upid(), 0L, pv, qv).first;
+    iterator result = emplace(task, move(args), stk, static_cast<ptrdiff_t>(st_sz), tls, tls_sz, ft, __upid(), 0, pv, qv).first;
     result->init_task_state();
     return result.base();
 }
-task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, int64_t parent_pid, priority_val pv, uint16_t qv, pid_t pid) 
+task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, spid_t parent_pid, priority_val pv, uint16_t qv, pid_t pid) 
 {
     iterator result = emplace(program_desc, move(args), pid ? pid : __upid(), parent_pid, pv, qv).first; 
     result->init_task_state(); 
     return result.base(); 
 }
-bool task_list::destroy_task(uint64_t pid)
+bool task_list::destroy_task(pid_t pid)
 {
     iterator i = find(pid);
     if(__unlikely(i == end())) return false;
