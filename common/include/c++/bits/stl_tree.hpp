@@ -94,29 +94,29 @@ namespace std
         size_t __count;
         constexpr void __reset() noexcept
         {
-            __trunk.__my_color = RED;
+            __trunk.__my_color  = RED;
             __trunk.__my_parent = nullptr;
-            __trunk.__my_left = addressof(__trunk);
-            __trunk.__my_right = addressof(__trunk);
-            __count = 0;
+            __trunk.__my_left   = addressof(__trunk);
+            __trunk.__my_right  = addressof(__trunk);
+            __count             = 0;
         }
         constexpr __tree_base() noexcept :  __trunk{ RED, nullptr, addressof(__trunk), addressof(__trunk) }, __count{ 0 } {}
         constexpr ~__tree_base() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
         constexpr void __copy(__tree_base const& that) noexcept
         {
-            __trunk.__my_color = that.__trunk.__my_color;
+            __trunk.__my_color  = that.__trunk.__my_color;
             __trunk.__my_parent = that.__trunk.__my_parent;
-            __trunk.__my_left = that.__trunk.__my_left;
-            __trunk.__my_right = that.__trunk.__my_right;
+            __trunk.__my_left   = that.__trunk.__my_left;
+            __trunk.__my_right  = that.__trunk.__my_right;
             if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = addressof(__trunk);
             __count = that.__count;
         }
         constexpr void __move(__tree_base&& that) noexcept
         {
-            __trunk.__my_color = that.__trunk.__my_color;
+            __trunk.__my_color  = that.__trunk.__my_color;
             __trunk.__my_parent = that.__trunk.__my_parent;
-            __trunk.__my_left = that.__trunk.__my_left;
-            __trunk.__my_right = that.__trunk.__my_right;
+            __trunk.__my_left   = that.__trunk.__my_left;
+            __trunk.__my_right  = that.__trunk.__my_right;
             if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = &__trunk;
             __count = that.__count;
             that.__reset();
@@ -290,9 +290,9 @@ namespace std
     requires __valid_comparator<CP, T, U> 
     constexpr typename __rb_tree<T, CP, A>::__pos_pair __rb_tree<T, CP, A>::__pos_for_unique(U const& u) 
     {
-        __link x = __get_root();
-        __link y = __end();
-        bool comp = true;
+        __link x    = __get_root();
+        __link y    = __end();
+        bool comp   = true;
         while(x) { y = x; comp = __compare_l(u, x); x = comp ? __left_of(x) : __right_of(x); }
         __iterator j(y);
         if(comp) { if(j == __begin()) return __pos_pair{ x, y }; else --j; }
@@ -304,8 +304,8 @@ namespace std
     requires __valid_comparator<CP, T, U> 
     constexpr typename __rb_tree<T, CP, A>::__pos_pair __rb_tree<T, CP, A>::__pos_for_equal(U && u)
     {
-        __link x = __get_root();
-        __b_ptr y = __end();
+        __link x    = __get_root();
+        __b_ptr y   = __end();
         while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); }
         return __pos_pair{ x, y };
     }
@@ -337,19 +337,19 @@ namespace std
     requires constructible_from<T, Args...>
     constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__emplace_unique(Args&& ...args)
     {
-        __link l = __construct_node(forward<Args>(args)...);
-        __pos_pair r = __pos_for_unique(l->__get_ref());
+        __link l        = __construct_node(forward<Args>(args)...);
+        __pos_pair r    = __pos_for_unique(l->__get_ref());
         if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
         else __destroy_node(l);
-        return __res_pair{ r.first, false};
+        return __res_pair{ r.first, false };
     }
     template <typename T, __valid_comparator<T> CP, allocator_object<T> A>
     template <typename... Args> 
     requires constructible_from<T, Args...>
     constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__hint_emplace_unique(__const_link hint, Args&& ... args) 
     { 
-        __link l = __construct_node(forward<Args>(args)...);
-        __pos_pair r = __insert_unique_hint_pos(hint, l->__get_ref());
+        __link l        = __construct_node(forward<Args>(args)...);
+        __pos_pair r    = __insert_unique_hint_pos(hint, l->__get_ref());
         if(r.second) return __res_pair{ __insert_node(r.first, r.second, l), true };
         else __destroy_node(l);
         return __res_pair{ r.first, false };

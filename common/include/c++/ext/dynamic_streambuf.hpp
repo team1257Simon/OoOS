@@ -36,7 +36,7 @@ namespace std
              * Inheritors can override to add functionality that needs to be invoked whenever these pointers move.
              */
             virtual void on_modify() { if(this->__beg()) { sync_ptrs(); is_dirty = true; } }
-            virtual int sync() override { sync_ptrs(); if(is_dirty) { int result = write_dev(); is_dirty = (result >= 0); return result; } return 0; }
+            virtual int sync() override { sync_ptrs(); if(is_dirty) { int result = write_dev(); if(result == 0) is_dirty = false; return result; } return 0; }
             virtual __sb_type* setbuf(char_type* s, std::streamsize n) { this->__setn(s, n); return this; }
             virtual int_type underflow() override { std::streamsize n = std::min(sector_size(), showmanyc()); if(n && read_dev(n)) { this->on_modify(); return traits_type::to_int_type(*this->gptr()); } return traits_type::eof(); } 
             virtual int_type overflow(int_type c = traits_type::eof()) override { if(!traits_type::eq_int_type(c, traits_type::eof())) { if(this->__append_element(traits_type::to_char_type(c))) { this->on_modify(); return c; } } return traits_type::eof(); }
@@ -61,6 +61,7 @@ namespace std
             std::streamsize sector_of(std::streampos where) const { return static_cast<std::streamsize>(std::streamoff(where) / sector_size()); }
             void clear() { this->__clear(); }
             std::streamsize count() const noexcept { return this->__size(); }
+            std::streamsize range() const noexcept { return this->__capacity(); }
         };
         template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
         typename dynamic_streambuf<CT, TT, AT>::pos_type dynamic_streambuf<CT, TT, AT>::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which)

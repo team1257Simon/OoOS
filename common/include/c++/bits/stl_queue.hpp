@@ -10,7 +10,7 @@ namespace std
         class resettable_queue : protected std::__impl::__dynamic_queue<T, A>
         {
             typedef std::__impl::__dynamic_queue<T, A> __base;
-            bool __enable_trim_stale{ false };
+            bool __enable_trim_stale = false;
             // copy- and move-assign and construct functions implicitly inherit from base
         protected:
             virtual void on_modify_queue() override { if(__enable_trim_stale) { this->__trim_stale(); } }

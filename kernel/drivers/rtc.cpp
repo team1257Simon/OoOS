@@ -18,13 +18,13 @@ __isrcall void rtc::rtc_time_update() volatile noexcept
     uint16_t century = (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20UC);
     rtc_time nt
     {
-        .sec = read_rtc_register<0x00UC>(),
-        .min = read_rtc_register<0x02UC>(),
-        .hr = read_rtc_register<0x04UC>(),
-        .wkday = 0UC,
-        .day = read_rtc_register<0x07UC>(),
-        .month = read_rtc_register<0x08UC>(),
-        .year = read_rtc_register<0x09UC>()
+        .sec    = read_rtc_register<0x00UC>(),
+        .min    = read_rtc_register<0x02UC>(),
+        .hr     = read_rtc_register<0x04UC>(),
+        .wkday  = 0UC,
+        .day    = read_rtc_register<0x07UC>(),
+        .month  = read_rtc_register<0x08UC>(),
+        .year   = read_rtc_register<0x09UC>()
     };
     if(__is_12h)
     {
@@ -36,12 +36,12 @@ __isrcall void rtc::rtc_time_update() volatile noexcept
     if(__is_bcd)
     {
         if(__century_register > 0) century = bcd_conv(century);
-        nt.sec = bcd_conv(nt.sec);
-        nt.min = bcd_conv(nt.min);
-        nt.hr = bcd_conv(nt.hr);
-        nt.day = bcd_conv(nt.day);
-        nt.month = bcd_conv(nt.month);
-        nt.year = bcd_conv(nt.year);
+        nt.sec      = bcd_conv(nt.sec);
+        nt.min      = bcd_conv(nt.min);
+        nt.hr       = bcd_conv(nt.hr);
+        nt.day      = bcd_conv(nt.day);
+        nt.month    = bcd_conv(nt.month);
+        nt.year     = bcd_conv(nt.year);
     }
     nt.year += century * 100US;
     nt.wkday = day_of_week(nt.year, nt.month, nt.day);

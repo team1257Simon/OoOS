@@ -67,7 +67,7 @@ namespace std
     };
     template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<T> AT, __detail::__key_extract<KT, T> XT>
     constexpr typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type& hash_set<T, KT, HT, ET, AT, XT>::operator[](key_type const& kt) 
-    requires __alt_construct< typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type const&>
+    requires __alt_construct<typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type const&>
     {
         iterator i = find(kt);
         if(i != end()) return *i; 
@@ -75,7 +75,7 @@ namespace std
     }
     template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<T> AT, __detail::__key_extract<KT, T> XT>
     constexpr typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type& hash_set<T, KT, HT, ET, AT, XT>::operator[](key_type&& kt) 
-    requires __alt_construct< typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type&&>
+    requires __alt_construct<typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type&&>
     {
         iterator i = find(kt);
         if(i != end()) return *i; 

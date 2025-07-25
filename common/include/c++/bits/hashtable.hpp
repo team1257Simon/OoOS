@@ -33,25 +33,25 @@ namespace std
             typedef __bucket* __buckets_ptr;
             typedef decltype(sizeof(__hash_node_base)) size_type;
             __hash_node_base __root{};
-            __bucket __singularity = nullptr;
-            size_type __element_count = 0UL;
-            size_type __bucket_count = 1UL;
-            size_type __after_root_idx = 0UL;
-            __buckets_ptr __my_buckets = std::addressof(__singularity);            
-            float __max_load{ 1.0F };
+            __bucket __singularity      = nullptr;
+            size_type __element_count   = 0UL;
+            size_type __bucket_count    = 1UL;
+            size_type __after_root_idx  = 0UL;
+            __buckets_ptr __my_buckets  = addressof(__singularity);            
+            float __max_load            = 1.0F;
             constexpr __hashtable_base() = default;
-            constexpr bool __is_singularity() const noexcept { return __my_buckets == std::addressof(__singularity); }
+            constexpr bool __is_singularity() const noexcept { return __my_buckets == addressof(__singularity); }
             constexpr float __load(size_type added) const noexcept { return (__element_count + added) / double(__bucket_count); }
             constexpr float __current_load() const noexcept { return __load(0); }
             constexpr bool __need_rehash(size_type added) const noexcept { return __bucket_count < 2UL || __load(added) >= __max_load; }
-            constexpr size_type __next_bucket_ct(size_type added) const noexcept { return std::max(5UL, __bucket_count) * (1UL + static_cast<unsigned int>(__builtin_ceilf(__load(added) / __max_load))); }
-            constexpr __buckets_ptr __allocate_buckets(size_type n) { __buckets_ptr result = std::allocator<__bucket>().allocate(n); array_zero(result, n); return result; }
+            constexpr size_type __next_bucket_ct(size_type added) const noexcept { return max(5UL, __bucket_count) * (1UL + static_cast<unsigned int>(__builtin_ceilf(__load(added) / __max_load))); }
+            constexpr __buckets_ptr __allocate_buckets(size_type n) { __buckets_ptr result = allocator<__bucket>().allocate(n); array_zero(result, n); return result; }
             constexpr size_type __size() const noexcept { return __element_count; }
             constexpr size_type __range(size_type idx) const noexcept { return idx % __bucket_count; }
             constexpr size_type __range(size_type idx, size_type max) const noexcept { if(__unlikely(!max)) return 0UL; return idx % max; }
             constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UL; __element_count = 0UL; __bucket_count = 2UL; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
-            constexpr void __deallocate_buckets() { if(!__unlikely(__is_singularity())) { std::allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
-            constexpr void __init_buckets(size_type n) { if(__builtin_expect(n < 2UL, false)) { __my_buckets = std::addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
+            constexpr void __deallocate_buckets() { if(!__unlikely(__is_singularity())) { allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
+            constexpr void __init_buckets(size_type n) { if(__builtin_expect(n < 2UL, false)) { __my_buckets = addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
             constexpr void __insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n);
             constexpr void __remove_first_at(__buckets_ptr buckets, size_type idx, __base_ptr n_next, size_type next_bucket);
             constexpr void __insert_at(size_type idx, __base_ptr n) { __insert_at(__my_buckets, idx, n); }

@@ -75,8 +75,8 @@ static inline uint16_t get_io_bar(pci_config_space* device)
 }
 static inline addr_t map_device_mmio(pci_config_space* device)
 {
-    uint32_t bar = device->header_0x0.bar[0];
-    addr_t base = kmm.map_dma(compute_base(bar), 0x20000UZ, (bar & BIT(3)) != 0);
+    uint32_t bar    = device->header_0x0.bar[0];
+    addr_t base     = kmm.map_dma(compute_base(bar), 0x20000UZ, (bar & BIT(3)) != 0);
     if(!base) throw std::bad_alloc();
     return base;
 }

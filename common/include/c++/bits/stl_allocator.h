@@ -28,8 +28,8 @@ namespace std
     template<typename T, std::size_t A = alignof(T)>
     struct __base_allocator
     {
-        constexpr static std::size_t __align_val { A };
-        constexpr static std::size_t __size_val { sizeof(T) };
+        constexpr static std::size_t __align_val    = A;
+        constexpr static std::size_t __size_val     = sizeof(T);
         constexpr __base_allocator() noexcept = default;
         constexpr __base_allocator(__base_allocator const&) noexcept = default;
         constexpr ~__base_allocator() = default;
@@ -97,8 +97,8 @@ namespace std
         typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
         template<typename U> struct rebind { typedef alignval_allocator<U, A> other; };
     private:
-        constexpr static size_type __size_val = sizeof(T);
-        constexpr static std::align_val_t __align = A;
+        constexpr static size_type __size_val       = sizeof(T);
+        constexpr static std::align_val_t __align   = A;
     public:
         constexpr alignval_allocator() noexcept = default;
         constexpr ~alignval_allocator() noexcept = default;

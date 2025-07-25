@@ -49,7 +49,7 @@ namespace std
         template<typename FT>
         class __fn_manager
         {
-            constexpr static size_t __max_size = sizeof(__no_copy);
+            constexpr static size_t __max_size  = sizeof(__no_copy);
             constexpr static size_t __max_align = alignof(__no_copy);
             template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { ::new(dest.__access()) FT{ forward<F2>(src) }; }
             template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { dest.__access<FT*>() = new FT{ forward<F2>(src) }; }
@@ -144,10 +144,10 @@ namespace std
         {
             if(that.operator bool())
             {
-                __my_functor = that.__my_functor;
-                __my_manager = that.__my_manager;
-                that.__my_manager = nullptr;
-                that.__my_invoker = nullptr;
+                __my_functor        = that.__my_functor;
+                __my_manager        = that.__my_manager;
+                that.__my_manager   = nullptr;
+                that.__my_invoker   = nullptr;
             }
         }
         constexpr function() noexcept : __function_base{} {}

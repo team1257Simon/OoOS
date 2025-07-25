@@ -39,12 +39,12 @@ namespace std
     class fpos
     {
         ST __state{};
-        streamoff __offs{0};
+        streamoff __offs = 0;
     public:
         constexpr ST state() const { return __state; }
         constexpr void state(ST st) { __state = st; }
         constexpr fpos() = default;
-        constexpr fpos(streamoff offs) : __state{}, __offs{offs}{}
+        constexpr fpos(streamoff offs) : __state{}, __offs{ offs }{}
         constexpr fpos(fpos const&) = default;
         constexpr fpos(fpos&&) = default;
         constexpr fpos& operator=(fpos const&) = default;

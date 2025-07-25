@@ -7,7 +7,7 @@ sysfs& sysfs_vnode::parent() { return parent_fs; }
 uint32_t sysfs_vnode::inode_number() const { return ino; }
 std::streamsize sysfs_vnode::sector_size() const { return sysfs_data_block_size; }
 void* sysfs_vnode::raw_data() { return data(); }
-const void *sysfs_vnode::raw_data() const { return data(); }
+const void* sysfs_vnode::raw_data() const { return data(); }
 bool sysfs_vnode::expand_by_size(size_t added) { return on_overflow(added) != 0UZ; }
 std::streamsize sysfs_vnode::on_overflow(std::streamsize n)
 {

@@ -99,5 +99,6 @@ template<uint64_t V> using u64_shift = bit_shift<uint64_t, V>;
 template<uint64_t V> using c_u64 = std::integral_constant<uint64_t, V>;
 typedef bit_or<uint64_t, c_u64> u64_or;
 template<uint64_t ... Is> using bit_mask = c_u64<u64_or::template value(u64_shift<Is>()...)>;
+template<typename T> constexpr T& nonnull_or_else(T* __this, T& __that) noexcept { return __this ? *__this : __that; }
 #endif
 #endif
