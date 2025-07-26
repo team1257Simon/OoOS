@@ -26,32 +26,24 @@ extern "C"
     void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
     int syscall_sleep(unsigned long seconds)
     {
-        if(task_ctx* task = active_task_context(); sch.set_wait_timed(reinterpret_cast<task_t*>(task), seconds * 1000, false)) 
-        { 
-            task_t* next = sch.yield();
-            if(next == reinterpret_cast<task_t*>(task))
-            {
-                sti();
-                while(task->task_struct.task_ctl.block) pause();
-                cli();
-                return 0;
-            }
-            task->task_struct.saved_regs.rax = 0;
-            return next->saved_regs.rax;
-        }
-        return -ENOSYS;
+        task_ctx* task = active_task_context();
+        task_t* next = sch.yield();
+        if(__unlikely(next == task->header())) return -ECHILD;
+        if(__unlikely(!sch.set_wait_timed(task->header(), seconds * 1000, false))) return -ENOMEM;
+        task->task_struct.saved_regs.rax = 0;
+        return next->saved_regs.rax;
     }
     pid_t syscall_wait(int* sc_out)
     {
         task_ctx* task  = active_task_context();
         sc_out          = translate_user_pointer(sc_out);
         if(task->last_notified) { if(sc_out) *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } 
-        else if(sch.set_wait_untimed(reinterpret_cast<task_t*>(task))) 
+        else if(sch.set_wait_untimed(task->header())) 
         {
             task->notif_target                          = sc_out;
             task->task_struct.task_ctl.should_notify    = true;
             task_t* next                                = sch.yield();
-            if(__unlikely(next == reinterpret_cast<task_t*>(task))) { return -ECHILD; }
+            if(__unlikely(next == task->header())) { return -ECHILD; }
             return next->saved_regs.rax;
         }
         return -ENOMEM;
@@ -72,18 +64,17 @@ extern "C"
     spid_t syscall_vfork()
     {
         task_ctx* task = active_task_context();
-        if(task_ctx* clone = tl.task_vfork(task); clone && sch.set_wait_untimed(reinterpret_cast<task_t*>(task)))
+        if(task_ctx* clone = tl.task_vfork(task); clone && sch.set_wait_untimed(task->header()))
         {
-            try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
-            clone->current_state                    = execution_state::RUNNING;
+            try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
             task->add_child(clone);
-            task->task_struct.task_ctl.should_notify = true;
-            clone->task_struct.saved_regs.rax       = 0UL;
-            task->task_struct.saved_regs.rax        = clone->get_pid();
-            task_t* next                            = sch.yield();
-            if(next == reinterpret_cast<task_t*>(task))
+            task->task_struct.task_ctl.should_notify    = true;
+            clone->task_struct.saved_regs.rax           = 0UL;
+            task->task_struct.saved_regs.rax            = clone->get_pid();
+            task_t* next                                = sch.yield();
+            if(next == task->header())
             { 
-                next                = clone->task_struct.self;
+                next                = clone->header();
                 next->quantum_rem   = next->quantum_val;
                 asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory");
             }
@@ -134,8 +125,7 @@ extern "C"
         for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
         if(task_ctx* clone = tl.task_vfork(task))
         {
-            try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
-            clone->current_state = execution_state::RUNNING;
+            try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
             task->add_child(clone);
             try
             {

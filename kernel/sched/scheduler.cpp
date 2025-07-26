@@ -180,10 +180,11 @@ bool scheduler::init()
     }
     catch(std::exception& e) { panic(e.what()); return false; }
     task_change_flag.store(false);
-    uint32_t timer_frequency = cpuid(0x15U, 0).ecx;
-    if(!timer_frequency) timer_frequency = cpuid(0x16U, 0).ecx;
-    __cycle_divisor = timer_frequency;
-    __tick_rate     = magnitude(timer_frequency);
+    uint32_t timer_frequency    = cpuid(0x15U, 0).ecx;
+    if(!timer_frequency)
+        timer_frequency         = cpuid(0x16U, 0).ecx;
+    __cycle_divisor             = timer_frequency;
+    __tick_rate                 = magnitude(timer_frequency);
     interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
     {
         if(__running)
@@ -195,7 +196,7 @@ bool scheduler::init()
     }));
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword) 
     {
-        if(idx < 0x20 && get_gs_base<task_t>() != std::addressof(kproc))
+        if(idx < 0x20UC && get_gs_base<task_t>() != std::addressof(kproc))
             if(task_ctx* task = get_gs_base<task_ctx>(); task->is_user())
                 task_signal_code = exception_signals[idx];
     });
@@ -203,7 +204,7 @@ bool scheduler::init()
 }
 task_t* scheduler::yield()
 {
-    task_t* cur         = std::addressof(active_task_context()->task_struct);
+    task_t* cur         = active_task_context()->header();
     cur->quantum_rem    = 0;
     task_t* next        = select_next();
     if(!next) { next = cur; }

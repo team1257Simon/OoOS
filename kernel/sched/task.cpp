@@ -282,7 +282,7 @@ task_ctx::task_ctx(task_ctx&& that) :
 void task_ctx::start_task(addr_t exit_fn)
 {
     exit_target     = exit_fn ? exit_fn : addr_t(std::addressof(handle_exit));
-    sch.register_task(task_struct.self);
+    sch.register_task(header());
     current_state   = execution_state::RUNNING;
 }
 void task_ctx::restart_task(addr_t exit_fn)

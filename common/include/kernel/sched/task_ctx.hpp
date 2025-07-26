@@ -69,6 +69,7 @@ struct task_ctx
     friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, pid_t __that) noexcept { return __this.get_pid() <=> __that; }
     friend constexpr std::strong_ordering operator<=>(pid_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }
     friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
+    constexpr task_t* header() { return std::addressof(task_struct); }
     void set_stdio_ptrs(std::array<file_node*, 3>&& ptrs);
     void set_stdio_ptrs(file_node* ptrs[3]);
     filesystem* get_vfs_ptr();
