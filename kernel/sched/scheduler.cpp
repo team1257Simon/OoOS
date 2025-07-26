@@ -113,9 +113,9 @@ __isrcall task_t* scheduler::select_next()
             do {
                 if(queue.at_end()) queue.restart();
                 fence();
-                result = queue.pop();
+                result  = queue.pop();
                 fence();
-                j = queue.current();
+                j       = queue.current();
             } while(result->task_ctl.block && i != j);
             if(result->task_ctl.block) continue;
             result->task_ctl.skips = 0;
@@ -143,22 +143,14 @@ __isrcall task_t* scheduler::select_next()
 }
 bool scheduler::set_wait_untimed(task_t* task)
 {
-    if(task->task_ctl.prio_base == PVSYS) 
-        if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task); i != __queues[PVSYS].end()) 
-             return __set_untimed_wait(task);
-    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = incr_pv(pv))
-        if(task_pl_queue::const_iterator i = __queues[pv].find(task); i != __queues[pv].end()) 
-            return __set_untimed_wait(task); 
+    if(!task->task_ctl.block)
+        return __set_untimed_wait(task);
     return false;
 }
 bool scheduler::set_wait_timed(task_t* task, unsigned int time, bool can_interrupt)
 {
-    if(task->task_ctl.prio_base == PVSYS)
-        if(task_pl_queue::const_iterator i = __queues[PVSYS].find(task); i != __queues[PVSYS].end())
-            return __set_wait_time(task, time, can_interrupt); 
-    for(priority_val pv = task->task_ctl.prio_base; pv <= PVEXTRA; pv = incr_pv(pv))
-        if(task_pl_queue::const_iterator i = __queues[pv].find(task); i != __queues[pv].end())
-            return __set_wait_time(task, time, can_interrupt);
+    if(!task->task_ctl.block)
+        return __set_wait_time(task, time, can_interrupt);
     return false;
 }
 __isrcall void scheduler::on_tick()

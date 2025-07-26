@@ -43,14 +43,14 @@ extern "C"
     }
     pid_t syscall_wait(int* sc_out)
     {
-        task_ctx* task = active_task_context();
-        sc_out = translate_user_pointer(sc_out);
+        task_ctx* task  = active_task_context();
+        sc_out          = translate_user_pointer(sc_out);
         if(task->last_notified) { if(sc_out) *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } 
         else if(sch.set_wait_untimed(reinterpret_cast<task_t*>(task))) 
         {
-            task->notif_target                      = sc_out;
-            task->task_struct.task_ctl.should_notify = true;
-            task_t* next                            = sch.yield();
+            task->notif_target                          = sc_out;
+            task->task_struct.task_ctl.should_notify    = true;
+            task_t* next                                = sch.yield();
             if(__unlikely(next == reinterpret_cast<task_t*>(task))) { return -ECHILD; }
             return next->saved_regs.rax;
         }
@@ -60,10 +60,9 @@ extern "C"
     {
         task_ctx* task  = active_task_context();
         task_ctx* clone = tl.task_vfork(task);
-        if( clone && clone->set_fork())
+        if(clone && clone->set_fork())
         {
-            try { sch.register_task(reinterpret_cast<task_t*>(clone)); } catch(...) { return -ENOMEM; }
-            clone->current_state                = execution_state::RUNNING;
+            try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
             task->add_child(clone);
             clone->task_struct.saved_regs.rax   = 0UL;
             return clone->get_pid();
