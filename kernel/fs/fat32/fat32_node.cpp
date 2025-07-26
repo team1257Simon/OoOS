@@ -10,7 +10,7 @@ fat32_regular_entry const* fat32_node::disk_entry() const noexcept { return std:
 uint32_t fat32_node::start_cluster() const noexcept { return start_of(*disk_entry()); }
 uint32_t fat32_file_node::claim_next(uint32_t cl) { return claim_cluster(parent_fs->__the_table, cl); }
 uint64_t fat32_file_node::cl_to_s(uint32_t cl) { return parent_fs->cluster_to_sector(cl); }
-void fat32_file_node::on_open() { if(hda_ahci::is_initialized() && __on_disk_size) { __my_filebuf.read_dev(__on_disk_size); } if(!__on_disk_size) { __my_filebuf.__grow_buffer(parent_fs->block_size()); } }
+void fat32_file_node::on_open() { if(__on_disk_size) { __my_filebuf.read_dev(__on_disk_size); } if(!__on_disk_size) { __my_filebuf.__grow_buffer(parent_fs->block_size()); } }
 fat32_file_node::fat32_file_node(fat32* pfs, std::string const& real_name, fat32_directory_node* pdir, uint32_t cl_st, size_t dirent_idx) : file_node{ real_name, pfs->next_fd++, uint64_t(cl_st) }, fat32_node{ pfs, pdir, dirent_idx }, __my_filebuf{ std::vector<uint32_t>{}, this }, __on_disk_size{ disk_entry()->size_bytes } { fat32_regular_entry* e = disk_entry(); create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; uint32_t cl = cl_st & fat32_cluster_mask; do { __my_filebuf.__my_clusters.push_back(cl); cl = parent_fs->__the_table[cl] & fat32_cluster_mask; } while(cl < fat32_cluster_eof); }
 uint64_t fat32_file_node::size() const noexcept { return __on_disk_size; }
 bool fat32_file_node::fsync() { if(__my_filebuf.sync() == 0) { update_times(*disk_entry()); disk_entry()->size_bytes = size(); return true; } else { panic("fsync failed"); return false; } }
@@ -139,7 +139,7 @@ void fat32_directory_node::get_short_name(std::string const& full, std::string& 
 }
 bool fat32_directory_node::fsync()
 {
-    if(!hda_ahci::is_initialized() || !parse_dir_data()) return false;
+    if(!parse_dir_data()) return false;
     if(!__dirty) return true;
     if(parent_dir && dirent_index) update_times(*disk_entry());
     try

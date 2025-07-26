@@ -12,6 +12,7 @@
 #include "vector"
 #include "set"
 #include "fs/simplex_pipe.hpp"
+#include "fs/block_device.hpp"
 #include "device_registry.hpp"
 #include "ext/dynamic_streambuf.hpp"
 #include "ext/delegate_ptr.hpp"
@@ -106,7 +107,7 @@ struct fs_node
     virtual bool fsync() = 0;                           // sync to disc, if applicable
     virtual bool truncate() = 0;                        // clear all data and reset the size to 0
     virtual ~fs_node();
-    file_mode mode{ 0774U };
+    file_mode mode = 0774U;
     std::set<tnode*> refs{};
     int fd;
     uint64_t real_id;
@@ -287,6 +288,7 @@ protected:
     std::set<device_node> device_nodes{};
     fd_map current_open_files{};
     int next_fd;
+    block_device* blockdev;
     virtual directory_node* get_root_directory() = 0;
     virtual void dlfilenode(file_node*) = 0;
     virtual void dldirnode(directory_node*) = 0;
@@ -313,7 +315,12 @@ public:
     virtual file_node* open_file(std::string const& path, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out, bool create = true);
     virtual size_t block_size();
     virtual directory_node* open_directory(std::string const& path, bool create = true);
+    filesystem();
+    ~filesystem();
+    bool write_blockdev(uint64_t lba_dest, const void* src, size_t sectors);
+    bool read_blockdev(void* dest, uint64_t lba_src, size_t sectors);
     bool link_stdio(dev_t device_id);
+    void attach_block_device(block_device* dev);
     fs_node* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev = 0U);
     void create_pipe(int fds[2]);
@@ -329,9 +336,7 @@ public:
     std::string get_path_separator() const noexcept;
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
-    filesystem();
     void pubsyncdirs();
-    ~filesystem();
 };
 filesystem* create_task_vfs();
 filesystem* get_fs_instance();

@@ -195,7 +195,7 @@ bool ext_file_vnode::initialize()
     {
         if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
         update_block_ptrs();
-        for(disk_block& db : block_data) { if(!parent_fs->read_hd(db)) { panic("block read failed"); return false; } }
+        for(disk_block& db : block_data) { if(!parent_fs->read_block(db)) { panic("block read failed"); return false; } }
         qword timestamp                 = sys_time(nullptr);
         on_disk_node->accessed_time     = timestamp.lo;
         on_disk_node->access_time_hi    = (timestamp.hi.hi.hi >> 4) & 0x03;
@@ -210,7 +210,7 @@ bool ext_directory_vnode::initialize()
     if(__builtin_expect(!init_extents(), false)) return false;
     if(__builtin_expect(!__grow_buffer(extents.total_extent * bs), false)) { panic("failed to allocate buffer for directory data"); return false; }
     update_block_ptrs();
-    for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_hd(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
+    for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_block(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
     return (__initialized = __parse_entries(bs));
 }
 tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& checked_elements)

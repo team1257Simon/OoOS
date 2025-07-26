@@ -723,8 +723,6 @@ protected:
     virtual file_node* on_open(tnode* node) override;
     virtual file_node* on_open(tnode* node, std::ios_base::openmode mode) override;
     ext_jbd2_mode journal_mode() const;
-    bool write_hd(uint64_t lba_dest, const void* src, size_t sectors);
-    bool read_hd(void* dest, uint64_t lba_src, size_t sectors);
     uint32_t claim_inode(bool dir);
     bool release_inode(uint32_t num, bool dir);
     void release_blocks(uint64_t start, size_t num);
@@ -754,8 +752,8 @@ public:
     disk_block* claim_metadata_block(ext_node_extent_tree* requestor);
     off_t inode_block_offset(uint32_t inode);
     ext_inode* get_inode(uint32_t inode_num);
-    bool write_hd(disk_block const& bl);
-    bool read_hd(disk_block& bl);
+    bool write_block(disk_block const& bl);
+    bool read_block(disk_block& bl);
     bool persist_group_metadata(size_t group_num);    
     bool persist_inode(uint32_t inode_num);
     bool persist(ext_vnode* n);

@@ -6,7 +6,7 @@ typedef std::hash_set<qword, uint64_t, std::hash<uint64_t>, std::equal_to<void>,
 jbd2::jbd2() = default;
 jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode{ parent, inode } {}
 jbd2::~jbd2() {}
-bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_hd(db)) { panic("write failed"); return false; } } return true; }
+bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_block(db)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }
 size_t jbd2::desc_tag_size(bool same_uuid) { return (sb->required_features & csum_v3 ? 16 : (sb->required_features & x64_support ? 12 : 8)) + (same_uuid ? 0 : 16); }
 size_t jbd2::tags_per_block() { return 1 + (parent_fs->block_size() - sizeof(jbd2_header) - desc_tag_size(false) - (sb->required_features & (csum_v2 | csum_v3) ? 4 : 0)) / desc_tag_size(true); }
@@ -81,7 +81,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
         .commit_nanos   = __be32((timestamp % 1000U) * 1000U)
     };
     mark_write(dblk_tar);
-    uint32_t csum = crc32c_blk(uuid_checksum, ch_block, bs);
+    uint32_t csum       = crc32c_blk(uuid_checksum, ch_block, bs);
     barrier();
     ch->checksum[0]     = csum;
     first_open_block    = txn_st_block + total;
@@ -94,13 +94,13 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 bool jbd2::ddread()
 {
     disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-    if(!parent_fs->read_hd(full_blk)) { panic("failed to read journal"); return false; }
+    if(!parent_fs->read_block(full_blk)) { panic("failed to read journal"); return false; }
     return true;
 }
 bool jbd2::ddwrite()
 {
     disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-    if(!parent_fs->write_hd(full_blk)) { panic("failed to write journal"); return false; }
+    if(!parent_fs->write_block(full_blk)) { panic("failed to write journal"); return false; }
     return true;
 }
 bool jbd2::clear_log()

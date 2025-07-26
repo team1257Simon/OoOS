@@ -12,8 +12,9 @@ bool hda_ahci::__write_ahci(qword st, dword ct, uint16_t const* bf) { try { __dr
 hda_ahci::hda_ahci() {}
 bool hda_ahci::init_instance() { if(__has_init) return true; return (__has_init = __instance.init()); }
 bool hda_ahci::is_initialized() noexcept { return __has_init; }
-partition_table& hda_ahci::get_partition_table() { return __instance.__part_table; }
+partition_table& hda_ahci::get_partition_table() { return __part_table; }
 hda_ahci* hda_ahci::get_instance() { return __has_init ? std::addressof(__instance) : nullptr; }
+size_t hda_ahci::sector_size() const { return __bytes_per_sector(); }
 bool hda_ahci::__read_pt()
 {
     pt_header_t* hdr;
@@ -42,7 +43,7 @@ bool hda_ahci::init()
 }
 bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
 {
-    if(!__instance.__driver) { panic("cannot write disk before initializing write accessor"); return false; }
+    if(!__driver) { panic("cannot write disk before initializing write accessor"); return false; }
     uint16_t const* src = static_cast<uint16_t const*>(in);
     size_t t_write      = 0UZ;
     size_t s_write      = 0UZ;
@@ -50,7 +51,7 @@ bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
     while(rem)
     {
         size_t sct = std::min(rem, max_op_sectors);
-        if(!__instance.__write_ahci(start_sector + s_write, sct, src + t_write)) { panic("bad write"); return false; }
+        if(!__write_ahci(start_sector + s_write, sct, src + t_write)) { panic("bad write"); return false; }
         t_write += __count_to_wide_streamsize(sct);
         s_write += sct;
         rem     -= sct;
@@ -60,7 +61,7 @@ bool hda_ahci::write(uint64_t start_sector, const void* in, uint32_t count)
 }
 bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
 {
-    if(!__instance.__driver) { panic("cannot read disk before initializing read accessor"); return false; }
+    if(!__driver) { panic("cannot read disk before initializing read accessor"); return false; }
     uint16_t* target    = static_cast<uint16_t*>(out);
     size_t rem          = count;
     size_t t_read       = 0UZ;
@@ -69,7 +70,7 @@ bool hda_ahci::read(void* out, uint64_t start_sector, uint32_t count)
     while(rem)
     {
         size_t sct = std::min(rem, max_op_sectors);
-        if(!__instance.__read_ahci(start_sector + s_read, sct, target + t_read)) { panic("bad read"); return false; }
+        if(!__read_ahci(start_sector + s_read, sct, target + t_read)) { panic("bad read"); return false; }
         t_read  += __count_to_wide_streamsize(sct);
         s_read  += sct;
         rem     -= sct;

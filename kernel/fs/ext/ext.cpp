@@ -22,10 +22,8 @@ size_t extfs::sectors_per_block() { return (1024UL / physical_block_size) << sb-
 uint64_t extfs::block_to_lba(uint64_t block) { return static_cast<uint64_t>(superblock_lba - sb_off) + sectors_per_block() * static_cast<uint64_t>(block); }
 directory_node* extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
-bool extfs::read_hd(void* dest, uint64_t lba_src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::read(static_cast<char*>(dest), lba_src, sectors); }
-bool extfs::read_hd(disk_block& bl) { if(bl.data_buffer && bl.block_number) return read_hd(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
-bool extfs::write_hd(uint64_t lba_dest, const void* src, size_t sectors) { return hda_ahci::is_initialized() && hda_ahci::write(lba_dest, src, sectors); }
-bool extfs::write_hd(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_hd(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::read_block(disk_block& bl) { if(bl.data_buffer && bl.block_number) return read_blockdev(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
+bool extfs::write_block(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_blockdev(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
 char *extfs::allocate_block_buffer() { size_t bs = block_size(); char* result = buff_alloc.allocate(bs); array_zero(result, bs); return result; }
@@ -146,7 +144,7 @@ void ext_block_group::compute_checksums(size_t group_num)
 void extfs::initialize()
 {
     if(initialized) return;
-    if(!(sb && read_hd(sb, superblock_lba, sb_sectors))) throw std::runtime_error("failed to read superblock");
+    if(!(sb && read_blockdev(sb, superblock_lba, sb_sectors))) throw std::runtime_error("failed to read superblock");
     uint32_t checkval = __sb_checksum();
     if(sb->checksum != checkval)
         throw std::logic_error("superblock checksum of " + std::to_string(sb->checksum, std::ext::hex) + " does not match calculated value of " + std::to_string(checkval, std::ext::hex));
@@ -162,7 +160,7 @@ void extfs::initialize()
     size_t inode_blocks_per_group   = div_round_up(sb->inodes_per_group, inodes_per_block());
     bg_table_block.data_buffer      = bg_buffer;
     bg_table_block.chain_len        = div_round_up(bgsz, block_size());
-    if(!(num_blk_groups && blk_group_descs && read_hd(bg_table_block))) throw std::runtime_error("failed to read block group table");
+    if(!(num_blk_groups && blk_group_descs && read_block(bg_table_block))) throw std::runtime_error("failed to read block group table");
     blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
     for(size_t i = 0; i < num_blk_groups; i++)
     {
@@ -173,8 +171,8 @@ void extfs::initialize()
         allocate_block_buffer(bg.inode_usage_bmp);
         allocate_block_buffer(bg.blk_usage_bmp);
         allocate_block_buffer(bg.inode_block);
-        if(!read_hd(bg.inode_usage_bmp) || !read_hd(bg.blk_usage_bmp)) throw std::runtime_error("failed to read block group");
-        if(!read_hd(bg.inode_block)) { throw std::runtime_error("failed to read inode table"); }
+        if(!read_block(bg.inode_usage_bmp) || !read_block(bg.blk_usage_bmp)) throw std::runtime_error("failed to read block group");
+        if(!read_block(bg.inode_block)) { throw std::runtime_error("failed to read inode table"); }
         uint16_t cs                         = blk_group_descs[i].group_checksum;
         blk_group_descs[i].group_checksum   = 0;
         uint32_t cs0                        = crc32c(uuid_csum, dword(i));
@@ -199,7 +197,7 @@ bool extfs::persist_sb()
     sb->last_write_time     = tstamp.lo;
     sb->last_write_time_hi  = tstamp.hi.lo.lo;
     sb->checksum            = __sb_checksum();
-    return write_hd(superblock_lba, sb, sb_sectors);
+    return filesystem::write_blockdev(superblock_lba, sb, sb_sectors);
 }
 bool extfs::update_free_block_count(int diff)
 {
@@ -604,7 +602,7 @@ bool extfs::persist(ext_vnode* n)
     for(disk_block& db : n->block_data) 
     {
 		if(!(db.dirty && db.block_number && db.data_buffer)) { continue; }
-        if(!write_hd(db)) { panic("write failed"); return false; }
+        if(!write_block(db)) { panic("write failed"); return false; }
         db.dirty = false;
     }
     std::vector<disk_block> dirty_metadata{};

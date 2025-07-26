@@ -251,7 +251,7 @@ void task_tests()
 }
 void extfs_tests()
 {
-    try
+    if(hda_ahci::is_initialized()) try
     {
         test_extfs.initialize();
         test_extfs.open_directory("files");
@@ -456,7 +456,7 @@ void run_tests()
     startup_tty.print_line("serial test...");
     if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
     startup_tty.print_line("ahci test...");
-    if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_partition_table());
+    if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_instance()->get_partition_table());
     startup_tty.print_line("hpet test...");
     hpet_tests();
     startup_tty.print_line("net test...");
@@ -549,7 +549,17 @@ extern "C"
         fx_enable = true;
         scheduler::init_instance();
         hpet_amd64::init_instance();
-        startup_tty.print_text(pci_device_list::init_instance() ? (ahci::init_instance(pci_device_list::get_instance()) ? (hda_ahci::init_instance() ? "" : "HDA adapter init failed\n") : "AHCI init failed\n") : "PCI enum failed\n");
+        if(pci_device_list::init_instance())
+        {
+            if(ahci::init_instance(pci_device_list::get_instance()))
+            {
+                if(hda_ahci::init_instance())
+                    test_extfs.attach_block_device(hda_ahci::get_instance());
+                else startup_tty.print_line("HDA adapter init failed");
+            }
+            else startup_tty.print_line("AHCI init failed");
+        }
+        else startup_tty.print_line("PCI enum failed");
         try
         {
             // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.

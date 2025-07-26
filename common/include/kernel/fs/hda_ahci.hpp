@@ -3,44 +3,10 @@
 #include "kernel/arch/ahci.hpp"
 #include "kernel/libk_decls.h"
 #include "ext/dynamic_streambuf.hpp"
-#include "vector"
+#include "fs/block_device.hpp"
 constexpr size_t start_lba_field_offset = 0x8; // Offset, in bytes, of the field pointing to the LBA of the partition table header (which is usually LBA 1)
 constexpr size_t max_op_sectors = (prdt_entries_count * 16);
-typedef struct __pt_header
-{
-    char sig[8];
-    uint32_t revision;
-    uint32_t header_size;
-    char checksum[4];
-    char rsv0[4];
-    uint64_t lba_header;
-    uint64_t lba_alternate;
-    uint64_t lba_first_usable;
-    uint64_t lba_last_usable;
-    guid_t guid;
-    uint64_t lba_partition_entry_array;
-    uint32_t num_part_entries;
-    uint32_t part_entry_size; // will be a multiple of 128
-    uint32_t partition_array_crc32_checksum;
-    char rsv1[physical_block_size - 0x5CU];
-} __pack pt_header_t;
-typedef struct __part_table_entry
-{
-    guid_t type_guid;
-    guid_t part_guid;
-    uint64_t start_lba;
-    uint64_t end_lba;
-    uint64_t attributes;
-    char16_t part_name[36];
-} __pack partition_entry_t;
-typedef std::vector<partition_entry_t> partition_table;
-#ifdef INST_PT
-template class std::vector<partition_entry_t>;
-#else
-extern template class std::vector<partition_entry_t>;
-#endif
-
-class hda_ahci
+class hda_ahci : public partitioned_block_device
 {
     static bool __has_init;
     static hda_ahci __instance;
@@ -61,10 +27,9 @@ public:
     static bool init_instance();
     static bool is_initialized() noexcept;
     static hda_ahci* get_instance();
-    static bool read(void* out, uint64_t start_sector, uint32_t count);
-    static bool write(uint64_t start_sector, const void* in, uint32_t count);
-    static partition_table& get_partition_table();
-    template<trivial_copy T> static size_t read_objects(T* out, uint64_t start_sector, uint32_t num_objs) { return read(std::bit_cast<char*>(out), start_sector, div_round_up(num_objs * sizeof(T), __bytes_per_sector())); }
-    template<trivial_copy T> static bool read_object(T& out, uint64_t from) { return read_objects(std::addressof(out), from, 1U); }
+    virtual bool read(void* out, uint64_t start_sector, uint32_t count) override;
+    virtual bool write(uint64_t start_sector, const void* in, uint32_t count) override;
+    virtual size_t sector_size() const override;
+    virtual partition_table& get_partition_table() override;
 };
 #endif

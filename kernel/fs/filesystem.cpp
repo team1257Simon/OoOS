@@ -4,10 +4,12 @@
 #include "stdexcept"
 #include "errno.h"
 #include "kdebug.hpp"
+#include "fs/hda_ahci.hpp"
 fd_map::fd_map() : __base(256) {}
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
-filesystem::filesystem() : pipes{ 256UZ }, device_nodes{}, current_open_files{}, next_fd{ 3 } {}
+filesystem::filesystem() : pipes{ 256UZ }, device_nodes{}, current_open_files{}, next_fd{ 3 }, blockdev{ nullptr } {}
 filesystem::~filesystem() = default;
+void filesystem::attach_block_device(block_device* dev) { blockdev = dev; }
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 fs_node* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
 void filesystem::register_fd(fs_node* node) { next_fd = current_open_files.add_fd(node) + 1; }
@@ -19,10 +21,12 @@ file_node* filesystem::get_file(int fd) { return dynamic_cast<file_node*>(curren
 directory_node* filesystem::get_directory(int fd) { return dynamic_cast<directory_node*>(current_open_files.find_fd(fd)); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return xlink(get_parent(ogpath, false), get_parent(tgpath, create_parents)); }
 dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
-size_t filesystem::block_size() { return physical_block_size; }
+size_t filesystem::block_size() { return blockdev ? blockdev->sector_size() : physical_block_size; }
 void filesystem::pubsyncdirs() { syncdirs(); }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create) { return get_parent(get_root_directory(), path, create); }
 directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
+bool filesystem::write_blockdev(uint64_t lba_dest, const void* src, size_t sectors) { return blockdev->write(lba_dest, src, sectors); }
+bool filesystem::read_blockdev(void* dest, uint64_t lba_src, size_t sectors) { return blockdev->read(dest, lba_src, sectors); }
 file_node* filesystem::get_file_or_null(std::string const& path)
 {
     try

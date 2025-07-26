@@ -39,7 +39,7 @@ bool ext_node_extent_tree::parse_legacy()
     if(!ind1) return (has_init = true); // no indirect block pointer means we're done
     base_depth++;
     disk_block* single_ptr_block = std::addressof(tracked_node->cached_metadata.emplace_back(ind1, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
-    if(!tracked_node->parent_fs->read_hd(*single_ptr_block)) { panic("read on single pointer block failed"); return false; }
+    if(!tracked_node->parent_fs->read_block(*single_ptr_block)) { panic("read on single pointer block failed"); return false; }
     uint64_t cur_file_block     = 12;
     cached_extent_node* base    = std::addressof(tracked_extents.emplace_back(single_ptr_block, tracked_node, 1US));
     auto exnode = base_extent_level.insert(std::move(std::make_pair(cur_file_block, cached_node_pos(base)))).first;
@@ -52,7 +52,7 @@ bool ext_node_extent_tree::parse_legacy()
         // if we get here, there are more blocks to parse in the doubly-indirect pointers
         uint64_t ind2                   = tracked_node->on_disk_node->block_info.legacy_extent.doubly_indirect_block;
         disk_block* di_pointer_block    = std::addressof(tracked_node->cached_metadata.emplace_back(ind2, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
-        if(!tracked_node->parent_fs->read_hd(*di_pointer_block)) { panic("read on double pointer block failed"); return false; }
+        if(!tracked_node->parent_fs->read_block(*di_pointer_block)) { panic("read on double pointer block failed"); return false; }
         base            = std::addressof(tracked_extents.emplace_back(di_pointer_block, tracked_node, 2US));
         exnode          = base_extent_level.insert(std::move(std::make_pair(cur_file_block, cached_node_pos(base)))).first;
         cur_file_block  = base->nl_recurse_legacy(this, exnode->first);
@@ -63,7 +63,7 @@ bool ext_node_extent_tree::parse_legacy()
         disk_block* tri_pointer_block   = std::addressof(tracked_node->cached_metadata.emplace_back(ind3, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
         base                            = std::addressof(tracked_extents.emplace_back(tri_pointer_block, tracked_node, 3US));
         exnode                          = base_extent_level.insert(std::move(std::make_pair(cur_file_block, cached_node_pos(base)))).first;
-        if(!tracked_node->parent_fs->read_hd(*tri_pointer_block)) { panic("read on triple pointer block failed"); return false; }
+        if(!tracked_node->parent_fs->read_block(*tri_pointer_block)) { panic("read on triple pointer block failed"); return false; }
         base->nl_recurse_legacy(this, exnode->first);
         return (has_init = true);
     } 
@@ -88,7 +88,7 @@ bool ext_node_extent_tree::parse_ext4()
             uint64_t blknum = qword(nodes[i].idx.next_level_block_lo, uint32_t(nodes[i].idx.next_level_block_hi));
             if(!blknum) continue;
             disk_block* blk = std::addressof(tracked_node->cached_metadata.emplace_back(blknum, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
-            if(!tracked_node->parent_fs->read_hd(*blk)) { panic("metadata block read failed"); return false; }
+            if(!tracked_node->parent_fs->read_block(*blk)) { panic("metadata block read failed"); return false; }
             cached_extent_node* base    = std::addressof(tracked_extents.emplace_back(blk, tracked_node, base_depth));
             auto exnode                 = base_extent_level.insert(std::move(std::make_pair(cur_file_block, cached_node_pos(base)))).first;
             if(!base->nl_recurse_ext4(this, exnode->first)) return false;
@@ -118,7 +118,7 @@ size_t cached_extent_node::nl_recurse_legacy(ext_node_extent_tree* parent, uint6
     {
         if(!blk_ptrs[i]) return 0; // if we hit an empty pointer we're done
         disk_block* blk = depth == 1 ? tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block, std::move(disk_block{ blk_ptrs[i], nullptr, false, 1U })).base() : std::addressof(tracked_node->cached_metadata.emplace_back(blk_ptrs[i], tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
-        if(blk->data_buffer && !tracked_node->parent_fs->read_hd(*blk)) { throw std::runtime_error{ "failed to read disk block" }; }
+        if(blk->data_buffer && !tracked_node->parent_fs->read_block(*blk)) { throw std::runtime_error{ "failed to read disk block" }; }
         cached_extent_node* base    = std::addressof(parent->tracked_extents.emplace_back(blk, tracked_node, static_cast<uint16_t>(depth - 1)));
         auto exnode                 = next_level_extents.insert_or_assign(cur_file_block, parent->cached_node_pos(base)).first;
         cur_file_block              = base->nl_recurse_legacy(parent, exnode->first);
@@ -143,7 +143,7 @@ bool cached_extent_node::nl_recurse_ext4(ext_node_extent_tree* parent, uint64_t 
             uint64_t blknum         = qword(nodes[i].idx.next_level_block_lo, uint32_t(nodes[i].idx.next_level_block_hi));
             if(!blknum) continue;
             disk_block* blk = std::addressof(tracked_node->cached_metadata.emplace_back(blknum, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
-            if(!tracked_node->parent_fs->read_hd(*blk)) { panic("metadata block read failed"); return false; }
+            if(!tracked_node->parent_fs->read_block(*blk)) { panic("metadata block read failed"); return false; }
             cached_extent_node* base    = std::addressof(parent->tracked_extents.emplace_back(blk, tracked_node, depth));
             auto exnode                 = next_level_extents.insert(std::move(std::make_pair(cur_file_block, parent->cached_node_pos(base)))).first;
             if(!base->nl_recurse_ext4(parent, exnode->first)) return false;

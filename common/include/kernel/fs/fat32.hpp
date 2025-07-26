@@ -143,7 +143,7 @@ class fat32_allocation_table : protected std::__impl::__dynamic_buffer<uint32_t,
     size_t __num_sectors;
     uint64_t __start_sector;
     fat32* __parent;
-    mutable bool __dirty{ false };
+    mutable bool __dirty = false;
 public:
     typedef typename __base::__size_type size_type;
     typedef typename __base::__diff_type difference_type;
@@ -293,14 +293,12 @@ protected:
     fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial);
     bool init();
     ~fat32();
-    bool write_sectors(uint32_t start, const char* data, size_t num);
-    bool read_sectors(char* buffer, uint32_t start, size_t num);
     bool write_clusters(uint32_t cl_st, const char* data, size_t num = 1UL);
     bool read_clusters(char* buffer, uint32_t cl_st, size_t num = 1UL);
 public:
     virtual size_t block_size() override;
     static bool has_init();
-    static bool init_instance();
     static fat32* get_instance();
+    static bool init_instance(block_device* dev);
 };
 #endif
