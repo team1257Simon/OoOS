@@ -63,7 +63,7 @@ void fat32::dlfilenode(file_node* fd)
 }
 void fat32::dldirnode(directory_node* dd)
 {    
-    if(!dd->is_empty()) { throw std::logic_error{ std::string{ "cannot delete directory " } + dd->name() + " because it is not empty" }; }
+    if(!dd->is_empty()) { throw std::logic_error(std::string("cannot delete directory ") + dd->name() + " because it is not empty"); }
     dd->prune_refs();
     std::map<uint64_t, size_t>::iterator i = __st_cluster_ref_counts.find(dd->cid());
     if(!i->second) { __release_clusters_from(static_cast<uint32_t>(i->first)); __st_cluster_ref_counts.erase(i); }

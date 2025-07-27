@@ -88,15 +88,15 @@ void fat32_directory_node::__add_parsed_entry(fat32_regular_entry const& e, size
     if(e.attributes & 0x10)
     {
         fat32_directory_node* n = parent_fs->put_directory_node(name, this, cl, j);
-        if(!n) throw std::runtime_error{ "failed to create directory node " + name };
+        if(!n) throw std::runtime_error("failed to create directory node " + name);
         directory_tnodes.emplace(n, name);
-        if(!n->parse_dir_data()) throw std::runtime_error{ "parse failed on directory " + name};
+        if(!n->parse_dir_data()) throw std::runtime_error("parse failed on directory " + name);
         subdir_count++;
     }
     else
     {
         fat32_file_node* n = parent_fs->put_file_node(name, this, cl, j);
-        if(!n) throw std::runtime_error{ "failed to create file node " + name };
+        if(!n) throw std::runtime_error("failed to create file node " + name);
         directory_tnodes.emplace(n, name);
         file_count++;
     }
@@ -135,7 +135,7 @@ void fat32_directory_node::get_short_name(std::string const& full, std::string& 
         result.append(tail);
         i++;
     } while(directory_tnodes.contains(result) && i <= 999999U);
-    if(directory_tnodes.contains(result)) throw std::logic_error{ "could not get a unique short name from " + upper };
+    if(directory_tnodes.contains(result)) throw std::logic_error("could not get a unique short name from " + upper);
 }
 bool fat32_directory_node::fsync()
 {

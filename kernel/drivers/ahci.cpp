@@ -348,10 +348,10 @@ __isrcall void ahci::handle_irq()
 }
 void ahci::p_identify(uint8_t idx, identify_data* data)
 {
-    if(__unlikely(!has_port(idx))) throw std::out_of_range("port " + std::to_string(idx) + " is out of range ");
+    if(__unlikely(!has_port(idx))) throw std::out_of_range("[AHCI] port " + std::to_string(idx) + " is out of range ");
     hba_port* port  = std::addressof(__abar->ports[idx]);
     int slot        = find_cmdslot(port);
-    if(__unlikely(slot < 0)) throw std::runtime_error("Port number " + std::to_string(idx) + " has no available slots");
+    if(__unlikely(slot < 0)) throw std::runtime_error("[AHCI] port number " + std::to_string(idx) + " has no available slots");
     qword addr      = reinterpret_cast<uintptr_t>(data);
     barrier();
     hba_cmd_header* cmd = new(std::addressof(port->command_list[slot])) hba_cmd_header
@@ -380,6 +380,6 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
 		.command    = identify, 
 		.device     = 0UC
 	};
-    try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("error on port identify; attempt soft reset"); port_soft_reset(idx); }
+    try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("[AHCI] error on port identify; attempt soft reset"); port_soft_reset(idx); }
     await_result([&]() -> bool { return is_done(idx); });
 }

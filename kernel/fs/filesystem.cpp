@@ -88,7 +88,7 @@ void filesystem::dlpipenode(fs_node* fn)
 device_node* filesystem::lndev(std::string const& where, int fd, dev_t id, bool create_parents)
 {
     target_pair parent = get_parent(where, create_parents);
-    if(parent.first->find(parent.second)) throw std::logic_error{ "cannot create link " + parent.second + " because it already exists" }; 
+    if(parent.first->find(parent.second)) throw std::logic_error("cannot create link " + parent.second + " because it already exists"); 
     device_node* result = mkdevnode(parent.first, parent.second, id, fd);
     register_fd(result);
     return result; 
@@ -123,7 +123,7 @@ bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool d
 device_node* filesystem::mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd)
 {
     device_stream* dev  = dreg[id];
-    if(!dev) { throw std::invalid_argument{"no device found with that id"}; }
+    if(!dev) { throw std::invalid_argument("no device found with that id"); }
     device_node* result = device_nodes.emplace(name, fd, dev, id).first.base();
     parent->add(result);
     register_fd(result);

@@ -357,7 +357,7 @@ int tcp_port_handler::rx_accept_payload(tcp_packet& p)
 uint32_t tcp_port_handler::compute_following_sequence(uint32_t from) const
 {
     sequence_map::const_iterator i = send_packets.find(from);
-    if(__unlikely(i == send_packets.end())) throw std::invalid_argument{ "no packet with that sequence" };
+    if(__unlikely(i == send_packets.end())) throw std::invalid_argument("[tcp] no packet with that sequence");
     return i->first + static_cast<uint32_t>(i->second->segment_len());
 }
 int tcp_port_handler::rx_begin_close(tcp_packet& p)

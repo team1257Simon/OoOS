@@ -97,7 +97,7 @@ void protocol_dhcp::discover(std::vector<net8> const& param_requests)
         param->length()                             = num_requests;
         array_copy(param->start(), param_requests.data(), num_requests);
     }
-    if(next->transmit(discover_pkt) != 0) throw std::runtime_error{ "[DHCP] packet transmission failed" };
+    if(next->transmit(discover_pkt) != 0) throw std::runtime_error("[DHCP] packet transmission failed");
 }
 int protocol_dhcp::process_offer_packet(dhcp_packet const& p)
 {

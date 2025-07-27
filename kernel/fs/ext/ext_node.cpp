@@ -75,7 +75,7 @@ static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* 
     {
         uint32_t calculated = compute_inode_csum(csum, parent, inode);
         if(calculated != checkval) 
-            throw std::runtime_error{ "inode checksum " + std::to_string(checkval, std::ext::hex) + " does not match calculated " + std::to_string(calculated, std::ext::hex) };
+            throw std::runtime_error("inode checksum " + std::to_string(checkval, std::ext::hex) + " does not match calculated " + std::to_string(calculated, std::ext::hex));
     }
     return csum;
 }
@@ -218,7 +218,7 @@ tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& 
     std::string separator = parent_fs->get_path_separator();
     if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic) 
     {
-        if(!vn->initialize()) throw std::runtime_error{ "symlink inode read failed" };
+        if(!vn->initialize()) throw std::runtime_error("symlink inode read failed");
         size_t n        = vn->count();
         tnode* result   = nullptr;
         char* buff      = ch_alloc.allocate(n);
@@ -230,14 +230,14 @@ tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& 
             else result = parent_fs->resolve_symlink(nullptr, buff, checked_elements);  // absolute
         }
         ch_alloc.deallocate(buff, n);
-        if(!result) throw std::runtime_error{ "bad symlink" };
+        if(!result) throw std::runtime_error("bad symlink");
         return result;
     }
     char* link_str = vn->on_disk_node->block_info.link_target;
     std::string xlink_str(link_str, std::strnlen(link_str, 60));
     if(tnode* result = parent_fs->resolve_symlink(std::strncmp(link_str, separator.c_str(), separator.size()) ? this : nullptr, xlink_str, checked_elements))
         return result;
-    throw std::runtime_error{ "bad symlink" };
+    throw std::runtime_error("bad symlink");
 }
 tnode* ext_directory_vnode::find(std::string const& name) 
 {
@@ -258,7 +258,7 @@ tnode* ext_directory_vnode::find_r(std::string const& name, std::set<fs_node*>& 
         if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
         {
             if(checked_elements.contains(i->ptr()))
-                throw std::overflow_error{ "circular link" };
+                throw std::overflow_error("circular link");
             checked_elements.insert(i->ptr());
             return __resolve_link_r(vn, checked_elements); // symlink
         }

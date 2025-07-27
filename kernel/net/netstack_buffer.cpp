@@ -23,7 +23,7 @@ int netstack_buffer::rx_flush()
 netstack_buffer::int_type netstack_buffer::overflow(int_type c)
 {
     if(__unlikely(tx_limit && (__out_region.__capacity() << 1) > tx_limit))
-        throw std::overflow_error{ "cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes" };
+        throw std::overflow_error("[net] cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes");
     return __base::overflow(c);
 }
 std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
@@ -34,7 +34,7 @@ std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
     {
         size_type target    = tx_cur + n;
         if(tx_limit && target > tx_limit)
-            throw std::overflow_error{ "cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes" };
+            throw std::overflow_error("[net] cannot expand transmit buffer beyond " + std::to_string(tx_limit) + " bytes");
         else size(target, std::ios_base::out);
     }
     array_copy(__out_region.__end, s, n);

@@ -126,12 +126,12 @@ elf64_object::elf64_object(elf64_object&& that) :
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {
-    if(__unlikely(!new_frame)) { throw std::invalid_argument{ "frame tag must not be null" }; }
+    if(__unlikely(!new_frame)) { throw std::invalid_argument("frame tag must not be null"); }
     set_frame(new_frame);
     for(size_t i = 0; i < num_seg_descriptors; i++)
     {
         if(!segments[i].absolute_addr || !segments[i].size) continue;
         segments[i].absolute_addr = new_frame->translate(segments[i].virtual_addr);
-        if(!segments[i].absolute_addr) throw std::runtime_error{ "cannot change frame before remapping blocks" };
+        if(!segments[i].absolute_addr) throw std::runtime_error("cannot change frame before remapping blocks");
     }
 }

@@ -22,7 +22,7 @@ void frame_manager::__release_block(block_descriptor& blk)
 }
 void frame_manager::destroy_frame(uframe_tag& ft)
 {
-    if(!contains(ft)) throw std::out_of_range{ "invalid frame tag" };
+    if(!contains(ft)) throw std::out_of_range("invalid frame tag");
     kmm.enter_frame(std::addressof(ft));
     for(block_descriptor& bd : ft.usr_blocks) kmm.deallocate_block(bd.virtual_start, bd.size, false);
     for(block_descriptor* bd : ft.shared_blocks) __release_block(*bd);
@@ -33,8 +33,8 @@ void frame_manager::destroy_frame(uframe_tag& ft)
 uframe_tag& frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 {
     paging_table pt = kmm.allocate_pt();
-    if(!pt) throw std::runtime_error{ "could not initialize paging tables" };
-    else if(!kmm.copy_kernel_mappings(pt)) throw std::runtime_error{ "could not initialize page mappings" };
+    if(!pt) throw std::runtime_error("[mm] failed to initialize paging tables");
+    else if(!kmm.copy_kernel_mappings(pt)) throw std::runtime_error{ "[mm] failed to initialize page mappings" };
     return *emplace(pt, start_base, start_extent).first;
 }
 uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)

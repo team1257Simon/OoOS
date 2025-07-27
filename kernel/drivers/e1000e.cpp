@@ -118,7 +118,7 @@ bool e1000e::write_io(int reg_id, uint32_t const& w_in)
 void e1000e::read_dma(int reg_id, uint32_t& r_out)
 {
     addr_t where = __mmio_region.plus(reg_id);
-    if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "[e1000e] dma access must be on dword boundary" };
+    if(__unlikely(where.full % 4UL)) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
     r_out = where.ref<uint32_t>();
     fence();
 }
