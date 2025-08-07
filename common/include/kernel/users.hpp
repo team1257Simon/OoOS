@@ -1,8 +1,9 @@
 #ifndef __USER_INFO
 #define __USER_INFO
 #include "sys/types.h"
-#include "string"
 #include "fs/sysfs.hpp"
+#include "sched/task_ctx.hpp"
+#include "map"
 typedef uint32_t permission_flag;
 constexpr size_t username_max_len                      = 32UZ;
 constexpr size_t crypto_setting_len                    = 29UZ;
@@ -65,15 +66,31 @@ struct __pack user_info
     void compute_csum();
     bool verify_csum() const;
 };
-struct vpwd_loaded_data
+struct vpwd_entry
 {
+    size_t                  entry_size;
+    size_t                  gecos_size;
+    size_t                  home_size;
+    size_t                  shell_size;
     uid_t                   uid;
     gid_t                   gid;
     user_credentials        credentials;
     user_capabilities       capabilities;
+    char                    dummy_passwd[2] = "x";
     time_t                  last_login_time;
     time_t                  last_pw_change_time;
     char                    gecos_home_shell[];
+};
+struct unix_pwd
+{
+	char*       pw_name;		            /* user name */
+	char*       pw_passwd;		            /* encrypted password */
+	uid_t	    pw_uid;			            /* user uid */
+	gid_t	    pw_gid;			            /* user gid */
+	char*       pw_comment;	                /* comment */
+	char*       pw_gecos;		            /* Honeywell login info */
+	char*       pw_dir;		                /* home directory */
+	char*       pw_shell;		            /* default shell */
 };
 struct username_extract { constexpr const char* operator()(user_info const& inf) const noexcept { return inf.credentials.user_login_name; } };
 struct username_hash { constexpr size_t operator()(const char data[username_max_len]) const noexcept { uint32_t h = 5381U; for(size_t i = 0; i < username_max_len && data[i]; i++) h += static_cast<uint8_t>(data[i]) + (h << 5); return h; } };
@@ -84,25 +101,43 @@ typedef user_accounts_table::value_handle user_handle;
 class user_accounts_manager
 {
     static user_accounts_manager* __instance;
+    static bool __has_init;
     sysfs& __sysfs;
     global_info_handle __global_info;
     user_accounts_table __table;
+    std::map<uid_t, size_t> __uid_index_map;
     sysfs_string_table __vpwd;
     user_accounts_manager(sysfs& config_src);
     user_accounts_manager(sysfs& config_src, uint32_t table_ino);
+    vpwd_entry* __load_vpwd_data(user_info const& user, std::function<addr_t(size_t)> const& alloc_fn);
+    int __create_credentials(user_info& out, std::string const& name, std::string const& pw);
+    int __create_vpwd_records(user_info& user, const char* home, const char* gecos, const char* shell);
+    vpwd_entry* __get_vpwd_entry(user_info const& user, task_ctx& context);
+    int __get_vpwd_entry(user_info const& user, std::function<int(vpwd_entry&)> const& callback);
 public:
-    static void init_instance(sysfs& config_src);
+    static bool init_instance(sysfs& config_src);
+    static bool is_initialized();
     static user_accounts_manager* get_instance();
     bool user_exists(std::string const& username);
     bool can_create_user(std::string const& name);
     global_info_handle global_configs();
     user_handle get_user(std::string const& name);
-    int create_credentials(user_info& out, std::string const& name, std::string const& pw);
+    user_handle get_user(uid_t uid);
     void set_pw(user_info& out, std::string const& pw);
-    int create_vpwd_records(user_info& user, const char* home, const char* gecos, const char* shell);
     int create_user(std::string const& name, std::string const& pw, const char* shell = nullptr, const char* gecos = nullptr, const char* home = nullptr, user_capabilities* caps = nullptr);
     int create_service_account(std::string const& name, std::string const& pw, const char* shell = nullptr, const char* gecos = nullptr, const char* home = nullptr, user_capabilities* caps = nullptr);
-    vpwd_loaded_data* load_user_data(std::string const& name, std::function<void*(size_t, std::align_val_t)> const& alloc_fn);
+    vpwd_entry* get_vpwd_entry(uid_t uid, task_ctx& context);
+    vpwd_entry* get_vpwd_entry(std::string const& name, task_ctx& context);
+    vpwd_entry* first_vpwd_entry(task_ctx& context);
+    vpwd_entry* next_vpwd_entry(uid_t prev, task_ctx& context);
+    int get_vpwd_entry(uid_t uid, std::function<int(vpwd_entry&)> const& callback);
+    int get_vpwd_entry(std::string const& name, std::function<int(vpwd_entry&)> const& callback);
     bool persist();
 };
+extern "C"
+{
+    int syscall_getvpwuid(uid_t uid, unix_pwd* out);
+    int syscall_getvpwnam(const char* name, unix_pwd* out);
+    int syscall_getvpwent(unix_pwd* ent);
+}
 #endif

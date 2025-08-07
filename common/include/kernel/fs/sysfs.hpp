@@ -278,17 +278,21 @@ sysfs_htbl_template struct sysfs_hash_table;
 /**
  * Similar to a sysfs_object_handle<VT>, except represents an object stored in a hashtable.
  * The destructor syncs the table's data up to and including the block containing the object.
+ * If the handle is released before it goes out of scope, the sync does not occur.
+ * This is useful to save time if the handle is accessed as read-only.
  */
 sysfs_htbl_template struct sysfs_table_entry_handle
 {
     typedef sysfs_hash_table<KT, VT, XT, HT, ET> parent_table_type;
     parent_table_type& parent;
     size_t value_index;
-    sysfs_table_entry_handle(parent_table_type& p, size_t i) : parent(p), value_index(i) {}
-    sysfs_table_entry_handle(sysfs_table_entry_handle const& that) : parent(that.parent), value_index(that.value_index) {}
-    sysfs_table_entry_handle(sysfs_table_entry_handle&& that) : parent(that.parent), value_index(that.value_index) { that.value_index = 0UZ; }
+    constexpr void release() noexcept { value_index = 0UZ; }
+    constexpr sysfs_table_entry_handle(parent_table_type& p, size_t i) : parent(p), value_index(i) {}
+    constexpr sysfs_table_entry_handle(sysfs_table_entry_handle const& that) : parent(that.parent), value_index(that.value_index) {}
+    constexpr sysfs_table_entry_handle(sysfs_table_entry_handle&& that) : parent(that.parent), value_index(that.value_index) { that.release(); }
+    constexpr sysfs_table_entry_handle& operator++() { value_index++; return *this; }
     void commit_object();
-    ~sysfs_table_entry_handle();
+    ~sysfs_table_entry_handle() { if(value_index) commit_object(); }
     VT* ptr();
     VT const* ptr() const;
     VT* operator->();
@@ -312,8 +316,8 @@ sysfs_htbl_template struct sysfs_hash_table : sysfs_hash_table_base
     sysfs_vnode& object_node;
     sysfs_hash_table(sysfs_vnode& n) : sysfs_hash_table_base(n), object_node(n.parent().open(header()->values_object_ino)) {}
     sysfs_hash_table(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets = 32UZ) : sysfs_hash_table_base(parent, name, type, buckets), object_node(parent.open(header()->values_object_ino)) {}
-    VT* values() { return static_cast<VT*>(object_node.raw_data()); }
-    VT const* values() const { return static_cast<VT const*>(object_node.raw_data()); }
+    VT* data() { return static_cast<VT*>(object_node.raw_data()); }
+    VT const* data() const { return static_cast<VT const*>(object_node.raw_data()); }
     constexpr static size_t hash_of(KT const& key) { return HT{}(key); }
     constexpr static KT key_of(VT const& value) { return XT{}(value); }
     constexpr static bool key_matches(KT const& key, VT const& value) { return ET{}(key, XT{}(value)); }
@@ -335,16 +339,15 @@ struct sysfs_string_table
     size_t size() const;
 };
 sysfs_htbl_template void sysfs_table_entry_handle<KT, VT, XT, HT, ET>::commit_object() { if(value_index) { parent.object_node.commit((value_index - 1) * sizeof(VT)); parent.object_node.pubsync(); } }
-sysfs_htbl_template sysfs_table_entry_handle<KT, VT, XT, HT, ET>::~sysfs_table_entry_handle() { commit_object(); }
-sysfs_htbl_template VT* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::ptr() { return std::addressof(parent.values()[value_index - 1]); }
-sysfs_htbl_template VT const* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::ptr() const { return std::addressof(parent.values()[value_index - 1]); }
+sysfs_htbl_template VT* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::ptr() { return std::addressof(parent.data()[value_index - 1]); }
+sysfs_htbl_template VT const* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::ptr() const { return std::addressof(parent.data()[value_index - 1]); }
 sysfs_htbl_template VT* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator->() { return ptr(); }
 sysfs_htbl_template VT const* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator->() const { return ptr(); }
-sysfs_htbl_template VT& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() { return parent.values()[value_index - 1]; }
-sysfs_htbl_template VT const& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() const { return parent.values()[value_index - 1]; }
+sysfs_htbl_template VT& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() { return parent.data()[value_index - 1]; }
+sysfs_htbl_template VT const& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() const { return parent.data()[value_index - 1]; }
 sysfs_htbl_template size_t sysfs_hash_table<KT, VT, XT, HT, ET>::find_value_index(KT const& key)
 {
-    VT* vs = values();
+    VT* vs = data();
     for(sysfs_hashtable_entry* e = get_chain_start(hash_of(key)); e != nullptr; e = get_chain_next(e)) 
     {
         VT& v = vs[e->object_index - 1];
