@@ -5,7 +5,6 @@
 #include "kdebug.hpp"
 constexpr static std::allocator<net16> udp_pseudo_alloc;
 constexpr const char must_decline_msg[] = "That address is already in use by another client.";
-static std::vector<net32> consume_variadic_dword_parameter(dhcp_parameter const& p) { return std::vector<net32>(p.start().as<net32>(), p.start().plus(p.length()).as<net32>()); }
 template<> template<> abstract_packet<dhcp_packet>::abstract_packet(udp_header&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, std::move(that)) {}
 template<> template<> abstract_packet<dhcp_packet>::abstract_packet(udp_header const& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, that) {}
 template<> template<> abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, std::move(that)) {}
@@ -154,19 +153,19 @@ net8 protocol_dhcp::process_packet_parameter(dhcp_parameter const& param)
         break;
     case SERVER_IDENTIFIER:
         if(!ipconfig.dhcp_server_addr) 
-            ipconfig.dhcp_server_addr = param.start().ref<net32>();
+            ipconfig.dhcp_server_addr   = param.start().ref<net32>();
         break;
     case ROUTER:
         if(param.length() % 4UC) throw std::invalid_argument("[DHCP] malformed packet");
-        ipconfig.gateway_addrs          = std::move(consume_variadic_dword_parameter(param));
-        if(ipconfig.gateway_addrs.size()) 
-            ipconfig.primary_gateway    = ipconfig.gateway_addrs[0];
+        ipconfig.primary_gateway        = param.start().ref<net32>();
+        if(param.length() > 4UC)
+            ipconfig.alternate_gateway  = param.start().as<net32>()[1];
         break;
     case DOMAIN_NAME_SERVER:
         if(param.length() % 4UC) throw std::invalid_argument("[DHCP] malformed packet");
-        ipconfig.dns_server_addrs       = std::move(consume_variadic_dword_parameter(param));
-        if(ipconfig.dns_server_addrs.size()) 
-            ipconfig.primary_dns_server = ipconfig.dns_server_addrs[0];
+        ipconfig.primary_dns_server         = param.start().ref<net32>();
+        if(param.length() > 4UC)
+            ipconfig.alternate_dns_server   = param.start().as<net32>()[1];
         break;
     case DEFAULT_TTL:
         ipconfig.time_to_live_default   = param.start().ref<net8>();
@@ -268,6 +267,8 @@ void protocol_dhcp::reset()
     {
         .primary_gateway            { empty },
         .primary_dns_server         { empty },
+        .alternate_gateway          { empty },
+        .alternate_dns_server       { empty },
         .dhcp_server_addr           { empty },
         .leased_addr                { empty },
         .subnet_mask                { empty },
@@ -276,9 +277,7 @@ void protocol_dhcp::reset()
         .lease_rebind_time          { 0U },
         .time_to_live_default       { 0x40UC },
         .time_to_live_tcp_default   { 0x40UC },
-        .current_state              { ipv4_client_state::INIT },
-        .gateway_addrs              {},
-        .dns_server_addrs           {}
+        .current_state              { ipv4_client_state::INIT }
     };
     discover(std::forward<std::vector<net8>>({ SUBNET_MASK, DOMAIN_NAME_SERVER, DOMAIN_NAME, ROUTER }));
 }

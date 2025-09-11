@@ -65,6 +65,8 @@ struct ipv4_config
 {
     ipv4_addr primary_gateway;
     ipv4_addr primary_dns_server;
+    ipv4_addr alternate_gateway;
+    ipv4_addr alternate_dns_server;
     ipv4_addr dhcp_server_addr;
     ipv4_addr leased_addr;
     ipv4_addr subnet_mask;
@@ -75,7 +77,5 @@ struct ipv4_config
     uint8_t time_to_live_default;
     uint8_t time_to_live_tcp_default;
     ipv4_client_state current_state;
-    std::vector<ipv4_addr> gateway_addrs;
-    std::vector<ipv4_addr> dns_server_addrs;
 };
 #endif
