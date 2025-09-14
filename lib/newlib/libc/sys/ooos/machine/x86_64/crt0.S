@@ -8,7 +8,7 @@
     .global     _start
     .type       _start,                     @function
 _start:
-    leaq        environ@GOTPCREL(%rip),     %rax
+    movq        environ@GOTPCREL(%rip),     %rax
     movq        %rdx,                       (%rax)
     pushq       %rbp
     movq        %rsp,                       %rbp
