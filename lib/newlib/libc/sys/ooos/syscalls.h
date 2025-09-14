@@ -41,9 +41,12 @@ typedef unsigned long sigset_t;
 #define SYSCVEC_N_vfork          46
 #define SYSCVEC_N_spawn          47
 #define SYSCVEC_N_pipe           48
+#define SYSCVEC_N_getvpwent      49
+#define SYSCVEC_N_getvpwuid      50
+#define SYSCVEC_N_getvpwnam      51
 #ifdef __cplusplus
 #ifndef restrict
-#define restrict
+#define restrict __restrict__
 #endif
 extern "C" 
 {

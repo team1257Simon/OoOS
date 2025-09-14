@@ -1,6 +1,6 @@
 #ifndef __USER_INFO
 #define __USER_INFO
-#include "sys/types.h"
+#include "sys/pwd.h"
 #include "fs/sysfs.hpp"
 #include "sched/task_ctx.hpp"
 #include "map"
@@ -81,17 +81,6 @@ struct vpwd_entry
     time_t                  last_pw_change_time;
     char                    gecos_home_shell[];
 };
-struct unix_pwd
-{
-	char*       pw_name;		            /* user name */
-	char*       pw_passwd;		            /* encrypted password */
-	uid_t	    pw_uid;			            /* user uid */
-	gid_t	    pw_gid;			            /* user gid */
-	char*       pw_comment;	                /* comment */
-	char*       pw_gecos;		            /* Honeywell login info */
-	char*       pw_dir;		                /* home directory */
-	char*       pw_shell;		            /* default shell */
-};
 struct username_extract { constexpr const char* operator()(user_info const& inf) const noexcept { return inf.credentials.user_login_name; } };
 struct username_hash { constexpr size_t operator()(const char data[username_max_len]) const noexcept { uint32_t h = 5381U; for(size_t i = 0; i < username_max_len && data[i]; i++) h += static_cast<uint8_t>(data[i]) + (h << 5); return h; } };
 struct username_equals { constexpr bool operator()(const char n1[username_max_len], const char n2[username_max_len]) const noexcept { return std::strncmp(n1, n2, username_max_len) == 0; } };
@@ -136,8 +125,8 @@ public:
 };
 extern "C"
 {
-    int syscall_getvpwuid(uid_t uid, unix_pwd* out);
-    int syscall_getvpwnam(const char* name, unix_pwd* out);
-    int syscall_getvpwent(unix_pwd* ent);
+    int syscall_getvpwuid(uid_t uid, unix_pwd* out);            // int getvpwuid(uid_t uid, struct passwd* out);
+    int syscall_getvpwnam(const char* name, unix_pwd* out);     // int getvpwnam(const char* restrict name, struct passwd* restrict out);
+    int syscall_getvpwent(unix_pwd* ent);                       // int getvpwent(struct passwd* out);
 }
 #endif

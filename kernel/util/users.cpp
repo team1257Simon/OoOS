@@ -7,10 +7,11 @@ user_accounts_manager* user_accounts_manager::__instance{};
 bool user_accounts_manager::__has_init{};
 static inline sysfs_vnode& get_global_account_info(sysfs& s);
 static addr_t alloc_sys_vpwd(size_t n) { return ::operator new(n, align_data); }
+static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx);
 static void check_is_user(task_ctx const& context) { if(!context.is_user()) throw std::invalid_argument("[account config] userspace vpwd entry call not usable in system process"); }
 void user_info::compute_csum() { checksum = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(this), offsetof(user_info, checksum)); }
 bool user_info::verify_csum() const { return checksum == crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(this), offsetof(user_info, checksum)); }
-vpwd_entry* user_accounts_manager::__get_vpwd_entry(user_info const& user, task_ctx& context) { return __load_vpwd_data(user, std::bind(&uframe_tag::sysres_add, context.header()->frame_ptr.as<uframe_tag>(), std::placeholders::_1)); }
+vpwd_entry* user_accounts_manager::__get_vpwd_entry(user_info const& user, task_ctx& context) { return __load_vpwd_data(user, std::bind(alloc_user_vpwd, std::placeholders::_1, context)); }
 user_accounts_manager* user_accounts_manager::get_instance() { return __instance; }
 bool user_accounts_manager::is_initialized() { return __has_init; }
 bool user_accounts_manager::user_exists(std::string const& username) { return __table.contains(username.c_str()); }
@@ -37,6 +38,15 @@ user_accounts_manager::user_accounts_manager(sysfs& config_src, uint32_t table_i
                         for(size_t i = 0; i < total_users; i++)
                             __uid_index_map.insert(std::make_pair(static_cast<uid_t>(table_data[i].uid), static_cast<size_t>(i + 1)));
                     }
+static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx)
+{
+    uframe_tag* frame   = ctx.task_struct.frame_ptr;
+    addr_t raw          = frame->sysres_add(n);
+    kmm.enter_frame(frame);
+    addr_t result(kmm.frame_translate(raw));
+    kmm.exit_frame();
+    return result;
+}
 user_handle user_accounts_manager::get_user(uid_t uid)
 {
     std::map<uid_t, size_t>::iterator result = __uid_index_map.find(uid);
