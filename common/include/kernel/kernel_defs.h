@@ -437,6 +437,7 @@ typedef struct attribute(packed) __vaddr
     template<non_void T> constexpr T& assign(T const& value) const { return ref<T>() = value; }
     template<non_void T> constexpr T& assign(T&& value) const { return ref<std::remove_reference_t<T>>() = std::move(value); }
     template<typename T, typename ... Args> using functor_t = T(*)(Args...);
+    template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { ref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return ref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
     constexpr operator void*() const noexcept { return std::bit_cast<void*>(full); }
     constexpr operator cvptr() const noexcept { return std::bit_cast<const void*>(full); }
     constexpr operator vvptr() const volatile noexcept { return std::bit_cast<volatile void*>(const_cast<__vaddr const*>(this)->full); }

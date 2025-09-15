@@ -40,7 +40,7 @@ volatile apic bsp_lapic{ 0U };
 static bool direct_print_enable{ false };
 static bool fx_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
-const char* test_argv{ "Hello task world " };
+static const char test_argv[]{ "Hello task world " };
 static char test_e1000e_drv[sizeof(e1000e)]{};
 std::atomic<bool> dbg_hold{ false };
 extern uintptr_t saved_stack_ptr;

@@ -86,7 +86,10 @@ enum class tcp_connection_state : char
 enum class tcp_connection_type : bool { PASSIVE, ACTIVE };
 struct protocol_tcp;
 typedef std::map<uint32_t, tcp_packet> sequence_map;
-typedef std::function<void(tcp_session_buffer&)> application_listener;
+struct tcp_application
+{
+    // TODO
+};
 struct tcp_connection_info
 {
     ipv4_addr remote_host;
@@ -106,32 +109,31 @@ struct tcp_connection_info
 struct tcp_port_handler : abstract_protocol_handler
 {
     protocol_tcp& local_host;
+    tcp_application& application;
     uint16_t local_port;
     tcp_connection_state connection_state;
     tcp_connection_info connection_info;
     sequence_map send_packets;
     sequence_map receive_packets;
     tcp_transmission_timer timer;
-    application_listener app;
     tcp_session_buffer data;
-    tcp_port_handler(protocol_tcp& tcp, application_listener const& l, uint16_t port);
-    void open(ipv4_addr peer, uint16_t port, tcp_connection_type local_type, tcp_connection_type remote_type);
-    void close();
+    tcp_port_handler(protocol_tcp& tcp, tcp_application& app, uint16_t port);
     virtual std::type_info const& packet_type() const override;
     virtual int receive(abstract_packet_base& p) override;
+    tcp_packet& create_packet(size_t payload_size, size_t option_size = 0UZ, uint16_t window_size = 16384US);
+    uint32_t compute_following_sequence(uint32_t from) const;
+    void open(ipv4_addr peer, uint16_t port, tcp_connection_type local_type, tcp_connection_type remote_type);
+    void close();
     int rx_process(tcp_packet& p);
     int rx_initial(tcp_packet& p);
     int rx_establish(tcp_packet& p);
     int rx_accept_payload(tcp_packet& p);
     int rx_begin_close(tcp_packet& p);
-    tcp_packet& create_packet(size_t payload_size, size_t option_size = 0UZ, uint16_t window_size = 16384US);
-    int transmit_next();
-protected:
-    sequence_map::iterator add_rx_packet(tcp_packet& p);
-    void commit_rx();
+    sequence_map::iterator rx_add_packet(tcp_packet& p);
+    void rx_commit();
     void rx_reset();
     int tx_reset(uint32_t use_seq);
-    uint32_t compute_following_sequence(uint32_t from) const;
+    int tx_send_next();
 };
 struct isn_gen
 {

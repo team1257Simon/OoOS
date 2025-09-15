@@ -131,8 +131,8 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
             {
                 .block          { false },
                 .can_interrupt  { false },
-                .should_notify   { false },
-                .killed        { false },
+                .should_notify  { false },
+                .killed         { false },
                 .prio_base      { prio }
             }, 
             {
@@ -329,7 +329,7 @@ void task_ctx::set_exit(int n)
             }
         }
     }
-    if(exit_target) exit_target.ref<void()>()();
+    if(exit_target) exit_target.invoke<void()>();
     else handle_exit();
     __builtin_unreachable();    
 }

@@ -21,7 +21,7 @@ protocol_tcp::protocol_tcp(protocol_ipv4 *n) : abstract_protocol_handler(n), ipc
 std::type_info const& protocol_tcp::packet_type() const { return typeid(tcp_header); }
 std::type_info const& tcp_port_handler::packet_type() const { return typeid(tcp_header); }
 int tcp_port_handler::receive(abstract_packet_base& p) { if(__unlikely(!p.get_as<tcp_header>())) throw std::bad_cast(); return rx_process(reinterpret_cast<tcp_packet&>(p)); }
-sequence_map::iterator tcp_port_handler::add_rx_packet(tcp_packet& p) { return receive_packets.emplace(std::piecewise_construct, std::forward_as_tuple(p->sequence_number), std::forward_as_tuple(std::move(p))).first; }
+sequence_map::iterator tcp_port_handler::rx_add_packet(tcp_packet& p) { return receive_packets.emplace(std::piecewise_construct, std::forward_as_tuple(p->sequence_number), std::forward_as_tuple(std::move(p))).first; }
 std::streamsize tcp_session_buffer::xsputn(const char* s, size_type n)
 {
     size_type send_capacity   = __out_region.__capacity();
@@ -118,22 +118,17 @@ void tcp_transmission_timer::update()
 }
 uint32_t isn_gen::operator()(ipv4_addr localip, uint16_t localport, ipv4_addr remoteip, uint16_t remoteport) const
 {
-    std::string keystr = stringify(localip) + ":" + std::to_string(localport) + "::" + stringify(remoteip) + ":" + std::to_string(remoteport);
-    std::string hashstr = create_crypto_string(keystr, selector_crypto_salt);
+    std::string keystr          = stringify(localip) + ":" + std::to_string(localport) + "::" + stringify(remoteip) + ":" + std::to_string(remoteport);
+    std::string hashstr         = create_crypto_string(keystr, selector_crypto_salt);
     suseconds_t four_usec_ticks = (tsci.tsc_to_us(selector_clock.get())) >> 2;
     return static_cast<uint32_t>((four_usec_ticks + std::elf64_gnu_hash()(hashstr.data())) & 0xFFFFFFFFU);
 }
-tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, application_listener const& l, uint16_t port) :
+tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, tcp_application& app, uint16_t port) :
     abstract_protocol_handler   { std::addressof(tcp) },
     local_host                  { tcp },
+    application                 { app },
     local_port                  { port },
-    connection_state            { tcp_connection_state::CLOSED },
-    connection_info             {},
-    send_packets                {},
-    receive_packets             {},
-    timer                       {},
-    app                         { l },
-    data                        {}
+    connection_state            { tcp_connection_state::CLOSED }
                                 {}
 void tcp_port_handler::close() 
 {
@@ -243,7 +238,7 @@ int tcp_port_handler::rx_initial(tcp_packet& p)
         connection_info.peer_window_size                = p->window_size;
         if(p->has_data())
         {
-            sequence_map::iterator i                    = add_rx_packet(p);
+            sequence_map::iterator i                    = rx_add_packet(p);
             connection_info.initial_receive_sequence    = i->first;
             connection_info.current_receive_sequence    = i->first;
             connection_info.receive_commit_sequence     = i->first;
@@ -259,13 +254,13 @@ int tcp_port_handler::rx_initial(tcp_packet& p)
         ack_packet->fields.ack_flag                 = true;
         ack_packet->fields.syn_flag                 = true;
         ack_packet->compute_tcp_checksum();
-        if(int err = transmit_next(); __unlikely(err != 0)) return err;
+        if(int err = tx_send_next(); __unlikely(err != 0)) return err;
         connection_state                            = SYN_RECEIVED;
     }
     catch(std::bad_alloc&) { return -ENOMEM; }
     return 0;
 }
-int tcp_port_handler::transmit_next()
+int tcp_port_handler::tx_send_next()
 {
     if(!send_packets.contains(connection_info.current_send_sequence))
         return -ENOTCONN;
@@ -291,13 +286,13 @@ int tcp_port_handler::rx_establish(tcp_packet& p)
         {
             connection_info.current_receive_sequence    = connection_info.next_receive_sequence;
             connection_info.next_receive_sequence       += p->segment_len();
-            if(p->has_data()) add_rx_packet(p);
-            commit_rx();
+            if(p->has_data()) rx_add_packet(p);
+            rx_commit();
             tcp_packet& ack_packet                      = create_packet(0UZ);
             ack_packet->fields.ack_flag                 = true;
             ack_packet->fields.syn_flag                 = true;
             ack_packet->compute_tcp_checksum();
-            if(int err = transmit_next(); __unlikely(err != 0)) return err;
+            if(int err = tx_send_next(); __unlikely(err != 0)) return err;
             connection_state                            = ESTABLISHED;
         }
     }
@@ -305,7 +300,7 @@ int tcp_port_handler::rx_establish(tcp_packet& p)
     else return tx_reset(p->ack_number);
     return 0;
 }
-void tcp_port_handler::commit_rx()
+void tcp_port_handler::rx_commit()
 {
     if(connection_info.receive_commit_sequence)
     {
@@ -341,14 +336,14 @@ int tcp_port_handler::rx_accept_payload(tcp_packet& p)
     {
         if(p->has_data())
         {
-            sequence_map::iterator i = add_rx_packet(p);
+            sequence_map::iterator i = rx_add_packet(p);
             if(!connection_info.receive_commit_sequence) connection_info.receive_commit_sequence = i->first;
-            if(i->second->fields.push_flag) commit_rx();
+            if(i->second->fields.push_flag) rx_commit();
         }
         tcp_packet& ack_packet                      = create_packet(0UZ);
         ack_packet->fields.ack_flag                 = true;
         ack_packet->compute_tcp_checksum();
-        if(int err = transmit_next(); __unlikely(err != 0)) return err;
+        if(int err = tx_send_next(); __unlikely(err != 0)) return err;
     }
     catch(std::bad_alloc&) { return -ENOMEM; }
     else connection_info.last_send_sequence = compute_following_sequence(connection_info.last_send_sequence);
@@ -362,7 +357,8 @@ uint32_t tcp_port_handler::compute_following_sequence(uint32_t from) const
 }
 int tcp_port_handler::rx_begin_close(tcp_packet& p)
 {
-    // TODO
+    // TODO: notify the user that the other side has requested to close
+    connection_state = tcp_connection_state::CLOSE_WAIT;
     return 0;
 }
 int tcp_port_handler::tx_reset(uint32_t use_seq)

@@ -254,11 +254,11 @@ static addr_t __map_user_pages(addr_t start_vaddr, uintptr_t start_paddr, size_t
             if(i != 0 && curr.page_idx == 0) { pt = __get_table(curr, false, pml4); if(__unlikely(!pt)) return nullptr; }
             new(addressof(pt[curr.page_idx])) pt_entry
             { 
-                .present = true, 
-                .write = write, 
-                .user_access = true, 
-                .physical_address = phys >> 12, 
-                .execute_disable = !execute 
+                .present            = true, 
+                .write              = write, 
+                .user_access        = true, 
+                .physical_address   = phys >> 12, 
+                .execute_disable    = !execute 
             };
         }
         tlb_flush();
