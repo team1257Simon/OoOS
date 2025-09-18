@@ -124,6 +124,7 @@ struct tcp_port_handler : abstract_protocol_handler
     uint32_t compute_following_sequence(uint32_t from) const;
     void open(ipv4_addr peer, uint16_t port, tcp_connection_type local_type, tcp_connection_type remote_type);
     void close();
+    int set_await_close();
     int rx_process(tcp_packet& p);
     int rx_initial(tcp_packet& p);
     int rx_establish(tcp_packet& p);
@@ -132,8 +133,11 @@ struct tcp_port_handler : abstract_protocol_handler
     sequence_map::iterator rx_add_packet(tcp_packet& p);
     void rx_commit();
     void rx_reset();
+    int tx_ack();
     int tx_reset(uint32_t use_seq);
     int tx_send_next();
+    int tx_begin_close();
+    int tx_simultaneous_close();
 };
 struct isn_gen
 {

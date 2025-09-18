@@ -193,16 +193,30 @@ int tcp_port_handler::rx_process(tcp_packet& p)
             else return -EPROTO;
         }
     }
-    else if(connection_state == ESTABLISHED)
+    else if(p->peer_chk(connection_info))
     {
-        if(p->peer_chk(connection_info))
+        if(connection_state == ESTABLISHED)
         {
             if(p->fields.finish_flag)
                 return rx_begin_close(p);
             else return rx_accept_payload(p);
         }
+        else if(connection_state == FIN_WAIT_1)
+        {
+            if(p->fields.finish_flag)
+                return tx_simultaneous_close();
+            connection_state = FIN_WAIT_2;
+            return rx_accept_payload(p);
+        }
+        else if(connection_state == FIN_WAIT_2)
+        {
+            if(p->fields.finish_flag)
+                return set_await_close();
+            else return rx_accept_payload(p);
+        }
+        else if(connection_state == CLOSING) return set_await_close();
+        else if(connection_state == LAST_ACK) close();
     }
-    // TODO handle remaining states
     return 0;
 }
 tcp_packet& tcp_port_handler::create_packet(size_t payload_size, size_t option_size, uint16_t window_size)
@@ -340,10 +354,7 @@ int tcp_port_handler::rx_accept_payload(tcp_packet& p)
             if(!connection_info.receive_commit_sequence) connection_info.receive_commit_sequence = i->first;
             if(i->second->fields.push_flag) rx_commit();
         }
-        tcp_packet& ack_packet                      = create_packet(0UZ);
-        ack_packet->fields.ack_flag                 = true;
-        ack_packet->compute_tcp_checksum();
-        if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+        if(int err = tx_ack(); __unlikely(err != 0)) return err;
     }
     catch(std::bad_alloc&) { return -ENOMEM; }
     else connection_info.last_send_sequence = compute_following_sequence(connection_info.last_send_sequence);
@@ -359,7 +370,7 @@ int tcp_port_handler::rx_begin_close(tcp_packet& p)
 {
     // TODO: notify the user that the other side has requested to close
     connection_state = tcp_connection_state::CLOSE_WAIT;
-    return 0;
+    return rx_accept_payload(p);
 }
 int tcp_port_handler::tx_reset(uint32_t use_seq)
 {
@@ -375,6 +386,36 @@ int tcp_port_handler::tx_reset(uint32_t use_seq)
     i->second->destination_addr                 = connection_info.remote_host;
     i->second->destination_port                 = net16(connection_info.remote_port);
     if(int err = next->transmit(i->second); __unlikely(err != 0)) return err;
-    // we might need to retransmit the correct sequence...add that here if applicable
+    // TODO: we might need to retransmit the correct sequence...add that here if applicable
+    return 0;
+}
+int tcp_port_handler::tx_ack()
+{
+    tcp_packet& ack_packet                      = create_packet(0UZ);
+    ack_packet->fields.ack_flag                 = true;
+    ack_packet->compute_tcp_checksum();
+    if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+    return 0;
+}
+int tcp_port_handler::tx_begin_close()
+{
+    tcp_packet& fin_packet          = create_packet(0UZ);
+    fin_packet->fields.ack_flag     = true;
+    fin_packet->fields.finish_flag  = true;
+    fin_packet->compute_tcp_checksum();
+    if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+    connection_state = tcp_connection_state::FIN_WAIT_1;
+    return 0;
+}
+int tcp_port_handler::tx_simultaneous_close()
+{
+    if(int err = tx_ack(); __unlikely(err != 0)) return err;
+    connection_state = tcp_connection_state::CLOSING;
+    return 0;
+}
+int tcp_port_handler::set_await_close()
+{
+    // TODO: set a timer for 2 seconds and close when that expires
+    connection_state = tcp_connection_state::TIME_WAIT;
     return 0;
 }
