@@ -28,12 +28,12 @@ enum class execution_state
 };
 struct task_ctx
 {
-    task_t task_struct;                                             //  The c-style struct from task.h; gs base will point here when the task is active
-    std::vector<task_ctx*> child_tasks                      {};     //  The array in task_struct will be redirected here.
+    task_t task_struct;                                             //  The c-style struct from task.h; the GS base will point here when the task is active
+    std::vector<task_ctx*> child_tasks                      {};     //  The array in task_struct will point to this vector's data() member
     std::vector<const char*> arg_vec;                               //  Argv will be taken from this vector's data() member; argc is its size()
     std::vector<const char*> env_vec                        {};     //  Environment variables will go here
-    std::vector<std::string> dl_search_paths                {};
-    std::vector<elf64_shared_object*> attached_so_handles   {};
+    std::vector<std::string> dl_search_paths                {};     //  Cache of the dynamic linker search paths for this task's program image, if any
+    std::vector<elf64_shared_object*> attached_so_handles   {};     //  Cache of the SO handles attached to this task, if any
     addr_t entry;
     addr_t allocated_stack;
     size_t stack_allocated_size;
@@ -55,7 +55,7 @@ struct task_ctx
     std::map<int, posix_directory> opened_directories       {};
     task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum);
     task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum);
-    task_ctx(task_ctx const& that);
+    task_ctx(task_ctx const& that);         // implements vfork()
     task_ctx(task_ctx&& that);
     ~task_ctx();
     constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
@@ -79,7 +79,7 @@ struct task_ctx
     void start_task();
     void restart_task(addr_t exit_fn);
     void restart_task();
-    void set_exit(int n);
+    void set_exit(int n);                       // implements exit()
     void terminate();
     void attach_object(elf64_object* obj);
     tms get_times() const noexcept;
@@ -87,14 +87,19 @@ struct task_ctx
     void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
     void stack_push(register_t val);
     register_t stack_pop();
-    void set_signal(int sig, bool save_state);
+    void set_signal(int sig, bool save_state);  // implements raise()
     register_t end_signal();
-    bool set_fork();
-    bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);
+    bool set_fork();                            // implements fork()
+    bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);    // implements execve()
 } __align(16);
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
+// Task struct base when in ISRs. In syscalls, use current_active_task instead
+inline task_t* get_task_base() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb; }
+// Task struct base when in syscalls. In ISRs, use get_task_base instead
 inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
+// Shortcut because this gets used a lot
 inline task_ctx* active_task_context() { return current_active_task()->self; }
+// Shortcut because this also gets used a lot
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);
 extern "C"
@@ -115,10 +120,10 @@ extern "C"
     int syscall_sleep(unsigned long seconds);                                                                   // int sleep(time_t seconds);
     int syscall_execve(char* restrict name, char** restrict argv, char** restrict env);                         // int execve(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
     spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env);                       // pid_t spawn(char* restrict name, char* restrict* restrict argv, char* restrict* restrict env);
-    long syscall_sigret();                                                                                      // (only called from the signal trampoline)
     signal_handler syscall_signal(int sig, signal_handler new_handler);                                         // int (*signal(int sig, void(*new_handler)(int)))(int);
     int syscall_raise(int sig);                                                                                 // int raise(int sig);
-    void force_signal(task_ctx* task, int8_t sig);                                                              // (only called by the system on invalid syscalls or hardware exceptions)
     int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset);     // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
+    long syscall_sigret();                                                                                      // (only called from the signal trampoline)
+    void force_signal(task_ctx* task, int8_t sig);                                                              // (only called by the system on invalid syscalls or hardware exceptions)
 }
 #endif

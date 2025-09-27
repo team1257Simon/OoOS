@@ -4,7 +4,7 @@
 posix_directory::~posix_directory() { if(__owning_frame && __buffer_mapped_vaddr && __my_dir_buffer) __owning_frame->mmap_remove(__buffer_mapped_vaddr, __my_dir_buffer->buffer_size); }
 static addr_t map_dirent_buffer(uframe_tag* tag, size_t num_entries)
 {
-    if(!tag) throw std::invalid_argument("[dirent] frame tag must not be null");
+    if(!tag) throw std::invalid_argument("[COMPAT/DIRENT] frame tag must not be null");
     addr_t result = tag->mmap_add(nullptr, (num_entries + 1) * sizeof(dirent) + sizeof(directory_buffer), true, false);
     if(!result) throw std::bad_alloc();
     return result;

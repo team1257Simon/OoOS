@@ -44,7 +44,7 @@ void task_ctx::init_task_state()
         task_struct.saved_regs.rbx          = static_cast<register_t>(entry.full);
         shared_object_map::iterator ldso    = shared_object_map::get_ldso_object(ctx_filesystem);
         if(addr_t ldso_entry = ldso->entry_point(); __builtin_expect(static_cast<bool>(ldso_entry), true)) { task_struct.saved_regs.rip = ldso_entry; }
-        else { throw std::runtime_error("dynamic linker object has no entry point"); }
+        else { throw std::runtime_error("[EXEC/PRG] dynamic linker object has no entry point"); }
         attach_object(ldso.base());
     }
     else
@@ -318,7 +318,7 @@ void task_ctx::set_exit(int n)
         }
         if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle); dyn && dynamic_exit)
         {
-            if(n != 0) { xklog("D: process " + std::to_string(get_pid()) + " exited with code " + std::to_string(n)); }
+            if(n != 0) { xklog("[EXEC/PROC] D: process " + std::to_string(get_pid()) + " exited with code " + std::to_string(n)); }
             else
             {
                 task_struct.saved_regs.rdi  = reinterpret_cast<register_t>(dyn);
@@ -450,7 +450,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
         if(!local_so_map) return false;
     }
     uframe_tag* new_tag     = static_cast<uframe_tag*>(desc.frame_ptr);
-    if(!new_tag) throw std::invalid_argument("frame must not be null");
+    if(!new_tag) throw std::invalid_argument("[EXEC/COMPAT/execve] frame must not be null");
     task_struct.frame_ptr   = new_tag;
     allocated_stack         = desc.prg_stack;
     stack_allocated_size    = desc.stack_size;

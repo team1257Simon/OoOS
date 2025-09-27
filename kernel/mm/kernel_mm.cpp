@@ -584,7 +584,7 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
         if(__unlikely(!(tag = __create_tag(size, align))))
         {
             __unlock();
-            panic("allocation failed");
+            panic("[MM] allocation failed");
             debug_print_num(size);
             direct_writeln("bytes were requested");
             return nullptr;
@@ -621,7 +621,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
         }
         else
         {
-            direct_write("W: attempted to deallocate an invalid tag; check for memory corruption at or near address ");
+            direct_write("[MM] W: attempted to deallocate an invalid tag; check for memory corruption at or near address ");
             debug_print_num(ptr);
             direct_write("\n");
         }

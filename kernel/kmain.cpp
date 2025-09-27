@@ -23,6 +23,7 @@
 #include "frame_manager.hpp"
 #include "kdebug.hpp"
 #include "kernel_mm.hpp"
+#include "kernel_api.hpp"
 #include "keyboard_driver.hpp"
 #include "map"
 #include "ow-crypt.h"
@@ -551,6 +552,7 @@ extern "C"
         hpet_amd64::init_instance();
         if(pci_device_list::init_instance())
         {
+            init_api();
             if(ahci::init_instance(pci_device_list::get_instance()))
             {
                 if(hda_ahci::init_instance())

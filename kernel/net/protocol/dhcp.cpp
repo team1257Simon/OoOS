@@ -29,7 +29,7 @@ int protocol_dhcp::rebind() { return request(ipconfig.leased_addr, active_renewa
 int protocol_dhcp::receive(abstract_packet_base& p)
 {
     dhcp_packet* pkt = p.get_as<dhcp_packet>();
-    if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
+    if(__unlikely(!pkt)) return -EPROTOTYPE;
     addr_t pos = pkt->parameters;
     while(pos.ref<net8>() != 0xFFUC)
     {

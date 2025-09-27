@@ -135,7 +135,7 @@ extern "C"
             }
             catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
             catch(std::out_of_range& e)     { panic(e.what()); return -EFAULT; }
-            catch(std::bad_alloc&)          { panic("no memory for argument vectors"); return -ENOMEM; }            
+            catch(std::bad_alloc&)          { panic("[EXEC/spawn] no memory for argument vectors"); return -ENOMEM; }            
         }
         return -EAGAIN;
     }

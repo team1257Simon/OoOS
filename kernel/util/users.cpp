@@ -8,7 +8,7 @@ bool user_accounts_manager::__has_init{};
 static inline sysfs_vnode& get_global_account_info(sysfs& s);
 static addr_t alloc_sys_vpwd(size_t n) { return ::operator new(n, align_data); }
 static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx);
-static void check_is_user(task_ctx const& context) { if(!context.is_user()) throw std::invalid_argument("[account config] userspace vpwd entry call not usable in system process"); }
+static void check_is_user(task_ctx const& context) { if(!context.is_user()) throw std::invalid_argument("[UAM] userspace vpwd entry call is usable in system process"); }
 void user_info::compute_csum() { checksum = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(this), offsetof(user_info, checksum)); }
 bool user_info::verify_csum() const { return checksum == crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(this), offsetof(user_info, checksum)); }
 vpwd_entry* user_accounts_manager::__get_vpwd_entry(user_info const& user, task_ctx& context) { return __load_vpwd_data(user, std::bind(alloc_user_vpwd, std::placeholders::_1, context)); }
@@ -51,7 +51,7 @@ user_handle user_accounts_manager::get_user(uid_t uid)
 {
     std::map<uid_t, size_t>::iterator result = __uid_index_map.find(uid);
     if(result != __uid_index_map.end()) return user_handle(__table, result->second);
-    throw std::out_of_range("[account config] no user with that uid");
+    throw std::out_of_range("[UAM] no user with uid " + std::to_string(uid));
 }
 bool user_info::check_pw(std::string const& pw) const
 {
@@ -64,11 +64,11 @@ static inline sysfs_vnode& get_global_account_info(sysfs& s)
     uint32_t n          = s.find_node("accounts_meta");
     if(n) return s.open(n);
     n                   = s.mknod("accounts_meta", sysfs_object_type::GENERAL_CONFIG);
-    if(!n) throw std::runtime_error("[account config] failed to create accounts metadata object");
+    if(!n) throw std::runtime_error("[UAM] failed to create accounts metadata object");
     sysfs_vnode& result = s.open(n);
     global_info_handle inf(result);
     n                   = s.mknod("vpwd", sysfs_object_type::STRING_TABLE);
-    if(!n) throw std::runtime_error("[account config] failed to create string table object");
+    if(!n) throw std::runtime_error("[UAM] failed to create string table object");
     inf->vpwd_ino       = n;
     return result;
 }

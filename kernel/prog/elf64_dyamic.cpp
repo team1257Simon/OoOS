@@ -13,7 +13,6 @@ bool elf64_dynamic_object::load_preinit() { return true; /* stub; only applicabl
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
 addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_vaddr); }
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return resolve(phdr(dyn_segment_idx).p_vaddr); }
-size_t elf64_dynamic_object::to_image_offset(size_t offs) { for(size_t i = 0; i < ehdr().e_phnum; i++) { if(phdr(i).p_vaddr <= offs && phdr(i).p_vaddr + phdr(i).p_memsz > offs) return offs - (phdr(i).p_vaddr - phdr(i).p_offset); } return offs; }
 elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :
     elf64_object    ( start, size ),
     num_dyn_entries { 0UL },
@@ -65,6 +64,13 @@ elf64_dynamic_object::~elf64_dynamic_object()
     if(dyn_entries) dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
     if(plt_relas) free(plt_relas);
 }
+size_t elf64_dynamic_object::to_image_offset(size_t offs)
+{
+    for(size_t i = 0; i < ehdr().e_phnum; i++)
+        if(phdr(i).p_vaddr <= offs && phdr(i).p_vaddr + phdr(i).p_memsz > offs)
+            return offs - (phdr(i).p_vaddr - phdr(i).p_offset);
+    return offs; 
+}
 static bool is_dynamic_relocation(elf64_rela const& r)
 {
     elf_rel_type t = r.r_info.type;
@@ -110,9 +116,9 @@ bool elf64_dynamic_object::xload()
     // allocate the array to have enough space for all indices, but the non-load segments will be zeroed
     bool success = true;
     process_headers();
-    if(!load_segments()) { panic("object contains no loadable segments"); success = false; }
-    else if(!load_syms()) { panic("failed to load symbols"); success = false; }
-    else if(!post_load_init()) { panic("failed to initialize program image"); success = false; }
+    if(__unlikely(!load_segments())) { panic("object contains no loadable segments"); success = false; }
+    else if(__unlikely(!load_syms())) { panic("failed to load symbols"); success = false; }
+    else if(__unlikely(!post_load_init())) { panic("failed to initialize program image"); success = false; }
     // other segments and sections, if/when needed, can be handled here; free the rest up
     cleanup();
     return success;
@@ -210,7 +216,7 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 }
 bool elf64_dynamic_object::load_syms()
 {
-    if(!elf64_object::load_syms()) { panic("no symbol table present"); return false; }
+    if(__unlikely(!elf64_object::load_syms())) { panic("[EXEC/DYN] no symbol table present"); return false; }
     bool have_dyn = false;
     for(size_t n = 0; n < ehdr().e_phnum && !have_dyn; n++)
     {
@@ -224,7 +230,7 @@ bool elf64_dynamic_object::load_syms()
             dyn_segment_idx = n;
         }
     }
-    if(!have_dyn) { panic("no dynamic segment present"); return false; }
+    if(__unlikely(!have_dyn)) { panic("[EXEC/DYN] no dynamic segment present"); return false; }
     process_dt_relas();
     bool have_ht = false;
     for(size_t i = 0; i < num_dyn_entries; i++)
@@ -260,14 +266,13 @@ bool elf64_dynamic_object::load_syms()
         }
         else process_dyn_entry(i);
     }
-    if(__builtin_expect((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size), false)) { panic("mismatched init and/or fini array entries"); return false; }
-    if(have_ht) return process_got();
-    panic("Symbol hash data missing"); 
-    return false;
+    if(__unlikely((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size))) { panic("[EXEC/DYN] mismatched init and/or fini array entries"); return false; }
+    if(__unlikely(!have_ht)) { panic("[EXEC/DYN] symbol hash data missing"); return false; }
+    return process_got();
 }
 std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
-    if(__builtin_expect(!segments || !num_seg_descriptors || !symbol_index, false)) { panic("cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
+    if(__unlikely(!segments || !num_seg_descriptors || !symbol_index)) { panic("[EXEC/DYN] cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
     elf64_sym const* sym = symbol_index[symbol];
     return sym ? std::make_pair(*sym, resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
@@ -286,7 +291,7 @@ bool elf64_dynamic_object::process_got()
         got_vaddr           = got_offs;
         num_plt_relas       = rela_sz / sizeof(elf64_rela);
         plt_relas           = r_alloc.allocate(num_plt_relas);
-        if(__builtin_expect(!plt_relas, false)) { panic("failed to allocate rela array"); return false; }
+        if(__unlikely(!plt_relas)) { panic("[EXEC/DYN] failed to allocate rela array"); return false; }
         elf64_rela* rela    = img_ptr(to_image_offset(rela_offs));
         array_copy(plt_relas, rela, num_plt_relas);
         return true;

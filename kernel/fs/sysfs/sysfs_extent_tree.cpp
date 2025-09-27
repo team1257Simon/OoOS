@@ -62,7 +62,7 @@ sysfs_extent_branch& sysfs_extent_tree::__next_leaf_branch()
     }
     __overflow_root();
     uint32_t added_ext          = __managed_vnode.parent_fs.add_extent_branch();
-    if(__unlikely(!added_ext)) throw std::runtime_error("[sysfs] failed to expand extents file");
+    if(__unlikely(!added_ext)) throw std::runtime_error("[FS/SYSFS/EXTENT] failed to expand extents file");
     sysfs_extent_branch& root   = __root();
     new(std::addressof(root[1])) sysfs_extent_entry
     {
@@ -77,7 +77,7 @@ sysfs_extent_branch& sysfs_extent_tree::__next_leaf_branch()
 sysfs_extent_entry const& sysfs_extent_tree::operator[](size_t i) const
 {
     if(__unlikely(i >= __total_extent))
-        throw std::out_of_range("[sysfs] block ordinal " + std::to_string(i) + " is out of range for size " + std::to_string(__total_extent));
+        throw std::out_of_range("[FS/SYSFS/EXTENT] block ordinal " + std::to_string(i) + " is out of range for size " + std::to_string(__total_extent));
     if(!__inode().root_depth)
         return __root_first();
     return __find_from(__root(), i);
@@ -85,7 +85,7 @@ sysfs_extent_entry const& sysfs_extent_tree::operator[](size_t i) const
 void sysfs_extent_tree::push(uint16_t n_blocks)
 {
     uint32_t added_start = __managed_vnode.parent_fs.add_blocks(n_blocks);
-    if(__unlikely(!added_start)) throw std::runtime_error("[sysfs] failed to expand data file");
+    if(__unlikely(!added_start)) throw std::runtime_error("[FS/SYSFS/EXTENT] failed to expand data file");
     sysfs_inode& node = __managed_vnode.inode();
     if(!node.root_depth) 
     {

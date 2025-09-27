@@ -23,7 +23,7 @@ protocol_handler& protocol_ipv4::add_transport(ipv4_transport_protocol id, proto
 int protocol_ipv4::transmit(abstract_packet_base& p)
 {
     ipv4_standard_header* pkt = p.get_as<ipv4_standard_header>();
-    if(__unlikely(!pkt)) throw std::bad_cast();
+    if(!pkt) throw std::bad_cast();
     pkt->time_to_live = pkt->protocol_type == TCP ? client_config.time_to_live_tcp_default : client_config.time_to_live_default;
     pkt->total_length = net16(static_cast<uint16_t>(p.packet_size - sizeof(ethernet_header)));
     pkt->compute_ipv4_csum();

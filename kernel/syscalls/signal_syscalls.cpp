@@ -18,7 +18,7 @@ static int kill_all(task_ctx* caller, int sig)
 extern "C"
 {
     void force_signal(task_ctx* task, int8_t sig) { kill_one(task, sig, true); }
-    void on_invalid_syscall() { panic("(debug) invalid syscall"); force_signal(active_task_context(), 12); }
+    void on_invalid_syscall() { panic("[EXEC] D: invalid syscall"); force_signal(active_task_context(), 12); }
     long syscall_sigret()
     {
         task_ctx* task = active_task_context();

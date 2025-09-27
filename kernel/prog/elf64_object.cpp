@@ -3,21 +3,72 @@
 #include "stdlib.h"
 #include "kernel_mm.hpp"
 #include "bits/stdexcept.h"
-static std::allocator<char> ch_alloc{};
-static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
-static std::allocator<program_segment_descriptor> sd_alloc{};
-elf64_object::~elf64_object() { if(__image_start) elf_alloc.deallocate(__image_start, __image_size); if(symtab.data) free(symtab.data); if(symstrtab.data) free(symstrtab.data); if(shstrtab.data) free(shstrtab.data); }
-void elf64_object::cleanup() { if(__image_start) elf_alloc.deallocate(__image_start, __image_size); __image_start = nullptr; }
+constexpr static std::allocator<char> ch_alloc{};
+constexpr static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
+constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
 void elf64_object::release_segments() { xrelease(); }
 void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
-void elf64_object::process_headers() { for(size_t i = 0; i < ehdr().e_phnum; i++) { if(is_load(phdr(i)) && phdr(i).p_memsz) num_seg_descriptors++; } segments = sd_alloc.allocate(num_seg_descriptors); }
-bool elf64_object::validate() noexcept { if(__validated) return true; if(!__image_size) return false; if(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0) { panic("missing identifier; invalid object"); return false; } try { return (__validated = xvalidate()); } catch(std::exception& e) { panic(e.what()); return false; } }
-bool elf64_object::load() noexcept { try { if(__loaded) return true; if(!validate()) { panic("invalid executable"); return false; } __loaded = xload(); if(!__loaded) on_load_failed(); return __loaded; } catch(std::exception& e) { panic(e.what()); on_load_failed(); return false; } }
-off_t elf64_object::segment_index(size_t offset) const { for(size_t i = 0; i < num_seg_descriptors; i++) { if(static_cast<uintptr_t>(segments[i].obj_offset) <= offset && offset < static_cast<uintptr_t>(segments[i].obj_offset + segments[i].size)) return static_cast<off_t>(i); } return -1L; }
-off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
-addr_t elf64_object::resolve(uint64_t offs) const { off_t idx = segment_index(offs); if(idx < 0) return nullptr; return to_segment_ptr(offs, segments[idx]); }
-addr_t elf64_object::resolve(elf64_sym const& sym) const { return resolve(sym.st_value); }
 void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
+off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
+addr_t elf64_object::resolve(elf64_sym const& sym) const { return resolve(sym.st_value); }
+elf64_object::~elf64_object()
+{
+    if(__image_start) elf_alloc.deallocate(__image_start, __image_size);
+    if(symtab.data) free(symtab.data);
+    if(symstrtab.data) free(symstrtab.data);
+    if(shstrtab.data) free(shstrtab.data);
+}
+void elf64_object::cleanup()
+{
+    if(__image_start)
+        elf_alloc.deallocate(__image_start, __image_size);
+    __image_start = nullptr;
+}
+addr_t elf64_object::resolve(uint64_t offs) const
+{
+    off_t idx = segment_index(offs);
+    if(__unlikely(idx < 0)) return nullptr;
+    return to_segment_ptr(offs, segments[idx]);
+}
+void elf64_object::process_headers()
+{
+    for(size_t i = 0; i < ehdr().e_phnum; i++)
+        if(is_load(phdr(i)) && phdr(i).p_memsz)
+            num_seg_descriptors++;
+    segments = sd_alloc.allocate(num_seg_descriptors);
+}
+bool elf64_object::validate() noexcept
+{
+    if(__unlikely(__validated)) return true;
+    if(__unlikely(!__image_size)) return false;
+    if(__unlikely(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0)) { panic("missing identifier; invalid object"); return false; }
+    try { return (__validated = xvalidate()); }
+    catch(std::exception& e) { panic(e.what()); return false; } 
+}
+bool elf64_object::load() noexcept
+{
+    try
+    {
+        if(__unlikely(__loaded)) return true;
+        if(__unlikely(!validate())) { panic("invalid executable"); return false; }
+        __loaded = xload();
+        if(__unlikely(!__loaded)) on_load_failed();
+        return __loaded;
+    } 
+    catch(std::exception& e)
+    {
+        panic(e.what());
+        on_load_failed();
+        return false;
+    }
+}
+off_t elf64_object::segment_index(size_t offset) const
+{
+    for(size_t i = 0; i < num_seg_descriptors; i++)
+        if(static_cast<uintptr_t>(segments[i].obj_offset) <= offset && offset < static_cast<uintptr_t>(segments[i].obj_offset + segments[i].size))
+            return static_cast<off_t>(i);
+    return -1L;
+}
 elf64_object::elf64_object(addr_t start, size_t size):
     __validated         { false },
     __loaded            { false },

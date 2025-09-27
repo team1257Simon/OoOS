@@ -28,7 +28,7 @@ protocol_arp::protocol_arp(protocol_ethernet* eth) : abstract_protocol_handler(e
 int protocol_arp::receive(abstract_packet_base& p)
 {
     arpv4_packet* pkt = p.get_as<arpv4_packet>();
-    if(__builtin_expect(!pkt, false)) return -EPROTOTYPE;
+    if(__unlikely(!pkt)) return -EPROTOTYPE;
     if(pkt->src_pr) previously_resolved.insert_or_assign(pkt->src_pr, std::move(pkt->src_hw));
     if(pkt->opcode == arp_res) return 0;
     if(__unlikely(pkt->opcode != arp_req)) return -EPROTO;

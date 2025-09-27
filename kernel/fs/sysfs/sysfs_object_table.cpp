@@ -8,8 +8,8 @@ static sysfs_vnode& create_sysfs_hashtable(sysfs& parent, std::string const& nam
 {
     uint32_t table_node = parent.mknod(name, sysfs_object_type::HASH_TABLE);
     uint32_t data_node  = parent.mknod(name + "#DATA", type);
-    if(!table_node) throw std::runtime_error("[sysfs] failed to create hashtable object node");
-    if(!data_node) throw std::runtime_error("[sysfs] failed to create hashtable data object node");
+    if(!table_node) throw std::runtime_error("[FS/SYSFS/HTAB] failed to create hashtable object node");
+    if(!data_node) throw std::runtime_error("[FS/SYSFS/HTAB] failed to create hashtable data object node");
     size_t target_size  = sizeof(sysfs_hashtable_header) + buckets * sizeof(size_t) + sizeof(sysfs_hashtable_entry);
     sysfs_vnode& result = parent.open(table_node);
     if(!result.expand_to_size(target_size)) throw std::bad_alloc();
@@ -64,6 +64,6 @@ sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_next(sysfs_hashtable_ent
     sysfs_hashtable_header* hdr = header();
     size_t next_idx             = e->next_in_chain;
     if(next_idx > hdr->num_entries) 
-        throw std::out_of_range("[sysfs] hashtable chain points out of range; the table might be corrupted");
+        throw std::out_of_range("[FS/SYSFS/HTAB] hashtable chain points out of range; the table might be corrupted");
     return std::addressof(hdr->entries()[next_idx - 1]);
 }

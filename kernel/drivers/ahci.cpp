@@ -149,7 +149,12 @@ bool ahci::init(pci_config_space* ps) noexcept
                 __abar->ports[i].s_err = e;
                 barrier();
             }
-            catch(std::exception& e) { panic(e.what()); xpanic("[AHCI] skipping port " + std::to_string(i)); __devices[i] = none; }
+            catch(std::exception& e)
+            {
+                xpanic("[AHCI] skipping port " + std::to_string(i) + " due to exception: ");
+                panic(e.what());
+                __devices[i] = none;
+            }
         }
         for(int i = 0; i < 32; i++) { if(has_port(i)) { __init_irq(); return true; } }
     }
@@ -160,7 +165,7 @@ bool ahci::init(pci_config_space* ps) noexcept
 void ahci::start_port(uint8_t i)
 {
     if(i > __num_ports) throw std::out_of_range("[AHCI] port " + std::to_string(i) + " is out of range ");
-    if(!await_result([&]() -> bool { return !dword(__abar->ports[i].cmd).lo.hi.b7; /* CR */ }, max_ext_wait)) throw std::runtime_error("Port number " + std::to_string(i) + " is hung");
+    if(!await_result([&]() -> bool { return !dword(__abar->ports[i].cmd).lo.hi.b7; /* CR */ }, max_ext_wait)) throw std::runtime_error("[AHCI] port number " + std::to_string(i) + " is hung");
     barrier();
     __abar->ports[i].cmd |= hba_command_fre;
     barrier();
@@ -174,7 +179,7 @@ void ahci::stop_port(uint8_t i)
     barrier();
     __abar->ports[i].cmd &= ~hba_command_fre;
     barrier();
-    if(!await_result([&]() -> bool { return __port_ack_stop(std::addressof(__abar->ports[i])); }, max_ext_wait)) throw std::runtime_error("Port number " + std::to_string(i) + " is hung");
+    if(!await_result([&]() -> bool { return __port_ack_stop(std::addressof(__abar->ports[i])); }, max_ext_wait)) throw std::runtime_error("[AHCI] port number " + std::to_string(i) + " is hung");
 }
 void ahci::port_rebase(uint8_t idx)
 {
@@ -380,6 +385,6 @@ void ahci::p_identify(uint8_t idx, identify_data* data)
 		.command    = identify, 
 		.device     = 0UC
 	};
-    try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("[AHCI] error on port identify; attempt soft reset"); port_soft_reset(idx); }
+    try { __issue_command(idx, slot); } catch(std::exception& e) { panic(e.what()); panic("[AHCI] error on port identify; attempting soft reset"); port_soft_reset(idx); }
     await_result([&]() -> bool { return is_done(idx); });
 }

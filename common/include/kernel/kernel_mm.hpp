@@ -217,6 +217,7 @@ class kernel_memory_mgr
     addr_t __suspended_cr3;                     // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame;
     static kernel_memory_mgr* __instance;
+    friend void init_api();
     constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
         __heap_mutex                {},
         __user_mutex                {},

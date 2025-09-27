@@ -60,7 +60,7 @@ bool udp_header::verify_udp_csum() const
 int protocol_udp::transmit(abstract_packet_base& p)
 {
     udp_header* hdr = p.get_as<udp_header>();
-    if(__unlikely(!hdr)) throw std::bad_cast();
+    if(!hdr) throw std::bad_cast();
     hdr->udp_length = net16(static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_header)));
     hdr->compute_udp_csum();
     return next->transmit(p);

@@ -21,9 +21,9 @@ sysfs::sysfs(sysfs_file_ptrs const& files) :
 void sysfs::write_data(size_t st_block, const char* data, size_t n)
 {
     if(__unlikely(!st_block))
-        throw std::out_of_range("[sysfs] block number must be at least 1");
+        throw std::out_of_range("[FS/SYSFS] block number must be at least 1");
     if(__unlikely(st_block > __num_blocks()))
-        throw std::out_of_range("[sysfs] block number " + std::to_string(st_block) + " does not exist");
+        throw std::out_of_range("[FS/SYSFS] block number " + std::to_string(st_block) + " does not exist");
     --st_block;
     array_copy(__block(st_block), data, n);
     __data_file.force_write();
@@ -31,27 +31,27 @@ void sysfs::write_data(size_t st_block, const char* data, size_t n)
 void sysfs::read_data(char* out, size_t st_block, size_t n)
 {
     if(__unlikely(!st_block))
-        throw std::out_of_range("[sysfs] block number must be at least 1");
+        throw std::out_of_range("[FS/SYSFS] block number must be at least 1");
     if(__unlikely(st_block > __num_blocks()))
-        throw std::out_of_range("[sysfs] block number " + std::to_string(st_block) + " does not exist");
+        throw std::out_of_range("[FS/SYSFS] block number " + std::to_string(st_block) + " does not exist");
     --st_block;
     array_copy<char>(out, __block(st_block), n);
 }
 bool sysfs::sync()
 {
-    if(__unlikely(!__data_file.fsync())) panic("[sysfs] failed to sync data file");
-    else if(__unlikely(!__index_file.fsync())) panic("[sysfs] failed to sync index file");
-    else if(__unlikely(!__extents_file.fsync())) panic("[sysfs] failed ty sync extents file");
-    else if(__unlikely(!__directory_file.fsync())) panic("[sysfs] failed to sync directory file");
+    if(__unlikely(!__data_file.fsync())) panic("[FS/SYSFS] failed to sync data file");
+    else if(__unlikely(!__index_file.fsync())) panic("[FS/SYSFS] failed to sync index file");
+    else if(__unlikely(!__extents_file.fsync())) panic("[FS/SYSFS] failed ty sync extents file");
+    else if(__unlikely(!__directory_file.fsync())) panic("[FS/SYSFS] failed to sync directory file");
     else return true;
     return false;
 }
 sysfs_extent_branch& sysfs::get_extent_branch(size_t idx)
 {
     if(__unlikely(!idx))
-        throw std::out_of_range("[sysfs] extent branch index must be at least 1");
+        throw std::out_of_range("[FS/SYSFS] extent branch index must be at least 1");
     if(__unlikely(idx > __extents().total_branches))
-        throw std::out_of_range("[sysfs] extent branch number " + std::to_string(idx) + " does not exist");
+        throw std::out_of_range("[FS/SYSFS] extent branch number " + std::to_string(idx) + " does not exist");
     --idx;
      __extents_file.force_write();
     return addr_t(std::addressof(__extents())).plus(offsetof(sysfs_extents_file, branches) + idx * sizeof(sysfs_extent_branch)).ref<sysfs_extent_branch>();
@@ -59,9 +59,9 @@ sysfs_extent_branch& sysfs::get_extent_branch(size_t idx)
 sysfs_inode& sysfs::get_inode(size_t ino)
 {
     if(__unlikely(!ino))
-        throw std::out_of_range("[sysfs] inode index must be at least 1");
+        throw std::out_of_range("[FS/SYSFS] inode index must be at least 1");
     if(__unlikely(ino > __index().total_inodes))
-        throw std::out_of_range("[sysfs] inode number " + std::to_string(ino) + " does not exist");
+        throw std::out_of_range("[FS/SYSFS] inode number " + std::to_string(ino) + " does not exist");
     --ino;
     __index_file.force_write();
     return __index().inodes[ino];
@@ -69,9 +69,9 @@ sysfs_inode& sysfs::get_inode(size_t ino)
 sysfs_dir_entry& sysfs::get_dir_entry(size_t num)
 {
     if(__unlikely(!num))
-        throw std::out_of_range("[sysfs] directory entry index must be at least 1");
+        throw std::out_of_range("[FS/SYSFS] directory entry index must be at least 1");
     if(__unlikely(num > __dir().total_entries))
-        throw std::out_of_range("[sysfs] directory entry number " + std::to_string(num) + " does not exist");
+        throw std::out_of_range("[FS/SYSFS] directory entry number " + std::to_string(num) + " does not exist");
     --num;
     __directory_file.force_write();
     return __dir().entries[num];
@@ -136,7 +136,7 @@ sysfs_extent_branch& sysfs::extend_to_leaf(size_t from_idx, uint32_t ordinal)
 {
     if(sysfs_extent_branch& br  = get_extent_branch(from_idx); !br.depth) return br;
     uint32_t next               = add_extent_branch();
-    if(__unlikely(!next)) throw std::runtime_error("[sysfs] failed to expand extents file");
+    if(__unlikely(!next)) throw std::runtime_error("[FS/SYSFS] failed to expand extents file");
     sysfs_extent_branch& br     = get_extent_branch(from_idx);
     sysfs_extent_branch* added  = new(std::addressof(get_extent_branch(next))) sysfs_extent_branch
     {
@@ -180,7 +180,7 @@ std::pair<sysfs_extent_branch*, size_t> sysfs::next_available_extent_entry(size_
 void sysfs::dir_add_object(std::string const& name, uint32_t ino)
 {
     uint32_t eno            = add_directory_entry();
-    if(__unlikely(!eno)) throw std::runtime_error("[sysfs] failed to expand directory file");
+    if(__unlikely(!eno)) throw std::runtime_error("[FS/SYSFS] failed to expand directory file");
     std::pair<std::string, uint32_t> map_entry(name, ino);
     sysfs_dir_entry& ent    = get_dir_entry(eno);
     ent.inode_number        = ino;
@@ -200,8 +200,8 @@ void sysfs::init_blank(sysfs_backup_filenames const& bak)
     size_t needed_index     = sizeof(sysfs_index_file) - std::min(__index_file.size(), sizeof(sysfs_index_file));
     size_t needed_extents   = sizeof(sysfs_extents_file) - std::min(__extents_file.size(), sizeof(sysfs_extents_file));
     size_t needed_directory = sizeof(sysfs_directory_file) - std::min(__directory_file.size(), sizeof(sysfs_directory_file));
-    if((needed_data && __unlikely(!__data_file.grow(needed_data))) || (needed_index && __unlikely(!__index_file.grow(needed_index))) || (needed_extents && __unlikely(!__extents_file.grow(needed_extents))) || (needed_directory && __unlikely(!__directory_file.grow(needed_directory))))
-        throw std::runtime_error("[sysfs] no space on disk for storage");
+    if((needed_data && !__data_file.grow(needed_data)) || (needed_index && !__index_file.grow(needed_index)) || (needed_extents && !__extents_file.grow(needed_extents)) || (needed_directory && !__directory_file.grow(needed_directory)))
+        throw std::runtime_error("[FS/SYSFS] no space on disk for storage");
     sysfs_data_file_header* data    = new(std::addressof(__header())) sysfs_data_file_header{};
     sysfs_index_file* idx           = new(std::addressof(__index())) sysfs_index_file{};
     sysfs_extents_file* exts        = new(std::addressof(__extents())) sysfs_extents_file{};
@@ -228,7 +228,7 @@ void sysfs::init_load()
         uint32_t ino = dirfile.entries[i].inode_number;
         if(verify_dirent_csum(dirfile.entries[i]))
             __directory_map.insert(std::make_pair(std::string(dirfile.entries[i].object_name, std::strnlen(dirfile.entries[i].object_name, sizeof(sysfs_dir_entry::object_name))), ino));
-        else xklog("[sysfs] W: directory entry checksum of " + std::to_string(dirfile.entries[i].checksum, std::ext::hex) + " is incorrect; skipping");
+        else xklog("[FS/SYSFS] W: directory entry checksum of " + std::to_string(dirfile.entries[i].checksum, std::ext::hex) + " is incorrect; skipping");
     }
 }
 sysfs_vnode& sysfs::open(uint32_t ino)
@@ -236,14 +236,14 @@ sysfs_vnode& sysfs::open(uint32_t ino)
     std::unordered_map<uint32_t, sysfs_vnode>::iterator result = __opened_nodes.find(ino);
     if(result != __opened_nodes.end())
         return result->second;
-    if(__unlikely(ino > __index().total_inodes))
-        throw std::out_of_range("[sysfs] inode number " + std::to_string(ino) + " does not exist");
+    if(ino > __index().total_inodes)
+        throw std::out_of_range("[FS/SYSFS] inode number " + std::to_string(ino) + " does not exist");
     return __opened_nodes.emplace(std::piecewise_construct, std::tuple<uint32_t>(ino), std::forward_as_tuple(*this, ino)).first->second;
 }
 uint32_t sysfs::mknod(std::string const& name, sysfs_object_type type)
 {
     uint32_t result     = add_inode();
-    if(__unlikely(!result)) throw std::runtime_error("[sysfs] failed to expand index file");
+    if(!result) throw std::runtime_error("[FS/SYSFS] failed to expand index file");
     sysfs_inode& node   = get_inode(result);
     node.type           = type;
     node.checksum       = 0U;

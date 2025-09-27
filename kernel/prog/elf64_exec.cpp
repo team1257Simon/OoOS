@@ -68,10 +68,10 @@ elf64_executable::elf64_executable(elf64_executable const& that) :
                         { program_descriptor.object_handle = this; }
 bool elf64_executable::xvalidate()
 {
-    if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
-    if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit executables are not yet supported"); return false; }
-    if(ehdr().e_type != ET_EXEC) { panic("object is not an executable"); return false; }
-    if(!ehdr().e_phnum) { panic("no program headers present"); return false; }
+    if(__unlikely(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB)) { panic("not an object for the correct machine"); return false; }
+    if(__unlikely(ehdr().e_ident[elf_ident_class_idx] != EC_64)) { panic("32-bit executables are not yet supported"); return false; }
+    if(__unlikely(ehdr().e_type != ET_EXEC)) { panic("object is not an executable"); return false; }
+    if(__unlikely(!ehdr().e_phnum)) { panic("no program headers present"); return false; }
     return true;
 }
 void elf64_executable::process_headers()
@@ -94,50 +94,47 @@ void elf64_executable::process_headers()
 bool elf64_executable::load_segments()
 {
     frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent)); 
-    if(__builtin_expect(frame_tag != nullptr, true))
+    if(__unlikely(!frame_tag)) { panic("[EXEC] failed to allocate frame"); return false; }
+    size_t i = 0;
+    for(size_t n = 0; n < ehdr().e_phnum; n++)
     {
-        size_t i = 0;
-        for(size_t n = 0; n < ehdr().e_phnum; n++)
-        {
-            elf64_phdr const& h = phdr(n);
-            if(!is_load(h) || !h.p_memsz) continue;
-            addr_t addr         = segment_vaddr(n);
-            addr_t target       = addr.trunc(h.p_align);
-            size_t full_size    = h.p_memsz + (addr - target);
-            addr_t img_dat      = segment_ptr(n);
-            if(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h))) { panic("could not allocate blocks for executable"); return false; }
-            addr_t idmap = frame_tag->translate(addr);
-            array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
-            if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
-            new(std::addressof(segments[i++])) program_segment_descriptor
-            { 
-                .absolute_addr = idmap, 
-                .virtual_addr  = addr, 
-                .obj_offset    = static_cast<off_t>(h.p_offset),
-                .size		   = h.p_memsz, 
-                .seg_align     = h.p_align, 
-                .perms         = static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
-            };
-        }
-        block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
-        block_descriptor* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
-        if(__builtin_expect(!s || !t, false)) { panic("could not allocate blocks for stack/tls");  return false; }
-        frame_extent            = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
-        frame_tag->extent       = frame_extent;
-        frame_tag->mapped_max   = frame_extent;
-        new(std::addressof(program_descriptor)) elf64_program_descriptor
+        elf64_phdr const& h = phdr(n);
+        if(!is_load(h) || !h.p_memsz) continue;
+        addr_t addr         = segment_vaddr(n);
+        addr_t target       = addr.trunc(h.p_align);
+        size_t full_size    = h.p_memsz + (addr - target);
+        addr_t img_dat      = segment_ptr(n);
+        if(__unlikely(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h)))) { panic("[EXEC] failed allocate blocks for executable"); return false; }
+        addr_t idmap = frame_tag->translate(addr);
+        array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
+        if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
+        new(std::addressof(segments[i++])) program_segment_descriptor
         { 
-            .frame_ptr      = frame_tag,
-            .prg_stack      = s->virtual_start,
-            .stack_size     = s->size,
-            .prg_tls        = t->virtual_start, 
-            .tls_size       = t->size,
-            .entry          = entry,
-            .ld_path        = nullptr,
-            .ld_path_count  = 0,
-            .object_handle  = this
+            .absolute_addr = idmap, 
+            .virtual_addr  = addr, 
+            .obj_offset    = static_cast<off_t>(h.p_offset),
+            .size		   = h.p_memsz, 
+            .seg_align     = h.p_align, 
+            .perms         = static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
         };
-        return true;
     }
-    else { panic("could not allocate frame"); return false; }
+    block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
+    block_descriptor* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
+    if(__unlikely(!s || !t)) { panic("[EXEC] failed to allocate blocks for stack/tls");  return false; }
+    frame_extent            = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
+    frame_tag->extent       = frame_extent;
+    frame_tag->mapped_max   = frame_extent;
+    new(std::addressof(program_descriptor)) elf64_program_descriptor
+    { 
+        .frame_ptr      = frame_tag,
+        .prg_stack      = s->virtual_start,
+        .stack_size     = s->size,
+        .prg_tls        = t->virtual_start, 
+        .tls_size       = t->size,
+        .entry          = entry,
+        .ld_path        = nullptr,
+        .ld_path_count  = 0,
+        .object_handle  = this
+    };
+    return true;
 }

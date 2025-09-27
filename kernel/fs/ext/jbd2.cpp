@@ -94,13 +94,13 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 bool jbd2::ddread()
 {
     disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-    if(!parent_fs->read_block(full_blk)) { panic("failed to read journal"); return false; }
+    if(!parent_fs->read_block(full_blk)) { panic("[FS/EXT4/JBD2] failed to read journal"); return false; }
     return true;
 }
 bool jbd2::ddwrite()
 {
     disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-    if(!parent_fs->write_block(full_blk)) { panic("failed to write journal"); return false; }
+    if(!parent_fs->write_block(full_blk)) { panic("[FS/EXT4/JBD2] failed to write journal"); return false; }
     return true;
 }
 bool jbd2::clear_log()
@@ -132,12 +132,12 @@ bool jbd2::initialize()
     if(!init_extents()) return false;
     size_t bs           = parent_fs->block_size();
     size_t s_req        = extents.total_extent * bs;
-    if(!__grow_buffer(s_req)) { panic("failed to allocate buffer"); return false; }
+    if(!__grow_buffer(s_req)) { panic("[FS/EXT4/JBD2] failed to allocate buffer"); return false; }
     update_block_ptrs();
     if(!ddread()) return false;
     __bumpc(bs);
     sb                  = reinterpret_cast<jbd2_superblock*>(block_data[0].data_buffer);
-    if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
+    if(sb->header.magic != jbd2_magic) { uintptr_t num = sb->header.magic; std::string errstr = "[FS/EXT4/JBD2] superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num)); panic(errstr.c_str()); return false; }
     uuid_checksum       = crc32c(sb->uuid);
     return (has_init    = read_log());
 }
@@ -258,7 +258,7 @@ log_read_state jbd2::read_log_transaction()
     active_transactions.emplace(std::move(txn_blocks), id);
     return VALID;
 skip_txn:
-    klog("W: skipping corrupted transaction");
+    klog("[FS/EXT4/JBD2] W: skipping corrupted transaction");
     __setc(end);
     return SKIP;
 }

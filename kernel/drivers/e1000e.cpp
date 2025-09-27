@@ -251,7 +251,7 @@ bool e1000e::configure_mac_phy(dev_status& st)
     ctl->set_link_up    = true;
     write_dma(e1000_ctrl, ctl);
     if(await_result([&]() -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
-    panic("[e1000e] device hung on link-up signal");
+    panic("[NET/e1000e] device hung on link-up signal");
     return false;
 }
 bool e1000e::configure_tx(dev_status& st)

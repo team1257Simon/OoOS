@@ -28,13 +28,14 @@ elf64_executable* prog_manager::add(file_node* exec_file, size_t stack_sz, size_
         panic("read failed"); 
         return nullptr;
     }
-    if(elf64_executable* result = __add(start, size, stack_sz, tls_sz); !__unlikely(!result)) return result;
-    else
+    elf64_executable* result = __add(start, size, stack_sz, tls_sz);
+    if(__unlikely(!result))
     {
         elf_alloc.deallocate(start, size);
         panic("load failed");
         return nullptr;
     }
+    return result;
 }
 void prog_manager::remove(elf64_executable* e)
 {

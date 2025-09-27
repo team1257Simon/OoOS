@@ -75,7 +75,7 @@ static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* 
     {
         uint32_t calculated = compute_inode_csum(csum, parent, inode);
         if(calculated != checkval) 
-            throw std::runtime_error("inode checksum " + std::to_string(checkval, std::ext::hex) + " does not match calculated " + std::to_string(calculated, std::ext::hex));
+            throw std::runtime_error("[FS/EXT4] inode checksum " + std::to_string(checkval, std::ext::hex) + " does not match calculated " + std::to_string(calculated, std::ext::hex));
     }
     return csum;
 }
@@ -184,7 +184,7 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
         array_zero(__get_ptr(ccap), bs * blk->chain_len);
         return bs * blk->chain_len; 
     }
-    panic("no blocks");
+    panic("[FS/EXT4] no blocks");
     return 0;
 }
 bool ext_file_vnode::initialize()
@@ -195,7 +195,7 @@ bool ext_file_vnode::initialize()
     {
         if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
         update_block_ptrs();
-        for(disk_block& db : block_data) { if(!parent_fs->read_block(db)) { panic("block read failed"); return false; } }
+        for(disk_block& db : block_data) { if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; } }
         qword timestamp                 = sys_time(nullptr);
         on_disk_node->accessed_time     = timestamp.lo;
         on_disk_node->access_time_hi    = (timestamp.hi.hi.hi >> 4) & 0x03;
@@ -208,9 +208,9 @@ bool ext_directory_vnode::initialize()
     if(__initialized) return true;
     size_t bs = parent_fs->block_size();
     if(__builtin_expect(!init_extents(), false)) return false;
-    if(__builtin_expect(!__grow_buffer(extents.total_extent * bs), false)) { panic("failed to allocate buffer for directory data"); return false; }
+    if(__builtin_expect(!__grow_buffer(extents.total_extent * bs), false)) { panic("[FS/EXT4] failed to allocate buffer for directory data"); return false; }
     update_block_ptrs();
-    for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_block(block_data[i])) { std::string errstr = "read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
+    for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_block(block_data[i])) { std::string errstr = "[FS/EXT4] read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
     return (__initialized = __parse_entries(bs));
 }
 tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& checked_elements)
@@ -218,7 +218,7 @@ tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& 
     std::string separator = parent_fs->get_path_separator();
     if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic) 
     {
-        if(!vn->initialize()) throw std::runtime_error("symlink inode read failed");
+        if(!vn->initialize()) throw std::runtime_error("[FS/EXT4] symlink inode read failed");
         size_t n        = vn->count();
         tnode* result   = nullptr;
         char* buff      = ch_alloc.allocate(n);
@@ -230,14 +230,14 @@ tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<fs_node*>& 
             else result = parent_fs->resolve_symlink(nullptr, buff, checked_elements);  // absolute
         }
         ch_alloc.deallocate(buff, n);
-        if(!result) throw std::runtime_error("bad symlink");
+        if(!result) throw std::runtime_error("[FS/EXT4] bad symlink");
         return result;
     }
     char* link_str = vn->on_disk_node->block_info.link_target;
     std::string xlink_str(link_str, std::strnlen(link_str, 60));
     if(tnode* result = parent_fs->resolve_symlink(std::strncmp(link_str, separator.c_str(), separator.size()) ? this : nullptr, xlink_str, checked_elements))
         return result;
-    throw std::runtime_error("bad symlink");
+    throw std::runtime_error("[FS/EXT4] bad symlink");
 }
 tnode* ext_directory_vnode::find(std::string const& name) 
 {
@@ -258,7 +258,7 @@ tnode* ext_directory_vnode::find_r(std::string const& name, std::set<fs_node*>& 
         if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
         {
             if(checked_elements.contains(i->ptr()))
-                throw std::overflow_error("circular link");
+                throw std::overflow_error("[FS/EXT4] circular link");
             checked_elements.insert(i->ptr());
             return __resolve_link_r(vn, checked_elements); // symlink
         }

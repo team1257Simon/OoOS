@@ -166,7 +166,7 @@ __isrcall void scheduler::on_tick()
             front_sleeper           = __sleepers.next();
         } 
     }
-    task_t* cur = get_gs_base<task_t>();
+    task_t* cur = get_task_base();
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
 }
@@ -196,26 +196,27 @@ bool scheduler::init()
     }));
     interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword) 
     {
-        if(idx < 0x20UC && get_gs_base<task_t>() != std::addressof(kproc))
-            if(task_ctx* task = get_gs_base<task_ctx>(); task->is_user())
+        if(idx < 0x20UC && get_task_base() != std::addressof(kproc))
+            if(task_ctx* task = get_task_base()->self; task->is_user())
                 task_signal_code = exception_signals[idx];
     });
     return true;
 }
 task_t* scheduler::yield()
 {
-    task_t* cur         = active_task_context()->header();
+    task_t* cur         = current_active_task();
     cur->quantum_rem    = 0;
     task_t* next        = select_next();
-    if(!next) { next = cur; }
-    else { asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory"); }
-    next->quantum_rem = next->quantum_val;
+    if(!next) next      = cur; 
+    else asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory"); 
+    next->quantum_rem   = next->quantum_val;
     return next;
 }
 task_t* scheduler::fallthrough_yield()
 {
     if(__total_tasks == 0) return nullptr;
-    task_t* next = select_next();
-    if(next) next->quantum_rem = next->quantum_val;
+    task_t* next            = select_next();
+    if(next)
+        next->quantum_rem   = next->quantum_val;
     return next;
 }

@@ -15,6 +15,7 @@
 //      The dynamic linker exports wrappers to calls 26-28 (dlopen, dlclose, dlsym) and 33 (dladdr) which perform some additional bookkeeping as well.
 //      Other libdl functions, such as dlinfo, are implemented in the dynamic linker using information from system call 31 (dlmap).
 //      System call 35 (sigret) is used by the signal trampoline to resume execution and will return an EINVAL error if used without such context.
+//      Syscalls 49, 50, and 51 access the user data in sysfs and return them in a format consistent with the unix /etc/pwd file entries.
     .code64
     .data
     .global                         do_syscall
@@ -68,6 +69,9 @@
     .extern                         syscall_vfork
     .extern                         syscall_spawn
     .extern                         syscall_pipe
+    .extern                         syscall_getvpwent
+    .extern                         syscall_getvpwuid
+    .extern                         syscall_getvpwnam
     .extern                         on_invalid_syscall
     .global                         syscall_vec
     .extern                         kernel_cr3
@@ -120,8 +124,11 @@
     .type   syscall_mknodat,        @function
     .type   syscall_vfork,          @function
     .type   syscall_spawn,          @function
-    .type   on_invalid_syscall,     @function
     .type   syscall_pipe,           @function
+    .type   syscall_getvpwent,      @function
+    .type   syscall_getvpwuid,      @function
+    .type   syscall_getvpwuid,      @function
+    .type   on_invalid_syscall,     @function
     .type   syscall_vec,            @object
     .type   syscv_end,              @object
     .type   kernel_cr3,             @object
