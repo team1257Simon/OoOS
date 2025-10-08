@@ -45,7 +45,6 @@ namespace std
         template<typename ... Args> concept __zero_size = sizeof...(Args) == 0;
         template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
     }
-
     template<typename T>
     struct allocator : __base_allocator<T>
     {

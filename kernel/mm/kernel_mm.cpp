@@ -527,14 +527,14 @@ void kernel_memory_mgr::map_to_current_frame(std::vector<block_descriptor> const
     for(block_descriptor const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute); }
     __unlock();
 }
-block_tag* kframe_tag::__create_tag(size_t size, size_t align)
+block_tag* kframe_tag::create_tag(size_t size, size_t align)
 {
     size_t actual_size = std::max(size + bt_offset, align) + align;
     addr_t allocated   = kmm.allocate_kernel_block(actual_size);
     if(__unlikely(!allocated)) return nullptr;
     return new(allocated) block_tag(region_size_for(actual_size), size, -1, add_align_size(allocated, align));
 }
-block_tag* kframe_tag::__melt_left(block_tag* tag) noexcept
+block_tag* kframe_tag::melt_left(block_tag* tag) noexcept
 {
     block_tag* left     = tag->left_split;
     left->block_size    += tag->block_size;
@@ -543,7 +543,7 @@ block_tag* kframe_tag::__melt_left(block_tag* tag) noexcept
     remove_block(tag);
     return left;
 }
-block_tag* kframe_tag::__melt_right(block_tag* tag) noexcept
+block_tag* kframe_tag::melt_right(block_tag* tag) noexcept
 {
     block_tag* right    = tag->right_split;
     remove_block(right);
@@ -551,6 +551,13 @@ block_tag* kframe_tag::__melt_right(block_tag* tag) noexcept
     tag->right_split    = right->right_split;
     if(right->right_split) right->right_split->left_split = tag;
     return tag;
+}
+block_tag* kframe_tag::find_tag(addr_t ptr, size_t align)
+{
+    block_tag* tag = ptr - bt_offset;
+    for(size_t i = 0; tag && (tag->magic != block_magic) && (!align || i < align); i++) tag = addr_t(tag).minus(1L);
+    if(tag && tag->magic != block_magic) tag = ptr.page_aligned();
+    return tag&& tag->magic == block_magic ? tag : nullptr;
 }
 void kframe_tag::remove_block(block_tag* blk)
 {
@@ -561,9 +568,8 @@ void kframe_tag::remove_block(block_tag* blk)
     blk->previous = nullptr;
     blk->index    = -1L;
 }
-addr_t kframe_tag::allocate(size_t size, size_t align)
+block_tag* kframe_tag::get_for_allocation(size_t size, size_t align)
 {
-    if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
     __lock();
     int64_t    idx = calculate_block_index(size);
     block_tag* tag = nullptr;
@@ -581,7 +587,7 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
     }
     if(!tag)
     {
-        if(__unlikely(!(tag = __create_tag(size, align))))
+        if(__unlikely(!(tag = create_tag(size, align))))
         {
             __unlock();
             panic("[MM] allocation failed");
@@ -593,6 +599,28 @@ addr_t kframe_tag::allocate(size_t size, size_t align)
     }
     if(tag->available_size() >= min_block_size + bt_offset) insert_block(tag->split(), -1);
     __unlock();
+    return tag;
+}
+void kframe_tag::release_block(block_tag* tag)
+{
+    tag->held_size   = 0;
+    tag->align_bytes = 0;
+    while(tag->left_split && (tag->left_split->index >= 0))   tag   = melt_left(tag);
+    while(tag->right_split && (tag->right_split->index >= 0)) tag   = melt_right(tag);
+    int64_t idx = calculate_block_index(tag->allocated_size());
+    if(!tag->left_split && !tag->right_split && complete_regions[idx] >= region_cap) kmm.deallocate_block(tag, tag->block_size, false);
+    else
+    {
+        if(!tag->left_split && !tag->right_split) 
+            complete_regions[idx]++;
+        insert_block(tag, idx);
+    }
+}
+addr_t kframe_tag::allocate(size_t size, size_t align)
+{
+    if(__unlikely(!size)) { direct_writeln("W: size zero alloc"); return nullptr; }
+    block_tag* tag = get_for_allocation(size, align);
+    if(__unlikely(!tag)) return nullptr;
     return tag->actual_start();
 }
 void kframe_tag::deallocate(addr_t ptr, size_t align)
@@ -600,31 +628,14 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
     if(ptr)
     {
         __lock();
-        block_tag* tag = ptr - bt_offset;
-        for(size_t i = 0; tag && (tag->magic != block_magic) && (!align || i < align); i++) tag = addr_t(tag).minus(1L);
-        if(tag && tag->magic != block_magic) tag = ptr.page_aligned(); 
-        if(__builtin_expect(tag && tag->magic == block_magic, true))
-        {
-            tag->held_size   = 0;
-            tag->align_bytes = 0;
-            while(tag->left_split && (tag->left_split->index >= 0))   tag   = __melt_left(tag);
-            while(tag->right_split && (tag->right_split->index >= 0)) tag   = __melt_right(tag);
-            int64_t idx = calculate_block_index(tag->allocated_size());
-            if(!tag->left_split && !tag->right_split && complete_regions[idx] >= region_cap)
-            {
-                kmm.deallocate_block(tag, tag->block_size, false);
-                __unlock();
-                return;
-            }
-            if(!tag->left_split && !tag->right_split) complete_regions[idx]++;
-            insert_block(tag, idx);
-        }
-        else
+        block_tag* tag = find_tag(ptr, align);
+        if(__unlikely(!tag))
         {
             direct_write("[MM] W: attempted to deallocate an invalid tag; check for memory corruption at or near address ");
             debug_print_num(ptr);
             direct_write("\n");
         }
+        else release_block(tag);
         __unlock();
     }
 }

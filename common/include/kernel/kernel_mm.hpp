@@ -81,10 +81,14 @@ public:
     void deallocate(addr_t ptr, size_t align = 0UL);
     addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL);
     addr_t array_allocate(size_t num, size_t size);
+protected:
+    block_tag* create_tag(size_t size, size_t align);
+    block_tag* melt_left(block_tag* tag) noexcept;
+    block_tag* melt_right(block_tag* tag) noexcept;
+    block_tag* find_tag(addr_t ptr, size_t align);
+    block_tag* get_for_allocation(size_t size, size_t align);
+    void release_block(block_tag* tag);
 private:
-    block_tag* __create_tag(size_t size, size_t align);
-    block_tag* __melt_left(block_tag* tag) noexcept;
-    block_tag* __melt_right(block_tag* tag) noexcept;
     void __lock();
     void __unlock();
 } __pack;
