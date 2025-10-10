@@ -221,7 +221,6 @@ class kernel_memory_mgr
     addr_t __suspended_cr3;                     // Saved cr3 value for a frame suspended in order to access kernel paging structures
     uframe_tag* __active_frame;
     static kernel_memory_mgr* __instance;
-    friend void init_api();
     constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
         __heap_mutex                {},
         __user_mutex                {},
@@ -264,6 +263,7 @@ public:
     uintptr_t frame_translate(addr_t addr);
     addr_t allocate_kernel_block(size_t sz);
     addr_t allocate_dma(size_t sz, bool prefetchable);
+    void deallocate_dma(addr_t addr, size_t sz);
     addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
     addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);
     addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);

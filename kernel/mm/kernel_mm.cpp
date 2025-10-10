@@ -11,7 +11,7 @@ extern "C"
     extern kframe_tag    __end;
     extern unsigned char __code;
     extern unsigned char sigtramp_code[4096];
-    kframe_tag*          __kernel_frame_tag;
+    extern kframe_tag*   __kernel_frame_tag;
     paging_table         kernel_cr3;
 }
 constexpr ptrdiff_t  bt_offset          = sizeof(block_tag);
@@ -167,6 +167,8 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
             .present          = true,
             .write            = true,
             .user_access      = false,
+            .write_thru       = false,
+            .cache_disable    = false,
             .global           = global,
             .physical_address = phys >> 12,
         };
@@ -313,6 +315,17 @@ void kernel_memory_mgr::deallocate_block(addr_t const& base, size_t sz, bool sho
     {
         __release_region(sz, phys);
         if(should_unmap && __active_frame) __unmap_pages(base, div_round_up(sz, page_size), pml4);
+        __watermark = std::min(phys, __watermark);
+    }
+    __unlock();
+}
+void kernel_memory_mgr::deallocate_dma(addr_t addr, size_t sz)
+{
+    __lock();
+    if(addr)
+    {
+        uintptr_t phys = __map_kernel_pages(addr, div_round_up(sz, page_size), true);
+        __release_region(sz, phys);
         __watermark = std::min(phys, __watermark);
     }
     __unlock();

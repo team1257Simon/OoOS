@@ -1,22 +1,30 @@
 #ifndef __KMOD
 #define __KMOD
 #include "kernel_api.hpp"
-namespace ooos_kmod
+namespace ooos_kernel_module
 {
-    using namespace std::ext;
     class abstract_module_base
     {
         kernel_api* __api_hooks;
         kmod_mm* __allocated_mm;
-    protected:
-        virtual void init() = 0;
-        virtual void exit() = 0;
+    public:    
+        virtual void initialize() = 0;
+        virtual void finalize() = 0;
+        virtual ~abstract_module_base();
         inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
         inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
         inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
-    public:
-        void on_load();
+        inline void log(const char* msg) { __api_hooks->log(this, msg); }
+        template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { __api_hooks->on_irq(irq, static_cast<isr_actor&&>(isr_actor(static_cast<FT&&>(handler), __allocated_mm)), this); }
+#ifdef __KERNEL__
+        void create_mm();
+        void destroy_mm();
+        void unregister_actors();
+        void register_kframe(register_kframe_fn cb);
+        void link_api(kernel_api* kapi);
+        void on_load(kernel_api* kapi, register_kframe_fn frame_register_cb);
         void on_unload();
+#endif
     };
 }
 #endif

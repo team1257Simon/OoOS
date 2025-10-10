@@ -60,14 +60,14 @@ namespace std
             constexpr static bool __is_local_store = __is_locally_storable::value;
             constexpr static FT* __get_pointer(__data_store const& data) { if constexpr(__is_local_store) return addressof(const_cast<FT&>(data.__access<FT>())); else return data.__access<FT*>(); }
         public:
-            template<typename F2> constexpr static void __init_fn(__data_store& dest, F2&& src) noexcept(__and_<__is_locally_storable, is_nothrow_constructible<F2, F2>>::value) { __create_wrapper(dest, forward<F2>(src), __is_locally_storable{}); }
+            template<typename F2> constexpr static void __init_fn(__data_store& dest, F2&& src) noexcept(__and_<__is_locally_storable, is_nothrow_constructible<FT, F2>>::value) { __create_wrapper(dest, forward<F2>(src), __is_locally_storable{}); }
             template<typename F2> constexpr static bool __not_empty(F2* f2) noexcept { return f2 != nullptr; }
             template<typename R, typename C, typename ... Args> constexpr static bool __not_empty(member_fn<R, C, Args...> mf) noexcept { return mf != nullptr; }
             template<typename F2> constexpr static bool __not_empty(function<F2> const& f2) noexcept { return static_cast<bool>(f2); }
             template<typename T> constexpr static bool __not_empty(T const&) noexcept { return true; }
             __isrcall static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op)
             {
-                switch (op)
+                switch(op)
                 {
                 case __get_functor_ptr:
                     dest.__access<FT*>() = __get_pointer(src);

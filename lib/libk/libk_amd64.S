@@ -9,7 +9,9 @@
     .global memchr    
     .global __errno
     .global __rdseed
-    .global get_flags    
+    .global get_flags  
+    .global setjmp
+    .global longjmp  
     .type   memcmp,     @function
     .type   memcpy,     @function
     .type   memset,     @function
@@ -17,6 +19,8 @@
     .type   __errno,    @function
     .type   __rdseed,   @function
     .type   get_flags,  @function
+    .type   setjmp,     @function
+    .type   longjmp,    @function
 //   This sort of feels hacky, since we shaved off every possible byte using conditional set and conditional move in addition to the string instruction.
 //   I don't particularly mind, though, since it ends up being another stupidly short routine.
 memcmp:
@@ -201,7 +205,34 @@ get_flags:
     pushfq
     popq        %rax
     ret
-    .size     get_flags, .-get_flags 
+    .size     get_flags, .-get_flags
+// setjmp and longjmp taken from newlib, under the same license as in the legal.md
+setjmp:
+    movq %rbx, 0(%rdi)
+    movq %rbp, 8(%rdi)
+    movq %r12, 16(%rdi)
+    movq %r13, 24(%rdi)
+    movq %r14, 32(%rdi)
+    movq %r15, 40(%rdi)
+    leaq 8(%rsp), %rax
+    movq %rax, 48(%rdi)
+    movq (%rsp), %rax
+    movq %rax, 56(%rdi)
+    movq $0, %rax
+    ret
+    .size setjmp, .-setjmp
+longjmp:
+    movq %rsi, %rax
+    movq 8(%rdi), %rbp
+    movq 48(%rdi), %rsp
+    pushq 56(%rdi)
+    movq 0(%rdi), %rbx
+    movq 16(%rdi), %r12
+    movq 24(%rdi), %r13
+    movq 32(%rdi), %r14
+    movq 40(%rdi), %r15
+    ret
+    .size longjmp, .-longjmp
     .data
 	.global	  __atexit_guard
     .type     __atexit_guard, @object
