@@ -12,6 +12,18 @@ extern "C"
 #define constexpr inline
 #endif
 typedef struct spinlock_t { volatile bool : 8; } __pack *mutex_t;
+typedef struct __jmp_buf
+{
+    uint64_t rax;
+    uint64_t rbx;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t rbp;
+    uint64_t rsp;
+    uint64_t rip;
+} jmp_buf[1];
 typedef const spinlock_t* cmutex_t;
 constexpr bool acquire(mutex_t m) { return __atomic_test_and_set(m, __ATOMIC_SEQ_CST); }
 constexpr void release(mutex_t m) { __atomic_clear(m, __ATOMIC_SEQ_CST); }
@@ -28,6 +40,8 @@ uint64_t sys_time(uint64_t* tm_target);
 paging_table get_kernel_cr3();
 uint32_t crc32c_x86_3way(uint32_t, const uint8_t*, size_t);
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = 0);
+extern int setjmp(jmp_buf jb);
+extern void longjmp(jmp_buf jb, int status);
 #ifdef __cplusplus
 }
 void kfx_save();

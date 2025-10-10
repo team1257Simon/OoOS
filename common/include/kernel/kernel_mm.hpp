@@ -92,6 +92,16 @@ private:
     void __lock();
     void __unlock();
 } __pack;
+struct kframe_exports
+{
+    typedef addr_t (kframe_tag::*alloc_fn)(size_t, size_t);
+    typedef void (kframe_tag::*dealloc_fn)(addr_t, size_t);
+    typedef addr_t (kframe_tag::*realloc_fn)(addr_t, size_t, size_t);
+    alloc_fn allocate;
+    alloc_fn array_allocate;
+    dealloc_fn deallocate;
+    realloc_fn reallocate;
+};
 struct block_descriptor
 {
     addr_t physical_start;

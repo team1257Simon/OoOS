@@ -2,9 +2,11 @@ AS := $(TARGET_HOSTED)-gcc
 CXX := $(TARGET_HOSTED)-g++
 AR := $(TARGET_HOSTED)-ar
 CC := $(TARGET_HOSTED)-gcc
+LD := $(TARGET_HOSTED)-gcc
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32
 CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++23 -nostdinc++
 CCFLAGS := $(CFLAGS) -std=gnu23
+LDFLAGS := -r -flinker-output=rel -nostdlib
 ARFLAGS := -rcs
 OUT_A := $(OUTDIR)/libk.a
 OBJDIR := $(OBJ_BASE_DIR)/libk
@@ -27,7 +29,8 @@ $(OBJDIR) $(OSUBDIRS) $(ASMT_DIR) $(ASUBDIRS):
 $(OUT_A): $(OBJECTS)
 	@mkdir -p $(PROJECT_DIR)/common/include/asm-generated
 	$(PROJECT_DIR)/headergen/build/headergen > $(PROJECT_DIR)/common/include/asm-generated/asm-defs.inc
-	$(AR) $(ARFLAGS) $@ $(OBJECTS)
+	$(LD) $(LDFLAGS) $(OBJECTS) -o $(OBJDIR)/libk_rel.o
+	$(AR) $(ARFLAGS) $@ $(OBJDIR)/libk_rel.o
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.S

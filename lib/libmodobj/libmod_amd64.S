@@ -1,6 +1,7 @@
-//   libk_amd64.S
+//   libmos_amd64.S
 //   Contains some extremely basic libc functions for x86-64 using low-level optimizations.
 //   Also implements some low-level functions, such as hardware rng reads.
+//   Some of these symbols are marked as weak because modules might link against different libraries.
     .code64
     .section    .text
     .global memcmp
@@ -8,19 +9,25 @@
     .global memset
     .global memchr    
     .global __errno
-    .global __rdseed
-    .global get_flags  
+    .weak   __rdseed
+    .weak   get_flags
+    .weak   getenv
+    .weak   abort  
+    .weak   __cxa_pure_virtual
     .global setjmp
     .global longjmp  
-    .type   memcmp,     @function
-    .type   memcpy,     @function
-    .type   memset,     @function
-    .type   memchr,     @function 
-    .type   __errno,    @function
-    .type   __rdseed,   @function
-    .type   get_flags,  @function
-    .type   setjmp,     @function
-    .type   longjmp,    @function
+    .type   memcmp,             @function
+    .type   memcpy,             @function
+    .type   memset,             @function
+    .type   memchr,             @function 
+    .type   __errno,            @function
+    .type   __rdseed,           @function
+    .type   get_flags,          @function
+    .type   getenv,             @function
+    .type   abort,              @function
+    .type   __cxa_pure_virtual, @function
+    .type   setjmp,             @function
+    .type   longjmp,            @function
 //   This sort of feels hacky, since we shaved off every possible byte using conditional set and conditional move in addition to the string instruction.
 //   I don't particularly mind, though, since it ends up being another stupidly short routine.
 memcmp:
@@ -206,6 +213,19 @@ get_flags:
     popq        %rax
     ret
     .size     get_flags, .-get_flags
+// for now this will just always return null
+getenv:
+    xorq        %rax,   %rax
+    ret
+    .size     getenv,   .-getenv
+// for now this will raise a debug exception
+abort:
+    int $1
+    .size     abort,    .-abort
+// for now this will raise an undefined opcode exception
+__cxa_pure_virtual:
+    ud2
+    .size     __cxa_pure_virtual,   .-__cxa_pure_virtual
 // setjmp and longjmp taken from newlib, under the same license as in the legal.md
 setjmp:
     movq        %rbx,       0(%rdi)
@@ -234,12 +254,17 @@ longjmp:
     ret
     .size       longjmp,    .-longjmp
     .data
-	.global	  __atexit_guard
+	.weak	  __atexit_guard
+    .weak     _impure_ptr
     .type     __atexit_guard, @object
+    .type     _impure_ptr,    @object
+	.type	  errno,		  @object
 __atexit_guard:
     .byte     0
     .size     __atexit_guard, 1
+_impure_ptr:
+    .quad     0
+    .size     _impure_ptr,    8
 errno:
 	.long	  0
 	.size	  errno,		  4
-	.type	  errno,		  @object
