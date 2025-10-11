@@ -138,41 +138,6 @@ namespace std
 	extension u32string to_u32string(unsigned int value, ext::nphex_t);
 	extension u32string to_u32string(unsigned long value, ext::nphex_t);
 	extension u32string to_u32string(unsigned long long value, ext::nphex_t);
-#ifdef INST_STR
-#define STR_EXTERN_IMPL
-#else
-#define STR_EXTERN_IMPL extern
-#endif
-STR_EXTERN_IMPL template class basic_string<char>;
-// STR_EXTERN_IMPL template class basic_string<wchar_t>;
-// STR_EXTERN_IMPL template class basic_string<char8_t>;
-// STR_EXTERN_IMPL template class basic_string<char16_t>;
-// STR_EXTERN_IMPL template class basic_string<char32_t>;
-STR_EXTERN_IMPL template std::string operator+(std::string const&, std::string const&);
-STR_EXTERN_IMPL template std::string operator+(std::string const&, const char*);
-STR_EXTERN_IMPL template std::string operator+(const char*, std::string const&);
-STR_EXTERN_IMPL template std::string operator+(std::string const&, char);
-STR_EXTERN_IMPL template std::string operator+(char, std::string const&);
-// STR_EXTERN_IMPL template std::wstring operator+(std::wstring const&, std::wstring const&);
-// STR_EXTERN_IMPL template std::wstring operator+(std::wstring const&, const wchar_t*);
-// STR_EXTERN_IMPL template std::wstring operator+(const wchar_t*, std::wstring const&);
-// STR_EXTERN_IMPL template std::wstring operator+(std::wstring const&, wchar_t);
-// STR_EXTERN_IMPL template std::wstring operator+(wchar_t, std::wstring const&);
-// STR_EXTERN_IMPL template std::u8string operator+(std::u8string const&, std::u8string const&);
-// STR_EXTERN_IMPL template std::u8string operator+(std::u8string const&, const char8_t*);
-// STR_EXTERN_IMPL template std::u8string operator+(const char8_t*, std::u8string const&);
-// STR_EXTERN_IMPL template std::u8string operator+(std::u8string const&, char8_t);
-// STR_EXTERN_IMPL template std::u8string operator+(char8_t, std::u8string const&);
-// STR_EXTERN_IMPL template std::u16string operator+(std::u16string const&, std::u16string const&);
-// STR_EXTERN_IMPL template std::u16string operator+(std::u16string const&, const char16_t*);
-// STR_EXTERN_IMPL template std::u16string operator+(const char16_t*, std::u16string const&);
-// STR_EXTERN_IMPL template std::u16string operator+(std::u16string const&, char16_t);
-// STR_EXTERN_IMPL template std::u16string operator+(char16_t, std::u16string const&);
-// STR_EXTERN_IMPL template std::u32string operator+(std::u32string const&, std::u32string const&);
-// STR_EXTERN_IMPL template std::u32string operator+(std::u32string const&, const char32_t*);
-// STR_EXTERN_IMPL template std::u32string operator+(const char32_t*, std::u32string const&);
-// STR_EXTERN_IMPL template std::u32string operator+(std::u32string const&, char32_t);
-// STR_EXTERN_IMPL template std::u32string operator+(char32_t, std::u32string const&);
 }
 void xklog(std::string const& str);
 #endif

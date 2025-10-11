@@ -2,23 +2,29 @@
 #include "stdexcept"
 namespace ooos_kernel_module
 {
-    void abstract_module_base::create_mm() { if(__api_hooks) { __allocated_mm = __api_hooks->create_mm(); if(!__allocated_mm) throw std::bad_alloc(); } }
-    void abstract_module_base::destroy_mm() { if(__allocated_mm) __api_hooks->destroy_mm(__allocated_mm); }
-    void abstract_module_base::unregister_actors() { if(__api_hooks) __api_hooks->remove_actors(this); }
-    void abstract_module_base::register_kframe(register_kframe_fn frame_cb) { if(__allocated_mm) __allocated_mm->register_as_frame(frame_cb); }
-    void abstract_module_base::link_api(kernel_api* kapi) { __api_hooks = kapi; }
-    abstract_module_base::~abstract_module_base() = default;
-    void abstract_module_base::on_load(kernel_api* kapi, register_kframe_fn frame_cb)
+    void module_init(abstract_module_base* mod) { if(mod) mod->initialize(); }
+    bool module_pre_setup(abstract_module_base* mod, kframe_tag** frame_ptr, kframe_exports* ptrs, void (*fini_fn)())
     {
-        link_api(kapi);
-        create_mm();
-        register_kframe(frame_cb);
-        initialize();
+        if(mod && frame_ptr && ptrs)
+        {
+            mod->__api_hooks = get_api_instance();
+            mod->__allocated_mm = mod->__api_hooks->create_mm();
+            if(__unlikely(!mod->__allocated_mm)) return false;
+            *frame_ptr = mod->__allocated_mm->get_frame();
+            init_memory_fns(ptrs);
+            mod->__fini_fn = fini_fn;
+            return true;
+        }
+        return false;
     }
-    void abstract_module_base::on_unload()
+    void module_takedown(abstract_module_base* mod)
     {
-        finalize();
-        unregister_actors();
-        destroy_mm();
+        if(mod && mod->__api_hooks)
+        {
+            mod->finalize();
+            if(mod->__fini_fn) (*mod->__fini_fn)();
+            mod->__api_hooks->remove_actors(mod);
+            if(mod->__allocated_mm) mod->__api_hooks->destroy_mm(mod->__allocated_mm);
+        }
     }
 }

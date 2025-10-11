@@ -1,6 +1,5 @@
 #include "kernel_api.hpp"
 #include "isr_table.hpp"
-#include "kernel_mm.hpp"
 #include "unordered_map"
 #include "stdexcept"
 namespace ooos_kernel_module
@@ -45,7 +44,7 @@ namespace ooos_kernel_module
         spinlock_t mod_mutex{};
         virtual void* mem_allocate(size_t size, size_t align) override;
         virtual void mem_release(void* block, size_t align) override;
-        virtual void register_as_frame(register_kframe_fn callback) override;
+        virtual kframe_tag* get_frame() override { return this; }
         virtual ~kmod_mm_impl();
         kmod_mm_impl();
     };
@@ -66,7 +65,6 @@ namespace ooos_kernel_module
         virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { at_index(irq, *actors_by_index).insert_or_assign(owner, std::move(handler)); }
     } __api_impl{};
     kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm), first_managed_block(nullptr) {}
-    void kmod_mm_impl::register_as_frame(register_kframe_fn callback) { (*callback)(static_cast<kframe_tag*>(this)); }
     void* kmod_mm_impl::mem_allocate(size_t size, size_t align)
     {
         block_tag* tag = get_for_allocation(size ? size : 1UL, align);
@@ -108,5 +106,15 @@ namespace ooos_kernel_module
         }
     }
     void init_api() { __api_impl.mm = std::addressof(kmm); __api_impl.pci = pci_device_list::get_instance(); __api_impl.actors_by_index = new(__api_impl.actors_by_index_data) ooos_kernel_module::actor_by_index_map(16UL); }
-    ooos_kernel_module::kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
+    kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
+    void init_memory_fns(kframe_exports* ptrs)
+    {
+        new(ptrs) kframe_exports
+        {
+            .allocate       = &kframe_tag::allocate,
+            .array_allocate = &kframe_tag::array_allocate,
+            .deallocate     = &kframe_tag::deallocate,
+            .reallocate     = &kframe_tag::reallocate
+        };
+    }
 }

@@ -20,3 +20,4 @@ clean:
 asmtest:
 	cd libk && $(MAKE) asmtest
 	cd ld-ooos && $(MAKE) asmtest
+	cd libmodobj && $(MAKE) asmtest

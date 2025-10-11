@@ -34,7 +34,7 @@ export SYSROOT
 export SYS_LIB
 export LIB_GCC
 export IMAGE_FILE_DIR
-SUBDIRS = headergen lib boot kernel test
+SUBDIRS = headergen lib modules boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)
 EMUFLAGS := -rtc base=utc -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=$(OVMF)/OVMF_VARS.fd,readonly=on\

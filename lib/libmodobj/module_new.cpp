@@ -5,15 +5,30 @@
 #include "atomic"
 extern "C"
 {
-    attribute(section(".data.modframe")) kframe_tag* __module_frame_tag{};
-    attribute(section(".data.modframe_hooks")) kframe_exports __frame_functions{};
+    extern kframe_tag* __module_frame_tag;
+    extern kframe_exports __frame_functions;
     void* malloc(size_t count) { return ((__module_frame_tag)->*(__frame_functions.allocate))(count, 0UL); }
     void* memalign(size_t align, size_t count) { return ((__module_frame_tag)->*(__frame_functions.allocate))(count, align); }
     void free(void* ptr) { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, 0UL); }
     void* calloc(size_t count, size_t s) { return ((__module_frame_tag)->*(__frame_functions.array_allocate))(count, s); }
     void* realloc(void* ptr, size_t count) { return ((__module_frame_tag)->*(__frame_functions.reallocate))(ptr, count, 0UL); }
 }
-#pragma GCC visibility push(hidden)
+[[nodiscard]] attribute(weak) void* operator new(std::size_t count) { if(void* ptr = ((__module_frame_tag)->*(__frame_functions.allocate))(count, 0UL)) return ptr; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return ((__module_frame_tag)->*(__frame_functions.allocate))(count, 0UL); }
+[[nodiscard]] attribute(weak) void* operator new[](std::size_t count) { if(void* ptr = ((__module_frame_tag)->*(__frame_functions.allocate))(count, 0UL)) return ptr; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return ((__module_frame_tag)->*(__frame_functions.allocate))(count, 0UL); }
+[[nodiscard]] attribute(weak) void* operator new(std::size_t count, std::align_val_t al) { if(void* ptr = ((__module_frame_tag)->*(__frame_functions.allocate))(count, static_cast<size_t>(al))) return ptr; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return ((__module_frame_tag)->*(__frame_functions.allocate))(count, static_cast<size_t>(al)); }
+[[nodiscard]] attribute(weak) void* operator new[](std::size_t count, std::align_val_t al) { if(void* ptr = ((__module_frame_tag)->*(__frame_functions.allocate))(count, static_cast<size_t>(al))) return ptr; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return ((__module_frame_tag)->*(__frame_functions.allocate))(count, static_cast<size_t>(al)); }
+[[nodiscard]] attribute(weak) void* operator new(std::size_t count, std::nothrow_t const&) noexcept { try { return operator new(count); } catch(std::bad_alloc& e) { return nullptr; } }
+[[nodiscard]] attribute(weak) void* operator new[](std::size_t count, std::nothrow_t const&) noexcept { try { return operator new[](count); } catch(std::bad_alloc& e) { return nullptr; } }
+[[nodiscard]] attribute(weak) void* operator new(std::size_t count, std::align_val_t al, std::nothrow_t const&) noexcept { try { return operator new(count); } catch(std::bad_alloc& e) { return nullptr; } }
+[[nodiscard]] attribute(weak) void* operator new[](std::size_t count, std::align_val_t al, std::nothrow_t const&) noexcept { try { return operator new[](count); } catch(std::bad_alloc& e) { return nullptr; } }
+attribute(weak) void operator delete(void* ptr) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, 0UL); }
+attribute(weak) void operator delete[](void* ptr) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, 0UL); }
+attribute(weak) void operator delete(void* ptr, std::size_t) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, 0UL); }
+attribute(weak) void operator delete[](void* ptr, std::size_t) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, 0UL); }
+attribute(weak) void operator delete(void* ptr, std::align_val_t al) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, static_cast<size_t>(al)); }
+attribute(weak) void operator delete[](void* ptr, std::align_val_t al) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, static_cast<size_t>(al)); }
+attribute(weak) void operator delete(void* ptr, std::size_t, std::align_val_t al) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, static_cast<size_t>(al)); }
+attribute(weak) void operator delete[](void* ptr, std::size_t, std::align_val_t al) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, static_cast<size_t>(al)); }
 namespace std
 {
     attribute(weak) exception::exception() noexcept {}
@@ -27,5 +42,7 @@ namespace std
     attribute(weak) bad_alloc& bad_alloc::operator=(bad_alloc const&) noexcept { return *this; }
     attribute(weak) const char*           bad_alloc::what() const noexcept { return "std::bad_alloc"; }
     void* __detail::__aligned_reallocate(void* ptr, size_t count, size_t align) { if(!count) return nullptr; if(void* result = ((__module_frame_tag)->*(__frame_functions.reallocate))(ptr, count, align)) return result; else if(std::new_handler h = std::get_new_handler()) h(); else throw std::bad_alloc{}; return ((__module_frame_tag)->*(__frame_functions.reallocate))(ptr, count, align); }
+    atomic<new_handler> __l_handler;
+    new_handler set_new_handler(new_handler handler) { return __l_handler.exchange(handler); }
+    new_handler get_new_handler() { return __l_handler.load(); }
 }
-#pragma GCC visibility pop

@@ -1,5 +1,4 @@
 #pragma GCC visibility push(hidden)
-#define INST_STR
 #include "ext/dynamic_streambuf.hpp"
 #include "kernel/libk_decls.h"
 #include "stdarg.h"
@@ -243,7 +242,7 @@ namespace std
             int dp          = 0, sign = 0;
             char* rve       = nullptr;
             char* result    = __dtoa(double(f), 2, digits, &dp, &sign, &rve);
-            if(__unlikely(!result)) { return "ERROR"; }
+            if(__unlikely(!result || !(rve >= result))) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -254,7 +253,7 @@ namespace std
             int dp          = 0, sign = 0;
             char* rve       = nullptr;
             char* result    = __dtoa(d, 0, digits, &dp, &sign, &rve);
-            if(__unlikely(!result)) { return "ERROR"; }
+            if(__unlikely(!result || !(rve >= result))) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -265,7 +264,7 @@ namespace std
             int dp          = 0, sign = 0;
             char* rve       = nullptr;
             char* result    = __ldtoa(&ld, 1, digits, &dp, &sign, &rve);
-            if(__unlikely(!result)) { return "ERROR"; }
+            if(__unlikely(!result || !(rve >= result))) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
@@ -276,7 +275,7 @@ namespace std
             int dp          = 0, sign = 0;
             char* rve       = nullptr;
             char* result    = __hdtoa(double(f), __char_encode<char>::digits, digits, &dp, &sign, &rve);
-            if(__unlikely(!result)) { return "ERROR"; }
+            if(__unlikely(!result || !(rve >= result))) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -287,7 +286,7 @@ namespace std
             int dp          = 0, sign = 0;
             char* rve       = nullptr;
             char* result    = __hdtoa(d, __char_encode<char>::digits, digits, &dp, &sign, &rve);
-            if(__unlikely(!result)) { return "ERROR"; }
+            if(__unlikely(!result || !(rve >= result))) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != 9999) str.insert(str.cbegin() + dp, '.');
@@ -298,7 +297,7 @@ namespace std
             int dp          = 0, sign = 0;
             char* rve       = nullptr;
             char* result    = __hldtoa(ld, __char_encode<char>::digits, digits, &dp, &sign, &rve);
-            if(__unlikely(!result)) { return "ERROR"; }
+            if(__unlikely(!result || !(rve >= result))) { return "ERROR"; }
             std::string str(result, rve);
             if(sign) str.insert(str.cbegin(), '-');
             if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
@@ -340,131 +339,33 @@ namespace std
             return result;
         }
     }
-    string to_string(int value) { return __impl::__ntos_conv<int, char>::__to_string(value); }
-    string to_string(long value) { return __impl::__ntos_conv<long, char>::__to_string(value); }
-    string to_string(long long value) { return __impl::__ntos_conv<long long, char>::__to_string(value); }
-    string to_string(unsigned int value) { return __impl::__ntos_conv<unsigned int, char>::__to_string(value); }
-    string to_string(unsigned long value) { return __impl::__ntos_conv<unsigned long, char>::__to_string(value); }
-    string to_string(unsigned long long value) { return __impl::__ntos_conv<unsigned long long, char>::__to_string(value); }
-    string to_string(void* ptr) { return __impl::__ntos_conv<uintptr_t, char>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
-    string to_string(float value) { return __impl::__fptocs_conv(value, 6); }
-    string to_string(double value) { return __impl::__fptocs_conv(value, 10); }
-    string to_string(long double value) { return __impl::__fptocs_conv(value, 256); }
-    string to_string(bool value) { return value ? "true" : "false"; }
-    wstring to_wstring(int value) { return __impl::__ntos_conv<int, wchar_t>::__to_string(value); }
-	wstring to_wstring(long value) { return __impl::__ntos_conv<long, wchar_t>::__to_string(value); }
-	wstring to_wstring(long long value) { return __impl::__ntos_conv<long long, wchar_t>::__to_string(value); }
-	wstring to_wstring(unsigned int value) { return __impl::__ntos_conv<unsigned int, wchar_t>::__to_string(value); }
-	wstring to_wstring(unsigned long value) { return __impl::__ntos_conv<unsigned long, wchar_t>::__to_string(value); }
-	wstring to_wstring(unsigned long long value) { return __impl::__ntos_conv<unsigned long long, wchar_t>::__to_string(value); }
-	wstring to_wstring(void* ptr) { return __impl::__ntos_conv<uintptr_t, wchar_t>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
-    wstring to_wstring(float value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
-    wstring to_wstring(double value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
-    wstring to_wstring(long double value) { return __impl::__cvt_digits<wchar_t>(to_string(value)); }
-    wstring to_wstring(bool value) { return value ? L"true" : L"false"; }
-    u8string to_u8string(int value) { return __impl::__ntos_conv<int, char8_t>::__to_string(value); }
-	u8string to_u8string(long value) { return __impl::__ntos_conv<long, char8_t>::__to_string(value); }
-	u8string to_u8string(long long value) { return __impl::__ntos_conv<long long, char8_t>::__to_string(value); }
-	u8string to_u8string(unsigned int value) { return __impl::__ntos_conv<unsigned int, char8_t>::__to_string(value); }
-	u8string to_u8string(unsigned long value) { return __impl::__ntos_conv<unsigned long, char8_t>::__to_string(value); }
-	u8string to_u8string(unsigned long long value) { return __impl::__ntos_conv<unsigned long long, char8_t>::__to_string(value); }
-	u8string to_u8string(void* ptr) { return __impl::__ntos_conv<uintptr_t, char8_t>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
-    u8string to_u8string(float value) { return __impl::__cvt_digits<char8_t>(to_string(value)); }
-    u8string to_u8string(double value) { return __impl::__cvt_digits<char8_t>(to_string(value)); }
-    u8string to_u8string(long double value) { return __impl::__cvt_digits<char8_t>(to_string(value));; }
-    u8string to_u8string(bool value) { return value ? u8"true" : u8"false"; }
-    u16string to_u16string(int value) { return __impl::__ntos_conv<int, char16_t>::__to_string(value); }
-	u16string to_u16string(long value) { return __impl::__ntos_conv<long, char16_t>::__to_string(value); }
-	u16string to_u16string(long long value) { return __impl::__ntos_conv<long long, char16_t>::__to_string(value); }
-	u16string to_u16string(unsigned int value) { return __impl::__ntos_conv<unsigned int, char16_t>::__to_string(value); }
-	u16string to_u16string(unsigned long value) { return __impl::__ntos_conv<unsigned long, char16_t>::__to_string(value); }
-	u16string to_u16string(unsigned long long value) { return __impl::__ntos_conv<unsigned long long, char16_t>::__to_string(value); }
-	u16string to_u16string(void* ptr) { return __impl::__ntos_conv<uintptr_t, char16_t>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
-    u16string to_u16string(float value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
-    u16string to_u16string(double value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
-    u16string to_u16string(long double value) { return __impl::__cvt_digits<char16_t>(to_string(value)); }
-    u16string to_u16string(bool value) { return value ? u"true" : u"false"; }
-    u32string to_u32string(int value) { return __impl::__ntos_conv<int, char32_t>::__to_string(value); }
-	u32string to_u32string(long value) { return __impl::__ntos_conv<long, char32_t>::__to_string(value); }
-	u32string to_u32string(long long value) { return __impl::__ntos_conv<long long, char32_t>::__to_string(value); }
-	u32string to_u32string(unsigned int value) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_string(value); }
-	u32string to_u32string(unsigned long value) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_string(value); }
-	u32string to_u32string(unsigned long long value) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_string(value); }
-	u32string to_u32string(void* ptr) { return __impl::__ntos_conv<uintptr_t, char32_t>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
-    u32string to_u32string(float value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
-    u32string to_u32string(double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
-    u32string to_u32string(long double value) { return __impl::__cvt_digits<char32_t>(to_string(value)); }
-    u32string to_u32string(bool value) { return value ? U"true" : U"false"; }
-    string to_string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char>::__to_hex_string(value); }
-    string to_string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char>::__to_hex_string(value); }
-    string to_string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char>::__to_hex_string(value); }
-    string to_string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char>::__to_hex_string(value); }
-    string to_string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char>::__to_hex_string(value); }
-    string to_string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char>::__to_hex_string(value); }
-    wstring to_wstring(int value, ext::hex_t) { return __impl::__ntos_conv<int, wchar_t>::__to_hex_string(value); }
-	wstring to_wstring(long value, ext::hex_t) { return __impl::__ntos_conv<long, wchar_t>::__to_hex_string(value); }
-	wstring to_wstring(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, wchar_t>::__to_hex_string(value); }
-	wstring to_wstring(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, wchar_t>::__to_hex_string(value); }
-	wstring to_wstring(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, wchar_t>::__to_hex_string(value); }
-	wstring to_wstring(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, wchar_t>::__to_hex_string(value); }
-    u8string to_u8string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char8_t>::__to_hex_string(value); }
-	u8string to_u8string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char8_t>::__to_hex_string(value); }
-	u8string to_u8string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char8_t>::__to_hex_string(value); }
-	u8string to_u8string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char8_t>::__to_hex_string(value); }
-	u8string to_u8string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char8_t>::__to_hex_string(value); }
-	u8string to_u8string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char8_t>::__to_hex_string(value); }
-    u16string to_u16string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char16_t>::__to_hex_string(value); }
-	u16string to_u16string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char16_t>::__to_hex_string(value); }
-	u16string to_u16string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char16_t>::__to_hex_string(value); }
-	u16string to_u16string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char16_t>::__to_hex_string(value); }
-	u16string to_u16string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char16_t>::__to_hex_string(value); }
-	u16string to_u16string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char16_t>::__to_hex_string(value); }
-    u32string to_u32string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char32_t>::__to_hex_string(value); }
-	u32string to_u32string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char32_t>::__to_hex_string(value); }
-	u32string to_u32string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char32_t>::__to_hex_string(value); }
-	u32string to_u32string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_hex_string(value); }
-	u32string to_u32string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_hex_string(value); }
-	u32string to_u32string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_hex_string(value); }
-    string to_string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char>::__to_bare_hex_string(value); }
-    string to_string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char>::__to_bare_hex_string(value); }
-    string to_string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char>::__to_bare_hex_string(value); }
-    string to_string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char>::__to_bare_hex_string(value); }
-    string to_string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char>::__to_bare_hex_string(value); }
-    string to_string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char>::__to_bare_hex_string(value); }
-    wstring to_wstring(int value, ext::nphex_t) { return __impl::__ntos_conv<int, wchar_t>::__to_bare_hex_string(value); }
-	wstring to_wstring(long value, ext::nphex_t) { return __impl::__ntos_conv<long, wchar_t>::__to_bare_hex_string(value); }
-	wstring to_wstring(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, wchar_t>::__to_bare_hex_string(value); }
-	wstring to_wstring(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, wchar_t>::__to_bare_hex_string(value); }
-	wstring to_wstring(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, wchar_t>::__to_bare_hex_string(value); }
-	wstring to_wstring(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, wchar_t>::__to_bare_hex_string(value); }
-    u8string to_u8string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char8_t>::__to_bare_hex_string(value); }
-	u8string to_u8string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char8_t>::__to_bare_hex_string(value); }
-	u8string to_u8string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char8_t>::__to_bare_hex_string(value); }
-	u8string to_u8string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char8_t>::__to_bare_hex_string(value); }
-	u8string to_u8string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char8_t>::__to_bare_hex_string(value); }
-	u8string to_u8string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char8_t>::__to_bare_hex_string(value); }
-    u16string to_u16string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char16_t>::__to_bare_hex_string(value); }
-	u16string to_u16string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char16_t>::__to_bare_hex_string(value); }
-	u16string to_u16string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char16_t>::__to_bare_hex_string(value); }
-	u16string to_u16string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char16_t>::__to_bare_hex_string(value); }
-	u16string to_u16string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char16_t>::__to_bare_hex_string(value); }
-	u16string to_u16string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char16_t>::__to_bare_hex_string(value); }
-    u32string to_u32string(int value, ext::nphex_t) { return __impl::__ntos_conv<int, char32_t>::__to_bare_hex_string(value); }
-	u32string to_u32string(long value, ext::nphex_t) { return __impl::__ntos_conv<long, char32_t>::__to_bare_hex_string(value); }
-	u32string to_u32string(long long value, ext::nphex_t) { return __impl::__ntos_conv<long long, char32_t>::__to_bare_hex_string(value); }
-	u32string to_u32string(unsigned int value, ext::nphex_t) { return __impl::__ntos_conv<unsigned int, char32_t>::__to_bare_hex_string(value); }
-	u32string to_u32string(unsigned long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long, char32_t>::__to_bare_hex_string(value); }
-	u32string to_u32string(unsigned long long value, ext::nphex_t) { return __impl::__ntos_conv<unsigned long long, char32_t>::__to_bare_hex_string(value); }
+    inline string to_string(int value) { return __impl::__ntos_conv<int, char>::__to_string(value); }
+    inline string to_string(long value) { return __impl::__ntos_conv<long, char>::__to_string(value); }
+    inline string to_string(long long value) { return __impl::__ntos_conv<long long, char>::__to_string(value); }
+    inline string to_string(unsigned int value) { return __impl::__ntos_conv<unsigned int, char>::__to_string(value); }
+    inline string to_string(unsigned long value) { return __impl::__ntos_conv<unsigned long, char>::__to_string(value); }
+    inline string to_string(unsigned long long value) { return __impl::__ntos_conv<unsigned long long, char>::__to_string(value); }
+    inline string to_string(void* ptr) { return __impl::__ntos_conv<uintptr_t, char>::__to_hex_string(std::bit_cast<uintptr_t>(ptr)); }
+    inline string to_string(float value) { return __impl::__fptocs_conv(value, 6); }
+    inline string to_string(double value) { return __impl::__fptocs_conv(value, 10); }
+    inline string to_string(long double value) { return __impl::__fptocs_conv(value, 256); }
+    inline string to_string(bool value) { return value ? "true" : "false"; }
+    inline string to_string(int value, ext::hex_t) { return __impl::__ntos_conv<int, char>::__to_hex_string(value); }
+    inline string to_string(long value, ext::hex_t) { return __impl::__ntos_conv<long, char>::__to_hex_string(value); }
+    inline string to_string(long long value, ext::hex_t) { return __impl::__ntos_conv<long long, char>::__to_hex_string(value); }
+    inline string to_string(unsigned int value, ext::hex_t) { return __impl::__ntos_conv<unsigned int, char>::__to_hex_string(value); }
+    inline string to_string(unsigned long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long, char>::__to_hex_string(value); }
+    inline string to_string(unsigned long long value, ext::hex_t) { return __impl::__ntos_conv<unsigned long long, char>::__to_hex_string(value); }
     namespace ext
     {
-        std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }
-        std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
-        std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
-        std::string fcvth(float f, int ndigits) { return std::__impl::__fptohs_conv(f, ndigits); }
-        std::string fcvthd(double d, int ndigits) { return std::__impl::__fptohs_conv(d, ndigits); }
-        std::string fcvthl(long double ld, int ndigits) { return std::__impl::__fptohs_conv(ld, ndigits); }
-        std::string to_upper(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__toupper(str[i])); } return result; }
-        std::string to_lower(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__tolower(str[i])); } return result; }
+        inline std::string fcvt(float f, int ndigits) { return std::__impl::__fptocs_conv(f, ndigits); }
+        inline std::string fcvtd(double d, int ndigits) { return std::__impl::__fptocs_conv(d, ndigits); }
+        inline std::string fcvtl(long double ld, int ndigits) { return std::__impl::__fptocs_conv(ld, ndigits); }
+        inline std::string fcvth(float f, int ndigits) { return std::__impl::__fptohs_conv(f, ndigits); }
+        inline std::string fcvthd(double d, int ndigits) { return std::__impl::__fptohs_conv(d, ndigits); }
+        inline std::string fcvthl(long double ld, int ndigits) { return std::__impl::__fptohs_conv(ld, ndigits); }
+        inline std::string to_upper(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__toupper(str[i])); } return result; }
+        inline std::string to_lower(std::string const& str) { std::string result(str.size(), str.get_allocator()); for(size_t i = 0; i < str.size(); i++) { result.append(__impl::__tolower(str[i])); } return result; }
     }
 }
 #pragma GCC visibility pop
@@ -537,18 +438,17 @@ extern "C"
 constexpr const char errstr[] = "[SPECIFIER ERROR]";
 static int stderr_fd_placeholder = 1;
 static int stdout_stdin_placeholder = 0;
-extern std::basic_streambuf<char>* get_kstio_stream();
 size_t __arg_insert_ptr(void* ptr, std::basic_streambuf<char>* stream) { std::string str = std::to_string(ptr); return stream->sputn(str.c_str(), str.size()); }
 template<std::floating_point FT> std::string fcvtg(FT ft, size_t ndigit);
 template<std::floating_point FT> std::string fcvtg(FT ft, size_t ndigit, std::ext::hex_t);
-template<> std::string fcvtg(float f, size_t ndigit) { return std::ext::fcvt(f, ndigit); }
-template<> std::string fcvtg(double d, size_t ndigit) { return std::ext::fcvtd(d, ndigit); }
-template<> std::string fcvtg(long double ld, size_t ndigit) { return std::ext::fcvtl(ld, ndigit); }
-template<> std::string fcvtg(float f, size_t ndigit, std::ext::hex_t) { return std::ext::fcvth(f, ndigit); }
-template<> std::string fcvtg(double d, size_t ndigit, std::ext::hex_t) { return std::ext::fcvthd(d, ndigit); }
-template<> std::string fcvtg(long double ld, size_t ndigit, std::ext::hex_t) { return std::ext::fcvthl(ld, ndigit); }
+template<> inline std::string fcvtg(float f, size_t ndigit) { return std::ext::fcvt(f, ndigit); }
+template<> inline std::string fcvtg(double d, size_t ndigit) { return std::ext::fcvtd(d, ndigit); }
+template<> inline std::string fcvtg(long double ld, size_t ndigit) { return std::ext::fcvtl(ld, ndigit); }
+template<> inline std::string fcvtg(float f, size_t ndigit, std::ext::hex_t) { return std::ext::fcvth(f, ndigit); }
+template<> inline std::string fcvtg(double d, size_t ndigit, std::ext::hex_t) { return std::ext::fcvthd(d, ndigit); }
+template<> inline std::string fcvtg(long double ld, size_t ndigit, std::ext::hex_t) { return std::ext::fcvthl(ld, ndigit); }
 template<std::integral IT>
-size_t __arg_insert_dec(IT i, std::basic_streambuf<char>* stream, size_t minwid, bool zeropad, bool left, bool sign)
+inline size_t __arg_insert_dec(IT i, std::basic_streambuf<char>* stream, size_t minwid, bool zeropad, bool left, bool sign)
 {
     std::string str = std::to_string(i);
     if(i > 0 && sign) str.insert(str.begin(), '+');
@@ -561,7 +461,7 @@ size_t __arg_insert_dec(IT i, std::basic_streambuf<char>* stream, size_t minwid,
     return stream->sputn(str.c_str(), str.size());
 }
 template<std::integral IT>
-size_t __arg_insert_hex(IT i, std::basic_streambuf<char>* stream, size_t minwid, bool zeropad, bool left, bool caps, bool pref)
+inline size_t __arg_insert_hex(IT i, std::basic_streambuf<char>* stream, size_t minwid, bool zeropad, bool left, bool caps, bool pref)
 {
     std::string str = std::to_string(i, std::ext::hex);
     if(!pref) str.erase(str.begin(), str.begin() + 2);
@@ -576,7 +476,7 @@ size_t __arg_insert_hex(IT i, std::basic_streambuf<char>* stream, size_t minwid,
     return stream->sputn(lower.c_str(), lower.size());
 }
 template<std::floating_point FT>
-size_t __arg_insert_fp(FT f, std::basic_streambuf<char>* stream, size_t minwid, unsigned int precision, bool zeropad, bool left, bool sign)
+inline size_t __arg_insert_fp(FT f, std::basic_streambuf<char>* stream, size_t minwid, unsigned int precision, bool zeropad, bool left, bool sign)
 {
     std::string str = fcvtg(f, precision);
     if(f > 0 && sign) str.insert(str.begin(), '+');
@@ -589,7 +489,7 @@ size_t __arg_insert_fp(FT f, std::basic_streambuf<char>* stream, size_t minwid, 
     return stream->sputn(str.c_str(), str.size());
 }
 template<std::floating_point FT>
-size_t __arg_insert_fpx(FT f, std::basic_streambuf<char>* stream, size_t minwid, unsigned int precision, bool zeropad, bool left, bool caps, bool pref)
+inline size_t __arg_insert_fpx(FT f, std::basic_streambuf<char>* stream, size_t minwid, unsigned int precision, bool zeropad, bool left, bool caps, bool pref)
 {
     std::string str = fcvtg(f, precision, std::ext::hex);
     if(pref) str.insert(str.begin(), std::move(std::string("0x")));
@@ -603,7 +503,7 @@ size_t __arg_insert_fpx(FT f, std::basic_streambuf<char>* stream, size_t minwid,
     std::string lower = std::ext::to_lower(str);
     return stream->sputn(lower.c_str(), lower.size());
 }
-size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_list args)
+inline size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_list args)
 {
     size_t n = std::strlen(fmt);
     typedef const char* cstr;
@@ -770,9 +670,12 @@ extern "C"
     FILE* stdin     = std::addressof(stdout_stdin_placeholder);
     FILE* stdout    = std::addressof(stdout_stdin_placeholder);
     FILE* stderr    = std::addressof(stderr_fd_placeholder);
+    // The buffers used for the fprintf implementations here currently lead nowhere.
+    // TODO: tie in the kernel logging somehow when possible
     size_t kvfprintf(FILE* fd, const char* fmt, va_list args)
     {
-        std::basic_streambuf<char>* stream = get_kstio_stream();
+        std::ext::dynamic_streambuf<char> db;
+        std::basic_streambuf<char>* stream = &db;
         if(*fd) stream->sputn("[!]", 3);
         return __kvfprintf_impl(stream, fmt, args);
     }
@@ -801,19 +704,22 @@ extern "C"
     }
     int kfputc(int ch, FILE* fd)
     {
-        std::basic_streambuf<char>* stream = get_kstio_stream();
+        std::ext::dynamic_streambuf<char> db;
+        std::basic_streambuf<char>* stream = &db;
         char actual = static_cast<char>(ch);
         return stream->sputc(actual);
     }
     int kfputs(const char* restrict str, FILE* restrict fd)
     {
-        std::basic_streambuf<char>* stream = get_kstio_stream();
+        std::ext::dynamic_streambuf<char> db;
+        std::basic_streambuf<char>* stream = &db;
         std::streamsize result = stream->sputn(str, std::strlen(str));
         return result > 0 ? 0 : -1;
     }
     size_t kfwrite(const void* restrict buffer, size_t size, size_t count, FILE* restrict fd)
     {
-        std::basic_streambuf<char>* stream = get_kstio_stream();
+        std::ext::dynamic_streambuf<char> db;
+        std::basic_streambuf<char>* stream = &db;
         size_t total = size * count;
         return stream->sputn(static_cast<const char*>(buffer), total);
     }

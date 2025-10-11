@@ -1,4 +1,3 @@
-#define INST_STR
 #include "kernel/libk_decls.h"
 #include "string"
 #include "string.h"

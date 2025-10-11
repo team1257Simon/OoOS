@@ -122,6 +122,7 @@
         "internet": "cpp",
         "io_context": "cpp",
         "flat_map": "cpp",
-        "float.h": "c"
+        "float.h": "c",
+        "flat_set": "cpp"
     }
 }

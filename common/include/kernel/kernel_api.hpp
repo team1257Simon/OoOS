@@ -3,14 +3,18 @@
 #include <type_traits>
 #ifdef __KERNEL__
 #include "arch/pci.hpp"
+#include "kernel_mm.hpp"
 #else
+#include <cstddef>
+#include <cstdint>
 struct pci_config_space;
+struct kframe_tag;
+struct kframe_exports;
 #endif
 namespace ooos_kernel_module
 {
     class abstract_module_base;
     class isr_actor;
-    using register_kframe_fn = void(*)(void*);
     template<typename T> concept no_args_invoke = requires(T t) { t(); };
     template<typename T> concept wrappable_actor = no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
     template<typename T> concept boolable = requires(T t) { t ? true : false; };
@@ -18,7 +22,7 @@ namespace ooos_kernel_module
     {
         virtual void* mem_allocate(size_t size, size_t align) = 0;
         virtual void mem_release(void* block, size_t align) = 0;
-        virtual void register_as_frame(register_kframe_fn callback) = 0;
+        virtual kframe_tag* get_frame() = 0;
         virtual ~kmod_mm() = default;
     };
     union actors
@@ -130,5 +134,6 @@ namespace ooos_kernel_module
     };
     kernel_api* get_api_instance();
     void init_api();
+    extern "C" void init_memory_fns(kframe_exports* ptrs);
 }
 #endif
