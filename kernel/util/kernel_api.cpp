@@ -1,4 +1,5 @@
 #include "kernel_api.hpp"
+#include "arch/pci_device_list.hpp"
 #include "isr_table.hpp"
 #include "unordered_map"
 #include "stdexcept"
@@ -60,9 +61,19 @@ namespace ooos_kernel_module
         virtual void* acpi_get_table(const char* label) override { return find_system_table(label); }
         virtual kmod_mm* create_mm() override { return new kmod_mm_impl(); }
         virtual void destroy_mm(kmod_mm* mm) override { if(mm) delete mm; }
-        virtual void log(abstract_module_base* from, const char* message) override { xklog("[MOD/" + std::to_string(from) + "]: " + message); }
+        virtual void log(std::type_info const& from, const char* message) override { xklog("[" + std::ext::demangle(from) + "]: " + message); }
         virtual void remove_actors(abstract_module_base* owner) override { for(actor_by_index_map::value_type& pair : *actors_by_index) { pair.second.erase(owner); } }
         virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { at_index(irq, *actors_by_index).insert_or_assign(owner, std::move(handler)); }
+        virtual void init_memory_fns(kframe_exports* ptrs) override
+        {
+            new(ptrs) kframe_exports
+            {
+                .allocate       = &kframe_tag::allocate,
+                .array_allocate = &kframe_tag::array_allocate,
+                .deallocate     = &kframe_tag::deallocate,
+                .reallocate     = &kframe_tag::reallocate
+            };
+        }
     } __api_impl{};
     kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm), first_managed_block(nullptr) {}
     void* kmod_mm_impl::mem_allocate(size_t size, size_t align)
@@ -107,14 +118,5 @@ namespace ooos_kernel_module
     }
     void init_api() { __api_impl.mm = std::addressof(kmm); __api_impl.pci = pci_device_list::get_instance(); __api_impl.actors_by_index = new(__api_impl.actors_by_index_data) ooos_kernel_module::actor_by_index_map(16UL); }
     kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
-    void init_memory_fns(kframe_exports* ptrs)
-    {
-        new(ptrs) kframe_exports
-        {
-            .allocate       = &kframe_tag::allocate,
-            .array_allocate = &kframe_tag::array_allocate,
-            .deallocate     = &kframe_tag::deallocate,
-            .reallocate     = &kframe_tag::reallocate
-        };
-    }
+    
 }

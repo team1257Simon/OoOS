@@ -31,39 +31,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-extern "C" int   pthread_key_create(void* key, void (*)(void*));
-extern "C" int   pthread_once(void* control, void (*init)(void));
-extern "C" void* pthread_getspecific(void* key);
-extern "C" int   pthread_setspecific(void* key, const void* data);
-extern "C" int   pthread_mutex_init(void* mutex, const void*);
-extern "C" int   pthread_mutex_lock(void* mutex);
-extern "C" int   pthread_mutex_unlock(void* mutex);
-extern "C" int   pthread_cond_wait(void*, void*);
-extern "C" int   pthread_cond_signal(void*);
-#pragma weak     pthread_key_create
-#pragma weak     pthread_setspecific
-#pragma weak     pthread_getspecific
-#pragma weak     pthread_once
-#pragma weak     pthread_mutex_lock
-#define pthread_mutex_lock(mtx)                         \
-    do {                                                \
-        if(pthread_mutex_lock) pthread_mutex_lock(mtx); \
-    } while(0)
-#pragma weak pthread_mutex_unlock
-#define pthread_mutex_unlock(mtx)                           \
-    do {                                                    \
-        if(pthread_mutex_unlock) pthread_mutex_unlock(mtx); \
-    } while(0)
-#pragma weak pthread_cond_signal
-#define pthread_cond_signal(cv)                          \
-    do {                                                 \
-        if(pthread_cond_signal) pthread_cond_signal(cv); \
-    } while(0)
-#pragma weak pthread_cond_wait
-#define pthread_cond_wait(cv, mtx)                        \
-    do {                                                  \
-        if(pthread_cond_wait) pthread_cond_wait(cv, mtx); \
-    } while(0)
+#define pthread_mutex_lock(mtx)
+#define pthread_mutex_unlock(mtx)
+#define pthread_cond_signal(cv)
+#define pthread_cond_wait(cv, mtx)
 using namespace ABI_NAMESPACE;
 /**
  * Saves the result of the landing pad that we have found.  For ARM, this is
@@ -293,30 +264,17 @@ static __cxa_thread_info singleThreadInfo;
  */
 static void init_key(void)
 {
-    if((0 == pthread_key_create) || (0 == pthread_setspecific) || (0 == pthread_getspecific))
-    {
-        fakeTLS = true;
-        return;
-    }
-    pthread_key_create(&eh_key, thread_cleanup);
-    pthread_setspecific(eh_key, reinterpret_cast<void*>(0x42));
-    fakeTLS = (pthread_getspecific(eh_key) != reinterpret_cast<void*>(0x42));
-    pthread_setspecific(eh_key, 0);
+    
+    fakeTLS = true;
+    return;
 }
 /**
  * Returns the thread info structure, creating it if it is not already created.
  */
 static __cxa_thread_info* thread_info()
 {
-    if((0 == pthread_once) || pthread_once(&once_control, init_key)) { fakeTLS = true; }
-    if(fakeTLS) { return &singleThreadInfo; }
-    __cxa_thread_info* info = static_cast<__cxa_thread_info*>(pthread_getspecific(eh_key));
-    if(0 == info)
-    {
-        info = static_cast<__cxa_thread_info*>(calloc(1, sizeof(__cxa_thread_info)));
-        pthread_setspecific(eh_key, info);
-    }
-    return info;
+    fakeTLS = true;
+    return &singleThreadInfo;
 }
 /**
  * Fast version of thread_info().  May fail if thread_info() is not called on
@@ -324,8 +282,7 @@ static __cxa_thread_info* thread_info()
  */
 static __cxa_thread_info* thread_info_fast()
 {
-    if(fakeTLS) { return &singleThreadInfo; }
-    return static_cast<__cxa_thread_info*>(pthread_getspecific(eh_key));
+    return &singleThreadInfo;
 }
 /**
  * ABI function returning the __cxa_eh_globals structure.

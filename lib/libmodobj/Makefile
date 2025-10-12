@@ -8,11 +8,12 @@ READ = $(TARGET_HOSTED)-readelf
 COPY := $(TARGET_HOSTED)-objcopy
 ARFLAGS := -rcs
 OBJDIR := $(OBJ_BASE_DIR)/libmodobj
-OUT := $(OUTDIR)/libmodobj.o
-CFLAGS = -O2 -fPIC -fpie -mno-red-zone -Wno-packed-bitfield-compat
+OUT := $(OUTDIR)/libmodobj.a
+LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
+CFLAGS = -O2 -fPIC -fPIE -mno-red-zone -Wno-packed-bitfield-compat
 CXXFLAGS := $(CFLAGS) -std=gnu++23 $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(INCLUDES_CXX)) -nostdinc++ -fvisibility-inlines-hidden
 CCFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES)) -std=gnu23
-LDFLAGS := $(CFLAGS) -r -nolibc
+LDFLAGS := $(CFLAGS) -r -pie -nolibc -nostartfiles
 SUBDIRS = $(sort $(dir $(wildcard */*.*)))
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
 ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
@@ -27,15 +28,14 @@ CRTOBJS = $(addprefix $(OBJDIR)/,$(CRTOBJ_NAMES))
 CRTOBJ_OUT = $(addprefix $(OUTDIR)/,$(CRTOBJ_NAMES))
 ASM_TEST = $(addprefix $(ASMT_DIR)/,$(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/,$(CSRC:%.c=%.test.asm))
 SYM_LOG := $(LOG_DIR)/libmodobj-syms.txt
-CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbegin.o)
-CRTEND := $(shell $(CC) $(CCFLAGS) -print-file-name=crtend.o)
+CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbeginS.o)
+CRTEND := $(shell $(CC) $(CCFLAGS) -print-file-name=crtendS.o)
 .PHONY: all
 all: $(OBJDIR) $(OSUBDIRS) $(OUT) $(SYM_LOG) $(CRTOBJ_OUT)
 $(OBJDIR) $(OSUBDIRS) $(ASMT_DIR) $(ASUBDIRS):
 	@mkdir -p $@
 $(OUT): $(OBJECTS)
-	$(LD) $(LDFLAGS) $(OBJECTS) -o $@
-	$(ST) -x $@
+	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.S

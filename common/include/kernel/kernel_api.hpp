@@ -1,13 +1,11 @@
 #ifndef __KAPI
 #define __KAPI
 #include <type_traits>
+#include <typeinfo>
+#include <arch/pci.hpp>
 #ifdef __KERNEL__
-#include "arch/pci.hpp"
 #include "kernel_mm.hpp"
 #else
-#include <cstddef>
-#include <cstdint>
-struct pci_config_space;
 struct kframe_tag;
 struct kframe_exports;
 #endif
@@ -57,7 +55,7 @@ namespace ooos_kernel_module
         template<no_args_invoke FT>
         class actor_manager
         {
-            constexpr static size_t __max_size = sizeof(actors);
+            constexpr static size_t __max_size  = sizeof(actors);
             constexpr static size_t __max_align = alignof(actors);
             template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, kmod_mm*, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(static_cast<GT&&>(ftor)); }
             template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, kmod_mm* mm, std::false_type) { dst.template cast<FT*>() = new(mm->mem_allocate(sizeof(FT), alignof(FT))) FT(static_cast<GT&&>(ftor)); }
@@ -130,10 +128,10 @@ namespace ooos_kernel_module
         virtual void remove_actors(abstract_module_base* owner) = 0;
         virtual kmod_mm* create_mm() = 0;
         virtual void destroy_mm(kmod_mm* mm) = 0;
-        virtual void log(abstract_module_base* from, const char* message) = 0;
+        virtual void log(std::type_info const& from, const char* message) = 0;
+        virtual void init_memory_fns(kframe_exports* ptrs) = 0;
     };
     kernel_api* get_api_instance();
     void init_api();
-    extern "C" void init_memory_fns(kframe_exports* ptrs);
 }
 #endif

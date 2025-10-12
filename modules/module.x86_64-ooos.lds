@@ -3,34 +3,41 @@
 */
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
+SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib");
 ENTRY(_start)
 SECTIONS
 {
+    PROVIDE (__executable_start = SEGMENT_START("text-segment", 0)); . = SEGMENT_START("text-segment", 0) + SIZEOF_HEADERS;
+    .hash           : { *(.hash) }
     .gnu.hash       : { *(.gnu.hash) }
     .dynsym         : { *(.dynsym) }
     .dynstr         : { *(.dynstr) }
-    .rela.init      : { *(.rela.init) }
-    .rela.text      : { *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*) }
-    .rela.fini      : { *(.rela.fini) }
-    .rela.rodata    : { *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*) }
-    .rela.data.rel.ro   : { *(.rela.data.rel.ro .rela.data.rel.ro.* .rela.gnu.linkonce.d.rel.ro.*) }
-    .rela.data      : { *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*) }
-    .rela.tdata	  : { *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*) }
-    .rela.tbss	  : { *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*) }
-    .rela.ctors     : { *(.rela.ctors) }
-    .rela.dtors     : { *(.rela.dtors) }
-    .rela.got       : { *(.rela.got) }
-    .rela.bss       : { *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*) }
-    .rela.ldata     : { *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*) }
-    .rela.lbss      : { *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*) }
-    .rela.lrodata   : { *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*) }
-    .rela.ifunc     : { *(.rela.ifunc) }
+    .rela.dyn       :
+    {
+        *(.rela.init)
+        *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+        *(.rela.fini)
+        *(.rela.data.rel.ro .rela.data.rel.ro.* .rela.data.rel.ro.local.* .rela.gnu.linkonce.d.rel.ro.*) 
+        *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+        *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+        *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+        *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+        *(.rela.ctors)
+        *(.rela.dtors)
+        *(.rela.got)
+        *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+        *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*)
+        *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*)
+        *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*)
+        *(.rela.ifunc)
+    }
     .rela.plt       :
     {
-        *(.rela.plt)
-        *(.rela.iplt)
+      *(.rela.plt)
+      PROVIDE_HIDDEN (__rela_iplt_start = .);
+      *(.rela.iplt)
+      PROVIDE_HIDDEN (__rela_iplt_end = .);
     }
-    .relr.dyn : { *(.relr.dyn) }
     .init           :
     {
         KEEP (*(SORT_NONE(.init)))
@@ -191,5 +198,5 @@ SECTIONS
     .debug_str_offsets 0 : { *(.debug_str_offsets) }
     .debug_sup      0 : { *(.debug_sup) }
     .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
-    /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) }
+    /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) *(.gnu.lto_*) *(.interp) }
 }

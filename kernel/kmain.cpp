@@ -27,6 +27,7 @@
 #include "kernel_api.hpp"
 #include "keyboard_driver.hpp"
 #include "map"
+#include "typeinfo"
 #include "ow-crypt.h"
 #include "prog_manager.hpp"
 #include "rtc.h"
@@ -304,6 +305,10 @@ void elf64_tests()
             prog_manager::get_instance().remove(test_exec);
         }
         else startup_tty.print_line("Executable failed to validate");
+        tst = test_extfs.open_file("sys/test_module.ko");
+        elf64_kernel_object test_ko(tst);
+        test_ko.load_module();
+        test_extfs.close_file(tst);
     }
     catch(std::exception& e) { panic(e.what()); }
 }

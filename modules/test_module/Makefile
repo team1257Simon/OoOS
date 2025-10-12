@@ -4,7 +4,7 @@ CPPSRC = $(wildcard *.cpp)
 SSRC = $(wildcard *.S)
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.S=%.o)
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES))
-FULL_LD_INPUT = $(PRE_OBJS) $(OBJECTS) $(LIB_DIR)/libmodobj.o $(POST_OBJS)
+FULL_LD_INPUT = $(PRE_OBJS) $(OBJECTS) $(LIB_DIR)/libmodobj.a $(POST_OBJS)
 SYM_LOG = $(LOG_DIR)/test_module.syms.txt
 OUT_MOD = $(OUTDIR)/test_module.ko
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))

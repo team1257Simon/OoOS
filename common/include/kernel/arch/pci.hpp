@@ -1,7 +1,25 @@
 #ifndef __PERIPHERAL_CONTROL
 #define __PERIPHERAL_CONTROL
-#include "vector"
+#ifdef __KERNEL__
 #include "kernel/libk_decls.h"
+#else
+#include <cstdint>
+#include <cstddef>
+#define attribute(...) __attribute__((__VA_ARGS__))
+#define __pack __attribute__((packed))
+struct acpi_header
+{
+    char signature[4];
+    uint32_t length;
+    uint8_t revision;
+    uint8_t checksum;
+    char oem_id[6];
+    char oem_table_id[8];
+    uint32_t oem_revision;
+    uint32_t creator_id;
+    uint32_t creator_revision;
+} __pack;
+#endif
 enum ht
 {
     st = 0x0,   // standard
@@ -10,10 +28,10 @@ enum ht
 };
 enum
 {
-    CID_POWER_MANAGEMENT = 0x01,
-    CID_MSI = 0x05,
-    CID_PCIE = 0x10,
-    CID_SATA = 0x12,
+    CID_POWER_MANAGEMENT    = 0x01,
+    CID_MSI                 = 0x05,
+    CID_PCIE                = 0x10,
+    CID_SATA                = 0x12,
     // ...
 };
 struct attribute(packed, aligned(4)) pci_config_space
@@ -53,8 +71,8 @@ struct attribute(packed, aligned(4)) pci_config_space
     uint8_t class_code;
     uint8_t cache_line_size;
     uint8_t latency_timer;
-    byte header_type;
-    byte bist;
+    uint8_t header_type;
+    uint8_t bist;
     union
     {
         struct
@@ -228,7 +246,7 @@ struct __pack pci_config_ptr
 };
 struct __pack pci_config_table
 {
-    struct acpi_header hdr;
+    acpi_header hdr;
     uint8_t reserved[8];
     pci_config_ptr addr_allocations[];
 };
@@ -236,19 +254,6 @@ pci_config_table* find_pci_config();
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
 pci_capabilities_register* get_first_capability_register(pci_config_space* device);
 pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r);
-addr_t compute_base_address(uint32_t bar_registers[], uint8_t i);
-addr_t compute_base(uint32_t bar);
-class pci_device_list : public std::vector<pci_config_space*>
-{
-    constexpr pci_config_space* __add(pci_config_space* s) { if(s) this->push_back(s); return s; }
-    pci_device_list() = default;
-    void add_all(pci_config_table* tb);
-    static pci_device_list __instance;
-public:
-    pci_device_list(pci_device_list&&) = delete;
-    pci_device_list(pci_device_list const&) = delete;
-    static bool init_instance();
-    static pci_device_list* get_instance();
-    pci_config_space* find(uint8_t device_class, uint8_t subclass);
-};
+void* compute_base_address(uint32_t bar_registers[], uint8_t i);
+void* compute_base(uint32_t bar);
 #endif

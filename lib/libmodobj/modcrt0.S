@@ -1,38 +1,30 @@
     .global     _start
     .extern     _init
     .extern     _fini
-    .extern     module_instance
+    .extern     module_init
     .global     __module_frame_tag
     .global     __frame_functions
     .type       _start,                 @function
     .type       _init,                  @function
     .type       _fini,                  @function
-    .type       module_instance,        @function
+    .type       module_init,            @function
     .type       __module_frame_tag,     @object
     .type       __frame_functions,      @object
     .text
 _start:
     pushq   %rbp
-    movq    %rsp,   %rbp
-    pushq   %rbx
-    movq    %rdi,   %rbx
-    call    module_instance
-    movq    %rax,   %rdi
-    movq    %rbx,   %rax
-    movq    %rdi,   %rbx
-    leaq    __module_frame_tag,         %rsi
-    leaq    __frame_functions,          %rdx
-    leaq    _fini,                      %rcx
-    call    *%rax
-    test    %ax,                        %ax
+    movq    %rsp,                       %rbp
+    test    %rdi,                       %rdi
     jz      1f
-    call    _init
-    movq    %rbx,                       %rax
+    leaq    __module_frame_tag(%rip),   %rsi
+    leaq    __frame_functions(%rip),    %rdx
+    leaq    _init(%rip),                %rcx
+    leaq    _fini(%rip),                %r8
+    call    module_init
     jmp     2f
 1:
     xorq    %rax,                       %rax
 2:
-    popq    %rbx
     leave
     ret
     .size   _start,                     .-_start

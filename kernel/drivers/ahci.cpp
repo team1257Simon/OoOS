@@ -112,7 +112,7 @@ bool ahci::init(pci_config_space* ps) noexcept
     {
         __pci_ahci_controller   = ps;
         uint32_t bar            = ps->header_0x0.bar[5];
-        __abar                  = compute_base(bar);
+        __abar                  = addr_t(compute_base(bar));
         __ahci_block            = kmm.allocate_dma(S128, (bar & BIT(3)) != 0);
         barrier();
         __pci_ahci_controller->command.bus_master           = true;

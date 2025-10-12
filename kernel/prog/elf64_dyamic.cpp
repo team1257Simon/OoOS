@@ -159,21 +159,21 @@ bool elf64_dynamic_object::post_load_init()
     try
     {
         std::vector<addr_t> fini_reverse_array{};
-        if(__builtin_expect(!load_preinit(), false)) return false;
+        if(__unlikely(!load_preinit())) return false;
         if(init_fn) { init_array.push_back(resolve(init_fn)); }
         if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
         if(init_array_size && init_array_ptr) 
         {
             addr_t init_ptrs_vaddr  = resolve(init_array_ptr);
             uintptr_t* init_ptrs    = translate_in_frame(init_ptrs_vaddr);
-            if(__builtin_expect(!init_ptrs, false)) { panic("[PRG] initialization array pointer is non-null but is invalid"); return false; }
+            if(__unlikely(!init_ptrs)) { panic("[PRG] initialization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
         if(fini_array_size && fini_array_ptr)
         {
             addr_t fini_ptrs_vaddr  = resolve(fini_array_ptr);
             uintptr_t* fini_ptrs    = translate_in_frame(fini_ptrs_vaddr);
-            if(__builtin_expect(!fini_ptrs, false)) { panic("[PRG] finalization array pointer is non-null but is invalid"); return false; }
+            if(__unlikely(!fini_ptrs)) { panic("[PRG] finalization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
         }
         if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }

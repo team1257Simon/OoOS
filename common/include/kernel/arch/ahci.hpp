@@ -1,7 +1,7 @@
 #ifndef __AHCI
 #define __AHCI
 #include "kernel/libk_decls.h"
-#include "kernel/arch/pci.hpp"
+#include "kernel/arch/pci_device_list.hpp"
 #include "functional"
 #pragma region magic_numbers
 constexpr uint32_t sig_sata = 0x00000101U;

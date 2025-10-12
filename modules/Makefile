@@ -11,7 +11,7 @@ LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
 CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -mno-red-zone -Wno-packed-bitfield-compat -ffreestanding
 CXXFLAGS := $(CFLAGS) -std=gnu++23
 CCFLAGS := $(CFLAGS) -std=gnu23
-LDFLAGS :=  -L$(LIB_DIR) -T $(LDSCRIPT) -static-pie -nostdlib -lgcc -lstdc++ $(CFLAGS)
+LDFLAGS := -L$(LIB_DIR) -T $(LDSCRIPT) -pie -nostdlib -lgcc -lstdc++ $(CFLAGS)
 PRE_OBJ_NAMES = modcrti.o modcrtbegin.o modcrt0.o
 POST_OBJ_NAMES = modcrtend.o modcrtn.o
 PRE_OBJS := $(addprefix $(LIB_DIR)/,$(PRE_OBJ_NAMES))

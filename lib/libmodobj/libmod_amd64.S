@@ -200,7 +200,7 @@ memchr:
 	ret
 	.size	memchr,		.-memchr
 __errno:
-    movq	$errno,		%rax
+    leaq    errno(%rip),	%rax
 	ret
     .size   __errno,    .-__errno
 __rdseed:

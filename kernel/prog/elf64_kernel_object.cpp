@@ -1,8 +1,8 @@
 #include "elf64_kernel_object.hpp"
 #include "kdebug.hpp"
 using ooos_kernel_module::abstract_module_base;
-using ooos_kernel_module::module_pre_setup;
 using ooos_kernel_module::module_takedown;
+static inline abstract_module_base* init_mod(abstract_module_base* mod) { if(mod) mod->initialize(); return mod; }
 uframe_tag* elf64_kernel_object::get_frame() const { return nullptr; }
 void elf64_kernel_object::frame_enter() {}
 void elf64_kernel_object::set_frame(uframe_tag* ft) {}
@@ -70,6 +70,7 @@ abstract_module_base* elf64_kernel_object::load_module()
 {
     if(__unlikely(module_object != nullptr)) return module_object;
     if(__unlikely(!load())) return nullptr;
-    // TODO: "relocate" the vtable
-    return module_object = entry.invoke<abstract_module_base*(setup_callback)>(std::addressof(ooos_kernel_module::module_pre_setup));
+    module_object = entry.invoke<abstract_module_base*(ooos_kernel_module::kernel_api*)>(ooos_kernel_module::get_api_instance());
+    if(module_object) module_object->initialize();
+    return module_object;
 }
