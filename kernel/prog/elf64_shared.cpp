@@ -8,7 +8,7 @@ addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_b
 addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 void elf64_shared_object::set_frame(uframe_tag* ft) { frame_tag = ft; }
-uframe_tag *elf64_shared_object::get_frame() const { return frame_tag; }
+uframe_tag* elf64_shared_object::get_frame() const { return frame_tag; }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descriptor& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
 void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && (dyn_entries[i].d_val & 0x02UL))) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
 elf64_shared_object::~elf64_shared_object() = default;
@@ -94,10 +94,10 @@ program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_
 }
 bool elf64_shared_object::xvalidate()
 {
-    if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("not an object for the correct machine"); return false; }
-    if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("32-bit object files are not supported"); return false; }
-    if(ehdr().e_type != ET_DYN) { panic("not a shared object"); return false; }
-    if(!ehdr().e_phnum) { panic("no program headers present"); return false; }
+    if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("[PRG/EXEC] not an object for the correct machine"); return false; }
+    if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("[PRG/EXEC] 32-bit object files are not supported"); return false; }
+    if(ehdr().e_type != ET_DYN) { panic("[PRG/EXEC] not a shared object"); return false; }
+    if(!ehdr().e_phnum) { panic("[PRG/EXEC] no program headers present"); return false; }
     return true;
 }
 bool elf64_shared_object::load_segments()

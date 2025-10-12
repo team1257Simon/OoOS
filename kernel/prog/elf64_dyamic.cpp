@@ -11,8 +11,9 @@ static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_all
 static bool is_object_rela(elf64_rela const& r) { return r.r_info.type == R_X86_64_GLOB_DAT; }
 bool elf64_dynamic_object::load_preinit() { return true; /* stub; only applicable to executables */ }
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
-addr_t elf64_dynamic_object::global_offset_table() const { return resolve(got_vaddr); }
-addr_t elf64_dynamic_object::dyn_segment_ptr() const { return resolve(phdr(dyn_segment_idx).p_vaddr); }
+addr_t elf64_dynamic_object::global_offset_table() const { return got_vaddr ? resolve(got_vaddr) : nullptr; }
+addr_t elf64_dynamic_object::dyn_segment_ptr() const { return dyn_segment_idx ? resolve(phdr(dyn_segment_idx).p_vaddr) : nullptr; }
+addr_t elf64_dynamic_object::translate_in_frame(addr_t addr) { return get_frame()->translate(addr); }
 elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :
     elf64_object    ( start, size ),
     num_dyn_entries { 0UL },
@@ -92,9 +93,9 @@ void elf64_dynamic_object::apply_relocations()
     {
         if(is_dynamic_relocation(r.rela_entry)) continue; // these will be resolved later
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
-        addr_t phys_target  = get_frame()->translate(result.target);
+        addr_t phys_target  = translate_in_frame(result.target);
         if(phys_target && result.value) phys_target.assign(result.value);
-        else klog("W: invalid relocation");
+        else klog("[PRG/DYN] W: invalid relocation");
     }
 }
 uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const
@@ -116,46 +117,44 @@ bool elf64_dynamic_object::xload()
     // allocate the array to have enough space for all indices, but the non-load segments will be zeroed
     bool success = true;
     process_headers();
-    if(__unlikely(!load_segments())) { panic("object contains no loadable segments"); success = false; }
-    else if(__unlikely(!load_syms())) { panic("failed to load symbols"); success = false; }
-    else if(__unlikely(!post_load_init())) { panic("failed to initialize program image"); success = false; }
+    if(__unlikely(!load_segments())) { panic("[PRG/DYN] object contains no loadable segments"); success = false; }
+    else if(__unlikely(!load_syms())) { panic("[PRG/DYN] failed to load symbols"); success = false; }
+    else if(__unlikely(!post_load_init())) { panic("[PRG/DYN] failed to initialize program image"); success = false; }
     // other segments and sections, if/when needed, can be handled here; free the rest up
     cleanup();
     return success;
 }
-void elf64_dynamic_object::process_dt_relas()
+void elf64_dynamic_object::process_relas(elf64_rela* rela_array, size_t num_relas)
 {
-    size_t rela_offs        = 0, rela_sz = 0;
     size_t unrec_rela_ct    = 0;
-    for(size_t i = 0; i < num_dyn_entries; i++)
+    for(size_t i = 0; i < num_relas; i++)
     {
-        if(dyn_entries[i].d_tag == DT_RELA)         rela_offs   = dyn_entries[i].d_ptr;
-        else if(dyn_entries[i].d_tag == DT_RELASZ)  rela_sz     = dyn_entries[i].d_val;
-        if(rela_sz && rela_offs) break;
+        if(is_object_rela(rela_array[i])) { object_relas.push_back(rela_array[i]); }
+        else if(is_dynamic_relocation(rela_array[i])) continue; // these are computed / applied by the dynamic linker
+        else if(!recognize_rela_type(rela_array[i])) { unrec_rela_ct++; }
+        else if(rela_array[i].r_info.sym_index) { elf64_sym const* s = symtab + rela_array[i].r_info.sym_index; if(s) relocations.emplace_back(*s, rela_array[i]); }
+        else relocations.emplace_back(rela_array[i]);
     }
-    if(rela_sz && rela_offs)
+    if(unrec_rela_ct) { xklog("[PRG/DYN] W: " + std::to_string(unrec_rela_ct) + " unrecognized relocation types"); }
+}
+void elf64_dynamic_object::find_and_process_relas()
+{
+    size_t n_sections = ehdr().e_shnum;
+    for(size_t i = 0; i < n_sections; i++)
     {
-        elf64_rela* rela    = img_ptr(to_image_offset(rela_offs));
-        size_t n            = rela_sz / sizeof(elf64_rela);
-        for(size_t i = 0; i < n; i++)
-        {
-            if(is_object_rela(rela[i])) { object_relas.push_back(rela[i]); }
-            else if(is_dynamic_relocation(rela[i])) continue; // these are computed / applied by the dynamic linker
-            else if(!recognize_rela_type(rela[i])) { unrec_rela_ct++; }
-            else if(rela[i].r_info.sym_index) { elf64_sym const* s = symtab + rela[i].r_info.sym_index; if(s) relocations.emplace_back(*s, rela[i]); }
-            else relocations.emplace_back(rela[i]);
-        }
+        elf64_shdr const& section = shdr(i);
+        if(section.sh_type == ST_RELA)
+            process_relas(img_ptr(section.sh_offset), section.sh_size / section.sh_entsize);
     }
-    if(unrec_rela_ct) { xklog("W: " + std::to_string(unrec_rela_ct) + " unrecognized relocation types"); debug_print_num(to_image_offset(rela_offs)); }
 }
 bool elf64_dynamic_object::post_load_init()
 {
     apply_relocations();
     if(got_vaddr)
     {
-        addr_t* got = get_frame()->translate(global_offset_table());
+        addr_t* got = translate_in_frame(global_offset_table());
         if(__builtin_expect(got != nullptr, true)) { got[1] = this; }
-        else { panic("GOT pointer is non-null but is invalid"); return false; }
+        else { panic("[PRG/DYN] GOT pointer is non-null but is invalid"); return false; }
     }
     try
     {
@@ -166,15 +165,15 @@ bool elf64_dynamic_object::post_load_init()
         if(init_array_size && init_array_ptr) 
         {
             addr_t init_ptrs_vaddr  = resolve(init_array_ptr);
-            uintptr_t* init_ptrs    = get_frame()->translate(init_ptrs_vaddr);
-            if(__builtin_expect(!init_ptrs, false)) { panic("initialization array pointer is non-null but is invalid"); return false; }
+            uintptr_t* init_ptrs    = translate_in_frame(init_ptrs_vaddr);
+            if(__builtin_expect(!init_ptrs, false)) { panic("[PRG] initialization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
         }
         if(fini_array_size && fini_array_ptr)
         {
             addr_t fini_ptrs_vaddr  = resolve(fini_array_ptr);
-            uintptr_t* fini_ptrs    = get_frame()->translate(fini_ptrs_vaddr);
-            if(__builtin_expect(!fini_ptrs, false)) { panic("finalization array pointer is non-null but is invalid"); return false; }
+            uintptr_t* fini_ptrs    = translate_in_frame(fini_ptrs_vaddr);
+            if(__builtin_expect(!fini_ptrs, false)) { panic("[PRG] finalization array pointer is non-null but is invalid"); return false; }
             for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
         }
         if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
@@ -216,7 +215,7 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 }
 bool elf64_dynamic_object::load_syms()
 {
-    if(__unlikely(!elf64_object::load_syms())) { panic("[EXEC/DYN] no symbol table present"); return false; }
+    if(__unlikely(!elf64_object::load_syms())) { panic("[PRG/DYN] no symbol table present"); return false; }
     bool have_dyn = false;
     for(size_t n = 0; n < ehdr().e_phnum && !have_dyn; n++)
     {
@@ -230,9 +229,13 @@ bool elf64_dynamic_object::load_syms()
             dyn_segment_idx = n;
         }
     }
-    if(__unlikely(!have_dyn)) { panic("[EXEC/DYN] no dynamic segment present"); return false; }
-    process_dt_relas();
-    bool have_ht = false;
+    find_and_process_relas();
+    if(have_dyn) process_dynamic();
+    if(__unlikely((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size))) { panic("[PRG/DYN] mismatched init and/or fini array entries"); return false; }
+    return process_got();
+}
+void elf64_dynamic_object::process_dynamic()
+{
     for(size_t i = 0; i < num_dyn_entries; i++)
     {
         if(dyn_entries[i].d_tag == DT_GNU_HASH)
@@ -262,17 +265,24 @@ bool elf64_dynamic_object::load_syms()
                     .buckets            { buckets }, 
                     .hash_value_array   { hval_array } 
             };
-            have_ht = true;
         }
         else process_dyn_entry(i);
     }
-    if(__unlikely((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size))) { panic("[EXEC/DYN] mismatched init and/or fini array entries"); return false; }
-    if(__unlikely(!have_ht)) { panic("[EXEC/DYN] symbol hash data missing"); return false; }
-    return process_got();
+}
+std::pair<elf64_sym, addr_t> elf64_dynamic_object::fallback_resolve(std::string const& symbol) const
+{
+    std::string read_name;
+    for(elf64_sym const& sym : symtab)
+    {
+        read_name = symstrtab[sym.st_name];
+        if(read_name == symbol)
+            return std::make_pair(sym, resolve(sym));
+    }
+    return std::make_pair(elf64_sym(), nullptr);
 }
 std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
-    if(__unlikely(!segments || !num_seg_descriptors || !symbol_index)) { panic("[EXEC/DYN] cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
+    if(__unlikely(!segments || !num_seg_descriptors)) { panic("[PRG/DYN] cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
     elf64_sym const* sym = symbol_index[symbol];
     return sym ? std::make_pair(*sym, resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
@@ -291,7 +301,7 @@ bool elf64_dynamic_object::process_got()
         got_vaddr           = got_offs;
         num_plt_relas       = rela_sz / sizeof(elf64_rela);
         plt_relas           = r_alloc.allocate(num_plt_relas);
-        if(__unlikely(!plt_relas)) { panic("[EXEC/DYN] failed to allocate rela array"); return false; }
+        if(__unlikely(!plt_relas)) { panic("[PRG/DYN] failed to allocate rela array"); return false; }
         elf64_rela* rela    = img_ptr(to_image_offset(rela_offs));
         array_copy(plt_relas, rela, num_plt_relas);
         return true;
@@ -313,7 +323,7 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
 {
     if(got_vaddr)
     {
-        addr_t got_table = get_frame()->translate(global_offset_table());
+        addr_t got_table = translate_in_frame(global_offset_table());
         if(!got_table) return;
         got_table.plus(sizeof(addr_t) * 2Z).assign(ptr);
     }

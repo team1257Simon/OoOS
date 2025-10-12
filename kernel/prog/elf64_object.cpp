@@ -41,7 +41,7 @@ bool elf64_object::validate() noexcept
 {
     if(__unlikely(__validated)) return true;
     if(__unlikely(!__image_size)) return false;
-    if(__unlikely(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0)) { panic("missing identifier; invalid object"); return false; }
+    if(__unlikely(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0)) { panic("[PRG] missing identifier; invalid object"); return false; }
     try { return (__validated = xvalidate()); }
     catch(std::exception& e) { panic(e.what()); return false; } 
 }
@@ -50,11 +50,11 @@ bool elf64_object::load() noexcept
     try
     {
         if(__unlikely(__loaded)) return true;
-        if(__unlikely(!validate())) { panic("invalid executable"); return false; }
+        if(__unlikely(!validate())) { panic("[PRG] invalid executable"); return false; }
         __loaded = xload();
         if(__unlikely(!__loaded)) on_load_failed();
         return __loaded;
-    } 
+    }
     catch(std::exception& e)
     {
         panic(e.what());
@@ -84,7 +84,7 @@ elf64_object::elf64_object(file_node* n) : elf64_object(elf_alloc.allocate(n->si
 {
     if(__unlikely(!n->read(__image_start, __image_size)))
     {
-        panic("elf object file read failed");
+        panic("[PRG] elf object file read failed");
         elf_alloc.deallocate(__image_start, __image_size);
         __image_size = 0;
         __image_start = nullptr;
@@ -177,12 +177,12 @@ elf64_object::elf64_object(elf64_object&& that) :
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {
-    if(__unlikely(!new_frame)) { throw std::invalid_argument("frame tag must not be null"); }
+    if(__unlikely(!new_frame)) { throw std::invalid_argument("[PRG] frame tag must not be null"); }
     set_frame(new_frame);
     for(size_t i = 0; i < num_seg_descriptors; i++)
     {
         if(!segments[i].absolute_addr || !segments[i].size) continue;
         segments[i].absolute_addr = new_frame->translate(segments[i].virtual_addr);
-        if(!segments[i].absolute_addr) throw std::runtime_error("cannot change frame before remapping blocks");
+        if(!segments[i].absolute_addr) throw std::runtime_error("[PRG] cannot change frame before remapping blocks");
     }
 }

@@ -16,17 +16,17 @@ _start:
     movq    %rsp,   %rbp
     pushq   %rbx
     movq    %rdi,   %rbx
-    call    module_instance(%rip)
+    call    module_instance
     movq    %rax,   %rdi
     movq    %rbx,   %rax
     movq    %rdi,   %rbx
-    leaq    __module_frame_tag(%rip),   %rsi
-    leaq    __frame_functions(%rip),    %rdx
-    leaq    _fini(%rip),                %rcx
+    leaq    __module_frame_tag,         %rsi
+    leaq    __frame_functions,          %rdx
+    leaq    _fini,                      %rcx
     call    *%rax
     test    %ax,                        %ax
     jz      1f
-    call    _init(%rip)
+    call    _init
     movq    %rbx,                       %rax
     jmp     2f
 1:

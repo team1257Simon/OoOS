@@ -338,6 +338,25 @@ struct elf64_sym_table
     size_t total_size;
     size_t entry_size;
     addr_t data;
+    typedef struct __symtab_iterator
+    {
+        addr_t pos;
+        size_t entsz;
+        constexpr elf64_sym const* operator->() const noexcept { return pos; }
+        constexpr elf64_sym const& operator*() const noexcept { return pos.ref<elf64_sym const>(); }
+        constexpr __symtab_iterator& operator++() noexcept { pos += static_cast<ptrdiff_t>(entsz); return *this; }
+        constexpr __symtab_iterator operator++(int) noexcept { __symtab_iterator that(*this); ++(*this); return that; }
+        constexpr __symtab_iterator& operator--() noexcept { pos -= static_cast<ptrdiff_t>(entsz); return *this; }
+        constexpr __symtab_iterator operator--(int) noexcept { __symtab_iterator that(*this); --(*this); return that; }
+        friend constexpr std::strong_ordering operator<=>(__symtab_iterator const& __this, __symtab_iterator const& that) noexcept { return __this.entsz <=> that.entsz; }
+        friend constexpr bool operator==(__symtab_iterator const& __this, __symtab_iterator const& that) noexcept { return __this.pos == that.pos && __this.entsz == that.entsz; }
+    } iterator, const_iterator;
+    constexpr iterator begin() noexcept { return iterator(data, entry_size); }
+    constexpr const_iterator begin() const noexcept { return const_iterator(data, entry_size); }
+    constexpr const_iterator cbegin() const noexcept { return const_iterator(data, entry_size); }
+    constexpr iterator end() noexcept { return iterator(data.plus(total_size), entry_size); }
+    constexpr const_iterator end() const noexcept { return const_iterator(data.plus(total_size), entry_size); }
+    constexpr const_iterator cend() const noexcept { return const_iterator(data.plus(total_size), entry_size); }
     constexpr elf64_sym const* operator+(size_t n) const { return data.plus(entry_size * n); }
     constexpr elf64_sym const& operator[](size_t n) const { return *operator+(n); }
     constexpr size_t entries() const { return total_size / entry_size; }

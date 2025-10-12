@@ -1,6 +1,7 @@
 #ifndef __KMOD
 #define __KMOD
 #include "kernel_api.hpp"
+#include <new>
 namespace ooos_kernel_module
 {
     class abstract_module_base
@@ -18,10 +19,13 @@ namespace ooos_kernel_module
         template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { __api_hooks->on_irq(irq, static_cast<isr_actor&&>(isr_actor(static_cast<FT&&>(handler), __allocated_mm)), this); }
 #ifdef __KERNEL__
         friend bool module_pre_setup(abstract_module_base* mod, kframe_tag** frame_ptr, kframe_exports* ptrs, void (*fini_fn)());
-        friend void module_init(abstract_module_base* mod);
         friend void module_takedown(abstract_module_base* mod);
 #endif
     };
+#ifdef __KERNEL__
+    bool module_pre_setup(abstract_module_base* mod, kframe_tag** frame_ptr, kframe_exports* ptrs, void (*fini_fn)());
+    void module_takedown(abstract_module_base* mod);
+#endif
 }
-#define EXPORT_MODULE(module_class, ...) static module_class __instance{ __VA_ARGS__ }; extern "C" { ooos_kernel_module::abstract_module_base* module_instance() { return &__instance; } }
+#define EXPORT_MODULE(module_class, ...) static char __instance[sizeof(module_class)]; extern "C" { ooos_kernel_module::abstract_module_base* module_instance() { return new (&__instance) module_class(__VA_ARGS__); } }
 #endif

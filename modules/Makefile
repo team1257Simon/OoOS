@@ -46,3 +46,5 @@ clean:
 	rm -rf $(ASMT_DIR) || true
 	rm -rf $(OUTDIR)/*.a $(OUTDIR)/*.o || true
 	rm -rf $(IMAGE_FILE_DIR)/lib/*.* || true
+asmtest:
+	cd test_module && $(MAKE) asmtest

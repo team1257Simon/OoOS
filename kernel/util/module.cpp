@@ -1,8 +1,8 @@
 #include "kernel/module.hpp"
 #include "stdexcept"
+#include "kdebug.hpp"
 namespace ooos_kernel_module
 {
-    void module_init(abstract_module_base* mod) { if(mod) mod->initialize(); }
     bool module_pre_setup(abstract_module_base* mod, kframe_tag** frame_ptr, kframe_exports* ptrs, void (*fini_fn)())
     {
         if(mod && frame_ptr && ptrs)

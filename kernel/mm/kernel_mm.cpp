@@ -631,7 +631,7 @@ void kframe_tag::release_block(block_tag* tag)
 }
 addr_t kframe_tag::allocate(size_t size, size_t align)
 {
-    if(__unlikely(!size)) { direct_writeln("W: size zero alloc"); return nullptr; }
+    if(__unlikely(!size)) { direct_writeln("[MM] W: size zero alloc"); return nullptr; }
     block_tag* tag = get_for_allocation(size, align);
     if(__unlikely(!tag)) return nullptr;
     return tag->actual_start();
@@ -655,7 +655,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
 addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
 {
     if(!ptr) return allocate(size, align);
-    if(!size) { direct_writeln("W: size zero alloc"); return nullptr; }
+    if(!size) { direct_writeln("[MM] W: size zero alloc"); return nullptr; }
     block_tag* tag = ptr - bt_offset;
     for(size_t i = 0; tag && (tag->magic != block_magic); i++) tag = addr_t(tag).minus(1L);
     if(tag && (tag->magic == block_magic) && tag->allocated_size() >= size + add_align_size(tag, align))

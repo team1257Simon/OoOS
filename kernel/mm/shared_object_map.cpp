@@ -49,7 +49,7 @@ shared_object_map::iterator shared_object_map::get_if_resident(file_node* so_fil
 shared_object_map::iterator shared_object_map::add(file_node* so_file) 
 {
     std::pair<iterator, bool> result = emplace(so_file, shared_frame); 
-    if(result.second && !result.first->load()) { erase(result.first); throw std::runtime_error("[SO loader] load failed"); } 
+    if(result.second && !result.first->load()) { erase(result.first); throw std::runtime_error("[PRG/SO] load failed"); } 
     if(!result.second) result.first->incref();
     else if(std::addressof(__globals) == this) { result.first->set_global(); }
     return result.first; 
@@ -72,7 +72,7 @@ shared_object_map::iterator shared_object_map::get_ldso_object(filesystem* fs)
 {
     if(__ld_so == __globals.end())
     {
-        if(!fs) throw std::invalid_argument("[SO loader] need fs pointer to initialize ld.so object");
+        if(!fs) throw std::invalid_argument("[PRG/SO] need fs pointer to initialize ld.so object");
         file_node* n    = fs->open_file("lib/ld-ooos.so", std::ios_base::in);
         __ld_so         = __globals.add(n);
         fs->close_file(n);
@@ -81,7 +81,7 @@ shared_object_map::iterator shared_object_map::get_ldso_object(filesystem* fs)
 }
 void shared_object_map::copy(shared_object_map const& that)
 {
-    if(std::addressof(that) == std::addressof(__globals)) throw std::invalid_argument("[SO loader] cannot clone global objects");
+    if(std::addressof(that) == std::addressof(__globals)) throw std::invalid_argument("[PRG/SO] cannot clone global objects");
     for(const_iterator i = that.begin(); i != that.end(); i++)
     {
         iterator j = emplace(*i).first;

@@ -7,7 +7,7 @@ prog_manager::prog_manager() : __static_base(), __dynamic_base() {}
 prog_manager& prog_manager::get_instance() { return __instance; }
 elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t stack_sz, size_t tls_sz)
 {
-    if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) { panic("missing identifier; invalid object"); return nullptr; }
+    if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) { panic("[PRG] missing identifier; invalid object"); return nullptr; }
     if(is_dynamic_object(img_start.ref<elf64_ehdr>()))
     {
         __dynamic_base::iterator result = __dynamic_base::emplace_back(img_start, img_size, stack_sz, tls_sz, 0UL);
@@ -25,14 +25,14 @@ elf64_executable* prog_manager::add(file_node* exec_file, size_t stack_sz, size_
     if(__unlikely(!exec_file->read(start, size)))
     { 
         elf_alloc.deallocate(start, size); 
-        panic("read failed"); 
+        panic("[PRG] read failed"); 
         return nullptr;
     }
     elf64_executable* result = __add(start, size, stack_sz, tls_sz);
     if(__unlikely(!result))
     {
         elf_alloc.deallocate(start, size);
-        panic("load failed");
+        panic("[PRG] load failed");
         return nullptr;
     }
     return result;

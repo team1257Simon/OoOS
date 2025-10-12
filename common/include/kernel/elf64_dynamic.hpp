@@ -31,10 +31,14 @@ protected:
     virtual bool process_got();
     virtual bool load_preinit();
     virtual void process_dyn_entry(size_t i);
-    void process_dt_relas();
+    virtual addr_t translate_in_frame(addr_t addr);
+    void process_relas(elf64_rela* rela, size_t n);
+    void process_dynamic();
+    void find_and_process_relas();
     bool post_load_init();
     uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
     size_t to_image_offset(size_t offs);
+    std::pair<elf64_sym, addr_t> fallback_resolve(std::string const& symbol) const;
 public:
     addr_t resolve_rela_target(elf64_rela const& r) const;
     elf64_dynamic_object(file_node* n);

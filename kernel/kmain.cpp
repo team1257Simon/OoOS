@@ -20,6 +20,7 @@
 #include "direct_text_render.hpp"
 #include "elf64_exec.hpp"
 #include "elf64_shared.hpp"
+#include "elf64_kernel_object.hpp"
 #include "frame_manager.hpp"
 #include "kdebug.hpp"
 #include "kernel_mm.hpp"
