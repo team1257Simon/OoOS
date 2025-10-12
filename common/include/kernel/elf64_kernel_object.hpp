@@ -2,7 +2,6 @@
 #define __ELF_KO
 #include "elf64_dynamic.hpp"
 #include "module.hpp"
-typedef bool (*setup_callback)(ooos_kernel_module::abstract_module_base* mod, kframe_tag** frame_ptr, kframe_exports* ptrs, void (*fini_fn)());
 class elf64_kernel_object : public elf64_dynamic_object
 {
 protected:
