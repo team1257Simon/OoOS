@@ -41,8 +41,7 @@ using namespace ABI_NAMESPACE;
  * stored in the generic unwind structure, while on other platforms it is
  * stored in the C++ exception.
  */
-static void saveLandingPad(struct _Unwind_Context* context, struct _Unwind_Exception* ucb, struct __cxa_exception* ex, int selector,
-                           dw_eh_ptr_t landingPad)
+static void saveLandingPad(struct _Unwind_Context* context, struct _Unwind_Exception* ucb, struct __cxa_exception* ex, int selector, dw_eh_ptr_t landingPad)
 {
     // Cache the results for the phase 2 unwind, if we found a handler
     // and this is not a foreign exception.
@@ -55,8 +54,7 @@ static void saveLandingPad(struct _Unwind_Context* context, struct _Unwind_Excep
 /**
  * Loads the saved landing pad.  Returns 1 on success, 0 on failure.
  */
-static int loadLandingPad(struct _Unwind_Context* context, struct _Unwind_Exception* ucb, struct __cxa_exception* ex, unsigned long* selector,
-                          dw_eh_ptr_t* landingPad)
+static int loadLandingPad(struct _Unwind_Context* context, struct _Unwind_Exception* ucb, struct __cxa_exception* ex, unsigned long* selector, dw_eh_ptr_t* landingPad)
 {
     if(ex)
     {
@@ -149,14 +147,10 @@ struct __cxa_dependent_exception
     void*              adjustedPtr;
     _Unwind_Exception  unwindHeader;
 };
-static_assert(sizeof(__cxa_exception) == sizeof(__cxa_dependent_exception),
-              "__cxa_exception and __cxa_dependent_exception should have the same size");
-static_assert(offsetof(__cxa_exception, referenceCount) == offsetof(__cxa_dependent_exception, primaryException),
-              "referenceCount and primaryException should have the same offset");
-static_assert(offsetof(__cxa_exception, unwindHeader) == offsetof(__cxa_dependent_exception, unwindHeader),
-              "unwindHeader fields should have the same offset");
-static_assert(offsetof(__cxa_dependent_exception, unwindHeader) == offsetof(__cxa_dependent_exception, adjustedPtr) + 8,
-              "there should be no padding before unwindHeader");
+static_assert(sizeof(__cxa_exception) == sizeof(__cxa_dependent_exception), "__cxa_exception and __cxa_dependent_exception should have the same size");
+static_assert(offsetof(__cxa_exception, referenceCount) == offsetof(__cxa_dependent_exception, primaryException), "referenceCount and primaryException should have the same offset");
+static_assert(offsetof(__cxa_exception, unwindHeader) == offsetof(__cxa_dependent_exception, unwindHeader), "unwindHeader fields should have the same offset");
+static_assert(offsetof(__cxa_dependent_exception, unwindHeader) == offsetof(__cxa_dependent_exception, adjustedPtr) + 8, "there should be no padding before unwindHeader");
 namespace std
 {
     void unexpected();
@@ -438,15 +432,10 @@ extern "C" void __cxa_free_exception(void* thrown_exception) noexcept
 {
     __cxa_exception* ex = reinterpret_cast<__cxa_exception*>(thrown_exception) - 1;
     if(0 != ex->exceptionDestructor)
-    { /* Free the object that was thrown, calling its destructor */
-        try
-        {
-            ex->exceptionDestructor(thrown_exception);
-        }
-        catch(...)
-        {
-            std::terminate();
-        }
+    {
+        /* Free the object that was thrown, calling its destructor */
+        try { ex->exceptionDestructor(thrown_exception); }
+        catch(...) { std::terminate(); }
     }
     free_exception(reinterpret_cast<char*>(ex));
 }
@@ -477,8 +466,8 @@ static void      throw_exception(__cxa_exception* ex)
     if(0 == ex->terminateHandler) ex->terminateHandler = terminateHandler.load();
     info->globals.uncaughtExceptions++;
     _Unwind_Reason_Code err = _Unwind_RaiseException(&ex->unwindHeader);
-    report_failure(err, ex); /* The _Unwind_RaiseException() function should not return, it should unwind the stack past this function.  If it does
-                                return, then something has gone wrong. */
+    /* The _Unwind_RaiseException() function should not return; it should unwind the stack past this function. If it does return, then something has gone wrong. */
+    report_failure(err, ex); 
 }
 extern "C" __cxa_exception* __cxa_init_primary_exception(void* object, std::type_info* tinfo, void (*dest)(void*)) noexcept
 {

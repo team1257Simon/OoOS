@@ -6,6 +6,13 @@
 constexpr static std::allocator<char> ch_alloc{};
 constexpr static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
+static inline addr_t clone_image(addr_t start, size_t size)
+{
+    if(__unlikely(!size)) return nullptr;
+    addr_t result = elf_alloc.allocate(size);
+    if(result) array_copy<uint8_t>(result, start, size);
+    return result;
+}
 void elf64_object::release_segments() { xrelease(); }
 void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
 void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
@@ -69,10 +76,10 @@ off_t elf64_object::segment_index(size_t offset) const
             return static_cast<off_t>(i);
     return -1L;
 }
-elf64_object::elf64_object(addr_t start, size_t size):
+elf64_object::elf64_object(addr_t start, size_t size) :
     __validated         { false },
     __loaded            { false },
-    __image_start       { start },
+    __image_start       { clone_image(start, size) },
     __image_size        { size },
     num_seg_descriptors { 0UZ },
     segments            { nullptr },
@@ -80,12 +87,11 @@ elf64_object::elf64_object(addr_t start, size_t size):
     symstrtab           {},
     shstrtab            {}
                         {}
-elf64_object::elf64_object(file_node* n) : elf64_object(elf_alloc.allocate(n->size()), n->size())
+elf64_object::elf64_object(file_node* n) : elf64_object(n->data(), n->size())
 {
-    if(__unlikely(!n->read(__image_start, __image_size)))
+    if(__unlikely(!__image_start))
     {
         panic("[PRG] elf object file read failed");
-        elf_alloc.deallocate(__image_start, __image_size);
         __image_size = 0;
         __image_start = nullptr;
     }
@@ -118,7 +124,7 @@ bool elf64_object::xload()
 {
     bool success = true;
     process_headers();
-    if(!load_syms()) klog("W: no symbol tables present in object");
+    if(!load_syms()) klog("[PRG] W: no symbol tables present in object");
     if(!load_segments()) { success = false; }
     cleanup();
     return success;

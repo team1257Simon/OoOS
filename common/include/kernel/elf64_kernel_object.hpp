@@ -20,6 +20,7 @@ protected:
     virtual void on_load_failed() override;
 public:
     elf64_kernel_object(file_node* file);
+    elf64_kernel_object(addr_t start, addr_t size);
     virtual ~elf64_kernel_object();
     ooos_kernel_module::abstract_module_base* load_module();
 };

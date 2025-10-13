@@ -27,3 +27,5 @@ $(ASMT_DIR)/%.test.asm: %.cpp
 $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 asmtest: $(ASMT_DIR) $(ASUBDIRS) $(ASM_TEST)
+clean:
+	rm $(OUT_MOD) || true

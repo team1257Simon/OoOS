@@ -92,7 +92,7 @@ bool e1000e::dev_reset()
     barrier();
     ctrl->reset = true;
     write_dma(e1000_ctrl, ctrl);
-    if(__unlikely(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) { panic("e1000e hung on reset"); return false; }
+    if(__unlikely(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) { panic("[e1000e] device hung on reset"); return false; }
     barrier();
     write_dma(e1000_imc, ~0U);
     barrier();

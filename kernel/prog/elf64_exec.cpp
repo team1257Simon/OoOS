@@ -83,20 +83,20 @@ void elf64_executable::process_headers()
     {
         elf64_phdr const& h = phdr(n);
         if(!is_load(h)) continue;
-        if(!frame_base || frame_base > h.p_vaddr) frame_base = addr_t(h.p_vaddr);
-        frame_extent = std::max(frame_extent, addr_t(h.p_vaddr + h.p_memsz));
+        if(!frame_base || frame_base > h.p_vaddr)
+            frame_base  = addr_t(h.p_vaddr);
+        frame_extent    = std::max(frame_extent, addr_t(h.p_vaddr + h.p_memsz));
     }
-    frame_base      = frame_base.page_aligned();
-    stack_base      = frame_extent.next_page_aligned();
-    tls_base        = stack_base.plus(stack_size).next_page_aligned();
-    frame_extent    = tls_base.plus(tls_size).next_page_aligned();
+    frame_base          = frame_base.page_aligned();
+    stack_base          = frame_extent.next_page_aligned();
+    tls_base            = stack_base.plus(stack_size).next_page_aligned();
+    frame_extent        = tls_base.plus(tls_size).next_page_aligned();
 }
 bool elf64_executable::load_segments()
 {
     frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent)); 
     if(__unlikely(!frame_tag)) { panic("[PRG/EXEC] failed to allocate frame"); return false; }
-    size_t i = 0;
-    for(size_t n = 0; n < ehdr().e_phnum; n++)
+    for(size_t n = 0, i = 0; n < ehdr().e_phnum; n++)
     {
         elf64_phdr const& h = phdr(n);
         if(!is_load(h) || !h.p_memsz) continue;
@@ -118,8 +118,8 @@ bool elf64_executable::load_segments()
             .perms         = static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
         };
     }
-    block_descriptor* s = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
-    block_descriptor* t = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
+    block_descriptor* s     = frame_tag->add_block(stack_size, stack_base, page_size, true, false);
+    block_descriptor* t     = frame_tag->add_block(tls_size, tls_base, page_size, true, false);
     if(__unlikely(!s || !t)) { panic("[PRG/EXEC] failed to allocate blocks for stack/tls");  return false; }
     frame_extent            = std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
     frame_tag->extent       = frame_extent;
