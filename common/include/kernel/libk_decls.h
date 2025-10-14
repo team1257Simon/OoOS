@@ -2,8 +2,34 @@
 #define __LIBK
 #include "kernel/kernel_defs.h"
 #ifdef __cplusplus
+#if defined(__KERNEL__) || defined(__LIBK__)
 #include "new"
 #include "memory"
+#else
+#include <concepts>
+#include <new>
+namespace std
+{
+#pragma region non-standard useful concepts
+    extension template<typename LT, typename RT> concept not_self = !is_same_v<__remove_cvref_t<LT>, RT>;
+    extension template<typename LT, typename RT> concept same_size = sizeof(LT) == sizeof(RT);
+    extension template<typename LT, typename RT> concept smaller = sizeof(LT) < sizeof(RT);
+    extension template<typename LT, typename RT> concept larger = sizeof(LT) > sizeof(RT);
+    extension template<typename LT, typename RT> concept not_smaller = same_size<LT, RT> || larger<LT, RT>;
+    extension template<typename LT, typename RT> concept not_larger = same_size<LT, RT> || smaller<LT, RT>;
+    extension template<typename FT, typename TT> concept bit_castable = is_trivially_copyable_v<TT> && is_trivially_copyable_v<FT> && same_size<FT, TT>;
+    extension template<typename FT, typename RT, typename ST, typename ... Args> concept member_function = requires { { ((declval<ST&&>()).*(declval<FT&&>()))(declval<Args&&>()...) } -> same_as<RT>; };
+    extension template<typename FT, typename RT, typename ST, typename ... Args> concept deref_to_member_function = requires { { ((*declval<ST&&>()).*(declval<FT&&>()))(declval<Args&&>()...) } -> same_as<RT>; };
+    extension template<typename FT, typename RT, typename ... Args> concept functor = requires { { declval<FT&&>()(declval<Args&&>()...) } -> same_as<RT>; };
+    extension template<typename T> concept non_object = !is_object_v<T>;
+    extension template<typename T> concept object = is_object_v<T>;
+    extension template<class A, typename T> concept __allocator_object = is_default_constructible_v<A> && requires { { declval<A>().allocate(declval<size_t>()) } -> same_as<T*>; declval<A>().deallocate(declval<T*>(), declval<size_t>()); };
+    struct __somesuch{};
+    extension template<class A, typename T> concept allocator_object = __allocator_object<A, T> && __allocator_object<typename A::template rebind<__somesuch>::other, __somesuch>;
+    extension template<template<typename> class PT, typename T> concept recursive_template_derived = derived_from<T, PT<T>>;
+#pragma endregion
+}
+#endif
 extern "C"
 {
 #else
@@ -76,7 +102,7 @@ template<integral_structure I, integral_structure J> constexpr I div_round_up(I 
 template<integral_structure I, integral_structure J> constexpr I truncate(I n, J unit) { return (n % unit == 0) ? n : n - (n % unit); }
 template<integral_structure I, integral_structure J> constexpr I up_to_nearest(I n, J unit) { return (n % unit == 0) ? n : (unit * div_round_up(n, unit)); }
 template<integral_structure I, integral_structure J> constexpr I div_to_nearest(I num, J denom) { return (num % denom >= div_round_up(denom, static_cast<J>(2))) ? div_round_up(num, denom) : num / denom; }
-template<integral_structure I, integral_structure J> constexpr I raise_power(I base, J power) { if(!power) return static_cast<I>(1); if(power == static_cast<J>(1)) return base; return raise_power(base, power / 2UC) * raise_power(base, div_round_up(power, 2UC)); }
+template<integral_structure I, integral_structure J> constexpr I raise_power(I base, J power) { if(power < static_cast<J>(2)) return power ? base : static_cast<I>(1); I srt = raise_power(base, static_cast<J>(power >> 1)); return static_cast<I>(srt * srt * (power % 2 ? base : 1)); }
 // Returns the power of 10 with the same number of digits as the input in standard (i.e. not scientific) base-10 notation.
 template<integral_structure I> constexpr I magnitude(I num) { I i; for(i = I(1); num > I(10); i *= I(10), num /= I(10)); return i; }
 template<trivial_copy T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); }

@@ -22,7 +22,7 @@ namespace ooos_kernel_module
         friend void module_takedown(abstract_module_base* mod);
     };
     void module_takedown(abstract_module_base* mod);
-    template<typename T, typename... Args>
+    template<typename T, typename ... Args>
     abstract_module_base* setup_instance(void* addr, kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)(), Args&& ... args)
     {
         if(addr && api && frame_tag && kframe_fns && fini)
@@ -39,6 +39,62 @@ namespace ooos_kernel_module
         }
         return nullptr;
     }
+    template<io_buffer_ok T>
+    class io_module_base : public abstract_module_base
+    {
+    public:
+        typedef T value_type;
+        typedef value_type* pointer;
+        typedef value_type const* const_pointer;
+        typedef value_type& reference;
+        typedef value_type const& const_reference;
+        typedef simple_iterator<pointer> iterator;
+        typedef simple_iterator<const_pointer> const_iterator;
+        typedef typename iterator::difference_type difference_type;
+    protected:
+        struct io_buffer
+        {
+            pointer beg;
+            pointer cur;
+            pointer fin;
+            constexpr size_t size() const noexcept { return cur > beg ? static_cast<size_t>(cur - beg) : 0UZ; }
+            constexpr size_t capacity() const noexcept { return fin > beg ? static_cast<size_t>(fin - beg) : 0UZ; }
+            constexpr size_t remaining() const noexcept { return (beg && fin > cur) ? static_cast<size_t>(fin - cur) : 0UZ; }
+            constexpr void set(pointer b, pointer c, pointer e) noexcept { beg = b; cur = c; fin = e; }
+            constexpr void reset() noexcept { beg = cur = fin = pointer(); }
+            constexpr io_buffer() noexcept = default;
+            constexpr ~io_buffer() noexcept = default;
+            constexpr io_buffer(pointer b, pointer c, pointer e) noexcept : beg(b), cur(c), fin(e) {}
+            constexpr io_buffer(pointer b, pointer e) noexcept : beg(b), cur(b), fin(e) {}
+            constexpr io_buffer(pointer b, size_t n) noexcept : beg(b), cur(b), fin(b + n) {}
+            constexpr io_buffer(io_buffer&& that) noexcept : beg(that.beg), cur(that.cur), fin(that.fin) { that.reset(); }
+            constexpr void swap(io_buffer& that) noexcept { io_buffer tmp(this->beg, this->cur, this->fin); this->set(that.beg, that.cur, that.fin); that.set(tmp.beg, tmp,cur, tmp.fin); }
+            constexpr io_buffer& operator=(io_buffer&& that) noexcept { io_buffer(static_cast<io_buffer&&>(that)).swap(*this); return *this; }
+            constexpr io_buffer& operator=(nullptr_t) noexcept { reset(); return *this; }
+            constexpr iterator begin() noexcept { return iterator(beg); }
+            constexpr const_iterator cbegin() const noexcept { return const_iterator(beg); }
+            constexpr const_iterator begin() const noexcept { return const_iterator(beg); }
+            constexpr iterator end() noexcept { return iterator(cur); }
+            constexpr const_iterator end() const noexcept { return const_iterator(cur); }
+            constexpr const_iterator cend() const noexcept { return const_iterator(cur); }
+            constexpr void bump(difference_type n) noexcept { cur = clamp(beg, fin, cur + n); }
+            constexpr void set(pointer b, pointer e) noexcept { set(b, b + static_cast<difference_type>(cur - beg), e); }
+            // constexpr void spike(volleyball_type vb) noexcept { lol jk }
+        } in, out;
+    public:
+        virtual bool put(T const& t) { if(out.remaining()) { *(out.cur++) = t; return true; } return false; }
+        virtual size_t put(T const* ts, size_t num) { size_t n = clamp(0UZ, out.remaining(), num); if(n) { __builtin_memcpy(out.cur, ts, n * sizeof(T)); out.bump(n); } return n; }
+        virtual bool get(T& t) { if(in.remaining()) { t = *(in.cur++); return true; } return false; }
+        virtual size_t get(T* ts, size_t num) { size_t n = clamp(0UZ, in.remaining(), num); if(n) { __builtin_memcpy(ts, in.cur, n * sizeof(T)); in.bump(n); } return n; }
+        virtual bool poll() const { return out.remaining() > 0UZ; }
+        virtual size_t poll(size_t num) const { return clamp(0UZ, out.remaining(), num); }
+        virtual bool peek() const { return in.remaining() > 0UZ; }
+        virtual bool peek(T& t) const { if(in.remaining()) { t = *(in.cur); return true; } return false; }
+        virtual size_t peek(size_t num) const { return clamp(0UZ, in.remaining(), num); }
+        virtual size_t peek(T* ts, size_t num) const { size_t n = clamp(0UZ, in.remaining(), num); if(n) __builtin_memcpy(ts, in.cur, n * sizeof(T)); return n; }
+        virtual size_t pbump(difference_type n) { out.bump(n); return out.size(); }
+        virtual size_t gbump(difference_type n) { in.bump(n); return in.size(); }
+    };
 }
 /**
  * EXPORT_MODULE(T, Args...)

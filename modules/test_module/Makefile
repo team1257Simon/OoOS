@@ -20,6 +20,7 @@ $(OBJDIR)/%.o: %.S
 	$(AS) -c $< -o $@
 $(OUT_MOD): $(OBJECTS)
 	$(LD) $(FULL_LD_INPUT) -o $@ $(LDFLAGS)
+	$(ST) -s $@
 $(SYM_LOG): $(OUT_MOD)
 	$(READ) $(READFLAGS) $< > $@
 $(ASMT_DIR)/%.test.asm: %.cpp

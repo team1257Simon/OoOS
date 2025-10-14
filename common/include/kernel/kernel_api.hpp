@@ -2,6 +2,7 @@
 #define __KAPI
 #include <type_traits>
 #include <typeinfo>
+#include <compare>
 #include <arch/pci.hpp>
 #ifdef __KERNEL__
 #include "kernel_mm.hpp"
@@ -13,9 +14,75 @@ namespace ooos_kernel_module
 {
     class abstract_module_base;
     class isr_actor;
+    namespace __internal
+    {
+        class __anything;
+        template<typename T> using __ref = T&;
+        template<typename T> concept __can_reference = requires { typename __ref<T>; };
+        template<typename T> concept __object = std::is_object_v<T>;
+        template<typename T> concept __can_dereference = requires(std::add_lvalue_reference_t<T> __t) { { *__t } -> __can_reference; };
+        template<typename T> concept __can_reference_and_dereference = __can_reference<T> && __can_dereference<T>;
+        template<typename PT, typename VT> concept __points_to = std::is_convertible_v<decltype(*std::declval<PT>()), std::add_lvalue_reference_t<VT>>;
+        template<typename PT, typename VT> concept __points_to_maybe_const = __points_to<PT, std::add_const_t<VT>>;
+        template<typename PT, typename VT> concept __points_to_const = __points_to_maybe_const<PT, VT> && !__points_to<PT, VT>;
+        template<typename IT> concept __has_defined_value_type = requires { typename IT::value_type; };
+        template<typename IT> concept __has_implicit_value_type = !__has_defined_value_type<IT> && __can_reference_and_dereference<IT>;
+        template<typename IT> concept __has_defined_difference_type = requires { typename IT::difference_type; };
+        template<typename IT> concept __has_implicit_difference_type = !__has_defined_difference_type<IT> && requires(std::add_lvalue_reference_t<std::add_const_t<IT>> a, std::add_lvalue_reference_t<std::add_const_t<IT>> b) { { b - a } -> std::integral; };
+        template<typename> struct __use_difference_type {};
+        template<__has_defined_difference_type IT> struct __use_difference_type<IT> { typedef typename IT::difference_type type; };
+        template<__has_implicit_difference_type IT> struct __use_difference_type<IT> { typedef decltype(std::declval<IT>() - std::declval<IT>()) type; };
+        template<typename T> struct __use_difference_type<T const> : __use_difference_type<T> {};
+        template<typename T> concept __has_difference_type = requires { typename __use_difference_type<T>::type; };
+        template<typename> struct __use_value_type {};
+        template<__has_defined_value_type IT> struct __use_value_type<IT> { typedef typename IT::value_type type; };
+        template<__has_implicit_value_type IT> struct __use_value_type<IT> { typedef std::remove_reference_t<decltype(*std::declval<IT>())> type; };
+        template<typename T> struct __use_value_type<T const> : __use_value_type<T> {};
+        template<typename T> concept __has_value_type = requires { typename __use_value_type<T>::type; };
+        template<typename T> concept __convertible_to_weak = std::is_convertible_v<T, std::weak_ordering>;
+        template<typename T> concept __weakly_ordered = requires(T&& t1, T&& t2) { { static_cast<T&&>(t1) <=> static_cast<T&&>(t2) } -> __convertible_to_weak; };
+    }
     template<typename T> concept no_args_invoke = requires(T t) { t(); };
     template<typename T> concept wrappable_actor = no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
     template<typename T> concept boolable = requires(T t) { t ? true : false; };
+    template<typename T> concept io_buffer_ok = std::is_trivially_copyable_v<T> && !std::is_volatile_v<T>;
+    template<typename IT, typename VT> concept value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to<IT, VT>;
+    template<typename IT, typename VT> concept maybe_const_value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to_maybe_const<IT, std::remove_const_t<VT>>;
+    template<typename IT, typename VT> concept const_value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to_const<IT, std::remove_const_t<VT>>;
+    template<__internal::__has_difference_type IT> using iterator_difference_t = typename __internal::__use_difference_type<IT>::type;
+    template<__internal::__has_value_type IT> using dereference_value_t = typename __internal::__use_value_type<IT>::type;
+    template<typename IT> concept incrementable_iterator = __internal::__has_value_type<IT> && __internal::__has_difference_type<IT>;
+    template<incrementable_iterator IT>
+    struct simple_iterator
+    {
+    protected:
+        IT current;
+    public:
+        typedef dereference_value_t<IT> value_type;
+        typedef iterator_difference_t<IT> difference_type;
+        typedef std::add_lvalue_reference_t<value_type> reference;
+        typedef std::add_pointer_t<value_type> pointer;
+    protected:
+        typedef decltype(std::declval<difference_type>() <=> std::declval<difference_type>()) order_type;
+    public:
+        constexpr IT const& base() const noexcept { return current; }
+        constexpr simple_iterator() noexcept : current{} {}
+        constexpr explicit simple_iterator(IT const& i) noexcept : current{ i } {}
+        template<typename JT> requires maybe_const_value_iterator<IT, typename dereference_value<JT>::type> constexpr simple_iterator(simple_iterator<JT> const& that) noexcept : current{ that.base() } {}
+        constexpr reference operator*() const noexcept { return *current; }
+        constexpr pointer operator->() const noexcept { return current; }
+        constexpr reference operator[](difference_type n) const noexcept { return *(current + n); }
+        constexpr simple_iterator& operator++() noexcept { ++current; return *this; }
+        constexpr simple_iterator operator++(int) noexcept { return simple_iterator(current++); }
+        constexpr simple_iterator& operator--() noexcept { --current; return *this; }
+        constexpr simple_iterator operator--(int) noexcept { return simple_iterator(current--); }
+        constexpr simple_iterator& operator+=(difference_type n) noexcept { current += n; return *this; }
+        constexpr simple_iterator& operator-=(difference_type n) noexcept { current -= n; return *this; }
+        constexpr simple_iterator operator+(difference_type n) const noexcept { return simple_iterator(current + n); }
+        constexpr simple_iterator operator-(difference_type n) const noexcept { return simple_iterator(current - n); }
+        friend constexpr order_type operator<=>(simple_iterator const& __this, simple_iterator const& that) noexcept { return (__this.current - that.current) <=> static_cast<difference_type>(0); }
+        friend constexpr bool operator==(simple_iterator const& __this, simple_iterator const& that) noexcept { return __this.current == that.current; }
+    };
     struct kmod_mm
     {
         virtual void* mem_allocate(size_t size, size_t align) = 0;
@@ -133,5 +200,6 @@ namespace ooos_kernel_module
     };
     kernel_api* get_api_instance();
     void init_api();
+    template<__internal::__weakly_ordered T> [[nodiscard]] constexpr T&& clamp(T&& mini, T&& maxi, T&& t) noexcept { return static_cast<T&&>(t > mini ? (t < maxi ? t : maxi) : mini); }
 }
 #endif

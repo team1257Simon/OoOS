@@ -10,7 +10,7 @@ ARFLAGS := -rcs
 OBJDIR := $(OBJ_BASE_DIR)/libmodobj
 OUT := $(OUTDIR)/libmodobj.a
 LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
-CFLAGS = -O2 -fPIC -fPIE -mno-red-zone -Wno-packed-bitfield-compat
+CFLAGS = -O2 -fPIC -fPIE -mno-red-zone -Wno-packed-bitfield-compat -D__LIBK__
 CXXFLAGS := $(CFLAGS) -std=gnu++23 $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(INCLUDES_CXX)) -nostdinc++ -fvisibility-inlines-hidden
 CCFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES)) -std=gnu23
 LDFLAGS := $(CFLAGS) -r -pie -nolibc -nostartfiles

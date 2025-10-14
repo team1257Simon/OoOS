@@ -344,10 +344,13 @@ struct elf64_sym_table
         size_t entsz;
         constexpr elf64_sym const* operator->() const noexcept { return pos; }
         constexpr elf64_sym const& operator*() const noexcept { return pos.ref<elf64_sym const>(); }
+        constexpr elf64_sym const& operator[](ptrdiff_t n) const noexcept { return pos.plus(n * entsz).ref<elf64_sym const>(); }
         constexpr __symtab_iterator& operator++() noexcept { pos += static_cast<ptrdiff_t>(entsz); return *this; }
         constexpr __symtab_iterator operator++(int) noexcept { __symtab_iterator that(*this); ++(*this); return that; }
         constexpr __symtab_iterator& operator--() noexcept { pos -= static_cast<ptrdiff_t>(entsz); return *this; }
         constexpr __symtab_iterator operator--(int) noexcept { __symtab_iterator that(*this); --(*this); return that; }
+        constexpr __symtab_iterator operator+(ptrdiff_t n) const noexcept { return __symtab_iterator(pos.plus(n * entsz), entsz); }
+        constexpr __symtab_iterator operator-(ptrdiff_t n) const noexcept { return __symtab_iterator(pos.minus(n * entsz), entsz); }
         friend constexpr std::strong_ordering operator<=>(__symtab_iterator const& __this, __symtab_iterator const& that) noexcept { return __this.entsz <=> that.entsz; }
         friend constexpr bool operator==(__symtab_iterator const& __this, __symtab_iterator const& that) noexcept { return __this.pos == that.pos && __this.entsz == that.entsz; }
     } iterator, const_iterator;

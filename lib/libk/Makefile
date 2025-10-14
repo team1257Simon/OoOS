@@ -3,7 +3,7 @@ CXX := $(TARGET_HOSTED)-g++
 AR := $(TARGET_HOSTED)-ar
 CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-gcc
-CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32
+CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32 -D__LIBK__ 
 CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++23 -nostdinc++
 CCFLAGS := $(CFLAGS) -std=gnu23
 LDFLAGS := -r -flinker-output=rel -nostdlib
@@ -16,8 +16,6 @@ ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
 SSRC = $(wildcard *.S */*.S)
 CSRC = $(wildcard *.c */*.c)
 CPPSRC = $(wildcard *.cpp */*.cpp)
-CXXFLAGS += -D__KERNEL__ 
-CCFLAGS += -D__KERNEL__ 
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.S=%.o)
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES))
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))

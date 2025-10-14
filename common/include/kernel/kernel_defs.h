@@ -318,7 +318,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define HAVE_STDINT 1
 #define __pack attribute(packed)
 #define __align(n) attribute(aligned(n))
-#define __isrcall [[gnu::target("general-regs-only")]]
+#define __isrcall
 #define __unlikely(x) __builtin_expect((x), false)
 #ifndef __cplusplus
 #ifdef NEED_STDBOOL
@@ -330,9 +330,15 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 constexpr size_t physical_block_size = 512UL;
 #define __may_alias [[gnu::may_alias]]
 #define restrict __restrict__
+#if defined(__KERNEL__) || defined(__LIBK__)
 #include "compare"
 #include "bits/move.h"
 #include "concepts"
+#else
+#include <concepts>
+#include <compare>
+#include <utility>
+#endif
 template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
 template<class T> concept non_void = !std::is_void_v<T>;
 #endif

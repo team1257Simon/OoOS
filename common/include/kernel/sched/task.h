@@ -1,7 +1,7 @@
 #ifndef __TASK
 #define __TASK
 #include "sys/types.h"
-#ifndef __KERNEL__
+#if !(defined(__KERNEL__) || defined(__LIBK__))
 typedef int32_t spid_t;
 typedef void* addr_t;
 typedef unsigned long qword;
