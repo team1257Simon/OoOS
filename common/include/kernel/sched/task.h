@@ -136,6 +136,8 @@ typedef struct __task_info
     addr_t*     child_procs;                        // array of pointers to child process info structures (for things like process-tree termination)
     addr_t      next            CXX_INI(nullptr);   // updated when the scheduling event fires.
 } attribute(packed, aligned(16)) task_t;
+inline void fx_save(task_t* tx) { asm volatile("fxsave %0" : "=m"(tx->fxsv) :: "memory"); }
+inline void fx_restore(task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx->fxsv) :: "memory"); }
 #ifdef __cplusplus
 }
 #endif

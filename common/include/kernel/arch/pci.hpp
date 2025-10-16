@@ -1,25 +1,6 @@
 #ifndef __PERIPHERAL_CONTROL
 #define __PERIPHERAL_CONTROL
-#ifdef __KERNEL__
-#include "kernel/libk_decls.h"
-#else
-#include <cstdint>
-#include <cstddef>
-#define attribute(...) __attribute__((__VA_ARGS__))
-#define __pack __attribute__((packed))
-struct acpi_header
-{
-    char signature[4];
-    uint32_t length;
-    uint8_t revision;
-    uint8_t checksum;
-    char oem_id[6];
-    char oem_table_id[8];
-    uint32_t oem_revision;
-    uint32_t creator_id;
-    uint32_t creator_revision;
-} __pack;
-#endif
+#include <kernel/libk_decls.h>
 enum ht
 {
     st = 0x0,   // standard

@@ -2,6 +2,10 @@
 #define __KMOD
 #include "kernel_api.hpp"
 #include <new>
+#ifndef __unlikely
+#define __unlikely(x) __builtin_expect((x), false)
+#endif
+
 namespace ooos_kernel_module
 {
     class abstract_module_base
@@ -10,10 +14,13 @@ namespace ooos_kernel_module
         kmod_mm* __allocated_mm;
         void (*__fini_fn)();
     public:    
-        virtual void initialize() = 0;
+        virtual bool initialize() = 0;
         virtual void finalize() = 0;
         inline abstract_module_base* tie_api_mm(kernel_api* api, kmod_mm* mm) { if(!__api_hooks && !__allocated_mm && api && mm) { __api_hooks = api; __allocated_mm = mm; } return this; }
         inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
+        inline void* allocate_buffer(size_t size, size_t align) { return __allocated_mm->mem_allocate(size, align); }
+        inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) { return __allocated_mm->mem_resize(orig, old_size, target_size, align); }
+        inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
         inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
         inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
         inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
@@ -40,10 +47,11 @@ namespace ooos_kernel_module
         return nullptr;
     }
     template<io_buffer_ok T>
-    class io_module_base : public abstract_module_base
+    struct io_module_base : public abstract_module_base
     {
-    public:
-        typedef T value_type;
+        typedef std::remove_cvref_t<T> value_type;
+        typedef in_value<value_type> input_type;
+        typedef out_value<value_type> output_type;
         typedef value_type* pointer;
         typedef value_type const* const_pointer;
         typedef value_type& reference;
@@ -51,22 +59,23 @@ namespace ooos_kernel_module
         typedef simple_iterator<pointer> iterator;
         typedef simple_iterator<const_pointer> const_iterator;
         typedef typename iterator::difference_type difference_type;
-    protected:
+        typedef decltype(sizeof(value_type)) size_type;
         struct io_buffer
         {
             pointer beg;
             pointer cur;
             pointer fin;
-            constexpr size_t size() const noexcept { return cur > beg ? static_cast<size_t>(cur - beg) : 0UZ; }
-            constexpr size_t capacity() const noexcept { return fin > beg ? static_cast<size_t>(fin - beg) : 0UZ; }
-            constexpr size_t remaining() const noexcept { return (beg && fin > cur) ? static_cast<size_t>(fin - cur) : 0UZ; }
+            constexpr size_type size() const noexcept { return cur > beg ? static_cast<size_type>(cur - beg) : 0UZ; }
+            constexpr size_type capacity() const noexcept { return fin > beg ? static_cast<size_type>(fin - beg) : 0UZ; }
+            constexpr size_type remaining() const noexcept { return (beg && fin > cur) ? static_cast<size_type>(fin - cur) : 0UZ; }
             constexpr void set(pointer b, pointer c, pointer e) noexcept { beg = b; cur = c; fin = e; }
+            constexpr void revert() noexcept { cur = beg; }
             constexpr void reset() noexcept { beg = cur = fin = pointer(); }
             constexpr io_buffer() noexcept = default;
             constexpr ~io_buffer() noexcept = default;
             constexpr io_buffer(pointer b, pointer c, pointer e) noexcept : beg(b), cur(c), fin(e) {}
             constexpr io_buffer(pointer b, pointer e) noexcept : beg(b), cur(b), fin(e) {}
-            constexpr io_buffer(pointer b, size_t n) noexcept : beg(b), cur(b), fin(b + n) {}
+            constexpr io_buffer(pointer b, size_type n) noexcept : beg(b), cur(b), fin(b + n) {}
             constexpr io_buffer(io_buffer&& that) noexcept : beg(that.beg), cur(that.cur), fin(that.fin) { that.reset(); }
             constexpr void swap(io_buffer& that) noexcept { io_buffer tmp(this->beg, this->cur, this->fin); this->set(that.beg, that.cur, that.fin); that.set(tmp.beg, tmp,cur, tmp.fin); }
             constexpr io_buffer& operator=(io_buffer&& that) noexcept { io_buffer(static_cast<io_buffer&&>(that)).swap(*this); return *this; }
@@ -77,24 +86,64 @@ namespace ooos_kernel_module
             constexpr iterator end() noexcept { return iterator(cur); }
             constexpr const_iterator end() const noexcept { return const_iterator(cur); }
             constexpr const_iterator cend() const noexcept { return const_iterator(cur); }
-            constexpr void bump(difference_type n) noexcept { cur = clamp(beg, fin, cur + n); }
-            constexpr void set(pointer b, pointer e) noexcept { set(b, b + static_cast<difference_type>(cur - beg), e); }
-            // constexpr void spike(volleyball_type vb) noexcept { lol jk }
+            constexpr void bump(difference_type n = static_cast<difference_type>(1)) noexcept { pointer target = cur + n; cur = target < fin ? (target > beg ? target : beg) : fin; }
+            constexpr void set(pointer b, pointer e) noexcept { set(b, b + static_cast<difference_type>(cur - beg), e); /* constexpr void spike(volleyball_t loljk); */ }
+            constexpr void set(pointer b, size_t n) noexcept { set(b, b + n); }
+            constexpr output_type read() const noexcept { return *cur; }
+            constexpr output_type get() noexcept { output_type result = read(); bump(); return result; }
+            constexpr void write(input_type t) noexcept { *cur = t; }
+            constexpr void put(input_type t) noexcept { write(t); bump(); }
         } in, out;
-    public:
-        virtual bool put(T const& t) { if(out.remaining()) { *(out.cur++) = t; return true; } return false; }
-        virtual size_t put(T const* ts, size_t num) { size_t n = clamp(0UZ, out.remaining(), num); if(n) { __builtin_memcpy(out.cur, ts, n * sizeof(T)); out.bump(n); } return n; }
-        virtual bool get(T& t) { if(in.remaining()) { t = *(in.cur++); return true; } return false; }
-        virtual size_t get(T* ts, size_t num) { size_t n = clamp(0UZ, in.remaining(), num); if(n) { __builtin_memcpy(ts, in.cur, n * sizeof(T)); in.bump(n); } return n; }
-        virtual bool poll() const { return out.remaining() > 0UZ; }
-        virtual size_t poll(size_t num) const { return clamp(0UZ, out.remaining(), num); }
-        virtual bool peek() const { return in.remaining() > 0UZ; }
-        virtual bool peek(T& t) const { if(in.remaining()) { t = *(in.cur); return true; } return false; }
-        virtual size_t peek(size_t num) const { return clamp(0UZ, in.remaining(), num); }
-        virtual size_t peek(T* ts, size_t num) const { size_t n = clamp(0UZ, in.remaining(), num); if(n) __builtin_memcpy(ts, in.cur, n * sizeof(T)); return n; }
-        virtual size_t pbump(difference_type n) { out.bump(n); return out.size(); }
-        virtual size_t gbump(difference_type n) { in.bump(n); return in.size(); }
+        virtual bool overflow(size_type needed) { return false; }
+        virtual bool underflow(size_type needed) { return false; }
+        virtual int sync() { return 0; }
+        virtual size_type read(pointer dest, size_type n);
+        virtual size_type write(size_type n, const_pointer src);
+        void create_buffer(io_buffer& b, size_t n) { b.set(new (this->allocate_buffer(n * sizeof(value_type), alignof(value_type))) value_type[n], n); }
+        void destroy_buffer(io_buffer& b) { this->release_buffer(b.beg, alignof(value_type)); b.reset(); }
+        void resize_buffer(io_buffer& b, size_t nsz) { b.set(static_cast<pointer>(abstract_module_base::resize_buffer(b.beg, b.capacity(), nsz, alignof(value_type))), nsz); }
+        value_type get();
+        bool put(input_type t);
     };
+    template<io_buffer_ok T>
+    typename io_module_base<T>::size_type io_module_base<T>::read(pointer dest, size_type n)
+    {
+        size_type result{};
+        for(size_type i = size_type{}; i < n; i++)
+        {
+            if(__unlikely(!in.remaining() && !underflow(n - i))) break;
+            dest[i] = in.get();
+            result++;
+        }
+        return result;
+    }
+    template<io_buffer_ok T>
+    typename io_module_base<T>::size_type io_module_base<T>::write(size_type n, const_pointer src)
+    {
+        size_type result{};
+        for(size_type i = size_type{}; i < n; i++)
+        {
+            if(__unlikely(!out.remaining() && !underflow(n - i))) break;
+            out.put(src[i]);
+            result++;
+        }
+        return result;
+    }
+    template<io_buffer_ok T>
+    typename io_module_base<T>::value_type io_module_base<T>::get()
+    {
+        if(in.remaining()) return in.get();
+        else if(underflow(static_cast<size_type>(1))) return in.get();
+        else return value_type();
+    }
+    template<io_buffer_ok T>
+    bool io_module_base<T>::put(input_type t)
+    {
+        if(__unlikely(!out.remaining() && !overflow(static_cast<size_type>(1)))) return false;
+        out.put(t);
+        return true;
+    }
+    struct configurable_interface { virtual generic_config_table& get_config() = 0; };
 }
 /**
  * EXPORT_MODULE(T, Args...)
@@ -103,5 +152,5 @@ namespace ooos_kernel_module
  * That function allocates a separate page frame structure which is used to implement most of the underlying "glue" needed by C++ to function fully.
  * It then also sets up some pointers to vtables which tie in kernel functionality modules might need to use.
  */
-#define EXPORT_MODULE(module_class, ...) static char __instance[sizeof(module_class)]; extern "C" { ooos_kernel_module::abstract_module_base* module_init(ooos_kernel_module::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)()) { return ooos_kernel_module::setup_instance<module_class>(&__instance, api, frame_tag, kframe_fns, init, fini, __VA_ARGS__); } }
+#define EXPORT_MODULE(module_class, ...) static char __instance[sizeof(module_class)]; extern "C" { ooos_kernel_module::abstract_module_base* module_init(ooos_kernel_module::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)()) { return ooos_kernel_module::setup_instance<module_class>(&__instance, api, frame_tag, kframe_fns, init, fini __VA_OPT__(,) __VA_ARGS__); } }
 #endif

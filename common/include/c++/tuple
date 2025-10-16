@@ -55,7 +55,7 @@ namespace std
         static constexpr __next const& __tail(__tuple_impl const& t) noexcept { return t; }
         constexpr __tuple_impl() : __base{}, __next{} {}
         template<typename UHead, typename ...UTails> requires(sizeof...(ETs) == sizeof...(UTails))
-        constexpr explicit __tuple_impl(UHead && h, UTails &&... t) : __next{forward<UTails>(t)...}, __base{ forward<UHead>(h) }  {}
+        constexpr explicit __tuple_impl(UHead && h, UTails &&... t) : __next{ forward<UTails>(t)... }, __base{ forward<UHead>(h) }  {}
         template<typename ...FTs> constexpr void __assign(__tuple_impl<I, FTs...> const& that) { __head(*this) = __tuple_impl<I, FTs...>::__head(that); __tail(*this).__assign(__tuple_impl<I, FTs...>::__tail(that)); }
         template<typename UHead, typename ...UTails> constexpr void __assign(__tuple_impl<I, UHead, UTails...>&& that) { __head(*this) = __tuple_impl<I, UHead, UTails...>::__head(that); __tail(*this).__assign(std::move(__tuple_impl<I, UHead, UTails...>::__tail(that))); }
     protected:
@@ -126,7 +126,7 @@ namespace std
     template<size_t I, class T> struct tuple_element; 
     template<size_t I, class T> struct tuple_element<I, const T> { using type = typename add_const<typename tuple_element<I, T>::type>::type; };
     template<class T> struct tuple_size;
-    template<class T> struct tuple_size< const T > : integral_constant<size_t, tuple_size<T>::value> {};
+    template<class T> struct tuple_size<const T> : integral_constant<size_t, tuple_size<T>::value> {};
     template<class ... Ts> struct tuple_size<tuple<Ts...>> : integral_constant<size_t, sizeof...(Ts)> {};
     template<size_t I, class HT, class... ETs> struct tuple_element<I, tuple<HT, ETs...>> : tuple_element<I - 1, tuple<ETs...>>{};
     template<class HT, class... ETs> struct tuple_element<0, tuple<HT, ETs...>>  { using type = HT; };

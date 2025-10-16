@@ -335,6 +335,7 @@ constexpr size_t physical_block_size = 512UL;
 #include "bits/move.h"
 #include "concepts"
 #else
+#include <type_traits>
 #include <concepts>
 #include <compare>
 #include <utility>
@@ -403,15 +404,15 @@ typedef struct attribute(packed) __vaddr
                     {}
     constexpr explicit __vaddr(uint64_t i) noexcept : full{ i } {}
     constexpr __vaddr(nullptr_t) noexcept : full{ 0UL } {}
-    constexpr __vaddr(void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
-    constexpr __vaddr(const void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
-    constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
-    constexpr explicit __vaddr(const volatile void* ptr) noexcept : __vaddr{ std::bit_cast<uintptr_t>(ptr) } {}
+    constexpr __vaddr(void* ptr) noexcept : __vaddr{ __builtin_bit_cast(uintptr_t, ptr) } {}
+    constexpr __vaddr(const void* ptr) noexcept : __vaddr{ __builtin_bit_cast(uintptr_t, ptr) } {}
+    constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr{ __builtin_bit_cast(uintptr_t, ptr) } {}
+    constexpr explicit __vaddr(const volatile void* ptr) noexcept : __vaddr{ __builtin_bit_cast(uintptr_t, ptr) } {}
     template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(T* ptr) noexcept : __vaddr{ static_cast<void*>(ptr) } {}
     template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(const T* ptr) noexcept : __vaddr{ static_cast<const void*>(ptr) } {}
     template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(volatile T* ptr) noexcept : __vaddr{ static_cast<volatile void*>(ptr) } {}
     template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(const volatile T* ptr) noexcept : __vaddr{ static_cast<const volatile void*>(ptr) } {}
-    template<typename RT, typename ... Args> constexpr explicit __vaddr(RT (*funcptr)(Args...)) noexcept : __vaddr{ std::bit_cast<void*>(funcptr) } {}
+    template<typename RT, typename ... Args> constexpr explicit __vaddr(RT (*ptr)(Args...)) noexcept : __vaddr{  __builtin_bit_cast(void*, ptr)  } {}
     constexpr __vaddr() = default;
     constexpr ~__vaddr() = default;
     constexpr __vaddr(__vaddr const&) = default;
@@ -437,21 +438,21 @@ typedef struct attribute(packed) __vaddr
     template<non_void T> using ctptr = const T*;
     template<non_void T> using vtptr = volatile T*;
     template<non_void T> using cvtptr = const volatile T*;
-    template<typename T = void> constexpr T* as() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(full); }
-    template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
+    template<typename T = void> constexpr T* as() const noexcept { return __builtin_bit_cast(std::remove_cv_t<T>*, full); }
+    template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return __builtin_bit_cast(volatile std::remove_cv_t<T>*, const_cast<__vaddr const*>(this)->full); }
     template<non_void T> constexpr T& ref() const { return *as<T>(); }
     template<non_void T> constexpr T& assign(T const& value) const { return ref<T>() = value; }
     template<non_void T> constexpr T& assign(T&& value) const { return ref<std::remove_reference_t<T>>() = std::move(value); }
     template<typename T, typename ... Args> using functor_t = T(*)(Args...);
     template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { ref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return ref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
-    constexpr operator void*() const noexcept { return std::bit_cast<void*>(full); }
-    constexpr operator cvptr() const noexcept { return std::bit_cast<const void*>(full); }
-    constexpr operator vvptr() const volatile noexcept { return std::bit_cast<volatile void*>(const_cast<__vaddr const*>(this)->full); }
-    constexpr operator cvvptr() const volatile noexcept { return std::bit_cast<const volatile void*>(const_cast<__vaddr const*>(this)->full); }
-    template<non_void T> constexpr operator T*() const noexcept { return std::bit_cast<std::remove_cv_t<T>*>(full); }
-    template<non_void T> constexpr operator ctptr<T>() const noexcept { return std::bit_cast<const std::remove_cv_t<T>*>(full); }
-    template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return std::bit_cast<volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
-    template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return std::bit_cast<const volatile std::remove_cv_t<T>*>(const_cast<__vaddr const*>(this)->full); }
+    constexpr operator void*() const noexcept { return this->as<void>(); }
+    constexpr operator cvptr() const noexcept { return this->as<const void>(); }
+    constexpr operator vvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<volatile void>(); }
+    constexpr operator cvvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<const volatile void>(); }
+    template<non_void T> constexpr operator T*() const noexcept { return this->as<T>(); }
+    template<non_void T> constexpr operator ctptr<T>() const noexcept { return this->as<T const>(); }
+    template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T volatile>(); }
+    template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T const volatile>();  }
     template<typename T, typename ... Args> inline operator functor_t<T, Args...>() const noexcept { return reinterpret_cast<functor_t<T, Args...>>(full); }
     constexpr operator bool() const noexcept { return bool(full); }
     friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full == __that.full; }
@@ -1027,6 +1028,7 @@ constexpr int16_t operator""S(unsigned long long i) noexcept { return static_cas
 constexpr __be16 operator""USBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
 constexpr __be32 operator""UBE(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
 constexpr __be64 operator""ULBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
+#include <sys/types.h>
 #pragma GCC diagnostic pop
 #else
 typedef uint8_t byte;

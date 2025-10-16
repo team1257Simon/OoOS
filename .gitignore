@@ -9,8 +9,7 @@
 *.bin
 build/*
 **/build/*
-kernel/asm_test/*
-lib/asm_test/*
+**/asm_test/*
 syms/*
 img/usr/*
 img/lib/*

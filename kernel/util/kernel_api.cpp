@@ -5,11 +5,7 @@
 #include "stdexcept"
 namespace ooos_kernel_module
 {
-    void isr_actor_base::actor_manager_wrapper::manager_action(functor_store& dst, functor_store const& src, mgr_op op) { if(*this) { (*manager)(dst, src, mm, op); } }
     void isr_actor_base::actor_manager_wrapper::invoke(functor_store& fn) { if(*this) { (*invoker)(fn); } }
-    isr_actor_base::~isr_actor_base() noexcept { if(__my_wrapper) __my_wrapper.manager_action(__my_actor, __my_actor, destroy); }
-    isr_actor::isr_actor() noexcept = default;
-    isr_actor::~isr_actor() noexcept = default;
     isr_actor::isr_actor(isr_actor const& that) : isr_actor_base(that.__my_wrapper) { __my_wrapper.manager_action(this->__my_actor, that.__my_actor, clone); }
     isr_actor::isr_actor(isr_actor&& that) : isr_actor_base(std::move(that.__my_wrapper)) { this->__my_actor = that.__my_actor; }
     void isr_actor::operator()() { __my_wrapper.invoke(__my_actor); }
@@ -45,6 +41,7 @@ namespace ooos_kernel_module
         spinlock_t mod_mutex{};
         virtual void* mem_allocate(size_t size, size_t align) override;
         virtual void mem_release(void* block, size_t align) override;
+        virtual void* mem_resize(void* old, size_t old_size, size_t target, size_t align) override;
         virtual kframe_tag* get_frame() override { return this; }
         virtual ~kmod_mm_impl();
         kmod_mm_impl();
@@ -105,6 +102,14 @@ namespace ooos_kernel_module
             release_block(tag);
             release(std::addressof(mod_mutex));
         }
+    }
+    void* ooos_kernel_module::kmod_mm_impl::mem_resize(void* old, size_t old_size, size_t target, size_t align)
+    {
+        void* result = mem_allocate(target, align);
+        if(!old) return result;
+        array_copy<char>(static_cast<char*>(result), static_cast<char*>(old), old_size < target ? old_size : target);
+        mem_release(old, align);
+        return result;
     }
     kmod_mm_impl::~kmod_mm_impl()
     {

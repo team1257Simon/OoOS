@@ -1,9 +1,8 @@
 #ifndef __ARCH_AMD64
 #define __ARCH_AMD64
-#include "kernel/libk_decls.h"
-#include "kernel/sched/task.h"
+#include <kernel/libk_decls.h>
 #ifdef __cplusplus
-#include "concepts"
+#include <concepts>
 constexpr byte sig_pic_eoi       =   0x20UC;	    /* End-of-interrupt command code */
 constexpr word command_pic1      =   0x20UC;	    /* IO base address for master PIC*/
 constexpr word command_pic2      =   0xA0UC;		/* IO base address for slave PIC */
@@ -90,10 +89,8 @@ template<uint8_t R> constexpr byte read_rtc_register() { rtc_select<R>(); return
 template<uint8_t R> constexpr void write_rtc_register(byte val) { rtc_select<R>(); outb(data_rtc, val); }
 constexpr bool is_cmos_update_in_progress() { return (read_rtc_register<0x0AUC>() & 0x80) != 0; }
 constexpr byte kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
-inline void fx_save(task_t* tx) { asm volatile("fxsave %0" : "=m"(tx->fxsv) :: "memory"); }
-inline void fx_restore(task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx->fxsv) :: "memory"); }
 constexpr byte kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
-template<uint32_t R> constexpr qword read_msr() { dword lo, hi;  asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword{ lo, hi }; }
+template<uint32_t R> constexpr qword read_msr() { dword lo, hi; asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword(lo, hi); }
 template<uint32_t R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
 constexpr dword kernel_gs_base = 0xC0000102;
 constexpr dword ia32_efer      = 0xC0000080;

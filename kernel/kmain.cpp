@@ -307,7 +307,8 @@ void elf64_tests()
         else startup_tty.print_line("Executable failed to validate");
         tst = test_extfs.open_file("sys/test_module.ko");
         elf64_kernel_object test_ko(tst);
-        test_ko.load_module();
+        if(ooos_kernel_module::abstract_module_base* loaded = test_ko.load_module()) loaded->initialize();
+        else startup_tty.print_line("module loading failed");
         test_extfs.close_file(tst);
     }
     catch(std::exception& e) { panic(e.what()); }

@@ -6,8 +6,9 @@
 #include "new"
 #include "memory"
 #else
-#include <concepts>
 #include <new>
+#include <memory>
+#include <tuple>
 namespace std
 {
 #pragma region non-standard useful concepts
@@ -17,7 +18,6 @@ namespace std
     extension template<typename LT, typename RT> concept larger = sizeof(LT) > sizeof(RT);
     extension template<typename LT, typename RT> concept not_smaller = same_size<LT, RT> || larger<LT, RT>;
     extension template<typename LT, typename RT> concept not_larger = same_size<LT, RT> || smaller<LT, RT>;
-    extension template<typename FT, typename TT> concept bit_castable = is_trivially_copyable_v<TT> && is_trivially_copyable_v<FT> && same_size<FT, TT>;
     extension template<typename FT, typename RT, typename ST, typename ... Args> concept member_function = requires { { ((declval<ST&&>()).*(declval<FT&&>()))(declval<Args&&>()...) } -> same_as<RT>; };
     extension template<typename FT, typename RT, typename ST, typename ... Args> concept deref_to_member_function = requires { { ((*declval<ST&&>()).*(declval<FT&&>()))(declval<Args&&>()...) } -> same_as<RT>; };
     extension template<typename FT, typename RT, typename ... Args> concept functor = requires { { declval<FT&&>()(declval<Args&&>()...) } -> same_as<RT>; };
@@ -27,7 +27,12 @@ namespace std
     struct __somesuch{};
     extension template<class A, typename T> concept allocator_object = __allocator_object<A, T> && __allocator_object<typename A::template rebind<__somesuch>::other, __somesuch>;
     extension template<template<typename> class PT, typename T> concept recursive_template_derived = derived_from<T, PT<T>>;
-#pragma endregion
+    extension namespace ext
+    {
+        template<typename T, typename ... Args, size_t ... Is> constexpr T* __tuple_construct(T* ptr, tuple<Args...>&& args, index_sequence<Is...>) { return construct_at(ptr, get<Is>(forward<tuple<Args...>>(args))...);  }
+        template<typename T, typename ... Args> requires constructible_from<T, Args...> constexpr T* tuple_construct(T* ptr, tuple<Args...>&& args) { return __tuple_construct(ptr, forward<tuple<Args...>>(args), make_index_sequence<sizeof...(Args)>{}); }
+    }
+    #pragma endregion
 }
 #endif
 extern "C"
@@ -55,37 +60,34 @@ constexpr bool acquire(mutex_t m) { return __atomic_test_and_set(m, __ATOMIC_SEQ
 constexpr void release(mutex_t m) { __atomic_clear(m, __ATOMIC_SEQ_CST); }
 constexpr void lock(mutex_t m) { while(acquire(m)) { pause(); } }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, std::addressof(b), __ATOMIC_SEQ_CST); return b; }
+qword get_flags();
+extern int setjmp(jmp_buf jb);
+extern void longjmp(jmp_buf jb, int status);
+#if defined(__KERNEL__) || defined(__LIBK__)
 __isrcall void panic(const char* msg) noexcept;
 __isrcall void klog(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
-qword get_flags();
 uintptr_t translate_vaddr(addr_t addr);
 addr_t translate_user_pointer(addr_t ptr);
 uint64_t sys_time(uint64_t* tm_target);
 paging_table get_kernel_cr3();
 uint32_t crc32c_x86_3way(uint32_t, const uint8_t*, size_t);
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = 0);
-extern int setjmp(jmp_buf jb);
-extern void longjmp(jmp_buf jb, int status);
+#endif
 #ifdef __cplusplus
 }
-void kfx_save();
-void kfx_load();
 template<typename T> constexpr void set_fs_base(T* value) { asm volatile("wrfsbase %0" :: "r"(value) : "memory"); }
 template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
 template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
 template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
-template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
-template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
-inline uint32_t crc32c(uint32_t start, const char* c, size_t l) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(c), l); }
 constexpr uint16_t unix_year_base = 1970U;
 inline void set_cr3(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
 inline paging_table get_cr3() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
 inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 constexpr inline size_t gigabyte = 0x40000000;
-template<typename T> concept trivial_copy = std::__is_nonvolatile_trivially_copyable_v<T>;
-template<typename T> concept nontrivial_copy = !std::__is_nonvolatile_trivially_copyable_v<T>;
+template<typename T> concept trivial_copy = std::is_trivially_copyable_v<T>;
+template<typename T> concept nontrivial_copy = !std::is_trivially_copyable_v<T>;
 template<typename T> concept standard_layout = std::is_standard_layout_v<T>;
 template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { if consteval { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(array[i])); } } } }
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_fill(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++) { dest[i] = value; } }
@@ -140,5 +142,12 @@ template<uint64_t V> using c_u64 = std::integral_constant<uint64_t, V>;
 typedef bit_or<uint64_t, c_u64> u64_or;
 template<uint64_t ... Is> using bit_mask = c_u64<u64_or::template value(u64_shift<Is>()...)>;
 template<typename T> constexpr T& nonnull_or_else(T* __this, T& __that) noexcept { return __this ? *__this : __that; }
+#if defined(__KERNEL__) || defined(__LIBK__)
+template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
+template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
+inline uint32_t crc32c(uint32_t start, const char* c, size_t l) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(c), l); }
+void kfx_save();
+void kfx_load();
+#endif
 #endif
 #endif

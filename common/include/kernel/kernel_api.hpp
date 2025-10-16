@@ -41,16 +41,25 @@ namespace ooos_kernel_module
         template<typename T> concept __has_value_type = requires { typename __use_value_type<T>::type; };
         template<typename T> concept __convertible_to_weak = std::is_convertible_v<T, std::weak_ordering>;
         template<typename T> concept __weakly_ordered = requires(T&& t1, T&& t2) { { static_cast<T&&>(t1) <=> static_cast<T&&>(t2) } -> __convertible_to_weak; };
+        template<typename T> concept __non_register = sizeof(T) > sizeof(long long);
+        template<typename T> struct __single_buffer_value { typedef std::remove_cvref_t<T> type; typedef std::remove_reference_t<T> const_type; };
+        template<__non_register T> struct __single_buffer_value<T> { typedef std::add_lvalue_reference_t<T> type; typedef std::add_lvalue_reference_t<std::add_const_t<T>> const_type; };
+        template<typename T> concept __can_be_parameter_type = std::is_standard_layout_v<T> && (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T> || std::is_default_constructible_v<T>) && (std::is_copy_assignable_v<T> || std::is_move_assignable_v<T>);
+        template<size_t N, typename ... Ts> struct __nth_pack_param;
+        template<template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<0, C<H, Ts...>> { typedef H type; };
+        template<size_t N, template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<N, C<H, Ts...>> : __nth_pack_param<N - 1, C<Ts...>> {};
     }
     template<typename T> concept no_args_invoke = requires(T t) { t(); };
     template<typename T> concept wrappable_actor = no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
     template<typename T> concept boolable = requires(T t) { t ? true : false; };
-    template<typename T> concept io_buffer_ok = std::is_trivially_copyable_v<T> && !std::is_volatile_v<T>;
+    template<typename T> concept io_buffer_ok = std::is_default_constructible_v<T> && !std::is_volatile_v<T> && std::is_copy_assignable_v<T>;
     template<typename IT, typename VT> concept value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to<IT, VT>;
     template<typename IT, typename VT> concept maybe_const_value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to_maybe_const<IT, std::remove_const_t<VT>>;
     template<typename IT, typename VT> concept const_value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to_const<IT, std::remove_const_t<VT>>;
     template<__internal::__has_difference_type IT> using iterator_difference_t = typename __internal::__use_difference_type<IT>::type;
     template<__internal::__has_value_type IT> using dereference_value_t = typename __internal::__use_value_type<IT>::type;
+    template<typename T> using in_value = typename __internal::__single_buffer_value<T>::const_type;
+    template<typename T> using out_value = typename __internal::__single_buffer_value<T>::type;
     template<typename IT> concept incrementable_iterator = __internal::__has_value_type<IT> && __internal::__has_difference_type<IT>;
     template<incrementable_iterator IT>
     struct simple_iterator
@@ -68,7 +77,7 @@ namespace ooos_kernel_module
         constexpr IT const& base() const noexcept { return current; }
         constexpr simple_iterator() noexcept : current{} {}
         constexpr explicit simple_iterator(IT const& i) noexcept : current{ i } {}
-        template<typename JT> requires maybe_const_value_iterator<IT, typename dereference_value<JT>::type> constexpr simple_iterator(simple_iterator<JT> const& that) noexcept : current{ that.base() } {}
+        template<typename JT> requires maybe_const_value_iterator<IT, dereference_value_t<JT>> constexpr simple_iterator(simple_iterator<JT> const& that) noexcept : current{ that.base() } {}
         constexpr reference operator*() const noexcept { return *current; }
         constexpr pointer operator->() const noexcept { return current; }
         constexpr reference operator[](difference_type n) const noexcept { return *(current + n); }
@@ -87,6 +96,7 @@ namespace ooos_kernel_module
     {
         virtual void* mem_allocate(size_t size, size_t align) = 0;
         virtual void mem_release(void* block, size_t align) = 0;
+        virtual void* mem_resize(void* old, size_t old_size, size_t target, size_t align) = 0;
         virtual kframe_tag* get_frame() = 0;
         virtual ~kmod_mm() = default;
     };
@@ -160,9 +170,9 @@ namespace ooos_kernel_module
             kmod_mm* mm;
             manager_type manager;
             invoker_type invoker;
-            void manager_action(functor_store& dst, functor_store const& src, mgr_op op);
-            void invoke(functor_store& fn);
             constexpr operator bool() const noexcept { return mm && manager && invoker; }
+            inline void manager_action(functor_store& dst, functor_store const& src, mgr_op op) { if(*this) { (*manager)(dst, src, mm, op); }  }
+            void invoke(functor_store& fn);
         };
         actor_manager_wrapper __my_wrapper;
         functor_store __my_actor;
@@ -170,12 +180,12 @@ namespace ooos_kernel_module
         constexpr isr_actor_base(manager_type mgr, invoker_type inv, kmod_mm* mm) noexcept : __my_wrapper(mm, mgr, inv), __my_actor() {}
         constexpr isr_actor_base(actor_manager_wrapper const& wrapper) noexcept : __my_wrapper(wrapper) {}
         constexpr isr_actor_base(actor_manager_wrapper&& wrapper) noexcept : __my_wrapper(wrapper) { wrapper.invoker = nullptr; wrapper.manager = nullptr; wrapper.mm = nullptr; }
-        ~isr_actor_base() noexcept;
+        inline ~isr_actor_base() noexcept { if(__my_wrapper) __my_wrapper.manager_action(__my_actor, __my_actor, destroy); }
     };
     struct isr_actor : private isr_actor_base
     {
-        isr_actor() noexcept;
-        ~isr_actor() noexcept;
+        inline isr_actor() noexcept = default;
+        inline ~isr_actor() noexcept = default;
         template<wrappable_actor FT> inline isr_actor(FT&& ft, kmod_mm* mm) : isr_actor_base(get_manager(ft), get_invoker(ft), mm) { if(not_empty(ft)) actor_manager<FT>::init_actor(__my_actor, static_cast<FT&&>(ft), mm); }
         constexpr operator bool() const noexcept { return __my_wrapper; }
         isr_actor(isr_actor const& that);
@@ -200,6 +210,142 @@ namespace ooos_kernel_module
     };
     kernel_api* get_api_instance();
     void init_api();
-    template<__internal::__weakly_ordered T> [[nodiscard]] constexpr T&& clamp(T&& mini, T&& maxi, T&& t) noexcept { return static_cast<T&&>(t > mini ? (t < maxi ? t : maxi) : mini); }
+    struct [[gnu::may_alias]] generic_config_parameter
+    {
+        size_t value_size;
+        std::type_info const& type;
+        const char* parameter_name;
+        char value_data[];
+        constexpr void* get_value() noexcept { return value_data; }
+        constexpr const void* get_value() const noexcept { return value_data; }
+        constexpr void write_value(const void* src) noexcept { __builtin_memcpy(value_data, src, value_size); }
+        constexpr generic_config_parameter* next_in_array() noexcept { void* pos = this; void* next = static_cast<char*>(pos) + value_size + sizeof(generic_config_parameter); return static_cast<generic_config_parameter*>(next); }
+        constexpr generic_config_parameter const* next_in_array() const noexcept { const void* pos = this; const void* next = static_cast<const char*>(pos) + value_size + sizeof(generic_config_parameter); return static_cast<generic_config_parameter const*>(next); }
+    };
+    template<__internal::__can_be_parameter_type T> struct parameter_type_t { constexpr explicit parameter_type_t() noexcept = default; };
+    template<__internal::__can_be_parameter_type T> constexpr inline parameter_type_t<T> parameter_type{};
+    template<__internal::__can_be_parameter_type T>
+    struct [[gnu::may_alias]] config_parameter
+    {
+        size_t value_size;
+        std::type_info const& type;
+        const char* name;
+        T value;
+        constexpr static T& get(config_parameter& p) noexcept { return p.value; }
+        constexpr static T const& get(config_parameter const& p) noexcept { return p.value; }
+    };
+    template<__internal::__can_be_parameter_type T, typename ... Args> 
+    requires std::is_constructible_v<T, Args...>
+    constexpr config_parameter<T> parameter(const char* name, parameter_type_t<T>, Args&& ... args)
+    noexcept(std::is_nothrow_constructible_v<T, Args...>)
+    {
+        return config_parameter<T>
+        {
+            .value_size { sizeof(T) },
+            .type       { typeid(T) },
+            .name       { name },
+            .value      { static_cast<Args&&>(args)... }
+        };
+    }
+    struct config_iterator
+    {
+        typedef generic_config_parameter value_type;
+        typedef decltype(std::declval<value_type*>() - std::declval<value_type*>()) difference_type;
+        typedef std::add_pointer_t<value_type> pointer;
+        typedef decltype(*std::declval<pointer>()) reference;
+    private:
+        pointer __cur;
+    public:
+        constexpr config_iterator() noexcept = default;
+        constexpr explicit config_iterator(pointer p) noexcept : __cur(p) {}
+        constexpr pointer base() const noexcept { return __cur; }
+        constexpr pointer operator->() const noexcept { return __cur; }
+        constexpr reference operator*() const noexcept { return *__cur; }
+        constexpr config_iterator& operator++() noexcept { __cur = __cur->next_in_array(); return *this; }
+        constexpr config_iterator operator++(int) noexcept { config_iterator that(__cur); __cur = __cur->next_in_array(); return that; }
+        friend constexpr bool operator==(config_iterator const& __this, config_iterator const& that) noexcept { return __this.__cur == that.__cur; }
+        friend constexpr std::strong_ordering operator<=>(config_iterator const& __this, config_iterator const& that) noexcept { return __this.__cur <=> that.__cur; }
+    };
+    struct config_const_iterator
+    {
+        typedef generic_config_parameter const value_type;
+        typedef decltype(std::declval<value_type*>() - std::declval<value_type*>()) difference_type;
+        typedef std::add_pointer_t<value_type> pointer;
+        typedef decltype(*std::declval<pointer>()) reference;
+    private:
+        pointer __cur;
+    public:
+        constexpr config_const_iterator() noexcept = default;
+        constexpr config_const_iterator(config_iterator const& that) noexcept : __cur(that.base()) {}
+        constexpr explicit config_const_iterator(pointer p) noexcept : __cur(p) {}
+        constexpr pointer base() const noexcept { return __cur; }
+        constexpr pointer operator->() const noexcept { return __cur; }
+        constexpr reference operator*() const noexcept { return *__cur; }
+        constexpr config_const_iterator& operator++() noexcept { __cur = __cur->next_in_array(); return *this; }
+        constexpr config_const_iterator operator++(int) noexcept { config_const_iterator that(__cur); __cur = __cur->next_in_array(); return that; }
+        friend constexpr bool operator==(config_const_iterator const& __this, config_const_iterator const& that) noexcept { return __this.__cur == that.__cur; }
+        friend constexpr std::strong_ordering operator<=>(config_const_iterator const& __this, config_const_iterator const& that) noexcept { return __this.__cur <=> that.__cur; }
+    };
+    struct [[gnu::may_alias]] generic_config_table
+    {
+        typedef config_iterator iterator;
+        typedef config_const_iterator const_iterator;
+        size_t size_bytes;
+        generic_config_parameter params[];
+        constexpr iterator begin() noexcept { return iterator(params); }
+        constexpr const_iterator cbegin() const noexcept { return const_iterator(params); }
+        constexpr const_iterator begin() const noexcept { return cbegin(); }
+        constexpr iterator end() noexcept { return iterator(static_cast<generic_config_parameter*>(static_cast<void*>(static_cast<char*>(static_cast<void*>(params)) + size_bytes))); }
+        constexpr const_iterator cend() const noexcept { return const_iterator(static_cast<generic_config_parameter const*>(static_cast<const void*>(static_cast<const char*>(static_cast<const void*>(params)) + size_bytes))); }
+        constexpr const_iterator end() const noexcept { return cend(); }
+    };
+    namespace __internal
+    {
+        template<size_t I, __can_be_parameter_type ... Ts> struct __config_table_impl;
+        template<size_t I, __can_be_parameter_type T> 
+        struct __config_entry_base
+        { 
+            config_parameter<T> __param;
+            constexpr __config_entry_base(config_parameter<T>&& p) : __param(static_cast<config_parameter<T>&&>(p)) {}
+            constexpr static T& __get(__config_entry_base& t) { return t.__param.value; }
+            constexpr static T const& __get(__config_entry_base const& t) { return t.__param.value; }
+        };
+        template<size_t I, __can_be_parameter_type T> 
+        struct __config_table_impl<I, T> : private __config_entry_base<I, T> 
+        { 
+            typedef __config_entry_base<I, T> __base;
+            template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl; 
+            constexpr static size_t __size_value = 0UZ;
+            constexpr static T& __get(__config_table_impl& t) { return __base::__get(t); }
+            constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::get(t); }
+            constexpr __config_table_impl(config_parameter<T>&& p) : __base(static_cast<config_parameter<T>&&>(p)) {}
+        };
+        template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us>
+        struct __config_table_impl<I, T, Us...> : private config_parameter<T>, public __config_table_impl<I + 1, Us...>
+        {
+            template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl;
+            constexpr static size_t __size_value = sizeof(T) + __config_table_impl<I + 1, Us ...>::__size_value;
+            typedef T __type;
+            typedef __config_table_impl<I + 1, Us...> __next;
+            typedef config_parameter<T> __base;
+            constexpr static T& __get(__config_table_impl& t) noexcept { return __base::get(t); }
+            constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::get(t); }
+            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(static_cast<config_parameter<T>&&>(tparam)), __next(static_cast<config_parameter<Us>&&>(uparams)...) {} 
+        };
+        template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T& __get(__config_table_impl<I, T, Us...>& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
+        template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T const& __get(__config_table_impl<I, T, Us...> const& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
+    }
+    template<__internal::__can_be_parameter_type ... Ts>
+    struct [[gnu::may_alias]] module_config_table
+    {
+        typedef __internal::__config_table_impl<0UZ, Ts...> parameter_types;
+        size_t size_bytes = parameter_types::__size_value;
+        parameter_types parameters;
+    };
+    template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
+    template<__internal::__can_be_parameter_type ... Ts> union [[gnu::may_alias]] module_config { generic_config_table generic; module_config_table<Ts...> actual; };
+    template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ static_cast<config_parameter<Ts>&&>(params)... }} }; }
+    template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...>& get_element(module_config<Ts...>& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
+    template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...> const& get_element(module_config<Ts...> const& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
 }
 #endif

@@ -72,6 +72,5 @@ abstract_module_base* elf64_kernel_object::load_module()
     if(__unlikely(module_object != nullptr)) return module_object;
     if(__unlikely(!load())) return nullptr;
     module_object = entry.invoke<abstract_module_base*(ooos_kernel_module::kernel_api*)>(ooos_kernel_module::get_api_instance());
-    if(module_object) module_object->initialize();
     return module_object;
 }
