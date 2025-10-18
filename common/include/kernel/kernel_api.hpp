@@ -338,14 +338,26 @@ namespace ooos_kernel_module
     };
     namespace __internal
     {
+        template<typename T> constexpr inline bool __is_empty_and_non_final = __is_empty(T) && !__is_final(T);
         template<size_t I, __can_be_parameter_type ... Ts> struct __config_table_impl;
+        template<size_t I, __can_be_parameter_type T, bool = __is_empty_and_non_final<T>> struct __config_entry_base;
         template<size_t I, __can_be_parameter_type T> 
-        struct __config_entry_base
+        struct __config_entry_base<I, T, false>
         { 
             config_parameter<T> __param;
-            constexpr __config_entry_base(config_parameter<T>&& p) : __param(static_cast<config_parameter<T>&&>(p)) {}
+            constexpr __config_entry_base(config_parameter<T>&& p) : __param(__move(p)) {}
             constexpr static T& __get(__config_entry_base& t) { return t.__param.value; }
             constexpr static T const& __get(__config_entry_base const& t) { return t.__param.value; }
+        };
+        template<size_t I, __can_be_parameter_type T> 
+        struct __config_entry_base<I, T, true> : T
+        {
+            size_t value_size;
+            std::type_info const& type;
+            const char* name;
+            constexpr __config_entry_base(config_parameter<T>&& p) : T(__move(p.value)), value_size(p.value_size), type(p.type), name(p.name) {}
+            constexpr static T& __get(__config_entry_base& t) { return t; }
+             constexpr static T const& __get(__config_entry_base const& t) { return t; }
         };
         template<size_t I, __can_be_parameter_type T> 
         struct __config_table_impl<I, T> : private __config_entry_base<I, T> 
@@ -354,20 +366,20 @@ namespace ooos_kernel_module
             template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl; 
             constexpr static size_t __size_value = 0UZ;
             constexpr static T& __get(__config_table_impl& t) { return __base::__get(t); }
-            constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::get(t); }
-            constexpr __config_table_impl(config_parameter<T>&& p) : __base(static_cast<config_parameter<T>&&>(p)) {}
+            constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
+            constexpr __config_table_impl(config_parameter<T>&& p) : __base(__move(p)) {}
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us>
-        struct __config_table_impl<I, T, Us...> : private config_parameter<T>, public __config_table_impl<I + 1, Us...>
+        struct __config_table_impl<I, T, Us...> : private __config_entry_base<I, T>, public __config_table_impl<I + 1, Us...>
         {
             template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl;
             constexpr static size_t __size_value = sizeof(T) + __config_table_impl<I + 1, Us ...>::__size_value;
             typedef T __type;
             typedef __config_table_impl<I + 1, Us...> __next;
-            typedef config_parameter<T> __base;
-            constexpr static T& __get(__config_table_impl& t) noexcept { return __base::get(t); }
-            constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::get(t); }
-            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(static_cast<config_parameter<T>&&>(tparam)), __next(static_cast<config_parameter<Us>&&>(uparams)...) {} 
+            typedef __config_entry_base<I, T> __base;
+            constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
+            constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
+            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(__move(tparam)), __next(__forward<config_parameter<Us>>(uparams)...) {} 
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T& __get(__config_table_impl<I, T, Us...>& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T const& __get(__config_table_impl<I, T, Us...> const& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }

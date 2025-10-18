@@ -1,17 +1,21 @@
 #include "amd64_serial.hpp"
 using namespace ooos_kernel_module;
-module_config<word, line_ctl_byte, trigger_level_t, word> amd64_serial::__cfg = create_config
-(
-    parameter("port", parameter_type<word>, port_com1),
-    parameter("mode", parameter_type<line_ctl_byte>, S8N1),
-    parameter("trigger_level", parameter_type<trigger_level_t>, T4BYTE),
-    parameter("baud_div", parameter_type<word>, 12US)
-);
+typename amd64_serial::__config_type amd64_serial::__cfg = serial_config();
 static bool serial_empty_transmit(word p) { line_status_byte b = inb(p); return b.transmitter_buffer_empty; }
 static bool serial_have_input(word p) { line_status_byte b = inb(p); return b.data_ready; }
 amd64_serial::size_type amd64_serial::avail() const { return __input_pos > in.cur ? static_cast<size_type>(__input_pos - in.cur) : 0UZ; }
 generic_config_table& amd64_serial::get_config() { return __cfg.generic; }
 amd64_serial::amd64_serial() = default;
+void amd64_serial::__trim_old()
+{
+    size_type rem = amd64_serial::avail();
+    size_type old_cap   = in.capacity();
+    pointer new_buf     = static_cast<pointer>(this->allocate_buffer(in.capacity(), alignof(value_type)));
+    __builtin_memcpy(new_buf, in.cur, rem);
+    this->destroy_buffer(in);
+    in.set(new_buf, new_buf, new_buf + old_cap);
+    __input_pos         = in.beg + rem;
+}
 static bool loopback_test(word port)
 {
     word modem_port         = modem_ctl_port(port);
@@ -30,12 +34,13 @@ static bool loopback_test(word port)
 bool amd64_serial::initialize()
 {
     this->create_buffer(out, 64);
-    this->create_buffer(in, 64);
+    this->create_buffer(in, 16);
     __input_pos                     = in.beg;
     word port                       = get_element<0>(__cfg);
     line_ctl_byte mode              = get_element<1>(__cfg);
     trigger_level_t level           = get_element<2>(__cfg);
     word baud_div                   = get_element<3>(__cfg);
+    bool should_trim_first          = !get_element<4>(__cfg);
     word ier                        = ier_port(port);
     word sp                         = line_status_port(port);
     serial_ier init_ier             = inb(ier);
@@ -59,9 +64,13 @@ bool amd64_serial::initialize()
         do {
             if(!(__input_pos < in.fin))
             {
-                size_t ocap = in.capacity();
-                this->resize_buffer(in, ocap * 2);
-                __input_pos = in.beg + ocap;
+                if(in.size() && should_trim_first) __trim_old();
+                else
+                {
+                    size_t ocap = in.capacity();
+                    this->resize_buffer(in, ocap * 2);
+                    __input_pos = in.beg + ocap;
+                }
             }
             __input_pos[0]  = inb(port);
             __input_pos++;
@@ -95,6 +104,16 @@ int amd64_serial::sync()
     __builtin_memset(out.beg, 0, out.capacity());
     out.revert();
     return 0;
+}
+typename amd64_serial::size_type amd64_serial::read(pointer dest, size_type n)
+{
+    size_type rem = amd64_serial::avail();
+    size_type old = in.size();
+    if(rem && old && get_element<4>(__cfg)) __trim_old();
+    if(n > rem) n = rem;
+    __builtin_memcpy(dest, in.cur, n);
+    in.cur += n;
+    return n;
 }
 void amd64_serial::finalize()
 {

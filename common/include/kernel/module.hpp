@@ -90,7 +90,7 @@ namespace ooos_kernel_module
             constexpr const_iterator end() const noexcept { return const_iterator(cur); }
             constexpr const_iterator cend() const noexcept { return const_iterator(cur); }
             constexpr void bump(difference_type n = static_cast<difference_type>(1)) noexcept { pointer target = cur + n; cur = target < fin ? (target > beg ? target : beg) : fin; }
-            constexpr void set(pointer b, pointer e) noexcept { set(b, b + static_cast<difference_type>(cur - beg), e); /* constexpr void spike(volleyball_t loljk); */ }
+            constexpr void set(pointer b, pointer e) noexcept { set(b, b + static_cast<difference_type>(size()), e); /* constexpr void spike(volleyball_t loljk); */ }
             constexpr void set(pointer b, size_type n) noexcept { set(b, b + n); }
             constexpr void seek(int direction, difference_type where) { pointer base = direction < 0 ? beg : direction > 0 ? fin : cur; pointer target = base + where; cur = target < fin ? (target > beg ? target : beg) : fin; }
             constexpr void seek(size_type where) { bump(where - size()); }

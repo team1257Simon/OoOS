@@ -142,10 +142,34 @@ typedef struct __line_status_reg
     constexpr __line_status_reg() noexcept : __line_status_reg(0UC) {}
     constexpr operator byte() const noexcept { return byte(data_ready, overrun_error, parity_error, framing_error, break_indicator, transmitter_buffer_empty, tranmitter_idle, impending_error); }
 } __pack line_status_byte;
+/**
+ * Config Parameters:
+ *  - port          : word                          — which IO port to use for the serial device
+ *  - mode          : byte (struct line_ctl_byte)   — configuration byte to use for the line control register
+ *  - trigger_level : byte (enum trigger_level_t)   — value to set for the trigger level for the FIFO buffer on the serial port
+ *  - baud_div      : word                          — value to set for the baud rate divisor on the serial line
+ *  - trim_on_read  : bool                          — if set to true, the internal buffer's get region will trim elements that were previously read each time a read occurs, rather than when the buffer is full
+ */
+constexpr auto serial_config() 
+{
+    using ooos_kernel_module::create_config;
+    using ooos_kernel_module::parameter;
+    using ooos_kernel_module::parameter_type;
+    return create_config
+    (
+        parameter("port",           parameter_type<word>,               port_com1),
+        parameter("mode",           parameter_type<line_ctl_byte>,      S8N1),
+        parameter("trigger_level",  parameter_type<trigger_level_t>,    T4BYTE),
+        parameter("baud_div",       parameter_type<word>,               12US),
+        parameter("trim",           parameter_type<bool>,               false)
+    );
+}
 class amd64_serial : public ooos_kernel_module::io_module_base<char>, public ooos_kernel_module::configurable_interface
 {
+    typedef decltype(serial_config()) __config_type;
     char* __input_pos;
-    static ooos_kernel_module::module_config<word, line_ctl_byte, trigger_level_t, word> __cfg;
+    static __config_type __cfg;
+    void __trim_old();
 public:
     virtual bool overflow(size_type needed) override;
     virtual ooos_kernel_module::generic_config_table& get_config() override;
@@ -153,6 +177,7 @@ public:
     virtual void finalize() override;
     virtual int sync() override;
     virtual size_type avail() const override;
+    virtual size_type read(pointer dest, size_type n) override;
     amd64_serial();
 };
 #endif

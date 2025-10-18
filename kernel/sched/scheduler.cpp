@@ -185,7 +185,7 @@ bool scheduler::init()
         timer_frequency         = cpuid(0x16U, 0).ecx;
     __cycle_divisor             = timer_frequency;
     __tick_rate                 = magnitude(timer_frequency);
-    interrupt_table::add_irq_handler(0, std::move(LAMBDA_ISR()
+    interrupt_table::add_irq_handler(0, std::move([this]() -> void
     {
         if(__running)
         {
@@ -194,7 +194,7 @@ bool scheduler::init()
             __tick_cycles = __tick_cycles % __cycle_divisor;
         }
     }));
-    interrupt_table::add_interrupt_callback(LAMBDA_ISR(byte idx, qword) 
+    interrupt_table::add_interrupt_callback([this](byte idx, qword) -> void
     {
         if(idx < 0x20UC && get_task_base() != std::addressof(kproc))
             if(task_ctx* task = get_task_base()->self; task->is_user())

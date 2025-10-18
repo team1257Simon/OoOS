@@ -170,5 +170,10 @@ namespace std
     template<move_constructible FT, move_constructible ... BArgs> constexpr __bind_front_expr<FT, BArgs...> bind_front(FT&& ft, BArgs&& ... args) { return __bind_front_expr(0, std::move(ft), std::forward<BArgs>(args)...); }
 }
 constexpr uint64_t max_wait = 10000000UL;
+/**
+ * await_result(std::function<bool()> const&, uint64_t)
+ * Spins on the provided function by making repeated calls to it until it returns true or the number of calls made equals or exceeds the provided number.
+ * If a lambda is passed as an argument, it will go out of scope before any captured variables do, making it safe to capture by reference.
+ */
 bool await_result(std::function<bool()> const& fn, uint64_t max_dur = max_wait);
 #endif
