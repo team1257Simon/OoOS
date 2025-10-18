@@ -2,15 +2,27 @@
 #include "kdebug.hpp"
 using ooos_kernel_module::abstract_module_base;
 using ooos_kernel_module::module_takedown;
-static inline abstract_module_base* init_mod(abstract_module_base* mod) { if(mod) mod->initialize(); return mod; }
 uframe_tag* elf64_kernel_object::get_frame() const { return nullptr; }
 void elf64_kernel_object::frame_enter() {}
 void elf64_kernel_object::set_frame(uframe_tag* ft) {}
 addr_t elf64_kernel_object::translate_in_frame(addr_t addr) { return addr; }
 elf64_kernel_object::elf64_kernel_object(file_node* file) : elf64_object(file), elf64_dynamic_object(file), load_base{}, load_align{}, entry{}, module_object{} {}
-elf64_kernel_object::elf64_kernel_object(addr_t start, addr_t size) : elf64_object(start, size), elf64_dynamic_object(start, size), load_base{}, load_align{}, entry{}, module_object{} {}
+elf64_kernel_object::elf64_kernel_object(addr_t start, size_t size) : elf64_object(start, size), elf64_dynamic_object(start, size), load_base{}, load_align{}, entry{}, module_object{} {}
 elf64_kernel_object::~elf64_kernel_object() { if(module_object) module_takedown(module_object); if(load_base) ::operator delete(load_base, load_align); }
+elf64_kernel_object::elf64_kernel_object(elf64_kernel_object &&that) : elf64_object(std::move(that)), elf64_dynamic_object(std::move(that)), load_base(that.load_base), load_align(that.load_align), entry(that.entry), module_object(that.module_object) { that.load_base = nullptr; that.module_object = nullptr; }
 void elf64_kernel_object::on_load_failed() { if(load_base) ::operator delete(load_base, load_align); load_base = nullptr; }
+void elf64_kernel_object::unload_pre_init()
+{
+    if(module_object && module_object->__api_hooks)
+    {
+        // This will be nonnull if the module's _init has been called.
+        if(module_object->__fini_fn) (*module_object->__fini_fn)();
+        if(module_object->__allocated_mm) module_object->__api_hooks->destroy_mm(module_object->__allocated_mm);
+        module_object = nullptr;
+    }
+    if(load_base) ::operator delete(load_base, load_align);
+    load_base = nullptr;
+}
 void elf64_kernel_object::process_headers()
 {
     elf64_dynamic_object::process_headers();
@@ -71,6 +83,5 @@ abstract_module_base* elf64_kernel_object::load_module()
 {
     if(__unlikely(module_object != nullptr)) return module_object;
     if(__unlikely(!load())) return nullptr;
-    module_object = entry.invoke<abstract_module_base*(ooos_kernel_module::kernel_api*)>(ooos_kernel_module::get_api_instance());
-    return module_object;
+    return module_object = entry.invoke<abstract_module_base*(ooos_kernel_module::kernel_api*)>(ooos_kernel_module::get_api_instance());
 }

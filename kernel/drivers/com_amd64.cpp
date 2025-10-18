@@ -10,7 +10,6 @@ com_amd64 com_amd64::__instance{ 64 };
 static bool serial_have_input() { line_status_byte b = inb(port_com1_line_status); return b.data_ready; }
 static bool serial_empty_transmit() { line_status_byte b = inb(port_com1_line_status); return b.transmitter_buffer_empty; }
 static constexpr void write_seq(const char* str) { for(const char* c = str; *c; c++) outb(port_com1, *c); }
-std::basic_streambuf<char>* get_kstio_stream() { return com_amd64::get_instance(); }
 com_amd64::com_amd64(size_t init_size) : __queue{ init_size }, __base{ init_size } {}
 std::streamsize com_amd64::sector_size() const { return std::streamsize(16UL); }
 std::streamsize com_amd64::unread_size() { return __qrem(); }
@@ -20,6 +19,14 @@ com_amd64::pos_type com_amd64::seekpos(pos_type pos, std::ios_base::openmode whi
 com_amd64::pos_type com_amd64::seekoff(off_type off, std::ios_base::seekdir way, std::ios_base::openmode which) { return which.out ? pos_type(off_type(__cur() - __beg())) : pos_type(off_type(__qcur() - __qbeg())); }
 __isrcall void com_amd64::on_modify_queue() { ptrdiff_t n = gptr() - eback(); if(n > 0) __qsetn(static_cast<size_t>(n)); if(__qbeg()) setg(__qbeg(), __qcur(), __end()); }
 void com_amd64::sync_ptrs() { this->setp(this->__beg(), this->__cur(), this->__max()); }
+int com_amd64::sync() { return __base::sync(); }
+size_t com_amd64::write(size_t n, const char* src) { return sputn(src, n); }
+size_t com_amd64::read(char* dest, size_t n) { return sgetn(dest, n); }
+size_t com_amd64::avail() const { return __queue::__qsize(); }
+size_t com_amd64::out_avail() const { return size_t(__capacity() - tell()); }
+size_t com_amd64::seek(size_t where, uint8_t ioflags) { return size_t(this->seekpos(pos_type(where), std::ios_base::openmode(ioflags))); }
+size_t com_amd64::seek(int direction, ptrdiff_t where, uint8_t ioflags) { return size_t(this->seekoff(where, direction > 0 ? std::ios_base::end : direction < 0 ? std::ios_base::beg : std::ios_base::cur, std::ios_base::openmode(ioflags))); }
+uint32_t com_amd64::get_device_id() const noexcept { return __dev_id; }
 static void com1_set_baud_divisor(word value)
 {
     line_ctl_byte cur_ctl           = inb(port_com1_line_ctl);

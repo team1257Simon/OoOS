@@ -139,6 +139,7 @@ typedef struct __line_status_reg
         tranmitter_idle             { i[6] }, 
         impending_error             { i[7] } 
                                     {}
+    constexpr __line_status_reg() noexcept : __line_status_reg(0UC) {}
     constexpr operator byte() const noexcept { return byte(data_ready, overrun_error, parity_error, framing_error, break_indicator, transmitter_buffer_empty, tranmitter_idle, impending_error); }
 } __pack line_status_byte;
 class amd64_serial : public ooos_kernel_module::io_module_base<char>, public ooos_kernel_module::configurable_interface
@@ -151,7 +152,7 @@ public:
     virtual bool initialize() override;
     virtual void finalize() override;
     virtual int sync() override;
-    virtual size_type read(char* dest, size_type n) override;
+    virtual size_type avail() const override;
     amd64_serial();
 };
 #endif

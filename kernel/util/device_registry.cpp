@@ -18,3 +18,9 @@ uint32_t device_registry::add(device_stream* dev, device_type type)
     m.emplace(minor, dev);
     return dword(minor, type);
 }
+bool device_registry::remove(device_stream* dev)
+{
+    dword id = dev->get_device_id();
+    if(this->erase(id.hi)) return true;
+    return false;
+}

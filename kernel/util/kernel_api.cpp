@@ -1,17 +1,15 @@
 #include "kernel_api.hpp"
 #include "arch/pci_device_list.hpp"
+#include "device_registry.hpp"
 #include "isr_table.hpp"
 #include "unordered_map"
 #include "stdexcept"
 namespace ooos_kernel_module
 {
-    void isr_actor_base::actor_manager_wrapper::invoke(functor_store& fn) { if(*this) { (*invoker)(fn); } }
+    void isr_actor_base::actor_manager_wrapper::invoke(functor_store& fn) { (*invoker)(fn); }
     isr_actor::isr_actor(isr_actor const& that) : isr_actor_base(that.__my_wrapper) { __my_wrapper.manager_action(this->__my_actor, that.__my_actor, clone); }
     isr_actor::isr_actor(isr_actor&& that) : isr_actor_base(std::move(that.__my_wrapper)) { this->__my_actor = that.__my_actor; }
-    void isr_actor::operator()() { __my_wrapper.invoke(__my_actor); }
-    typedef std::unordered_map<abstract_module_base*, isr_actor> actor_by_owner_map;
-    typedef std::unordered_map<byte, actor_by_owner_map> actor_by_index_map;
-    struct activator { actor_by_owner_map& actors; __isrcall void operator()() { for(actor_by_owner_map::value_type& pair : actors) { pair.second(); } } };
+    void isr_actor::operator()() { if(__my_wrapper) __my_wrapper.invoke(__my_actor); }
     isr_actor& isr_actor::operator=(isr_actor const& that)
     {
         this->__my_wrapper = that.__my_wrapper;
@@ -24,15 +22,7 @@ namespace ooos_kernel_module
         this->__my_actor            = that.__my_actor;
         that.__my_wrapper.manager   = nullptr;
         that.__my_wrapper.invoker   = nullptr;
-        that.__my_wrapper.mm        = nullptr;
         return *this;
-    }
-    actor_by_owner_map& at_index(uint8_t irq, actor_by_index_map& by_index)
-    {
-        if(by_index.contains(irq)) return by_index[irq];
-        actor_by_owner_map& result = by_index.insert(std::make_pair(irq, std::forward<actor_by_owner_map>(16UL))).first->second;
-        interrupt_table::add_irq_handler(irq, std::move(activator(result)));
-        return result;
     }
     struct kmod_mm_impl : kmod_mm, kframe_tag
     {
@@ -48,19 +38,19 @@ namespace ooos_kernel_module
     };
     static struct : kernel_api
     {
-        kernel_memory_mgr* mm;
+        kernel_memory_mgr* mm{ std::addressof(kmm) };
         pci_device_list* pci;
-        actor_by_index_map* actors_by_index;
-        char actors_by_index_data[sizeof(actor_by_index_map)];
         virtual void* allocate_dma(size_t size, bool prefetchable) override { return mm->allocate_dma(size, prefetchable); }
         virtual void release_dma(void* ptr, size_t size) override { mm->deallocate_dma(ptr, size); }
         virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) override { return pci->find(device_class, subclass); }
         virtual void* acpi_get_table(const char* label) override { return find_system_table(label); }
         virtual kmod_mm* create_mm() override { return new kmod_mm_impl(); }
-        virtual void destroy_mm(kmod_mm* mm) override { if(mm) delete mm; }
+        virtual void destroy_mm(kmod_mm* mod_mm) override { if(mod_mm) delete mod_mm; }
         virtual void log(std::type_info const& from, const char* message) override { xklog("[" + std::ext::demangle(from) + "]: " + message); }
-        virtual void remove_actors(abstract_module_base* owner) override { for(actor_by_index_map::value_type& pair : *actors_by_index) { pair.second.erase(owner); } }
-        virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { at_index(irq, *actors_by_index).insert_or_assign(owner, std::move(handler)); }
+        virtual void remove_actors(abstract_module_base* owner) override { interrupt_table::deregister_owner(owner); }
+        virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { interrupt_table::add_irq_handler(owner, irq, std::move(handler)); }
+        virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
+        virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
         virtual void init_memory_fns(kframe_exports* ptrs) override
         {
             new(ptrs) kframe_exports
@@ -121,7 +111,6 @@ namespace ooos_kernel_module
             tag                 = next;
         }
     }
-    void init_api() { __api_impl.mm = std::addressof(kmm); __api_impl.pci = pci_device_list::get_instance(); __api_impl.actors_by_index = new(__api_impl.actors_by_index_data) ooos_kernel_module::actor_by_index_map(16UL); }
+    void init_api() { __api_impl.pci = pci_device_list::get_instance(); }
     kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
-    
 }

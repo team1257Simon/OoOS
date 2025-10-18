@@ -20,13 +20,13 @@
 #include "direct_text_render.hpp"
 #include "elf64_exec.hpp"
 #include "elf64_shared.hpp"
-#include "elf64_kernel_object.hpp"
 #include "frame_manager.hpp"
 #include "kdebug.hpp"
 #include "kernel_mm.hpp"
 #include "kernel_api.hpp"
 #include "keyboard_driver.hpp"
 #include "map"
+#include "module_loader.hpp"
 #include "typeinfo"
 #include "ow-crypt.h"
 #include "prog_manager.hpp"
@@ -36,7 +36,7 @@
 sysinfo_t* sysinfo;
 extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
-static com_amd64* com;
+static device_stream* com;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
 volatile apic bsp_lapic{ 0U };
@@ -183,41 +183,6 @@ void str_tests()
     std::string crypto = create_crypto_string("fleedle deedle", setting);
     startup_tty.print_line("crypt of fleedle deedle: " + crypto);
 }
-void vfs_tests()
-{
-    try 
-    {
-        // test folder creation
-        testramfs.open_directory("test/files");
-        file_node* n = testramfs.open_file("test/files/memes.txt");
-        n->write("sweet dreams are made of memes\n", 31);
-        testramfs.close_file(n);
-        file_node* testout = testramfs.lndev("dev/console", 0, com->get_device_id());
-        n = testramfs.open_file("test/files/memes.txt");
-        char teststr[32](0);
-        // test device and file inodes
-        n->read(&teststr[0], 31);
-        testout->write(teststr, 31);
-        testout->fsync();
-        testramfs.close_file(n);
-        testramfs.close_file(testout);
-        // test linking
-        testramfs.link("test/files/memes.txt", "test/stuff/dreams.txt", true);
-        n = testramfs.open_file("test/stuff/dreams.txt");
-        char test2str[17](0);
-        n->read(test2str, 16);
-        direct_writeln(test2str);
-        testramfs.close_file(n);
-        testramfs.unlink("test/files", true, true);
-        // test error condition(s)
-        testramfs.open_file("test/files/memes.txt/dreams.txt");
-    }
-    catch(std::exception& e)
-    {
-        panic(e.what());
-        klog("I: made it to the catch block; the above error was intentional!");
-    }
-}
 int test_task_1(int argc, char** argv)
 {
     direct_write(argv[0]);
@@ -305,11 +270,6 @@ void elf64_tests()
             prog_manager::get_instance().remove(test_exec);
         }
         else startup_tty.print_line("Executable failed to validate");
-        tst = test_extfs.open_file("sys/test_module.ko");
-        elf64_kernel_object test_ko(tst);
-        if(ooos_kernel_module::abstract_module_base* loaded = test_ko.load_module()) loaded->initialize();
-        else startup_tty.print_line("module loading failed");
-        test_extfs.close_file(tst);
     }
     catch(std::exception& e) { panic(e.what()); }
 }
@@ -386,6 +346,28 @@ void sysfs_tests()
     }
     catch(std::exception& e) { panic(e.what()); }
 }
+static device_stream* find_com()
+{
+    device_registry::iterator map_it = dreg.find(COM);
+    if(map_it != dreg.end() && map_it->second.size() > 0UZ) return map_it->second.begin()->second;
+    return nullptr;
+}
+static void serial_echo()
+{
+    if(com)
+    {
+        size_t n = com->avail();
+        if(n)
+        {
+            char* buf = new char[n+1]{0};
+            com->read(buf, n);
+            startup_tty.print_text("[COM input]{");
+            startup_tty.print_text(buf);
+            startup_tty.print_text("}");
+            delete[] buf;
+        }
+    }
+}
 static const char* codes[] = 
 {
     "#DE [Division by Zero]",
@@ -434,7 +416,7 @@ constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
             startup_tty.print_text(")");
         }
         if(svinst && !errinst) { errinst = addr_t(svinst); }
-        if(errinst){ startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
+        if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
         if(idx == 0x0EUC) 
         {
             uint64_t fault_addr;
@@ -461,8 +443,6 @@ void run_tests()
     startup_tty.print_line("map test...");
     map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
-    startup_tty.print_line("serial test...");
-    if(com) { com->sputn("Hello Serial!\n", 14); com->pubsync(); }
     startup_tty.print_line("ahci test...");
     if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_instance()->get_partition_table());
     startup_tty.print_line("hpet test...");
@@ -470,23 +450,39 @@ void run_tests()
     startup_tty.print_line("net test...");
     net_tests();
     // Test the complicated stuff
-    startup_tty.print_line("vfs tests...");
-    vfs_tests();   
     startup_tty.print_line("extfs tests...");
     extfs_tests();
     if(test_extfs.has_init()) 
     {
-        startup_tty.print_line("sysfs tests...");
-        sysfs_tests();
-        shared_object_map::get_ldso_object(std::addressof(test_extfs));
-        startup_tty.print_line("SO loader tests...");
-        dyn_elf_tests();
-        startup_tty.print_line("elf64 tests..."); 
-        elf64_tests(); 
+        file_node* mod_file             = test_extfs.open_file("sys/amd64_serial.ko");
+        module_loader& loader           = module_loader::get_instance();
+        module_loader::iterator loaded  = loader.add(mod_file).first;
+        if(__unlikely(loaded == loader.end())) startup_tty.print_line("failed to load serial driver");
+        else if(__unlikely(!(com = find_com()))) startup_tty.print_line("failed to get serial driver");
+        else
+        {
+            interrupt_table::add_irq_handler(4UC, serial_echo);
+            startup_tty.print_line("sysfs tests...");
+            sysfs_tests();
+            shared_object_map::get_ldso_object(std::addressof(test_extfs));
+            startup_tty.print_line("SO loader tests...");
+            dyn_elf_tests();
+            startup_tty.print_line("elf64 tests..."); 
+            elf64_tests(); 
+        }
     }
     startup_tty.print_line("task tests...");
     task_tests();
     startup_tty.print_line("complete");
+}
+static void __serial_write(std::string const& msg)
+{
+    if(com)
+    {
+        std::string str = msg + "\n";
+        com->write(str.size(), str.c_str());
+        com->sync();
+    }
 }
 extern "C"
 {
@@ -499,9 +495,18 @@ extern "C"
     void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
     void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
     void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
-    [[noreturn]] void abort() { if(com) { com->sputn("KERNEL ABORT\n", 13); com->pubsync(); } startup_tty.print_line("abort() called in kernel"); while(1); }
-    __isrcall void panic(const char* msg) noexcept { startup_tty.print_text("E: "); startup_tty.print_line(msg); if(com) { com->sputn("[KERNEL] E: ", 12); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
-    __isrcall void klog(const char* msg) noexcept { startup_tty.print_line(msg); if(com) { com->sputn("[KERNEL] ", 9); com->sputn(msg, std::strlen(msg)); com->sputn("\n", 1); com->pubsync(); } }
+    [[noreturn]] void abort() { __serial_write("KERNEL ABORT"); startup_tty.print_line("abort() called in kernel"); while(1); }
+    __isrcall void panic(const char* msg) noexcept
+    {
+        startup_tty.print_text("E: ");
+        startup_tty.print_line(msg);
+        __serial_write("[KERNEL] E: " + std::string(msg));    
+    }
+    __isrcall void klog(const char* msg) noexcept 
+    { 
+        startup_tty.print_line(msg); 
+        __serial_write("[KERNEL] " + std::string(msg));  
+    }
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
@@ -542,7 +547,6 @@ extern "C"
         keyboard_driver* kb = get_kb_driver();
         kb->initialize();
         kb->add_listener([&](kb_data d) -> void { if(!(d.event_code & KEY_UP)) dbg_hold = false; });
-        if(com_amd64::init_instance()) com = com_amd64::get_instance();
         direct_print_enable = true;
         bsp_lapic.init();
         nmi_enable();

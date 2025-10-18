@@ -4,6 +4,7 @@
 #include <typeinfo>
 #include <compare>
 #include <arch/pci.hpp>
+#include <fs/dev_stream.hpp>
 #ifdef __KERNEL__
 #include "kernel_mm.hpp"
 #else
@@ -50,6 +51,7 @@ namespace ooos_kernel_module
         template<size_t N, template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<N, C<H, Ts...>> : __nth_pack_param<N - 1, C<Ts...>> {};
     }
     template<typename T> concept no_args_invoke = requires(T t) { t(); };
+    namespace __internal { template<no_args_invoke FT> constexpr void __invoke_f(FT&& f) { (static_cast<FT&&>(f))(); } }
     template<typename T> concept wrappable_actor = no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
     template<typename T> concept boolable = requires(T t) { t ? true : false; };
     template<typename T> concept io_buffer_ok = std::is_default_constructible_v<T> && !std::is_volatile_v<T> && std::is_copy_assignable_v<T>;
@@ -134,18 +136,18 @@ namespace ooos_kernel_module
         {
             constexpr static size_t __max_size  = sizeof(actors);
             constexpr static size_t __max_align = alignof(actors);
-            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, kmod_mm*, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(static_cast<GT&&>(ftor)); }
-            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, kmod_mm* mm, std::false_type) { dst.template cast<FT*>() = new(mm->mem_allocate(sizeof(FT), alignof(FT))) FT(static_cast<GT&&>(ftor)); }
-            static inline void __delete_wrapper(functor_store& target, kmod_mm*, std::true_type) { target.template cast<FT>().~FT(); }
-            static inline void __delete_wrapper(functor_store& target, kmod_mm* mm, std::false_type) { mm->mem_release(target.access(), alignof(FT)); }
+            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(static_cast<GT&&>(ftor)); }
+            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, std::false_type) { dst.template cast<FT*>() = new FT(static_cast<GT&&>(ftor)); }
+            static inline void __delete_wrapper(functor_store& target, std::true_type) { target.template cast<FT>().~FT(); }
+            static inline void __delete_wrapper(functor_store& target, std::false_type) { ::operator delete(target.template cast<FT*>()); }
             using __is_locally_storable = std::bool_constant<std::is_trivially_copyable_v<FT> && (sizeof(FT) <= __max_size && alignof(FT) <= __max_align && __max_align % alignof(FT) == 0)>;
             constexpr static bool __is_local_store = __is_locally_storable::value;
         public:
             constexpr static FT* get_ptr(functor_store const& src) { if constexpr(__is_local_store) { return &const_cast<FT&>(src.template cast<FT>()); } else { return src.template cast<FT*>(); } }
-            template<typename GT> static inline void init_actor(functor_store& dst, GT&& src, kmod_mm* mm) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, static_cast<GT&&>(src), mm, __is_locally_storable()); }
-            static inline void destroy_actor(functor_store& dst, kmod_mm* mm) { __delete_wrapper(dst, mm, __is_locally_storable()); }
-            static void invoke_fn(functor_store& fn) { FT* ptr = get_ptr(fn); if(ptr && not_empty(*ptr)) { (*ptr)(); } }
-            static void action(functor_store& dst, functor_store const& src, kmod_mm* mm, mgr_op op)
+            template<typename GT> static inline void init_actor(functor_store& dst, GT&& src) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, static_cast<GT&&>(src), __is_locally_storable()); }
+            static inline void destroy_actor(functor_store& dst) { __delete_wrapper(dst, __is_locally_storable()); }
+            static void invoke_fn(functor_store& fn) { __internal::__invoke_f(static_cast<FT&&>(*get_ptr(fn))); }
+            static void action(functor_store& dst, functor_store const& src, mgr_op op)
             {
                 switch(op)
                 {
@@ -153,45 +155,50 @@ namespace ooos_kernel_module
                     dst.template cast<FT*>() = get_ptr(src);
                     break;
                 case clone:
-                    init_actor(dst, *const_cast<FT const*>(get_ptr(src)), mm);
+                    init_actor(dst, *const_cast<FT const*>(get_ptr(src)));
                     break;
                 case destroy:
-                    destroy_actor(dst, mm);
+                    destroy_actor(dst);
                     break;
                 }
             }
         };
-        using manager_type = void(*)(functor_store&, functor_store const&, kmod_mm*, mgr_op);
+        using manager_type = void(*)(functor_store&, functor_store const&, mgr_op);
         using invoker_type = void(*)(functor_store&);
-        template<no_args_invoke FT> constexpr static manager_type get_manager(FT ft) { return not_empty(ft) ? &actor_manager<FT>::action : nullptr; }
-        template<no_args_invoke FT> constexpr static invoker_type get_invoker(FT ft) { return not_empty(ft) ? &actor_manager<FT>::invoke_fn : nullptr; }
         struct actor_manager_wrapper
         {
-            kmod_mm* mm;
             manager_type manager;
             invoker_type invoker;
-            constexpr operator bool() const noexcept { return mm && manager && invoker; }
-            inline void manager_action(functor_store& dst, functor_store const& src, mgr_op op) { if(*this) { (*manager)(dst, src, mm, op); }  }
+            constexpr operator bool() const noexcept { return manager && invoker; }
+            inline void manager_action(functor_store& dst, functor_store const& src, mgr_op op) { if(*this) { (*manager)(dst, src, op); }  }
             void invoke(functor_store& fn);
         };
         actor_manager_wrapper __my_wrapper;
         functor_store __my_actor;
         constexpr isr_actor_base() noexcept = default;
-        constexpr isr_actor_base(manager_type mgr, invoker_type inv, kmod_mm* mm) noexcept : __my_wrapper(mm, mgr, inv), __my_actor() {}
-        constexpr isr_actor_base(actor_manager_wrapper const& wrapper) noexcept : __my_wrapper(wrapper) {}
-        constexpr isr_actor_base(actor_manager_wrapper&& wrapper) noexcept : __my_wrapper(wrapper) { wrapper.invoker = nullptr; wrapper.manager = nullptr; wrapper.mm = nullptr; }
-        inline ~isr_actor_base() noexcept { if(__my_wrapper) __my_wrapper.manager_action(__my_actor, __my_actor, destroy); }
+        constexpr isr_actor_base(actor_manager_wrapper const& wrapper) noexcept : __my_wrapper(wrapper.manager, wrapper.invoker) {}
+        constexpr isr_actor_base(actor_manager_wrapper&& wrapper) noexcept : __my_wrapper(wrapper.manager, wrapper.invoker) { wrapper.invoker = nullptr; wrapper.manager = nullptr; }
+        inline ~isr_actor_base() noexcept { if(__my_wrapper.manager && __my_wrapper.invoker) __my_wrapper.manager_action(__my_actor, __my_actor, destroy); }
     };
     struct isr_actor : private isr_actor_base
     {
         inline isr_actor() noexcept = default;
         inline ~isr_actor() noexcept = default;
-        template<wrappable_actor FT> inline isr_actor(FT&& ft, kmod_mm* mm) : isr_actor_base(get_manager(ft), get_invoker(ft), mm) { if(not_empty(ft)) actor_manager<FT>::init_actor(__my_actor, static_cast<FT&&>(ft), mm); }
         constexpr operator bool() const noexcept { return __my_wrapper; }
         isr_actor(isr_actor const& that);
         isr_actor(isr_actor&& that);
         isr_actor& operator=(isr_actor const& that);
         isr_actor& operator=(isr_actor&& that);
+        template<wrappable_actor FT> inline isr_actor(FT&& ft) : isr_actor_base()
+        {
+            typedef actor_manager<std::decay_t<FT>> __mgr;
+            if(not_empty(ft)) 
+            {
+                __mgr::init_actor(__my_actor, static_cast<FT&&>(ft));
+                __my_wrapper.manager = &__mgr::action;
+                __my_wrapper.invoker = &__mgr::invoke_fn;
+            } 
+        }
         void operator()();
     };
     struct kernel_api
@@ -206,6 +213,8 @@ namespace ooos_kernel_module
         virtual kmod_mm* create_mm() = 0;
         virtual void destroy_mm(kmod_mm* mm) = 0;
         virtual void log(std::type_info const& from, const char* message) = 0;
+        virtual uint32_t register_device(dev_stream<char>* stream, device_type type) = 0;
+        virtual bool deregister_device(dev_stream<char>* stream) = 0;
         virtual void init_memory_fns(kframe_exports* ptrs) = 0;
     };
     kernel_api* get_api_instance();

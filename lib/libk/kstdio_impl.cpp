@@ -4,7 +4,6 @@
 constexpr const char errstr[] = "[SPECIFIER ERROR]";
 static int stderr_fd_placeholder = 1;
 static int stdout_stdin_placeholder = 0;
-extern std::basic_streambuf<char>* get_kstio_stream();
 size_t __arg_insert_ptr(void* ptr, std::basic_streambuf<char>* stream) { std::string str = std::to_string(ptr); return stream->sputn(str.c_str(), str.size()); }
 template<std::floating_point FT> std::string fcvtg(FT ft, size_t ndigit);
 template<std::floating_point FT> std::string fcvtg(FT ft, size_t ndigit, std::ext::hex_t);
@@ -233,12 +232,15 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
 typedef int FILE;
 extern "C"
 {
-    attribute(weak) FILE* stdin     = std::addressof(stdout_stdin_placeholder);
-    attribute(weak) FILE* stdout    = std::addressof(stdout_stdin_placeholder);
-    attribute(weak) FILE* stderr    = std::addressof(stderr_fd_placeholder);
+    FILE* stdin     = std::addressof(stdout_stdin_placeholder);
+    FILE* stdout    = std::addressof(stdout_stdin_placeholder);
+    FILE* stderr    = std::addressof(stderr_fd_placeholder);
+    // The buffers used for the fprintf implementations here currently lead nowhere.
+    // TODO: tie in the kernel logging somehow when possible
     size_t kvfprintf(FILE* fd, const char* fmt, va_list args)
     {
-        std::basic_streambuf<char>* stream = get_kstio_stream();
+        std::ext::dynamic_streambuf<char> db;
+        std::basic_streambuf<char>* stream = std::addressof(db);
         if(*fd) stream->sputn("[!]", 3);
         return __kvfprintf_impl(stream, fmt, args);
     }

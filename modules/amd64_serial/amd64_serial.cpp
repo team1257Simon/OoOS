@@ -8,6 +8,8 @@ module_config<word, line_ctl_byte, trigger_level_t, word> amd64_serial::__cfg = 
     parameter("baud_div", parameter_type<word>, 12US)
 );
 static bool serial_empty_transmit(word p) { line_status_byte b = inb(p); return b.transmitter_buffer_empty; }
+static bool serial_have_input(word p) { line_status_byte b = inb(p); return b.data_ready; }
+amd64_serial::size_type amd64_serial::avail() const { return __input_pos > in.cur ? static_cast<size_type>(__input_pos - in.cur) : 0UZ; }
 generic_config_table& amd64_serial::get_config() { return __cfg.generic; }
 amd64_serial::amd64_serial() = default;
 static bool loopback_test(word port)
@@ -29,15 +31,17 @@ bool amd64_serial::initialize()
 {
     this->create_buffer(out, 64);
     this->create_buffer(in, 64);
-    word port               = get_element<0>(__cfg);
-    line_ctl_byte mode      = get_element<1>(__cfg);
-    trigger_level_t level   = get_element<2>(__cfg);
-    word baud_div           = get_element<3>(__cfg);
-    word ier                = ier_port(port);
-    serial_ier init_ier     = inb(ier);
+    __input_pos                     = in.beg;
+    word port                       = get_element<0>(__cfg);
+    line_ctl_byte mode              = get_element<1>(__cfg);
+    trigger_level_t level           = get_element<2>(__cfg);
+    word baud_div                   = get_element<3>(__cfg);
+    word ier                        = ier_port(port);
+    word sp                         = line_status_port(port);
+    serial_ier init_ier             = inb(ier);
     outb(ier, 0UC);
-    word ctl                = line_ctl_port(port);
-    line_ctl_byte cur_ctl   = inb(ctl);
+    word ctl                        = line_ctl_port(port);
+    line_ctl_byte cur_ctl           = inb(ctl);
     cur_ctl.divisor_latch_access    = true;
     outb(ctl, cur_ctl);
     outb(port, baud_div.lo);
@@ -48,23 +52,22 @@ bool amd64_serial::initialize()
     outb(iir_or_fifo_port(port), fifo_ctl_byte(true, true, true, false, level));
     if(__unlikely(!loopback_test(port))) return false;
     outb(modem_ctl_port(port), modem_ctl_byte(true, true, true, true, false));
-    init_ier.receive_data = true;
+    init_ier.receive_data           = true;
     outb(ier, init_ier);
-    word sp = line_status_port(port);
-    struct { word s; constexpr bool operator()() const noexcept { return static_cast<line_status_byte>(inb(s)).data_ready; }; } have_input(sp);
-    this->on_irq(4UC, [&]() -> void
+    this->on_irq(4UC, [port, sp, this]() -> void
     {
-        while(have_input())
-        {
+        do {
             if(!(__input_pos < in.fin))
             {
                 size_t ocap = in.capacity();
                 this->resize_buffer(in, ocap * 2);
                 __input_pos = in.beg + ocap;
             }
-            *(in.fin++) = inb(port);
-        }
+            __input_pos[0]  = inb(port);
+            __input_pos++;
+        } while(serial_have_input(sp));
     });
+    device_id = this->register_device(this, COM);
     return true;
 }
 bool amd64_serial::overflow(size_type needed)
@@ -75,15 +78,16 @@ bool amd64_serial::overflow(size_type needed)
 }
 int amd64_serial::sync()
 {
-    size_t count = 0UZ;
-    word p = get_element<0>(__cfg);
+    size_t count    = 0UZ;
+    word p          = get_element<0>(__cfg);
+    word sp         = line_status_port(p);
     for(char c : out)
     {
         outb(p, static_cast<uint8_t>(c));
         count++;
         if(c == '\n' || count >= 16)
         {
-            while(!serial_empty_transmit(p)) 
+            while(!serial_empty_transmit(sp)) 
                 pause();
             count = 0UZ;
         }
@@ -92,23 +96,12 @@ int amd64_serial::sync()
     out.revert();
     return 0;
 }
-amd64_serial::size_type amd64_serial::read(char* dest, size_type n)
-{
-    if(in.cur > in.beg && in.fin > in.cur)
-    {
-        size_t target = in.remaining();
-        char* nbuf = static_cast<char*>(this->allocate_buffer(static_cast<size_t>(target), alignof(char)));
-        __builtin_memcpy(nbuf, in.beg, target);
-        this->destroy_buffer(in);
-        in.set(nbuf, nbuf, nbuf + target);
-    }
-    return io_module_base<char>::read(dest, n);
-}
 void amd64_serial::finalize()
 {
     if(in.beg)
         this->destroy_buffer(in);
     if(out.beg) 
         this->destroy_buffer(out);
+    this->deregister_device(this);
 }
 EXPORT_MODULE(amd64_serial)

@@ -1,6 +1,4 @@
 #include "kernel/module.hpp"
-#include "stdexcept"
-#include "kdebug.hpp"
 namespace ooos_kernel_module
 {
     void module_takedown(abstract_module_base* mod)

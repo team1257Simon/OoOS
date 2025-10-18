@@ -1,6 +1,7 @@
 #ifndef __AMD64_SERIAL
 #define __AMD64_SERIAL
 #include "kernel/arch/arch_amd64.h"
+#include "fs/dev_stream.hpp" 
 constexpr word port_com1 = 0x03F8US;
 constexpr word port_com1_ier = port_com1 + 1;
 constexpr word port_com1_iir = port_com1 + 2;
@@ -154,7 +155,7 @@ typedef struct __line_status_reg
 #ifdef __cplusplus
 #include "ext/dynamic_streambuf.hpp"
 #include "bits/dynamic_queue.hpp"
-class com_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual std::__impl::__dynamic_queue<char, std::allocator<char>>
+class com_amd64 : public std::ext::dynamic_streambuf<char>, protected virtual std::__impl::__dynamic_queue<char, std::allocator<char>>, public dev_stream<char>
 {
     using __base = std::ext::dynamic_streambuf<char>;
     using __queue = typename std::__impl::__dynamic_queue<char, std::allocator<char>>;
@@ -180,12 +181,19 @@ protected:
     static com_amd64 __instance;
     com_amd64(size_t init_size);
 public:
+    virtual size_t seek(int direction, ptrdiff_t where, uint8_t ioflags);
+    virtual size_t seek(size_t where, uint8_t ioflags);
+    virtual size_t avail() const;
+    virtual size_t out_avail() const;
+    virtual size_t read(char* dest, size_t n);
+    virtual size_t write(size_t n, const char* src);
+    virtual uint32_t get_device_id() const noexcept override;
+    virtual int sync() override;
     static bool init_instance(line_ctl_byte mode = S8N1, trigger_level_t trigger_level = T4BYTE, word baud_div = 12US);
     static com_amd64* get_instance();
     com_amd64(com_amd64 const&) = delete;
     com_amd64& operator=(com_amd64 const&) = delete;
     void set_echo(bool mode) noexcept;
-    constexpr uint32_t get_device_id() const { return __dev_id; }
 };
 #endif
 #endif

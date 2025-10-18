@@ -394,7 +394,7 @@ namespace std
 	template<typename MPT, typename AT1, typename...Args> struct __result_of_impl<false, true, MPT, AT1, Args...> : public __result_of_memfun<__decay_t <MPT>, typename __inv_unwrap<AT1>::type, Args...> {};
 	struct __result_of_other_impl { template<typename F2, typename...Args> static __result_of_success<decltype(declval<F2>()(declval<Args>()...)), __invoke_other> __test(int); template<typename...> static __failure_type __test(...); };
 	template<typename FT, typename...Args> struct __result_of_impl<false, false, FT, Args...> : private __result_of_other_impl { using type = decltype(__test <FT, Args...> (0)); };
-	template<typename FT, typename...Args> struct __invoke_result: public __result_of_impl<is_member_object_pointer <typename remove_reference<FT>::type>::value, is_member_function_pointer<typename remove_reference<FT>::type>::value, FT, Args...>::type {};
+	template<typename FT, typename...Args> struct __invoke_result : public __result_of_impl<is_member_object_pointer<typename remove_reference<FT>::type>::value, is_member_function_pointer<typename remove_reference<FT>::type>::value, FT, Args...>::type {};
 	template<typename F2, typename...Args> using __invoke_result_t = typename __invoke_result<F2, Args...>::type;
 	template<typename T> using decay_t = typename decay<T>::type;
 	template<bool CT, typename T = void> using enable_if_t = typename enable_if<CT, T>::type;
