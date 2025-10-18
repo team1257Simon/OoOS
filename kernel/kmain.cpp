@@ -352,22 +352,6 @@ static device_stream* find_com()
     if(map_it != dreg.end() && map_it->second.size() > 0UZ) return map_it->second.begin()->second;
     return nullptr;
 }
-static void serial_echo()
-{
-    if(com)
-    {
-        size_t n = com->avail();
-        if(n)
-        {
-            char* buf = new char[n+1]{0};
-            com->read(buf, n);
-            startup_tty.print_text("[COM input]{");
-            startup_tty.print_text(buf);
-            startup_tty.print_text("}");
-            delete[] buf;
-        }
-    }
-}
 static const char* codes[] = 
 {
     "#DE [Division by Zero]",
@@ -461,7 +445,6 @@ void run_tests()
         else if(__unlikely(!(com = find_com()))) startup_tty.print_line("failed to get serial driver");
         else
         {
-            interrupt_table::add_irq_handler(4UC, serial_echo);
             startup_tty.print_line("sysfs tests...");
             sysfs_tests();
             shared_object_map::get_ldso_object(std::addressof(test_extfs));

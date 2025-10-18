@@ -15,6 +15,12 @@ namespace ooos_kernel_module
 {
     class abstract_module_base;
     class isr_actor;
+    template<typename T> [[nodiscard]] constexpr T&& __forward(typename std::remove_reference<T>::type& t) { return static_cast<T&&>(t); }
+    template<typename T> [[nodiscard]] constexpr T&& __forward(typename std::remove_reference<T>::type&& t) { return static_cast<T&&>(t); }
+    template<typename T> constexpr typename std::remove_reference<T>::type&& __move(T&& __t) noexcept { return static_cast<std::remove_reference<T>::type&&>(__t); }
+    template<typename T> constexpr T* __addressof(T& arg) noexcept { return __builtin_addressof(arg); }
+    template<typename T> const T* __addressof(const T&&) = delete;
+    template<typename T> concept no_args_invoke = requires(T t) { t(); };
     namespace __internal
     {
         class __anything;
@@ -49,9 +55,10 @@ namespace ooos_kernel_module
         template<size_t N, typename ... Ts> struct __nth_pack_param;
         template<template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<0, C<H, Ts...>> { typedef H type; };
         template<size_t N, template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<N, C<H, Ts...>> : __nth_pack_param<N - 1, C<Ts...>> {};
+        template<no_args_invoke FT, typename RT = decltype((std::declval<FT&&>())())> constexpr RT __invoke_f(FT&& f) { if constexpr(!std::is_void_v<RT>) { return (__forward<FT>(f))(); } else { (__forward<FT>(f))(); } }
+        template<typename T> concept __simple_swappable = std::is_move_assignable_v<T> && std::is_move_constructible_v<T>;
+        template<__simple_swappable T> constexpr void __swap(T& a, T& b) noexcept(std::is_nothrow_move_assignable_v<T> && std::is_nothrow_move_constructible_v<T>) { T tmp = __move(a); a = __move(b); b = __move(tmp); }
     }
-    template<typename T> concept no_args_invoke = requires(T t) { t(); };
-    namespace __internal { template<no_args_invoke FT> constexpr void __invoke_f(FT&& f) { (static_cast<FT&&>(f))(); } }
     template<typename T> concept wrappable_actor = no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
     template<typename T> concept boolable = requires(T t) { t ? true : false; };
     template<typename T> concept io_buffer_ok = std::is_default_constructible_v<T> && !std::is_volatile_v<T> && std::is_copy_assignable_v<T>;
@@ -109,7 +116,7 @@ namespace ooos_kernel_module
         void (*function_ptr)();
         void (abstract_module_base::*member_function_ptr)();
     };
-    union [[gnu::may_alias]] functor_store
+    union [[gnu::may_alias]] actor_store
     {
         actors ignored;
         char actual[sizeof(actors)];
@@ -117,12 +124,14 @@ namespace ooos_kernel_module
         constexpr const void* access() const noexcept { return &actual[0]; }
         template<typename T> constexpr T& cast() noexcept { return *static_cast<T*>(access()); }
         template<typename T> constexpr T const& cast() const noexcept { return *static_cast<T const*>(access()); }
+        template<typename T> constexpr void set_ptr(T* ptr) noexcept { *static_cast<T**>(access()) = ptr; }
     };
     enum mgr_op
     {
         get_pointer,
         clone,
-        destroy
+        destroy,
+        get_type_info
     };
     struct isr_actor_base
     {
@@ -136,18 +145,18 @@ namespace ooos_kernel_module
         {
             constexpr static size_t __max_size  = sizeof(actors);
             constexpr static size_t __max_align = alignof(actors);
-            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(static_cast<GT&&>(ftor)); }
-            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, std::false_type) { dst.template cast<FT*>() = new FT(static_cast<GT&&>(ftor)); }
-            static inline void __delete_wrapper(functor_store& target, std::true_type) { target.template cast<FT>().~FT(); }
-            static inline void __delete_wrapper(functor_store& target, std::false_type) { ::operator delete(target.template cast<FT*>()); }
+            template<typename GT> static inline void __create_wrapper(actor_store& dst, GT&& ftor, kmod_mm*, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(__forward<GT>(ftor)); }
+            template<typename GT> static inline void __create_wrapper(actor_store& dst, GT&& ftor, kmod_mm* alloc, std::false_type) { dst.set_ptr(new(alloc->mem_allocate(sizeof(FT), alignof(FT))) FT(__forward<GT>(ftor))); }
+            static inline void __delete_wrapper(actor_store& target, kmod_mm*, std::true_type) { target.template cast<FT>().~FT(); }
+            static inline void __delete_wrapper(actor_store& target, kmod_mm* alloc, std::false_type) { FT* ptr = target.template cast<FT*>(); ptr->~FT(); alloc->mem_release(ptr, alignof(FT)); }
             using __is_locally_storable = std::bool_constant<std::is_trivially_copyable_v<FT> && (sizeof(FT) <= __max_size && alignof(FT) <= __max_align && __max_align % alignof(FT) == 0)>;
             constexpr static bool __is_local_store = __is_locally_storable::value;
         public:
-            constexpr static FT* get_ptr(functor_store const& src) { if constexpr(__is_local_store) { return &const_cast<FT&>(src.template cast<FT>()); } else { return src.template cast<FT*>(); } }
-            template<typename GT> static inline void init_actor(functor_store& dst, GT&& src) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, static_cast<GT&&>(src), __is_locally_storable()); }
-            static inline void destroy_actor(functor_store& dst) { __delete_wrapper(dst, __is_locally_storable()); }
-            static void invoke_fn(functor_store& fn) { __internal::__invoke_f(static_cast<FT&&>(*get_ptr(fn))); }
-            static void action(functor_store& dst, functor_store const& src, mgr_op op)
+            constexpr static FT* get_ptr(actor_store const& src) { if constexpr(__is_local_store) { return addressof(const_cast<FT&>(src.template cast<FT>())); } else { return src.template cast<FT*>(); } }
+            template<typename GT> static inline void init_actor(actor_store& dst, GT&& src, kmod_mm* alloc) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, __forward<GT>(src), alloc, __is_locally_storable()); }
+            static inline void destroy_actor(actor_store& dst, kmod_mm* alloc) { __delete_wrapper(dst, alloc, __is_locally_storable()); }
+            static void invoke_fn(actor_store& fn) { __internal::__invoke_f(__forward<FT>(*get_ptr(fn))); }
+            static void action(actor_store& dst, actor_store const& src, kmod_mm* alloc, mgr_op op)
             {
                 switch(op)
                 {
@@ -155,51 +164,70 @@ namespace ooos_kernel_module
                     dst.template cast<FT*>() = get_ptr(src);
                     break;
                 case clone:
-                    init_actor(dst, *const_cast<FT const*>(get_ptr(src)));
+                    init_actor(dst, *const_cast<FT const*>(get_ptr(src)), alloc);
                     break;
                 case destroy:
-                    destroy_actor(dst);
+                    destroy_actor(dst, alloc);
+                    break;
+                case get_type_info:
+                    dst.set_ptr(&typeid(FT));
                     break;
                 }
             }
         };
-        using manager_type = void(*)(functor_store&, functor_store const&, mgr_op);
-        using invoker_type = void(*)(functor_store&);
-        struct actor_manager_wrapper
-        {
-            manager_type manager;
-            invoker_type invoker;
-            constexpr operator bool() const noexcept { return manager && invoker; }
-            inline void manager_action(functor_store& dst, functor_store const& src, mgr_op op) { if(*this) { (*manager)(dst, src, op); }  }
-            void invoke(functor_store& fn);
-        };
-        actor_manager_wrapper __my_wrapper;
-        functor_store __my_actor;
-        constexpr isr_actor_base() noexcept = default;
-        constexpr isr_actor_base(actor_manager_wrapper const& wrapper) noexcept : __my_wrapper(wrapper.manager, wrapper.invoker) {}
-        constexpr isr_actor_base(actor_manager_wrapper&& wrapper) noexcept : __my_wrapper(wrapper.manager, wrapper.invoker) { wrapper.invoker = nullptr; wrapper.manager = nullptr; }
-        inline ~isr_actor_base() noexcept { if(__my_wrapper.manager && __my_wrapper.invoker) __my_wrapper.manager_action(__my_actor, __my_actor, destroy); }
+        using manager_type = void(*)(actor_store&, actor_store const&, kmod_mm*, mgr_op);
+        using invoker_type = void(*)(actor_store&);
+        actor_store __my_actor;
+        manager_type __my_manager;
+        invoker_type __my_invoke;
+        kmod_mm* __my_alloc;
+        constexpr bool __empty() const noexcept { return !__my_manager || !__my_alloc; }
+        constexpr ~isr_actor_base() noexcept { if(__my_manager && __my_alloc) { __my_manager(__my_actor, __my_actor, __my_alloc, destroy); } }
     };
     struct isr_actor : private isr_actor_base
     {
-        inline isr_actor() noexcept = default;
-        inline ~isr_actor() noexcept = default;
-        constexpr operator bool() const noexcept { return __my_wrapper; }
-        isr_actor(isr_actor const& that);
-        isr_actor(isr_actor&& that);
-        isr_actor& operator=(isr_actor const& that);
-        isr_actor& operator=(isr_actor&& that);
-        template<wrappable_actor FT> inline isr_actor(FT&& ft) : isr_actor_base()
+        constexpr isr_actor() noexcept = default;
+        constexpr ~isr_actor() noexcept = default;
+        constexpr operator bool() const noexcept { return !__empty(); }
+        template<wrappable_actor FT> constexpr isr_actor(FT&& ft, kmod_mm* alloc)
         {
             typedef actor_manager<std::decay_t<FT>> __mgr;
-            if(not_empty(ft)) 
+            if(not_empty(ft))
             {
-                __mgr::init_actor(__my_actor, static_cast<FT&&>(ft));
-                __my_wrapper.manager = &__mgr::action;
-                __my_wrapper.invoker = &__mgr::invoke_fn;
+                __mgr::init_actor(__my_actor, __forward<FT>(ft), alloc);
+                __my_manager    = &__mgr::action;
+                __my_invoke     = &__mgr::invoke_fn;
+                __my_alloc      = alloc;
             } 
         }
-        void operator()();
+        constexpr isr_actor(isr_actor const& that) : isr_actor_base()
+        {
+            if(static_cast<bool>(that))
+            {
+                that.__my_manager(this->__my_actor, that.__my_actor, that.__my_alloc, clone);
+                this->__my_manager  = that.__my_manager;
+                this->__my_invoke   = that.__my_invoke;
+                this->__my_alloc    = that.__my_alloc;
+            }
+        }
+        constexpr isr_actor(isr_actor&& that) : isr_actor_base()
+        {
+            if(static_cast<bool>(that))
+            {
+                this->__my_actor    = that.__my_actor;
+                this->__my_manager  = that.__my_manager;
+                this->__my_invoke   = that.__my_invoke;
+                this->__my_alloc    = that.__my_alloc;
+                that.__my_manager   = nullptr;
+                that.__my_invoke    = nullptr;
+                that.__my_alloc     = nullptr;
+            }
+        }
+        constexpr void swap(isr_actor& that) noexcept { using __internal::__swap; __swap(this->__my_actor, that.__my_actor); __swap(this->__my_invoke, that.__my_invoke); __swap(this->__my_manager, that.__my_manager); __swap(this->__my_alloc, that.__my_alloc); }
+        isr_actor& operator=(isr_actor const& that) { isr_actor(that).swap(*this); return *this; }
+        isr_actor& operator=(isr_actor&& that) { isr_actor(__move(that)).swap(*this); return *this; }
+        constexpr void operator()() { if(!__empty()) __my_invoke(__my_actor); }
+        constexpr std::type_info const& target_type() const noexcept { if(__my_manager) { actor_store tmp_store; __my_manager(tmp_store, __my_actor, __my_alloc, get_type_info); if(std::type_info const* result = tmp_store.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
     };
     struct kernel_api
     {

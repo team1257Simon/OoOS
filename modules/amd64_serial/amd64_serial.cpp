@@ -54,7 +54,7 @@ bool amd64_serial::initialize()
     outb(modem_ctl_port(port), modem_ctl_byte(true, true, true, true, false));
     init_ier.receive_data           = true;
     outb(ier, init_ier);
-    this->on_irq(4UC, [port, sp, this]() -> void
+    this->on_irq(4UC, [=, this]() -> void
     {
         do {
             if(!(__input_pos < in.fin))

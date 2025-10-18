@@ -27,7 +27,7 @@ namespace ooos_kernel_module
         inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
         inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
         inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
-        template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { __api_hooks->on_irq(irq, static_cast<isr_actor&&>(handler), this); }
+        template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
         inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; } }
         friend void module_takedown(abstract_module_base* mod);
     };

@@ -17,8 +17,8 @@ namespace interrupt_table
     spinlock_t __itable_mutex;
     void __lock() { lock(std::addressof(__itable_mutex)); }
     void __unlock() { release(std::addressof(__itable_mutex)); }
-    void deregister_owner(void* owner) { if(owner) { __lock(); for(std::unordered_map<void*, isr_actor>& m : __managed_handlers) m.erase(owner); __unlock(); }  }
-    bool add_irq_handler(void* owner, byte idx, isr_actor&& handler) { if(idx < 16UC && owner) { __lock(); bool result = __managed_handlers[idx].insert(std::make_pair(owner, std::move(handler))).second; __unlock(); return result; } return false; }
+    void deregister_owner(void* owner) { if(owner) { __lock(); for(std::unordered_map<void*, ooos_kernel_module::isr_actor>& m : __managed_handlers) m.erase(owner); __unlock(); }  }
+    bool add_irq_handler(void* owner, byte idx, ooos_kernel_module::isr_actor&& handler) { if(idx < 16UC && owner) { __lock(); bool result = __managed_handlers[idx].emplace(owner, std::forward<ooos_kernel_module::isr_actor>(handler)).second; __unlock(); return result; } return false; }
     bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16UC) { __lock(); __handler_tables[idx].push_back(std::move(handler)); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
     void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(std::move(cb)); }
 }

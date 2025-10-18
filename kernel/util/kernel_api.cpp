@@ -6,24 +6,6 @@
 #include "stdexcept"
 namespace ooos_kernel_module
 {
-    void isr_actor_base::actor_manager_wrapper::invoke(functor_store& fn) { (*invoker)(fn); }
-    isr_actor::isr_actor(isr_actor const& that) : isr_actor_base(that.__my_wrapper) { __my_wrapper.manager_action(this->__my_actor, that.__my_actor, clone); }
-    isr_actor::isr_actor(isr_actor&& that) : isr_actor_base(std::move(that.__my_wrapper)) { this->__my_actor = that.__my_actor; }
-    void isr_actor::operator()() { if(__my_wrapper) __my_wrapper.invoke(__my_actor); }
-    isr_actor& isr_actor::operator=(isr_actor const& that)
-    {
-        this->__my_wrapper = that.__my_wrapper;
-        this->__my_wrapper.manager_action(this->__my_actor, that.__my_actor, clone);
-        return *this;
-    }
-    isr_actor& isr_actor::operator=(isr_actor&& that)
-    {
-        this->__my_wrapper          = that.__my_wrapper;
-        this->__my_actor            = that.__my_actor;
-        that.__my_wrapper.manager   = nullptr;
-        that.__my_wrapper.invoker   = nullptr;
-        return *this;
-    }
     struct kmod_mm_impl : kmod_mm, kframe_tag
     {
         kernel_memory_mgr* mm;
@@ -48,7 +30,7 @@ namespace ooos_kernel_module
         virtual void destroy_mm(kmod_mm* mod_mm) override { if(mod_mm) delete mod_mm; }
         virtual void log(std::type_info const& from, const char* message) override { xklog("[" + std::ext::demangle(from) + "]: " + message); }
         virtual void remove_actors(abstract_module_base* owner) override { interrupt_table::deregister_owner(owner); }
-        virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { interrupt_table::add_irq_handler(owner, irq, std::move(handler)); }
+        virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
         virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
         virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
         virtual void init_memory_fns(kframe_exports* ptrs) override
