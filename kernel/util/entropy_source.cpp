@@ -1,7 +1,7 @@
 #include "entropy_source.hpp"
 entropy_source::entropy_source() : __base(max_accumulation) {}
 void entropy_source::on_modify_queue() { __trim_stale(); sync(); }
-__isrcall void entropy_source::accumulate()
+void entropy_source::accumulate()
 {
     if(__qsize() < max_accumulation)
     {

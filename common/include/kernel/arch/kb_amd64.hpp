@@ -59,11 +59,11 @@ enum event_type : uint8_t
 class keyboard_driver_amd64 : public keyboard_driver
 {
     bool __skip = false;
-    __isrcall kb_data __get_next(kb_state current_state, bool extd);
+    kb_data __get_next(kb_state current_state, bool extd);
 protected:
-	__isrcall virtual kb_data __get_last(kb_state current_state) override;
+	virtual kb_data __get_last(kb_state current_state) override;
     virtual void __on_init() override;
     virtual byte __get_irq_index() override;
-    __isrcall virtual bool __skip_send() override;
+    virtual bool __skip_send() override;
 };
 #endif

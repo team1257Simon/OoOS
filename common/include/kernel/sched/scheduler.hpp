@@ -17,10 +17,10 @@ class scheduler
     static bool __has_init;
     bool __set_wait_time(task_t* task, unsigned int time, bool can_interrupt);
     bool __set_untimed_wait(task_t* task);
-    __isrcall void __do_task_change(task_t* cur, task_t* next);
+    void __do_task_change(task_t* cur, task_t* next);
 protected:
-    __isrcall task_t* select_next();
-    __isrcall void on_tick();
+    task_t* select_next();
+    void on_tick();
     bool init();
     scheduler();
 public:

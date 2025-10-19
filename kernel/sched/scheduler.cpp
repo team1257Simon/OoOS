@@ -72,14 +72,14 @@ bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interr
     __sleepers.push(task);
     return true;
 }
-__isrcall void scheduler::__do_task_change(task_t* cur, task_t* next)
+void scheduler::__do_task_change(task_t* cur, task_t* next)
 {
     next->quantum_rem   = next->quantum_val;
     cur->next           = next;
     task_change_flag.store(true);
-    uint64_t ts     = sys_time(nullptr);
-    next->run_split = ts;
-    cur->run_time   += (ts - cur->run_split);
+    uint64_t ts         = sys_time(nullptr);
+    next->run_split     = ts;
+    cur->run_time       += (ts - cur->run_split);
 }
 bool scheduler::unregister_task(task_t* task) 
 {
@@ -98,7 +98,7 @@ bool scheduler::unregister_task_tree(task_t* task)
     for(task_ctx* c : xtask->child_tasks) { result &= unregister_task_tree(c->task_struct.self); }
     return result && unregister_task(task);
 }
-__isrcall task_t* scheduler::select_next()
+task_t* scheduler::select_next()
 {
     // first check system priority (I/O drivers and such will go here; most of the time they will be sleeping)
     if(!__queues[PVSYS].empty()) { if(__queues[PVSYS].at_end()) __queues[PVSYS].restart(); return __queues[PVSYS].pop(); }
@@ -153,7 +153,7 @@ bool scheduler::set_wait_timed(task_t* task, unsigned int time, bool can_interru
         return __set_wait_time(task, time, can_interrupt);
     return false;
 }
-__isrcall void scheduler::on_tick()
+void scheduler::on_tick()
 {
     __sleepers.tick_wait();
     if(!__sleepers.at_end())

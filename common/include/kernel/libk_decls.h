@@ -64,8 +64,8 @@ qword get_flags();
 extern int setjmp(jmp_buf jb);
 extern void longjmp(jmp_buf jb, int status);
 #if defined(__KERNEL__) || defined(__LIBK__)
-__isrcall void panic(const char* msg) noexcept;
-__isrcall void klog(const char* msg) noexcept;
+void panic(const char* msg) noexcept;
+void klog(const char* msg) noexcept;
 void __register_frame(void*);
 extern char __ehframe;
 uintptr_t translate_vaddr(addr_t addr);

@@ -424,7 +424,7 @@ protected:
 	void port_hard_reset(uint8_t idx);
 	void hard_reset_fallback(uint8_t idx);
 	bool has_port(uint8_t i);
-    __isrcall void handle_irq();
+    void handle_irq();
 public:
 	ahci(ahci const&) = delete;
 	ahci& operator=(ahci const&) = delete;

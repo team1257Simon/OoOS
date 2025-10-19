@@ -52,8 +52,8 @@ public:
 	constexpr uint32_t fg_color() const noexcept { return __foreground; }
 	constexpr uint32_t bg_color() const noexcept { return __background; }
 	constexpr uint32_t fb_pitch() const noexcept { return __pitch; }
-	__isrcall void operator()(char c, uint32_t* fb, point const& pos) const;
-	__isrcall void fill(uint32_t color, uint32_t* fb, point const& pos) const;
+	void operator()(char c, uint32_t* fb, point const& pos) const;
+	void fill(uint32_t color, uint32_t* fb, point const& pos) const;
 };
 #endif
 #endif

@@ -5,12 +5,9 @@
 #include "bits/invoke.hpp"
 #include "bits/typeinfo.h"
 #include "exception"
-#ifndef __isrcall
-#define __isrcall
-#endif
 namespace std
 {
-    __isrcall [[noreturn]] void __throw_bad_function_call();
+    [[noreturn]] void __throw_bad_function_call();
     class bad_function_call : public exception
     {
     public:
@@ -65,7 +62,7 @@ namespace std
             template<typename R, typename C, typename ... Args> constexpr static bool __not_empty(member_fn<R, C, Args...> mf) noexcept { return mf != nullptr; }
             template<typename F2> constexpr static bool __not_empty(function<F2> const& f2) noexcept { return static_cast<bool>(f2); }
             template<typename T> constexpr static bool __not_empty(T const&) noexcept { return true; }
-            __isrcall static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op)
+            static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op)
             {
                 switch(op)
                 {
@@ -100,8 +97,8 @@ namespace std
     {
         using __base = __function_base::__fn_manager<FT>;
     public:
-        __isrcall static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { if(op == __get_functor_ptr) { dest.__access<FT*>() = __base::__get_pointer(src); return false; } return __base::__manager(dest, src, op); }
-        __isrcall static RT __invoke_fn(__data_store const& fn, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r<RT>(*(__base::__get_pointer(fn)), forward<Args>(args)...); }
+        static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { if(op == __get_functor_ptr) { dest.__access<FT*>() = __base::__get_pointer(src); return false; } return __base::__manager(dest, src, op); }
+        static RT __invoke_fn(__data_store const& fn, Args&& ... args) noexcept(is_nothrow_invocable_r_v<RT, FT, Args...>) { return __invoke_r<RT>(*(__base::__get_pointer(fn)), forward<Args>(args)...); }
         template<typename F2> constexpr static bool __is_nothrow_init() noexcept { return __and_<is_nothrow_constructible<F2>, typename __base::__is_locally_storable>::value; }
     };
     template<> class __function_helper<void, void> { public: constexpr static bool __manager(__data_store& dest, __data_store const& src, __func_manage_op op) { return false; } };
@@ -171,7 +168,7 @@ namespace std
         constexpr function& operator=(function&& that) noexcept { function(move(that)).swap(*this); return *this; }
         constexpr function& operator=(nullptr_t) noexcept { if(__my_manager) { __my_manager(__my_functor, __my_functor, __destroy_functor); __my_manager = nullptr; __my_invoker = nullptr; } return *this; }
         template<__alternate_callable<RT, Args...> FT> constexpr function& operator=(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) { function{ forward<FT>(ft) }.swap(*this); return *this; }
-        __isrcall RT operator()(Args ... args) const { if(this->__empty()) { __throw_bad_function_call(); } return __my_invoker(__my_functor, forward<Args>(args)...); }
+        RT operator()(Args ... args) const { if(this->__empty()) { __throw_bad_function_call(); } return __my_invoker(__my_functor, forward<Args>(args)...); }
         constexpr type_info const& target_type() const noexcept { if(__my_manager) { __data_store __ti_result; __my_manager(__ti_result, __my_functor, __get_type_info); if(type_info const* result = __ti_result.__access<type_info const*>()) return *result; } return typeid(nullptr); }
     };
     template<typename> struct __function_guide_helper{};

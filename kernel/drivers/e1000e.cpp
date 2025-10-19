@@ -19,7 +19,7 @@ constexpr int txdctl        = e1000_txdctl(0);
 constexpr std::alignas_allocator<char, int128_t> __buffer_alloc;
 void e1000e::read_status(dev_status& status) { read_dma(e1000_status, status); }
 e1000e::~e1000e() = default;
-__isrcall void e1000e::on_interrupt() 
+void e1000e::on_interrupt() 
 {
     irq_state icr{};
     read_dma(e1000_icr, icr);

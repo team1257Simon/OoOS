@@ -7,7 +7,6 @@
 #include "errno.h"
 #include "fs/fat32.hpp"
 #include "elf64_exec.hpp"
-#include "arch/com_amd64.h"
 #include "isr_table.hpp"
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
@@ -350,7 +349,7 @@ void task_ctx::terminate()
 }
 tms task_ctx::get_times() const noexcept
 {
-    tms result{ task_struct.run_time, task_struct.sys_time, 0UL, 0UL };
+    tms result(task_struct.run_time, task_struct.sys_time, 0UL, 0UL);
     for(task_ctx* child : child_tasks) { result += child->get_times(); }
     return result;
 }
@@ -428,7 +427,7 @@ bool task_ctx::set_fork()
         if(!program_handle) return false;
         program_handle->on_copy(new_frame);
         if(opened_directories.empty()) return true;
-        std::map<int, posix_directory> old_dirs{ std::move(opened_directories) };
+        std::map<int, posix_directory> old_dirs(std::move(opened_directories));
         opened_directories.clear();
         for(std::map<int, posix_directory>::iterator i = old_dirs.begin(); i != old_dirs.end(); i++) { opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(i->first), std::forward_as_tuple(new_frame, i->second.get_base_vaddr())); }
         return true;
@@ -479,8 +478,8 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
             {
                 .block          { false },
                 .can_interrupt  { false },
-                .should_notify   { false },
-                .killed        { false },
+                .should_notify  { false },
+                .killed         { false },
                 .prio_base      { prio }
             }, 
             {

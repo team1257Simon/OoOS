@@ -1,5 +1,4 @@
 #include "arch/apic.hpp"
-#include "arch/com_amd64.h"
 #include "arch/cpu_time.hpp"
 #include "arch/hpet_amd64.hpp"
 #include "arch/idt_amd64.h"
@@ -43,6 +42,7 @@ volatile apic bsp_lapic{ 0U };
 static bool direct_print_enable{ false };
 static bool fx_enable{ false };
 static char dbgbuf[19]{ '0', 'x' };
+static char dbg_serial_io[2]{};
 static const char test_argv[]{ "Hello task world " };
 static char test_e1000e_drv[sizeof(e1000e)]{};
 std::atomic<bool> dbg_hold{ false };
@@ -61,6 +61,8 @@ extern "C"
     extern bool debug_stop_flag;
     extern void test_fault();
     task_t kproc{};
+    int get_debug_char() { if(com && com->read(dbg_serial_io, 1UZ)) { return dbg_serial_io[0]; } return -1; }
+    void put_debug_char(int ch) { dbg_serial_io[1] = static_cast<char>(ch); if(com) com->write(1UZ, dbg_serial_io + 1); }
 }
 filesystem* get_fs_instance() { if(!current_active_task()) return nullptr; return active_task_context()->get_vfs_ptr(); }
 filesystem* create_task_vfs() { return std::addressof(test_extfs); /* TODO */ }
@@ -91,7 +93,7 @@ void net_tests()
         if(!test_dev->initialize()) panic("init failed");
         else
         {
-            mac_t const& mac = test_dev->get_mac_addr();
+            mac_t const& mac        = test_dev->get_mac_addr();
             startup_tty.print_line("MAC: " + stringify(mac));
             protocol_ipv4& p_ip     = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
             protocol_udp& p_udp     = p_ip.add_transport_handler<protocol_udp>(UDP);
@@ -100,7 +102,7 @@ void net_tests()
             p_dhcp.transition_state(ipv4_client_state::INIT);
             hpet.delay_us(2000UL);
             startup_tty.print_line("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway) + ", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
-            startup_tty.print_line("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) +"; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
+            startup_tty.print_line("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) + "; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
         }
     }
     else panic("net device not found on PCI bus");
@@ -234,18 +236,18 @@ void dyn_elf_tests()
 {
     if(test_extfs.has_init()) try
     {
-        shared_object_map& sm = shared_object_map::get_globals();
+        shared_object_map& sm               = shared_object_map::get_globals();
         shared_object_map::iterator test_so = shared_object_map::get_ldso_object(nullptr);
         kmm.enter_frame(sm.shared_frame);
-        addr_t sym = test_so->get_load_offset();
+        addr_t sym                          = test_so->get_load_offset();
         startup_tty.print_line("Dynamic Linker SO name: " + test_so->get_soname());
-        sym = test_so->entry_point();
+        sym                                 = test_so->entry_point();
         startup_tty.print_text("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");
         startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-        sym = test_so->resolve_by_name("dlopen").second;
+        sym                                 = test_so->resolve_by_name("dlopen").second;
         startup_tty.print_text("Symbol dlopen: " + std::to_string(sym.as()) + " (");
         startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-        sym = test_so->resolve_by_name("dlclose").second;
+        sym                                 = test_so->resolve_by_name("dlclose").second;
         startup_tty.print_text("Symbol dlclose: " + std::to_string(sym.as()) + " (");
         startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
         kmm.exit_frame();
@@ -274,7 +276,7 @@ void elf64_tests()
     catch(std::exception& e) { panic(e.what()); }
 }
 uint64_t end_read;
-__isrcall void fn() { end_read = hpet_amd64::count_usec(); }
+void fn() { end_read = hpet_amd64::count_usec(); }
 void hpet_tests()
 {
     if(hpet_amd64::init_instance())
@@ -387,7 +389,7 @@ static const char* codes[] =
     "#SX [Security Exception]",
     "[RESERVED INTERRUPT 0x1F]"
 };
-constexpr auto test_dbg_callback = [] __isrcall (byte idx, qword ecode) -> void
+constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 {
     if(get_gs_base<task_t>() != std::addressof(kproc)) return;
     if(idx < 0x20) 
@@ -479,13 +481,13 @@ extern "C"
     void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
     void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
     [[noreturn]] void abort() { __serial_write("KERNEL ABORT"); startup_tty.print_line("abort() called in kernel"); while(1); }
-    __isrcall void panic(const char* msg) noexcept
+    void panic(const char* msg) noexcept
     {
         startup_tty.print_text("E: ");
         startup_tty.print_line(msg);
         __serial_write("[KERNEL] E: " + std::string(msg));    
     }
-    __isrcall void klog(const char* msg) noexcept 
+    void klog(const char* msg) noexcept
     { 
         startup_tty.print_line(msg); 
         __serial_write("[KERNEL] " + std::string(msg));  
@@ -493,7 +495,7 @@ extern "C"
     void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
     {
         // Most of the current kmain is tests...because ya know.
-        asm volatile("movq %0, %%rsp" :: "r"(std::addressof(kernel_stack_top)) : "memory");
+        asm volatile("movq %0, %%rsp" :: "r"(std::addressof(kernel_stack_top))  : "memory");
         asm volatile("movq %0, %%rbp" :: "r"(std::addressof(kernel_stack_base)) : "memory");
         // Don't want to get interrupted during early initialization...
         cli();

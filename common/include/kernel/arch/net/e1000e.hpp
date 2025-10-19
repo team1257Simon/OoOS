@@ -473,7 +473,7 @@ protected:
     void read_phy(int phy_reg, uint16_t& out);
     void write_phy(int phy_reg, uint16_t data);
     uint16_t read_eeprom(uint16_t eep_addr);
-    __isrcall void on_interrupt();
+    void on_interrupt();
 public:
     e1000e(pci_config_space* device, size_t descriptor_count_factor = 32UZ);
     virtual ~e1000e();

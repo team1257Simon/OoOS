@@ -9,7 +9,7 @@ class entropy_source : public std::ext::dynamic_queue_streambuf<uint8_t>
     using __base = std::ext::dynamic_queue_streambuf<uint8_t>;
 protected:
     virtual void on_modify_queue() override;
-    __isrcall void accumulate();
+    void accumulate();
 public:
     entropy_source();
 };

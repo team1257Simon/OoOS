@@ -335,7 +335,7 @@ void ahci::write_sectors(uint8_t idx, qword start, dword count, const uint16_t* 
     __issue_command(idx, slot);
     await_result([&]() -> bool { return !is_busy(idx); });
 }
-__isrcall void ahci::handle_irq()
+void ahci::handle_irq()
 {
     uint32_t s          = __abar->i_status;
 	barrier();

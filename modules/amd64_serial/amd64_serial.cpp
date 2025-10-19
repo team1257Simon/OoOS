@@ -27,7 +27,7 @@ static bool loopback_test(word port)
     cur_ctl.rts_enable      = true;
     outb(modem_port, cur_ctl);
     outb(port, 0xAE);
-    bool result = (inb(port) == 0xAEUC);
+    bool result             = (inb(port) == 0xAEUC);
     outb(modem_port, prev_ctl);
     return result;
 }

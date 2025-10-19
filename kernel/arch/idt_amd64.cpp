@@ -56,7 +56,7 @@ extern "C"
             .isr_high   { static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFFU) }
         };
     }
-    __isrcall void isr_dispatch(uint8_t idx)
+    void isr_dispatch(uint8_t idx)
     {
         if(idx == 0x28UC) { (*callback_8)(); delay_flag = false; callback_8 = no_waiting_op; }
         bool is_err = (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);

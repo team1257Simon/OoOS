@@ -29,7 +29,7 @@ class rtc
     rtc() = default;
     static rtc __instance;
 public:
-    __isrcall void rtc_time_update() volatile noexcept;
+    void rtc_time_update() volatile noexcept;
     static void init_instance(uint8_t century_register = 0UC) noexcept;
     static rtc volatile& get_instance() noexcept;
     rtc_time get_time() volatile;
