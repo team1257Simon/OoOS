@@ -63,7 +63,7 @@ void* __class_type_info::cast_to(void* obj, const struct __class_type_info* othe
     if(this == other)
         return obj;
     else
-        return 0;
+        return nullptr;
 }
 void* __si_class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
@@ -84,7 +84,7 @@ void* __vmi_class_type_info::cast_to(void* obj, const struct __class_type_info* 
     if(__do_upcast(other, &obj))
         return obj;
     else
-        return 0;
+        return nullptr;
 }
 bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
 {

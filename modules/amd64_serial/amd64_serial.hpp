@@ -161,7 +161,7 @@ constexpr auto serial_config()
         parameter("mode",           parameter_type<line_ctl_byte>,      S8N1),
         parameter("trigger_level",  parameter_type<trigger_level_t>,    T4BYTE),
         parameter("baud_div",       parameter_type<word>,               12US),
-        parameter("trim",           parameter_type<bool>,               false)
+        parameter("trim_on_read",   parameter_type<bool>,               false)
     );
 }
 class amd64_serial : public ooos_kernel_module::io_module_base<char>, public ooos_kernel_module::configurable_interface

@@ -8,7 +8,7 @@ generic_config_table& amd64_serial::get_config() { return __cfg.generic; }
 amd64_serial::amd64_serial() = default;
 void amd64_serial::__trim_old()
 {
-    size_type rem = amd64_serial::avail();
+    size_type rem       = amd64_serial::avail();
     size_type old_cap   = in.capacity();
     pointer new_buf     = static_cast<pointer>(this->allocate_buffer(in.capacity(), alignof(value_type)));
     __builtin_memcpy(new_buf, in.cur, rem);
@@ -40,7 +40,6 @@ bool amd64_serial::initialize()
     line_ctl_byte mode              = get_element<1>(__cfg);
     trigger_level_t level           = get_element<2>(__cfg);
     word baud_div                   = get_element<3>(__cfg);
-    bool should_trim_first          = !get_element<4>(__cfg);
     word ier                        = ier_port(port);
     word sp                         = line_status_port(port);
     serial_ier init_ier             = inb(ier);
@@ -64,7 +63,7 @@ bool amd64_serial::initialize()
         do {
             if(!(__input_pos < in.fin))
             {
-                if(in.size() && should_trim_first) __trim_old();
+                if(in.size() && !get_element<4>(__cfg)) __trim_old();
                 else
                 {
                     size_t ocap = in.capacity();

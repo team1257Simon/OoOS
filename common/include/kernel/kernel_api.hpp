@@ -355,6 +355,7 @@ namespace ooos_kernel_module
             size_t value_size;
             std::type_info const& type;
             const char* name;
+            constexpr static size_t __size_value = sizeof(config_parameter<T>);
             constexpr __config_entry_base(config_parameter<T>&& p) : T(__move(p.value)), value_size(p.value_size), type(p.type), name(p.name) {}
             constexpr static T& __get(__config_entry_base& t) { return t; }
              constexpr static T const& __get(__config_entry_base const& t) { return t; }
@@ -364,7 +365,7 @@ namespace ooos_kernel_module
         { 
             typedef __config_entry_base<I, T> __base;
             template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl; 
-            constexpr static size_t __size_value = 0UZ;
+            constexpr static size_t __size_value = sizeof(config_parameter<T>);
             constexpr static T& __get(__config_table_impl& t) { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
             constexpr __config_table_impl(config_parameter<T>&& p) : __base(__move(p)) {}
@@ -373,7 +374,7 @@ namespace ooos_kernel_module
         struct __config_table_impl<I, T, Us...> : private __config_entry_base<I, T>, public __config_table_impl<I + 1, Us...>
         {
             template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl;
-            constexpr static size_t __size_value = sizeof(T) + __config_table_impl<I + 1, Us ...>::__size_value;
+            constexpr static size_t __size_value = sizeof(config_parameter<T>) + __config_table_impl<I + 1, Us ...>::__size_value;
             typedef T __type;
             typedef __config_table_impl<I + 1, Us...> __next;
             typedef __config_entry_base<I, T> __base;
