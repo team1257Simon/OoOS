@@ -8,8 +8,8 @@ ST := $(TARGET_HOSTED)-strip
 READ = $(TARGET_HOSTED)-readelf
 OUTDIR = $(IMAGE_FILE_DIR)/sys
 LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
-CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -I$(PROJECT_DIR)/common/include -mno-red-zone -Wno-packed-bitfield-compat -ffreestanding
-CXXFLAGS := $(CFLAGS) -std=gnu++23
+CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -I$(PROJECT_DIR)/common/include -Wno-packed-bitfield-compat -ffreestanding
+CXXFLAGS := $(CFLAGS) -std=gnu++26
 CCFLAGS := $(CFLAGS) -std=gnu23
 LDFLAGS := -L$(LIB_DIR) -T $(LDSCRIPT) -pie -nostdlib -lgcc -lstdc++ $(CFLAGS)
 PRE_OBJ_NAMES = modcrti.o modcrtbegin.o modcrt0.o

@@ -12,7 +12,7 @@ SO_NAME = $(BASE_NAME).$(VERSION_MAJOR)
 FULL_NAME = $(SO_NAME).$(VERSION_MINOR)
 CFLAGS = -O2 -fPIC 
 CCFLAGS = $(CFLAGS) -std=gnu23 -Wall
-CXXFLAGS = $(CFLAGS) -std=gnu++2c -Wall -fno-exceptions -nostdinc++
+CXXFLAGS = $(CFLAGS) -std=gnu++26 -Wall -fno-exceptions -nostdinc++
 LDFLAGS = $(CFLAGS) -L$(SYS_LIB) -L$(LIB_GCC) -L$(SYSROOT)/usr/x86_64-ooos/lib -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -Wl,-soname,$(SO_NAME) -shared
 OUTDIR = $(IMAGE_FILE_DIR)/lib
 OBJDIR := $(OBJ_BASE_DIR)/ld-ooos

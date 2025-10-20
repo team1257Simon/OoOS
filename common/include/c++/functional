@@ -142,7 +142,7 @@ namespace std
     template<typename RT, typename ST> struct is_bind_expression<const volatile __bind_r_expr<RT, ST>> : public true_type {};
     template<typename FT, typename ... BArgs> struct __bind_check_arity{};
     template<typename RT, typename ... Args, typename ... BArgs> struct __bind_check_arity<RT (*)(Args...), BArgs...> { static_assert(sizeof...(BArgs) == sizeof...(Args), "Wrong number of arguments"); };
-    template<typename RT, typename ... Args, typename ... BArgs> struct __bind_check_arity<RT (*)(Args... ...), BArgs...> { static_assert(sizeof...(BArgs) >= sizeof...(Args), "Wrong number of arguments"); };
+    template<typename RT, typename ... Args, typename ... BArgs> struct __bind_check_arity<RT (*)(Args..., ...), BArgs...> { static_assert(sizeof...(BArgs) >= sizeof...(Args), "Wrong number of arguments"); };
     template<typename RT, typename CT, typename ... BArgs> struct __bind_check_arity<RT CT::*, BArgs...> { using __arity = typename __mem_fn<RT CT::*>::__arity; using __varargs = typename __mem_fn<RT CT::*>::__varargs; static_assert(__varargs::value ? sizeof...(BArgs) >= __arity::value + 1 : sizeof...(BArgs) == __arity::value + 1, "Wrong number of arguments"); };
     template<typename FT, typename ... BArgs> struct __bind_helper : __bind_check_arity<std::decay_t<FT>, BArgs...> { typedef __bind_expr<typename std::decay<FT>::type(typename std::decay<BArgs>::type...)> type; };
     template<typename RT, typename FT, typename ... BArgs> struct __bind_r_helper : __bind_check_arity<std::decay_t<FT>, BArgs...> { typedef __bind_r_expr<RT, typename std::decay<FT>::type(typename std::decay<BArgs>::type...)> type; };

@@ -11,7 +11,7 @@ namespace std
     template<typename RT, typename T1, typename T2> struct __maybe_unary_or_binary_function<RT, T1, T2> : std::binary_function<T1, T2, RT> {};
     template<typename ST> struct __mem_fn_traits;
     template<typename RT, typename CT, typename ... Args> struct __mem_fn_traits_base { using __result_type = RT; using __maybe_type = __maybe_unary_or_binary_function<RT, CT*, Args...>; using __arity = integral_constant<size_t, sizeof...(Args)>; };
-#define __MEM_FN_TRAITS2(CV, REF, LVAL, RVAL) template<typename RT, typename CT, typename ... Args> struct __mem_fn_traits<RT (CT::*)(Args...) CV REF> : __mem_fn_traits_base<RT, CV CT, Args...>	 { using __vararg = false_type; }; template<typename RT, typename CT, typename ... Args> struct __mem_fn_traits<RT(CT::*)(Args......) CV REF>  : __mem_fn_traits_base<RT, CV CT, Args...>	 { using __vararg = true_type; };
+#define __MEM_FN_TRAITS2(CV, REF, LVAL, RVAL) template<typename RT, typename CT, typename ... Args> struct __mem_fn_traits<RT (CT::*)(Args...) CV REF> : __mem_fn_traits_base<RT, CV CT, Args...>	 { using __vararg = false_type; }; template<typename RT, typename CT, typename ... Args> struct __mem_fn_traits<RT(CT::*)(Args...,...) CV REF>  : __mem_fn_traits_base<RT, CV CT, Args...>	 { using __vararg = true_type; };
 #define __MEM_FN_TRAITS(REF, LVAL, RVAL)  __MEM_FN_TRAITS2( , REF, LVAL, RVAL) __MEM_FN_TRAITS2(const , REF, LVAL, RVAL) __MEM_FN_TRAITS2(volatile , REF, LVAL, RVAL) __MEM_FN_TRAITS2(const volatile , REF, LVAL, RVAL)
 __MEM_FN_TRAITS( , true_type, true_type)
 __MEM_FN_TRAITS(&, true_type, false_type)
@@ -25,9 +25,9 @@ __MEM_FN_TRAITS(&& noexcept, false_type, true_type)
     template<typename FT> struct __maybe_get_result_type<FT, __void_t<typename FT::result_type>> { typedef typename FT::result_type result_type; };
     template<typename FT> struct __weak_result_type_impl : __maybe_get_result_type<FT> {};
     template<typename RT, typename ... Args> struct __weak_result_type_impl<RT(Args...)> { typedef RT result_type; };
-    template<typename RT, typename ... Args> struct __weak_result_type_impl<RT(Args......)> { typedef RT result_type; };
+    template<typename RT, typename ... Args> struct __weak_result_type_impl<RT(Args...,...)> { typedef RT result_type; };
     template<typename RT, typename ... Args> struct __weak_result_type_impl<RT(*)(Args...)> { typedef RT result_type; };
-    template<typename RT, typename ... Args> struct __weak_result_type_impl<RT(*)(Args......)> { typedef RT result_type; };
+    template<typename RT, typename ... Args> struct __weak_result_type_impl<RT(*)(Args...,...)> { typedef RT result_type; };
     template<typename FT, bool = is_member_function_pointer<FT>::value> struct __weak_result_type_memfun : __weak_result_type_impl<FT> {};
     template<typename MFT> struct __weak_result_type_memfun<MFT, true> { using result_type = typename __mem_fn_traits<MFT>::__result_type; };
     template<typename FT, typename CT> struct __weak_result_type_memfun<FT CT::*, false> {};

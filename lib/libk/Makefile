@@ -4,7 +4,7 @@ AR := $(TARGET_HOSTED)-ar
 CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-gcc
 CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32 -D__LIBK__ 
-CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++23 -nostdinc++
+CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++26 -nostdinc++
 CCFLAGS := $(CFLAGS) -std=gnu23
 LDFLAGS := -r -flinker-output=rel -nostdlib
 ARFLAGS := -rcs

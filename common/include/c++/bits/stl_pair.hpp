@@ -61,7 +61,7 @@ namespace std
         constexpr pair(pair&&) = default;
         constexpr pair& operator=(pair const& that) noexcept(__nothrow_copy_assignable()) requires (__copy_assignable()) { this->first = that.first; this->second = that.second; return *this; }
         constexpr pair& operator=(pair&& that) noexcept(__nothrow_move_assignable())  requires (__move_assignable()) { this->first = forward<T1>(that.first); this->second = forward<T2>(that.second); return *this; }
-        template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2> const& that) requires (__other_copy_assignable<U1, U2>()) { this->first = that.first; second = this->that.second; return *this; }
+        template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2> const& that) requires (__other_copy_assignable<U1, U2>()) { this->first = that.first; this->second = that.second; return *this; }
         template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2>&& that) requires (__other_move_assignable<U1, U2>()) { this->first = forward<U1>(that.first); this->second = forward<U2>(that.second); return *this; }
         constexpr void swap(pair& that) noexcept(__nothrow_swappable()) requires (__swappable()) { using std::swap; swap(this->first, that.first); swap(this->second, that.second); }
     };
