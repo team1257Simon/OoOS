@@ -40,7 +40,7 @@ void elf64_dynamic_executable::process_headers()
     if(virtual_load_base)
     {
         off_t diff = static_cast<off_t>(virtual_load_base.full);
-        if(diff)
+        if(diff > 0Z)
         {
             frame_base      += diff;
             frame_extent    += diff;

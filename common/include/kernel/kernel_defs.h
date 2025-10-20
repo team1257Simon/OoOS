@@ -973,6 +973,7 @@ typedef struct __s_be16
     constexpr __s_be16& operator=(__s_be16 const&) noexcept = default;
     constexpr __s_be16& operator=(__s_be16&&) noexcept = default;
     constexpr __s_be16& operator=(uint16_t i) noexcept { return (*this = __s_be16(i)); }
+    constexpr __s_be16& operator=(word w) noexcept { return (*this = __s_be16(w)); }
 } __pack __be16;
 typedef struct __s_be32
 {
@@ -991,6 +992,7 @@ typedef struct __s_be32
     constexpr __s_be32& operator=(__s_be32&&) noexcept = default;
     constexpr __s_be32& operator=(__s_be32 const&) noexcept = default;
     constexpr __s_be32& operator=(uint32_t i) noexcept { return (*this = __s_be32(i)); }
+    constexpr __s_be32& operator=(dword d) noexcept { return (*this = __s_be32(d)); }
 } __pack __be32;
 typedef struct __s_be64
 {
@@ -1010,6 +1012,7 @@ typedef struct __s_be64
     constexpr __s_be64& operator=(__s_be64&&) noexcept = default;
     constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
     constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
+    constexpr __s_be64& operator=(qword q) noexcept { return (*this = __s_be64(q)); }
 } __pack __be64;
 #pragma endregion
 #pragma GCC diagnostic push

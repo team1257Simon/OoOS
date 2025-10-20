@@ -61,8 +61,8 @@ abstract_packet<dhcp_packet> protocol_dhcp::create_packet(mac_t const& dest_mac,
 {
     abstract_packet<dhcp_packet> result(total_size, std::in_place_type<dhcp_packet>, std::forward<ipv4_standard_header>(base->create_packet(dest_mac)));
     if(transaction_timers.contains(xid)) 
-        result->seconds         = net16(static_cast<uint16_t>(sys_time(nullptr) - transaction_timers[xid]));
-    result->transaction_id      = net32(xid);
+        result->seconds         = static_cast<uint16_t>(sys_time(nullptr) - transaction_timers[xid]);
+    result->transaction_id      = xid;
     result->destination_addr    = dest_ip;
     result->operation           = BOOTREQUEST;
     result->source_addr         = ipconfig.leased_addr;

@@ -20,6 +20,7 @@ namespace std
     extension template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { fill_n<IT>(static_cast<IT*>(ptr), n, val); return ptr; }
     extension template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { fill_n(ptr, n, c); return ptr; }
     extension template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }
+    extension template<std::char_type CT> constexpr CT* memmove(CT* dest, const CT* src, size_t n) { return static_cast<CT*>(__builtin_memmove(dest, src, n)); }
     extension template<std::char_type CT> constexpr CT to_char_type(int i) { return static_cast<CT>(i); }
     extension template<std::char_type CT> constexpr int to_int_type(CT c) { return static_cast<int>(c); }
     extension template<std::char_type CT> constexpr bool lt(CT a, CT b) { return a < b; }
@@ -79,11 +80,11 @@ namespace std
         constexpr static int_type to_int_type(char_type c) noexcept { return static_cast<int>(c); }
         constexpr static char_type to_char_type(int_type i) noexcept { return static_cast<char_type>(i);}
         constexpr static char_type* copy(char_type* dest, const char_type* src, size_t n) { return std::strncpy(dest, src, n); }
-        constexpr static char_type* move(char_type* dest, char_type* src, size_t n) { std::strncpy(dest, src, n); std::memset(src, 0, n); return dest; }
         constexpr static size_t length(const char_type* str) noexcept { return std::strlen(str); }
         constexpr static int_type compare(const char_type* lhs, const char_type* rhs, size_t n) noexcept { return std::strncmp(lhs, rhs, n); }
         constexpr static int_type eof() noexcept { return -1; }
         constexpr static int_type not_eof(int_type e) noexcept { return e > 0 ? e : (e * -1); }
+        constexpr static char_type* move(char_type* dest, char_type const* src, size_t n) { return std::memmove(dest, src, n); }
     };
     typedef char_traits<char>::pos_type streampos;
     extension template<typename TT, typename CT> concept char_traits_type = std::char_type<CT> && requires
@@ -93,7 +94,7 @@ namespace std
         { typename TT::off_type() } -> std::signed_integral;
         { TT::compare(declval<CT*>(), declval<CT*>(), declval<size_t>()) } -> std::same_as<typename TT::int_type>;
         { TT::assign(declval<CT*>(), declval<CT>(), declval<size_t>()) } -> std::same_as<CT*>;
-        { TT::move(declval<CT*>(), declval<CT*>(), declval<size_t>()) } -> std::same_as<CT*>;
+        { TT::move(declval<CT*>(), declval<CT const*>(), declval<size_t>()) } -> std::same_as<CT*>;
         { TT::copy(declval<CT*>(), declval<CT*>(), declval<size_t>()) } -> std::same_as<CT*>;
         { TT::find(declval<CT*>(), declval<CT>(), declval<size_t>()) } -> std::same_as<const CT*>;
         { TT::to_int_type(declval<CT>()) } -> std::same_as<typename TT::int_type>;
