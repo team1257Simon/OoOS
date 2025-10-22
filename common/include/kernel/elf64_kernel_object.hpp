@@ -23,6 +23,7 @@ public:
     elf64_kernel_object(addr_t start, size_t size);
     elf64_kernel_object(elf64_kernel_object&& that);
     virtual ~elf64_kernel_object();
+    virtual addr_t resolve(uint64_t offs) const override;
     ooos_kernel_module::abstract_module_base* load_module();
     constexpr ooos_kernel_module::abstract_module_base* get_module() noexcept { return module_object; }
     void unload_pre_init();     // called if the module needs to be unloaded before the initialize() function is invoked on it

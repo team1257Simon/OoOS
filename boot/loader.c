@@ -49,7 +49,7 @@ paging_table __boot_pml4 = NULL;
 page_frame* boot_page_frame = NULL;
 sysinfo_t* sysinfo = NULL;
 paging_table* pg_addrs;
-inline static bool validate_elf(elf64_ehdr * elf)
+inline static bool validate_elf(elf64_ehdr* elf)
 {
     return (memcmp(elf->e_ident, "\177ELF",  SELFMAG) == 0  /* magic match? */
         && elf->e_ident[EI_CLASS] == ELFCLASS64             /* 64 bit? */
@@ -60,7 +60,7 @@ inline static bool validate_elf(elf64_ehdr * elf)
         ? true : false;                            
 }
 inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
-inline static size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx*0x200 + idx.pdp_idx*0x40000 + idx.pml4_idx*0x8000000; }
+inline static size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx * 0x200 + idx.pdp_idx * 0x40000 + idx.pml4_idx * 0x8000000; }
 inline static uint64_t div_round_up(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
 static bool guid_equals(efi_guid_t a, efi_guid_t b)
 {
@@ -72,7 +72,7 @@ static bool checksum(struct xsdp_t* xsdp)
 {
     signed char c = 0;
     for(size_t i = 0; i < sizeof(struct xsdp_t); i++) c += ((char*)xsdp)[i];
-    if (c == 0) return 1;
+    if(c == 0) return 1;
     return 0;
 }
 static bool xsdt_checksum(struct xsdt_t* xsdt)
@@ -83,65 +83,67 @@ static bool xsdt_checksum(struct xsdt_t* xsdt)
 }
 inline static size_t required_tables(size_t num_pages_to_map)
 {
-    size_t num_page_tables = div_round_up(num_pages_to_map, PT_LEN);
-    size_t num_page_dirs = div_round_up(num_page_tables, PT_LEN);
-    size_t num_page_dir_tables = div_round_up(num_page_dirs, PT_LEN);
+    size_t num_page_tables      = div_round_up(num_pages_to_map, PT_LEN);
+    size_t num_page_dirs        = div_round_up(num_page_tables, PT_LEN);
+    size_t num_page_dir_tables  = div_round_up(num_page_dirs, PT_LEN);
     return num_page_dir_tables + num_page_dirs + num_page_tables + 1; // Additional 1 for the PML4; each table itself fills one page of memory
 }
 size_t required_tables_postinit(size_t num_pages_to_map)
 {
-    size_t num_page_tables = num_pages_to_map / PT_LEN;
-    size_t num_page_dirs = num_page_tables / PT_LEN;
-    size_t num_page_dir_tables = num_page_dirs / PT_LEN;
+    size_t num_page_tables      = num_pages_to_map / PT_LEN;
+    size_t num_page_dirs        = num_page_tables / PT_LEN;
+    size_t num_page_dir_tables  = num_page_dirs / PT_LEN;
     return num_page_dir_tables + num_page_dirs + num_page_tables;
 }
 void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages, paging_table tables_start)
 {
-    size_t total_mem = num_pages * PAGESIZE;
-    size_t current_table_num = 0;
+    size_t total_mem            = num_pages * PAGESIZE;
+    size_t current_table_num    = 0;
     indexed_address current_idx = (indexed_address)vaddr_start;
-    size_t pt_num = direct_table_idx(current_idx.idx);
-    uintptr_t current_phys = phys_start;
-    uintptr_t end_vaddr = total_mem + vaddr_start;
-    paging_table pdpt = NULL, pd = NULL, pt = NULL;
+    size_t pt_num               = direct_table_idx(current_idx.idx);
+    uintptr_t current_phys      = phys_start;
+    uintptr_t end_vaddr         = total_mem + vaddr_start;
+    paging_table    pdpt        = NULL,
+                    pd = NULL,
+                    pt = NULL;
     for(size_t i = 0; i < num_pages; i++)
     {
         if(pdpt == NULL || !__boot_pml4[current_idx.idx.pml4_idx].present) 
         {
             pdpt = tables_start + current_table_num * 512;
-            __boot_pml4[current_idx.idx.pml4_idx].present = 1;
-            __boot_pml4[current_idx.idx.pml4_idx].write = 1;
-            __boot_pml4[current_idx.idx.pml4_idx].user_access = 0;
-            __boot_pml4[current_idx.idx.pml4_idx].physical_address = (uintptr_t)pdpt >> 12;
+            __boot_pml4[current_idx.idx.pml4_idx].present           = 1;
+            __boot_pml4[current_idx.idx.pml4_idx].write             = 1;
+            __boot_pml4[current_idx.idx.pml4_idx].user_access       = 0;
+            __boot_pml4[current_idx.idx.pml4_idx].physical_address  = (uintptr_t)pdpt >> 12;
             current_table_num++;
         }
         if(pd == NULL || !pdpt[current_idx.idx.pdp_idx].present)
         {
             pd = tables_start + current_table_num * 512;
-            pdpt[current_idx.idx.pdp_idx].present = 1;
-            pdpt[current_idx.idx.pdp_idx].write = 1;
-            pdpt[current_idx.idx.pdp_idx].user_access = 0;
-            pdpt[current_idx.idx.pdp_idx].physical_address = (uintptr_t)pd >> 12;
+            pdpt[current_idx.idx.pdp_idx].present           = 1;
+            pdpt[current_idx.idx.pdp_idx].write             = 1;
+            pdpt[current_idx.idx.pdp_idx].user_access       = 0;
+            pdpt[current_idx.idx.pdp_idx].physical_address  = (uintptr_t)pd >> 12;
             current_table_num++;
         }
         if(pt == NULL || !pd[current_idx.idx.pd_idx].present)
         {
             pt = tables_start + current_table_num * 512;
-            pd[current_idx.idx.pd_idx].present = 1;
-            pd[current_idx.idx.pd_idx].write = 1;
-            pd[current_idx.idx.pd_idx].user_access = 0;
-            pd[current_idx.idx.pd_idx].page_size = 0;
+            pd[current_idx.idx.pd_idx].present          = 1;
+            pd[current_idx.idx.pd_idx].write            = 1;
+            pd[current_idx.idx.pd_idx].user_access      = 0;
+            pd[current_idx.idx.pd_idx].page_size        = 0;
             pd[current_idx.idx.pd_idx].physical_address = (uintptr_t)pt >> 12;
-            boot_page_frame->tables[pt_num] = pt;
+            boot_page_frame->tables[pt_num]             = pt;
             pt_num++;
             current_table_num++;
         }
-        pt[current_idx.idx.page_idx].present = 1;
-        pt[current_idx.idx.page_idx].write = 1;
-        pt[current_idx.idx.page_idx].user_access = 0;
-        pt[current_idx.idx.page_idx].physical_address = current_phys >> 12;
-        current_phys += PAGESIZE;
-        current_idx.addr += PAGESIZE;
+        pt[current_idx.idx.page_idx].present            = 1;
+        pt[current_idx.idx.page_idx].write              = 1;
+        pt[current_idx.idx.page_idx].user_access        = 0;
+        pt[current_idx.idx.page_idx].physical_address   = current_phys >> 12;
+        current_phys        += PAGESIZE;
+        current_idx.addr    += PAGESIZE;
     }
 }
 efi_status_t map_id_pages(size_t num_pages)
@@ -159,7 +161,7 @@ efi_status_t map_id_pages(size_t num_pages)
         else printf("EFI_INVALID_PARAMETER\n");
         return status;
     }
-    __boot_pml4 = tables_start;
+    __boot_pml4     = tables_start;
     size_t pts_only = num_pages / PT_LEN;
     boot_page_frame = (page_frame*)malloc(sizeof(page_frame) + pts_only * sizeof(paging_table));
     memset(boot_page_frame, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
@@ -209,8 +211,11 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
     efi_status_t status;
-    efi_memory_descriptor_t *memory_map = NULL, *mement = NULL;
-    uintn_t memory_map_size = 0, map_key = 0, desc_size = 0;
+    efi_memory_descriptor_t *memory_map     = NULL,
+                            *mement         = NULL;
+    uintn_t                 memory_map_size = 0,
+                            map_key         = 0, 
+                            desc_size       = 0;
     // get the memory map
     status = BS->GetMemoryMap(&memory_map_size, NULL, &map_key, &desc_size, NULL);
     if(status != EFI_BUFFER_TOO_SMALL || !memory_map_size)
@@ -219,9 +224,9 @@ int main(int argc, char** argv)
         return ENOMMAP;
     }
     memory_map_size += 4 * desc_size;
-    memory_map = (efi_memory_descriptor_t*)malloc(memory_map_size);
+    memory_map  = (efi_memory_descriptor_t*)malloc(memory_map_size);
     MALLOC_CK(memory_map);
-    status = map_id_pages(MMAP_MAX_PG);
+    status      = map_id_pages(MMAP_MAX_PG);
     if(EFI_ERROR(status))
     {
         fprintf(stderr, "unable to allocate memory\n");
@@ -235,12 +240,12 @@ int main(int argc, char** argv)
         fprintf(stderr, "Unable to get memory map\n");
         return ENOMMAP;
     }
-    size_t n = 0;
-    size_t k = 0;
-    size_t predicted = (memory_map_size / desc_size);
-    mmap_t* map = (mmap_t*)malloc(sizeof(mmap_t) + predicted * sizeof(mmap_entry));
-    map->total_memory = 0x200000000; // TODO: use ACPI to get this number for real
-    efi_memory_descriptor_t* prev = NULL;
+    size_t n                        = 0;
+    size_t k                        = 0;
+    size_t predicted                = (memory_map_size / desc_size);
+    mmap_t* map                     = (mmap_t*)malloc(sizeof(mmap_t) + predicted * sizeof(mmap_entry));
+    map->total_memory               = 0x200000000; // TODO: use ACPI to get this number for real
+    efi_memory_descriptor_t* prev   = NULL;
     printf("Address              Size Type\n");
     for(mement = memory_map; n < memory_map_size; mement = NextMemoryDescriptor(mement, desc_size)) 
     {        
@@ -248,9 +253,9 @@ int main(int argc, char** argv)
         if (prev != NULL && mement->Type == prev->Type && prev->PhysicalStart + prev->NumberOfPages * 4096 == mement->PhysicalStart) map->entries[k].len += mement->NumberOfPages;
         else 
         {
-            if(k >= predicted) map = (mmap_t*)realloc(map, sizeof(mmap_t) + (k + 1) * sizeof(mmap_entry));
-            map->entries[k].addr = mement->PhysicalStart;
-            map->entries[k].len = mement->NumberOfPages;
+            if(k >= predicted) map  = (mmap_t*)realloc(map, sizeof(mmap_t) + (k + 1) * sizeof(mmap_entry));
+            map->entries[k].addr    = mement->PhysicalStart;
+            map->entries[k].len     = mement->NumberOfPages;
             switch(mement->Type)
             {
             case 7:
@@ -278,11 +283,11 @@ int main(int argc, char** argv)
         prev = mement;
         n += desc_size;
     }
-    map->num_entries = k;
-    sysinfo = (sysinfo_t*)malloc(sizeof(sysinfo_t));
+    map->num_entries    = k;
+    sysinfo             = (sysinfo_t*)malloc(sizeof(sysinfo_t));
     MALLOC_CK(sysinfo);
-    efi_guid_t gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-    efi_gop_t *gop = NULL;
+    efi_guid_t gopGuid  = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+    efi_gop_t *gop      = NULL;
     // Setup the framebuffer for the kernel
     status = BS->LocateProtocol(&gopGuid, NULL, (void**)&gop);
     if(!EFI_ERROR(status) && gop) 
@@ -295,10 +300,10 @@ int main(int argc, char** argv)
             fprintf(stderr, "unable to set video mode\n");
             return ESETGFX;
         }
-        sysinfo->fb_ptr = (uint32_t*)gop->Mode->FrameBufferBase;
-        sysinfo->fb_width = gop->Mode->Information->HorizontalResolution;
-        sysinfo->fb_height = gop->Mode->Information->VerticalResolution;
-        sysinfo->fb_pitch = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
+        sysinfo->fb_ptr     = (uint32_t*)gop->Mode->FrameBufferBase;
+        sysinfo->fb_width   = gop->Mode->Information->HorizontalResolution;
+        sysinfo->fb_height  = gop->Mode->Information->VerticalResolution;
+        sysinfo->fb_pitch   = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
     } 
     else 
     {
@@ -333,8 +338,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "Unable to open file\n");
         return EFOPEN;
     }
-    bool found = 0;
-    efi_guid_t acpi_id = ACPI_20_TABLE_GUID;
+    bool found          = 0;
+    efi_guid_t acpi_id  = ACPI_20_TABLE_GUID;
     for(size_t j = 0; j < ST->NumberOfTableEntries && !found; j++)
     {
         if(guid_equals(ST->ConfigurationTable[j].VendorGuid, acpi_id))
@@ -345,14 +350,14 @@ int main(int argc, char** argv)
                 struct xsdt_t* xsdt = (struct xsdt_t*)ptr->xsdt_address;
                 if(xsdt_checksum(xsdt))
                 {
-                    sysinfo->xsdt = xsdt;
-                    found = 1;
+                    sysinfo->xsdt   = xsdt;
+                    found           = 1;
                 }
             }
         }
     }
     if(!found) sysinfo->xsdt = NULL;
-    elf = (elf64_ehdr *)buff;
+    elf = (elf64_ehdr*)buff;
     // is it a valid ELF executable for this architecture?
     if(validate_elf(elf))
     {                         

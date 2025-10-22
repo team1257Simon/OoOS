@@ -11,9 +11,9 @@ constexpr size_t table_offs_base    = fis_offs_base + 32UZ * sizeof(hba_fis);
 constexpr size_t prdt_size          = prdt_entries_count * sizeof(hba_prdt_entry);
 bool ahci::__has_init               = false;
 ahci ahci::__instance{};
-static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo.b7 /* busy */ || i.lo.lo.b3; /* drq */ }
-static inline bool __port_cmd_busy(hba_port* port, int slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo.b5 /* processed */ && i[slot]; }
-static inline bool __port_ack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return !i.lo.hi.b7 /* cr */ && !i.lo.hi.b6; /* fr */ }
+static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo[0] /* busy */ || i.lo.lo[3]; /* drq */ }
+static inline bool __port_cmd_busy(hba_port* port, int slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo[5] /* processed */ && i[slot]; }
+static inline bool __port_ack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return !i.lo.hi[7] /* cr */ && !i.lo.hi[6]; /* fr */ }
 ahci *ahci::get_instance() { return std::addressof(__instance); }
 bool ahci::is_initialized() { return __has_init; }
 bool ahci::has_port(uint8_t i) { return __devices[i] != none; }
@@ -165,7 +165,7 @@ bool ahci::init(pci_config_space* ps) noexcept
 void ahci::start_port(uint8_t i)
 {
     if(i > __num_ports) throw std::out_of_range("[AHCI] port " + std::to_string(i) + " is out of range ");
-    if(!await_result([&]() -> bool { return !dword(__abar->ports[i].cmd).lo.hi.b7; /* CR */ }, max_ext_wait)) throw std::runtime_error("[AHCI] port number " + std::to_string(i) + " is hung");
+    if(!await_result([&]() -> bool { return !dword(__abar->ports[i].cmd).lo.hi[7]; /* CR */ }, max_ext_wait)) throw std::runtime_error("[AHCI] port number " + std::to_string(i) + " is hung");
     barrier();
     __abar->ports[i].cmd |= hba_command_fre;
     barrier();
@@ -277,9 +277,9 @@ void ahci::port_hard_reset(uint8_t idx)
     hba_port* port = std::addressof(__abar->ports[idx]);
     barrier();
     stop_port(idx);
-    await_result([&]() -> bool { return !dword(port->cmd).lo.hi.b7; /* CR */ });
+    await_result([&]() -> bool { return !dword(port->cmd).lo.hi[7]; /* CR */ });
     barrier();
-    if(!(dword(port->cmd).lo.lo.b0 /* SUD */) && __abar->sud_supported) { barrier(); port->cmd |= hba_command_spin_up_disk; }
+    if(!(dword(port->cmd).lo.lo[0] /* SUD */) && __abar->sud_supported) { barrier(); port->cmd |= hba_command_spin_up_disk; }
     barrier();
     port->s_control |= hba_control_det;
     barrier();

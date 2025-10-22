@@ -53,6 +53,7 @@ namespace std
 	private:
 		type_info(const type_info& rhs);
 		type_info& operator=(const type_info& rhs);
+	protected:
 		const char *__type_name;
 		/*
 		 * The following functions are in this order to match the
@@ -93,6 +94,7 @@ namespace std
 		 * the pointer.
 		 */
 		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const { return false; }
+		inline const char* __inline_name() const { return __type_name; }
 	};
 }
 namespace ABI_NAMESPACE
@@ -124,7 +126,7 @@ namespace ABI_NAMESPACE
 		 * Function implementing dynamic casts.
 		 */
 		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
-		virtual bool __do_upcast(const __class_type_info *target, void **thrown_object) const override { return this == target; }
+		virtual bool __do_upcast(const __class_type_info *target, void **thrown_object) const override;
 	};
 	/**
 	 * Single-inheritance class type info.  This is used for classes containing

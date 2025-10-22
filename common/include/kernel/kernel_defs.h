@@ -794,30 +794,11 @@ typedef struct __mmap
 } __pack mmap_t;
 typedef void (attribute(sysv_abi) *kernel_entry_fn)(sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
-typedef union __may_alias __byte
+typedef struct __byte
 {
-	struct
-    {
-        bool b0 : 1;
-        bool b1 : 1;
-        bool b2 : 1;
-        bool b3 : 1;
-        bool b4 : 1;
-        bool b5 : 1;
-        bool b6 : 1;
-        bool b7 : 1;
-    } __pack;
     uint8_t full{};
-    constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : 
-        b0  { v0 },
-        b1  { v1 },
-        b2  { v2 },
-        b3  { v3 },
-        b4  { v4 },
-        b5  { v5 },
-        b6  { v6 },
-        b7  { v7 }
-            {}
+    constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return (value ? 1 : 0) << bit; }
+    constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
 	constexpr __byte(uint8_t i) noexcept : full(i) {}
     template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte(static_cast<uint8_t>(it)) {}
 	constexpr __byte() noexcept = default;
@@ -826,10 +807,8 @@ typedef union __may_alias __byte
     constexpr __byte& operator=(__byte const&) noexcept = default;
     constexpr __byte& operator=(__byte&&) noexcept = default;
     constexpr ~__byte() noexcept = default;
-    constexpr volatile __byte& operator=(__byte const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __byte& operator=(__byte&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
     constexpr operator uint8_t() const noexcept { return full; }
-    constexpr bool operator[](uint8_t i) const noexcept { if consteval { return full & (1 << i); } else { return i == 0 ? b0 : i == 1 ? b1 : i == 2 ? b2 : i == 3 ? b3 : i == 4 ? b4 : i == 5 ? b5 : i == 6 ? b6 : i == 7 ? b7 : false; } }
+    constexpr bool operator[](uint8_t i) const noexcept { return full & (1 << i); }
     constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
     constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
     constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
@@ -848,20 +827,18 @@ typedef union __may_alias __byte
 } __pack byte;
 typedef struct __s_le16
 { 
-    byte lo;
-    byte hi;
+    __byte lo;
+    __byte hi;
     constexpr __s_le16() noexcept = default;
     constexpr __s_le16(byte l, byte h) noexcept : lo(l), hi(h) {}
-    constexpr __s_le16(uint16_t value) noexcept : lo(byte(static_cast<uint8_t>(value & 0x00FF))), hi(byte(static_cast<uint8_t>((value & 0xFF00) >> 8))) {}
+    constexpr __s_le16(uint16_t value) noexcept { *this = __builtin_bit_cast(__s_le16, value); }
     template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
     constexpr __s_le16(__s_le16 const&) noexcept = default;
     constexpr __s_le16(__s_le16&&) noexcept = default;
     constexpr __s_le16& operator=(__s_le16 const&) noexcept = default;
     constexpr __s_le16& operator=(__s_le16&&) noexcept = default;
     constexpr ~__s_le16() noexcept = default;
-    constexpr volatile __s_le16& operator=(__s_le16 const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __s_le16& operator=(__s_le16&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr operator uint16_t() const noexcept { return (static_cast<uint16_t>(hi.full) << 8) | lo; }    
+    constexpr operator uint16_t() const noexcept { return __builtin_bit_cast(const uint16_t, *this); }
     constexpr __s_le16& operator|=(__s_le16 const& that) noexcept { return *this = (*this | that); }
     constexpr __s_le16& operator&=(__s_le16 const& that) noexcept { return *this = (*this & that); }
     constexpr __s_le16& operator+=(__s_le16 const& that) noexcept { return *this = (*this + that); }
@@ -885,7 +862,7 @@ typedef struct __s_le32
     __le16 hi;
     constexpr __s_le32() noexcept = default;
     constexpr __s_le32(__le16 l, __le16 h) noexcept : lo(l), hi(h) {}
-    constexpr __s_le32(uint32_t value) noexcept : lo(static_cast<uint16_t>(value & 0x0000FFFF)), hi(static_cast<uint16_t>((value & 0xFFFF0000) >> 16)) {}
+    constexpr __s_le32(uint32_t value) noexcept { *this = __builtin_bit_cast(__s_le32, value); }
     constexpr __s_le32(uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
     template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __s_le32(IT it) noexcept : __s_le32(static_cast<uint32_t>(it)) {}
     constexpr __s_le32(__s_le32 const&) noexcept = default;
@@ -893,9 +870,7 @@ typedef struct __s_le32
     constexpr __s_le32& operator=(__s_le32 const&) noexcept = default;
     constexpr __s_le32& operator=(__s_le32&&) noexcept = default;
     constexpr ~__s_le32() noexcept = default;
-    constexpr volatile __s_le32& operator=(__s_le32 const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __s_le32& operator=(__s_le32&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr operator uint32_t() const noexcept { return static_cast<uint32_t>(static_cast<uint16_t>(lo) | (static_cast<uint32_t>(static_cast<uint16_t>(hi)) << 16)); }
+    constexpr operator uint32_t() const noexcept { return __builtin_bit_cast(const uint32_t, *this); }
     constexpr __s_le32& operator|=(__s_le32 const& that) noexcept { return *this = (*this | that); }
     constexpr __s_le32& operator&=(__s_le32 const& that) noexcept { return *this = (*this & that); }
     constexpr __s_le32& operator+=(__s_le32 const& that) noexcept { return *this = (*this + that); }
@@ -919,7 +894,7 @@ typedef struct __s_le64
     __le32 hi;
     constexpr __s_le64() noexcept = default;
     constexpr __s_le64(__le32 l, __le32 h) noexcept : lo(l), hi(h) {}
-    constexpr __s_le64(uint64_t value) noexcept : lo(static_cast<uint32_t>(value & 0x00000000FFFFFFFF)), hi(static_cast<uint32_t>((value & 0xFFFFFFFF00000000) >> 32)) {}
+    constexpr __s_le64(uint64_t value) noexcept { *this = __builtin_bit_cast(__s_le64, value); }
     constexpr __s_le64(uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
     template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __s_le64(IT it) noexcept : __s_le64{ static_cast<uint64_t>(it) } {}
     constexpr __s_le64(__s_le64 const&) noexcept = default;
@@ -927,9 +902,7 @@ typedef struct __s_le64
     constexpr __s_le64& operator=(__s_le64 const&) noexcept = default;
     constexpr __s_le64& operator=(__s_le64&&) noexcept = default;
     constexpr ~__s_le64() noexcept = default;
-    constexpr volatile __s_le64& operator=(__s_le64 const& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr volatile __s_le64& operator=(__s_le64&& that) volatile noexcept { __atomic_store(this, std::addressof(that), __ATOMIC_SEQ_CST); return *this; }
-    constexpr operator uint64_t() const noexcept { return static_cast<uint64_t>(static_cast<uint32_t>(lo) | (static_cast<uint64_t>(static_cast<uint32_t>(hi)) << 32)); }
+    constexpr operator uint64_t() const noexcept { return __builtin_bit_cast(const uint64_t, *this); }
     constexpr __s_le64& operator|=(__s_le64 const& that) noexcept { return *this = (*this | that); }
     constexpr __s_le64& operator&=(__s_le64 const& that) noexcept { return *this = (*this & that); }
     constexpr __s_le64& operator+=(__s_le64 const& that) noexcept { return *this = (*this + that); }

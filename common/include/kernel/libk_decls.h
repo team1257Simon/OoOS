@@ -1,6 +1,6 @@
 #ifndef __LIBK
 #define __LIBK
-#include "kernel/kernel_defs.h"
+#include "kernel_defs.h"
 #ifdef __cplusplus
 #if defined(__KERNEL__) || defined(__LIBK__)
 #include "new"

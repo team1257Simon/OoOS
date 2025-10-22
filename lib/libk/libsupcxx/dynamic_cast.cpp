@@ -58,6 +58,10 @@ bool __pbase_type_info::__do_catch(std::type_info const* ex_type, void** excepti
     if(*__pointee == typeid(void)) return true;
     return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
+bool __class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const
+{
+    return this == target;
+}
 void* __class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
     if(this == other)

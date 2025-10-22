@@ -49,13 +49,13 @@ void hpet_amd64::delay_us(time_t usec)
     delay_flag                          = true;
     time_t time_val                     = __frequency_megahertz * usec + __hpet->main_counter;
     __hpet->timers[2].comparator_value  = time_val;
-    while(delay_flag) { pause(); if(__hpet->main_counter > time_val) delay_flag = false; }
+    while(delay_flag) { if(__hpet->main_counter > time_val) delay_flag = false; fence(); }
 }
 void hpet_amd64::delay_us(time_t usec, void (*action)())
 {
-    delay_flag              = true;
-    if(action) callback_8   = action;
-    time_t time_val         = __frequency_megahertz * usec + __hpet->main_counter;
-    __hpet->timers[2].comparator_value = time_val;
-    while(delay_flag) { pause(); if(__hpet->main_counter > time_val) delay_flag = false; }
+    delay_flag                          = true;
+    if(action) callback_8               = action;
+    time_t time_val                     = __frequency_megahertz * usec + __hpet->main_counter;
+    __hpet->timers[2].comparator_value  = time_val;
+    while(delay_flag) { if(__hpet->main_counter > time_val) delay_flag = false; fence(); }
 }

@@ -157,14 +157,14 @@ constexpr auto serial_config()
     using ooos_kernel_module::parameter_type;
     return create_config
     (
-        parameter("port",           parameter_type<word>,               port_com1),
-        parameter("mode",           parameter_type<line_ctl_byte>,      S8N1),
-        parameter("trigger_level",  parameter_type<trigger_level_t>,    T4BYTE),
-        parameter("baud_div",       parameter_type<word>,               12US),
+        parameter("port",           parameter_type<uint16_t>,           port_com1),
+        parameter("mode",           parameter_type<uint8_t>,            static_cast<byte>(S8N1)),
+        parameter("trigger_level",  parameter_type<uint8_t>,            T4BYTE),
+        parameter("baud_div",       parameter_type<uint16_t>,           12US),
         parameter("trim_on_read",   parameter_type<bool>,               false)
     );
 }
-class amd64_serial : public ooos_kernel_module::io_module_base<char>, public ooos_kernel_module::configurable_interface
+class amd64_serial : public ooos_kernel_module::io_module_base<char>
 {
     typedef decltype(serial_config()) __config_type;
     char* __input_pos;

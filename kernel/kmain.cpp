@@ -348,12 +348,6 @@ void sysfs_tests()
     }
     catch(std::exception& e) { panic(e.what()); }
 }
-static device_stream* find_com()
-{
-    device_registry::iterator map_it = dreg.find(COM);
-    if(map_it != dreg.end() && map_it->second.size() > 0UZ) return map_it->second.begin()->second;
-    return nullptr;
-}
 static const char* codes[] = 
 {
     "#DE [Division by Zero]",
@@ -444,7 +438,7 @@ void run_tests()
         module_loader& loader           = module_loader::get_instance();
         module_loader::iterator loaded  = loader.add(mod_file).first;
         if(__unlikely(loaded == loader.end())) startup_tty.print_line("failed to load serial driver");
-        else if(__unlikely(!(com = find_com()))) startup_tty.print_line("failed to get serial driver");
+        else if(__unlikely(!(com = loaded->second.get_module()->as_device<char>()))) startup_tty.print_line("failed to get serial driver");
         else
         {
             startup_tty.print_line("sysfs tests...");

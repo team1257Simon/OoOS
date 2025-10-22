@@ -1,6 +1,6 @@
 #ifndef __IDT
 #define __IDT
-#include "kernel/arch/arch_amd64.h"
+#include "arch/arch_amd64.h"
 #ifdef __cplusplus
 extern "C"
 {

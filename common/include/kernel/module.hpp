@@ -14,9 +14,10 @@ namespace ooos_kernel_module
         kmod_mm* __allocated_mm;
         void (*__fini_fn)();
         friend class ::elf64_kernel_object;
-    public:    
+    public:
         virtual bool initialize() = 0;
         virtual void finalize() = 0;
+        inline virtual generic_config_table& get_config() { return empty_config; }
         inline abstract_module_base* tie_api_mm(kernel_api* api, kmod_mm* mm) { if(!__api_hooks && !__allocated_mm && api && mm) { __api_hooks = api; __allocated_mm = mm; } return this; }
         inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
         inline void* allocate_buffer(size_t size, size_t align) { return __allocated_mm->mem_allocate(size, align); }
@@ -27,6 +28,7 @@ namespace ooos_kernel_module
         inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
         inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
         inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
+        template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
         template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
         inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; } }
         friend void module_takedown(abstract_module_base* mod);
@@ -172,7 +174,6 @@ namespace ooos_kernel_module
             in.seek(where);
         return out.size() * (ioflags & 0x04 ? 1 : 0) + in.size() * (ioflags & 0x08 ? 1 : 0);
     }
-    struct configurable_interface { virtual generic_config_table& get_config() = 0; };
 }
 /**
  * EXPORT_MODULE(T, Args...)

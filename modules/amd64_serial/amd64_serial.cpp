@@ -37,12 +37,12 @@ bool amd64_serial::initialize()
     this->create_buffer(in, 16);
     __input_pos                     = in.beg;
     word port                       = get_element<0>(__cfg);
-    line_ctl_byte mode              = get_element<1>(__cfg);
-    trigger_level_t level           = get_element<2>(__cfg);
+    trigger_level_t level           = static_cast<trigger_level_t>(get_element<2>(__cfg));
     word baud_div                   = get_element<3>(__cfg);
     word ier                        = ier_port(port);
     word sp                         = line_status_port(port);
     serial_ier init_ier             = inb(ier);
+    line_ctl_byte mode(get_element<1>(__cfg));
     outb(ier, 0UC);
     word ctl                        = line_ctl_port(port);
     line_ctl_byte cur_ctl           = inb(ctl);

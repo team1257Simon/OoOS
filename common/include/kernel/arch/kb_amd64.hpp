@@ -1,7 +1,7 @@
 #ifndef __KB_AMD64
 #define __KB_AMD64
-#include "kernel/keyboard_driver.hpp"
-#include "kernel/arch/arch_amd64.h"
+#include "keyboard_driver.hpp"
+#include "arch/arch_amd64.h"
 // All scan codes for release are the same as the corresponding key down but with the high bit set
 enum scancode_set1 : uint8_t
 {

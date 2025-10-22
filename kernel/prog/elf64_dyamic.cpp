@@ -95,7 +95,14 @@ void elf64_dynamic_object::apply_relocations()
         reloc_result result = r(reloc_symbol_fn, reloc_target_fn);
         addr_t phys_target  = translate_in_frame(result.target);
         if(phys_target && result.value) phys_target.assign(result.value);
-        else klog("[PRG/DYN] W: invalid relocation");
+        else
+        {
+            klog("[PRG/DYN] W: invalid relocation");
+            xklog("[PRG/DYN] D: relocation offset was " + std::to_string(r.rela_entry.r_offset, std::ext::hex));
+            xklog("[PRG/DYN] D: relocation addend was " + std::to_string(r.rela_entry.r_addend, std::ext::hex));
+            if(result.target) xklog("[PRG/DYN] D: relocation target was " + std::to_string(result.target.full, std::ext::hex));
+            if(result.value) xklog("[PRG/DYN] D: relocation value was " + std::to_string(result.value, std::ext::hex));
+        }
     }
 }
 uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const
@@ -109,6 +116,7 @@ uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela c
     case R_X86_64_DTPOFF64:
         return r.r_addend + s.st_value;
     default:
+        klog("[PRG/DYN] W: invalid relocation type");
         return 0UL;
     }
 }

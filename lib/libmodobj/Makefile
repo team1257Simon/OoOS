@@ -9,11 +9,10 @@ COPY := $(TARGET_HOSTED)-objcopy
 ARFLAGS := -rcs
 OBJDIR := $(OBJ_BASE_DIR)/libmodobj
 OUT := $(OUTDIR)/libmodobj.a
-LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
+INCLUDES += $(PROJECT_DIR)/common/include/kernel
 CFLAGS = -O2 -fPIC -fPIE -mno-red-zone -Wno-packed-bitfield-compat -D__LIBK__
 CXXFLAGS := $(CFLAGS) -std=gnu++26 $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(INCLUDES_CXX)) -nostdinc++ -fvisibility-inlines-hidden
 CCFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES)) -std=gnu23
-LDFLAGS := $(CFLAGS) -r -pie -nolibc -nostartfiles
 SUBDIRS = $(sort $(dir $(wildcard */*.*)))
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
 ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))

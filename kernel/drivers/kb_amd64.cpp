@@ -34,7 +34,7 @@ kb_data keyboard_driver_amd64::__get_next(kb_state current_state, bool extd)
     if(id == K_LSHIFT || id == K_RSHIFT) result.state.shift = !is_up;
     else if(id == K_LALT) result.state.alt = !is_up;
     else if(id == K_LCTRL) result.state.ctrl = !is_up;
-    if(is_up) { result.event_code = byte(KEY_UP); result.k_char = '\0'; }
+    if(is_up) { result.event_code = KEY_UP; result.k_char = '\0'; }
     else
     {
         result.event_code   = KEY_DN;

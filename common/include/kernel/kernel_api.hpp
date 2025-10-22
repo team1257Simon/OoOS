@@ -52,8 +52,11 @@ namespace ooos_kernel_module
         template<typename T> struct __single_buffer_value { typedef std::remove_cvref_t<T> type; typedef std::remove_reference_t<T> const_type; };
         template<__non_register T> struct __single_buffer_value<T> { typedef std::add_lvalue_reference_t<T> type; typedef std::add_lvalue_reference_t<std::add_const_t<T>> const_type; };
         template<typename T> concept __can_be_parameter_type = std::is_standard_layout_v<T> && (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T> || std::is_default_constructible_v<T>) && (std::is_copy_assignable_v<T> || std::is_move_assignable_v<T>);
+        template<typename T> struct __pack_type_select { typedef T type; };
+        template<typename T> struct __pack_type_select<T[]> { typedef T* type; };
+        template<typename T, size_t N> struct __pack_type_select<T[N]> { typedef T* const type; };
         template<size_t N, typename ... Ts> struct __nth_pack_param;
-        template<template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<0, C<H, Ts...>> { typedef H type; };
+        template<template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<0, C<H, Ts...>> { typedef typename __pack_type_select<H>::type type; };
         template<size_t N, template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<N, C<H, Ts...>> : __nth_pack_param<N - 1, C<Ts...>> {};
         template<no_args_invoke FT, typename RT = decltype((std::declval<FT&&>())())> constexpr RT __invoke_f(FT&& f) { if constexpr(!std::is_void_v<RT>) { return (__forward<FT>(f))(); } else { (__forward<FT>(f))(); } }
         template<typename T> concept __simple_swappable = std::is_move_assignable_v<T> && std::is_move_constructible_v<T>;
@@ -152,7 +155,7 @@ namespace ooos_kernel_module
             using __is_locally_storable = std::bool_constant<std::is_trivially_copyable_v<FT> && (sizeof(FT) <= __max_size && alignof(FT) <= __max_align && __max_align % alignof(FT) == 0)>;
             constexpr static bool __is_local_store = __is_locally_storable::value;
         public:
-            constexpr static FT* get_ptr(actor_store const& src) { if constexpr(__is_local_store) { return addressof(const_cast<FT&>(src.template cast<FT>())); } else { return src.template cast<FT*>(); } }
+            constexpr static FT* get_ptr(actor_store const& src) { if constexpr(__is_local_store) { return __addressof(const_cast<FT&>(src.template cast<FT>())); } else { return src.template cast<FT*>(); } }
             template<typename GT> static inline void init_actor(actor_store& dst, GT&& src, kmod_mm* alloc) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, __forward<GT>(src), alloc, __is_locally_storable()); }
             static inline void destroy_actor(actor_store& dst, kmod_mm* alloc) { __delete_wrapper(dst, alloc, __is_locally_storable()); }
             static void invoke_fn(actor_store& fn) { __internal::__invoke_f(__forward<FT>(*get_ptr(fn))); }
@@ -249,39 +252,51 @@ namespace ooos_kernel_module
     void init_api();
     struct [[gnu::may_alias]] generic_config_parameter
     {
-        size_t value_size;
-        std::type_info const& type;
         const char* parameter_name;
+        size_t value_size;
         char value_data[];
         constexpr void* get_value() noexcept { return value_data; }
         constexpr const void* get_value() const noexcept { return value_data; }
-        constexpr void write_value(const void* src) noexcept { __builtin_memcpy(value_data, src, value_size); }
         constexpr generic_config_parameter* next_in_array() noexcept { void* pos = this; void* next = static_cast<char*>(pos) + value_size + sizeof(generic_config_parameter); return static_cast<generic_config_parameter*>(next); }
         constexpr generic_config_parameter const* next_in_array() const noexcept { const void* pos = this; const void* next = static_cast<const char*>(pos) + value_size + sizeof(generic_config_parameter); return static_cast<generic_config_parameter const*>(next); }
     };
-    template<__internal::__can_be_parameter_type T> struct parameter_type_t { constexpr explicit parameter_type_t() noexcept = default; };
+    template<typename T> struct parameter_type_t { constexpr explicit parameter_type_t() noexcept = default; };
     template<__internal::__can_be_parameter_type T> constexpr inline parameter_type_t<T> parameter_type{};
+    template<__internal::__can_be_parameter_type T> constexpr inline parameter_type_t<T[]> parameter_array{};
+    template<typename T> struct config_parameter;
     template<__internal::__can_be_parameter_type T>
-    struct [[gnu::may_alias]] config_parameter
+    struct [[gnu::may_alias]] config_parameter<T>
     {
-        size_t value_size;
-        std::type_info const& type;
         const char* name;
+        size_t value_size;
         T value;
-        constexpr static T& get(config_parameter& p) noexcept { return p.value; }
-        constexpr static T const& get(config_parameter const& p) noexcept { return p.value; }
     };
-    template<__internal::__can_be_parameter_type T, typename ... Args> 
-    requires std::is_constructible_v<T, Args...>
-    constexpr config_parameter<T> parameter(const char* name, parameter_type_t<T>, Args&& ... args)
-    noexcept(std::is_nothrow_constructible_v<T, Args...>)
+    template<__internal::__can_be_parameter_type T, size_t N>
+    struct [[gnu::may_alias]] config_parameter<T[N]>
+    {
+        const char* name;
+        size_t value_size;
+        T value[N];
+    };
+    template<__internal::__can_be_parameter_type T, std::convertible_to<T> U>
+    constexpr config_parameter<T> parameter(const char* name, parameter_type_t<T>, U&& value)
     {
         return config_parameter<T>
         {
-            .value_size { sizeof(T) },
-            .type       { typeid(T) },
             .name       { name },
-            .value      { static_cast<Args&&>(args)... }
+            .value_size { sizeof(value) },
+            .value      { __move(value) }
+        };
+    }
+    template<__internal::__can_be_parameter_type T, std::convertible_to<T> ... Us> 
+    constexpr config_parameter<T[sizeof...(Us)]> parameter(const char* name, parameter_type_t<T[]>, Us&& ... values)
+    {
+        typedef T array_type[sizeof...(Us)];
+        return config_parameter<array_type>
+        {
+            .name       { name },
+            .value_size { sizeof(array_type) },
+            .value      { __forward<Us>(values)... }
         };
     }
     struct config_iterator
@@ -336,6 +351,7 @@ namespace ooos_kernel_module
         constexpr const_iterator cend() const noexcept { return const_iterator(static_cast<generic_config_parameter const*>(static_cast<const void*>(static_cast<const char*>(static_cast<const void*>(params)) + size_bytes))); }
         constexpr const_iterator end() const noexcept { return cend(); }
     };
+    inline generic_config_table empty_config{ .size_bytes{}, .params{} };
     namespace __internal
     {
         template<typename T> constexpr inline bool __is_empty_and_non_final = __is_empty(T) && !__is_final(T);
@@ -347,18 +363,19 @@ namespace ooos_kernel_module
             config_parameter<T> __param;
             constexpr __config_entry_base(config_parameter<T>&& p) : __param(__move(p)) {}
             constexpr static T& __get(__config_entry_base& t) { return t.__param.value; }
-            constexpr static T const& __get(__config_entry_base const& t) { return t.__param.value; }
+            constexpr static T const& __get(__config_entry_base const& t) noexcept { return t.__param.value; }
+            constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.__param.value_size; }
         };
         template<size_t I, __can_be_parameter_type T> 
         struct __config_entry_base<I, T, true> : T
         {
-            size_t value_size;
-            std::type_info const& type;
             const char* name;
+            size_t value_size;
             constexpr static size_t __size_value = sizeof(config_parameter<T>);
-            constexpr __config_entry_base(config_parameter<T>&& p) : T(__move(p.value)), value_size(p.value_size), type(p.type), name(p.name) {}
-            constexpr static T& __get(__config_entry_base& t) { return t; }
-             constexpr static T const& __get(__config_entry_base const& t) { return t; }
+            constexpr __config_entry_base(config_parameter<T>&& p) : T(__move(p.value)), name(p.name), value_size(p.value_size) {}
+            constexpr static T& __get(__config_entry_base& t) noexcept { return t; }
+            constexpr static T const& __get(__config_entry_base const& t) noexcept { return t; }
+            constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.value_size; }
         };
         template<size_t I, __can_be_parameter_type T> 
         struct __config_table_impl<I, T> : private __config_entry_base<I, T> 
@@ -366,8 +383,9 @@ namespace ooos_kernel_module
             typedef __config_entry_base<I, T> __base;
             template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl; 
             constexpr static size_t __size_value = sizeof(config_parameter<T>);
-            constexpr static T& __get(__config_table_impl& t) { return __base::__get(t); }
+            constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
+            constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t); }
             constexpr __config_table_impl(config_parameter<T>&& p) : __base(__move(p)) {}
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us>
@@ -380,21 +398,24 @@ namespace ooos_kernel_module
             typedef __config_entry_base<I, T> __base;
             constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
+            constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t) + __next::__size(t); }
             constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(__move(tparam)), __next(__forward<config_parameter<Us>>(uparams)...) {} 
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T& __get(__config_table_impl<I, T, Us...>& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T const& __get(__config_table_impl<I, T, Us...> const& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
+        template<__internal::__can_be_parameter_type ... Ts> constexpr size_t __size(__config_table_impl<0UZ, Ts...> const& t) { return __config_table_impl<0UZ, Ts...>::__size(t); }
     }
     template<__internal::__can_be_parameter_type ... Ts>
     struct [[gnu::may_alias]] module_config_table
     {
         typedef __internal::__config_table_impl<0UZ, Ts...> parameter_types;
-        size_t size_bytes = parameter_types::__size_value;
+        size_t size_bytes;
         parameter_types parameters;
+        constexpr void compute_size() noexcept { size_bytes = __internal::__size(parameters); }
     };
     template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
-    template<__internal::__can_be_parameter_type ... Ts> union [[gnu::may_alias]] module_config { generic_config_table generic; module_config_table<Ts...> actual; };
-    template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ static_cast<config_parameter<Ts>&&>(params)... }} }; }
+    template<__internal::__can_be_parameter_type ... Ts> union [[gnu::may_alias]] module_config { generic_config_table generic; module_config_table<Ts...> actual; constexpr module_config& compute_size_value() noexcept { actual.compute_size(); return *this; } };
+    template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ __forward<config_parameter<Ts>>(params)... } } }.compute_size_value(); }
     template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...>& get_element(module_config<Ts...>& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
     template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...> const& get_element(module_config<Ts...> const& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
 }

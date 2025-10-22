@@ -1,6 +1,6 @@
 #ifndef __ARCH_AMD64
 #define __ARCH_AMD64
-#include <kernel/libk_decls.h>
+#include <libk_decls.h>
 #ifdef __cplusplus
 #include <concepts>
 constexpr byte sig_pic_eoi       =   0x20UC;	    /* End-of-interrupt command code */

@@ -1,134 +1,133 @@
 #ifndef __AHCI
 #define __AHCI
-#include "kernel/libk_decls.h"
-#include "kernel/arch/pci_device_list.hpp"
-#include "functional"
+#include "libk_decls.h"
+#include "arch/pci_device_list.hpp"
 #pragma region magic_numbers
-constexpr uint32_t sig_sata = 0x00000101U;
-constexpr uint32_t sig_atapi = 0xEB140101U;
-constexpr uint32_t sig_semb = 0xC33C0101U;
-constexpr uint32_t sig_pmul = 0x96690101U;
-constexpr uint32_t hba_reset = 0b1;
-constexpr uint16_t hba_cmd_start  =  0x0001US;
-constexpr uint16_t hba_command_spin_up_disk = 0x0002US;
-constexpr uint8_t  hba_sud_bit = 1;
-constexpr uint16_t hba_command_fre =  0x0010US;
-constexpr uint16_t hba_command_fr  =  0x4000US;
-constexpr uint16_t hba_command_cr  =  0x8000US;
-constexpr uint16_t hba_control_det =  0x0001US;
-constexpr uint32_t hba_enable_interrupts_all = 0xFDC000FFU;
-constexpr uint32_t hba_error = 0x78000000U;
-constexpr uint32_t hba_enable_ahci = 0x80000002;
-constexpr uint32_t prdt_entries_count = 8U;
-constexpr byte port_active = 0x01UC;
-constexpr byte port_present = 0x03UC;
-constexpr uint32_t port_power_on = (1U << 28);
-constexpr uint8_t busy_bit = 7u;
-constexpr uint8_t drq_bit = 3u;
-constexpr uint8_t cr_bit = 15u;
-constexpr uint8_t fr_bit = 14u;
-constexpr uint8_t fre_bit = 4u;
-constexpr uint8_t start_bit = 0u;
-constexpr uint8_t descriptor_processed_bit = 5UC;
-constexpr uint8_t soft_reset_bit = 0b10;
-constexpr uint8_t nien_bit = 0b1;
-constexpr uint8_t dev_class_storage_controller = 1;
-constexpr uint8_t subclass_sata_controller = 6;
-constexpr uint64_t max_ext_wait = max_wait * max_wait;
-constexpr uint8_t i_state_hi_byte_error = 0x78UC;
-constexpr uint8_t oos_bit = 2;
-constexpr uint8_t ooc_bit = 4;
-constexpr uint8_t bos_bit = 1;
-constexpr uint8_t bb_bit = 5;
+constexpr uint32_t sig_sata 					= 0x00000101U;
+constexpr uint32_t sig_atapi 					= 0xEB140101U;
+constexpr uint32_t sig_semb 					= 0xC33C0101U;
+constexpr uint32_t sig_pmul 					= 0x96690101U;
+constexpr uint32_t hba_reset 					= 0b1U;
+constexpr uint16_t hba_cmd_start 				= 0x0001US;
+constexpr uint16_t hba_command_spin_up_disk 	= 0x0002US;
+constexpr uint8_t  hba_sud_bit 					= 1UC;
+constexpr uint16_t hba_command_fre 				= 0x0010US;
+constexpr uint16_t hba_command_fr  				= 0x4000US;
+constexpr uint16_t hba_command_cr  				= 0x8000US;
+constexpr uint16_t hba_control_det 				= 0x0001US;
+constexpr uint32_t hba_enable_interrupts_all 	= 0xFDC000FFU;
+constexpr uint32_t hba_error 					= 0x78000000U;
+constexpr uint32_t hba_enable_ahci 				= 0x80000002;
+constexpr uint32_t prdt_entries_count 			= 8U;
+constexpr byte port_active 						= 0x01UC;
+constexpr byte port_present 					= 0x03UC;
+constexpr uint32_t port_power_on 				= (1U << 28);
+constexpr uint8_t busy_bit 						= 7UC;
+constexpr uint8_t drq_bit 						= 3UC;
+constexpr uint8_t cr_bit 						= 15UC;
+constexpr uint8_t fr_bit 						= 14UC;
+constexpr uint8_t fre_bit 						= 4UC;
+constexpr uint8_t start_bit 					= 0UC;
+constexpr uint8_t descriptor_processed_bit 		= 5UC;
+constexpr uint8_t soft_reset_bit 				= 0b10;
+constexpr uint8_t nien_bit 						= 0b1;
+constexpr uint8_t dev_class_storage_controller 	= 1UC;
+constexpr uint8_t subclass_sata_controller 		= 6UC;
+constexpr uint64_t max_ext_wait 				= 100000000000000UL;
+constexpr uint8_t i_state_hi_byte_error 		= 0x78UC;
+constexpr uint8_t oos_bit 						= 2;
+constexpr uint8_t ooc_bit 						= 4;
+constexpr uint8_t bos_bit 						= 1;
+constexpr uint8_t bb_bit 						= 5;
 enum fis_type : uint8_t
 {
-    reg_h2d = 0x27,
-    reg_d2h = 0x34,
-    dma_activate = 0x39,
-    dma_setup = 0x41,
-    data = 0x46,
-    bist = 0x58,
-    pio_setup = 0x5F,
-    device_bits = 0xA1
+    reg_h2d 		= 0x27,
+    reg_d2h 		= 0x34,
+    dma_activate 	= 0x39,
+    dma_setup 		= 0x41,
+    data 			= 0x46,
+    bist 			= 0x58,
+    pio_setup 		= 0x5F,
+    device_bits 	= 0xA1
 };
 enum ata_command : uint8_t
 {
-	nop = 0x00,
-	cfa_request_error_code = 0x03,
-	data_set_management = 0x06,
-	data_set_management_xl = 0x07,
-	request_sense_data_ext = 0x0B,
-	get_physical_status = 0x12,
-	read_sectors_pio = 0x20, 		// 8-bit
-	read_sectors_pio_ext = 0x24, 	// 16-bit
-	read_dma_ext = 0x25,
-	read_atapi = 0xA8,
-	write_atapi = 0xAA,
-	read_stream_dma_ext = 0x2A,
-	read_stream_ext = 0x2B,
-	read_log_ext = 0x2F,
-	write_sectors_pio = 0x30, 		// 8-bit
-	write_sectors_pio_ext = 0x34, 	// 16-bit 
-	write_dma_ext = 0x35,
-	cfa_write_headers_no_erase = 0x38,
-	write_stream_dma_ext = 0x3A,
-	write_stream_ext = 0x3B,
-	write_log_ext = 0x3F,
-	read_verify_sectors = 0x40,
-	read_verify_sectors_ext = 0x42,
-	zero_ext = 0x44,
-	write_uncorrectable_ext = 0x45,
-	read_log_dma_ext = 0x47,
-	zac_management_in = 0x4A,
-	configure_stream = 0x51,
-	write_log_dma_ext = 0x57,
-	trusted_non_data = 0x5B,
-	trusted_receive = 0x5C,
-	trusted_receive_dma = 0x5D,
-	trusted_send = 0x5E,
-	trusted_send_dma = 0x5F,
-	read_fpdma_q = 0x60,
-	write_fpdma_q = 0x61,
-	ncq_non_data = 0x63,
-	send_fdpma_q = 0x64,
-	receive_fpdma_q = 0x65,
-	set_datetime_ext = 0x77,
-	max_addr_config = 0x78,
-	remove_element_truncate = 0x7C,
-	restore_elements_rebuild = 0x7D,
+	nop 						= 0x00,
+	cfa_request_error_code 		= 0x03,
+	data_set_management 		= 0x06,
+	data_set_management_xl 		= 0x07,
+	request_sense_data_ext 		= 0x0B,
+	get_physical_status 		= 0x12,
+	read_sectors_pio 			= 0x20, // 8-bit
+	read_sectors_pio_ext 		= 0x24, // 16-bit
+	read_dma_ext 				= 0x25,
+	read_atapi 					= 0xA8,
+	write_atapi 				= 0xAA,
+	read_stream_dma_ext 		= 0x2A,
+	read_stream_ext 			= 0x2B,
+	read_log_ext 				= 0x2F,
+	write_sectors_pio	 		= 0x30, // 8-bit
+	write_sectors_pio_ext 		= 0x34, // 16-bit 
+	write_dma_ext 				= 0x35,
+	cfa_write_headers_no_erase 	= 0x38,
+	write_stream_dma_ext 		= 0x3A,
+	write_stream_ext 			= 0x3B,
+	write_log_ext 				= 0x3F,
+	read_verify_sectors 		= 0x40,
+	read_verify_sectors_ext 	= 0x42,
+	zero_ext 					= 0x44,
+	write_uncorrectable_ext 	= 0x45,
+	read_log_dma_ext 			= 0x47,
+	zac_management_in 			= 0x4A,
+	configure_stream 			= 0x51,
+	write_log_dma_ext 			= 0x57,
+	trusted_non_data 			= 0x5B,
+	trusted_receive 			= 0x5C,
+	trusted_receive_dma 		= 0x5D,
+	trusted_send 				= 0x5E,
+	trusted_send_dma 			= 0x5F,
+	read_fpdma_q 				= 0x60,
+	write_fpdma_q				= 0x61,
+	ncq_non_data 				= 0x63,
+	send_fdpma_q 				= 0x64,
+	receive_fpdma_q 			= 0x65,
+	set_datetime_ext 			= 0x77,
+	max_addr_config 			= 0x78,
+	remove_element_truncate 	= 0x7C,
+	restore_elements_rebuild 	= 0x7D,
 	remove_element_modify_zones = 0x7E,
-	cfa_translate_sector = 0x87,
-	execute_diagnostic = 0x90,
-	download_microcode = 0x92,
-	download_microcode_dma = 0x93,
-	mutate_ext = 0x96,
-	zac_management_out = 0x9F,
-	smart = 0xB0,
-	set_sector_config_ext = 0xB2,
-	samotoze = 0xB4,
-	read_dma = 0xC8, 			// 8-bit
-	write_dma = 0xCA, 			// 8-bit
+	cfa_translate_sector		= 0x87,
+	execute_diagnostic 			= 0x90,
+	download_microcode 			= 0x92,
+	download_microcode_dma 		= 0x93,
+	mutate_ext 					= 0x96,
+	zac_management_out 			= 0x9F,
+	smart 						= 0xB0,
+	set_sector_config_ext 		= 0xB2,
+	samotoze 					= 0xB4,
+	read_dma 					= 0xC8, // 8-bit
+	write_dma 					= 0xCA, // 8-bit
 	cfa_write_multiple_no_erase = 0xCD,
-	standby_immediate = 0xE0,
-	idle_immediate = 0xE1,
-	standby = 0xE2,
-	idle = 0xE3,
-	read_buffer = 0xE4,
-	chk_power_mode = 0xE5,
-	sleep = 0xE6,
-	flush_cache = 0xE7,
-	write_buffer = 0xE8,
-	read_buffer_dma = 0xE9,
-	flush_cache_ext = 0xEA,
-	write_buffer_dma = 0xEB,
-	identify = 0xEC,
-	set_features = 0xEF,
-	set_password = 0xF1,
-	sec_unlock = 0xF2,
-	sec_erase_prepare = 0xF3,
-	sec_erase_unit = 0xF4,
-	sec_freeze_lock = 0xF5,
-	disable_password = 0xF6
+	standby_immediate 			= 0xE0,
+	idle_immediate 				= 0xE1,
+	standby 					= 0xE2,
+	idle 						= 0xE3,
+	read_buffer 				= 0xE4,
+	chk_power_mode 				= 0xE5,
+	sleep 						= 0xE6,
+	flush_cache 				= 0xE7,
+	write_buffer 				= 0xE8,
+	read_buffer_dma 			= 0xE9,
+	flush_cache_ext 			= 0xEA,
+	write_buffer_dma 			= 0xEB,
+	identify 					= 0xEC,
+	set_features 				= 0xEF,
+	set_password 				= 0xF1,
+	sec_unlock 					= 0xF2,
+	sec_erase_prepare 			= 0xF3,
+	sec_erase_unit 				= 0xF4,
+	sec_freeze_lock 			= 0xF5,
+	disable_password 			= 0xF6
 };
 #pragma endregion
 enum ahci_device : uint8_t
@@ -329,22 +328,22 @@ struct hba_cmd_header
 typedef volatile struct tport
 {
 	hba_cmd_header* command_list;
-	hba_fis* fis_receive;
-	uint32_t   i_state;	    // 0x10, interrupt status
-	uint32_t   i_enable;    // 0x14, interrupt enable
-	uint32_t   cmd;		    // 0x18, command and status
-	uint32_t   rsv0;		// 0x1C, Reserved
-	uint32_t   task_file;	// 0x20, task file data
-	uint32_t   sig;		    // 0x24, signature
-	uint32_t   s_status;	// 0x28, SATA status (SCR0:SStatus)
-	uint32_t   s_control;	// 0x2C, SATA control (SCR2:SControl)
-	uint32_t   s_err;		// 0x30, SATA error (SCR1:SError)
-	uint32_t   s_active;	// 0x34, SATA active (SCR3:SActive)
-	uint32_t   cmd_issue;	// 0x38, command issue
-	uint32_t   s_notif;	    // 0x3C, SATA notification (SCR4:SNotification)
-	uint32_t   fb_switch;   // 0x40, FIS-based switch control
-	uint32_t rsv1[11];	    // 0x44 ~ 0x6F, Reserved
-	uint32_t vendor[4];	    // 0x70 ~ 0x7F, vendor specific
+	hba_fis* 	fis_receive;
+	uint32_t   	i_state;	// 0x10, interrupt status
+	uint32_t   	i_enable;   // 0x14, interrupt enable
+	uint32_t   	cmd;		// 0x18, command and status
+	uint32_t   	rsv0;		// 0x1C, Reserved
+	uint32_t   	task_file;	// 0x20, task file data
+	uint32_t   	sig;		// 0x24, signature
+	uint32_t   	s_status;	// 0x28, SATA status (SCR0:SStatus)
+	uint32_t   	s_control;	// 0x2C, SATA control (SCR2:SControl)
+	uint32_t   	s_err;		// 0x30, SATA error (SCR1:SError)
+	uint32_t   	s_active;	// 0x34, SATA active (SCR3:SActive)
+	uint32_t   	cmd_issue;	// 0x38, command issue
+	uint32_t   	s_notif;	// 0x3C, SATA notification (SCR4:SNotification)
+	uint32_t   	fb_switch;  // 0x40, FIS-based switch control
+	uint32_t 	rsv1[11];	// 0x44 ~ 0x6F, Reserved
+	uint32_t 	vendor[4];	// 0x70 ~ 0x7F, vendor specific
 } __pack hba_port;
 typedef volatile struct tmem
 {
@@ -381,7 +380,7 @@ typedef volatile struct tmem
 	uint32_t ccc_ports;	        // 0x18, Command completion coalescing ports
 	uint32_t em_location;   	// 0x1C, Enclosure management location
 	uint32_t em_control;        // 0x20, Enclosure management control
-	struct 
+	struct 						// 0x24, Host capabilities extended
 	{
 		uint32_t rsv1 				: 26;
 		bool devsleep_slumber_only 	: 1;
@@ -391,14 +390,14 @@ typedef volatile struct tmem
 		bool nvmhci_present			: 1;
 		bool bios_os_handoff_sup	: 1;
 	};
-	// 0x24, Host capabilities extended
-	uint32_t bios_os_handoff;	// 0x28, BIOS/OS handoff control and status
+	// 0x28, BIOS/OS handoff control and status
+	uint32_t bios_os_handoff;
 	// 0x2C - 0x9F, Reserved
 	uint8_t rsv[116];
 	// 0xA0 - 0xFF, Vendor specific registers
 	uint8_t vendor[96];
 	// 0x100 - 0x10FF, Port control registers
-	hba_port ports[32];			// 1 ~ 32
+	hba_port ports[32];
 } __pack hba_mem;
 class ahci
 {

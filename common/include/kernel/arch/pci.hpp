@@ -1,6 +1,6 @@
 #ifndef __PERIPHERAL_CONTROL
 #define __PERIPHERAL_CONTROL
-#include <kernel/libk_decls.h>
+#include <libk_decls.h>
 enum ht
 {
     st = 0x0,   // standard

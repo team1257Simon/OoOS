@@ -19,34 +19,34 @@ struct hpet_desc_table
     uint16_t min_ticks;
     uint8_t page_prot;
 } __pack;
-constexpr uint64_t timer_n_irq_mask = 0x3E00UL;
-constexpr int timer_n_irq_shift = 9;
-constexpr uint64_t timer_n_allowed_interrupt_mask = 0xFFFFFFFF00000000;
-constexpr int timer_n_allowed_interrupt_shift = 32;
-constexpr uint64_t timer_n_interrupt_enable = 0x0004UL;
-constexpr uint64_t timer_n_periodic_enable = 0x0008UL;
-constexpr uint64_t timer_n_periodic_capable = 0x0010UL;
-constexpr uint8_t comparator_count_mask = 0b11111;
+constexpr uint64_t timer_n_irq_mask                 = 0x3E00UL;
+constexpr int timer_n_irq_shift                     = 9;
+constexpr uint64_t timer_n_allowed_interrupt_mask   = 0xFFFFFFFF00000000;
+constexpr int timer_n_allowed_interrupt_shift       = 32;
+constexpr uint64_t timer_n_interrupt_enable         = 0x0004UL;
+constexpr uint64_t timer_n_periodic_enable          = 0x0008UL;
+constexpr uint64_t timer_n_periodic_capable         = 0x0010UL;
+constexpr uint8_t comparator_count_mask             = 0b11111;
 struct hpet_t
 {
     uint8_t rev_id;
     uint8_t comparator_info;
     uint16_t pci_vendor_id;
-    uint32_t period;                        // period in femtoseconds (1 nanosecond = 1 million femtoseconds)
+    uint32_t period;                                // period in femtoseconds (1 nanosecond = 1 million femtoseconds)
     uint64_t rsv0;
-    uint64_t general_config;                // bit 0 enables interrupts; bit 1 enables legacy replacement. All other bits are reserved and should be kept as-is
+    uint64_t general_config;                        // bit 0 enables interrupts; bit 1 enables legacy replacement. All other bits are reserved and should be kept as-is
     uint64_t rsv[25];
-    uint64_t timer_interrupt_status;        // bit n represents the interrupt for timer n. The high 32 bits are always 0
+    volatile uint64_t timer_interrupt_status;       // bit n represents the interrupt for timer n. The high 32 bits are always 0
     uint64_t rsv2;
-    uint64_t main_counter;
-    struct hpet_timer_t
+    volatile uint64_t main_counter;
+    volatile struct hpet_timer_t
     {
         uint64_t rsv;
         uint64_t caps_and_config;
         uint64_t comparator_value;
         uint32_t fsb_interrupt_value;
         uint32_t fsb_interrupt_addr;
-    } timers[32];                           // there may be as many as 32 timers; probably fewer, but the memory section is the same size regardless
+    } timers[32];                                   // there may be as many as 32 timers; probably fewer, but the memory section is the same size regardless
 };
 constexpr time_t period_dividend = 1000000000UL;    // period is the divisor; quotient is frequency in megahertz
 typedef void (*awaiting_action)();
