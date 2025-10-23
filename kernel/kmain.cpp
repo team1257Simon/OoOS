@@ -85,6 +85,35 @@ static void descr_pt(partition_table const& pt)
         startup_tty.print_line(std::to_string(i->end_lba));
     }
 }
+module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
+{
+    module_loader& loader = module_loader::get_instance();
+    if(mod_desc.buffer && mod_desc.size)
+    {
+        startup_tty.print_line("Loading module " + std::string(mod_desc.filename));
+        addr_t mod_buffer = ::operator new(mod_desc.size, static_cast<std::align_val_t>(page_size));
+        atomic_copy<char>(mod_buffer, static_cast<char const*>(mod_desc.buffer), mod_desc.size);
+        return loader.add(mod_buffer, mod_desc.size).first;
+    }
+    return loader.end();
+}
+device_stream* load_com_module()
+{
+    if(sysinfo->loaded_modules && sysinfo->loaded_modules->count)
+    {
+        for(size_t i = 0; i < sysinfo->loaded_modules->count; i++)
+        {
+            if(!__builtin_strcmp("X64_COM.KO", sysinfo->loaded_modules->descriptors[i].filename))
+            {
+                module_loader::iterator result = init_boot_module(sysinfo->loaded_modules->descriptors[i]);
+                if(result != module_loader::get_instance().end())
+                    return result->second.get_module()->as_device<char>();
+                return nullptr;
+            }
+        }
+    }
+    return nullptr;
+}
 void net_tests()
 {
     if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))
@@ -423,6 +452,7 @@ void run_tests()
     startup_tty.print_line("map test...");
     map_tests();
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
+    if(__unlikely(!(com = load_com_module()))) startup_tty.print_line("failed to load serial driver");
     startup_tty.print_line("ahci test...");
     if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_instance()->get_partition_table());
     startup_tty.print_line("hpet test...");
@@ -434,21 +464,13 @@ void run_tests()
     extfs_tests();
     if(test_extfs.has_init()) 
     {
-        file_node* mod_file             = test_extfs.open_file("sys/amd64_serial.ko");
-        module_loader& loader           = module_loader::get_instance();
-        module_loader::iterator loaded  = loader.add(mod_file).first;
-        if(__unlikely(loaded == loader.end())) startup_tty.print_line("failed to load serial driver");
-        else if(__unlikely(!(com = loaded->second.get_module()->as_device<char>()))) startup_tty.print_line("failed to get serial driver");
-        else
-        {
-            startup_tty.print_line("sysfs tests...");
-            sysfs_tests();
-            shared_object_map::get_ldso_object(std::addressof(test_extfs));
-            startup_tty.print_line("SO loader tests...");
-            dyn_elf_tests();
-            startup_tty.print_line("elf64 tests..."); 
-            elf64_tests(); 
-        }
+        startup_tty.print_line("sysfs tests...");
+        sysfs_tests();
+        shared_object_map::get_ldso_object(std::addressof(test_extfs));
+        startup_tty.print_line("SO loader tests...");
+        dyn_elf_tests();
+        startup_tty.print_line("elf64 tests..."); 
+        elf64_tests(); 
     }
     startup_tty.print_line("task tests...");
     task_tests();
@@ -479,7 +501,7 @@ extern "C"
     {
         startup_tty.print_text("E: ");
         startup_tty.print_line(msg);
-        __serial_write("[KERNEL] E: " + std::string(msg));    
+        __serial_write("[KERNEL] E: " + std::string(msg));
     }
     void klog(const char* msg) noexcept
     { 

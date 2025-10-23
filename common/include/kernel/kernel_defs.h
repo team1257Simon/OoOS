@@ -311,6 +311,9 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #ifndef KERNEL_FILENAME
 #define KERNEL_FILENAME "\\SYS\\CORE.ELF"
 #endif
+#ifndef MOD_DIR
+#define MOD_DIR "\\SYS\\MOD"
+#endif
 #define PAGESIZE 0x1000UL
 #define PT_LEN 0x200UL
 #define MMAP_MAX_PG 0x100000UL

@@ -6,7 +6,7 @@ CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-g++
 ST := $(TARGET_HOSTED)-strip
 READ = $(TARGET_HOSTED)-readelf
-OUTDIR = $(IMAGE_FILE_DIR)/sys
+OUTDIR = $(BUILD_DIR)/SYS/MOD
 LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
 CFLAGS = -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -Wno-packed-bitfield-compat -ffreestanding
 CXXFLAGS = $(CFLAGS) -std=gnu++26
@@ -36,7 +36,7 @@ export PRE_OBJ_NAMES
 export POST_OBJ_NAMES
 export PRE_OBJS
 export POST_OBJS
-SUBDIRS = test_module amd64_serial
+SUBDIRS = amd64_serial
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
 $(SUBDIRS):
@@ -44,13 +44,10 @@ $(SUBDIRS):
 clean:
 	rm -rf $(OBJ_BASE_DIR) || true
 	rm -rf $(ASMT_DIR) || true
-	rm -rf $(OUTDIR)/*.a $(OUTDIR)/*.o || true
-	rm -rf $(IMAGE_FILE_DIR)/lib/*.* || true
 	for dir in $(SUBDIRS); do \
 		cd $$dir; \
 		$(MAKE) clean ; \
 		cd .. ; \
 	done
 asmtest:
-	cd test_module && $(MAKE) asmtest
 	cd amd64_serial && $(MAKE) asmtest

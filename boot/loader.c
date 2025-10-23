@@ -109,8 +109,8 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
     uintptr_t current_phys      = phys_start;
     uintptr_t end_vaddr         = total_mem + vaddr_start;
     paging_table    pdpt        = NULL,
-                    pd = NULL,
-                    pt = NULL;
+                    pd          = NULL,
+                    pt          = NULL;
     for(size_t i = 0; i < num_pages; i++)
     {
         if(pdpt == NULL || !__boot_pml4[current_idx.idx.pml4_idx].present) 
@@ -219,13 +219,14 @@ size_t fsize(FILE* file)
     if(!ptr)\
     {\
         fprintf(stderr, "unable to allocate memory\n");\
-        return EMALLOC;\
+        return -EMALLOC;\
     }\
 } while(0)
 char* pathcat(const char* dir_path, size_t path_len, struct dirent* ent)
 {
     char* result    = strdup(dir_path);
-    if(!(result && (result = realloc(strdup(dir_path), path_len + strlen(ent->d_name))))) return NULL;
+    if(!(result && (result = realloc(strdup(dir_path), path_len + strlen(ent->d_name) + 1)))) return NULL;
+    result          = strcat(result, "\\");
     return strcat(result, ent->d_name);
 }
 efi_status_t load_module_file(const char* name, const char* path, boot_loaded_module* out)
@@ -233,10 +234,10 @@ efi_status_t load_module_file(const char* name, const char* path, boot_loaded_mo
     FILE* file;
     char* buffer;
     size_t size;
+    printf("Loading module file for %s\n", name);
     if((file = fopen(path, "r")))
     {
         size    = fsize(file);
-        buffer  = malloc(size);
         *out = (boot_loaded_module)
         {
             .filename   = strdup(name),
@@ -247,16 +248,16 @@ efi_status_t load_module_file(const char* name, const char* path, boot_loaded_mo
             fprintf(stderr, "unable to allocate memory\n");
             fclose(file);
             // the error handler in load_modules_from will call free on all the pointers allocated previously
-            return EMALLOC;
+            return -EMALLOC;
         }
-        fread(buffer, size, 1, file);
+        fread(out->buffer, size, 1, file);
         fclose(file);
         return OK;
     }
     else 
     {
         fprintf(stderr, "Unable to open file\n");
-        return EFOPEN;
+        return -EFOPEN;
     }
 }
 size_t dir_file_count(DIR* dir)
@@ -271,16 +272,27 @@ size_t dir_file_count(DIR* dir)
 efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
 {
     DIR* dir;
-    size_t count, path_len = strlen(dir_path);
+    size_t count, path_len = strlen(dir_path) + 1;
     efi_status_t status = OK;
     char* filepath = NULL;
     boot_modules_list* result;
     boot_loaded_module* target = NULL;
     struct dirent* ent = NULL;
-    if(!(dir = opendir(dir_path))) return ENODIR;
+    if(!(dir = opendir(dir_path))) { 
+        fprintf(stderr, "Directory %s not found\n", dir_path);
+        return -ENODIR;
+    }
     count = dir_file_count(dir);
+    if(!count) {
+        // no modules to load at boot time...
+        printf("Note: no modules to load\n");
+        *out = NULL;
+        goto end; 
+    }
+    printf("Loading from %li files\n", count);
     if(!(result = (boot_modules_list*)malloc(sizeof(boot_modules_list) + count * sizeof(boot_loaded_module)))) {
-        status = EMALLOC;
+        fprintf(stderr, "unable to allocate memory\n");
+        status = -EMALLOC;
         goto result_alloc_fail;
     }
     result->count = count;
@@ -291,7 +303,8 @@ efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
         {
             filepath = pathcat(dir_path, path_len, ent);
             if(!filepath) {
-                status = EMALLOC;
+                fprintf(stderr, "unable to allocate memory\n");
+                status = -EMALLOC;
                 goto loop_alloc_fail;
             }
             status = load_module_file(ent->d_name, filepath, target);
@@ -419,6 +432,11 @@ int main(int argc, char** argv)
         return ENOGFX;
     }
     status = map_pages((uintptr_t)sysinfo->fb_ptr, (uintptr_t) sysinfo->fb_ptr, (4 * sysinfo->fb_height * sysinfo->fb_width * sysinfo->fb_pitch) / 4096);
+    if(EFI_ERROR(status)) return status;
+    boot_modules_list* mods;
+    status = load_modules_from(MOD_DIR, &mods);
+    if(EFI_ERROR(status)) return status;
+    sysinfo->loaded_modules = mods;
     FILE *f;
     char *buff;
     long int size;
@@ -431,11 +449,7 @@ int main(int argc, char** argv)
     {
         size = fsize(f);
         buff = malloc(size + 1);
-        if(!buff) 
-        {
-            fprintf(stderr, "unable to allocate memory\n");
-            return EMALLOC;
-        }
+        MALLOC_CK(buff);
         fread(buff, size, 1, f);
         fclose(f);
     } 
