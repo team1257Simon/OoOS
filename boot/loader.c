@@ -11,6 +11,7 @@
 #define ENOELF 4
 #define ENOGFX 6
 #define ESETGFX 7
+#define ENODIR 8
 #define ELFMAG      "\177ELF"
 #define SELFMAG     4
 #define EI_CLASS    4       /* File class byte index */
@@ -22,6 +23,7 @@
 #define ET_EXEC     2       /* Executable file */
 #define PT_LOAD     1       /* Loadable program segment */
 #define EM_MACH     62      /* AMD x86-64 architecture */
+#define ST_SYMTAB   2
 const char *types[] = 
 {
     "EfiReservedMemoryType",        // 0
@@ -59,6 +61,9 @@ inline static bool validate_elf(elf64_ehdr* elf)
         && elf->e_phnum > 0)                                /* has program headers? */
         ? true : false;                            
 }
+inline static bool is_typeinfo_symbol(const char* symbol_name) { return !memcmp(symbol_name, "_ZTI", 4); }
+inline static void* adjust(void* ptr, off_t offs) { return ((char*)ptr + offs); }
+#define PTR_ADJ(type, ptr, offs) (type*)adjust(ptr, offs)
 inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
 inline static size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx * 0x200 + idx.pdp_idx * 0x40000 + idx.pml4_idx * 0x8000000; }
 inline static uint64_t div_round_up(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
@@ -201,10 +206,113 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
     map_some_pages(vaddr_start, phys_start, num_pages, tables_start);
     return EFI_SUCCESS;
 }
-#define MALLOC_CK(ptr) if(!ptr) \
-{\
-    fprintf(stderr, "unable to allocate memory\n");\
-    return EMALLOC;\
+size_t fsize(FILE* file)
+{
+    long result;
+    long pos = ftell(file);
+    fseek(file, 0, SEEK_END);
+    result = ftell(file);
+    fseek(file, pos, SEEK_SET);
+    return (size_t)result;
+}
+#define MALLOC_CK(ptr) do {\
+    if(!ptr)\
+    {\
+        fprintf(stderr, "unable to allocate memory\n");\
+        return EMALLOC;\
+    }\
+} while(0)
+char* pathcat(const char* dir_path, size_t path_len, struct dirent* ent)
+{
+    char* result    = strdup(dir_path);
+    if(!(result && (result = realloc(strdup(dir_path), path_len + strlen(ent->d_name))))) return NULL;
+    return strcat(result, ent->d_name);
+}
+efi_status_t load_module_file(const char* name, const char* path, boot_loaded_module* out)
+{
+    FILE* file;
+    char* buffer;
+    size_t size;
+    if((file = fopen(path, "r")))
+    {
+        size    = fsize(file);
+        buffer  = malloc(size);
+        *out = (boot_loaded_module)
+        {
+            .filename   = strdup(name),
+            .buffer     = malloc(size),
+            .size       = size
+        };
+        if(!out->buffer || !out->filename) {
+            fprintf(stderr, "unable to allocate memory\n");
+            fclose(file);
+            // the error handler in load_modules_from will call free on all the pointers allocated previously
+            return EMALLOC;
+        }
+        fread(buffer, size, 1, file);
+        fclose(file);
+        return OK;
+    }
+    else 
+    {
+        fprintf(stderr, "Unable to open file\n");
+        return EFOPEN;
+    }
+}
+size_t dir_file_count(DIR* dir)
+{
+    size_t result = 0;
+    for(struct dirent* ent = readdir(dir); ent != NULL; ent = readdir(dir))
+        if(ent->d_type == DT_REG)
+            result++;
+    rewinddir(dir);
+    return result;
+}
+efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
+{
+    DIR* dir;
+    size_t count, path_len = strlen(dir_path);
+    efi_status_t status = OK;
+    char* filepath = NULL;
+    boot_modules_list* result;
+    boot_loaded_module* target = NULL;
+    struct dirent* ent = NULL;
+    if(!(dir = opendir(dir_path))) return ENODIR;
+    count = dir_file_count(dir);
+    if(!(result = (boot_modules_list*)malloc(sizeof(boot_modules_list) + count * sizeof(boot_loaded_module)))) {
+        status = EMALLOC;
+        goto result_alloc_fail;
+    }
+    result->count = count;
+    target = result->descriptors;
+    for(ent = readdir(dir); ent != NULL; ent = readdir(dir))
+    {
+        if(ent->d_type == DT_REG)
+        {
+            filepath = pathcat(dir_path, path_len, ent);
+            if(!filepath) {
+                status = EMALLOC;
+                goto loop_alloc_fail;
+            }
+            status = load_module_file(ent->d_name, filepath, target);
+            free(filepath);
+            ++target;
+            if(EFI_ERROR(status)) goto loop_alloc_fail;
+        }
+    }
+    *out = result;
+    goto end;
+loop_alloc_fail:
+    for(target = result->descriptors; (target - result->descriptors) < count; target++) {
+        if(target->buffer) free(target->buffer);
+        if(target->filename) free((char*)target->filename);
+    }
+    free(result);
+result_alloc_fail:
+    *out = NULL;
+end:
+    closedir(dir);
+    return status;
 }
 int main(int argc, char** argv)
 {
@@ -321,9 +429,7 @@ int main(int argc, char** argv)
     // load the file
     if((f = fopen(KERNEL_FILENAME, "r"))) 
     {
-        fseek(f, 0, SEEK_END);
-        size = ftell(f);
-        fseek(f, 0, SEEK_SET);
+        size = fsize(f);
         buff = malloc(size + 1);
         if(!buff) 
         {
@@ -371,7 +477,7 @@ int main(int argc, char** argv)
                 memset((void*)(phdr->p_vaddr + phdr->p_filesz), 0, phdr->p_memsz - phdr->p_filesz);
             }
         }
-        entry = elf->e_entry;
+        entry                           = elf->e_entry;
     } 
     else 
     {

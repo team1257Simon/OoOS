@@ -1,9 +1,43 @@
 #ifndef __KMOD
 #define __KMOD
-#include "kernel_api.hpp"
+#include <kernel_api.hpp>
 #include <new>
 #ifndef __unlikely
 #define __unlikely(x) __builtin_expect((x), false)
+#endif
+#ifndef ABI_NAMESPACE
+#define ABI_NAMESPACE __cxxabiv1
+namespace ABI_NAMESPACE
+{
+	struct __class_type_info : public std::type_info
+	{
+		virtual ~__class_type_info();
+		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
+		virtual bool __do_upcast(const __class_type_info *target, void **thrown_object) const override;
+	};
+	struct __si_class_type_info : public __class_type_info
+	{
+		virtual ~__si_class_type_info();
+		const __class_type_info *__base_type;
+		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const override;
+		virtual void *cast_to(void *obj, const struct __class_type_info *other) const override;
+	};
+	struct __base_class_type_info
+	{
+		const __class_type_info *__base_type;
+		private:
+			long __offset_flags;
+	};
+	struct __vmi_class_type_info : public __class_type_info
+	{
+		virtual ~__vmi_class_type_info();
+		unsigned int __flags;
+		unsigned int __base_count;
+		__base_class_type_info __base_info[1];
+		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const;
+		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
+	};
+}
 #endif
 class elf64_kernel_object;
 namespace ooos_kernel_module
@@ -14,6 +48,7 @@ namespace ooos_kernel_module
         kmod_mm* __allocated_mm;
         void (*__fini_fn)();
         friend class ::elf64_kernel_object;
+        inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, &typeid(ABI_NAMESPACE::__si_class_type_info), &typeid(ABI_NAMESPACE::__vmi_class_type_info)); }
     public:
         virtual bool initialize() = 0;
         virtual void finalize() = 0;
@@ -28,9 +63,9 @@ namespace ooos_kernel_module
         inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
         inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
         inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
-        template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
+        template<io_buffer_ok T> inline dev_stream<T>* as_device() { __api_hooks->register_type_info(&typeid(dev_stream<T>)); return dynamic_cast<dev_stream<T>*>(this); }
         template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
-        inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; } }
+        inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); } }
         friend void module_takedown(abstract_module_base* mod);
     };
     void module_takedown(abstract_module_base* mod);
@@ -111,7 +146,7 @@ namespace ooos_kernel_module
         virtual size_type seek(size_type where, uint8_t ioflags) override;
         virtual size_type avail() const override { return in.remaining(); }
         virtual size_type out_avail() const override { return out.remaining(); }
-        virtual uint32_t get_device_id() const noexcept { return device_id; }
+        virtual uint32_t get_device_id() const noexcept override { return device_id; }
         void create_buffer(io_buffer& b, size_type n) { b.set(new (this->allocate_buffer(n * sizeof(value_type), alignof(value_type))) value_type[n], n); }
         void destroy_buffer(io_buffer& b) { this->release_buffer(b.beg, alignof(value_type)); b.reset(); }
         void resize_buffer(io_buffer& b, size_type nsz) { b.set(static_cast<pointer>(abstract_module_base::resize_buffer(b.beg, b.capacity(), nsz, alignof(value_type))), nsz); }

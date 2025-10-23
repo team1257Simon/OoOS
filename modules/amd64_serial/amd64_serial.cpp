@@ -122,4 +122,4 @@ void amd64_serial::finalize()
         this->destroy_buffer(out);
     this->deregister_device(this);
 }
-EXPORT_MODULE(amd64_serial)
+EXPORT_MODULE(amd64_serial);

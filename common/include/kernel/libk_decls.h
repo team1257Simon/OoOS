@@ -142,6 +142,12 @@ template<uint64_t V> using c_u64 = std::integral_constant<uint64_t, V>;
 typedef bit_or<uint64_t, c_u64> u64_or;
 template<uint64_t ... Is> using bit_mask = c_u64<u64_or::template value(u64_shift<Is>()...)>;
 template<typename T> constexpr T& nonnull_or_else(T* __this, T& __that) noexcept { return __this ? *__this : __that; }
+template<typename T> constexpr void atomic_copy(T* dest, T const* src, size_t n) noexcept 
+{ 
+    push_cli();
+    array_copy(dest, src, n);
+    pop_flags();
+}
 #if defined(__KERNEL__) || defined(__LIBK__)
 template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
 template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }

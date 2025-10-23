@@ -123,6 +123,7 @@
         "io_context": "cpp",
         "flat_map": "cpp",
         "float.h": "c",
-        "flat_set": "cpp"
+        "flat_set": "cpp",
+        "efi.h": "c"
     }
 }

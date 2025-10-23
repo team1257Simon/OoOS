@@ -53,7 +53,8 @@ namespace std
 	private:
 		type_info(const type_info& rhs);
 		type_info& operator=(const type_info& rhs);
-	protected:
+	public:
+		// This is public here because of some shenanigans needed in the kernel.
 		const char *__type_name;
 		/*
 		 * The following functions are in this order to match the
@@ -66,7 +67,6 @@ namespace std
 		 * libsupc++, so that code linking against this library can subclass
 		 * type_info and correctly fill in the values in the vtables.
 		 */
-	public:
 		/**
 		 * Returns true if this is some pointer type, false otherwise.
 		 */
@@ -94,7 +94,6 @@ namespace std
 		 * the pointer.
 		 */
 		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const { return false; }
-		inline const char* __inline_name() const { return __type_name; }
 	};
 }
 namespace ABI_NAMESPACE

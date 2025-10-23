@@ -3,7 +3,7 @@
 */
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)
-SEARCH_DIR("=/lib"); SEARCH_DIR("=/usr/lib");
+SEARCH_DIR("=/sys");
 ENTRY(_start)
 SECTIONS
 {

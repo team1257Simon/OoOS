@@ -345,6 +345,8 @@ template<class T> concept non_void = !std::is_void_v<T>;
 inline void pause() { asm volatile("pause" ::: "memory"); }
 inline void barrier() { asm volatile("" ::: "memory"); }
 inline void fence() { asm volatile("mfence" ::: "memory"); }
+#define push_cli() asm volatile("pushf" ::: "memory"); asm volatile("cli" ::: "memory")
+#define pop_flags() asm volatile("popf" ::: "memory")
 typedef enum mem_type
 {
     AVAILABLE = 1,
@@ -775,6 +777,17 @@ typedef struct __processor_info
         } __pack extended_location;
     } __pack;
 } __pack processor_info;
+typedef struct __boot_loaded_module
+{
+    const char* filename;
+    void* buffer;
+    size_t size;
+} boot_loaded_module;
+typedef struct __boot_modules_list
+{
+    size_t count;
+    boot_loaded_module descriptors[];
+} boot_modules_list;
 typedef struct __system_info 
 {
     uint32_t fb_width;
@@ -785,6 +798,7 @@ typedef struct __system_info
     uint64_t num_enabled_processors;
     processor_info* mp_processor_info_structs;
     struct xsdt_t* xsdt;
+    boot_modules_list* loaded_modules;
 } __pack sysinfo_t;
 typedef struct __mmap
 {

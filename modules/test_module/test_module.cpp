@@ -11,4 +11,4 @@ public:
 test_module::test_module(const char* msg) : __my_message(msg) {}
 bool test_module::initialize() { this->log(__my_message); return true; }
 void test_module::finalize() {}
-EXPORT_MODULE(test_module, "Hello module world!")
+EXPORT_MODULE(test_module, "Hello module world!");

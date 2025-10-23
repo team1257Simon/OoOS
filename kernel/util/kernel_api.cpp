@@ -1,11 +1,42 @@
-#include "kernel_api.hpp"
+#include "module.hpp"
 #include "arch/pci_device_list.hpp"
 #include "device_registry.hpp"
 #include "isr_table.hpp"
-#include "unordered_map"
+#include "bits/hash_set.hpp"
 #include "stdexcept"
+using namespace ABI_NAMESPACE;
+/**
+ * Vtable header.
+ */
+struct vtable_header
+{
+    ptrdiff_t          leaf_offset; /** Offset of the leaf object. */
+    __class_type_info* type;        /** Type of the object. */
+};
+static __si_class_type_info* meta_dyncast_si(std::type_info* ti, __class_type_info const* local_si)
+{
+    vtable_header* vt           = addr_t(ti).ref<addr_t>().minus(sizeof(vtable_header));
+    __class_type_info* ti_meta  = vt->type;
+    return static_cast<__si_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_si));
+}
+static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_info const* local_vmi)
+{
+    vtable_header* vt           = addr_t(ti).ref<addr_t>().minus(sizeof(vtable_header));
+    __class_type_info* ti_meta  = vt->type;
+    return static_cast<__vmi_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_vmi));
+}
 namespace ooos_kernel_module
 {
+    template<typename T> struct type_tag { constexpr explicit type_tag() = default; };
+    template<typename T> constexpr inline type_tag<T> tag{};
+    struct get_name { constexpr const char* const& operator()(std::type_info const* const& ti) const noexcept { return ti->__type_name; } };
+    class type_info_map : public std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexcial_equals<char>, std::allocator<std::type_info const*>, get_name> 
+    {
+        typedef std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexcial_equals<char>, std::allocator<std::type_info const*>, get_name> __base;
+    public:
+        type_info_map() : __base(64UZ) {}
+        __class_type_info const* operator[](const char* key) const { const_iterator result = find(key); if(result != end()) { return dynamic_cast<__class_type_info const*>(*result); } return nullptr; }
+    };
     struct kmod_mm_impl : kmod_mm, kframe_tag
     {
         kernel_memory_mgr* mm;
@@ -20,7 +51,8 @@ namespace ooos_kernel_module
     };
     static struct : kernel_api
     {
-        kernel_memory_mgr* mm{ std::addressof(kmm) };
+        kernel_memory_mgr* mm = std::addressof(kmm);
+        type_info_map kernel_type_info;
         pci_device_list* pci;
         virtual void* allocate_dma(size_t size, bool prefetchable) override { return mm->allocate_dma(size, prefetchable); }
         virtual void release_dma(void* ptr, size_t size) override { mm->deallocate_dma(ptr, size); }
@@ -33,6 +65,8 @@ namespace ooos_kernel_module
         virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
         virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
         virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
+        virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
+        virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(&typeid(*mod)), local_si, local_vmi); }
         virtual void init_memory_fns(kframe_exports* ptrs) override
         {
             new(ptrs) kframe_exports
@@ -43,7 +77,32 @@ namespace ooos_kernel_module
                 .reallocate     = &kframe_tag::reallocate
             };
         }
+        void __relocate_si_r(__si_class_type_info* ti, std::type_info const* local_si, std::type_info const* local_vmi)
+        {
+            __class_type_info* base         = const_cast<__class_type_info*>(ti->__base_type);
+            __class_type_info const* equiv  = kernel_type_info[base->__type_name];
+            if(!equiv) this->__relocate_ti_r(base, local_si, local_vmi);
+            else ti->__base_type = equiv;
+        }
+        void __relocate_vmi_r(__base_class_type_info* bases, size_t num_bases, std::type_info const* local_si, std::type_info const* local_vmi)
+        {
+            for(size_t i = 0; i < num_bases; i++)
+            {
+                __class_type_info* base         = const_cast<__class_type_info*>(bases[i].__base_type);
+                __class_type_info const* equiv  = kernel_type_info[base->__type_name];
+                if(!equiv) this->__relocate_ti_r(base, local_si, local_vmi);
+                else bases[i].__base_type       = equiv;
+            }
+        }
+        void __relocate_ti_r(std::type_info* ti, std::type_info const* local_si, std::type_info const* local_vmi)
+        {
+            if(__si_class_type_info* si         = meta_dyncast_si(ti, addr_t(local_si)))
+                __relocate_si_r(si, local_si, local_vmi);
+            else if(__vmi_class_type_info* vmi  = meta_dyncast_vmi(ti, addr_t(local_vmi)))
+                __relocate_vmi_r(vmi->__base_info, vmi->__base_count, local_si, local_vmi);
+        }
     } __api_impl{};
+    void register_type(std::type_info const& ti) { __api_impl.register_type_info(&ti); }
     kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm), first_managed_block(nullptr) {}
     void* kmod_mm_impl::mem_allocate(size_t size, size_t align)
     {
@@ -93,6 +152,12 @@ namespace ooos_kernel_module
             tag                 = next;
         }
     }
-    void init_api() { __api_impl.pci = pci_device_list::get_instance(); }
+    void init_api()
+    {
+        __api_impl.pci = pci_device_list::get_instance();
+        register_type(typeid(abstract_module_base));
+        register_type(typeid(device_stream));
+        register_type(typeid(io_module_base<char>));
+    }
     kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
 }

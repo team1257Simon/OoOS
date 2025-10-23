@@ -260,3 +260,10 @@ size_t strlen (const char_t *__s)
     for(ret = 0; __s[ret]; ret++);
     return ret;
 }
+size_t strnlen(const char_t* s, size_t n)
+{
+    size_t ret;
+    if(!s) return 0;
+    for(ret = 0; s[ret] && ret < n; ret++);
+    return ret;
+}

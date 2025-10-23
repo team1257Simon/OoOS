@@ -38,8 +38,7 @@ struct vtable_header
  * the same type as the original.
  */
 #define ADD_TO_PTR(x, off) reinterpret_cast<__typeof__(x)>(reinterpret_cast<char*>(x) + off)
-static inline bool names_match(std::type_info const& __this, std::type_info const& that) { return !__builtin_strcmp(__this.__inline_name(), that.__inline_name()); }
-
+bool __class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const { return this == target; }
 bool std::type_info::__do_catch(std::type_info const* ex_type, void** exception_object, unsigned int outer) const
 {
     const type_info* type = this;
@@ -60,27 +59,23 @@ bool __pbase_type_info::__do_catch(std::type_info const* ex_type, void** excepti
     if(*__pointee == typeid(void)) return true;
     return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
-bool __class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const
-{
-    return this == target || names_match(*this, *target);
-}
 void* __class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
-    if(this == other || names_match(*this, *other))
+    if(this == other)
         return obj;
     else
         return nullptr;
 }
 void* __si_class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
-    if(this == other || names_match(*this, *other))
+    if(this == other)
         return obj;
     else
         return __base_type->cast_to(obj, other);
 }
 bool __si_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
 {
-    if(this == target || names_match(*this, *target))
+    if(this == target)
         return true;
     else
         return __base_type->__do_upcast(target, thrown_object);
@@ -94,7 +89,7 @@ void* __vmi_class_type_info::cast_to(void* obj, const struct __class_type_info* 
 }
 bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
 {
-    if(this == target  || names_match(*this, *target)) return true;
+    if(this == target) return true;
     for(unsigned int i = 0; i < __base_count; i++)
     {
         const __base_class_type_info* info   = &__base_info[i];
@@ -116,7 +111,7 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** 
             offset = *off;
         }
         void* cast = ADD_TO_PTR(obj, offset);
-        if(info->__base_type == target || names_match(*info->__base_type, *target) || (info->__base_type->__do_upcast(target, &cast)))
+        if(info->__base_type == target || (info->__base_type->__do_upcast(target, &cast)))
         {
             *thrown_object = cast;
             return true;

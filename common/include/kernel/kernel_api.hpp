@@ -247,6 +247,9 @@ namespace ooos_kernel_module
         virtual uint32_t register_device(dev_stream<char>* stream, device_type type) = 0;
         virtual bool deregister_device(dev_stream<char>* stream) = 0;
         virtual void init_memory_fns(kframe_exports* ptrs) = 0;
+    protected:
+        virtual void register_type_info(std::type_info const* ti) = 0;
+        virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) = 0;
     };
     kernel_api* get_api_instance();
     void init_api();

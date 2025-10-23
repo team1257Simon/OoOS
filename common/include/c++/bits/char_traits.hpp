@@ -118,11 +118,25 @@ namespace std
             if constexpr(__has_comparison_category<TT>)
             {
                 using CT = typename TT::comparison_category;
-                static_assert( !is_void_v<common_comparison_category_t<CT>> );
+                static_assert(!is_void_v<common_comparison_category_t<CT>>);
                 return static_cast<CT>(__cmp <=> 0);
             }
             else return static_cast<weak_ordering>(__cmp <=> 0);
         }
+    }
+    extension namespace ext
+    {
+        template<char_type CT, char_traits_type<CT> TT = char_traits<CT>>
+        struct lexcial_equals
+        {
+            typedef TT traits_type;
+            constexpr bool operator()(const CT* const& a, const CT* const& b) const noexcept
+            {
+                size_t a_len = traits_type::length(a);
+                if(traits_type::length(b) != a_len) return false;
+                return !traits_type::compare(a, b, a_len);
+            }
+        };
     }
 }
 #endif
