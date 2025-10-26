@@ -1,9 +1,12 @@
 #include "module.hpp"
+#include "kernel_mm.hpp"
+#include "stdlib.h"
 #include "arch/pci_device_list.hpp"
 #include "device_registry.hpp"
 #include "isr_table.hpp"
 #include "bits/hash_set.hpp"
 #include "stdexcept"
+extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
 using namespace ABI_NAMESPACE;
 /**
  * Vtable header.
@@ -25,8 +28,9 @@ static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_
     __class_type_info* ti_meta  = vt->type;
     return static_cast<__vmi_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_vmi));
 }
-namespace ooos_kernel_module
+namespace ooos
 {
+    module_eh_ctx* get_ctx(abstract_module_base* mod) { return &mod->__eh_ctx; }
     template<typename T> struct type_tag { constexpr explicit type_tag() = default; };
     template<typename T> constexpr inline type_tag<T> tag{};
     struct get_name { constexpr const char* const& operator()(std::type_info const* const& ti) const noexcept { return ti->__type_name; } };
@@ -67,6 +71,23 @@ namespace ooos_kernel_module
         virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
         virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
         virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(&typeid(*mod)), local_si, local_vmi); }
+        virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
+        {
+            char* result    = nullptr;
+            size_t count    = kvasprintf(__addressof(result), fmt, args);
+            if(!count) return 0Uz;
+            char* str       = static_cast<char*>(mm->mem_allocate(count, alignof(char)));
+            array_copy(str, result, count);
+            free(result);
+            out             = str;
+            return count;
+        }
+        [[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) override
+        {
+            ctx.msg            = msg;
+            ctx.status         = status ? status : -1;
+            longjmp(ctx.handler_ctx, ctx.status);
+        }
         virtual void init_memory_fns(kframe_exports* ptrs) override
         {
             new(ptrs) kframe_exports
@@ -134,7 +155,7 @@ namespace ooos_kernel_module
             release(std::addressof(mod_mutex));
         }
     }
-    void* ooos_kernel_module::kmod_mm_impl::mem_resize(void* old, size_t old_size, size_t target, size_t align)
+    void* ooos::kmod_mm_impl::mem_resize(void* old, size_t old_size, size_t target, size_t align)
     {
         void* result = mem_allocate(target, align);
         if(!old) return result;

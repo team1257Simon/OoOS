@@ -1,7 +1,6 @@
 #ifndef __KMOD
 #define __KMOD
 #include <kernel_api.hpp>
-#include <new>
 #ifndef __unlikely
 #define __unlikely(x) __builtin_expect((x), false)
 #endif
@@ -40,15 +39,19 @@ namespace ABI_NAMESPACE
 }
 #endif
 class elf64_kernel_object;
-namespace ooos_kernel_module
+namespace ooos
 {
     class abstract_module_base
     {
         kernel_api* __api_hooks;
         kmod_mm* __allocated_mm;
         void (*__fini_fn)();
+        jmp_buf __saved_jb{};
+        module_eh_ctx __eh_ctx{};
         friend class ::elf64_kernel_object;
+        friend module_eh_ctx* get_ctx(abstract_module_base*);
         inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, &typeid(ABI_NAMESPACE::__si_class_type_info), &typeid(ABI_NAMESPACE::__vmi_class_type_info)); }
+        inline void __save_init_jb() { __builtin_memcpy(__saved_jb, __eh_ctx.handler_ctx, sizeof(jmp_buf)); }
     public:
         virtual bool initialize() = 0;
         virtual void finalize() = 0;
@@ -58,19 +61,41 @@ namespace ooos_kernel_module
         inline void* allocate_buffer(size_t size, size_t align) { return __allocated_mm->mem_allocate(size, align); }
         inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) { return __allocated_mm->mem_resize(orig, old_size, target_size, align); }
         inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
+        inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, size); }
         inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
         inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
+        [[noreturn]] inline void raise_error(const char* msg, int code = -1) { __api_hooks->ctx_raise(__eh_ctx, msg, code); __builtin_unreachable(); }
         inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
         inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
         inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
+        inline abstract_block_device::provider* as_blockdev() { __api_hooks->register_type_info(&typeid(abstract_block_device::provider)); __api_hooks->register_type_info(&typeid(abstract_block_device)); return dynamic_cast<abstract_block_device::provider*>(this); }
         template<io_buffer_ok T> inline dev_stream<T>* as_device() { __api_hooks->register_type_info(&typeid(dev_stream<T>)); return dynamic_cast<dev_stream<T>*>(this); }
         template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
-        inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); } }
+        inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); __save_init_jb(); } }
         friend void module_takedown(abstract_module_base* mod);
+        constexpr module_eh_ctx& get_eh_ctx() { return __eh_ctx; }
+        inline void ctx_end() { __builtin_memcpy(__eh_ctx.handler_ctx, __saved_jb, sizeof(jmp_buf)); }
+        inline size_t asprintf(const char** strp, const char* fmt, ...);
     };
+    template<no_args_invoke FT, eh_functor HT>
+    void ctx_try(abstract_module_base& mod, FT&& action, HT&& handler)
+    {
+        module_eh_ctx& context = mod.get_eh_ctx();
+        if(__unlikely(setjmp(context.handler_ctx))) handler(context.msg, context.status);
+        else action();
+        mod.ctx_end();
+    }
+    inline size_t abstract_module_base::asprintf(const char** strp, const char* fmt, ...)
+    {
+        va_list args;
+        va_start(args, 0);
+        size_t result = __api_hooks->vformat(__allocated_mm, fmt, *strp, args);
+        va_end(args);
+        return result;
+    }
     void module_takedown(abstract_module_base* mod);
     template<typename T, typename ... Args>
-    abstract_module_base* setup_instance(void* addr, kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)(), Args&& ... args)
+    abstract_module_base* setup_instance(void* addr, kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)(), cxxabi_abort& abort_handler, Args&& ... args)
     {
         if(addr && api && frame_tag && kframe_fns && fini)
         {
@@ -81,6 +106,7 @@ namespace ooos_kernel_module
                 (*init)();
                 T* result = new (addr) T(static_cast<Args&&>(args)...);
                 result->setup(api, mm, fini);
+                abort_handler.eh_ctx = &result->get_eh_ctx();
                 return result;
             }
         }
@@ -217,5 +243,17 @@ namespace ooos_kernel_module
  * That function allocates a separate page frame structure which is used to implement most of the underlying "glue" needed by C++ to function fully.
  * It then also sets up some pointers to vtables which tie in kernel functionality modules might need to use.
  */
-#define EXPORT_MODULE(module_class, ...) static char __instance[sizeof(module_class)]; extern "C" { ooos_kernel_module::abstract_module_base* module_init(ooos_kernel_module::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)()) { return ooos_kernel_module::setup_instance<module_class>(&__instance, api, frame_tag, kframe_fns, init, fini __VA_OPT__(,) __VA_ARGS__); } }
+#define EXPORT_MODULE(module_class, ...)\
+    static char __instance[sizeof(module_class)];\
+    static ooos::cxxabi_abort __abort_handler;\
+    extern "C" {\
+    ooos::abstract_module_base* module_init(ooos::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)()) {\
+        __abort_handler.abort_msg = "abort() called in module " # module_class;\
+        __abort_handler.abort_msg = "pure virtual call in module " # module_class;\
+        __abort_handler.api = api;\
+        return ooos::setup_instance<module_class>(&__instance, api, frame_tag, kframe_fns, init, fini, __abort_handler __VA_OPT__(,) __VA_ARGS__);\
+    }\
+    [[noreturn]] void abort() { __abort_handler.terminate(); }\
+    [[noreturn]] void __cxa_pure_virtual() { __abort_handler.pure_virt(); }\
+}
 #endif

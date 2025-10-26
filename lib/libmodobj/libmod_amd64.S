@@ -15,7 +15,7 @@
     .weak   abort  
     .weak   __cxa_pure_virtual
     .global setjmp
-    .global longjmp  
+    .global longjmp
     .type   memcmp,             @function
     .type   memcpy,             @function
     .type   memset,             @function
@@ -218,14 +218,6 @@ getenv:
     xorq        %rax,   %rax
     ret
     .size     getenv,   .-getenv
-// for now this will raise a debug exception
-abort:
-    int $1
-    .size     abort,    .-abort
-// for now this will raise an undefined opcode exception
-__cxa_pure_virtual:
-    ud2
-    .size     __cxa_pure_virtual,   .-__cxa_pure_virtual
 // setjmp and longjmp taken from newlib, under the same license as in the legal.md
 setjmp:
     movq        %rbx,       0(%rdi)

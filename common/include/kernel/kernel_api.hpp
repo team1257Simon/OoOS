@@ -1,20 +1,16 @@
 #ifndef __KAPI
 #define __KAPI
-#include <type_traits>
-#include <typeinfo>
-#include <compare>
-#include <arch/pci.hpp>
+#include <stdarg.h>
 #include <fs/dev_stream.hpp>
-#ifdef __KERNEL__
-#include "kernel_mm.hpp"
-#else
+#include <arch/pci.hpp>
+#include <typeinfo>
 struct kframe_tag;
 struct kframe_exports;
-#endif
-namespace ooos_kernel_module
+namespace ooos
 {
     class abstract_module_base;
     class isr_actor;
+    struct module_eh_ctx;
     template<typename T> [[nodiscard]] constexpr T&& __forward(typename std::remove_reference<T>::type& t) { return static_cast<T&&>(t); }
     template<typename T> [[nodiscard]] constexpr T&& __forward(typename std::remove_reference<T>::type&& t) { return static_cast<T&&>(t); }
     template<typename T> constexpr typename std::remove_reference<T>::type&& __move(T&& __t) noexcept { return static_cast<std::remove_reference<T>::type&&>(__t); }
@@ -247,6 +243,8 @@ namespace ooos_kernel_module
         virtual uint32_t register_device(dev_stream<char>* stream, device_type type) = 0;
         virtual bool deregister_device(dev_stream<char>* stream) = 0;
         virtual void init_memory_fns(kframe_exports* ptrs) = 0;
+        [[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) = 0;
+        virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) = 0;
     protected:
         virtual void register_type_info(std::type_info const* ti) = 0;
         virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) = 0;
@@ -421,5 +419,61 @@ namespace ooos_kernel_module
     template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ __forward<config_parameter<Ts>>(params)... } } }.compute_size_value(); }
     template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...>& get_element(module_config<Ts...>& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
     template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...> const& get_element(module_config<Ts...> const& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
+    template<typename FT> concept eh_functor = requires(FT ft, const char* c, int i) { ft(c, i); };
+    template<typename MT> concept module_type = std::derived_from<MT, abstract_module_base>;
+    template<typename FT> concept condition_callable = boolable<decltype(std::declval<FT>()())>;
+    struct module_eh_ctx
+    {
+        jmp_buf handler_ctx;
+        int status;
+        const char* msg;
+    };
+    enum class blockdev_type : uint8_t
+    {
+        BDT_NONE    = 0UC,  // Unknown or no __device
+        BDT_HDD     = 1UC,  // Hard disk drive
+        BDT_CDD     = 2UC,  // CD/DVD drive
+        BDT_SSD     = 3UC,  // Solid state drive
+    };
+    using enum blockdev_type;
+    struct abstract_block_device
+    {
+        typedef unsigned int utticket;
+        typedef signed int stticket;
+        virtual stticket read(void* dest, uintptr_t src_start, size_t sector_count) = 0;
+        virtual stticket write(uintptr_t dest_start, const void* src, size_t sector_count) = 0;
+        virtual size_t block_size() const noexcept = 0;
+        virtual bool io_busy() const = 0;
+        virtual bool io_complete(utticket task_ticket) const = 0;
+        virtual size_t io_count(utticket task_ticket) const = 0;
+        virtual blockdev_type device_type() const noexcept = 0;
+        struct provider
+        {
+            typedef unsigned int uidx_t;
+            typedef signed int sidx_t;
+            virtual uidx_t count() const noexcept = 0;
+            virtual sidx_t index_of(blockdev_type dev_type) const noexcept = 0;
+            virtual abstract_block_device& operator[](uidx_t idx) = 0;
+        };
+    };
+    struct empty_blockdev_slot : abstract_block_device
+    {
+        inline virtual stticket read(void* dest, uintptr_t src_start, size_t sector_count) override { return -1; }
+        inline virtual stticket write(uintptr_t dest_start, const void* src, size_t sector_count) override { return -1; }
+        inline virtual size_t block_size() const noexcept override { return 0UZ; }
+        inline virtual bool io_busy() const override { return true; }
+        inline virtual bool io_complete(utticket task_ticket) const override { return false; }
+        inline virtual size_t io_count(utticket task_ticket) const override { return 0UZ; }
+        inline virtual blockdev_type device_type() const noexcept override { return BDT_NONE; }
+    };
+    struct cxxabi_abort
+    {
+        module_eh_ctx* eh_ctx;
+        kernel_api* api;
+        const char* abort_msg;
+        const char* pv_msg;
+        [[noreturn]] inline void terminate() { api->ctx_raise(*eh_ctx, abort_msg, -1); __builtin_unreachable(); }
+        [[noreturn]] inline void pure_virt() { api->ctx_raise(*eh_ctx, pv_msg, -1); __builtin_unreachable();}
+    };
 }
 #endif

@@ -564,7 +564,7 @@ extern "C"
         hpet_amd64::init_instance();
         if(pci_device_list::init_instance())
         {
-            ooos_kernel_module::init_api();
+            ooos::init_api();
             if(ahci::init_instance(pci_device_list::get_instance()))
             {
                 if(hda_ahci::init_instance())

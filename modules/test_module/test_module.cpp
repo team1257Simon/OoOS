@@ -1,5 +1,5 @@
 #include "module.hpp"
-class test_module : public ooos_kernel_module::abstract_module_base
+class test_module : public ooos::abstract_module_base
 {
     const char* __my_message;
 public:

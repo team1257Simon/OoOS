@@ -19,6 +19,6 @@ public:
     std::pair<iterator, bool> add(file_node* file);
     std::pair<iterator, bool> add(addr_t start, size_t size);
     bool remove(std::string const& name);
-    bool remove(ooos_kernel_module::abstract_module_base* mod);
+    bool remove(ooos::abstract_module_base* mod);
 };
 #endif

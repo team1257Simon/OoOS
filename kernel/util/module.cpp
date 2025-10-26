@@ -1,5 +1,5 @@
 #include "kernel/module.hpp"
-namespace ooos_kernel_module
+namespace ooos
 {
     void module_takedown(abstract_module_base* mod)
     {

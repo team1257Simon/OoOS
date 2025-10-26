@@ -1,7 +1,8 @@
 #include "elf64_kernel_object.hpp"
 #include "kdebug.hpp"
-using ooos_kernel_module::abstract_module_base;
-using ooos_kernel_module::module_takedown;
+#include "stdlib.h"
+using ooos::abstract_module_base;
+using ooos::module_takedown;
 uframe_tag* elf64_kernel_object::get_frame() const { return nullptr; }
 void elf64_kernel_object::frame_enter() {}
 void elf64_kernel_object::set_frame(uframe_tag* ft) {}
@@ -84,5 +85,14 @@ abstract_module_base* elf64_kernel_object::load_module()
 {
     if(__unlikely(module_object != nullptr)) return module_object;
     if(__unlikely(!load())) return nullptr;
-    return module_object = entry.invoke<abstract_module_base*(ooos_kernel_module::kernel_api*)>(ooos_kernel_module::get_api_instance());
+    if((module_object = entry.invoke<abstract_module_base*(ooos::kernel_api*)>(ooos::get_api_instance())))
+    {
+        if(__unlikely(setjmp(module_object->__eh_ctx.handler_ctx))) 
+        {
+            panic(module_object->__eh_ctx.msg);
+            abort();
+            __builtin_unreachable();
+        }
+    }
+    return module_object;
 }

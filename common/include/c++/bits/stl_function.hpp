@@ -172,7 +172,7 @@ namespace std
         constexpr type_info const& target_type() const noexcept { if(__my_manager) { __data_store __ti_result; __my_manager(__ti_result, __my_functor, __get_type_info); if(type_info const* result = __ti_result.__access<type_info const*>()) return *result; } return typeid(nullptr); }
     };
     template<typename> struct __function_guide_helper{};
-    template<typename RT, typename ST, bool NT, typename... Args> struct __function_guide_helper<RT (ST::*) (Args...) noexcept(NT)> { using type = RT (Args...); };
+    template<typename RT, typename ST, bool NT, typename ... Args> struct __function_guide_helper<RT (ST::*) (Args...) noexcept(NT)> { using type = RT (Args...); };
     template<typename FT, typename O> using __function_guide_t = typename __function_guide_helper<O>::type;
     template<typename RT, typename... Args> function(RT(*)(Args...)) -> function<RT(Args...)>;
     template<typename FT, typename ST = __function_guide_t<FT, decltype(&FT::operator())>> function(FT) -> function<ST>;

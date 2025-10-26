@@ -1,7 +1,7 @@
 #ifndef __SERIAL
 #define __SERIAL
-#include <module.hpp>
 #include <arch/arch_amd64.h>
+#include <module.hpp>
 constexpr word ier_port(word port) noexcept { return port + 1US; }
 constexpr word iir_or_fifo_port(word port) noexcept { return port + 2US; }
 constexpr word line_ctl_port(word port) noexcept { return port + 3US; }
@@ -152,9 +152,9 @@ typedef struct __line_status_reg
  */
 constexpr auto serial_config() 
 {
-    using ooos_kernel_module::create_config;
-    using ooos_kernel_module::parameter;
-    using ooos_kernel_module::parameter_type;
+    using ooos::create_config;
+    using ooos::parameter;
+    using ooos::parameter_type;
     return create_config
     (
         parameter("port",           parameter_type<uint16_t>,           port_com1),
@@ -164,7 +164,7 @@ constexpr auto serial_config()
         parameter("trim_on_read",   parameter_type<bool>,               false)
     );
 }
-class amd64_serial : public ooos_kernel_module::io_module_base<char>
+class amd64_serial : public ooos::io_module_base<char>
 {
     typedef decltype(serial_config()) __config_type;
     char* __input_pos;
@@ -172,7 +172,7 @@ class amd64_serial : public ooos_kernel_module::io_module_base<char>
     void __trim_old();
 public:
     virtual bool overflow(size_type needed) override;
-    virtual ooos_kernel_module::generic_config_table& get_config() override;
+    virtual ooos::generic_config_table& get_config() override;
     virtual bool initialize() override;
     virtual void finalize() override;
     virtual int sync() override;

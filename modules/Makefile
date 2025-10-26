@@ -5,15 +5,15 @@ CXX := $(TARGET_HOSTED)-g++
 CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-g++
 ST := $(TARGET_HOSTED)-strip
-READ = $(TARGET_HOSTED)-readelf
-OUTDIR = $(BUILD_DIR)/SYS/MOD
-LDSCRIPT = $(CURDIR)/module.$(TARGET_HOSTED).lds
-CFLAGS = -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -Wno-packed-bitfield-compat -ffreestanding
-CXXFLAGS = $(CFLAGS) -std=gnu++26
-CCFLAGS = $(CFLAGS) -std=gnu23
+READ := $(TARGET_HOSTED)-readelf
+OUTDIR := $(BUILD_DIR)/SYS/MOD
+LDSCRIPT := $(CURDIR)/module.$(TARGET_HOSTED).lds
+CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -Wno-packed-bitfield-compat -ffreestanding
+CXXFLAGS := $(CFLAGS) -std=gnu++26
+CCFLAGS := $(CFLAGS) -std=gnu23
 LDFLAGS := -L$(LIB_DIR) -T $(LDSCRIPT) -pie -nostdlib -lgcc -lstdc++ $(CFLAGS)
-PRE_OBJ_NAMES = modcrti.o modcrtbegin.o modcrt0.o
-POST_OBJ_NAMES = modcrtend.o modcrtn.o
+PRE_OBJ_NAMES := modcrti.o modcrtbegin.o modcrt0.o
+POST_OBJ_NAMES := modcrtend.o modcrtn.o
 PRE_OBJS := $(addprefix $(LIB_DIR)/,$(PRE_OBJ_NAMES))
 POST_OBJS := $(addprefix $(LIB_DIR)/,$(POST_OBJ_NAMES))
 export OUTDIR
@@ -36,7 +36,7 @@ export PRE_OBJ_NAMES
 export POST_OBJ_NAMES
 export PRE_OBJS
 export POST_OBJS
-SUBDIRS = amd64_serial
+SUBDIRS = amd64_serial amd64_ahci
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
 $(SUBDIRS):
@@ -51,3 +51,4 @@ clean:
 	done
 asmtest:
 	cd amd64_serial && $(MAKE) asmtest
+	cd amd64_ahci	&& $(MAKE) asmtest

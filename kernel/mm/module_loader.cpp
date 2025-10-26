@@ -1,5 +1,5 @@
 #include "module_loader.hpp"
-using namespace ooos_kernel_module;
+using namespace ooos;
 typedef std::pair<std::unordered_map<std::string, elf64_kernel_object>::iterator, bool> result_pair;
 constexpr static const char* name_for(abstract_module_base* mod) { return typeid(*mod).name(); }
 template<typename ... Args> requires std::constructible_from<elf64_kernel_object, Args...> static result_pair add_obj(std::unordered_map<std::string, elf64_kernel_object>& map, Args&& ... args);

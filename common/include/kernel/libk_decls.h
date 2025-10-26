@@ -1,6 +1,10 @@
-#ifndef __LIBK
-#define __LIBK
+#ifndef __LIBK_DECL
+#define __LIBK_DECL
+#if defined(__KERNEL__) || defined(__LIBK__)
 #include "kernel_defs.h"
+#else
+#include <kernel_defs.h>
+#endif
 #ifdef __cplusplus
 #if defined(__KERNEL__) || defined(__LIBK__)
 #include "new"
@@ -62,7 +66,7 @@ constexpr void lock(mutex_t m) { while(acquire(m)) { pause(); } }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, std::addressof(b), __ATOMIC_SEQ_CST); return b; }
 qword get_flags();
 extern int setjmp(jmp_buf jb);
-extern void longjmp(jmp_buf jb, int status);
+extern void longjmp(jmp_buf jb, int status) attribute(noreturn);
 #if defined(__KERNEL__) || defined(__LIBK__)
 void panic(const char* msg) noexcept;
 void klog(const char* msg) noexcept;
