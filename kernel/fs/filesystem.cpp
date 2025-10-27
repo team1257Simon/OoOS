@@ -4,12 +4,11 @@
 #include "stdexcept"
 #include "errno.h"
 #include "kdebug.hpp"
-#include "fs/hda_ahci.hpp"
 fd_map::fd_map() : __base(256) {}
 file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
 filesystem::filesystem() : pipes{ 256UZ }, device_nodes{}, current_open_files{}, next_fd{ 3 }, blockdev{ nullptr } {}
 filesystem::~filesystem() = default;
-void filesystem::attach_block_device(block_device* dev) { blockdev = dev; }
+void filesystem::tie_block_device(block_device* dev) { blockdev = dev; }
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 fs_node* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
 void filesystem::register_fd(fs_node* node) { next_fd = current_open_files.add_fd(node) + 1; }

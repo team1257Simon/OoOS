@@ -31,15 +31,15 @@ int protocol_dhcp::receive(abstract_packet_base& p)
     dhcp_packet* pkt = p.get_as<dhcp_packet>();
     if(__unlikely(!pkt)) return -EPROTOTYPE;
     addr_t pos = pkt->parameters;
-    while(pos.ref<net8>() != 0xFFUC)
+    while(pos.deref<net8>() != 0xFFUC)
     {
-        if(!pos.ref<net8>()) pos += 1Z;
+        if(!pos.deref<net8>()) pos += 1Z;
         else
         {
             dhcp_parameter* param = pos;
             if(param->type_code == MESSAGE_TYPE)
             {
-                dhcp_message_type type = param->start().ref<dhcp_message_type>();
+                dhcp_message_type type = param->start().deref<dhcp_message_type>();
                 switch(type)
                 {
                 case OFFER:
@@ -106,7 +106,7 @@ int protocol_dhcp::process_offer_packet(dhcp_packet const& p)
         ipconfig.dhcp_server_addr   = p.server_ip;
         addr_t pos                  = p.parameters;
         transition_state(ipv4_client_state::SELECTING);
-        try { while(pos.ref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.ref<dhcp_parameter>()); }
+        try { while(pos.deref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.deref<dhcp_parameter>()); }
         catch(std::invalid_argument& e) { panic(e.what()); return -EPROTO; }
         catch(std::bad_alloc&)          { return -ENOMEM; }
         if(__unlikely(base->ip_resolver->check_presence(req_addr)))
@@ -125,7 +125,7 @@ int protocol_dhcp::process_ack_packet(dhcp_packet const& p)
     sys_time(std::addressof(ipconfig.lease_acquired_time));
     ipconfig.leased_addr = p.your_ip;
     addr_t pos           = p.parameters;
-    try { while(pos.ref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.ref<dhcp_parameter>()); }
+    try { while(pos.deref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.deref<dhcp_parameter>()); }
     catch(std::invalid_argument& e) { panic(e.what()); return -EPROTO; }
     catch(std::bad_alloc&)          { return -ENOMEM; }
     if(__unlikely(!ipconfig.lease_duration)) return -EPROTO;
@@ -149,38 +149,38 @@ net8 protocol_dhcp::process_packet_parameter(dhcp_parameter const& param)
     case END_OF_TRANSMISSION:
         return 0UC;
     case SUBNET_MASK:
-        ipconfig.subnet_mask            = param.start().ref<net32>();
+        ipconfig.subnet_mask            = param.start().deref<net32>();
         break;
     case SERVER_IDENTIFIER:
         if(!ipconfig.dhcp_server_addr) 
-            ipconfig.dhcp_server_addr   = param.start().ref<net32>();
+            ipconfig.dhcp_server_addr   = param.start().deref<net32>();
         break;
     case ROUTER:
         if(param.length() % 4UC) throw std::invalid_argument("[DHCP] malformed packet");
-        ipconfig.primary_gateway        = param.start().ref<net32>();
+        ipconfig.primary_gateway        = param.start().deref<net32>();
         if(param.length() > 4UC)
             ipconfig.alternate_gateway  = param.start().as<net32>()[1];
         break;
     case DOMAIN_NAME_SERVER:
         if(param.length() % 4UC) throw std::invalid_argument("[DHCP] malformed packet");
-        ipconfig.primary_dns_server         = param.start().ref<net32>();
+        ipconfig.primary_dns_server         = param.start().deref<net32>();
         if(param.length() > 4UC)
             ipconfig.alternate_dns_server   = param.start().as<net32>()[1];
         break;
     case DEFAULT_TTL:
-        ipconfig.time_to_live_default   = param.start().ref<net8>();
+        ipconfig.time_to_live_default   = param.start().deref<net8>();
         break;
     case RENEWAL_TIME_VALUE:
         if(ipconfig.current_state != ipv4_client_state::BOUND) 
-            ipconfig.lease_renew_time   = param.start().ref<net32>();
+            ipconfig.lease_renew_time   = param.start().deref<net32>();
         break;
     case REBINDING_TIME_VALUE:
         if(ipconfig.current_state != ipv4_client_state::BOUND) 
-            ipconfig.lease_rebind_time  = param.start().ref<net32>();
+            ipconfig.lease_rebind_time  = param.start().deref<net32>();
         break;
     case IP_LEASE_TIME:
         if(ipconfig.current_state != ipv4_client_state::BOUND) 
-            ipconfig.lease_duration     = param.start().ref<net32>();
+            ipconfig.lease_duration     = param.start().deref<net32>();
         break;
     default:
         break;

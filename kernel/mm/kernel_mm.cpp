@@ -272,7 +272,7 @@ static void __unmap_pages(addr_t start, size_t pages, addr_t pml4)
             {
                 pt_entry& entry = pt[curr.page_idx];
                 if(entry.global) continue;
-                addr_t(addressof(entry)).ref<uint64_t>() = 0UL;
+                addr_t(addressof(entry)).deref<uint64_t>() = 0UL;
                 asm volatile("invlpg (%0)" ::"r"(curr.full) : "memory");
             }
         }

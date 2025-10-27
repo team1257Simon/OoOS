@@ -6,7 +6,7 @@ prog_manager::prog_manager() : __static_base(), __dynamic_base() {}
 prog_manager& prog_manager::get_instance() { return __instance; }
 constexpr static elf64_phdr const& phdr(elf64_ehdr const& ehdr, size_t i) {
     size_t ph_off = ehdr.e_phoff + i * ehdr.e_phentsize;
-    return addr_t(std::addressof(ehdr)).plus(ph_off).ref<elf64_phdr>();
+    return addr_t(std::addressof(ehdr)).plus(ph_off).deref<elf64_phdr>();
 }
 static size_t find_dyn(elf64_ehdr const& ehdr)
 { 
@@ -24,7 +24,7 @@ static bool is_pic_exec(elf64_dyn* dyn_entries, size_t n)
 }
 static uintptr_t get_load_base(addr_t img_start, size_t dyn_idx)
 {
-    elf64_ehdr const& hdr       = img_start.ref<elf64_ehdr const>();
+    elf64_ehdr const& hdr       = img_start.deref<elf64_ehdr const>();
     elf64_phdr const& dyn_phdr  = phdr(hdr, dyn_idx);
     if(is_pic_exec(img_start.plus(dyn_phdr.p_offset), dyn_phdr.p_filesz / sizeof(elf64_dyn)))
     {
@@ -37,7 +37,7 @@ static uintptr_t get_load_base(addr_t img_start, size_t dyn_idx)
 elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t stack_sz, size_t tls_sz)
 {
     if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) { panic("[PRG] missing identifier; invalid object"); return nullptr; }
-    if(size_t dyn = find_dyn(img_start.ref<elf64_ehdr>()))
+    if(size_t dyn = find_dyn(img_start.deref<elf64_ehdr>()))
     {
         __dynamic_base::iterator result = __dynamic_base::emplace_back(img_start, img_size, stack_sz, tls_sz, get_load_base(img_start, dyn));
         if(__unlikely(!result->load())) { __dynamic_base::erase(result); return nullptr; }

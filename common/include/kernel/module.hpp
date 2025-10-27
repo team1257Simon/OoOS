@@ -41,6 +41,7 @@ namespace ABI_NAMESPACE
 class elf64_kernel_object;
 namespace ooos
 {
+    struct block_io_provider_module;
     class abstract_module_base
     {
         kernel_api* __api_hooks;
@@ -68,23 +69,18 @@ namespace ooos
         inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
         inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
         inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
-        inline abstract_block_device::provider* as_blockdev() { __api_hooks->register_type_info(&typeid(abstract_block_device::provider)); __api_hooks->register_type_info(&typeid(abstract_block_device)); return dynamic_cast<abstract_block_device::provider*>(this); }
-        template<io_buffer_ok T> inline dev_stream<T>* as_device() { __api_hooks->register_type_info(&typeid(dev_stream<T>)); return dynamic_cast<dev_stream<T>*>(this); }
+        template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
         template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
         inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); __save_init_jb(); } }
         friend void module_takedown(abstract_module_base* mod);
         constexpr module_eh_ctx& get_eh_ctx() { return __eh_ctx; }
         inline void ctx_end() { __builtin_memcpy(__eh_ctx.handler_ctx, __saved_jb, sizeof(jmp_buf)); }
         inline size_t asprintf(const char** strp, const char* fmt, ...);
+        inline size_t logf(const char* fmt, ...);
+        inline block_io_provider_module* as_blockdev();
     };
-    template<no_args_invoke FT, eh_functor HT>
-    void ctx_try(abstract_module_base& mod, FT&& action, HT&& handler)
-    {
-        module_eh_ctx& context = mod.get_eh_ctx();
-        if(__unlikely(setjmp(context.handler_ctx))) handler(context.msg, context.status);
-        else action();
-        mod.ctx_end();
-    }
+    struct block_io_provider_module : abstract_module_base, abstract_block_device::provider{};
+    inline block_io_provider_module* abstract_module_base::as_blockdev() { return dynamic_cast<block_io_provider_module*>(this); }
     inline size_t abstract_module_base::asprintf(const char** strp, const char* fmt, ...)
     {
         va_list args;
@@ -111,6 +107,14 @@ namespace ooos
             }
         }
         return nullptr;
+    }
+    inline size_t abstract_module_base::logf(const char* fmt, ...)
+    {
+        va_list args;
+        va_start(args, 0);
+        size_t result = __api_hooks->vlogf(typeid(*this), fmt, args);
+        va_end(args);
+        return result;
     }
     template<io_buffer_ok T>
     struct io_module_base : public abstract_module_base, public dev_stream<T>
@@ -235,6 +239,12 @@ namespace ooos
             in.seek(where);
         return out.size() * (ioflags & 0x04 ? 1 : 0) + in.size() * (ioflags & 0x08 ? 1 : 0);
     }
+    struct eh_exit_guard
+    {
+        abstract_module_base* mod;
+        constexpr void release() noexcept { mod = nullptr; }
+        constexpr ~eh_exit_guard() noexcept { mod->ctx_end(); }
+    };
 }
 /**
  * EXPORT_MODULE(T, Args...)

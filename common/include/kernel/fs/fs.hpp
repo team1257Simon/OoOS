@@ -78,7 +78,7 @@ struct file_mode
         );
     }
     constexpr operator mode_t() const noexcept { return static_cast<mode_t>(static_cast<uint16_t>(*this)); }
-    constexpr operator mode_t&() & noexcept { return addr_t(this).ref<mode_t>(); }
+    constexpr operator mode_t&() & noexcept { return addr_t(this).deref<mode_t>(); }
     constexpr bool is_symlink() const noexcept { return t_regular && t_chardev && !t_fifo && !t_directory; }
     constexpr bool is_socket() const noexcept { return t_regular && t_directory && !t_fifo && !t_chardev; }
     constexpr bool is_blockdev() const noexcept { return t_chardev && t_directory && !t_regular && !t_fifo; }
@@ -103,6 +103,7 @@ struct fs_node
     virtual bool is_directory() const noexcept;         // equivalent to (dynamic_cast<directory_node*>(this) != nullptr)
     virtual bool is_device() const noexcept;            // equivalent to (dynamic_cast<device_node*>(this) != nullptr)
     virtual bool is_pipe() const noexcept;              // equivalent to (dynamic_cast<pipe_node*>(this) != nullptr)
+    virtual bool is_mount() const noexcept;             // equivalent to (dynamic_cast<mount_node*>(this) != nullptr)
     virtual uint64_t size() const noexcept = 0;         // size in bytes (for files) or concrete entries (for directories)
     virtual bool fsync() = 0;                           // sync to disc, if applicable
     virtual bool truncate() = 0;                        // clear all data and reset the size to 0
@@ -114,6 +115,7 @@ struct fs_node
     uint64_t create_time;
     uint64_t modif_time;
     std::string concrete_name;
+    fs_node(int vfd, uint64_t cid);
     fs_node(std::string const& name, int vfd, uint64_t cid);
     fs_node(fs_node const&) = delete;
     fs_node& operator=(fs_node const&) = delete;
@@ -157,7 +159,8 @@ public:
     virtual bool grow(size_t) = 0;
     virtual bool is_file() const noexcept final override;
     virtual void force_write();
-    file_node(std::string const& name, int vfd, uint64_t cid);    
+    file_node(std::string const& name, int vfd, uint64_t cid);
+    file_node(int vfd, uint64_t cid); 
 };
 class directory_node;
 class device_node;
@@ -221,6 +224,7 @@ struct directory_node : public fs_node
     virtual bool is_empty() const noexcept;
     virtual bool relink(std::string const& oldn, std::string const& newn);
     directory_node(std::string const& name, int vfd, uint64_t cid);
+    directory_node(int vfd, uint64_t cid);
 };
 class device_node : public file_node
 {
@@ -246,6 +250,7 @@ public:
     virtual char* data() override;
     virtual bool grow(size_t) override;
     device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
+    device_node(int fd, device_stream* dev_buffer, dev_t id);
     constexpr dev_t get_device_id() const noexcept { return __dev_id; }
 };
 class pipe_node : public virtual file_node
@@ -289,7 +294,6 @@ protected:
     fd_map current_open_files{};
     int next_fd;
     block_device* blockdev;
-    virtual directory_node* get_root_directory() = 0;
     virtual void dlfilenode(file_node*) = 0;
     virtual void dldirnode(directory_node*) = 0;
     virtual file_node* mkfilenode(directory_node*, std::string const&) = 0;
@@ -309,6 +313,7 @@ protected:
     void register_fd(fs_node* node);
     target_pair get_parent(std::string const& path, bool create);
 public:
+    virtual directory_node* get_root_directory() = 0;
     virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true);
     virtual file_node* on_open(tnode*);
     virtual file_node* on_open(tnode*, std::ios_base::openmode);
@@ -320,7 +325,7 @@ public:
     bool write_blockdev(uint64_t lba_dest, const void* src, size_t sectors);
     bool read_blockdev(void* dest, uint64_t lba_src, size_t sectors);
     bool link_stdio(dev_t device_id);
-    void attach_block_device(block_device* dev);
+    void tie_block_device(block_device* dev);
     fs_node* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
     void create_node(directory_node* parent, std::string const& path, mode_t mode, dev_t dev = 0U);
     void create_pipe(int fds[2]);
@@ -337,6 +342,12 @@ public:
     tnode* link(std::string const& ogpath, std::string const& tgpath, bool create_parents = true);
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     void pubsyncdirs();
+};
+struct mount_node : fs_node
+{
+    filesystem* mounted;
+    mount_node(filesystem* fs, int vfd, uint64_t cid);
+    virtual bool is_mount() const noexcept final override;
 };
 filesystem* create_task_vfs();
 filesystem* get_fs_instance();

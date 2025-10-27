@@ -52,7 +52,7 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object const& that) :
                             {}
 static const char* find_so_name(addr_t image_start, file_node* so_file)
 {
-    elf64_ehdr const& eh = image_start.ref<elf64_ehdr>();
+    elf64_ehdr const& eh = image_start.deref<elf64_ehdr>();
     for(size_t i = 0; i < eh.e_phnum; i++)
     {
         elf64_phdr const* phptr = image_start.plus(eh.e_phoff + i * eh.e_phentsize);

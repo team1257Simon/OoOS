@@ -18,13 +18,13 @@ struct vtable_header
 };
 static __si_class_type_info* meta_dyncast_si(std::type_info* ti, __class_type_info const* local_si)
 {
-    vtable_header* vt           = addr_t(ti).ref<addr_t>().minus(sizeof(vtable_header));
+    vtable_header* vt           = addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
     __class_type_info* ti_meta  = vt->type;
     return static_cast<__si_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_si));
 }
 static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_info const* local_vmi)
 {
-    vtable_header* vt           = addr_t(ti).ref<addr_t>().minus(sizeof(vtable_header));
+    vtable_header* vt           = addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
     __class_type_info* ti_meta  = vt->type;
     return static_cast<__vmi_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_vmi));
 }
@@ -75,11 +75,20 @@ namespace ooos
         {
             char* result    = nullptr;
             size_t count    = kvasprintf(__addressof(result), fmt, args);
-            if(!count) return 0Uz;
+            if(!count) return 0UZ;
             char* str       = static_cast<char*>(mm->mem_allocate(count, alignof(char)));
             array_copy(str, result, count);
             free(result);
             out             = str;
+            return count;
+        }
+        virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args)
+        {
+            char* result    = nullptr;
+            size_t count    = kvasprintf(__addressof(result), fmt, args);
+            if(!count) return 0UZ;
+            xklog("[" + std::ext::demangle(from) + "]: " + result);
+            free(result);
             return count;
         }
         [[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) override
@@ -179,6 +188,9 @@ namespace ooos
         register_type(typeid(abstract_module_base));
         register_type(typeid(device_stream));
         register_type(typeid(io_module_base<char>));
+        register_type(typeid(abstract_block_device));
+        register_type(typeid(abstract_block_device::provider));
+        register_type(typeid(block_io_provider_module));
     }
     kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
 }

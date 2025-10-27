@@ -290,7 +290,7 @@ extern "C"
         if(__unlikely(!fsptr)) return -ENOSYS;
         if(__unlikely(!dirp)) return -EFAULT;
         task_ctx* task = active_task_context();
-        task->opened_directories.erase(dirp.ref<DIR>().fd);
+        task->opened_directories.erase(dirp.deref<DIR>().fd);
         return 0;
     }
     int syscall_lstat(const char* restrict name, stat* restrict st)

@@ -1,5 +1,4 @@
 #include "fs/fat32.hpp"
-#include "fs/hda_ahci.hpp"
 #include "rtc.h"
 #include "stdexcept"
 bool fat32::__has_init = false;
@@ -132,6 +131,6 @@ bool fat32::init_instance(block_device* dev)
     }
     if(__unlikely(!dev->read(std::addressof(bootsect), ss, div_round_up(sizeof(fat32_bootsect), dev->sector_size())))) return false;
     __instance = new(driver_space) fat32(bootsect.root_cluster_num, bootsect.sectors_per_cluster, bootsect.bytes_per_sector, ss + bootsect.num_reserved_sectors, bootsect.num_fats * bootsect.fat_size, bootsect.volume_serial);
-    __instance->attach_block_device(dev);
+    __instance->tie_block_device(dev);
     return (__has_init = __instance->init());
 }

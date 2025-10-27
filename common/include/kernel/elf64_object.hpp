@@ -16,9 +16,9 @@ protected:
     elf64_sym_table symtab;
     elf64_string_table symstrtab;
     elf64_string_table shstrtab;
-    constexpr elf64_ehdr const& ehdr() const noexcept { return __image_start.ref<elf64_ehdr>(); }
-    constexpr elf64_phdr const& phdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize).ref<elf64_phdr>(); }
-    constexpr elf64_shdr const& shdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize).ref<elf64_shdr>(); }
+    constexpr elf64_ehdr const& ehdr() const noexcept { return __image_start.deref<elf64_ehdr>(); }
+    constexpr elf64_phdr const& phdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize).deref<elf64_phdr>(); }
+    constexpr elf64_shdr const& shdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize).deref<elf64_shdr>(); }
     constexpr addr_t img_ptr(size_t offs = 0UZ) const noexcept { return __image_start.plus(offs); }
     constexpr addr_t segment_ptr(size_t n) const noexcept { return __image_start.plus(phdr(n).p_offset); }
     constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }

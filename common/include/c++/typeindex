@@ -155,8 +155,8 @@ namespace std
             T const& operator*() const& { return *this->__ptr; }
             template<derived_from<T> U> U& cast() & { return dynamic_cast<U&>(*this->__ptr); }
             template<derived_from<T> U> U const& cast() const& { return dynamic_cast<U const&>(*this->__ptr); }
-            template<derived_from<T> U> U* weak_cast() & { return dynamic_cast<U*>(this->__ptr); }
-            template<derived_from<T> U> U const* weak_cast() const& { return dynamic_cast<U*>(this->__ptr); }
+            template<typename U> U* weak_cast() & { return dynamic_cast<U*>(this->__ptr); }
+            template<typename U> U const* weak_cast() const& { return dynamic_cast<U*>(this->__ptr); }
             template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> dynamic_ptr(in_place_type_t<U>, Args&& ... args) : __base(in_place_type<U>, forward<Args>(args)...) {}
             template<derived_from<T> U> dynamic_ptr(U* ptr) : __base(ptr) {}
             template<derived_from<T> U, allocator_object<U> B> dynamic_ptr(dynamic_ptr<U, B>&& that) : __base(forward<__alt_base<U, B>>(that)) {}

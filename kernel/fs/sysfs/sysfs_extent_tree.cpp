@@ -5,8 +5,8 @@ size_t sysfs_extent_tree::total_extent() const { return __total_extent; }
 sysfs_inode& sysfs_extent_tree::__inode() { return __managed_vnode.inode(); }
 sysfs_inode const& sysfs_extent_tree::__inode() const { return __managed_vnode.inode(); }
 sysfs_extent_branch& sysfs_extent_tree::__root() { sysfs_inode& n = __inode(); return __managed_vnode.parent_fs.get_extent_branch(n.extent_root.start); }
-sysfs_extent_entry& sysfs_extent_tree::__root_first() { return addr_t(std::addressof(__inode())).plus(offsetof(sysfs_inode, extent_root)).ref<sysfs_extent_entry>(); }
-sysfs_extent_entry const& sysfs_extent_tree::__root_first() const { return addr_t(std::addressof(__inode())).plus(offsetof(sysfs_inode, extent_root)).ref<sysfs_extent_entry const>(); }
+sysfs_extent_entry& sysfs_extent_tree::__root_first() { return addr_t(std::addressof(__inode())).plus(offsetof(sysfs_inode, extent_root)).deref<sysfs_extent_entry>(); }
+sysfs_extent_entry const& sysfs_extent_tree::__root_first() const { return addr_t(std::addressof(__inode())).plus(offsetof(sysfs_inode, extent_root)).deref<sysfs_extent_entry const>(); }
 sysfs_extent_branch const& sysfs_extent_tree::__root() const { sysfs_inode const& n = __inode(); return __managed_vnode.parent_fs.get_extent_branch(n.extent_root.start); }
 static size_t total_extents(sysfs& s, sysfs_extent_branch const& b)
 {

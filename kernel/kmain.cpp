@@ -3,10 +3,11 @@
 #include "arch/hpet_amd64.hpp"
 #include "arch/idt_amd64.h"
 #include "arch/kb_amd64.hpp"
+#include "arch/pci_device_list.hpp"
 #include "arch/net/e1000e.hpp"
 #include "bits/icxxabi.h"
 #include "fs/ext.hpp"
-#include "fs/hda_ahci.hpp"
+#include "fs/delegate_hda.hpp"
 #include "fs/ramfs.hpp"
 #include "fs/sysfs.hpp"
 #include "net/protocol/arp.hpp"
@@ -46,6 +47,7 @@ static char dbg_serial_io[2]{};
 static const char test_argv[]{ "Hello task world " };
 static char test_e1000e_drv[sizeof(e1000e)]{};
 std::atomic<bool> dbg_hold{ false };
+ooos::delegate_hda test_delegate;
 extern uintptr_t saved_stack_ptr;
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 extern "C"
@@ -114,6 +116,24 @@ device_stream* load_com_module()
     }
     return nullptr;
 }
+ooos::block_io_provider_module* load_ahci_module()
+{
+    if(sysinfo->loaded_modules && sysinfo->loaded_modules->count)
+    {
+        for(size_t i = 0; i < sysinfo->loaded_modules->count; i++)
+        {
+            if(!__builtin_strcmp("X64_AHCI.KO", sysinfo->loaded_modules->descriptors[i].filename))
+            {
+                module_loader::iterator result = init_boot_module(sysinfo->loaded_modules->descriptors[i]);
+                if(result != module_loader::get_instance().end())
+                    return result->second.get_module()->as_blockdev();
+                return nullptr;
+            }
+        }
+    }
+    return nullptr;
+}
+
 void net_tests()
 {
     if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))
@@ -250,7 +270,7 @@ void task_tests()
 }
 void extfs_tests()
 {
-    if(hda_ahci::is_initialized()) try
+    try
     {
         test_extfs.initialize();
         test_extfs.open_directory("files");
@@ -454,7 +474,7 @@ void run_tests()
     // Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
     if(__unlikely(!(com = load_com_module()))) startup_tty.print_line("failed to load serial driver");
     startup_tty.print_line("ahci test...");
-    if(hda_ahci::is_initialized()) descr_pt(hda_ahci::get_instance()->get_partition_table());
+    descr_pt(test_delegate.get_partition_table());
     startup_tty.print_line("hpet test...");
     hpet_tests();
     startup_tty.print_line("net test...");
@@ -562,27 +582,28 @@ extern "C"
         fx_enable = true;
         scheduler::init_instance();
         hpet_amd64::init_instance();
-        if(pci_device_list::init_instance())
-        {
-            ooos::init_api();
-            if(ahci::init_instance(pci_device_list::get_instance()))
-            {
-                if(hda_ahci::init_instance())
-                    test_extfs.attach_block_device(hda_ahci::get_instance());
-                else startup_tty.print_line("HDA adapter init failed");
-            }
-            else startup_tty.print_line("AHCI init failed");
-        }
-        else startup_tty.print_line("PCI enum failed");
         try
         {
-            // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
-            run_tests();
+            if(pci_device_list::init_instance())
+            {
+                ooos::init_api();
+                ooos::block_io_provider_module* hda = load_ahci_module();
+                if(__unlikely(!hda)) panic("HDA load failed");
+                else
+                {
+                    test_delegate.initialize(*hda);
+                    startup_tty.print_line("Initialized delegate HDA");
+                    test_extfs.tie_block_device(&test_delegate);
+                    run_tests();
+                }
+            }
+            else startup_tty.print_line("PCI enum failed");
             // The test tasks might trip after this point, so add a backstop to avoid any shenanigans
             while(1);  
         } 
         catch(std::exception& e)
         {
+            // Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
             panic(e.what());
             panic("unexpected error in tests");
             abort();

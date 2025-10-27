@@ -10,7 +10,7 @@
 #include "isr_table.hpp"
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
-constexpr static uint64_t get_frame_magic(addr_t tag) { return tag.ref<uint64_t>(); }
+constexpr static uint64_t get_frame_magic(addr_t tag) { return tag.deref<uint64_t>(); }
 static inline addr_t pml4_of(addr_t frame_ptr) { if(get_frame_magic(frame_ptr) == uframe_magic) return frame_ptr.as<uframe_tag>()->pml4; else return get_cr3(); }
 void sys_task_exit() { int retv; asm volatile("movl %%eax, %0" : "=r"(retv) :: "memory"); get_gs_base<task_ctx>()->set_exit(retv); }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
@@ -31,7 +31,7 @@ task_ctx::~task_ctx()
         local_so_map->shared_frame = nullptr;
         sm_alloc.deallocate(local_so_map, 1);
     }
-    if(is_user()) try { fm.destroy_frame(task_struct.frame_ptr.ref<uframe_tag>()); } catch(std::exception& e) { panic(e.what()); }
+    if(is_user()) try { fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>()); } catch(std::exception& e) { panic(e.what()); }
 }
 void task_ctx::init_task_state()
 {
@@ -366,13 +366,13 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 void task_ctx::stack_push(register_t val)
 {
     task_struct.saved_regs.rsp  -= sizeof(register_t);
-    addr_t stack                = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
+    addr_t stack                = is_user() ? task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
     stack.assign(val);
 }
 register_t task_ctx::stack_pop()
 {
-    addr_t stack                = is_user() ? task_struct.frame_ptr.ref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
-    register_t result           = stack.ref<register_t>();
+    addr_t stack                = is_user() ? task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
+    register_t result           = stack.deref<register_t>();
     task_struct.saved_regs.rsp  += sizeof(register_t);
     return result;
 }
@@ -442,7 +442,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
         if(parent_pid < 0)
         {
             local_so_map->shared_frame = nullptr;
-            fm.destroy_frame(task_struct.frame_ptr.ref<uframe_tag>());
+            fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>());
             sm_alloc.deallocate(local_so_map, 1);
         }
         local_so_map = sm_alloc.allocate(1UZ);

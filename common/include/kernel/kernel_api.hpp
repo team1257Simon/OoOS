@@ -245,6 +245,7 @@ namespace ooos
         virtual void init_memory_fns(kframe_exports* ptrs) = 0;
         [[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) = 0;
         virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) = 0;
+        virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) = 0;
     protected:
         virtual void register_type_info(std::type_info const* ti) = 0;
         virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) = 0;
@@ -447,13 +448,17 @@ namespace ooos
         virtual bool io_complete(utticket task_ticket) const = 0;
         virtual size_t io_count(utticket task_ticket) const = 0;
         virtual blockdev_type device_type() const noexcept = 0;
+        virtual size_t max_operation_blocks() const noexcept = 0;
+        inline bool io_ready() const { return !io_busy(); }
         struct provider
         {
             typedef unsigned int uidx_t;
             typedef signed int sidx_t;
             virtual uidx_t count() const noexcept = 0;
             virtual sidx_t index_of(blockdev_type dev_type) const noexcept = 0;
+            virtual blockdev_type type_at_index(uidx_t idx) const noexcept = 0;
             virtual abstract_block_device& operator[](uidx_t idx) = 0;
+            virtual abstract_block_device const& operator[](uidx_t idx) const = 0;
         };
     };
     struct empty_blockdev_slot : abstract_block_device
@@ -465,6 +470,7 @@ namespace ooos
         inline virtual bool io_complete(utticket task_ticket) const override { return false; }
         inline virtual size_t io_count(utticket task_ticket) const override { return 0UZ; }
         inline virtual blockdev_type device_type() const noexcept override { return BDT_NONE; }
+        inline virtual size_t max_operation_blocks() const noexcept override { return 0UZ; }
     };
     struct cxxabi_abort
     {

@@ -386,8 +386,8 @@ struct elf64_sym_table
         addr_t pos;
         size_t entsz;
         constexpr elf64_sym const* operator->() const noexcept { return pos; }
-        constexpr elf64_sym const& operator*() const noexcept { return pos.ref<elf64_sym const>(); }
-        constexpr elf64_sym const& operator[](ptrdiff_t n) const noexcept { return pos.plus(n * entsz).ref<elf64_sym const>(); }
+        constexpr elf64_sym const& operator*() const noexcept { return pos.deref<elf64_sym const>(); }
+        constexpr elf64_sym const& operator[](ptrdiff_t n) const noexcept { return pos.plus(n * entsz).deref<elf64_sym const>(); }
         constexpr __symtab_iterator& operator++() noexcept { pos += static_cast<ptrdiff_t>(entsz); return *this; }
         constexpr __symtab_iterator operator++(int) noexcept { __symtab_iterator that(*this); ++(*this); return that; }
         constexpr __symtab_iterator& operator--() noexcept { pos -= static_cast<ptrdiff_t>(entsz); return *this; }

@@ -1,6 +1,7 @@
 #include "fs/fs.hpp"
 #include "rtc.h"
-fs_node::fs_node(std::string const& name, int vfd, uint64_t cid) : fd{ vfd }, real_id{ cid }, create_time{ sys_time(nullptr) }, modif_time{ create_time }, concrete_name{ name } {}
+fs_node::fs_node(std::string const& name, int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name(name) {}
+fs_node::fs_node(int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name() {}
 int fs_node::vid() const noexcept { return fd; }
 void fs_node::vid(int id) noexcept { fd = id; }
 uint64_t fs_node::cid() const noexcept { return real_id; }
@@ -12,16 +13,19 @@ bool fs_node::is_file() const noexcept { return false; }
 bool fs_node::is_directory() const noexcept { return false; }
 bool fs_node::is_device() const noexcept { return false; }
 bool fs_node::is_pipe() const noexcept { return false; }
+bool fs_node::is_mount() const noexcept { return false; }
 void fs_node::add_reference(tnode* ref) { refs.insert(ref); }
 void fs_node::rm_reference(tnode* ref) { if(refs.erase(ref)) { ref->invlnode(); } }
 void fs_node::prune_refs() { for(tnode* ref : refs) ref->invlnode(); refs.clear(); }
 bool fs_node::has_refs() const noexcept { return refs.size() != 0; }
 size_t fs_node::num_refs() const noexcept { return refs.size(); }
 fs_node::~fs_node() { prune_refs(); }
-file_node::file_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
+file_node::file_node(std::string const& name, int vfd, uint64_t cid) : fs_node(name, vfd, cid) {}
+file_node::file_node(int vfd, uint64_t cid) : fs_node(vfd, cid) {}
 bool file_node::is_file() const noexcept { return true; }
 void file_node::force_write() { /* if applicable, treat all data in the file as dirty; does nothing in the default implementation */ }
-directory_node::directory_node(std::string const& name, int vfd, uint64_t cid) : fs_node{ name, vfd, cid } {}
+directory_node::directory_node(std::string const& name, int vfd, uint64_t cid) : fs_node(name, vfd, cid) {}
+directory_node::directory_node(int vfd, uint64_t cid) : fs_node(vfd, cid) {}
 tnode* directory_node::find(std::string const& name) { tnode_dir::iterator i = directory_tnodes.find(name); if(i != directory_tnodes.end()) { return i.base(); } return nullptr; }
 tnode* directory_node::find_l(std::string const& what) { return find(what); }
 tnode* directory_node::find_r(std::string const& what, std::set<fs_node*>&) { return find(what); /* default implementation for FS without symlinks */ }
@@ -32,8 +36,9 @@ uint64_t directory_node::num_files() const noexcept { return file_count; }
 uint64_t directory_node::size() const noexcept { return directory_tnodes.size(); }
 bool directory_node::is_directory() const noexcept { return true; }
 bool directory_node::is_empty() const noexcept { return size() == 0; }
-bool directory_node::relink(std::string const& oldn, std::string const& newn) { if(tnode* ptr = find(oldn)) { return unlink(oldn) && link(ptr, newn); } else return false; } 
-device_node::device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id) : file_node{ name, fd, reinterpret_cast<uint64_t>(dev_buffer) }, __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
+bool directory_node::relink(std::string const& oldn, std::string const& newn) { if(tnode* ptr = find(oldn)) { return unlink(oldn) && link(ptr, newn); } else return false; }
+device_node::device_node(int fd, device_stream* dev_buffer, dev_t id) : file_node(fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
+device_node::device_node(std::string const& name, int fd, device_stream* dev_buffer, dev_t id) : file_node(name, fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
 bool device_node::fsync() { return __dev_buffer->sync() == 0; }
 bool device_node::is_device() const noexcept { return true; }
 uint64_t device_node::size() const noexcept { return __dev_buffer->avail(); }
@@ -91,3 +96,5 @@ pipe_node::size_type pipe_node::read(pointer dest, size_type n) { if(__pipe->wri
 pipe_node::pos_type pipe_node::seek(off_type off, std::ios_base::seekdir way) { return __pipe->pubseekoff(off, way, current_mode); }
 pipe_node::pos_type pipe_node::seek(pos_type pos) { return __pipe->pubseekpos(pos, current_mode); }
 bool pipe_node::is_pipe() const noexcept { return true; }
+mount_node::mount_node(filesystem* fs, int vfd, uint64_t cid) : fs_node(vfd, cid), mounted(fs) {}
+bool mount_node::is_mount() const noexcept { return true; }

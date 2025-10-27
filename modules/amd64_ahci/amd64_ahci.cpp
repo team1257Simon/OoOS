@@ -1,42 +1,44 @@
 #include "amd64_ahci.hpp"
-typename amd64_ahci::__config_type amd64_ahci::__cfg = ahci_config();
-static const char* last_msg_str     = nullptr;
-constexpr size_t cl_offs_base       = 32UZ * sizeof(hba_cmd_header);
-constexpr size_t fis_offs_base      = 32UZ * cl_offs_base;
-constexpr size_t table_offs_base    = fis_offs_base + 32UZ * sizeof(hba_fis);
-constexpr size_t prdt_size          = prdt_entries_count * sizeof(hba_prdt_entry);
-template<ooos::condition_callable FT>
-bool await_completion(time_t max_spin, FT&& ft)
-{
-    for(time_t spin = 0UZ; spin < max_spin; spin++)
-        if(ft())
-            return true;
-    return ft();
-}
-static inline ahci_device check_type(hba_port const& p)
-{
-    barrier();
-    if((dword(p.s_status).lo.lo & 0x0FUC) != port_present || (dword(p.s_status).lo.hi & 0x0FUC) != port_active) return none;
-    barrier();
-    switch(p.sig)
-    {
-    case sig_atapi: return atapi;
-    case sig_semb:  return semb;
-    case sig_pmul:  return pmul;
-    case sig_sata:  return sata;
-    default:        return none;
-    }
-}
+amd64_ahci::config_type amd64_ahci::__cfg   = ahci_config();
+static const char* last_msg_str             = nullptr;
+constexpr size_t cl_offs_base               = 32UZ * sizeof(hba_cmd_header);
+constexpr size_t fis_offs_base              = 32UZ * cl_offs_base;
+constexpr size_t table_offs_base            = fis_offs_base + 32UZ * sizeof(hba_fis);
+template<ooos::condition_callable FT> static inline bool await_completion(time_t max_spin, FT&& ft);
+static inline ahci_device check_type(hba_port const& p);
+static inline size_t __cap_size(size_t a, size_t b) { return a < b ? a : b; }
 static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo[0] /* busy */ || i.lo.lo[3]; /* drq */ }
 static inline bool __port_cmd_busy(hba_port* port, unsigned slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo[5] /* processed */ && i[slot]; }
 static inline bool __port_ack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return !i.lo.hi[7] /* cr */ && !i.lo.hi[6]; /* fr */ }
+constexpr static size_t prdt_cap(size_t region_size) { return static_cast<size_t>((region_size - 32 * (sizeof(hba_fis) + sizeof(hba_cmd_header))) / (32 * sizeof(hba_prdt_entry))); }
 size_t ahci_port::block_size() const noexcept { return 512UZ; }
 amd64_ahci::amd64_ahci() noexcept = default;
 ahci_port::ahci_port(amd64_ahci& m, hba_port& p, uint32_t i, ahci_device dt) : __module(m), __port(p), __device_type(dt), __idx(i) {}
 ooos::generic_config_table& amd64_ahci::get_config() { return __cfg.generic; }
 amd64_ahci::uidx_t amd64_ahci::count() const noexcept { return __device_count; }
 size_t ahci_port::io_count(utticket task_ticket) const { return __port.command_list[task_ticket].prd_count; }
-bool ahci_port::io_complete(utticket task_ticket) const { return !io_busy() && !__port_cmd_busy(&__port, task_ticket); }
+bool ahci_port::io_complete(utticket task_ticket) const { return !io_busy() && !__port_cmd_busy(std::addressof(__port), task_ticket); }
+size_t ahci_port::command_table_size() const noexcept { return sizeof(hba_cmd_table) + __prdt_count * sizeof(hba_prdt_entry); }
+size_t ahci_port::sectors_per_entry() const noexcept { return 8192UZ / block_size(); }
+size_t ahci_port::max_operation_blocks() const noexcept { return __prdt_count * sectors_per_entry(); }
+ooos::abstract_block_device const& amd64_ahci::operator[](uidx_t idx) const
+{
+    if(__unlikely(idx > 32U) || !__ports[idx]) 
+        return __empty_slot;
+    return *__ports[idx];
+}
+ooos::abstract_block_device& amd64_ahci::operator[](uidx_t idx)
+{
+    if(__unlikely(idx > 32U) || !__ports[idx]) 
+        return __empty_slot;
+    return *__ports[idx];
+}
+ooos::blockdev_type amd64_ahci::type_at_index(uidx_t idx) const noexcept
+{
+    if(__unlikely(idx > 32U))
+        return ooos::BDT_NONE;
+    return __ports[idx]->device_type();
+}
 amd64_ahci::sidx_t amd64_ahci::index_of(ooos::blockdev_type dev_type) const noexcept
 {
     for(sidx_t i = 0; i < 32; i++)
@@ -45,27 +47,21 @@ amd64_ahci::sidx_t amd64_ahci::index_of(ooos::blockdev_type dev_type) const noex
                 return i;
     return -1;
 }
-ooos::abstract_block_device& amd64_ahci::operator[](uidx_t idx)
-{
-    if(!__ports[idx]) 
-        return __empty_placeholder;
-    return *__ports[idx];
-}
 bool amd64_ahci::initialize()
 {
-    __ahci_pci_cfg = find_pci_device(dev_class_storage_controller, subclass_sata_controller);
-    if(!__ahci_pci_cfg) {
+    __ahci_pci_space = find_pci_device(dev_class_storage_controller, subclass_sata_controller);
+    if(!__ahci_pci_space) {
         log("E: no PCI config space found for AHCI");
         return false;
     }
-    uint32_t bar    = __ahci_pci_cfg->header_0x0.bar[5];
+    uint32_t bar    = __ahci_pci_space->header_0x0.bar[5];
     __abar          = addr_t((bar & 0x00000001U) ? static_cast<uintptr_t>(bar & 0xFFFFFFFCU) : static_cast<uintptr_t>(bar & 0xFFFFFFF0U));
     __dma_size      = ooos::get_element<0>(__cfg);
     __dma_block     = allocate_dma(__dma_size, (bar & BIT(3)) != 0);
     barrier();
-    __ahci_pci_cfg->command.bus_master           = true;
-    __ahci_pci_cfg->command.memory_space         = true;
-    __ahci_pci_cfg->command.interrupt_disable    = false;
+    __ahci_pci_space->command.bus_master           = true;
+    __ahci_pci_space->command.memory_space         = true;
+    __ahci_pci_space->command.interrupt_disable    = false;
     barrier();
     __abar->ghc |= hba_enable_ahci;
     barrier();
@@ -86,14 +82,9 @@ bool amd64_ahci::initialize()
         hba_port& port  = __abar->ports[i];
         ahci_device d   = check_type(port);
         if(d == none) continue;
-        if(!(__ports[i] = new(__port_struct_data[__device_count++]) ahci_port(*this, port, i, d))->init_port(__dma_block))
-        {
-            const char* msg;
-            if(asprintf(&msg, "W: skipping port %i due to error in initialization", i)) {
-                log(msg);
-                release_buffer(addr_t(msg), alignof(char));
-                __device_count--;
-            }
+        if(!(__ports[i] = new(__port_struct_data[__device_count++]) ahci_port(*this, port, i, d))->init_port(__dma_block)) {
+            logf("W: skipping port %i due to error in initialization", i);
+            __device_count--;
         }
         barrier();
     }
@@ -143,21 +134,25 @@ void amd64_ahci::__irq_init()
     }
     try
     {
-        on_irq(__ahci_pci_cfg->header_0x0.interrupt_line, [this]() -> void 
+        on_irq(__ahci_pci_space->header_0x0.interrupt_line, [this]() -> void 
         {
-            uint32_t s = __abar->i_status;
+            uint32_t s          = __abar->i_status;
             barrier();
-            __abar->i_status = s;
+            __abar->i_status    = s;
             if(s) __handle_irq(s);
         });
     }
-    catch(...) { raise_error("std::bad_alloc"); __builtin_unreachable(); }
+    catch(...) { raise_error("no memory"); __builtin_unreachable(); }
 }
 bool ahci_port::init_port(addr_t region_base)
 {
-    ooos::module_eh_ctx& ctx = __module.get_eh_ctx();
+    __prdt_count                = __cap_size(prdt_cap(ooos::get_element<0>(amd64_ahci::__cfg)), ooos::get_element<4>(amd64_ahci::__cfg));
+    if(__prdt_count < 8UZ) 
+        __prdt_count            = 8UZ;
+    size_t prdt_size            = __prdt_count * sizeof(hba_prdt_entry);
+    ooos::module_eh_ctx& ctx    = __module.get_eh_ctx();
     if(__unlikely(setjmp(ctx.handler_ctx))) {
-        __log_error(ctx);
+        __module.logf("E (on port %u): %s", __idx, ctx.msg);
         return false;
     }
     soft_reset();
@@ -172,7 +167,7 @@ bool ahci_port::init_port(addr_t region_base)
     barrier();
     for(int i = 0; i < 32; i++)
     {
-        addr_t table_base                       = region_base.plus(table_offs_base + __idx * prdt_size + i * sizeof(hba_cmd_table));
+        addr_t table_base                       = region_base.plus(table_offs_base + __idx * prdt_size + i * command_table_size());
         __port.command_list[i].command_table    = table_base;
         barrier();
         __builtin_memset(table_base, 0, prdt_size);
@@ -213,7 +208,7 @@ void ahci_port::soft_reset()
         __builtin_unreachable();
     }
     barrier();
-    hba_cmd_header* c1 = new(ooos::__addressof(__port.command_list[s1])) hba_cmd_header
+    hba_cmd_header* c1 = new(std::addressof(__port.command_list[s1])) hba_cmd_header
     {
         .cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
         .reset          = true,
@@ -221,7 +216,7 @@ void ahci_port::soft_reset()
         .command_table  = __port.command_list[s1].command_table
     };
     barrier();
-    __builtin_memset(c1->command_table, 0, sizeof(hba_cmd_table));
+    __builtin_memset(c1->command_table, 0, command_table_size());
     barrier();
     new(static_cast<void*>(c1->command_table->cmd_fis)) fis_reg_h2d
 	{
@@ -229,13 +224,13 @@ void ahci_port::soft_reset()
 		.ctype      = false,
 		.control    = soft_reset_bit,
 	};
-    if(!await_completion(max_spin, [this]() -> bool { return !__port_data_busy(&__port); })) return hard_reset();
+    if(!await_completion(max_spin, [this]() -> bool { return !__port_data_busy(std::addressof(__port)); })) return hard_reset();
     barrier();
     __port.s_active |= BIT(s1);
     barrier();
     __port.cmd_issue = BIT(s1);
     barrier();
-    if(!await_completion(max_spin, [s1, this]() -> bool { return !__port_cmd_busy(&__port, static_cast<unsigned>(s1)); }) || (__port.i_state & hba_error)) return hard_reset();
+    if(!await_completion(max_spin, [s1, this]() -> bool { return !__port_cmd_busy(std::addressof(__port), static_cast<unsigned>(s1)); }) || (__port.i_state & hba_error)) return hard_reset();
     hba_cmd_header* c2 = new(std::addressof(__port.command_list[s2])) hba_cmd_header
     {
         .cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
@@ -292,7 +287,7 @@ void ahci_port::stop_port()
     barrier();
     __port.cmd &= ~hba_command_fre;
     barrier();
-    if(__unlikely(!await_completion(max_spin, [this]() -> bool { return __port_ack_stop(&__port); }))) __module.raise_error("hung port", 5);
+    if(__unlikely(!await_completion(max_spin, [this]() -> bool { return __port_ack_stop(std::addressof(__port)); }))) __module.raise_error("hung port", 5);
 }
 ahci_port::stticket ahci_port::__find_cmd_slot()
 {
@@ -307,37 +302,37 @@ void ahci_port::__cmd_issue(utticket slot)
 {
     time_t max_spin         = ooos::get_element<1>(amd64_ahci::__cfg);
     time_t max_long_spin    = ooos::get_element<2>(amd64_ahci::__cfg);
-    if(__unlikely(!await_completion(max_spin, [this]() -> bool { return !__port_data_busy(&__port); }))) __module.raise_error("hung port", 6);
+    if(__unlikely(!await_completion(max_spin, [this]() -> bool { return !__port_data_busy(std::addressof(__port)); }))) __module.raise_error("hung port", 6);
     barrier();
     __port.cmd_issue |= BIT(slot);
     barrier();
     dword st;
     const char* msg;
     int status = 0;
-    for(time_t i = 0; i < max_long_spin && __port_data_busy(&__port); i++)
+    for(time_t i = 0; i < max_long_spin && __port_data_busy(std::addressof(__port)); i++)
     {
         barrier();
-        st = __port.i_state;
+        st              = __port.i_state;
         if(__unlikely(st.hi.hi & i_state_hi_byte_error)) 
         {
             if(last_msg_str) __module.release_buffer(addr_t(last_msg_str), alignof(char));
-            if(__module.asprintf(&msg, "port number %i i/o error", __idx)) last_msg_str = msg;
-            else msg = "AHCI i/o error";
-            status = 7;
+            if(__module.asprintf(std::addressof(msg), "port number %i i/o error", __idx)) last_msg_str = msg;
+            else msg    = "AHCI i/o error";
+            status      = 7;
             break;
         }
         barrier();
     }
-    if(__unlikely(status != 0 || __port_data_busy(&__port))) __module.raise_error(msg ? msg : "AHCI hardware error", status ? status : 8);
+    if(__unlikely(status != 0 || __port_data_busy(std::addressof(__port)))) __module.raise_error(msg ? msg : "AHCI hardware error", status ? status : 8);
 }
 void ahci_port::__build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, addr_t buffer, ata_command action, hba_cmd_header& cmd)
 {
     constexpr size_t main_op_count  = 512UZ << 4;
-    __builtin_memset(cmd.command_table, 0, sizeof(hba_cmd_table));
+    __builtin_memset(cmd.command_table, 0, command_table_size());
     qword addr                      = buffer.full;
     size_t final_count              = (sector_count % 16) * 512UZ;
     barrier();
-    for(uint16_t i = 0; i < cmd.prdt_length; i++, barrier())
+    for(uint16_t i = 0; i < cmd.prdt_length; i++, addr += main_op_count, barrier())
     {
         new(std::addressof(cmd.command_table->prdt_entries[i])) hba_prdt_entry 
         {
@@ -381,12 +376,13 @@ ahci_port::stticket ahci_port::read(void* dest, uintptr_t src_start, size_t sect
 		.cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
 		.atapi          = false,
 		.w_direction    = false, // d2h write
-		.prdt_length    = static_cast<uint16_t>(div_round_up(sector_count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
+		.prdt_length    = static_cast<uint16_t>(__cap_size(div_round_up(sector_count, sectors_per_entry()), __prdt_count)),
         .command_table  = __port.command_list[slot].command_table
 	};
     barrier();
     __build_h2d_io_fis(src_start, sector_count, dest, ata_command::read_dma_ext, *cmd);
     __cmd_issue(slot);
+    await_completion(ooos::get_element<1>(amd64_ahci::__cfg), [this]() -> bool { return !io_busy(); });
     return slot;
 }
 ahci_port::stticket ahci_port::write(uintptr_t dest_start, const void* src, size_t sector_count)
@@ -400,21 +396,73 @@ ahci_port::stticket ahci_port::write(uintptr_t dest_start, const void* src, size
 		.cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
 		.atapi          = false,
 		.w_direction    = true, // h2d write
-		.prdt_length    = static_cast<uint16_t>(div_round_up(sector_count, 16UL)), // each entry can transfer at most 8kb, or 16 sectors
+		.prdt_length    = static_cast<uint16_t>(__cap_size(div_round_up(sector_count, sectors_per_entry()), __prdt_count)),
         .command_table  = __port.command_list[slot].command_table
 	};
     barrier();
     __build_h2d_io_fis(dest_start, sector_count, src, ata_command::write_dma_ext, *cmd);
     __cmd_issue(slot);
+    await_completion(ooos::get_element<1>(amd64_ahci::__cfg), [this]() -> bool { return !io_busy(); });
     return slot;
 }
-void ahci_port::__log_error(ooos::module_eh_ctx& ctx)
+void ahci_port::identify(identify_data* out)
 {
-    const char* msg_full;
-    if(__module.asprintf(&msg_full, "E (on port %u): %s", __idx, ctx.msg)) {
-        __module.release_buffer(addr_t(ctx.msg), alignof(char));
-        last_msg_str = ctx.msg = msg_full;
+    stticket slot = __find_cmd_slot();
+    if(__unlikely(slot < 0)) {
+        __module.raise_error("no slots", 9);
+        __builtin_unreachable();
     }
-    __module.log(ctx.msg);
+    qword addr = reinterpret_cast<uintptr_t>(out);
+    barrier();
+    hba_cmd_header* cmd = new(std::addressof(__port.command_list[slot])) hba_cmd_header
+    {
+        .cmd_fis_len    = 5UC,
+        .w_direction    = false,
+        .prdt_length    = 1US,
+        .command_table  = new(__port.command_list[slot].command_table) hba_cmd_table{}
+    };
+    barrier();
+    new(std::addressof(__port.command_list[slot].command_table->prdt_entries[0])) hba_prdt_entry
+    { 
+        .data_base                  = addr.lo, 
+        .data_base_hi               = addr.hi, 
+        .byte_count                 = 511U, 
+        .interrupt_on_completion    = !ooos::get_element<3>(amd64_ahci::__cfg),
+    };
+    barrier();
+    new(static_cast<void*>(cmd->command_table->cmd_fis)) fis_reg_h2d
+	{
+		.type       = reg_h2d,
+		.ctype      = true,
+		.command    = ata_command::identify, 
+		.device     = 0UC
+	};
+    __cmd_issue(static_cast<utticket>(slot));
+    if(!await_completion(ooos::get_element<1>(amd64_ahci::__cfg), [slot, this]() -> bool { return io_complete(static_cast<utticket>(slot)); })) {
+        __module.raise_error("hung port", 10);
+        __builtin_unreachable();
+    }
+}
+template<ooos::condition_callable FT>
+static inline bool await_completion(time_t max_spin, FT&& ft)
+{
+    for(time_t spin = 0UZ; spin < max_spin; spin++)
+        if(ft())
+            return true;
+    return ft();
+}
+static inline ahci_device check_type(hba_port const& p)
+{
+    barrier();
+    if((dword(p.s_status).lo.lo & 0x0FUC) != port_present || (dword(p.s_status).lo.hi & 0x0FUC) != port_active) return none;
+    barrier();
+    switch(p.sig)
+    {
+        case sig_atapi: return atapi;
+        case sig_semb:  return semb;
+        case sig_pmul:  return pmul;
+        case sig_sata:  return sata;
+        default:        return none;
+    }
 }
 EXPORT_MODULE(amd64_ahci);

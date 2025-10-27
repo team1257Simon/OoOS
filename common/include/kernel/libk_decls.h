@@ -104,11 +104,21 @@ template<nontrivial_copy T, typename ... Args> requires std::constructible_from<
 template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
 template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); } } }
-template<integral_structure I, integral_structure J> constexpr I div_round_up(I num, J denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
-template<integral_structure I, integral_structure J> constexpr I truncate(I n, J unit) { return (n % unit == 0) ? n : n - (n % unit); }
-template<integral_structure I, integral_structure J> constexpr I up_to_nearest(I n, J unit) { return (n % unit == 0) ? n : (unit * div_round_up(n, unit)); }
-template<integral_structure I, integral_structure J> constexpr I div_to_nearest(I num, J denom) { return (num % denom >= div_round_up(denom, static_cast<J>(2))) ? div_round_up(num, denom) : num / denom; }
-template<integral_structure I, integral_structure J> constexpr I raise_power(I base, J power) { if(power < static_cast<J>(2)) return power ? base : static_cast<I>(1); I srt = raise_power(base, static_cast<J>(power >> 1)); return static_cast<I>(srt * srt * (power % 2 ? base : 1)); }
+template<integral_structure I, integral_structure J>
+struct arithmetic_result
+{
+    typedef decltype(std::declval<I>() + std::declval<J>()) sum_type;
+    typedef decltype(std::declval<I>() - std::declval<J>()) difference_type;
+    typedef decltype(std::declval<I>() * std::declval<J>()) product_type;
+    typedef decltype(std::declval<I>() / std::declval<J>()) quotient_type;
+    typedef decltype(std::declval<I>() % std::declval<J>()) modulus_type;
+};
+template<integral_structure I, integral_structure J> using alignup_type = typename arithmetic_result<I, typename arithmetic_result<I, J>::quotient_type>::product_type;
+template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, J>::quotient_type div_round_up(I num, J denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
+template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, J>::modulus_type truncate(I n, J unit) { return (n % unit == 0) ? n : n - (n % unit); }
+template<integral_structure I, integral_structure J> constexpr alignup_type<I, J> up_to_nearest(I n, J unit) { return (n % unit == 0) ? static_cast<alignup_type<I, J>>(n) : (unit * div_round_up(n, unit)); }
+template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, J>::quotient_type div_to_nearest(I num, J denom) { return (num % denom >= div_round_up(denom, static_cast<J>(2))) ? div_round_up(num, denom) : num / denom; }
+template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, I>::product_type raise_power(I base, J power) { if(power < static_cast<J>(2)) return power ? base : static_cast<I>(1); I srt = raise_power(base, static_cast<J>(power >> 1)); return static_cast<I>(srt * srt * (power % 2 ? base : 1)); }
 // Returns the power of 10 with the same number of digits as the input in standard (i.e. not scientific) base-10 notation.
 template<integral_structure I> constexpr I magnitude(I num) { I i; for(i = I(1); num > I(10); i *= I(10), num /= I(10)); return i; }
 template<trivial_copy T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); }

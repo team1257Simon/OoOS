@@ -164,11 +164,12 @@ constexpr auto serial_config()
         parameter("trim_on_read",   parameter_type<bool>,               false)
     );
 }
-class amd64_serial : public ooos::io_module_base<char>
+struct amd64_serial : ooos::io_module_base<char>
 {
-    typedef decltype(serial_config()) __config_type;
+    typedef decltype(serial_config()) config_type;
+private:
+    static config_type __cfg;
     char* __input_pos;
-    static __config_type __cfg;
     void __trim_old();
 public:
     virtual bool overflow(size_type needed) override;

@@ -1,5 +1,4 @@
 #include "fs/fat32.hpp"
-#include "fs/hda_ahci.hpp"
 #include "rtc.h"
 #include "stdexcept"
 constexpr size_t dirent_size = sizeof(fat32_directory_entry);

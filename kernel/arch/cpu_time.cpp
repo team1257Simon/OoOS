@@ -1,7 +1,7 @@
 #include "arch/cpu_time.hpp"
 #include "arch/arch_amd64.h"
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio();
-static inline void read_tsc(addr_t out) { asm volatile("rdtsc" : "=a"(out.ref<uint32_t>()), "=d"(out.plus(4Z).ref<uint32_t>()) :: "memory"); }
+static inline void read_tsc(addr_t out) { asm volatile("rdtsc" : "=a"(out.deref<uint32_t>()), "=d"(out.plus(4Z).deref<uint32_t>()) :: "memory"); }
 static inline time_t diff_tsc(time_t from) { uint32_t h, l; asm volatile("rdtsc" : "=a"(l), "=d"(h) :: "memory"); return static_cast<time_t>(qword(l, h) - from); }
 const cpu_timer_info cpu_timer_info::instance{ compute_cpu_tsc_ratio() };
 cpu_timer_info::cpu_timer_info(std::pair<time_t, time_t> ratio) : tsc_ratio_numerator(ratio.first), tsc_ratio_denominator(ratio.second) {}

@@ -54,7 +54,7 @@ sysfs_extent_branch& sysfs::get_extent_branch(size_t idx)
         throw std::out_of_range("[FS/SYSFS] extent branch number " + std::to_string(idx) + " does not exist");
     --idx;
      __extents_file.force_write();
-    return addr_t(std::addressof(__extents())).plus(offsetof(sysfs_extents_file, branches) + idx * sizeof(sysfs_extent_branch)).ref<sysfs_extent_branch>();
+    return addr_t(std::addressof(__extents())).plus(offsetof(sysfs_extents_file, branches) + idx * sizeof(sysfs_extent_branch)).deref<sysfs_extent_branch>();
 }
 sysfs_inode& sysfs::get_inode(size_t ino)
 {

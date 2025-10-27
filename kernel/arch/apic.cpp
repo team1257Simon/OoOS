@@ -20,17 +20,17 @@ bool apic::init() volatile
         switch(h->type)
         {
         case APIC_ADDRESS_OVERRIDE:
-            if(table_ptr.plus(i).ref<local_apic_addr_override>().local_apic_physical_addr)
-                physical_base = table_ptr.plus(i).ref<local_apic_addr_override>().local_apic_physical_addr;
+            if(table_ptr.plus(i).deref<local_apic_addr_override>().local_apic_physical_addr)
+                physical_base = table_ptr.plus(i).deref<local_apic_addr_override>().local_apic_physical_addr;
             break;
         case IO_SAPIC:
-            have_sapic = (table_ptr.plus(i).ref<io_sapic_data>().io_sapic_physical_addr != 0);
+            have_sapic = (table_ptr.plus(i).deref<io_sapic_data>().io_sapic_physical_addr != 0);
             if(have_sapic)
-                ioapic_physical_base = table_ptr.plus(i).ref<io_sapic_data>().io_sapic_physical_addr;
+                ioapic_physical_base = table_ptr.plus(i).deref<io_sapic_data>().io_sapic_physical_addr;
             break;
         case IO_APIC:
-            if(table_ptr.plus(i).ref<io_apic_data>().io_apic_physical_address && !have_sapic) 
-                ioapic_physical_base = table_ptr.plus(i).ref<io_apic_data>().io_apic_physical_address;
+            if(table_ptr.plus(i).deref<io_apic_data>().io_apic_physical_address && !have_sapic) 
+                ioapic_physical_base = table_ptr.plus(i).deref<io_apic_data>().io_apic_physical_address;
             break;
         default:
             break;

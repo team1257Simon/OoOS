@@ -19,8 +19,8 @@ static inline size_t unused_dirent_space(ext_dir_entry const& de) { return stati
 ext_dir_entry* ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(__cur()); }
 char* ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
 bool ext_directory_vnode::fsync() { return update_inode() && parent_fs->persist(this); }
-ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
-ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), directory_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
+ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), directory_node(fd, inode_number) { mode = on_disk_node->mode; }
+ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), directory_node(fd, inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::~ext_directory_vnode() = default;
 tnode* ext_directory_vnode::add(fs_node* n) { for(tnode& node : directory_tnodes) { if(node.ptr() == n) return std::addressof(node); } return nullptr; }
 bool ext_directory_vnode::truncate() { return parent_fs->truncate_node(this); }
@@ -30,13 +30,13 @@ ext_file_vnode::pos_type ext_file_vnode::seek(off_type off, std::ios_base::seekd
 ext_file_vnode::pos_type ext_file_vnode::seek(pos_type pos) { return std::ext::dynamic_streambuf<char>::seekpos(pos); }
 uint64_t ext_file_vnode::size() const noexcept { return qword(on_disk_node->size_lo, on_disk_node->size_hi); }
 ext_file_vnode::pos_type ext_file_vnode::tell() const { return std::ext::dynamic_streambuf<char>::tell(); }
-ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), file_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
-ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), file_node(std::move(""), fd, inode_number) { mode = on_disk_node->mode; }
+ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), file_node(fd, inode_number) { mode = on_disk_node->mode; }
+ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), file_node(fd, inode_number) { mode = on_disk_node->mode; }
 ext_file_vnode::~ext_file_vnode() = default;
 bool ext_file_vnode::truncate() { return parent_fs->truncate_node(this); }
 char* ext_file_vnode::data() { return __beg(); }
 void ext_file_vnode::force_write() { for(disk_block& b : block_data) { b.dirty = true; } }
-ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, device_stream* dev, int fd) : ext_vnode_base(parent, inode_num, inode), device_node("", fd, dev, inode->device_hardlink_id) { mode = on_disk_node->mode; }
+ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, device_stream* dev, int fd) : ext_vnode_base(parent, inode_num, inode), device_node(fd, dev, inode->device_hardlink_id) { mode = on_disk_node->mode; }
 ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, device_stream* dev, int fd) : ext_device_vnode(parent, inode_num, parent->get_inode(inode_num), dev, fd) {}
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd) {}
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd, size_t pipe_id) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd, pipe_id) {}

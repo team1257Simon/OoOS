@@ -8,7 +8,7 @@
 #include "sys/errno.h"
 #include "arch/arch_amd64.h"
 typedef std::pair<addr_t, bool> search_result;
-static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.ref<uframe_tag>().sysres_add(len); }
+static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.deref<uframe_tag>().sysres_add(len); }
 static shared_object_map::iterator global_object_search(std::string const& name, int flags) { return (flags & RTLD_GLOBAL) ? shared_object_map::get_globals().find(name) : shared_object_map::get_globals().end(); }
 static search_result global_search(const char* name)
 {

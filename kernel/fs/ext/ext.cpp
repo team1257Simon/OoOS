@@ -1,5 +1,4 @@
 #include "fs/ext.hpp"
-#include "fs/hda_ahci.hpp"
 #include "sys/errno.h"
 #include "immintrin.h"
 #include "algorithm"

@@ -444,11 +444,11 @@ typedef struct attribute(packed) __vaddr
     template<non_void T> using cvtptr = const volatile T*;
     template<typename T = void> constexpr T* as() const noexcept { return __builtin_bit_cast(std::remove_cv_t<T>*, full); }
     template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return __builtin_bit_cast(volatile std::remove_cv_t<T>*, const_cast<__vaddr const*>(this)->full); }
-    template<non_void T> constexpr T& ref() const { return *as<T>(); }
-    template<non_void T> constexpr T& assign(T const& value) const { return ref<T>() = value; }
-    template<non_void T> constexpr T& assign(T&& value) const { return ref<std::remove_reference_t<T>>() = std::move(value); }
+    template<non_void T> constexpr T& deref() const { return *as<T>(); }
+    template<non_void T> constexpr T& assign(T const& value) const { return deref<T>() = value; }
+    template<non_void T> constexpr T& assign(T&& value) const { return deref<std::remove_reference_t<T>>() = std::move(value); }
     template<typename T, typename ... Args> using functor_t = T(*)(Args...);
-    template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { ref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return ref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
+    template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
     constexpr operator void*() const noexcept { return this->as<void>(); }
     constexpr operator cvptr() const noexcept { return this->as<const void>(); }
     constexpr operator vvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<volatile void>(); }
