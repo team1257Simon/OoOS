@@ -8,9 +8,7 @@
                 "${workspaceFolder}/common/include",
                 "${workspaceFolder}/common/include/kernel",
                 "${workspaceFolder}/boot/uefi",
-                "/usr/local/ooos_sysroot/usr/include",
-                "/usr/local/ooos_sysroot/usr/x86_64-ooos/include/c++/15.2.0",
-                "/usr/local/ooos_sysroot/usr/x86_64-ooos/include/c++/15.2.0/x86_64-ooos"
+                "/usr/local/ooos_sysroot/usr/include"
             ],
             "defines": [
                 "__STDC_HOSTED__=0"

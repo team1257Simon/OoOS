@@ -1,6 +1,5 @@
 #include "amd64_serial.hpp"
-using ooos::get_element;
-typename amd64_serial::config_type amd64_serial::__cfg = serial_config();
+amd64_serial::config_type amd64_serial::__cfg = serial_config();
 static bool serial_empty_transmit(word p) { line_status_byte b = inb(p); return b.transmitter_buffer_empty; }
 static bool serial_have_input(word p) { line_status_byte b = inb(p); return b.data_ready; }
 amd64_serial::size_type amd64_serial::avail() const { return __input_pos > in.cur ? static_cast<size_type>(__input_pos - in.cur) : 0UZ; }
@@ -36,13 +35,13 @@ bool amd64_serial::initialize()
     create_buffer(out, 64);
     create_buffer(in, 16);
     __input_pos                     = in.beg;
-    word port                       = get_element<0>(__cfg);
-    trigger_level_t level           = static_cast<trigger_level_t>(get_element<2>(__cfg));
-    word baud_div                   = get_element<3>(__cfg);
+    word port                       = ooos::get_element<0>(__cfg);
+    trigger_level_t level           = static_cast<trigger_level_t>(ooos::get_element<2>(__cfg));
+    word baud_div                   = ooos::get_element<3>(__cfg);
     word ier                        = ier_port(port);
     word sp                         = line_status_port(port);
     serial_ier init_ier             = inb(ier);
-    line_ctl_byte mode(get_element<1>(__cfg));
+    line_ctl_byte mode(ooos::get_element<1>(__cfg));
     outb(ier, 0UC);
     word ctl                        = line_ctl_port(port);
     line_ctl_byte cur_ctl           = inb(ctl);
@@ -63,7 +62,7 @@ bool amd64_serial::initialize()
         do {
             if(!(__input_pos < in.fin))
             {
-                if(in.size() && !get_element<4>(__cfg)) __trim_old();
+                if(in.size() && !ooos::get_element<4>(__cfg)) __trim_old();
                 else
                 {
                     size_t ocap = in.capacity();
@@ -87,7 +86,7 @@ bool amd64_serial::overflow(size_type needed)
 int amd64_serial::sync()
 {
     size_t count    = 0UZ;
-    word p          = get_element<0>(__cfg);
+    word p          = ooos::get_element<0>(__cfg);
     word sp         = line_status_port(p);
     for(char c : out)
     {
@@ -108,7 +107,7 @@ typename amd64_serial::size_type amd64_serial::read(pointer dest, size_type n)
 {
     size_type rem = amd64_serial::avail();
     size_type old = in.size();
-    if(rem && old && get_element<4>(__cfg)) __trim_old();
+    if(rem && old && ooos::get_element<4>(__cfg)) __trim_old();
     if(n > rem) n = rem;
     __builtin_memcpy(dest, in.cur, n);
     in.cur += n;

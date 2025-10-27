@@ -1,6 +1,5 @@
 #ifndef __AMD64_AHCI
 #define __AMD64_AHCI
-#include <cstdint>
 #include <module.hpp>
 struct amd64_ahci;
 #pragma region magic_numbers
@@ -400,11 +399,12 @@ typedef volatile struct __pack tmem
 } hba_mem;
 /**
  * Config parameters:
- *      ahci_region_size    : qword (size_t)    — how much DMA space to allocate
- *      rw_timeout          : qword (time_t)    — how long to wait on reads and writes before assuming a hung port
- *      start_stop_timeout  : qword (time_t)    — how long to wait on starting or stopping a port before assuming a hung port
- *      disable_ioc         : bool              — if set to true, the interrupt-on-completion bit will not be set for commands sent to the HBA
- * 		prdt_entries_count	: qword	(size_t)	— how many PRDT entries per command table
+ *      #0 ahci_region_size    	: u64 ∈ [65536, 2097152] 	— how much DMA space to allocate
+ *      #1 rw_timeout          	: u64    					— how many times to check completion on reads and writes before assuming a hung port
+ *      #2 start_stop_timeout  	: u64   					— how many times to check completion on starting or stopping a port before assuming a hung port
+ *      #3 disable_ioc         	: bool              		— indicates that the interrupt-on-completion bit should not be set in PRDT entries
+ * 		#4 prdt_entries_count	: u64 ∈ [1, (#0 / 32) - 18]	— how many PRDT entries per command table
+ * 		#5 prdt_max_bytes		: u64 ∈ [4096, 4194303]		— how many bytes to transfer per PRDT entry, as a maximum
  */
 constexpr auto ahci_config()
 {
@@ -414,7 +414,8 @@ constexpr auto ahci_config()
         ooos::parameter("rw_timeout",           ooos::parameter_type<time_t>,   10000000L),
         ooos::parameter("start_stop_timeout",   ooos::parameter_type<time_t>,   100000000000000L),
         ooos::parameter("disable_ioc",          ooos::parameter_type<bool>,     false),
-		ooos::parameter("prdt_entries_count", 	ooos::parameter_type<size_t>, 	8UZ)
+		ooos::parameter("prdt_entries_count", 	ooos::parameter_type<size_t>, 	8UZ),
+		ooos::parameter("prdt_max_bytes", 		ooos::parameter_type<size_t>, 	8192UZ)
     );
 }
 class ahci_port : public ooos::abstract_block_device
@@ -443,8 +444,9 @@ public:
     void soft_reset();
     void hard_reset();
 	void identify(identify_data* out);
+	size_t bytes_per_prdt_entry() const noexcept;
+	size_t sectors_per_prdt_entry() const noexcept;
 	size_t command_table_size() const noexcept;
-	size_t sectors_per_entry() const noexcept;
 };
 struct amd64_ahci : ooos::block_io_provider_module
 {

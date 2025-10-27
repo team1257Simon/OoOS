@@ -7,6 +7,7 @@ constexpr size_t table_offs_base            = fis_offs_base + 32UZ * sizeof(hba_
 template<ooos::condition_callable FT> static inline bool await_completion(time_t max_spin, FT&& ft);
 static inline ahci_device check_type(hba_port const& p);
 static inline size_t __cap_size(size_t a, size_t b) { return a < b ? a : b; }
+static inline size_t __at_least(size_t s, size_t minsz) { return s > minsz ? s : minsz; }
 static inline bool __port_data_busy(hba_port* port) { barrier(); dword i = port->task_file; barrier(); return i.lo.lo[0] /* busy */ || i.lo.lo[3]; /* drq */ }
 static inline bool __port_cmd_busy(hba_port* port, unsigned slot) { barrier(); dword i = port->cmd_issue; barrier(); dword j = port->i_state; barrier(); return !j.lo.lo[5] /* processed */ && i[slot]; }
 static inline bool __port_ack_stop(hba_port* port) { barrier(); dword i = port->cmd; barrier(); return !i.lo.hi[7] /* cr */ && !i.lo.hi[6]; /* fr */ }
@@ -19,8 +20,9 @@ amd64_ahci::uidx_t amd64_ahci::count() const noexcept { return __device_count; }
 size_t ahci_port::io_count(utticket task_ticket) const { return __port.command_list[task_ticket].prd_count; }
 bool ahci_port::io_complete(utticket task_ticket) const { return !io_busy() && !__port_cmd_busy(std::addressof(__port), task_ticket); }
 size_t ahci_port::command_table_size() const noexcept { return sizeof(hba_cmd_table) + __prdt_count * sizeof(hba_prdt_entry); }
-size_t ahci_port::sectors_per_entry() const noexcept { return 8192UZ / block_size(); }
-size_t ahci_port::max_operation_blocks() const noexcept { return __prdt_count * sectors_per_entry(); }
+size_t ahci_port::bytes_per_prdt_entry() const noexcept { return __at_least(__cap_size(ooos::get_element<5>(amd64_ahci::__cfg), static_cast<size_t>((1UZ << 22) - 1)), 4096UZ); }
+size_t ahci_port::sectors_per_prdt_entry() const noexcept { return bytes_per_prdt_entry() / block_size(); }
+size_t ahci_port::max_operation_blocks() const noexcept { return __prdt_count * sectors_per_prdt_entry(); }
 ooos::abstract_block_device const& amd64_ahci::operator[](uidx_t idx) const
 {
     if(__unlikely(idx > 32U) || !__ports[idx]) 
@@ -56,14 +58,14 @@ bool amd64_ahci::initialize()
     }
     uint32_t bar    = __ahci_pci_space->header_0x0.bar[5];
     __abar          = addr_t((bar & 0x00000001U) ? static_cast<uintptr_t>(bar & 0xFFFFFFFCU) : static_cast<uintptr_t>(bar & 0xFFFFFFF0U));
-    __dma_size      = ooos::get_element<0>(__cfg);
+    __dma_size      = __at_least(__cap_size(ooos::get_element<0>(__cfg), 2097152UZ), 65536UZ);
     __dma_block     = allocate_dma(__dma_size, (bar & BIT(3)) != 0);
     barrier();
     __ahci_pci_space->command.bus_master           = true;
     __ahci_pci_space->command.memory_space         = true;
     __ahci_pci_space->command.interrupt_disable    = false;
     barrier();
-    __abar->ghc |= hba_enable_ahci;
+    __abar->ghc     |= hba_enable_ahci;
     barrier();
     time_t max_spin = ooos::get_element<1>(__cfg);
     if(__abar->bios_os_handoff_sup)
@@ -108,9 +110,9 @@ void amd64_ahci::__handle_irq(dword s)
     {
         if(__ports[i])
         {
-            uint32_t s1 = __abar->ports[i].i_state;
+            uint32_t s1                 = __abar->ports[i].i_state;
             barrier();
-            __abar->ports[i].i_state = s1;
+            __abar->ports[i].i_state    = s1;
             barrier();
             if(s[i] && (s1 & hba_error)) __ports[i]->soft_reset();
         }
@@ -146,13 +148,11 @@ void amd64_ahci::__irq_init()
 }
 bool ahci_port::init_port(addr_t region_base)
 {
-    __prdt_count                = __cap_size(prdt_cap(ooos::get_element<0>(amd64_ahci::__cfg)), ooos::get_element<4>(amd64_ahci::__cfg));
-    if(__prdt_count < 8UZ) 
-        __prdt_count            = 8UZ;
+    __prdt_count                = __at_least(__cap_size(prdt_cap(ooos::get_element<0>(amd64_ahci::__cfg)), ooos::get_element<4>(amd64_ahci::__cfg)), 4UZ);
     size_t prdt_size            = __prdt_count * sizeof(hba_prdt_entry);
-    ooos::module_eh_ctx& ctx    = __module.get_eh_ctx();
-    if(__unlikely(setjmp(ctx.handler_ctx))) {
-        __module.logf("E (on port %u): %s", __idx, ctx.msg);
+    ooos::eh_exit_guard guard(std::addressof(__module));
+    if(__unlikely(setjmp(__module.ctx_jmp()))) {
+        __module.logf("E (on port %u): %s", __idx, __module.ctx_msg());
         return false;
     }
     soft_reset();
@@ -173,7 +173,6 @@ bool ahci_port::init_port(addr_t region_base)
         __builtin_memset(table_base, 0, prdt_size);
     }
     start_port();
-    __module.ctx_end();
     return true;
 }
 ooos::blockdev_type ahci_port::device_type() const noexcept
@@ -247,7 +246,7 @@ void ahci_port::soft_reset()
     barrier();
     __port.cmd_issue |= BIT(s2);
     barrier();
-    if(!await_completion(max_spin, [s2, this]() -> bool { return !__port_cmd_busy(&__port, (static_cast<unsigned>(s2))); }) || (__port.i_state & hba_error)) return hard_reset();
+    if(!await_completion(max_spin, [s2, this]() -> bool { return !__port_cmd_busy(std::addressof(__port), (static_cast<unsigned>(s2))); }) || (__port.i_state & hba_error)) return hard_reset();
 }
 void ahci_port::hard_reset()
 {
@@ -327,19 +326,20 @@ void ahci_port::__cmd_issue(utticket slot)
 }
 void ahci_port::__build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, addr_t buffer, ata_command action, hba_cmd_header& cmd)
 {
-    constexpr size_t main_op_count  = 512UZ << 4;
     __builtin_memset(cmd.command_table, 0, command_table_size());
+    size_t bpe_max                  = bytes_per_prdt_entry();
+    bool enable_ioc                 = !ooos::get_element<3>(amd64_ahci::__cfg);
     qword addr                      = buffer.full;
-    size_t final_count              = (sector_count % 16) * 512UZ;
+    size_t final_count              = (sector_count % (bpe_max / block_size())) * block_size();
     barrier();
-    for(uint16_t i = 0; i < cmd.prdt_length; i++, addr += main_op_count, barrier())
+    for(uint16_t i = 0; i < cmd.prdt_length; i++, addr += bpe_max, barrier())
     {
         new(std::addressof(cmd.command_table->prdt_entries[i])) hba_prdt_entry 
         {
             .data_base                  = addr.lo,
             .data_base_hi               = addr.hi,
-            .byte_count                 = static_cast<uint32_t>((i == cmd.prdt_length - 1 ? final_count : main_op_count) - 1),
-            .interrupt_on_completion    = !ooos::get_element<3>(amd64_ahci::__cfg),
+            .byte_count                 = static_cast<uint32_t>((i == cmd.prdt_length - 1 ? final_count : bpe_max) - 1),
+            .interrupt_on_completion    = enable_ioc,
         };
     }
     qword start(dest_start);
@@ -363,7 +363,7 @@ bool ahci_port::io_busy() const
     barrier();
     uint32_t c = __port.cmd;
     barrier();
-    return __port_data_busy(&__port) || (c & hba_command_cr) == 0;
+    return __port_data_busy(std::addressof(__port)) || (c & hba_command_cr) == 0;
 }
 ahci_port::stticket ahci_port::read(void* dest, uintptr_t src_start, size_t sector_count)
 {
@@ -376,7 +376,7 @@ ahci_port::stticket ahci_port::read(void* dest, uintptr_t src_start, size_t sect
 		.cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
 		.atapi          = false,
 		.w_direction    = false, // d2h write
-		.prdt_length    = static_cast<uint16_t>(__cap_size(div_round_up(sector_count, sectors_per_entry()), __prdt_count)),
+		.prdt_length    = static_cast<uint16_t>(__cap_size(div_round_up(sector_count, sectors_per_prdt_entry()), __prdt_count)),
         .command_table  = __port.command_list[slot].command_table
 	};
     barrier();
@@ -396,7 +396,7 @@ ahci_port::stticket ahci_port::write(uintptr_t dest_start, const void* src, size
 		.cmd_fis_len    = static_cast<uint8_t>(sizeof(fis_reg_h2d) / sizeof(uint32_t)),
 		.atapi          = false,
 		.w_direction    = true, // h2d write
-		.prdt_length    = static_cast<uint16_t>(__cap_size(div_round_up(sector_count, sectors_per_entry()), __prdt_count)),
+		.prdt_length    = static_cast<uint16_t>(__cap_size(div_round_up(sector_count, sectors_per_prdt_entry()), __prdt_count)),
         .command_table  = __port.command_list[slot].command_table
 	};
     barrier();

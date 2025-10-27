@@ -41,11 +41,10 @@ namespace ooos
         if(__unlikely(!__block_device)) { panic("[HDA] cannot access disk before initializing the delegate module"); return false; }
         std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
         eh_exit_guard guard(__provider_module);
-        module_eh_ctx& ctx  = __provider_module->get_eh_ctx();
-        if(__unlikely(setjmp(ctx.handler_ctx)))
+        if(__unlikely(setjmp(__provider_module->ctx_jmp())))
         {
             panic("[HDA] disk I/O raised an error status: ");
-            panic(ctx.msg);
+            panic(__provider_module->ctx_msg());
             return false;
         }
         size_t rem          = count;
@@ -73,11 +72,10 @@ namespace ooos
         if(__unlikely(!__block_device)) { panic("[HDA] cannot access disk before initializing the delegate module"); return false; }
         std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
         eh_exit_guard guard(__provider_module);
-        module_eh_ctx& ctx  = __provider_module->get_eh_ctx();
-        if(__unlikely(setjmp(ctx.handler_ctx)))
+        if(__unlikely(setjmp(__provider_module->ctx_jmp())))
         {
             panic("[HDA] disk I/O raised an error status: ");
-            panic(ctx.msg);
+            panic(__provider_module->ctx_msg());
             return false;
         }
         size_t rem          = count;

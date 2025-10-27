@@ -99,41 +99,35 @@ module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
     }
     return loader.end();
 }
-device_stream* load_com_module()
+ooos::abstract_module_base* get_boot_module(const char* filename)
 {
     if(sysinfo->loaded_modules && sysinfo->loaded_modules->count)
     {
         for(size_t i = 0; i < sysinfo->loaded_modules->count; i++)
         {
-            if(!__builtin_strcmp("X64_COM.KO", sysinfo->loaded_modules->descriptors[i].filename))
+            if(!__builtin_strcmp(filename, sysinfo->loaded_modules->descriptors[i].filename))
             {
                 module_loader::iterator result = init_boot_module(sysinfo->loaded_modules->descriptors[i]);
                 if(result != module_loader::get_instance().end())
-                    return result->second.get_module()->as_device<char>();
-                return nullptr;
+                    return result->second.get_module();
+                break;
             }
         }
     }
+    return nullptr;
+}
+device_stream* load_com_module()
+{
+    ooos::abstract_module_base* mod = get_boot_module("X64_COM.KO");
+    if(mod) return mod->as_device<char>();
     return nullptr;
 }
 ooos::block_io_provider_module* load_ahci_module()
 {
-    if(sysinfo->loaded_modules && sysinfo->loaded_modules->count)
-    {
-        for(size_t i = 0; i < sysinfo->loaded_modules->count; i++)
-        {
-            if(!__builtin_strcmp("X64_AHCI.KO", sysinfo->loaded_modules->descriptors[i].filename))
-            {
-                module_loader::iterator result = init_boot_module(sysinfo->loaded_modules->descriptors[i]);
-                if(result != module_loader::get_instance().end())
-                    return result->second.get_module()->as_blockdev();
-                return nullptr;
-            }
-        }
-    }
+    ooos::abstract_module_base* mod = get_boot_module("X64_AHCI.KO");
+    if(mod) return mod->as_blockdev();
     return nullptr;
 }
-
 void net_tests()
 {
     if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))

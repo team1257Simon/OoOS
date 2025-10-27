@@ -52,7 +52,7 @@ namespace ooos
         friend class ::elf64_kernel_object;
         friend module_eh_ctx* get_ctx(abstract_module_base*);
         inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, &typeid(ABI_NAMESPACE::__si_class_type_info), &typeid(ABI_NAMESPACE::__vmi_class_type_info)); }
-        inline void __save_init_jb() { __builtin_memcpy(__saved_jb, __eh_ctx.handler_ctx, sizeof(jmp_buf)); }
+        inline void __save_init_jb() { __saved_jb[0] = __eh_ctx.handler_ctx[0]; }
     public:
         virtual bool initialize() = 0;
         virtual void finalize() = 0;
@@ -73,8 +73,11 @@ namespace ooos
         template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
         inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); __save_init_jb(); } }
         friend void module_takedown(abstract_module_base* mod);
-        constexpr module_eh_ctx& get_eh_ctx() { return __eh_ctx; }
-        inline void ctx_end() { __builtin_memcpy(__eh_ctx.handler_ctx, __saved_jb, sizeof(jmp_buf)); }
+        inline void put_ctx(cxxabi_abort& abort_handler) { abort_handler.eh_ctx = __addressof(__eh_ctx); }
+        inline jmp_buf& ctx_jmp() { return __eh_ctx.handler_ctx; }
+        inline const char* ctx_msg() { return __eh_ctx.msg; }
+        inline int ctx_status() { return __eh_ctx.status; }
+        inline void ctx_end() { __eh_ctx.handler_ctx[0] = __saved_jb[0]; }
         inline size_t asprintf(const char** strp, const char* fmt, ...);
         inline size_t logf(const char* fmt, ...);
         inline block_io_provider_module* as_blockdev();
@@ -102,7 +105,7 @@ namespace ooos
                 (*init)();
                 T* result = new (addr) T(static_cast<Args&&>(args)...);
                 result->setup(api, mm, fini);
-                abort_handler.eh_ctx = &result->get_eh_ctx();
+                result->put_ctx(abort_handler);
                 return result;
             }
         }

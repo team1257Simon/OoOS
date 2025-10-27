@@ -1,6 +1,7 @@
 #ifndef __IOS_INTERFACE
 #define __IOS_INTERFACE
 #include <type_traits>
+#include <stdint.h>
 enum device_type : uint16_t
 {
     ZERO = 0,

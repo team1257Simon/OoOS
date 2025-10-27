@@ -144,24 +144,21 @@ typedef struct __line_status_reg
 } __pack line_status_byte;
 /**
  * Config Parameters:
- *  - port          : word                          — which IO port to use for the serial device
- *  - mode          : byte (struct line_ctl_byte)   — configuration byte to use for the line control register
- *  - trigger_level : byte (enum trigger_level_t)   — value to set for the trigger level for the FIFO buffer on the serial port
- *  - baud_div      : word                          — value to set for the baud rate divisor on the serial line
- *  - trim_on_read  : bool                          — if set to true, the internal buffer's get region will trim elements that were previously read each time a read occurs, rather than when the buffer is full
+ *  #0 port             : u16                           — which IO port to use for the serial device
+ *  #1 mode             : u8 ∈ { struct line_ctl_byte } — configuration byte to use for the line control register
+ *  #2 trigger_level    : u8 ∈ { enum trigger_level_t } — value to set for the trigger level for the FIFO buffer on the serial port
+ *  #3 baud_div         : u16                           — value to set for the baud rate divisor on the serial line
+ *  #4 trim_on_read     : bool                          — whether to discard input bytes that were previously read each time a read occurs, rather than when the buffer is full
  */
 constexpr auto serial_config() 
 {
-    using ooos::create_config;
-    using ooos::parameter;
-    using ooos::parameter_type;
-    return create_config
+    return ooos::create_config
     (
-        parameter("port",           parameter_type<uint16_t>,           port_com1),
-        parameter("mode",           parameter_type<uint8_t>,            static_cast<byte>(S8N1)),
-        parameter("trigger_level",  parameter_type<uint8_t>,            T4BYTE),
-        parameter("baud_div",       parameter_type<uint16_t>,           12US),
-        parameter("trim_on_read",   parameter_type<bool>,               false)
+        ooos::parameter("port",           ooos::parameter_type<uint16_t>,           port_com1),
+        ooos::parameter("mode",           ooos::parameter_type<uint8_t>,            static_cast<byte>(S8N1)),
+        ooos::parameter("trigger_level",  ooos::parameter_type<uint8_t>,            T4BYTE),
+        ooos::parameter("baud_div",       ooos::parameter_type<uint16_t>,           12US),
+        ooos::parameter("trim_on_read",   ooos::parameter_type<bool>,               false)
     );
 }
 struct amd64_serial : ooos::io_module_base<char>
