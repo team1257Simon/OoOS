@@ -254,7 +254,10 @@ namespace ooos
  * All modules must invoke this macro exactly once in order to build properly.
  * When invoked, it defines a function that the kernel will call when the module loads.
  * That function allocates a separate page frame structure which is used to implement most of the underlying "glue" needed by C++ to function fully.
- * It then also sets up some pointers to vtables which tie in kernel functionality modules might need to use.
+ * It then also sets up some pointers which tie in kernel functionality modules might need to use.
+ * This includes a patch to the typeinfo struct representing the module's class, which points the base-type-info pointers at the kernel symbol representing each of its bases if one exists.
+ * The process occurs recursively in case a module class inherits from a fully-inline base or one that is itself defined within the module, making the change to the first matching pointer it finds within each inheritance chain (but no others).
+ * Doing so allows the kernel to use dynamic_cast to upcast the module class into something more specific, e.g. block_io_provider_module or io_module_base<char>.
  */
 #define EXPORT_MODULE(module_class, ...)\
     static char __instance[sizeof(module_class)];\

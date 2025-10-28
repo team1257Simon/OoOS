@@ -431,7 +431,7 @@ namespace ooos
     };
     enum class blockdev_type : uint8_t
     {
-        BDT_NONE    = 0UC,  // Unknown or no __device
+        BDT_NONE    = 0UC,  // Unknown or no device
         BDT_HDD     = 1UC,  // Hard disk drive
         BDT_CDD     = 2UC,  // CD/DVD drive
         BDT_SSD     = 3UC,  // Solid state drive

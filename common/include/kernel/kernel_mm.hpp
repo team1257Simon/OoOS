@@ -141,6 +141,7 @@ public:
         usr_blocks              {},
         shared_blocks           {}
                                 {}
+    friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
     bool shift_extent(ptrdiff_t amount);
     addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
     addr_t sysres_add(size_t n);
@@ -150,7 +151,6 @@ public:
     void drop_block(block_descriptor const& which);
     block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true, bool allow_global_shared = false);
     addr_t translate(addr_t addr);
-    friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
 };
 enum block_idx : uint8_t
 {
@@ -254,13 +254,13 @@ class kernel_memory_mgr
     void __suspend_frame() noexcept;
     void __resume_frame() noexcept;
 public:
+    constexpr uintptr_t open_wm() const { return __watermark; }
     static void init_instance(mmap_t* mmap);
     static kernel_memory_mgr& get();
     static size_t aligned_size(addr_t start, size_t requested);
     static size_t dma_size(size_t requested);
     static void suspend_user_frame();
     static void resume_user_frame();
-    constexpr uintptr_t open_wm() const { return __watermark; }
     kernel_memory_mgr(kernel_memory_mgr const&) = delete;
     kernel_memory_mgr(kernel_memory_mgr&&) = delete;
     kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;

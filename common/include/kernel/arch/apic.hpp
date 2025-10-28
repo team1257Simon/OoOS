@@ -53,11 +53,11 @@ class apic
     unsigned int __local_id;
 public:
     inline bool valid() const volatile { return __apic_mem != nullptr && __ioapic_mem != nullptr; }
-    apic(unsigned id = 0);
-    void eoi() volatile;
-    bool init() volatile;
     inline apic_map volatile* get_map() volatile { return __apic_mem; }
     inline apic_map const volatile* get_map() const volatile { return __apic_mem; }
     inline int get_id() const volatile noexcept { return __local_id; }
+    apic(unsigned id = 0);
+    void eoi() volatile;
+    bool init() volatile;
 };
 #endif

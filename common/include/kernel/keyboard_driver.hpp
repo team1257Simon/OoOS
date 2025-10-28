@@ -2,7 +2,7 @@
 #define __KEYBD_DRIVER
 #include "kernel/isr_table.hpp"
 enum write_mode : bool { INSERT = false, OVERWRITE = true };
-struct kb_state
+struct __pack kb_state
 {
     bool shift      : 1 { false };
     bool ctrl       : 1 { false };
@@ -11,7 +11,7 @@ struct kb_state
     bool numlk      : 1 { false };
     bool capslk     : 1 { false };
     write_mode mode : 2 { INSERT };
-    constexpr kb_state& operator=(kb_state const& that) 
+    constexpr kb_state& operator=(kb_state const& that)
     {
         shift = that.shift;
         ctrl = that.ctrl;
@@ -21,14 +21,14 @@ struct kb_state
         capslk = that.capslk;
         return *this;
     }
-} __pack;
-struct kb_data
+};
+struct __pack kb_data
 {
     kb_state    state;
     uint8_t     event_code;
     uint8_t     k_code;
     char        k_char;
-} __pack;
+};
 typedef std::function<void(kb_data)> kb_listener;
 class keyboard_driver
 {

@@ -23,8 +23,6 @@ protected:
     virtual void set_frame(uframe_tag* ft) override;
     virtual uframe_tag* get_frame() const override;
 public:
-    virtual addr_t resolve(uint64_t offs) const override;
-    virtual addr_t resolve(elf64_sym const& sym) const override;
     constexpr std::string const& get_soname() const { return soname; }
     constexpr void incref() noexcept { ref_count++; }
     constexpr void decref() noexcept { ref_count--; }
@@ -37,6 +35,8 @@ public:
     constexpr addr_t get_load_offset() const noexcept { return virtual_load_base; }
     constexpr addr_t entry_point() const { return entry; }
     constexpr bool could_contain(addr_t addr) const noexcept { return addr >= virtual_load_base && virtual_load_base.plus(total_segment_size) > addr; }
+    virtual addr_t resolve(uint64_t offs) const override;
+    virtual addr_t resolve(elf64_sym const& sym) const override;
     const char* sym_lookup(addr_t addr) const;
     program_segment_descriptor const* segment_of(addr_t symbol_vaddr) const;
     elf64_shared_object(file_node* n, uframe_tag* frame);

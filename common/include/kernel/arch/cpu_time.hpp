@@ -18,8 +18,9 @@ class cpu_timer_stopwatch
     time_t __split;
     bool __is_started;
 public:
-    constexpr static struct started_t{ constexpr explicit started_t() noexcept = default; } started{};
-    constexpr static struct tsplit_t{ constexpr explicit tsplit_t() noexcept = default; } tsplit{};
+    constexpr static struct started_t { constexpr explicit started_t() noexcept = default; } started{};
+    constexpr static struct tsplit_t { constexpr explicit tsplit_t() noexcept = default; } tsplit{};
+    constexpr operator bool() const noexcept { return __is_started; }
     cpu_timer_stopwatch();
     cpu_timer_stopwatch(started_t);
     void start();
@@ -40,7 +41,6 @@ public:
      * If the function does not return a true result after the given maximum number of repetitions, stops repeating and returns false.
      */
     bool repeat_on_interval(suseconds_t interval, std::function<bool()> const& fn, size_t max_reps);
-    constexpr operator bool() const noexcept { return __is_started; }
 };
 #define tsci cpu_timer_info::instance
 #endif

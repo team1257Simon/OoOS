@@ -9,8 +9,8 @@ class task_list : std::set<task_ctx>
 {
     using __base = std::set<task_ctx>;
     static task_list __instance;
-    pid_t __upid() const noexcept;
     constexpr task_list() : __base{} {}
+    pid_t __upid() const noexcept;
     friend class task_ctx;
 public:
     using __base::iterator;

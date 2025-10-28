@@ -24,11 +24,11 @@ protected:
     bool init();
     scheduler();
 public:
-    scheduler(scheduler const&) = delete;
-    scheduler& operator=(scheduler const&) = delete;
     constexpr bool is_running() const noexcept  { return __running; }
     constexpr void start() noexcept             { __running = true; }
     constexpr void stop() noexcept              { __running = false; }
+    scheduler(scheduler const&) = delete;
+    scheduler& operator=(scheduler const&) = delete;
     void register_task(task_t* task);
     bool unregister_task(task_t* task);
     bool unregister_task_tree(task_t* task);

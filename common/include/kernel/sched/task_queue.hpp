@@ -32,7 +32,7 @@ public:
     using __base::reverse_iterator;
     using __base::const_reverse_iterator;
     constexpr task_pl_queue() noexcept : __base{} {}
-    constexpr task_pl_queue(size_type start_cap) : __base{ start_cap } {}
+    constexpr task_pl_queue(size_type start_cap) : __base(start_cap) {}
     constexpr void set_skips_threshold(uint8_t value) noexcept { this->__skips_threshold = value; }
     void on_skipped() noexcept;
     bool skip_flag() noexcept;
@@ -55,7 +55,7 @@ public:
     using __base::reverse_iterator;
     using __base::const_reverse_iterator;
     constexpr task_wait_queue() noexcept : __base{} { this->set_trim_stale(true); }
-    constexpr task_wait_queue(size_type start_cap) : __base{ start_cap } { this->set_trim_stale(true); }
+    constexpr task_wait_queue(size_type start_cap) : __base(start_cap) { this->set_trim_stale(true); }
     void tick_wait() noexcept;
     unsigned int next_remaining_wait_ticks() const noexcept;
     unsigned int cumulative_remaining_ticks() const noexcept;

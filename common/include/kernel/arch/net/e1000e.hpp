@@ -236,7 +236,8 @@ struct attribute(packed, aligned(4)) e1000e_rx_filter_control_register
     bool                            : 8;
     bool                            : 8;
 };
-template<std::same_size<uint32_t> T> union [[gnu::may_alias]] e1000e_register_dword
+template<std::same_size<uint32_t> T>
+union [[gnu::may_alias]] e1000e_register_dword
 {
     typedef uint32_t& dw_ref;
     typedef uint32_t const& dw_cref;
@@ -275,7 +276,8 @@ struct attribute(packed, aligned(2)) e1000e_phy_autonegotiation_capability_word
     bool                        : 1;
     bool next_page              : 1;
 };
-template<std::same_size<uint16_t> T> union e1000e_phy_register_word
+template<std::same_size<uint16_t> T>
+union e1000e_phy_register_word
 {
     typedef uint16_t& w_ref;
     typedef uint16_t const& w_cref;
@@ -325,7 +327,6 @@ union alignas(int128_t) e1000e_receive_descriptor
         uint16_t vlan_wb;	                    /* VLAN tag */
 	} wb;                                       /* writeback */
 };
-constexpr auto test = offsetof(e1000e_receive_descriptor, read.status);
 union alignas(int128_t) e1000e_receive_descriptor_packet_split
  {
 	struct { uintptr_t buffer_addr[4]; } read; /* one buffer for protocol header(s), three data buffers */

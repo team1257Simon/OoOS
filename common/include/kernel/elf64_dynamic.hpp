@@ -40,6 +40,15 @@ protected:
     size_t to_image_offset(size_t offs);
     std::pair<elf64_sym, addr_t> fallback_resolve(std::string const& symbol) const;
 public:
+    constexpr size_t dyn_segment_len() const noexcept { return num_dyn_entries; }
+    constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
+    constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
+    constexpr std::vector<std::string> const& get_dependencies() const noexcept { return dependencies; }
+    constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
+    constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
+    constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
+    constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
+    constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }
     addr_t resolve_rela_target(elf64_rela const& r) const;
     elf64_dynamic_object(file_node* n);
     elf64_dynamic_object(addr_t start, size_t size);
@@ -51,15 +60,6 @@ public:
     addr_t global_offset_table() const;
     addr_t dyn_segment_ptr() const;
     void set_resolver(addr_t ptr);
-    constexpr size_t dyn_segment_len() const noexcept { return num_dyn_entries; }
-    constexpr std::vector<addr_t> const& get_init() const noexcept { return init_array; }
-    constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
-    constexpr std::vector<std::string> const& get_dependencies() const noexcept { return dependencies; }
-    constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
-    constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
-    constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
-    constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
-    constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }
 };
 extern "C"
 {

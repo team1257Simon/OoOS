@@ -231,10 +231,12 @@ struct __pack pci_config_table
     uint8_t reserved[8];
     pci_config_ptr addr_allocations[];
 };
+#if defined(__KERNEL__) || defined(__LIBK__)
 pci_config_table* find_pci_config();
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
 pci_capabilities_register* get_first_capability_register(pci_config_space* device);
 pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r);
 void* compute_base_address(uint32_t bar_registers[], uint8_t i);
 void* compute_base(uint32_t bar);
+#endif
 #endif
