@@ -164,6 +164,7 @@ public:
 };
 class directory_node;
 class device_node;
+struct mount_node;
 class tnode
 {
     fs_node* __my_node;
@@ -186,6 +187,7 @@ public:
     fs_node const* operator->() const noexcept;
     bool is_file() const;
     bool is_directory() const;
+    bool is_mount() const;
     bool is_device() const;
     bool is_pipe() const;
     file_node* as_file();
@@ -194,6 +196,8 @@ public:
     directory_node const* as_directory() const;
     device_node* as_device();
     device_node const* as_device() const;
+    mount_node* as_mount();
+    mount_node const* as_mount() const;
     void invlnode() noexcept;
     bool assign(fs_node* n) noexcept;
     friend tnode mklink(tnode* original, std::string const& name);
@@ -303,7 +307,6 @@ protected:
     virtual pipe_pair mkpipe();
     virtual void syncdirs() = 0;
     virtual dev_t xgdevid() const noexcept = 0;
-    virtual const char* path_separator() const noexcept;
     virtual void on_close(file_node*);
     virtual bool xunlink(directory_node* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
     virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
@@ -313,6 +316,7 @@ protected:
     void register_fd(fs_node* node);
     target_pair get_parent(std::string const& path, bool create);
 public:
+    virtual const char* path_separator() const noexcept;
     virtual directory_node* get_root_directory() = 0;
     virtual device_node* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true);
     virtual file_node* on_open(tnode*);
@@ -343,7 +347,7 @@ public:
     bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
     void pubsyncdirs();
 };
-struct mount_node : fs_node
+struct mount_node : public virtual directory_node
 {
     filesystem* mounted;
     mount_node(filesystem* fs, int vfd, uint64_t cid);

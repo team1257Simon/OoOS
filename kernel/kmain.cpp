@@ -213,9 +213,10 @@ void str_tests()
     startup_tty.print_text(std::to_string(3.14159265358L) + " ");
     startup_tty.print_text(std::to_string(rand()) + " ");
     startup_tty.print_text(std::string(10UL, 'e') + " ");
-    std::string test_str{ "I/like/to/eat/apples/and/bananas" };
+    std::string test_str("I/like/to/eat/apples/and/bananas");
     for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
-    startup_tty.endl();
+    std::vector<std::string> v{ "Dewey", "Cheatem", "and Howe" };
+    startup_tty.print_line(std::ext::join(v, ", "));
     startup_tty.print_text("crc32c test: ");
     debug_print_num(crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(test_str.c_str()), test_str.size()), 8);
     startup_tty.endl();

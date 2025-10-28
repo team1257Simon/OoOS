@@ -288,15 +288,22 @@ filesystem::target_pair extfs::get_parent(directory_node* start, std::string con
             } 
             else { throw std::out_of_range("[FS/EXT4] path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)"); } 
         }
+        else if(cur->is_mount())
+        {
+            mount_node* mount = node->as_mount();
+            std::vector<std::string> rem(pathspec.begin() + i, pathspec.end());
+            return target_pair(std::piecewise_construct, std::forward_as_tuple(mount), std::forward_as_tuple(std::ext::join(rem, mount->mounted->path_separator())));   
+        }
         else if(node->is_directory()) cur = node->as_directory();
-        else throw std::invalid_argument("[FS/EXT4] path is invalid because entry " + pathspec[i] + " is a file");
+        else throw std::invalid_argument("[FS/EXT4] path is invalid because entry " + pathspec[i] + " is not a directory");
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(cur), std::forward_as_tuple(pathspec.back()));
 }
 file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
-    target_pair parent  = filesystem::get_parent(path, false);
-    tnode* node         = parent.first->find(parent.second);
+    target_pair parent      = filesystem::get_parent(path, false);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->open_file(parent.second, mode, create);
+    tnode* node             = parent.first->find(parent.second);
     if(node && node->is_directory()) throw std::logic_error("[FS/EXT4] path " + path + " exists and is a directory");
     file_node* result;
     bool pipe = false;
@@ -315,8 +322,9 @@ file_node* extfs::open_file(std::string const& path, std::ios_base::openmode mod
 directory_node* extfs::open_directory(std::string const& path, bool create)
 {
     if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
-    target_pair parent  = filesystem::get_parent(path, create);
-    tnode* node         = parent.first->find(parent.second);
+    target_pair parent      = filesystem::get_parent(path, create);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->open_directory(parent.second, create);
+    tnode* node             = parent.first->find(parent.second);
     directory_node* result;
     if(!node)
     {
@@ -672,7 +680,8 @@ fs_node* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
 }
 device_node* extfs::lndev(const std::string& where, int fd, dev_t id, bool create_parents)
 {
-    target_pair parent = filesystem::get_parent(where, create_parents);
+    target_pair parent      = filesystem::get_parent(where, create_parents);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->lndev(parent.second, fd, id, create_parents);
     if(parent.first->find(parent.second)) throw std::logic_error("[FS/EXT4] cannot create link " + parent.second + " because it already exists");
     ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent.first);
     if(dev_linked_nodes.contains(id))
@@ -703,7 +712,7 @@ tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link
         tnode* node = from->find_r(pathspec[i], checked);
         if(!node) throw std::out_of_range("[FS/EXT4] broken link");
         else if(node->is_directory()) { from = dynamic_cast<ext_directory_vnode*>(node->as_directory()); if(!from) throw std::bad_cast(); }
-        else throw std::invalid_argument("[FS/EXT4] symlink path component .../" + pathspec[i] + "/ is a file");
+        else throw std::invalid_argument("[FS/EXT4] symlink path component .../" + pathspec[i] + "/ is not a directory");
     }
     return from->find_r(pathspec.back(), checked);
 }

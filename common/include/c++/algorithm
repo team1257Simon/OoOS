@@ -24,6 +24,19 @@ namespace std
             do { j = str.find(delim, i); result.emplace_back(i, j); i = ++j; } while(j < str.end());
             return result;
         }
+        template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT, __str_delim<CT, TT, AT> DT>
+        std::basic_string<CT, TT, AT> join(std::vector<std::basic_string<CT, TT, AT>> const& vec, DT delim = DT())
+        {
+            typedef decltype(vec.begin()) iterator;
+            std::basic_string<CT, TT, AT> result{};
+            for(iterator i = vec.begin(); i != vec.end(); i++)
+            {
+                result += *i;
+                iterator test_adv(i);
+                if(++test_adv != vec.end() && delim) result += delim; 
+            }
+            return result;
+        }
     }
     namespace __detail
     {

@@ -18,7 +18,6 @@ file_node* filesystem::on_open(tnode* node) { return node->as_file(); }
 file_node* filesystem::on_open(tnode* node, std::ios_base::openmode) { return on_open(node); }
 file_node* filesystem::get_file(int fd) { return dynamic_cast<file_node*>(current_open_files.find_fd(fd)); }
 directory_node* filesystem::get_directory(int fd) { return dynamic_cast<directory_node*>(current_open_files.find_fd(fd)); }
-tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents) { return xlink(get_parent(ogpath, false), get_parent(tgpath, create_parents)); }
 dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
 size_t filesystem::block_size() { return blockdev ? blockdev->sector_size() : physical_block_size; }
 void filesystem::pubsyncdirs() { syncdirs(); }
@@ -26,12 +25,22 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
 directory_node* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
 bool filesystem::write_blockdev(uint64_t lba_dest, const void* src, size_t sectors) { return blockdev->write(lba_dest, src, sectors); }
 bool filesystem::read_blockdev(void* dest, uint64_t lba_src, size_t sectors) { return blockdev->read(dest, lba_src, sectors); }
+tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents)
+{
+    target_pair ogparent = get_parent(ogpath, false);
+    target_pair tgparent = get_parent(tgpath, create_parents);
+    if(ogparent.first->is_mount() || tgparent.first->is_mount())
+        if(mount_node* mount = dynamic_cast<mount_node*>(ogparent.first); mount && mount == dynamic_cast<mount_node*>(tgparent.first))
+            return mount->mounted->link(ogparent.second, tgparent.second, create_parents);
+    return xlink(ogparent, tgparent);
+}
 file_node* filesystem::get_file_or_null(std::string const& path)
 {
     try
     {
-        target_pair parent  = get_parent(path, false);
-        if(tnode* node      = parent.first->find(parent.second))
+        target_pair parent      = get_parent(path, false);
+        if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->get_file_or_null(parent.second);
+        if(tnode* node          = parent.first->find(parent.second))
         { 
             file_node* file = on_open(node);
             if(file) register_fd(file);
@@ -86,7 +95,8 @@ void filesystem::dlpipenode(fs_node* fn)
 }
 device_node* filesystem::lndev(std::string const& where, int fd, dev_t id, bool create_parents)
 {
-    target_pair parent = get_parent(where, create_parents);
+    target_pair parent      = get_parent(where, create_parents);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->lndev(parent.second, fd, id, create_parents);
     if(parent.first->find(parent.second)) throw std::logic_error("[FS] cannot create link " + parent.second + " because it already exists"); 
     device_node* result = mkdevnode(parent.first, parent.second, id, fd);
     register_fd(result);
@@ -117,6 +127,7 @@ bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool d
         pdir                = parent.first;
         fname               = parent.second;
     }
+    if(mount_node* mount = dynamic_cast<mount_node*>(pdir)) return mount->mounted->unlink(fname, ignore_nonexistent, dir_recurse);
     return xunlink(pdir, fname, ignore_nonexistent, dir_recurse);
 }
 device_node* filesystem::mkdevnode(directory_node* parent, std::string const& name, dev_t id, int fd)
@@ -184,13 +195,14 @@ bool filesystem::xunlink(directory_node* parent, std::string const& what, bool i
 }
 tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
 {
+    if(ogparent.first->is_mount() || tgparent.first->is_mount()) throw std::invalid_argument("[FS] cannot create hardlink across mount point");
     tnode* node = ogparent.first->find(ogparent.second);
     if(!node) throw std::runtime_error(std::string("[FS] path does not exist: ") + ogparent.first->name() + path_separator() + ogparent.second);
     if(tgparent.first->find(tgparent.second)) throw std::logic_error(std::string("[FS] target ") + tgparent.first->name() + path_separator() + tgparent.second + " already exists");
     if(!tgparent.first->link(node, tgparent.second)) throw std::runtime_error(std::string("[FS] failed to create link: ") + tgparent.first->name() + path_separator() + tgparent.second);
     return tgparent.first->find(tgparent.second);
 }
-filesystem::target_pair filesystem::get_parent(directory_node* start, std::string const &path, bool create)
+filesystem::target_pair filesystem::get_parent(directory_node* start, std::string const& path, bool create)
 {
     std::vector<std::string> pathspec = std::ext::split(path, path_separator());
     for(size_t i = 0; i < pathspec.size() - 1; i++)
@@ -207,8 +219,14 @@ filesystem::target_pair filesystem::get_parent(directory_node* start, std::strin
             } 
             else { throw std::out_of_range("[FS] path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)"); } 
         }
+        else if(cur->is_mount())
+        {
+            mount_node* mount = cur->as_mount();
+            std::vector<std::string> rem(pathspec.begin() + i, pathspec.end());
+            return target_pair(std::piecewise_construct, std::forward_as_tuple(mount), std::forward_as_tuple(std::ext::join(rem, mount->mounted->path_separator())));   
+        }
         else if(cur->is_directory()) start = cur->as_directory();
-        else throw std::invalid_argument("[FS] path is invalid because entry " + pathspec[i] + " is a file");
+        else throw std::invalid_argument("[FS] path is invalid because entry " + pathspec[i] + " is not a directory");
     }
     return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
 }
@@ -216,8 +234,9 @@ fs_node* filesystem::find_node(std::string const& path, bool ignore_links, std::
 {
     try
     {
-        target_pair parent  = get_parent(path, false);
-        tnode* tn           = ignore_links ? parent.first->find_l(parent.second) : parent.first->find(parent.second);
+        target_pair parent      = get_parent(path, false);
+        if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->find_node(parent.second, ignore_links, mode);
+        tnode* tn               = ignore_links ? parent.first->find_l(parent.second) : parent.first->find(parent.second);
         if(!tn) return nullptr;
         if(!current_open_files.contains(tn->ref().vid())) { register_fd(tn->ptr()); }
         if(tn->is_file() || tn->is_pipe()) { return on_open(tn, mode); }
@@ -227,8 +246,9 @@ fs_node* filesystem::find_node(std::string const& path, bool ignore_links, std::
 }
 file_node* filesystem::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
-    target_pair parent  = get_parent(path, false);
-    tnode* node         = parent.first->find(parent.second);
+    target_pair parent      = get_parent(path, false);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->open_file(parent.second, mode, create);
+    tnode* node             = parent.first->find(parent.second);
     if(node && node->is_directory()) throw std::logic_error("[FS] path " + path + " exists and is a directory");
     if(!node)
     {
@@ -255,8 +275,9 @@ file_node* filesystem::get_file(std::string const& path)
 directory_node* filesystem::open_directory(std::string const& path, bool create)
 {
     if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
-    target_pair parent  = get_parent(path, create);
-    tnode* node         = parent.first->find(parent.second);
+    target_pair parent      = get_parent(path, create);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) return mount->mounted->open_directory(parent.second, create);
+    tnode* node             = parent.first->find(parent.second);
     if(!node) 
     { 
         if(create) 
@@ -274,18 +295,22 @@ directory_node* filesystem::open_directory(std::string const& path, bool create)
 }
 void filesystem::create_node(directory_node* from, std::string const& path, mode_t mode, dev_t dev)
 {
-    if(!from) from      = get_root_directory();
-    target_pair parent  = get_parent(from, path, false);
-    if(parent.first->find(parent.second)) { throw std::domain_error("[FS] target " + path + " already exists"); }
-    file_mode m(mode);
-    fs_node* result;
-    if(m.is_directory())    { result            = mkdirnode(parent.first, parent.second); result->mode = mode; }
-    else if(m.is_chardev()) { result            = mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
-    else if(m.is_fifo())    { pipe_pair pipes   = mkpipe(parent.first, parent.second); pipes.in->mode = mode; pipes.out->mode = mode; return; }
-    else                    { result            = mkfilenode(parent.first, parent.second); result->mode = mode; }
-    if(!result)             { throw std::runtime_error("[FS] failed to create node at " + path); }
-    result->fsync();
-    syncdirs();
+    if(!from) from          = get_root_directory();
+    target_pair parent      = get_parent(from, path, false);
+    if(mount_node* mount    = dynamic_cast<mount_node*>(parent.first)) mount->mounted->create_node(mount->mounted->get_root_directory(), parent.second, mode, dev);
+    else
+    {
+        if(parent.first->find(parent.second)) { throw std::domain_error("[FS] target " + path + " already exists"); }
+        file_mode m(mode);
+        fs_node* result;
+        if(m.is_directory())    { result            = mkdirnode(parent.first, parent.second); result->mode = mode; }
+        else if(m.is_chardev()) { result            = mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
+        else if(m.is_fifo())    { pipe_pair pipes   = mkpipe(parent.first, parent.second); pipes.in->mode = mode; pipes.out->mode = mode; return; }
+        else                    { result            = mkfilenode(parent.first, parent.second); result->mode = mode; }
+        if(!result)             { throw std::runtime_error("[FS] failed to create node at " + path); }
+        result->fsync();
+        syncdirs();
+    }
 }
 void filesystem::create_pipe(int fds[2])
 {

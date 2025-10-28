@@ -68,13 +68,16 @@ fs_node const* tnode::operator->() const noexcept { return __my_node; }
 file_node* tnode::as_file() { return dynamic_cast<file_node*>(__my_node); }
 file_node const* tnode::as_file() const { return dynamic_cast<file_node const*>(__my_node); }
 directory_node* tnode::as_directory() { return dynamic_cast<directory_node*>(__my_node); }
-directory_node const* tnode::as_directory() const { return dynamic_cast<directory_node*>(__my_node); }
+directory_node const* tnode::as_directory() const { return dynamic_cast<directory_node const*>(__my_node); }
 device_node* tnode::as_device() { return dynamic_cast<device_node*>(__my_node); }
-device_node const* tnode::as_device() const { return dynamic_cast<device_node const *>(__my_node); }
+device_node const* tnode::as_device() const { return dynamic_cast<device_node const*>(__my_node); }
+mount_node* tnode::as_mount() { return dynamic_cast<mount_node*>(__my_node); }
+mount_node const* tnode::as_mount() const { return dynamic_cast<mount_node const*>(__my_node); }
 bool tnode::is_file() const { return __my_node && __my_node->is_file(); }
 bool tnode::is_directory() const { return __my_node && __my_node->is_directory(); }
 bool tnode::is_device() const { return __my_node && __my_node->is_device(); }
 bool tnode::is_pipe() const { return __my_node && __my_node->is_pipe(); }
+bool tnode::is_mount() const { return __my_node && __my_node->is_mount(); }
 void tnode::invlnode() noexcept { __my_node = nullptr; }
 bool tnode::assign(fs_node* n) noexcept { if(!__my_node) { __my_node = n; return true; } else return false; }
 tnode mklink(tnode* original, std::string const& name) { return tnode(original->__my_node, name); }
@@ -96,5 +99,5 @@ pipe_node::size_type pipe_node::read(pointer dest, size_type n) { if(__pipe->wri
 pipe_node::pos_type pipe_node::seek(off_type off, std::ios_base::seekdir way) { return __pipe->pubseekoff(off, way, current_mode); }
 pipe_node::pos_type pipe_node::seek(pos_type pos) { return __pipe->pubseekpos(pos, current_mode); }
 bool pipe_node::is_pipe() const noexcept { return true; }
-mount_node::mount_node(filesystem* fs, int vfd, uint64_t cid) : fs_node(vfd, cid), mounted(fs) {}
+mount_node::mount_node(filesystem* fs, int vfd, uint64_t cid) : directory_node(vfd, cid), mounted(fs) {}
 bool mount_node::is_mount() const noexcept { return true; }
