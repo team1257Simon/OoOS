@@ -17,6 +17,7 @@ OVMF = /usr/share/OVMF
 SYSROOT = /usr/local/ooos_sysroot
 SYS_LIB = $(SYSROOT)/usr/lib
 LIB_GCC = $(SYS_LIB)/gcc/x86_64-ooos/14.2.0
+ATTR_PLUGIN := $(LIB_DIR)/ooos_attrs.so
 export PROJECT_DIR
 export ARCH
 export OSNAME
@@ -34,6 +35,7 @@ export SYSROOT
 export SYS_LIB
 export LIB_GCC
 export IMAGE_FILE_DIR
+export ATTR_PLUGIN
 SUBDIRS = headergen lib modules boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)
@@ -53,8 +55,10 @@ lib: headergen
 test: lib
 $(SUBDIRS):
 	$(MAKE) -C $@
+$(ATTR_PLUGIN):
+	$(MAKE) -C lib/ooos-attrs
 clean:
-	rm -rf $(OUT_IMG) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
+	rm -rf $(OUT_IMG) $(ATTR_PLUGIN) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
 	rm *.bin || true
 	rm -rf common/include/asm-generated/* || true
 	for dir in $(SUBDIRS); do \
@@ -62,7 +66,7 @@ clean:
 		$(MAKE) clean ; \
 		cd .. ; \
 	done
-$(OUT_IMG): $(BUILD_DIR) create_image.sh $(SUBDIRS)
+$(OUT_IMG): $(ATTR_PLUGIN) $(BUILD_DIR) create_image.sh $(SUBDIRS)
 	sh create_image.sh $@ $(BUILD_DIR) $(IMAGE_FILE_DIR)
 asmtest: 
 	cd kernel && $(MAKE) asmtest

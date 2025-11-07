@@ -9,9 +9,9 @@ typedef std::function<void()> irq_callback;
 typedef std::function<void(byte, qword)> interrupt_callback;
 namespace interrupt_table
 {
-    bool add_irq_handler(byte idx, irq_callback&& handler);
-    bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler);
-    void deregister_owner(void* owner);
-    void add_interrupt_callback(interrupt_callback&& cb);
+	attribute(nointerrupts) bool add_irq_handler(byte idx, irq_callback&& handler) noexcept;
+	attribute(nointerrupts) bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept;
+	attribute(nointerrupts) void deregister_owner(void* owner) noexcept;
+	attribute(nointerrupts) void add_interrupt_callback(interrupt_callback&& cb) noexcept;
 }
 #endif

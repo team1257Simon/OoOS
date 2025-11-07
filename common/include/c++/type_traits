@@ -119,11 +119,11 @@ namespace std
 	template<typename T> struct is_reference : public false_type {};
 	template<typename T> struct is_reference<T&> : public true_type {};
 	template<typename T> struct is_reference<T&&> : public true_type {};
-    template<typename T> struct is_null_pointer : public false_type {};
-    template<> struct is_null_pointer<nullptr_t> : public true_type {};
-    template<> struct is_null_pointer<const nullptr_t> : public true_type {};
-    template<> struct is_null_pointer<volatile nullptr_t> : public true_type {};
-    template<> struct is_null_pointer<const volatile nullptr_t> : public true_type {};
+	template<typename T> struct is_null_pointer : public false_type {};
+	template<> struct is_null_pointer<nullptr_t> : public true_type {};
+	template<> struct is_null_pointer<const nullptr_t> : public true_type {};
+	template<> struct is_null_pointer<volatile nullptr_t> : public true_type {};
+	template<> struct is_null_pointer<const volatile nullptr_t> : public true_type {};
 	template<typename T> struct is_arithmetic : public __or_<is_integral<T>, is_floating_point<T>>::type {};
 	template<typename T> struct is_fundamental : public __or_<is_arithmetic<T>, is_void<T>, is_null_pointer<T>>::type {};
 	template<typename> struct is_member_pointer;
@@ -466,11 +466,11 @@ namespace std
 	template<typename F2, typename...Args> using __call_is_nothrow_ = __call_is_nothrow<__invoke_result<F2, Args...>, F2, Args...>;
 	template<typename F2, typename...Args> struct __is_nothrow_invocable: __and_<__is_invocable<F2, Args...>, __call_is_nothrow_<F2, Args...>>::type {};
 	#pragma GCC diagnostic push 
-    #pragma GCC diagnostic ignored "-Wctor-dtor-privacy"
+	#pragma GCC diagnostic ignored "-Wctor-dtor-privacy"
 	struct __nonesuchbase {};
 	struct __nonesuch : private __nonesuchbase { ~__nonesuch() = delete; __nonesuch(__nonesuch const & ) = delete; void operator = (__nonesuch const & ) = delete; };
 	#pragma GCC diagnostic pop 
-    template<typename FT, typename...Args> struct invoke_result: public __invoke_result<FT, Args...> { ARGCHK(FT); ARGSCHK; };
+	template<typename FT, typename...Args> struct invoke_result: public __invoke_result<FT, Args...> { ARGCHK(FT); ARGSCHK; };
 	template<typename F2, typename...Args> using invoke_result_t = typename invoke_result<F2, Args...>::type;
 	template<typename F2, typename...Args> struct is_invocable: __is_invocable_impl<__invoke_result<F2, Args...>, void>::type { ARGCHK(F2); ARGSCHK; };
 	template<typename RTT, typename F2, typename...Args> struct is_invocable_r: __is_invocable_impl<__invoke_result<F2, Args...>, RTT>::type { ARGCHK(F2); ARGSCHK; ARGCHK(RTT); };

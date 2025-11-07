@@ -17,64 +17,64 @@ std::type_info const& protocol_udp::packet_type() const { return typeid(udp_head
 protocol_handler& protocol_udp::add_port_handler(uint16_t port, protocol_handler&& ph) { return ports.emplace(std::piecewise_construct, std::forward_as_tuple(port), std::forward_as_tuple(std::move(ph))).first->second; }
 void udp_header::compute_udp_csum()
 {
-    udp_csum                    = 0USBE;
-    uint32_t intermediate_csum  = 0U;
-    intermediate_csum           += source_addr.hi;
-    intermediate_csum           += source_addr.lo;
-    intermediate_csum           += destination_addr.hi;
-    intermediate_csum           += destination_addr.lo;
-    intermediate_csum           += protocol;
-    intermediate_csum           += udp_length;
-    net16* words                = std::addressof(source_port);
-    size_t num_words            = udp_length / sizeof(net16);
-    if((static_cast<size_t>(udp_length) % 2) != 0)
-        intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
-    for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
-    dword dw_csum       = intermediate_csum;
-    intermediate_csum   = dw_csum.hi + dw_csum.lo;
-    dw_csum             = intermediate_csum;
-    intermediate_csum   = dw_csum.hi + dw_csum.lo;
-    udp_csum            = ~(static_cast<uint16_t>(intermediate_csum));
+	udp_csum                    = 0USBE;
+	uint32_t intermediate_csum  = 0U;
+	intermediate_csum           += source_addr.hi;
+	intermediate_csum           += source_addr.lo;
+	intermediate_csum           += destination_addr.hi;
+	intermediate_csum           += destination_addr.lo;
+	intermediate_csum           += protocol;
+	intermediate_csum           += udp_length;
+	net16* words                = std::addressof(source_port);
+	size_t num_words            = udp_length / sizeof(net16);
+	if((static_cast<size_t>(udp_length) % 2) != 0)
+		intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
+	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
+	dword dw_csum       = intermediate_csum;
+	intermediate_csum   = dw_csum.hi + dw_csum.lo;
+	dw_csum             = intermediate_csum;
+	intermediate_csum   = dw_csum.hi + dw_csum.lo;
+	udp_csum            = ~(static_cast<uint16_t>(intermediate_csum));
 }
 bool udp_header::verify_udp_csum() const
 {
-    uint32_t intermediate_csum  = 0U;
-    intermediate_csum           += source_addr.hi;
-    intermediate_csum           += source_addr.lo;
-    intermediate_csum           += destination_addr.hi;
-    intermediate_csum           += destination_addr.lo;
-    intermediate_csum           += protocol;
-    intermediate_csum           += udp_length;
-    net16 const* words          = std::addressof(source_port);
-    size_t num_words            = udp_length / sizeof(net16);
-    if((static_cast<size_t>(udp_length) % 2) != 0)
-        intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
-    for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
-    dword dw_csum       = intermediate_csum;
-    intermediate_csum   = dw_csum.hi + dw_csum.lo;
-    dw_csum             = intermediate_csum;
-    intermediate_csum   = dw_csum.hi + dw_csum.lo;
-    dw_csum             = intermediate_csum;
-    return static_cast<uint16_t>(~(dw_csum.lo)) == 0US;
+	uint32_t intermediate_csum  = 0U;
+	intermediate_csum           += source_addr.hi;
+	intermediate_csum           += source_addr.lo;
+	intermediate_csum           += destination_addr.hi;
+	intermediate_csum           += destination_addr.lo;
+	intermediate_csum           += protocol;
+	intermediate_csum           += udp_length;
+	net16 const* words          = std::addressof(source_port);
+	size_t num_words            = udp_length / sizeof(net16);
+	if((static_cast<size_t>(udp_length) % 2) != 0)
+		intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
+	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
+	dword dw_csum       = intermediate_csum;
+	intermediate_csum   = dw_csum.hi + dw_csum.lo;
+	dw_csum             = intermediate_csum;
+	intermediate_csum   = dw_csum.hi + dw_csum.lo;
+	dw_csum             = intermediate_csum;
+	return static_cast<uint16_t>(~(dw_csum.lo)) == 0US;
 }
 int protocol_udp::transmit(abstract_packet_base& p)
 {
-    udp_header* hdr = p.get_as<udp_header>();
-    if(!hdr) throw std::bad_cast();
-    hdr->udp_length = static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_header));
-    hdr->compute_udp_csum();
-    return next->transmit(p);
+	udp_header* hdr = p.get_as<udp_header>();
+	if(!hdr) throw std::bad_cast();
+	hdr->udp_length = static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_header));
+	hdr->compute_udp_csum();
+	return next->transmit(p);
 }
 int protocol_udp::receive(abstract_packet_base& p)
 {
-    udp_header* hdr = p.get_as<udp_header>();
-    if(__unlikely(!hdr)) return -EPROTOTYPE;
-    if(__unlikely(!hdr->verify_udp_csum())) return -EPROTO;
-    if(ports.contains(hdr->destination_port))
-    {
-        protocol_handler& ph    = ports[hdr->destination_port];
-        p.packet_type           = ph->packet_type();
-        return ph->receive(p);
-    }
-    return -EPIPE;
+	udp_header* hdr = p.get_as<udp_header>();
+	if(__unlikely(!hdr)) return -EPROTOTYPE;
+	if(__unlikely(!hdr->verify_udp_csum())) return -EPROTO;
+	if(ports.contains(hdr->destination_port))
+	{
+		protocol_handler& ph    = ports[hdr->destination_port];
+		p.packet_type           = ph->packet_type();
+		return ph->receive(p);
+	}
+	return -EPIPE;
 }

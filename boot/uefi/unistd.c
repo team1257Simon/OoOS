@@ -34,22 +34,22 @@ int __remove(const wchar_t *__filename, int isdir);
 
 int usleep (unsigned long int __useconds)
 {
-    BS->Stall(__useconds);
-    return 0;
+	BS->Stall(__useconds);
+	return 0;
 }
 
 unsigned int sleep (unsigned int __seconds)
 {
-    BS->Stall((unsigned long int)__seconds * 1000000UL);
-    return 0;
+	BS->Stall((unsigned long int)__seconds * 1000000UL);
+	return 0;
 }
 
 int unlink (const wchar_t *__filename)
 {
-    return __remove(__filename, 0);
+	return __remove(__filename, 0);
 }
 
 int rmdir (const wchar_t *__filename)
 {
-    return __remove(__filename, 1);
+	return __remove(__filename, 1);
 }

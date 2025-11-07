@@ -83,41 +83,41 @@ int pipe(int out[2]);
 #define XSYSCALL6(name, ret, arg0, arg1, arg2, arg3, arg4, arg5) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1), "d"(arg2), "r"(arg3), "r"(arg4), "r"(arg5) : "memory", "%r11", "%rcx")
 #define SYSCALL_RETVAL(type, ret) do \
 { \
-   if(__builtin_expect((signed long)(ret) < 0L, 0)) { errno = -(int)(ret); return (type)(-1); } \
-   else return (type)(ret); \
+	if(__builtin_expect((signed long)(ret) < 0L, 0)) { errno = -(int)(ret); return (type)(-1); } \
+	else return (type)(ret); \
 } while(0)
 #define DEF_SYSCALL0(rt, name) rt name() \
 { \
-   rt ret; \
-   XSYSCALL0(name, ret); \
-   SYSCALL_RETVAL(rt, ret); \
+	rt ret; \
+	XSYSCALL0(name, ret); \
+	SYSCALL_RETVAL(rt, ret); \
 }
 #define DEF_SYSCALL1(rt, name, t1, n1) rt name(t1 n1) \
 { \
-   rt ret; \
-   XSYSCALL1(name, ret, n1); \
-   SYSCALL_RETVAL(rt, ret); \
+	rt ret; \
+	XSYSCALL1(name, ret, n1); \
+	SYSCALL_RETVAL(rt, ret); \
 }
 #define DEF_SYSCALL2(rt, name, t1, n1, t2, n2) rt name(t1 n1, t2 n2) \
 { \
-   rt ret; \
-   XSYSCALL2(name, ret, n1, n2); \
-   SYSCALL_RETVAL(rt, ret); \
+	rt ret; \
+	XSYSCALL2(name, ret, n1, n2); \
+	SYSCALL_RETVAL(rt, ret); \
 }
 #define DEF_SYSCALL3(rt, name, t1, n1, t2, n2, t3, n3) rt name(t1 n1, t2 n2, t3 n3) \
 { \
-   rt ret; \
-   XSYSCALL3(name, ret, n1, n2, n3); \
-   SYSCALL_RETVAL(rt, ret); \
+	rt ret; \
+	XSYSCALL3(name, ret, n1, n2, n3); \
+	SYSCALL_RETVAL(rt, ret); \
 }
 #define DEF_SYSCALL6(rt, name, t1, n1, t2, n2, t3, n3, t4, n4, t5, n5, t6, n6) rt name(t1 n1, t2 n2, t3 n3, t4 n4, t5 n5, t6 n6) \
 { \
-   rt ret; \
-   register t4 r8 asm("r8") = n4; \
-   register t5 r9 asm("r9") = n5; \
-   register t6 r10 asm("r10") = n6; \
-   XSYSCALL6(name, ret, n1, n2, n3, r8, r9, r10); \
-   SYSCALL_RETVAL(rt, ret); \
+	rt ret; \
+	register t4 r8 asm("r8") = n4; \
+	register t5 r9 asm("r9") = n5; \
+	register t6 r10 asm("r10") = n6; \
+	XSYSCALL6(name, ret, n1, n2, n3, r8, r9, r10); \
+	SYSCALL_RETVAL(rt, ret); \
 }
 #ifdef __cplusplus
 }

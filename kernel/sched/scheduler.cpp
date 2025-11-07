@@ -12,7 +12,7 @@ bool scheduler::__has_init{ false };
 constexpr static priority_val incr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) + 1); }
 constexpr static priority_val decr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) - 1); }
 bool scheduler::has_init() noexcept { return __has_init; }
-bool scheduler::init_instance() { return has_init() || (__has_init = __instance.init()); }
+bool scheduler::init_instance() noexcept { return has_init() || (__has_init = __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
 void scheduler::register_task(task_t* task) { __queues[task->task_ctl.prio_base].push(task); __total_tasks++; }
 using priority_val::PVLOW;
@@ -170,7 +170,7 @@ void scheduler::on_tick()
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
 }
-bool scheduler::init()
+attribute(nointerrupts) bool scheduler::init() noexcept
 {
     try
     {

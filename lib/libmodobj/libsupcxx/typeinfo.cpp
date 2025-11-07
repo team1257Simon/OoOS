@@ -48,31 +48,31 @@ ABI_NAMESPACE::__pointer_to_member_type_info::~__pointer_to_member_type_info() {
 extern "C" char* __cxa_demangle_gnu3(const char*);
 extern "C" char* __cxa_demangle(const char* mangled_name, char* buf, size_t* n, int* status)
 {
-    char* demangled = __cxa_demangle_gnu3(mangled_name);
-    if(demangled)
-    {
-        size_t len = strlen(demangled);
-        if(!buf || (*n < len + 1)) buf = static_cast<char*>(realloc(buf, len + 1));
-        if(buf)
-        {
-            memcpy(buf, demangled, len);
-            buf[len] = 0;
-            if(n) *n = len;
-            if(status) *status = 0;
-        }
-        else if(status) *status = -1;
-        free(demangled);
-    }
-    else { if(status) *status = -2; return nullptr; }
-    return buf;
+	char* demangled = __cxa_demangle_gnu3(mangled_name);
+	if(demangled)
+	{
+		size_t len = strlen(demangled);
+		if(!buf || (*n < len + 1)) buf = static_cast<char*>(realloc(buf, len + 1));
+		if(buf)
+		{
+			memcpy(buf, demangled, len);
+			buf[len] = 0;
+			if(n) *n = len;
+			if(status) *status = 0;
+		}
+		else if(status) *status = -1;
+		free(demangled);
+	}
+	else { if(status) *status = -2; return nullptr; }
+	return buf;
 }
 extension std::string std::ext::demangle(std::type_info const& ti)
 {
-    if(char* buf = __cxa_demangle_gnu3(ti.name()))
-    {
-        std::string result{buf};
-        free(buf);
-        return result;
-    }
-    return "DEMANGLE ERROR";
+	if(char* buf = __cxa_demangle_gnu3(ti.name()))
+	{
+		std::string result{buf};
+		free(buf);
+		return result;
+	}
+	return "DEMANGLE ERROR";
 }

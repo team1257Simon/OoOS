@@ -3,7 +3,6 @@
 #include "prog_manager.hpp"
 #include "frame_manager.hpp"
 #include "kernel_mm.hpp"
-#include "kdebug.hpp"
 #include "errno.h"
 #include "fs/fat32.hpp"
 #include "elf64_exec.hpp"

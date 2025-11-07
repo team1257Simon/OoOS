@@ -352,31 +352,31 @@ inline void fence() { asm volatile("mfence" ::: "memory"); }
 #define pop_flags() asm volatile("popf" ::: "memory")
 typedef enum mem_type
 {
-    AVAILABLE = 1,
-    RESERVED = 2,
-    ACPI_RECLAIMABLE = 3,
-    NVS = 4,
-    BADRAM = 5,
-    MMIO = 6
+	AVAILABLE = 1,
+	RESERVED = 2,
+	ACPI_RECLAIMABLE = 3,
+	NVS = 4,
+	BADRAM = 5,
+	MMIO = 6
 } memtype_t;
 typedef struct attribute(packed) __pt_entry
 {
-    bool present                 : 1;
-    bool write                   : 1;
-    bool user_access             : 1;
-    bool write_thru              : 1;
-    bool cache_disable           : 1;
-    bool accessed                : 1;
-    bool dirty                   : 1;
-    bool page_size               : 1;
-    bool global                  : 1;
-    bool avl0                    : 1;
-    bool avl1                    : 1;
-    bool avl2                    : 1;
-    uint64_t physical_address    : 36;
-    uint16_t avl4                : 11;
-    uint8_t pk                   : 4;
-    bool execute_disable         : 1;
+	bool present                 : 1;
+	bool write                   : 1;
+	bool user_access             : 1;
+	bool write_thru              : 1;
+	bool cache_disable           : 1;
+	bool accessed                : 1;
+	bool dirty                   : 1;
+	bool page_size               : 1;
+	bool global                  : 1;
+	bool avl0                    : 1;
+	bool avl1                    : 1;
+	bool avl2                    : 1;
+	uint64_t physical_address    : 36;
+	uint16_t avl4                : 11;
+	uint8_t pk                   : 4;
+	bool execute_disable         : 1;
 } pt_entry;
 typedef pt_entry* paging_table;
 #ifdef __cplusplus 
@@ -398,81 +398,81 @@ typedef struct attribute(packed) __vaddr
 #ifdef __cplusplus 
 	};
 	uintptr_t full{};
-    constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
-        offset      { offs },
-        page_idx    { idx0 },
-        pd_idx      { idx1 },
-        pdp_idx     { idx2 },
-        pml4_idx    { idx3 },
-        ext         { sign } 
-                    {}
-    constexpr explicit __vaddr(uint64_t i) noexcept : full(i) {}
-    constexpr __vaddr(nullptr_t) noexcept : full(0UL) {}
-    constexpr __vaddr(void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-    constexpr __vaddr(const void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-    constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-    constexpr explicit __vaddr(const volatile void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-    template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(T* ptr) noexcept : __vaddr(static_cast<void*>(ptr)) {}
-    template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(const T* ptr) noexcept : __vaddr(static_cast<const void*>(ptr)) {}
-    template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(volatile T* ptr) noexcept : __vaddr(static_cast<volatile void*>(ptr)) {}
-    template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(const volatile T* ptr) noexcept : __vaddr(static_cast<const volatile void*>(ptr)) {}
-    template<typename RT, typename ... Args> constexpr explicit __vaddr(RT (*ptr)(Args...)) noexcept : __vaddr(__builtin_bit_cast(void*, ptr)) {}
-    constexpr __vaddr() = default;
-    constexpr ~__vaddr() = default;
-    constexpr __vaddr(__vaddr const&) = default;
-    constexpr __vaddr(__vaddr &&) = default;
-    constexpr __vaddr& operator=(__vaddr const&) = default;
-    constexpr __vaddr& operator=(__vaddr &&) = default;
-    constexpr operator uintptr_t() const noexcept { return full; }
-    constexpr __vaddr operator+(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
-    constexpr __vaddr& operator+=(ptrdiff_t value) { full += value; return *this; }
-    constexpr __vaddr operator%(uint64_t unit) const { return __vaddr(full % unit); }
-    constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
-    constexpr __vaddr operator-(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
-    constexpr __vaddr& operator-=(ptrdiff_t value) { full -= value; return *this; }
-    constexpr __vaddr plus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
-    constexpr __vaddr minus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
-    constexpr __vaddr trunc(size_t alignval) const { return alignval > 1UZ ? minus(full % alignval) : *this; }
-    constexpr __vaddr alignup(size_t alignval) const { return (alignval > 1UZ && full % alignval) ? plus(alignval).trunc(alignval) : *this; }
-    constexpr __vaddr page_aligned() const noexcept { return minus(full % PAGESIZE); }
-    constexpr __vaddr next_page_aligned() const noexcept { return full % PAGESIZE ? plus(PAGESIZE).page_aligned() : *this; }
-    typedef const void* cvptr;
-    typedef volatile void* vvptr;
-    typedef const volatile void* cvvptr;
-    template<non_void T> using ctptr = const T*;
-    template<non_void T> using vtptr = volatile T*;
-    template<non_void T> using cvtptr = const volatile T*;
-    template<typename T = void> constexpr T* as() const noexcept { return __builtin_bit_cast(std::remove_cv_t<T>*, full); }
-    template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return __builtin_bit_cast(volatile std::remove_cv_t<T>*, const_cast<__vaddr const*>(this)->full); }
-    template<non_void T> constexpr T& deref() const { return *as<T>(); }
-    template<non_void T> constexpr T& assign(T const& value) const { return deref<T>() = value; }
-    template<non_void T> constexpr T& assign(T&& value) const { return deref<std::remove_reference_t<T>>() = std::move(value); }
-    template<typename T, typename ... Args> using functor_t = T(*)(Args...);
-    template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
-    constexpr operator void*() const noexcept { return this->as<void>(); }
-    constexpr operator cvptr() const noexcept { return this->as<const void>(); }
-    constexpr operator vvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<volatile void>(); }
-    constexpr operator cvvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<const volatile void>(); }
-    template<non_void T> constexpr operator T*() const noexcept { return this->as<T>(); }
-    template<non_void T> constexpr operator ctptr<T>() const noexcept { return this->as<T const>(); }
-    template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T volatile>(); }
-    template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T const volatile>(); }
-    template<typename T, typename ... Args> inline operator functor_t<T, Args...>() const noexcept { return reinterpret_cast<functor_t<T, Args...>>(full); }
-    constexpr operator bool() const noexcept { return bool(full); }
-    friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full == __that.full; }
-    friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.full; }
-    friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full - __that.full; }
-    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full <=> __that.full; }
-    friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.full; }
-    friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.full <=> __that; }
-    constexpr bool is_canonical() const noexcept { return (((pml4_idx & 0x100) == 0) && (ext == 0)) || (((pml4_idx & 0x100) != 0) && (ext == 0xFFFF)); }
+	constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
+		offset      { offs },
+		page_idx    { idx0 },
+		pd_idx      { idx1 },
+		pdp_idx     { idx2 },
+		pml4_idx    { idx3 },
+		ext         { sign } 
+					{}
+	constexpr explicit __vaddr(uint64_t i) noexcept : full(i) {}
+	constexpr __vaddr(nullptr_t) noexcept : full(0UL) {}
+	constexpr __vaddr(void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
+	constexpr __vaddr(const void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
+	constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
+	constexpr explicit __vaddr(const volatile void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
+	template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(T* ptr) noexcept : __vaddr(static_cast<void*>(ptr)) {}
+	template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(const T* ptr) noexcept : __vaddr(static_cast<const void*>(ptr)) {}
+	template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(volatile T* ptr) noexcept : __vaddr(static_cast<volatile void*>(ptr)) {}
+	template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(const volatile T* ptr) noexcept : __vaddr(static_cast<const volatile void*>(ptr)) {}
+	template<typename RT, typename ... Args> constexpr explicit __vaddr(RT (*ptr)(Args...)) noexcept : __vaddr(__builtin_bit_cast(void*, ptr)) {}
+	constexpr __vaddr() = default;
+	constexpr ~__vaddr() = default;
+	constexpr __vaddr(__vaddr const&) = default;
+	constexpr __vaddr(__vaddr &&) = default;
+	constexpr __vaddr& operator=(__vaddr const&) = default;
+	constexpr __vaddr& operator=(__vaddr &&) = default;
+	constexpr operator uintptr_t() const noexcept { return full; }
+	constexpr __vaddr operator+(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
+	constexpr __vaddr& operator+=(ptrdiff_t value) { full += value; return *this; }
+	constexpr __vaddr operator%(uint64_t unit) const { return __vaddr(full % unit); }
+	constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
+	constexpr __vaddr operator-(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
+	constexpr __vaddr& operator-=(ptrdiff_t value) { full -= value; return *this; }
+	constexpr __vaddr plus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
+	constexpr __vaddr minus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
+	constexpr __vaddr trunc(size_t alignval) const { return alignval > 1UZ ? minus(full % alignval) : *this; }
+	constexpr __vaddr alignup(size_t alignval) const { return (alignval > 1UZ && full % alignval) ? plus(alignval).trunc(alignval) : *this; }
+	constexpr __vaddr page_aligned() const noexcept { return minus(full % PAGESIZE); }
+	constexpr __vaddr next_page_aligned() const noexcept { return full % PAGESIZE ? plus(PAGESIZE).page_aligned() : *this; }
+	typedef const void* cvptr;
+	typedef volatile void* vvptr;
+	typedef const volatile void* cvvptr;
+	template<non_void T> using ctptr = const T*;
+	template<non_void T> using vtptr = volatile T*;
+	template<non_void T> using cvtptr = const volatile T*;
+	template<typename T = void> constexpr T* as() const noexcept { return __builtin_bit_cast(std::remove_cv_t<T>*, full); }
+	template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return __builtin_bit_cast(volatile std::remove_cv_t<T>*, const_cast<__vaddr const*>(this)->full); }
+	template<non_void T> constexpr T& deref() const { return *as<T>(); }
+	template<non_void T> constexpr T& assign(T const& value) const { return deref<T>() = value; }
+	template<non_void T> constexpr T& assign(T&& value) const { return deref<std::remove_reference_t<T>>() = std::move(value); }
+	template<typename T, typename ... Args> using functor_t = T(*)(Args...);
+	template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
+	constexpr operator void*() const noexcept { return this->as<void>(); }
+	constexpr operator cvptr() const noexcept { return this->as<const void>(); }
+	constexpr operator vvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<volatile void>(); }
+	constexpr operator cvvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<const volatile void>(); }
+	template<non_void T> constexpr operator T*() const noexcept { return this->as<T>(); }
+	template<non_void T> constexpr operator ctptr<T>() const noexcept { return this->as<T const>(); }
+	template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T volatile>(); }
+	template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T const volatile>(); }
+	template<typename T, typename ... Args> inline operator functor_t<T, Args...>() const noexcept { return reinterpret_cast<functor_t<T, Args...>>(full); }
+	constexpr operator bool() const noexcept { return bool(full); }
+	friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full == __that.full; }
+	friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.full; }
+	friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full - __that.full; }
+	friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full <=> __that.full; }
+	friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.full; }
+	friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.full <=> __that; }
+	constexpr bool is_canonical() const noexcept { return (((pml4_idx & 0x100) == 0) && (ext == 0)) || (((pml4_idx & 0x100) != 0) && (ext == 0xFFFF)); }
 #endif
 } addr_t;
 #ifndef __cplusplus
 typedef union __may_alias __idx_addr
 {
-    addr_t idx;
-    uintptr_t addr;
+	addr_t idx;
+	uintptr_t addr;
 } __pack indexed_address;
 #endif
 #ifdef __cplusplus
@@ -484,32 +484,32 @@ extern "C"
 #endif
 struct acpi_header 
 {
-    char signature[4];
-    uint32_t length;
-    uint8_t revision;
-    uint8_t checksum;
-    char oem_id[6];
-    char oem_table_id[8];
-    uint32_t oem_revision;
-    uint32_t creator_id;
-    uint32_t creator_revision;
+	char signature[4];
+	uint32_t length;
+	uint8_t revision;
+	uint8_t checksum;
+	char oem_id[6];
+	char oem_table_id[8];
+	uint32_t oem_revision;
+	uint32_t creator_id;
+	uint32_t creator_revision;
 } __pack;
 struct xsdp_t 
 {
-    char signature[8];
-    uint8_t checksum;
-    char oem_id[6];
-    uint8_t revision;
-    uint32_t rsdt_address;      // deprecated since version 2.0
-    uint32_t length;
-    uint64_t xsdt_address;
-    uint8_t extended_checksum;
-    uint8_t reserved[3];
+	char signature[8];
+	uint8_t checksum;
+	char oem_id[6];
+	uint8_t revision;
+	uint32_t rsdt_address;      // deprecated since version 2.0
+	uint32_t length;
+	uint64_t xsdt_address;
+	uint8_t extended_checksum;
+	uint8_t reserved[3];
 } __pack;
 struct xsdt_t
 {
-    struct acpi_header hdr;
-    addr_t __align(4) sdt_pointers[];
+	struct acpi_header hdr;
+	addr_t __align(4) sdt_pointers[];
 } __pack;
 void* find_system_table(const char* expected_sig);
 typedef struct __generic_address_structure
@@ -522,207 +522,207 @@ typedef struct __generic_address_structure
 } __pack generic_address_structure;
 struct dsdt
 {
-    struct acpi_header h;
-    uint8_t data[];
+	struct acpi_header h;
+	uint8_t data[];
 } __pack;
 struct fadt_t
 {
-    struct   acpi_header h; // "FACP"
-    uint32_t firmware_ctrl;
-    uint32_t dsdt_legacy;
-    // field used in ACPI 1.0; no longer in use, for compatibility only
-    uint8_t  rsv0;
-    uint8_t  preferred_power_profile;
-    uint16_t sci_interrupt;
-    uint32_t smi_command_port;
-    uint8_t  acpi_enable;
-    uint8_t  acpi_disable;
-    uint8_t  s4bios_req;
-    uint8_t  pstate_control;
-    uint32_t pm1a_event_block;
-    uint32_t pm1b_event_block;
-    uint32_t pm1a_control_block;
-    uint32_t pm1b_control_block;
-    uint32_t pm2_control_block;
-    uint32_t pm_timer_block;
-    uint32_t gpe0_block;
-    uint32_t gpe1_block;
-    uint8_t  pm1_event_length;
-    uint8_t  pm1_control_length;
-    uint8_t  pm2_control_length;
-    uint8_t  pm_timer_length;
-    uint8_t  gpe0_length;
-    uint8_t  gpe1_length;
-    uint8_t  gpe1_base;
-    uint8_t  cstate_control;
-    uint16_t worst_c2_latency;
-    uint16_t worst_c3_latency;
-    uint16_t flush_size;
-    uint16_t flush_stride;
-    uint8_t  duty_offset;
-    uint8_t  duty_width;
-    uint8_t  day_alarm;
-    uint8_t  month_alarm;
-    uint8_t  century_register;
-    // reserved in ACPI 1.0; used since ACPI 2.0+
-    uint16_t arch_flags;
-    uint8_t  rsv1;
-    uint32_t flags;
-    // 12 byte structure; see below for details
-    generic_address_structure reset_register;
-    uint8_t  reset_value;
-    uint8_t  rsv3[3];
-    // 64bit pointers - Available on ACPI 2.0+
-    uint64_t                  ext_firmware_control;
-    struct dsdt*              ext_dsdt;
-    generic_address_structure ext_pm1a_event_block;
-    generic_address_structure ext_pm1b_event_block;
-    generic_address_structure ext_pm1a_control_block;
-    generic_address_structure ext_pm1b_control_block;
-    generic_address_structure ext_pm2_control_block;
-    generic_address_structure ext_pm_timer_block;
-    generic_address_structure ext_gpe0_block;
-    generic_address_structure ext_gpe1_block;
+	struct   acpi_header h; // "FACP"
+	uint32_t firmware_ctrl;
+	uint32_t dsdt_legacy;
+	// field used in ACPI 1.0; no longer in use, for compatibility only
+	uint8_t  rsv0;
+	uint8_t  preferred_power_profile;
+	uint16_t sci_interrupt;
+	uint32_t smi_command_port;
+	uint8_t  acpi_enable;
+	uint8_t  acpi_disable;
+	uint8_t  s4bios_req;
+	uint8_t  pstate_control;
+	uint32_t pm1a_event_block;
+	uint32_t pm1b_event_block;
+	uint32_t pm1a_control_block;
+	uint32_t pm1b_control_block;
+	uint32_t pm2_control_block;
+	uint32_t pm_timer_block;
+	uint32_t gpe0_block;
+	uint32_t gpe1_block;
+	uint8_t  pm1_event_length;
+	uint8_t  pm1_control_length;
+	uint8_t  pm2_control_length;
+	uint8_t  pm_timer_length;
+	uint8_t  gpe0_length;
+	uint8_t  gpe1_length;
+	uint8_t  gpe1_base;
+	uint8_t  cstate_control;
+	uint16_t worst_c2_latency;
+	uint16_t worst_c3_latency;
+	uint16_t flush_size;
+	uint16_t flush_stride;
+	uint8_t  duty_offset;
+	uint8_t  duty_width;
+	uint8_t  day_alarm;
+	uint8_t  month_alarm;
+	uint8_t  century_register;
+	// reserved in ACPI 1.0; used since ACPI 2.0+
+	uint16_t arch_flags;
+	uint8_t  rsv1;
+	uint32_t flags;
+	// 12 byte structure; see below for details
+	generic_address_structure reset_register;
+	uint8_t  reset_value;
+	uint8_t  rsv3[3];
+	// 64bit pointers - Available on ACPI 2.0+
+	uint64_t                  ext_firmware_control;
+	struct dsdt*              ext_dsdt;
+	generic_address_structure ext_pm1a_event_block;
+	generic_address_structure ext_pm1b_event_block;
+	generic_address_structure ext_pm1a_control_block;
+	generic_address_structure ext_pm1b_control_block;
+	generic_address_structure ext_pm2_control_block;
+	generic_address_structure ext_pm_timer_block;
+	generic_address_structure ext_gpe0_block;
+	generic_address_structure ext_gpe1_block;
 } __pack;
 struct madt_t
 {
-    struct acpi_header header; // "APIC"
-    uint32_t local_apic_physical_address;
-    uint32_t multiple_apic_flags;
-    uint8_t record_data[];
+	struct acpi_header header; // "APIC"
+	uint32_t local_apic_physical_address;
+	uint32_t multiple_apic_flags;
+	uint8_t record_data[];
 } __pack;
 enum madt_record_type
 #ifdef __cplusplus 
 : uint8_t
 #endif
 {
-    LOCAL_APIC                  = 0x0,
-    IO_APIC                     = 0x1,
-    INTERRUPT_SOURCE_OVERRIDE   = 0x2,
-    NMI_SOURCE_OVERRIDE         = 0x3,
-    LOCAL_APIC_NMI              = 0x4,
-    APIC_ADDRESS_OVERRIDE       = 0x5,
-    IO_SAPIC                    = 0x6,
-    LOCAL_SAPIC                 = 0x7,
-    PLATFORM_INTERRUPT_SOURCE   = 0x8,
-    LOCAL_2XAPIC                = 0x9,
-    LOCAL_2XAPIC_NMI            = 0xA,
-    GICC                        = 0xB,
-    GICD                        = 0xC,
-    GIC_MSI_FRAME               = 0xD,
-    GICR                        = 0xE,
-    GIC_ITS                     = 0xF,
-    MULTUPROCESSOR_WAKEUP       = 0x10,
-    CORE_PIC                    = 0x11,
-    LIO_PIC                     = 0x12,
-    HT_PIC                      = 0x13,
-    EIO_PIC                     = 0x14,
-    MSI_PIC                     = 0x15,
-    BIO_PIC                     = 0x16,
-    LPI_PIC                     = 0x17
+	LOCAL_APIC                  = 0x0,
+	IO_APIC                     = 0x1,
+	INTERRUPT_SOURCE_OVERRIDE   = 0x2,
+	NMI_SOURCE_OVERRIDE         = 0x3,
+	LOCAL_APIC_NMI              = 0x4,
+	APIC_ADDRESS_OVERRIDE       = 0x5,
+	IO_SAPIC                    = 0x6,
+	LOCAL_SAPIC                 = 0x7,
+	PLATFORM_INTERRUPT_SOURCE   = 0x8,
+	LOCAL_2XAPIC                = 0x9,
+	LOCAL_2XAPIC_NMI            = 0xA,
+	GICC                        = 0xB,
+	GICD                        = 0xC,
+	GIC_MSI_FRAME               = 0xD,
+	GICR                        = 0xE,
+	GIC_ITS                     = 0xF,
+	MULTUPROCESSOR_WAKEUP       = 0x10,
+	CORE_PIC                    = 0x11,
+	LIO_PIC                     = 0x12,
+	HT_PIC                      = 0x13,
+	EIO_PIC                     = 0x14,
+	MSI_PIC                     = 0x15,
+	BIO_PIC                     = 0x16,
+	LPI_PIC                     = 0x17
 };
 struct madt_record_header
 {
-    enum madt_record_type type;
-    uint8_t length;
+	enum madt_record_type type;
+	uint8_t length;
 } __pack;
 typedef union
 {
-    struct
-    {
-        bool     enabled         : 1;
-        bool     online_capable  : 1;
-        uint32_t                 : 30;
-    } __pack;
-    uint32_t align;
+	struct
+	{
+		bool     enabled         : 1;
+		bool     online_capable  : 1;
+		uint32_t                 : 30;
+	} __pack;
+	uint32_t align;
  } __pack apic_flags;
 typedef union 
 {
-    struct 
-    {
-        uint8_t polarity        : 2;
-        uint8_t trigger_mode    : 2;
-        uint16_t                : 12;
-    } __pack;
-    uint32_t align;
+	struct 
+	{
+		uint8_t polarity        : 2;
+		uint8_t trigger_mode    : 2;
+		uint16_t                : 12;
+	} __pack;
+	uint32_t align;
 } __pack nmi_flags;
 struct local_apic_data
 {
-    uint8_t processor_uid;
-    uint8_t apic_id;
-    apic_flags flags;
+	uint8_t processor_uid;
+	uint8_t apic_id;
+	apic_flags flags;
 } __pack;
 struct io_apic_data
 {
-    uint8_t apic_id;
-    uint8_t rsv;
-    uint32_t io_apic_physical_address;
-    uint32_t global_system_interrupt_base;
+	uint8_t apic_id;
+	uint8_t rsv;
+	uint32_t io_apic_physical_address;
+	uint32_t global_system_interrupt_base;
 } __pack;
 struct interrupt_src_override_data
 {
-    uint8_t bus;
-    uint8_t src;
-    uint32_t global_system_interrupt;
-    nmi_flags flags;
+	uint8_t bus;
+	uint8_t src;
+	uint32_t global_system_interrupt;
+	nmi_flags flags;
 } __pack;
 struct nmi_source_override_data
 {
-    nmi_flags flags;
-    uint32_t global_system_interrupt;
+	nmi_flags flags;
+	uint32_t global_system_interrupt;
 } __pack;
 struct local_apic_nmi_data
 {
-    uint8_t processor_uid;
-    nmi_flags flags;
-    uint8_t local_apic_lint;
+	uint8_t processor_uid;
+	nmi_flags flags;
+	uint8_t local_apic_lint;
 } __pack;
 struct local_apic_addr_override
 {
-    uint16_t rsv;
-    uint64_t local_apic_physical_addr;
+	uint16_t rsv;
+	uint64_t local_apic_physical_addr;
 } __pack;
 struct io_sapic_data
 {
-    uint8_t apic_id;
-    uint8_t rsv;
-    uint32_t global_system_interrupt_base;
-    uint64_t io_sapic_physical_addr;
+	uint8_t apic_id;
+	uint8_t rsv;
+	uint32_t global_system_interrupt_base;
+	uint64_t io_sapic_physical_addr;
 } __pack;
 struct local_sapic_data
 {
-    uint8_t processor_id;
-    uint8_t sapic_id;
-    uint8_t sapic_eid;
-    uint8_t rsv[3];
-    apic_flags flags;
-    uint32_t processor_uid_value;
-    char uid_string[];
+	uint8_t processor_id;
+	uint8_t sapic_id;
+	uint8_t sapic_eid;
+	uint8_t rsv[3];
+	apic_flags flags;
+	uint32_t processor_uid_value;
+	char uid_string[];
 } __pack;
 struct platform_interrupt_source_data
 {
-    nmi_flags flags;
-    uint8_t interrupt_type;
-    uint8_t processor_id;
-    uint8_t processor_eid;
-    uint8_t io_sapic_vector;
-    uint32_t global_system_interrupt;
-    uint32_t isrc_flags;
+	nmi_flags flags;
+	uint8_t interrupt_type;
+	uint8_t processor_id;
+	uint8_t processor_eid;
+	uint8_t io_sapic_vector;
+	uint32_t global_system_interrupt;
+	uint32_t isrc_flags;
 } __pack;
 struct local_x2apic_data
 {
-    uint16_t srv;
-    uint32_t x2apic_id;
-    apic_flags flags;
-    uint32_t processor_uid;
+	uint16_t srv;
+	uint32_t x2apic_id;
+	apic_flags flags;
+	uint32_t processor_uid;
 } __pack;
 #ifdef __cplusplus
 }
 template<typename T>
 struct madt_record
 {
-    madt_record_header header;
-    T data;
+	madt_record_header header;
+	T data;
 } __pack;
 typedef madt_record<local_apic_data> local_apic;
 typedef madt_record<io_apic_data> io_apic;
@@ -735,207 +735,207 @@ typedef madt_record<local_apic_nmi_data> lapic_nmi;
 #endif
 typedef union __may_alias __guid
 {
-    struct
-    {
-        uint32_t data_a;
-        uint16_t data_b;
-        uint16_t data_c;
-        uint8_t data_d[8];
-    } __pack;
-    uint64_t data_full[2];
-    uint8_t data_bytes[16];
+	struct
+	{
+		uint32_t data_a;
+		uint16_t data_b;
+		uint16_t data_c;
+		uint8_t data_d[8];
+	} __pack;
+	uint64_t data_full[2];
+	uint8_t data_bytes[16];
 } __pack __align(1) guid_t;
 typedef struct __mmap_entry
 {
-    uintptr_t addr;     // Physical start address
-    uint32_t len;       // Length in pages
-    memtype_t type;     // Type
+	uintptr_t addr;     // Physical start address
+	uint32_t len;       // Length in pages
+	memtype_t type;     // Type
 } __pack mmap_entry;
 typedef struct __processor_info
 {
-    uint64_t processor_id;
-    struct 
-    {
-        uint8_t is_bsp      : 1;
-        uint8_t is_enabled  : 1;
-        uint8_t is_healthy  : 1;
-        uint32_t            : 29;
-    } __pack status;
-    struct
-    {
-        uint32_t package;
-        uint32_t core;
-        uint32_t thread;
-    } __pack location;
-    union
-    {
-        struct 
-        {
-            uint32_t package;
-            uint32_t module;
-            uint32_t tile;
-            uint32_t die;
-            uint32_t core;
-            uint32_t thread;
-        } __pack extended_location;
-    } __pack;
+	uint64_t processor_id;
+	struct 
+	{
+		uint8_t is_bsp      : 1;
+		uint8_t is_enabled  : 1;
+		uint8_t is_healthy  : 1;
+		uint32_t            : 29;
+	} __pack status;
+	struct
+	{
+		uint32_t package;
+		uint32_t core;
+		uint32_t thread;
+	} __pack location;
+	union
+	{
+		struct 
+		{
+			uint32_t package;
+			uint32_t module;
+			uint32_t tile;
+			uint32_t die;
+			uint32_t core;
+			uint32_t thread;
+		} __pack extended_location;
+	} __pack;
 } __pack processor_info;
 typedef struct __boot_loaded_module
 {
-    const char* filename;
-    void* buffer;
-    size_t size;
+	const char* filename;
+	void* buffer;
+	size_t size;
 } boot_loaded_module;
 typedef struct __boot_modules_list
 {
-    size_t count;
-    boot_loaded_module descriptors[];
+	size_t count;
+	boot_loaded_module descriptors[];
 } boot_modules_list;
 typedef struct __system_info 
 {
-    uint32_t fb_width;
-    uint32_t fb_height;
-    uint32_t fb_pitch;
-    uint32_t* fb_ptr;
-    uint64_t num_processors;
-    uint64_t num_enabled_processors;
-    processor_info* mp_processor_info_structs;
-    struct xsdt_t* xsdt;
-    boot_modules_list* loaded_modules;
+	uint32_t fb_width;
+	uint32_t fb_height;
+	uint32_t fb_pitch;
+	uint32_t* fb_ptr;
+	uint64_t num_processors;
+	uint64_t num_enabled_processors;
+	processor_info* mp_processor_info_structs;
+	struct xsdt_t* xsdt;
+	boot_modules_list* loaded_modules;
 } __pack sysinfo_t;
 typedef struct __mmap
 {
-    size_t total_memory;
-    size_t num_entries;
-    mmap_entry entries[];
+	size_t total_memory;
+	size_t num_entries;
+	mmap_entry entries[];
 } __pack mmap_t;
 typedef void (attribute(sysv_abi) *kernel_entry_fn)(sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
 typedef struct __byte
 {
-    uint8_t full{};
-    constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return (value ? 1 : 0) << bit; }
-    constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
+	uint8_t full{};
+	constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return (value ? 1 : 0) << bit; }
+	constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
 	constexpr __byte(uint8_t i) noexcept : full(i) {}
-    template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte(static_cast<uint8_t>(it)) {}
+	template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte(static_cast<uint8_t>(it)) {}
 	constexpr __byte() noexcept = default;
-    constexpr __byte(__byte const&) noexcept = default;
-    constexpr __byte(__byte&&) noexcept = default;
-    constexpr __byte& operator=(__byte const&) noexcept = default;
-    constexpr __byte& operator=(__byte&&) noexcept = default;
-    constexpr ~__byte() noexcept = default;
-    constexpr operator uint8_t() const noexcept { return full; }
-    constexpr bool operator[](uint8_t i) const noexcept { return full & (1 << i); }
-    constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
-    constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
-    constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
-    constexpr __byte& operator-=(__byte const& that) noexcept { return *this = (*this - that); }
-    constexpr __byte& operator*=(__byte const& that) noexcept { return *this = (*this * that); }
-    constexpr __byte& operator/=(__byte const& that) noexcept { return *this = (*this / that); }
-    constexpr __byte& operator>>=(int that) noexcept { return *this = (*this >> that); }
-    constexpr __byte& operator<<=(int that) noexcept { return *this = (*this << that); }
-    constexpr __byte& operator++() noexcept { full++; return *this; }
-    constexpr __byte operator++(int) noexcept { __byte that(*this); full++; return that; }
-    constexpr __byte& operator--() noexcept { full--; return *this; }
-    constexpr __byte operator--(int) noexcept { __byte that(*this); full--; return that; }
-    constexpr bool bts(int i) volatile noexcept { return __sync_fetch_and_or(std::addressof(full), 1 << i); }
-    constexpr bool btr(int i) volatile noexcept { return __sync_fetch_and_and(std::addressof(full), ~(1 << i)); }
-    constexpr bool btc(int i) volatile noexcept { return __sync_fetch_and_xor(std::addressof(full), 1 << i); }
+	constexpr __byte(__byte const&) noexcept = default;
+	constexpr __byte(__byte&&) noexcept = default;
+	constexpr __byte& operator=(__byte const&) noexcept = default;
+	constexpr __byte& operator=(__byte&&) noexcept = default;
+	constexpr ~__byte() noexcept = default;
+	constexpr operator uint8_t() const noexcept { return full; }
+	constexpr bool operator[](uint8_t i) const noexcept { return full & (1 << i); }
+	constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
+	constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
+	constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
+	constexpr __byte& operator-=(__byte const& that) noexcept { return *this = (*this - that); }
+	constexpr __byte& operator*=(__byte const& that) noexcept { return *this = (*this * that); }
+	constexpr __byte& operator/=(__byte const& that) noexcept { return *this = (*this / that); }
+	constexpr __byte& operator>>=(int that) noexcept { return *this = (*this >> that); }
+	constexpr __byte& operator<<=(int that) noexcept { return *this = (*this << that); }
+	constexpr __byte& operator++() noexcept { full++; return *this; }
+	constexpr __byte operator++(int) noexcept { __byte that(*this); full++; return that; }
+	constexpr __byte& operator--() noexcept { full--; return *this; }
+	constexpr __byte operator--(int) noexcept { __byte that(*this); full--; return that; }
+	constexpr bool bts(int i) volatile noexcept { return __sync_fetch_and_or(std::addressof(full), 1 << i); }
+	constexpr bool btr(int i) volatile noexcept { return __sync_fetch_and_and(std::addressof(full), ~(1 << i)); }
+	constexpr bool btc(int i) volatile noexcept { return __sync_fetch_and_xor(std::addressof(full), 1 << i); }
 } __pack byte;
 typedef struct __s_le16
 { 
-    __byte lo;
-    __byte hi;
-    constexpr __s_le16() noexcept = default;
-    constexpr __s_le16(byte l, byte h) noexcept : lo(l), hi(h) {}
-    constexpr __s_le16(uint16_t value) noexcept { *this = __builtin_bit_cast(__s_le16, value); }
-    template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
-    constexpr __s_le16(__s_le16 const&) noexcept = default;
-    constexpr __s_le16(__s_le16&&) noexcept = default;
-    constexpr __s_le16& operator=(__s_le16 const&) noexcept = default;
-    constexpr __s_le16& operator=(__s_le16&&) noexcept = default;
-    constexpr ~__s_le16() noexcept = default;
-    constexpr operator uint16_t() const noexcept { return __builtin_bit_cast(const uint16_t, *this); }
-    constexpr __s_le16& operator|=(__s_le16 const& that) noexcept { return *this = (*this | that); }
-    constexpr __s_le16& operator&=(__s_le16 const& that) noexcept { return *this = (*this & that); }
-    constexpr __s_le16& operator+=(__s_le16 const& that) noexcept { return *this = (*this + that); }
-    constexpr __s_le16& operator-=(__s_le16 const& that) noexcept { return *this = (*this - that); }
-    constexpr __s_le16& operator*=(__s_le16 const& that) noexcept { return *this = (*this * that); }
-    constexpr __s_le16& operator/=(__s_le16 const& that) noexcept { return *this = (*this / that); }
-    constexpr __s_le16& operator>>=(int that) noexcept { return *this = (*this >> that); }
-    constexpr __s_le16& operator<<=(int that) noexcept { return *this = (*this << that); }
-    constexpr __s_le16& operator++() noexcept { uint16_t that = *this; ++that; return (*this = that); }
-    constexpr __s_le16 operator++(int) noexcept { __s_le16 that(*this); ++(*this); return that; }
-    constexpr __s_le16& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
-    constexpr __s_le16 operator--(int) noexcept { __s_le16 that(*this); --(*this); return that; }
-    constexpr bool operator[](uint8_t i) const noexcept { return (i >= 8 ? hi : lo)[i % 8]; }
-    constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
-    constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
-    constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
+	__byte lo;
+	__byte hi;
+	constexpr __s_le16() noexcept = default;
+	constexpr __s_le16(byte l, byte h) noexcept : lo(l), hi(h) {}
+	constexpr __s_le16(uint16_t value) noexcept { *this = __builtin_bit_cast(__s_le16, value); }
+	template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
+	constexpr __s_le16(__s_le16 const&) noexcept = default;
+	constexpr __s_le16(__s_le16&&) noexcept = default;
+	constexpr __s_le16& operator=(__s_le16 const&) noexcept = default;
+	constexpr __s_le16& operator=(__s_le16&&) noexcept = default;
+	constexpr ~__s_le16() noexcept = default;
+	constexpr operator uint16_t() const noexcept { return __builtin_bit_cast(const uint16_t, *this); }
+	constexpr __s_le16& operator|=(__s_le16 const& that) noexcept { return *this = (*this | that); }
+	constexpr __s_le16& operator&=(__s_le16 const& that) noexcept { return *this = (*this & that); }
+	constexpr __s_le16& operator+=(__s_le16 const& that) noexcept { return *this = (*this + that); }
+	constexpr __s_le16& operator-=(__s_le16 const& that) noexcept { return *this = (*this - that); }
+	constexpr __s_le16& operator*=(__s_le16 const& that) noexcept { return *this = (*this * that); }
+	constexpr __s_le16& operator/=(__s_le16 const& that) noexcept { return *this = (*this / that); }
+	constexpr __s_le16& operator>>=(int that) noexcept { return *this = (*this >> that); }
+	constexpr __s_le16& operator<<=(int that) noexcept { return *this = (*this << that); }
+	constexpr __s_le16& operator++() noexcept { uint16_t that = *this; ++that; return (*this = that); }
+	constexpr __s_le16 operator++(int) noexcept { __s_le16 that(*this); ++(*this); return that; }
+	constexpr __s_le16& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
+	constexpr __s_le16 operator--(int) noexcept { __s_le16 that(*this); --(*this); return that; }
+	constexpr bool operator[](uint8_t i) const noexcept { return (i >= 8 ? hi : lo)[i % 8]; }
+	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
+	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
+	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
 } __pack __le16;
 typedef struct __s_le32
 {
-    __le16 lo;
-    __le16 hi;
-    constexpr __s_le32() noexcept = default;
-    constexpr __s_le32(__le16 l, __le16 h) noexcept : lo(l), hi(h) {}
-    constexpr __s_le32(uint32_t value) noexcept { *this = __builtin_bit_cast(__s_le32, value); }
-    constexpr __s_le32(uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
-    template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __s_le32(IT it) noexcept : __s_le32(static_cast<uint32_t>(it)) {}
-    constexpr __s_le32(__s_le32 const&) noexcept = default;
-    constexpr __s_le32(__s_le32&&) noexcept = default;
-    constexpr __s_le32& operator=(__s_le32 const&) noexcept = default;
-    constexpr __s_le32& operator=(__s_le32&&) noexcept = default;
-    constexpr ~__s_le32() noexcept = default;
-    constexpr operator uint32_t() const noexcept { return __builtin_bit_cast(const uint32_t, *this); }
-    constexpr __s_le32& operator|=(__s_le32 const& that) noexcept { return *this = (*this | that); }
-    constexpr __s_le32& operator&=(__s_le32 const& that) noexcept { return *this = (*this & that); }
-    constexpr __s_le32& operator+=(__s_le32 const& that) noexcept { return *this = (*this + that); }
-    constexpr __s_le32& operator-=(__s_le32 const& that) noexcept { return *this = (*this - that); }
-    constexpr __s_le32& operator*=(__s_le32 const& that) noexcept { return *this = (*this * that); }
-    constexpr __s_le32& operator/=(__s_le32 const& that) noexcept { return *this = (*this / that); }
-    constexpr __s_le32& operator>>=(int that) noexcept { return *this = (*this >> that); }
-    constexpr __s_le32& operator<<=(int that) noexcept { return *this = (*this << that); }
-    constexpr __s_le32& operator++() noexcept { uint32_t that = *this; ++that; return (*this = that); }
-    constexpr __s_le32 operator++(int) noexcept { __s_le32 that(*this); ++(*this); return that; }
-    constexpr __s_le32& operator--() noexcept { uint32_t that = *this; --that; return (*this = that); }
-    constexpr __s_le32 operator--(int) noexcept { __s_le32 that(*this); --(*this); return that; }
-    constexpr bool operator[](uint8_t i) const noexcept { return (i >= 16 ? hi : lo)[i % 16]; }
-    constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
-    constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
-    constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
+	__le16 lo;
+	__le16 hi;
+	constexpr __s_le32() noexcept = default;
+	constexpr __s_le32(__le16 l, __le16 h) noexcept : lo(l), hi(h) {}
+	constexpr __s_le32(uint32_t value) noexcept { *this = __builtin_bit_cast(__s_le32, value); }
+	constexpr __s_le32(uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
+	template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __s_le32(IT it) noexcept : __s_le32(static_cast<uint32_t>(it)) {}
+	constexpr __s_le32(__s_le32 const&) noexcept = default;
+	constexpr __s_le32(__s_le32&&) noexcept = default;
+	constexpr __s_le32& operator=(__s_le32 const&) noexcept = default;
+	constexpr __s_le32& operator=(__s_le32&&) noexcept = default;
+	constexpr ~__s_le32() noexcept = default;
+	constexpr operator uint32_t() const noexcept { return __builtin_bit_cast(const uint32_t, *this); }
+	constexpr __s_le32& operator|=(__s_le32 const& that) noexcept { return *this = (*this | that); }
+	constexpr __s_le32& operator&=(__s_le32 const& that) noexcept { return *this = (*this & that); }
+	constexpr __s_le32& operator+=(__s_le32 const& that) noexcept { return *this = (*this + that); }
+	constexpr __s_le32& operator-=(__s_le32 const& that) noexcept { return *this = (*this - that); }
+	constexpr __s_le32& operator*=(__s_le32 const& that) noexcept { return *this = (*this * that); }
+	constexpr __s_le32& operator/=(__s_le32 const& that) noexcept { return *this = (*this / that); }
+	constexpr __s_le32& operator>>=(int that) noexcept { return *this = (*this >> that); }
+	constexpr __s_le32& operator<<=(int that) noexcept { return *this = (*this << that); }
+	constexpr __s_le32& operator++() noexcept { uint32_t that = *this; ++that; return (*this = that); }
+	constexpr __s_le32 operator++(int) noexcept { __s_le32 that(*this); ++(*this); return that; }
+	constexpr __s_le32& operator--() noexcept { uint32_t that = *this; --that; return (*this = that); }
+	constexpr __s_le32 operator--(int) noexcept { __s_le32 that(*this); --(*this); return that; }
+	constexpr bool operator[](uint8_t i) const noexcept { return (i >= 16 ? hi : lo)[i % 16]; }
+	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
+	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
+	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
 }__pack __le32;
 typedef struct __s_le64
 {
-    __le32 lo;
-    __le32 hi;
-    constexpr __s_le64() noexcept = default;
-    constexpr __s_le64(__le32 l, __le32 h) noexcept : lo(l), hi(h) {}
-    constexpr __s_le64(uint64_t value) noexcept { *this = __builtin_bit_cast(__s_le64, value); }
-    constexpr __s_le64(uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
-    template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __s_le64(IT it) noexcept : __s_le64{ static_cast<uint64_t>(it) } {}
-    constexpr __s_le64(__s_le64 const&) noexcept = default;
-    constexpr __s_le64(__s_le64&&) noexcept = default;
-    constexpr __s_le64& operator=(__s_le64 const&) noexcept = default;
-    constexpr __s_le64& operator=(__s_le64&&) noexcept = default;
-    constexpr ~__s_le64() noexcept = default;
-    constexpr operator uint64_t() const noexcept { return __builtin_bit_cast(const uint64_t, *this); }
-    constexpr __s_le64& operator|=(__s_le64 const& that) noexcept { return *this = (*this | that); }
-    constexpr __s_le64& operator&=(__s_le64 const& that) noexcept { return *this = (*this & that); }
-    constexpr __s_le64& operator+=(__s_le64 const& that) noexcept { return *this = (*this + that); }
-    constexpr __s_le64& operator-=(__s_le64 const& that) noexcept { return *this = (*this - that); }
-    constexpr __s_le64& operator*=(__s_le64 const& that) noexcept { return *this = (*this * that); }
-    constexpr __s_le64& operator/=(__s_le64 const& that) noexcept { return *this = (*this / that); }
-    constexpr __s_le64& operator>>=(int that) noexcept { return *this = (*this >> that); }
-    constexpr __s_le64& operator<<=(int that) noexcept { return *this = (*this << that); }
-    constexpr __s_le64& operator++() noexcept { uint64_t that = *this; ++that; return (*this = that); }
-    constexpr __s_le64 operator++(int) noexcept { __s_le64 that(*this); ++(*this); return that; }
-    constexpr __s_le64& operator--() noexcept { uint64_t that = *this; --that; return (*this = that); }
-    constexpr __s_le64 operator--(int) noexcept { __s_le64 that(*this); --(*this); return that; }
-    constexpr bool operator[](uint8_t i) const noexcept { return (i >= 32 ? hi : lo)[i % 32]; }
-    constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
-    constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
-    constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
+	__le32 lo;
+	__le32 hi;
+	constexpr __s_le64() noexcept = default;
+	constexpr __s_le64(__le32 l, __le32 h) noexcept : lo(l), hi(h) {}
+	constexpr __s_le64(uint64_t value) noexcept { *this = __builtin_bit_cast(__s_le64, value); }
+	constexpr __s_le64(uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
+	template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __s_le64(IT it) noexcept : __s_le64{ static_cast<uint64_t>(it) } {}
+	constexpr __s_le64(__s_le64 const&) noexcept = default;
+	constexpr __s_le64(__s_le64&&) noexcept = default;
+	constexpr __s_le64& operator=(__s_le64 const&) noexcept = default;
+	constexpr __s_le64& operator=(__s_le64&&) noexcept = default;
+	constexpr ~__s_le64() noexcept = default;
+	constexpr operator uint64_t() const noexcept { return __builtin_bit_cast(const uint64_t, *this); }
+	constexpr __s_le64& operator|=(__s_le64 const& that) noexcept { return *this = (*this | that); }
+	constexpr __s_le64& operator&=(__s_le64 const& that) noexcept { return *this = (*this & that); }
+	constexpr __s_le64& operator+=(__s_le64 const& that) noexcept { return *this = (*this + that); }
+	constexpr __s_le64& operator-=(__s_le64 const& that) noexcept { return *this = (*this - that); }
+	constexpr __s_le64& operator*=(__s_le64 const& that) noexcept { return *this = (*this * that); }
+	constexpr __s_le64& operator/=(__s_le64 const& that) noexcept { return *this = (*this / that); }
+	constexpr __s_le64& operator>>=(int that) noexcept { return *this = (*this >> that); }
+	constexpr __s_le64& operator<<=(int that) noexcept { return *this = (*this << that); }
+	constexpr __s_le64& operator++() noexcept { uint64_t that = *this; ++that; return (*this = that); }
+	constexpr __s_le64 operator++(int) noexcept { __s_le64 that(*this); ++(*this); return that; }
+	constexpr __s_le64& operator--() noexcept { uint64_t that = *this; --that; return (*this = that); }
+	constexpr __s_le64 operator--(int) noexcept { __s_le64 that(*this); --(*this); return that; }
+	constexpr bool operator[](uint8_t i) const noexcept { return (i >= 32 ? hi : lo)[i % 32]; }
+	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
+	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
+	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
 } __pack __le64;
 typedef __le16 word;
 typedef __le32 dword;
@@ -950,59 +950,60 @@ template<typename T> concept integral_structure = std::integral<T> || std::conve
 #pragma region big-endian structs
 typedef struct __s_be16
 {
-    uint8_t hi;
-    uint8_t lo;
-    constexpr explicit __s_be16(uint16_t i) noexcept : hi(static_cast<uint8_t>((i >> 8) & 0xFF)), lo(static_cast<uint8_t>(i & 0xFF)) {}
-    constexpr __s_be16(uint8_t h, uint8_t l) noexcept : hi(h), lo(l) {}
-    constexpr __s_be16() noexcept = default;
-    constexpr __s_be16(__s_be16&&) noexcept = default;
-    constexpr __s_be16(__s_be16 const&) noexcept = default;
-    constexpr ~__s_be16() noexcept = default;
-    constexpr operator uint16_t() const noexcept { return word(lo, hi); }
-    constexpr uint16_t raw() const noexcept { return word(hi, lo); }
-    constexpr __s_be16& operator=(__s_be16 const&) noexcept = default;
-    constexpr __s_be16& operator=(__s_be16&&) noexcept = default;
-    constexpr __s_be16& operator=(uint16_t i) noexcept { return (*this = __s_be16(i)); }
-    constexpr __s_be16& operator=(word w) noexcept { return (*this = __s_be16(w)); }
+	uint8_t hi;
+	uint8_t lo;
+	constexpr explicit __s_be16(uint16_t i) noexcept : hi(static_cast<uint8_t>((i >> 8) & 0xFF)), lo(static_cast<uint8_t>(i & 0xFF)) {}
+	constexpr __s_be16(uint8_t h, uint8_t l) noexcept : hi(h), lo(l) {}
+	constexpr __s_be16(uint8_t bytes[2]) noexcept : hi(bytes[0]), lo(bytes[1]) {}
+	constexpr __s_be16() noexcept = default;
+	constexpr __s_be16(__s_be16&&) noexcept = default;
+	constexpr __s_be16(__s_be16 const&) noexcept = default;
+	constexpr ~__s_be16() noexcept = default;
+	constexpr operator uint16_t() const noexcept { return word(lo, hi); }
+	constexpr uint16_t raw() const noexcept { return word(hi, lo); }
+	constexpr __s_be16& operator=(__s_be16 const&) noexcept = default;
+	constexpr __s_be16& operator=(__s_be16&&) noexcept = default;
+	constexpr __s_be16& operator=(uint16_t i) noexcept { return (*this = __s_be16(i)); }
+	constexpr __s_be16& operator=(word w) noexcept { return (*this = __s_be16(w)); }
 } __pack __be16;
 typedef struct __s_be32
 {
-    __be16 hi;
-    __be16 lo;
-    constexpr explicit __s_be32(uint32_t i) noexcept : hi(static_cast<uint16_t>((i >> 16) & 0xFFFF)), lo(static_cast<uint16_t>(i & 0xFFFF)) {}
-    constexpr __s_be32(__be16 h, __be16 l) noexcept : hi(h), lo(l) {}
-    constexpr __s_be32(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll) noexcept : hi(hh, hl), lo(lh, ll) {}
-    constexpr __s_be32(uint8_t bytes[4]) noexcept : hi(bytes[0], bytes[1]), lo(bytes[2], bytes[3]) {}
-    constexpr __s_be32() noexcept = default;
-    constexpr __s_be32(__s_be32&&) noexcept = default;
-    constexpr __s_be32(__s_be32 const&) noexcept = default;
-    constexpr ~__s_be32() noexcept = default;
-    constexpr operator uint32_t() const noexcept { return dword(lo, hi); }
-    constexpr uint32_t raw() const noexcept { return dword(hi, lo); }
-    constexpr __s_be32& operator=(__s_be32&&) noexcept = default;
-    constexpr __s_be32& operator=(__s_be32 const&) noexcept = default;
-    constexpr __s_be32& operator=(uint32_t i) noexcept { return (*this = __s_be32(i)); }
-    constexpr __s_be32& operator=(dword d) noexcept { return (*this = __s_be32(d)); }
+	__be16 hi;
+	__be16 lo;
+	constexpr explicit __s_be32(uint32_t i) noexcept : hi(static_cast<uint16_t>((i >> 16) & 0xFFFF)), lo(static_cast<uint16_t>(i & 0xFFFF)) {}
+	constexpr __s_be32(__be16 h, __be16 l) noexcept : hi(h), lo(l) {}
+	constexpr __s_be32(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll) noexcept : hi(hh, hl), lo(lh, ll) {}
+	constexpr __s_be32(uint8_t bytes[4]) noexcept : hi(bytes[0], bytes[1]), lo(bytes[2], bytes[3]) {}
+	constexpr __s_be32() noexcept = default;
+	constexpr __s_be32(__s_be32&&) noexcept = default;
+	constexpr __s_be32(__s_be32 const&) noexcept = default;
+	constexpr ~__s_be32() noexcept = default;
+	constexpr operator uint32_t() const noexcept { return dword(lo, hi); }
+	constexpr uint32_t raw() const noexcept { return dword(hi, lo); }
+	constexpr __s_be32& operator=(__s_be32&&) noexcept = default;
+	constexpr __s_be32& operator=(__s_be32 const&) noexcept = default;
+	constexpr __s_be32& operator=(uint32_t i) noexcept { return (*this = __s_be32(i)); }
+	constexpr __s_be32& operator=(dword d) noexcept { return (*this = __s_be32(d)); }
 } __pack __be32;
 typedef struct __s_be64
 {
-    __be32 hi;
-    __be32 lo;
-    constexpr explicit __s_be64(uint64_t i) noexcept : hi(static_cast<uint32_t>((i >> 32) & 0xFFFFFFFF)), lo(static_cast<uint32_t>(i & 0xFFFFFFFF)) {}
-    constexpr __s_be64(__be32 h, __be32 l) noexcept : hi(h), lo(l) {}
-    constexpr __s_be64(__be16 hh, __be16 hl, __be16 lh, __be16 ll) noexcept : hi(hh, hl), lo(lh, ll) {}
-    constexpr __s_be64(uint8_t hhh, uint8_t hhl, uint8_t hlh, uint8_t hll, uint8_t lhh, uint8_t lhl, uint8_t llh, uint8_t lll) : hi(hhh, hhl, hlh, hll), lo(lhh, lhl, llh, lll) {}
-    constexpr __s_be64(uint8_t bytes[8]) noexcept : hi(bytes[0], bytes[1], bytes[2], bytes[3]), lo(bytes[4], bytes[5], bytes[6], bytes[7]) {}
-    constexpr __s_be64() noexcept = default;
-    constexpr __s_be64(__s_be64&&) noexcept = default;
-    constexpr __s_be64(__s_be64 const&) noexcept = default;
-    constexpr ~__s_be64() noexcept = default;
-    constexpr operator uint64_t() const noexcept { return qword(lo, hi); }
-    constexpr uint64_t raw() const noexcept { return qword(hi, lo); }
-    constexpr __s_be64& operator=(__s_be64&&) noexcept = default;
-    constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
-    constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
-    constexpr __s_be64& operator=(qword q) noexcept { return (*this = __s_be64(q)); }
+	__be32 hi;
+	__be32 lo;
+	constexpr explicit __s_be64(uint64_t i) noexcept : hi(static_cast<uint32_t>((i >> 32) & 0xFFFFFFFF)), lo(static_cast<uint32_t>(i & 0xFFFFFFFF)) {}
+	constexpr __s_be64(__be32 h, __be32 l) noexcept : hi(h), lo(l) {}
+	constexpr __s_be64(__be16 hh, __be16 hl, __be16 lh, __be16 ll) noexcept : hi(hh, hl), lo(lh, ll) {}
+	constexpr __s_be64(uint8_t hhh, uint8_t hhl, uint8_t hlh, uint8_t hll, uint8_t lhh, uint8_t lhl, uint8_t llh, uint8_t lll) : hi(hhh, hhl, hlh, hll), lo(lhh, lhl, llh, lll) {}
+	constexpr __s_be64(uint8_t bytes[8]) noexcept : hi(bytes[0], bytes[1], bytes[2], bytes[3]), lo(bytes[4], bytes[5], bytes[6], bytes[7]) {}
+	constexpr __s_be64() noexcept = default;
+	constexpr __s_be64(__s_be64&&) noexcept = default;
+	constexpr __s_be64(__s_be64 const&) noexcept = default;
+	constexpr ~__s_be64() noexcept = default;
+	constexpr operator uint64_t() const noexcept { return qword(lo, hi); }
+	constexpr uint64_t raw() const noexcept { return qword(hi, lo); }
+	constexpr __s_be64& operator=(__s_be64&&) noexcept = default;
+	constexpr __s_be64& operator=(__s_be64 const&) noexcept = default;
+	constexpr __s_be64& operator=(uint64_t i) noexcept { return (*this = __s_be64(i)); }
+	constexpr __s_be64& operator=(qword q) noexcept { return (*this = __s_be64(q)); }
 } __pack __be64;
 #pragma endregion
 #pragma GCC diagnostic push

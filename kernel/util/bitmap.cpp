@@ -1,4 +1,4 @@
-#include "bitmap.hpp"
+#include "util/bitmap.hpp"
 #include "string"
 constexpr off_t ulsize = CHAR_BIT * sizeof(unsigned long);
 off_t bitmap_scan_single_zero(const unsigned long* bitmap, size_t num_ulongs) { for(size_t i = 0; i < num_ulongs; i++) { if(unsigned long ul = ~(bitmap[i])) return (ulsize * i) + __builtin_ctzl(ul); } return -1L; }

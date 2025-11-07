@@ -7,166 +7,166 @@
 #include "functional"
 namespace std
 {
-    class type_index
-    {
-    protected:
-        type_info const* info;
-    public:
-        type_index(type_info const& i);
-        constexpr type_index() noexcept : info{ addressof(typeid(void)) } {}
-        const char* name() const;
-        size_t hash_code() const;
-        friend inline strong_ordering operator<=>(type_index const& __this, type_index const& __that) { return strcmp(__this.info->name(), __that.info->name()) <=> 0; }
-        constexpr void swap(type_index& that) { type_info const* i = this->info; this->info = that.info; that.info = i; }
-    };
-    template<> struct hash<type_index> { size_t operator()(type_index const& ti) const noexcept { return ti.hash_code(); } };
-    extension namespace ext
-    {
-        /**
-         * std::ext::type_erasure
-         * An extension of the basic C++ type_info / type_index structures that allows passing generic polymorphic pointers through type-unaware intermediates.
-         * When using type erasure to manage a polymorphic object, the actual type need only be known to the object's owner and, potentially, to its end-users.
-         * This differs from the analogous concept in Java, where all objects are owned by the JVM, and the underlying type might never see the light of day at all.
-         * Because C++ lacks true reflection, the end-user must also be aware of at least one (potentially virtual) base of the object at compile time.
-         * A combination of pointer and type erasure can essentially be used to implement a dynamic_cast equivalent on a void pointer.
-         */
-        class type_erasure : public type_index
-        {
-        public:
-            type_erasure(type_info const& i);
-            constexpr type_erasure() noexcept : type_index() {}
-            constexpr type_info const& get_type_info() const { return *info; }
-            bool is_derived_from(type_info const& that);
-            void* cast_to(void* obj, type_info const& ti) const;
-            void* cast_from(void* obj, type_erasure const& that) const;
-            template<typename T> T* cast_to(void* obj) { return static_cast<T*>(cast_to(obj, typeid(T))); }
-            template<typename T> T const* cast_to(const void* obj) { return static_cast<T const*>(cast_to(const_cast<void*>(obj), typeid(T))); }
-            template<typename T> void* cast(T& t);
-            template<object T> requires (!is_array_v<T>) void* cast(T& t) { return cast_from(addressof(t), typeid(t)); }
-            template<typename T> requires (!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
-            template<typename T> bool matches(T const& t) { if(*info == typeid(t)) return true; return type_erasure(typeid(t)).is_derived_from(*info); }
-            friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
-        };
-        template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
-        template<typename T> concept polymorphic = is_polymorphic_v<T>;
-        namespace __impl
-        {
-            template<polymorphic T, allocator_object<T> A>
-            struct __dynamic_ptr
-            {
-                template<polymorphic U, allocator_object<U> B> friend struct __dynamic_ptr;
-            protected:
-                template<derived_from<T> U> using __allocator = conditional_t<is_same_v<T, U>, A, typename A::template rebind<U>>;
-                using __base_alloc = A;
-                template<derived_from<T> U> 
-                struct __alloc_helper
-                {
-                    constexpr static __allocator<U> __ualloc{};
-                    constexpr static T* __allocate() { return __ualloc.allocate(1UZ); }
-                    constexpr static void __deallocate(void* ptr) { __ualloc.deallocate(static_cast<U*>(ptr), 1UZ); }
-                };
-                typedef void (*__dealloc_fn)(void*);
-                constexpr static __base_alloc __base{};
-                type_erasure __obj_erasure;
-                T* __ptr;
-                __dealloc_fn __dfn;
-                static void __base_dealloc(void* ptr) { __base.deallocate(static_cast<T*>(ptr), 1UZ); }
-                ~__dynamic_ptr() { if(__ptr && __dfn) (*__dfn)(__ptr); }
-                void __clear()
-                { 
-                    __ptr = nullptr;
-                    __dfn = nullptr;
-                    __obj_erasure = typeid(T);
-                }
-                template<derived_from<T> U, typename ... Args>
-                requires constructible_from<U, Args...>
-                __dynamic_ptr(in_place_type_t<U>, Args&& ... args) :
-                    __obj_erasure   { typeid(U) },
-                    __ptr           { construct_at(__alloc_helper<U>::__allocate(), forward<Args>(args)...) },
-                    __dfn           { __alloc_helper<U>::__deallocate }
-                                    {}
-                __dynamic_ptr() requires (!is_default_constructible_v<T>) :
-                    __obj_erasure   { typeid(T) },
-                    __ptr           { nullptr },
-                    __dfn           { nullptr }
-                                    {}
-                template<derived_from<T> U> __dynamic_ptr(U* ptr) :
-                    __obj_erasure   { typeid(*ptr) },
-                    __ptr           { ptr },
-                    __dfn           { __alloc_helper<U>::__deallocate }
-                                    {}
-                __dynamic_ptr(__dynamic_ptr&& that) :
-                    __obj_erasure   { move(that.__obj_erasure) },
-                    __ptr           { that.__ptr },
-                    __dfn           { that.__dfn }
-                                    { that.__clear(); }
-                template<derived_from<T> U, allocator_object<U> B>
-                __dynamic_ptr(__dynamic_ptr<U, B>&& that) :
-                    __obj_erasure   { move(that.__obj_erasure) },
-                    __ptr           { static_cast<T*>(that.__ptr) },
-                    __dfn           { that.__dfn }
-                                    { that.__clear(); }
-            public:
-                void reset() 
-                { 
-                    if(__ptr && __dfn) (*__dfn)(__ptr); 
-                    __ptr = nullptr; 
-                    __obj_erasure = typeid(T); 
-                    if constexpr(is_default_constructible_v<T>) { __ptr = construct_at(__base.allocate(1UZ)); __dfn = __base_dealloc; } 
-                    else { __dfn = nullptr; } 
-                }
-                template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> decay_t<U>& emplace(Args&& ... args) 
-                {
-                    if(__ptr) reset();
-                    __obj_erasure   = typeid(U);
-                    __ptr           = construct_at(__alloc_helper<U>::__allocate(), forward<Args>(args)...);
-                    __dfn           = __alloc_helper<U>::__deallocate;
-                }
-            protected:
-                void __move_assign(__dynamic_ptr&& that)
-                {
-                    if(__ptr) reset();
-                    __ptr           = that.__ptr;
-                    __obj_erasure   = move(that.__obj_erasure);
-                    __dfn           = that.__dfn;
-                    that.__clear();
-                }
-                template<derived_from<T> U, allocator_object<void> B>
-                void __move_assign(__dynamic_ptr<U, B>&& that)
-                {
-                    if(__ptr) reset();
-                    __ptr           = static_cast<T*>(that.__ptr);
-                    __obj_erasure   = move(that.__obj_erasure);
-                    __dfn           = that.__dfn;
-                    that.__clear();
-                }
-            };
-        }
-        template<polymorphic T, allocator_object<T> A = allocator<T>>
-        class dynamic_ptr : public __impl::__dynamic_ptr<T, A>
-        {
-            typedef __impl::__dynamic_ptr<T, A> __base;
-            template<derived_from<T> U, allocator_object<U> B> using __alt_base = __impl::__dynamic_ptr<U, B>;
-        public:
-            type_erasure const& erasure() const& { return this->__obj_erasure; }
-            T* operator->() & { return this->__ptr; }
-            T const* operator->() const& { return this->__ptr; }
-            T& operator*() & { return *this->__ptr; }
-            T const& operator*() const& { return *this->__ptr; }
-            template<derived_from<T> U> U& cast() & { return dynamic_cast<U&>(*this->__ptr); }
-            template<derived_from<T> U> U const& cast() const& { return dynamic_cast<U const&>(*this->__ptr); }
-            template<typename U> U* weak_cast() & { return dynamic_cast<U*>(this->__ptr); }
-            template<typename U> U const* weak_cast() const& { return dynamic_cast<U*>(this->__ptr); }
-            template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> dynamic_ptr(in_place_type_t<U>, Args&& ... args) : __base(in_place_type<U>, forward<Args>(args)...) {}
-            template<derived_from<T> U> dynamic_ptr(U* ptr) : __base(ptr) {}
-            template<derived_from<T> U, allocator_object<U> B> dynamic_ptr(dynamic_ptr<U, B>&& that) : __base(forward<__alt_base<U, B>>(that)) {}
-            dynamic_ptr(dynamic_ptr&& that) : __base(forward<__base>(that)) {}
-            dynamic_ptr() : __base() {}
-            dynamic_ptr& operator=(dynamic_ptr&& that) { this->__move_assign(move(that)); return *this; }
-        };
-        template<polymorphic T, typename ... Args>
-        requires constructible_from<T, Args...>
-        dynamic_ptr<T> make_dynamic(Args&& ... args) { return dynamic_ptr<T>(in_place_type<T>, forward<Args>(args)...); }
-    }
+	class type_index
+	{
+	protected:
+		type_info const* info;
+	public:
+		type_index(type_info const& i);
+		constexpr type_index() noexcept : info{ addressof(typeid(void)) } {}
+		const char* name() const;
+		size_t hash_code() const;
+		friend inline strong_ordering operator<=>(type_index const& __this, type_index const& __that) { return strcmp(__this.info->name(), __that.info->name()) <=> 0; }
+		constexpr void swap(type_index& that) { type_info const* i = this->info; this->info = that.info; that.info = i; }
+	};
+	template<> struct hash<type_index> { size_t operator()(type_index const& ti) const noexcept { return ti.hash_code(); } };
+	extension namespace ext
+	{
+		/**
+		 * std::ext::type_erasure
+		 * An extension of the basic C++ type_info / type_index structures that allows passing generic polymorphic pointers through type-unaware intermediates.
+		 * When using type erasure to manage a polymorphic object, the actual type need only be known to the object's owner and, potentially, to its end-users.
+		 * This differs from the analogous concept in Java, where all objects are owned by the JVM, and the underlying type might never see the light of day at all.
+		 * Because C++ lacks true reflection, the end-user must also be aware of at least one (potentially virtual) base of the object at compile time.
+		 * A combination of pointer and type erasure can essentially be used to implement a dynamic_cast equivalent on a void pointer.
+		 */
+		class type_erasure : public type_index
+		{
+		public:
+			type_erasure(type_info const& i);
+			constexpr type_erasure() noexcept : type_index() {}
+			constexpr type_info const& get_type_info() const { return *info; }
+			bool is_derived_from(type_info const& that);
+			void* cast_to(void* obj, type_info const& ti) const;
+			void* cast_from(void* obj, type_erasure const& that) const;
+			template<typename T> T* cast_to(void* obj) { return static_cast<T*>(cast_to(obj, typeid(T))); }
+			template<typename T> T const* cast_to(const void* obj) { return static_cast<T const*>(cast_to(const_cast<void*>(obj), typeid(T))); }
+			template<typename T> void* cast(T& t);
+			template<object T> requires (!is_array_v<T>) void* cast(T& t) { return cast_from(addressof(t), typeid(t)); }
+			template<typename T> requires (!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
+			template<typename T> bool matches(T const& t) { if(*info == typeid(t)) return true; return type_erasure(typeid(t)).is_derived_from(*info); }
+			friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
+		};
+		template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
+		template<typename T> concept polymorphic = is_polymorphic_v<T>;
+		namespace __impl
+		{
+			template<polymorphic T, allocator_object<T> A>
+			struct __dynamic_ptr
+			{
+				template<polymorphic U, allocator_object<U> B> friend struct __dynamic_ptr;
+			protected:
+				template<derived_from<T> U> using __allocator = conditional_t<is_same_v<T, U>, A, typename A::template rebind<U>>;
+				using __base_alloc = A;
+				template<derived_from<T> U> 
+				struct __alloc_helper
+				{
+					constexpr static __allocator<U> __ualloc{};
+					constexpr static T* __allocate() { return __ualloc.allocate(1UZ); }
+					constexpr static void __deallocate(void* ptr) { __ualloc.deallocate(static_cast<U*>(ptr), 1UZ); }
+				};
+				typedef void (*__dealloc_fn)(void*);
+				constexpr static __base_alloc __base{};
+				type_erasure __obj_erasure;
+				T* __ptr;
+				__dealloc_fn __dfn;
+				static void __base_dealloc(void* ptr) { __base.deallocate(static_cast<T*>(ptr), 1UZ); }
+				~__dynamic_ptr() { if(__ptr && __dfn) (*__dfn)(__ptr); }
+				void __clear()
+				{ 
+					__ptr = nullptr;
+					__dfn = nullptr;
+					__obj_erasure = typeid(T);
+				}
+				template<derived_from<T> U, typename ... Args>
+				requires constructible_from<U, Args...>
+				__dynamic_ptr(in_place_type_t<U>, Args&& ... args) :
+					__obj_erasure   { typeid(U) },
+					__ptr           { construct_at(__alloc_helper<U>::__allocate(), forward<Args>(args)...) },
+					__dfn           { __alloc_helper<U>::__deallocate }
+									{}
+				__dynamic_ptr() requires (!is_default_constructible_v<T>) :
+					__obj_erasure   { typeid(T) },
+					__ptr           { nullptr },
+					__dfn           { nullptr }
+									{}
+				template<derived_from<T> U> __dynamic_ptr(U* ptr) :
+					__obj_erasure   { typeid(*ptr) },
+					__ptr           { ptr },
+					__dfn           { __alloc_helper<U>::__deallocate }
+									{}
+				__dynamic_ptr(__dynamic_ptr&& that) :
+					__obj_erasure   { move(that.__obj_erasure) },
+					__ptr           { that.__ptr },
+					__dfn           { that.__dfn }
+									{ that.__clear(); }
+				template<derived_from<T> U, allocator_object<U> B>
+				__dynamic_ptr(__dynamic_ptr<U, B>&& that) :
+					__obj_erasure   { move(that.__obj_erasure) },
+					__ptr           { static_cast<T*>(that.__ptr) },
+					__dfn           { that.__dfn }
+									{ that.__clear(); }
+			public:
+				void reset() 
+				{ 
+					if(__ptr && __dfn) (*__dfn)(__ptr); 
+					__ptr = nullptr; 
+					__obj_erasure = typeid(T); 
+					if constexpr(is_default_constructible_v<T>) { __ptr = construct_at(__base.allocate(1UZ)); __dfn = __base_dealloc; } 
+					else { __dfn = nullptr; } 
+				}
+				template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> decay_t<U>& emplace(Args&& ... args) 
+				{
+					if(__ptr) reset();
+					__obj_erasure   = typeid(U);
+					__ptr           = construct_at(__alloc_helper<U>::__allocate(), forward<Args>(args)...);
+					__dfn           = __alloc_helper<U>::__deallocate;
+				}
+			protected:
+				void __move_assign(__dynamic_ptr&& that)
+				{
+					if(__ptr) reset();
+					__ptr           = that.__ptr;
+					__obj_erasure   = move(that.__obj_erasure);
+					__dfn           = that.__dfn;
+					that.__clear();
+				}
+				template<derived_from<T> U, allocator_object<void> B>
+				void __move_assign(__dynamic_ptr<U, B>&& that)
+				{
+					if(__ptr) reset();
+					__ptr           = static_cast<T*>(that.__ptr);
+					__obj_erasure   = move(that.__obj_erasure);
+					__dfn           = that.__dfn;
+					that.__clear();
+				}
+			};
+		}
+		template<polymorphic T, allocator_object<T> A = allocator<T>>
+		class dynamic_ptr : public __impl::__dynamic_ptr<T, A>
+		{
+			typedef __impl::__dynamic_ptr<T, A> __base;
+			template<derived_from<T> U, allocator_object<U> B> using __alt_base = __impl::__dynamic_ptr<U, B>;
+		public:
+			type_erasure const& erasure() const& { return this->__obj_erasure; }
+			T* operator->() & { return this->__ptr; }
+			T const* operator->() const& { return this->__ptr; }
+			T& operator*() & { return *this->__ptr; }
+			T const& operator*() const& { return *this->__ptr; }
+			template<derived_from<T> U> U& cast() & { return dynamic_cast<U&>(*this->__ptr); }
+			template<derived_from<T> U> U const& cast() const& { return dynamic_cast<U const&>(*this->__ptr); }
+			template<typename U> U* weak_cast() & { return dynamic_cast<U*>(this->__ptr); }
+			template<typename U> U const* weak_cast() const& { return dynamic_cast<U*>(this->__ptr); }
+			template<derived_from<T> U, typename ... Args> requires constructible_from<U, Args...> dynamic_ptr(in_place_type_t<U>, Args&& ... args) : __base(in_place_type<U>, forward<Args>(args)...) {}
+			template<derived_from<T> U> dynamic_ptr(U* ptr) : __base(ptr) {}
+			template<derived_from<T> U, allocator_object<U> B> dynamic_ptr(dynamic_ptr<U, B>&& that) : __base(forward<__alt_base<U, B>>(that)) {}
+			dynamic_ptr(dynamic_ptr&& that) : __base(forward<__base>(that)) {}
+			dynamic_ptr() : __base() {}
+			dynamic_ptr& operator=(dynamic_ptr&& that) { this->__move_assign(move(that)); return *this; }
+		};
+		template<polymorphic T, typename ... Args>
+		requires constructible_from<T, Args...>
+		dynamic_ptr<T> make_dynamic(Args&& ... args) { return dynamic_ptr<T>(in_place_type<T>, forward<Args>(args)...); }
+	}
 }
 #endif

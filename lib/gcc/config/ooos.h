@@ -18,10 +18,10 @@
 #undef  TARGET_OS_CPP_BUILTINS
 #define TARGET_OS_CPP_BUILTINS()    \
 do {                                \
-  builtin_define("__ooos__");      \
-  builtin_define("__unix__");      \
-  builtin_assert("system=ooos");   \
-  builtin_assert("system=unix");   \
+	builtin_define("__ooos__");      \
+	builtin_define("__unix__");      \
+	builtin_assert("system=ooos");   \
+	builtin_assert("system=unix");   \
 } while(0);
 
 #undef  LINK_SPEC

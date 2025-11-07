@@ -4,10 +4,10 @@
 #include "stdlib.h"
 namespace __cxxabiv1 
 {
-    extension typedef spinlock_t __guard;
-    extern "C" int __cxa_guard_acquire(__guard* g)  { lock(g); return 0; }
-    extern "C" void __cxa_guard_release(__guard* g) { release(g); }
-    extern "C" void __cxa_guard_abort(__guard*) {}
+	extension typedef spinlock_t __guard;
+	extern "C" int __cxa_guard_acquire(__guard* g)  { lock(g); return 0; }
+	extern "C" void __cxa_guard_release(__guard* g) { release(g); }
+	extern "C" void __cxa_guard_abort(__guard*) {}
 }
 extern "C" 
 {	

@@ -9,8 +9,8 @@ READ := $(TARGET_HOSTED)-readelf
 OUTDIR := $(BUILD_DIR)/SYS/MOD
 LDSCRIPT := $(CURDIR)/module.$(TARGET_HOSTED).lds
 CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -Wno-packed-bitfield-compat -ffreestanding
-CXXFLAGS := $(CFLAGS) -std=gnu++26
-CCFLAGS := $(CFLAGS) -std=gnu23
+CXXFLAGS := $(CFLAGS) -std=gnu++26 -fplugin=$(ATTR_PLUGIN)
+CCFLAGS := $(CFLAGS) -std=gnu23 -fplugin=$(ATTR_PLUGIN)
 LDFLAGS := -L$(LIB_DIR) -T $(LDSCRIPT) -pie -nostdlib -lgcc -lstdc++ $(CFLAGS)
 PRE_OBJ_NAMES := modcrti.o modcrtbegin.o modcrt0.o
 POST_OBJ_NAMES := modcrtend.o modcrtn.o

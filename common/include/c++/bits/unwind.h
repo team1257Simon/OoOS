@@ -34,16 +34,16 @@ extern "C"
 	http://www.codesourcery.com/cxx-abi/abi-eh.html */
 typedef enum
   {
-    _URC_NO_REASON = 0,
-    _URC_OK = 0,
-    _URC_FOREIGN_EXCEPTION_CAUGHT = 1,
-    _URC_FATAL_PHASE2_ERROR = 2,
-    _URC_FATAL_PHASE1_ERROR = 3,
-    _URC_NORMAL_STOP = 4,
-    _URC_END_OF_STACK = 5,
-    _URC_HANDLER_FOUND = 6,
-    _URC_INSTALL_CONTEXT = 7,
-    _URC_CONTINUE_UNWIND = 8
+	_URC_NO_REASON = 0,
+	_URC_OK = 0,
+	_URC_FOREIGN_EXCEPTION_CAUGHT = 1,
+	_URC_FATAL_PHASE2_ERROR = 2,
+	_URC_FATAL_PHASE1_ERROR = 3,
+	_URC_NORMAL_STOP = 4,
+	_URC_END_OF_STACK = 5,
+	_URC_HANDLER_FOUND = 6,
+	_URC_INSTALL_CONTEXT = 7,
+	_URC_CONTINUE_UNWIND = 8
   }
 _Unwind_Reason_Code;
 typedef int _Unwind_Action;
@@ -117,13 +117,13 @@ extern _Unwind_Reason_Code _Unwind_Backtrace (_Unwind_Trace_Fn, void *);
    procedures.  */
 extern void *_Unwind_FindEnclosingFunction (void *);
 /* See also Linux Standard Base Spec:
-    http://www.linuxbase.org/spec/refspecs/LSB_1.3.0/gLSB/gLSB/libgcc-s.html */
+	http://www.linuxbase.org/spec/refspecs/LSB_1.3.0/gLSB/gLSB/libgcc-s.html */
 #define DECLARE_PERSONALITY_FUNCTION(name) \
 _Unwind_Reason_Code name(int version,\
-                         _Unwind_Action actions,\
-                         uint64_t exceptionClass,\
-                         struct _Unwind_Exception *exceptionObject,\
-                         struct _Unwind_Context *context);
+						 _Unwind_Action actions,\
+						 uint64_t exceptionClass,\
+						 struct _Unwind_Exception *exceptionObject,\
+						 struct _Unwind_Context *context);
 #define CALL_PERSONALITY_FUNCTION(name) name(version, actions, exceptionClass, exceptionObject, context)
 #ifdef __cplusplus
 }

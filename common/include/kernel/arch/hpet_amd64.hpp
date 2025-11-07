@@ -57,10 +57,10 @@ class hpet_amd64
     time_t __frequency_megahertz;
     static hpet_amd64 __instance;
     hpet_amd64();
-    bool __init();
+    attribute(nointerrupts) bool __init() noexcept;
 public:
     static hpet_amd64& get();
-    static bool init_instance();
+    static bool init_instance() noexcept;
     void delay_us(time_t usec);
     void delay_us(time_t usec, void (*action)());
     uint64_t read_counter();

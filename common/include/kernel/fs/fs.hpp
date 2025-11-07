@@ -354,7 +354,7 @@ struct mount_node : public virtual directory_node
     virtual bool is_mount() const noexcept final override;
 };
 filesystem* create_task_vfs();
-filesystem* get_fs_instance();
+filesystem* get_task_vfs();
 extern "C"
 {
     int syscall_open(char* name, int flags, ...);                           // int open(char* name, int flags, ...);

@@ -30,8 +30,8 @@ using namespace ABI_NAMESPACE;
  */
 struct vtable_header
 {
-    ptrdiff_t                leaf_offset; /** Offset of the leaf object. */
-    const __class_type_info* type;        /** Type of the object. */
+	ptrdiff_t                leaf_offset; /** Offset of the leaf object. */
+	const __class_type_info* type;        /** Type of the object. */
 };
 /**
  * Simple macro that does pointer arithmetic in bytes but returns a value of
@@ -41,83 +41,83 @@ struct vtable_header
 bool __class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const { return this == target; }
 bool std::type_info::__do_catch(std::type_info const* ex_type, void** exception_object, unsigned int outer) const
 {
-    const type_info* type = this;
-    if(type == ex_type) return true;
-    if(const __class_type_info* cti = dynamic_cast<const __class_type_info*>(type)) return ex_type->__do_upcast(cti, exception_object);
-    return false;
+	const type_info* type = this;
+	if(type == ex_type) return true;
+	if(const __class_type_info* cti = dynamic_cast<const __class_type_info*>(type)) return ex_type->__do_upcast(cti, exception_object);
+	return false;
 }
 bool __pbase_type_info::__do_catch(std::type_info const* ex_type, void** exception_object, unsigned int outer) const
 {
-    if(ex_type == this) return true;
-    if(!ex_type->__is_pointer_p()) return false; // Can't catch a non-pointer type in a pointer catch
-    if(!(outer & 1)) return false; // If the low bit is cleared on this means that we've gone through a pointer that is not const qualified.
-    // Clear the low bit on outer if we're not const qualified.
-    if(!(__flags & __const_mask)) outer &= ~1;
-    const __pbase_type_info* ptr_type = static_cast<const __pbase_type_info*>(ex_type);
-    if(ptr_type->__flags & ~__flags) return false; // Handler pointer is less qualified
-    // Special case for void* handler.
-    if(*__pointee == typeid(void)) return true;
-    return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
+	if(ex_type == this) return true;
+	if(!ex_type->__is_pointer_p()) return false; // Can't catch a non-pointer type in a pointer catch
+	if(!(outer & 1)) return false; // If the low bit is cleared on this means that we've gone through a pointer that is not const qualified.
+	// Clear the low bit on outer if we're not const qualified.
+	if(!(__flags & __const_mask)) outer &= ~1;
+	const __pbase_type_info* ptr_type = static_cast<const __pbase_type_info*>(ex_type);
+	if(ptr_type->__flags & ~__flags) return false; // Handler pointer is less qualified
+	// Special case for void* handler.
+	if(*__pointee == typeid(void)) return true;
+	return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
 void* __class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
-    if(this == other)
-        return obj;
-    else
-        return nullptr;
+	if(this == other)
+		return obj;
+	else
+		return nullptr;
 }
 void* __si_class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
-    if(this == other)
-        return obj;
-    else
-        return __base_type->cast_to(obj, other);
+	if(this == other)
+		return obj;
+	else
+		return __base_type->cast_to(obj, other);
 }
 bool __si_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
 {
-    if(this == target)
-        return true;
-    else
-        return __base_type->__do_upcast(target, thrown_object);
+	if(this == target)
+		return true;
+	else
+		return __base_type->__do_upcast(target, thrown_object);
 }
 void* __vmi_class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
 {
-    if(__do_upcast(other, &obj))
-        return obj;
-    else
-        return nullptr;
+	if(__do_upcast(other, &obj))
+		return obj;
+	else
+		return nullptr;
 }
 bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
 {
-    if(this == target) return true;
-    for(unsigned int i = 0; i < __base_count; i++)
-    {
-        const __base_class_type_info* info   = &__base_info[i];
-        ptrdiff_t                     offset = info->offset();
-        // If this is a virtual superclass, the offset is stored in the
-        // object's vtable at the offset requested; 2.9.5.6.c:
-        //
-        // 'For a non-virtual base, this is the offset in the object of the
-        // base subobject. For a virtual base, this is the offset in the
-        // virtual table of the virtual base offset for the virtual base
-        // referenced (negative).'
-        void* obj = *thrown_object;
-        if(info->isVirtual())
-        {
-            // Object's vtable
-            ptrdiff_t* off = *static_cast<ptrdiff_t**>(obj);
-            // Offset location in vtable
-            off    = ADD_TO_PTR(off, offset);
-            offset = *off;
-        }
-        void* cast = ADD_TO_PTR(obj, offset);
-        if(info->__base_type == target || (info->__base_type->__do_upcast(target, &cast)))
-        {
-            *thrown_object = cast;
-            return true;
-        }
-    }
-    return false;
+	if(this == target) return true;
+	for(unsigned int i = 0; i < __base_count; i++)
+	{
+		const __base_class_type_info* info   = &__base_info[i];
+		ptrdiff_t                     offset = info->offset();
+		// If this is a virtual superclass, the offset is stored in the
+		// object's vtable at the offset requested; 2.9.5.6.c:
+		//
+		// 'For a non-virtual base, this is the offset in the object of the
+		// base subobject. For a virtual base, this is the offset in the
+		// virtual table of the virtual base offset for the virtual base
+		// referenced (negative).'
+		void* obj = *thrown_object;
+		if(info->isVirtual())
+		{
+			// Object's vtable
+			ptrdiff_t* off = *static_cast<ptrdiff_t**>(obj);
+			// Offset location in vtable
+			off    = ADD_TO_PTR(off, offset);
+			offset = *off;
+		}
+		void* cast = ADD_TO_PTR(obj, offset);
+		if(info->__base_type == target || (info->__base_type->__do_upcast(target, &cast)))
+		{
+			*thrown_object = cast;
+			return true;
+		}
+	}
+	return false;
 }
 /**
  * ABI function used to implement the dynamic_cast<> operator.  Some cases of
@@ -134,8 +134,8 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** 
  */
 extern "C" void* __dynamic_cast(const void* sub, const __class_type_info* src, const __class_type_info* dst, ptrdiff_t src2dst_offset)
 {
-    const char*          vtable_location = *static_cast<const char* const*>(sub);
-    const vtable_header* header          = reinterpret_cast<const vtable_header*>(vtable_location - sizeof(vtable_header));
-    void*                leaf            = ADD_TO_PTR(const_cast<void*>(sub), header->leaf_offset);
-    return header->type->cast_to(leaf, dst);
+	const char*          vtable_location = *static_cast<const char* const*>(sub);
+	const vtable_header* header          = reinterpret_cast<const vtable_header*>(vtable_location - sizeof(vtable_header));
+	void*                leaf            = ADD_TO_PTR(const_cast<void*>(sub), header->leaf_offset);
+	return header->type->cast_to(leaf, dst);
 }

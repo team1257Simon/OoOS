@@ -34,35 +34,35 @@
 
 int stat (const char_t *__file, struct stat *__buf)
 {
-    int ret;
-    FILE *f;
+	int ret;
+	FILE *f;
 
-    if(!__file || !*__file || !__buf) {
-        errno = EINVAL;
-        return -1;
-    }
-    f = fopen(__file, CL("*"));
-    if(!f) {
-        memset(__buf, 0, sizeof(struct stat));
-        return -1;
-    }
-    ret = fstat(f, __buf);
-    fclose(f);
-    return ret;
+	if(!__file || !*__file || !__buf) {
+		errno = EINVAL;
+		return -1;
+	}
+	f = fopen(__file, CL("*"));
+	if(!f) {
+		memset(__buf, 0, sizeof(struct stat));
+		return -1;
+	}
+	ret = fstat(f, __buf);
+	fclose(f);
+	return ret;
 }
 
 extern int mkdir (const char_t *__path, mode_t __mode)
 {
-    FILE *f;
-    (void)__mode;
-    if(!__path || !*__path) {
-        errno = EINVAL;
-        return -1;
-    }
-    f = fopen(__path, CL("wd"));
-    if(!f) {
-        return -1;
-    }
-    fclose(f);
-    return 0;
+	FILE *f;
+	(void)__mode;
+	if(!__path || !*__path) {
+		errno = EINVAL;
+		return -1;
+	}
+	f = fopen(__path, CL("wd"));
+	if(!f) {
+		return -1;
+	}
+	fclose(f);
+	return 0;
 }

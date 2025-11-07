@@ -6,164 +6,164 @@
 #include "float.h"
 namespace std
 {
-    namespace __detail { template<typename T> concept __numeric = std::integral<T> || std::floating_point<T> || std::same_as<T, char8_t>; }
-    template<__detail::__numeric T> struct numeric_limits;
-    template<> struct numeric_limits<bool> 
-    {
-        constexpr static bool min() noexcept { return false; }
-        constexpr static bool max() noexcept { return true;  }
-        constexpr static bool lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<char>
-    {
-        constexpr static char min() noexcept { return CHAR_MIN; }
-        constexpr static char max() noexcept { return CHAR_MAX; }
-        constexpr static char lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<signed char>
-    {
-        constexpr static signed char min() noexcept { return SCHAR_MIN; }
-        constexpr static signed char max() noexcept { return SCHAR_MAX; }
-        constexpr static signed char lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<unsigned char>
-    {
-        constexpr static unsigned char min() noexcept { return 0; }
-        constexpr static unsigned char max() noexcept { return UCHAR_MAX; }
-        constexpr static unsigned char lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<wchar_t>
-    {
-        constexpr static wchar_t min() noexcept { return WCHAR_MIN; }
-        constexpr static wchar_t max() noexcept { return WCHAR_MAX; }
-        constexpr static wchar_t lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<char8_t>
-    {
-        constexpr static char8_t min() noexcept { return 0; }
-        constexpr static char8_t max() noexcept { return UCHAR_MAX; }
-        constexpr static char8_t lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<char16_t>
-    {
-        constexpr static char16_t min() noexcept { return 0; }
-        constexpr static char16_t max() noexcept { return UINT_LEAST16_MAX; }
-        constexpr static char16_t lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<char32_t>
-    {
-        constexpr static char32_t min() noexcept { return 0; }
-        constexpr static char32_t max() noexcept { return UINT_LEAST32_MAX; }
-        constexpr static char32_t lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<int>
-    {
-        constexpr static int min() noexcept { return INT_MIN; }
-        constexpr static int max() noexcept { return INT_MAX; }
-        constexpr static int lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<unsigned int>
-    {
-        constexpr static unsigned int min() noexcept { return 0; }
-        constexpr static unsigned int max() noexcept { return UINT_MAX; }
-        constexpr static unsigned int lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<short>
-    {
-        constexpr static short min() noexcept { return SHRT_MIN; }
-        constexpr static short max() noexcept { return SHRT_MAX; }
-        constexpr static short lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<unsigned short>
-    {
-        constexpr static unsigned short min() noexcept { return 0; }
-        constexpr static unsigned short max() noexcept { return USHRT_MAX; }
-        constexpr static unsigned short lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<long>
-    {
-        constexpr static long min() noexcept { return LONG_MIN; }
-        constexpr static long max() noexcept { return LONG_MAX; }
-        constexpr static long lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<unsigned long>
-    {
-        constexpr static unsigned long min() noexcept { return 0; }
-        constexpr static unsigned long max() noexcept { return ULONG_MAX; }
-        constexpr static unsigned long lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<long long>
-    {
-        constexpr static long long min() noexcept { return LONG_MIN; }
-        constexpr static long long max() noexcept { return LONG_MAX; }
-        constexpr static long long lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<unsigned long long>
-    {
-        constexpr static unsigned long long min() noexcept { return 0; }
-        constexpr static unsigned long long max() noexcept { return ULONG_MAX; }
-        constexpr static unsigned long long lowest() noexcept { return min(); }
-        constexpr static int radix = 2;
-    };
-    template<> struct numeric_limits<float>
-    {
-        constexpr static float min() noexcept { return FLT_MIN; }
-        constexpr static float max() noexcept { return FLT_MAX; }
-        constexpr static float lowest() noexcept { return -FLT_MAX; }
-        constexpr static float epsilon() noexcept { return FLT_EPSILON; }
-        constexpr static float denorm_min() noexcept { return FLT_TRUE_MIN; }
-        constexpr static int radix = FLT_RADIX;
-        constexpr static int digits = FLT_MANT_DIG;
-        constexpr static int digits10 = FLT_DIG;
-        constexpr static int min_exponent = FLT_MIN_EXP;
-        constexpr static int min_exponent10 = FLT_MIN_10_EXP;
-        constexpr static int max_exponent = FLT_MAX_EXP;
-        constexpr static int max_exponent10 = FLT_MAX_10_EXP;
-    };
-    template<> struct numeric_limits<double>
-    {
-        constexpr static double min() noexcept { return DBL_MIN; }
-        constexpr static double max() noexcept { return DBL_MAX; }
-        constexpr static double lowest() noexcept { return -DBL_MAX; }
-        constexpr static double epsilon() noexcept { return DBL_EPSILON; }
-        constexpr static double denorm_min() noexcept { return DBL_TRUE_MIN; }
-        constexpr static int radix = FLT_RADIX;
-        constexpr static int digits = DBL_MANT_DIG;
-        constexpr static int digits10 = DBL_DIG;
-        constexpr static int min_exponent = DBL_MIN_EXP;
-        constexpr static int min_exponent10 = DBL_MIN_10_EXP;
-        constexpr static int max_exponent = DBL_MAX_EXP;
-        constexpr static int max_exponent10 = DBL_MAX_10_EXP;
-    };
-    template<> struct numeric_limits<long double>
-    {
-        constexpr static long double min() noexcept { return LDBL_MIN; }
-        constexpr static long double max() noexcept { return LDBL_MAX; }
-        constexpr static long double lowest() noexcept { return -LDBL_MAX; }
-        constexpr static long double epsilon() noexcept { return LDBL_EPSILON; }
-        constexpr static long double denorm_min() noexcept { return LDBL_TRUE_MIN; }
-        constexpr static int radix = FLT_RADIX;
-        constexpr static int digits = LDBL_MANT_DIG;
-        constexpr static int digits10 = LDBL_DIG;
-        constexpr static int min_exponent = LDBL_MIN_EXP;
-        constexpr static int min_exponent10 = LDBL_MIN_10_EXP;
-        constexpr static int max_exponent = LDBL_MAX_EXP;
-        constexpr static int max_exponent10 = LDBL_MAX_10_EXP;
-    };
+	namespace __detail { template<typename T> concept __numeric = std::integral<T> || std::floating_point<T> || std::same_as<T, char8_t>; }
+	template<__detail::__numeric T> struct numeric_limits;
+	template<> struct numeric_limits<bool> 
+	{
+		constexpr static bool min() noexcept { return false; }
+		constexpr static bool max() noexcept { return true;  }
+		constexpr static bool lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<char>
+	{
+		constexpr static char min() noexcept { return CHAR_MIN; }
+		constexpr static char max() noexcept { return CHAR_MAX; }
+		constexpr static char lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<signed char>
+	{
+		constexpr static signed char min() noexcept { return SCHAR_MIN; }
+		constexpr static signed char max() noexcept { return SCHAR_MAX; }
+		constexpr static signed char lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<unsigned char>
+	{
+		constexpr static unsigned char min() noexcept { return 0; }
+		constexpr static unsigned char max() noexcept { return UCHAR_MAX; }
+		constexpr static unsigned char lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<wchar_t>
+	{
+		constexpr static wchar_t min() noexcept { return WCHAR_MIN; }
+		constexpr static wchar_t max() noexcept { return WCHAR_MAX; }
+		constexpr static wchar_t lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<char8_t>
+	{
+		constexpr static char8_t min() noexcept { return 0; }
+		constexpr static char8_t max() noexcept { return UCHAR_MAX; }
+		constexpr static char8_t lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<char16_t>
+	{
+		constexpr static char16_t min() noexcept { return 0; }
+		constexpr static char16_t max() noexcept { return UINT_LEAST16_MAX; }
+		constexpr static char16_t lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<char32_t>
+	{
+		constexpr static char32_t min() noexcept { return 0; }
+		constexpr static char32_t max() noexcept { return UINT_LEAST32_MAX; }
+		constexpr static char32_t lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<int>
+	{
+		constexpr static int min() noexcept { return INT_MIN; }
+		constexpr static int max() noexcept { return INT_MAX; }
+		constexpr static int lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<unsigned int>
+	{
+		constexpr static unsigned int min() noexcept { return 0; }
+		constexpr static unsigned int max() noexcept { return UINT_MAX; }
+		constexpr static unsigned int lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<short>
+	{
+		constexpr static short min() noexcept { return SHRT_MIN; }
+		constexpr static short max() noexcept { return SHRT_MAX; }
+		constexpr static short lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<unsigned short>
+	{
+		constexpr static unsigned short min() noexcept { return 0; }
+		constexpr static unsigned short max() noexcept { return USHRT_MAX; }
+		constexpr static unsigned short lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<long>
+	{
+		constexpr static long min() noexcept { return LONG_MIN; }
+		constexpr static long max() noexcept { return LONG_MAX; }
+		constexpr static long lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<unsigned long>
+	{
+		constexpr static unsigned long min() noexcept { return 0; }
+		constexpr static unsigned long max() noexcept { return ULONG_MAX; }
+		constexpr static unsigned long lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<long long>
+	{
+		constexpr static long long min() noexcept { return LONG_MIN; }
+		constexpr static long long max() noexcept { return LONG_MAX; }
+		constexpr static long long lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<unsigned long long>
+	{
+		constexpr static unsigned long long min() noexcept { return 0; }
+		constexpr static unsigned long long max() noexcept { return ULONG_MAX; }
+		constexpr static unsigned long long lowest() noexcept { return min(); }
+		constexpr static int radix = 2;
+	};
+	template<> struct numeric_limits<float>
+	{
+		constexpr static float min() noexcept { return FLT_MIN; }
+		constexpr static float max() noexcept { return FLT_MAX; }
+		constexpr static float lowest() noexcept { return -FLT_MAX; }
+		constexpr static float epsilon() noexcept { return FLT_EPSILON; }
+		constexpr static float denorm_min() noexcept { return FLT_TRUE_MIN; }
+		constexpr static int radix = FLT_RADIX;
+		constexpr static int digits = FLT_MANT_DIG;
+		constexpr static int digits10 = FLT_DIG;
+		constexpr static int min_exponent = FLT_MIN_EXP;
+		constexpr static int min_exponent10 = FLT_MIN_10_EXP;
+		constexpr static int max_exponent = FLT_MAX_EXP;
+		constexpr static int max_exponent10 = FLT_MAX_10_EXP;
+	};
+	template<> struct numeric_limits<double>
+	{
+		constexpr static double min() noexcept { return DBL_MIN; }
+		constexpr static double max() noexcept { return DBL_MAX; }
+		constexpr static double lowest() noexcept { return -DBL_MAX; }
+		constexpr static double epsilon() noexcept { return DBL_EPSILON; }
+		constexpr static double denorm_min() noexcept { return DBL_TRUE_MIN; }
+		constexpr static int radix = FLT_RADIX;
+		constexpr static int digits = DBL_MANT_DIG;
+		constexpr static int digits10 = DBL_DIG;
+		constexpr static int min_exponent = DBL_MIN_EXP;
+		constexpr static int min_exponent10 = DBL_MIN_10_EXP;
+		constexpr static int max_exponent = DBL_MAX_EXP;
+		constexpr static int max_exponent10 = DBL_MAX_10_EXP;
+	};
+	template<> struct numeric_limits<long double>
+	{
+		constexpr static long double min() noexcept { return LDBL_MIN; }
+		constexpr static long double max() noexcept { return LDBL_MAX; }
+		constexpr static long double lowest() noexcept { return -LDBL_MAX; }
+		constexpr static long double epsilon() noexcept { return LDBL_EPSILON; }
+		constexpr static long double denorm_min() noexcept { return LDBL_TRUE_MIN; }
+		constexpr static int radix = FLT_RADIX;
+		constexpr static int digits = LDBL_MANT_DIG;
+		constexpr static int digits10 = LDBL_DIG;
+		constexpr static int min_exponent = LDBL_MIN_EXP;
+		constexpr static int min_exponent10 = LDBL_MIN_10_EXP;
+		constexpr static int max_exponent = LDBL_MAX_EXP;
+		constexpr static int max_exponent10 = LDBL_MAX_10_EXP;
+	};
 }
 #endif

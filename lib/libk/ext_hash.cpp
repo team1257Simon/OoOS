@@ -19,70 +19,70 @@ uint64_t std::tea_hash_signed::operator()(const void* data, size_t n) { return g
 uint64_t std::tea_hash_unsigned::operator()(const void* data, size_t n) { return gen_ext_hash<false, std::addressof(apply_tea_transform), 4, 0U>(seed, data, n); }
 template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num)
 {
-    using data_t = typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
-    uint32_t pad = static_cast<uint32_t>(len) | (static_cast<uint32_t>(len) << 8);
-    pad |= pad << 16;
-    uint32_t val = pad;
-    len = std::min(len, size_t(num * 4));
-    data_t buffer = static_cast<data_t>(in);
-    size_t n = 0;
-    for(size_t i = 0; i < len; i++)
-    {
-        val = static_cast<int>(buffer[i]) + (val << 8);
-        if((i % 4) == 3)
-        {
-            out.dword_buf[n++] = val;
-            val = pad;
-            num--;
-        }
-    }
-    if(--num >= 0) out.dword_buf[n++] = val;
-    while(--num >= 0) out.dword_buf[n++] = pad;
+	using data_t = typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
+	uint32_t pad = static_cast<uint32_t>(len) | (static_cast<uint32_t>(len) << 8);
+	pad |= pad << 16;
+	uint32_t val = pad;
+	len = std::min(len, size_t(num * 4));
+	data_t buffer = static_cast<data_t>(in);
+	size_t n = 0;
+	for(size_t i = 0; i < len; i++)
+	{
+		val = static_cast<int>(buffer[i]) + (val << 8);
+		if((i % 4) == 3)
+		{
+			out.dword_buf[n++] = val;
+			val = pad;
+			num--;
+		}
+	}
+	if(--num >= 0) out.dword_buf[n++] = val;
+	while(--num >= 0) out.dword_buf[n++] = pad;
 }
 template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len)
 {
-    const char* name = static_cast<const char*>(data);
-    hash_buffer in{};
-    hash_buffer buf = buf_init;
-    if(seed) { for(int i = 0; i < 4; i++) { if(seed[i]) array_copy(buf.dword_buf, seed, 4); break; } }
-    const char* p = name;
-    while(len > 0)
-    {
-        process_input<is_signed>(name, in, len, num);
-        (*hash_fn)(buf, in);
-        len -= num * 4;
-        p += num * 4;
-    }
-    return qword(buf.dword_buf[b_off], buf.dword_buf[b_off + 1]);
+	const char* name = static_cast<const char*>(data);
+	hash_buffer in{};
+	hash_buffer buf = buf_init;
+	if(seed) { for(int i = 0; i < 4; i++) { if(seed[i]) array_copy(buf.dword_buf, seed, 4); break; } }
+	const char* p = name;
+	while(len > 0)
+	{
+		process_input<is_signed>(name, in, len, num);
+		(*hash_fn)(buf, in);
+		len -= num * 4;
+		p += num * 4;
+	}
+	return qword(buf.dword_buf[b_off], buf.dword_buf[b_off + 1]);
 }
 template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_t len)
 {
-    uint32_t hash, hash0 = 0x12A3FE2DU, hash1 = 0x37ABE8F9U;
-    using data_t = typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
-    data_t buffer = static_cast<data_t>(in);
-    for(size_t i = 0; i < len; i++)
-    {
-        hash = hash1 + (hash0 ^ (static_cast<int>(buffer[i]) * 7152373));
-        if(hash & 0x80000000) hash -= 0x7FFFFFFFU;
-        hash1 = hash0;
-        hash0 = hash;
-    }
-    return hash0 << 1;
+	uint32_t hash, hash0 = 0x12A3FE2DU, hash1 = 0x37ABE8F9U;
+	using data_t = typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
+	data_t buffer = static_cast<data_t>(in);
+	for(size_t i = 0; i < len; i++)
+	{
+		hash = hash1 + (hash0 ^ (static_cast<int>(buffer[i]) * 7152373));
+		if(hash & 0x80000000) hash -= 0x7FFFFFFFU;
+		hash1 = hash0;
+		hash0 = hash;
+	}
+	return hash0 << 1;
 }
 static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in)
 {
-    uint32_t sum = 0;
-    uint32_t b0 = buf.dword_buf[0], b1 = buf.dword_buf[1];
-    uint32_t a = in.dword_buf[0], b = in.dword_buf[1], c = in.dword_buf[2], d = in.dword_buf[3];
-    size_t n = 16;
-    do
-    {
-        sum += 0x9E3779B9;
-        b0 += ((b1 << 4) + a) ^ (b1 + sum) ^ ((b1 >> 5) + b);
+	uint32_t sum = 0;
+	uint32_t b0 = buf.dword_buf[0], b1 = buf.dword_buf[1];
+	uint32_t a = in.dword_buf[0], b = in.dword_buf[1], c = in.dword_buf[2], d = in.dword_buf[3];
+	size_t n = 16;
+	do
+	{
+		sum += 0x9E3779B9;
+		b0 += ((b1 << 4) + a) ^ (b1 + sum) ^ ((b1 >> 5) + b);
 		b1 += ((b0 << 4) + c) ^ (b0 + sum) ^ ((b0 >> 5) + d);
-    } while(--n);
-    buf.dword_buf[0] += b0;
-    buf.dword_buf[1] += b1;
+	} while(--n);
+	buf.dword_buf[0] += b0;
+	buf.dword_buf[1] += b1;
 }
 static void apply_md4_half_transform(hash_buffer& buf, hash_buffer const& in)
 {

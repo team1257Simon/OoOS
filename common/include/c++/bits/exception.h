@@ -2,7 +2,7 @@
 #define __STD_EXCEPTION
 namespace std
 {
-    class exception
+	class exception
 	{
 	public:
 		exception() noexcept;

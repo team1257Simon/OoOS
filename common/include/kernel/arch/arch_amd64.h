@@ -27,6 +27,8 @@ constexpr word data_rtc          =   0x71UC;        /* IO data address for the C
 constexpr byte sig_keybd_ping    =   0xEEUC;        /* The keyboard should respond with an equal byte */
 constexpr byte sig_keybd_rst     =   0xFFUC;        /* Use this to reset the keyboard, for instance at startup to ensure no stale data */
 constexpr byte sig_keybd_enable  =   0xF4UC;        /* Send to enable the keyboard. This must be used after any reset is performed */
+constexpr byte sig_keybd_ack     =   0xFAUC;
+constexpr byte sig_keybd_nack    =   0xFEUC;
 extern "C" 
 {
 #endif
@@ -71,14 +73,15 @@ inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
 inline cpuid_leaf cpuid(uint32_t a, uint32_t c) { cpuid_leaf l; asm volatile("cpuid" : "=a"(l.eax), "=b"(l.ebx), "=c"(l.ecx), "=d"(l.edx) : "0"(a), "2"(c) : "memory"); return l; }
 #ifdef __cplusplus
 }
-template<integral_structure I = byte> constexpr I in(uint16_t from) { I result; asm volatile("in %1, %0" : "=a"(result) : "Nd"(from) : "memory"); return result; }
-template<integral_structure I = byte> constexpr void out(uint16_t to, I value) { asm volatile("out %0, %1" :: "a"(value), "Nd"(to) : "memory"); }
+template<typename T> concept io_port_valid = (sizeof(T) <= 4UZ);
+template<io_port_valid I = byte> constexpr I in(uint16_t from) { I result; asm volatile("in %1, %0" : "=a"(result) : "Nd"(from) : "memory"); return result; }
+template<io_port_valid I = byte> constexpr void out(uint16_t to, I value) { asm volatile("out %0, %1" :: "a"(value), "Nd"(to) : "memory"); }
 constexpr void outb(uint16_t to, byte value) { out(to, value); }
 constexpr byte inb(uint16_t from) { return in(from); }
 constexpr void io_wait() { outb(0x80US, 0); }
 constexpr void outbw(uint16_t to, byte value) { outb(to, value); io_wait(); }
 constexpr byte inbw(uint16_t from) { byte result = inb(from); io_wait(); return result; }
-constexpr void kb_wait() { for(uint8_t result = inb(0x64US); result & 0x02UC; result = inb(0x64US)); }
+constexpr void kb_wait() { for(uint8_t result = inb(command_keybd); result & 0x02UC; result = inb(command_keybd)); }
 constexpr void kb_put(byte b) { kb_wait(); outb(data_keybd, b); kb_wait(); }
 constexpr byte kb_get() { return inb(data_keybd); }
 constexpr void nmi_enable() { outb(command_rtc, inb(command_rtc) & 0x7FUC); inb(data_rtc); }

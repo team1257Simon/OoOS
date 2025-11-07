@@ -1,12 +1,12 @@
 #include "libk_decls.h"
 #include "arch/idt_amd64.h"
+#include "arch/apic.hpp"
 #include "unordered_map"
 #include "isr_table.hpp"
 #include "kernel_mm.hpp"
 #include "array"
 #include "string"
-#include "kdebug.hpp"
-#include "arch/apic.hpp"
+#include "stdlib.h"
 std::array<std::unordered_map<void*, ooos::isr_actor>, 16UZ> __managed_handlers{};
 std::array<std::vector<irq_callback>, 16UZ> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
@@ -17,10 +17,59 @@ namespace interrupt_table
     spinlock_t __itable_mutex;
     void __lock() { lock(std::addressof(__itable_mutex)); }
     void __unlock() { release(std::addressof(__itable_mutex)); }
-    void deregister_owner(void* owner) { if(owner) { __lock(); for(std::unordered_map<void*, ooos::isr_actor>& m : __managed_handlers) m.erase(owner); __unlock(); }  }
-    bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) { if(idx < 16UC && owner) { __lock(); bool result = __managed_handlers[idx].emplace(owner, std::forward<ooos::isr_actor>(handler)).second; __unlock(); return result; } return false; }
-    bool add_irq_handler(byte idx, irq_callback&& handler) { if(idx < 16UC) { __lock(); __handler_tables[idx].push_back(std::move(handler)); __unlock(); return __handler_tables[idx].size() == 1; } return false; }
-    void add_interrupt_callback(interrupt_callback&& cb) { __registered_callbacks.push_back(std::move(cb)); }
+    attribute(nointerrupts) void deregister_owner(void* owner) noexcept
+	{
+		if(owner)
+		{
+			__lock();
+			for(std::unordered_map<void*, ooos::isr_actor>& m : __managed_handlers) m.erase(owner);
+			__unlock();
+		}
+	}
+    attribute(nointerrupts) bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
+	{
+		try
+		{
+			if(idx < 16UC && owner)
+			{
+				__lock();
+				bool result = __managed_handlers[idx].emplace(owner, std::forward<ooos::isr_actor>(handler)).second;
+				__unlock();
+				return result;
+			}
+			return false;
+		}
+		catch(...) {
+			panic("out of memory");
+			abort();
+		}
+	}
+    attribute(nointerrupts) bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
+	{
+		try
+		{
+			if(idx < 16UC)
+			{
+				__lock();
+				__handler_tables[idx].push_back(std::move(handler));
+				__unlock();
+				return __handler_tables[idx].size() == 1;
+			}
+			return false;
+		}
+		catch(...) {
+			panic("out of memory");
+			abort();
+		}
+	}
+    attribute(nointerrupts) void add_interrupt_callback(interrupt_callback&& cb) noexcept
+	{
+		try { __registered_callbacks.push_back(std::move(cb)); }
+		catch(...) {
+			panic("out of memory");
+			abort();
+		}
+	}
 }
 inline void pic_eoi(byte irq) 
 {

@@ -29,67 +29,67 @@
 #include "bits/stdexcept.h"
 namespace std
 {
-    exception::exception() noexcept {}
-    exception::~exception() noexcept {}
-    exception::exception(exception const&) noexcept {}
-    exception& exception::operator=(exception const&) noexcept { return *this; }
-    const char*           exception::what() const noexcept { return "std::exception"; }
-    bad_alloc::bad_alloc() noexcept {}
-    bad_alloc::~bad_alloc() noexcept {}
-    bad_alloc::bad_alloc(bad_alloc const&) noexcept {}
-    bad_alloc& bad_alloc::operator=(bad_alloc const&) noexcept { return *this; }
-    const char*           bad_alloc::what() const noexcept { return "std::bad_alloc"; }
-    bad_cast::bad_cast() noexcept {}
-    bad_cast::~bad_cast() noexcept {}
-    bad_cast::bad_cast(const bad_cast&) noexcept {}
-    bad_cast& bad_cast::operator=(bad_cast const&) noexcept { return *this; }
-    const char*         bad_cast::what() const noexcept { return "std::bad_cast"; }
-    bad_typeid::bad_typeid() noexcept {}
-    bad_typeid::~bad_typeid() noexcept {}
-    bad_typeid::bad_typeid(bad_typeid const&) noexcept {}
-    bad_typeid& bad_typeid::operator=(bad_typeid const&) noexcept { return *this; }
-    const char*             bad_typeid::what() const noexcept { return "std::bad_typeid"; }
-    bad_array_new_length::bad_array_new_length() noexcept {}
-    bad_array_new_length::~bad_array_new_length() noexcept {}
-    bad_array_new_length::bad_array_new_length(bad_array_new_length const&) noexcept {}
-    bad_array_new_length& bad_array_new_length::operator=(bad_array_new_length const&) noexcept { return *this; }
-    const char*                                 bad_array_new_length::what() const noexcept { return "std::bad_array_new_length"; }
-    logic_error::logic_error(string const& __msg) : exception(), __my_msg(__msg) {}
-    logic_error::logic_error(const char* __msg) : exception(), __my_msg(__msg) {}
-    logic_error::logic_error(logic_error const& that) : exception(that), __my_msg(that.__my_msg) {}
-    logic_error::logic_error(logic_error&& that) : exception(that), __my_msg(move(that.__my_msg)) {}
-    logic_error& logic_error::operator=(logic_error const& that) noexcept { this->__my_msg = that.__my_msg; return *this; }
-    logic_error& logic_error::operator=(logic_error&&) noexcept = default;
-    logic_error::~logic_error() noexcept {}
-    const char* logic_error::what() const noexcept { return __my_msg.c_str(); }
-    domain_error::domain_error(string const& __msg) : logic_error(__msg) {}
-    domain_error::domain_error(const char* __msg) : logic_error(__msg) {}
-    domain_error::~domain_error() noexcept {}
-    invalid_argument::invalid_argument(string const& __msg) : logic_error(__msg) {}
-    invalid_argument::invalid_argument(const char* __msg) : logic_error(__msg) {}
-    invalid_argument::~invalid_argument() noexcept {}
-    length_error::length_error(string const& __msg) : logic_error(__msg) {}
-    length_error::length_error(const char* __msg) : logic_error(__msg) {}
-    length_error::~length_error() noexcept {}
-    out_of_range::out_of_range(string const& __msg) : logic_error(__msg) {}
-    out_of_range::out_of_range(const char* __msg) : logic_error(__msg) {}
-    out_of_range::~out_of_range() noexcept {}
-    runtime_error::runtime_error(string const& __msg) : exception(), __my_msg(__msg) {}
-    runtime_error::runtime_error(const char* __msg) : exception(), __my_msg(__msg) {}
-    runtime_error::runtime_error(runtime_error&& that) : exception(that), __my_msg(move(that.__my_msg)) {}
-    runtime_error::runtime_error(runtime_error const& that) : exception(that), __my_msg(that.__my_msg) {}
-    runtime_error& runtime_error::operator=(runtime_error const& that) noexcept { this->__my_msg = that.__my_msg; return *this; }
-    runtime_error& runtime_error::operator=(runtime_error&&) noexcept = default;
-    runtime_error::~runtime_error() noexcept {}
-    const char* runtime_error::what() const noexcept { return __my_msg.c_str(); }
-    range_error::range_error(string const& __msg) : runtime_error(__msg) {}
-    range_error::range_error(const char* __msg) : runtime_error(__msg) {}
-    range_error::~range_error() noexcept {}
-    overflow_error::overflow_error(string const& __msg) : runtime_error(__msg) {}
-    overflow_error::overflow_error(const char* __msg) : runtime_error(__msg) {}
-    overflow_error::~overflow_error() noexcept {}
-    underflow_error::underflow_error(string const& __msg) : runtime_error(__msg) {}
-    underflow_error::underflow_error(const char* __msg) : runtime_error(__msg) {}
-    underflow_error::~underflow_error() noexcept {}
+	exception::exception() noexcept {}
+	exception::~exception() noexcept {}
+	exception::exception(exception const&) noexcept {}
+	exception& exception::operator=(exception const&) noexcept { return *this; }
+	const char*           exception::what() const noexcept { return "std::exception"; }
+	bad_alloc::bad_alloc() noexcept {}
+	bad_alloc::~bad_alloc() noexcept {}
+	bad_alloc::bad_alloc(bad_alloc const&) noexcept {}
+	bad_alloc& bad_alloc::operator=(bad_alloc const&) noexcept { return *this; }
+	const char*           bad_alloc::what() const noexcept { return "std::bad_alloc"; }
+	bad_cast::bad_cast() noexcept {}
+	bad_cast::~bad_cast() noexcept {}
+	bad_cast::bad_cast(const bad_cast&) noexcept {}
+	bad_cast& bad_cast::operator=(bad_cast const&) noexcept { return *this; }
+	const char*         bad_cast::what() const noexcept { return "std::bad_cast"; }
+	bad_typeid::bad_typeid() noexcept {}
+	bad_typeid::~bad_typeid() noexcept {}
+	bad_typeid::bad_typeid(bad_typeid const&) noexcept {}
+	bad_typeid& bad_typeid::operator=(bad_typeid const&) noexcept { return *this; }
+	const char*             bad_typeid::what() const noexcept { return "std::bad_typeid"; }
+	bad_array_new_length::bad_array_new_length() noexcept {}
+	bad_array_new_length::~bad_array_new_length() noexcept {}
+	bad_array_new_length::bad_array_new_length(bad_array_new_length const&) noexcept {}
+	bad_array_new_length& bad_array_new_length::operator=(bad_array_new_length const&) noexcept { return *this; }
+	const char*                                 bad_array_new_length::what() const noexcept { return "std::bad_array_new_length"; }
+	logic_error::logic_error(string const& __msg) : exception(), __my_msg(__msg) {}
+	logic_error::logic_error(const char* __msg) : exception(), __my_msg(__msg) {}
+	logic_error::logic_error(logic_error const& that) : exception(that), __my_msg(that.__my_msg) {}
+	logic_error::logic_error(logic_error&& that) : exception(that), __my_msg(move(that.__my_msg)) {}
+	logic_error& logic_error::operator=(logic_error const& that) noexcept { this->__my_msg = that.__my_msg; return *this; }
+	logic_error& logic_error::operator=(logic_error&&) noexcept = default;
+	logic_error::~logic_error() noexcept {}
+	const char* logic_error::what() const noexcept { return __my_msg.c_str(); }
+	domain_error::domain_error(string const& __msg) : logic_error(__msg) {}
+	domain_error::domain_error(const char* __msg) : logic_error(__msg) {}
+	domain_error::~domain_error() noexcept {}
+	invalid_argument::invalid_argument(string const& __msg) : logic_error(__msg) {}
+	invalid_argument::invalid_argument(const char* __msg) : logic_error(__msg) {}
+	invalid_argument::~invalid_argument() noexcept {}
+	length_error::length_error(string const& __msg) : logic_error(__msg) {}
+	length_error::length_error(const char* __msg) : logic_error(__msg) {}
+	length_error::~length_error() noexcept {}
+	out_of_range::out_of_range(string const& __msg) : logic_error(__msg) {}
+	out_of_range::out_of_range(const char* __msg) : logic_error(__msg) {}
+	out_of_range::~out_of_range() noexcept {}
+	runtime_error::runtime_error(string const& __msg) : exception(), __my_msg(__msg) {}
+	runtime_error::runtime_error(const char* __msg) : exception(), __my_msg(__msg) {}
+	runtime_error::runtime_error(runtime_error&& that) : exception(that), __my_msg(move(that.__my_msg)) {}
+	runtime_error::runtime_error(runtime_error const& that) : exception(that), __my_msg(that.__my_msg) {}
+	runtime_error& runtime_error::operator=(runtime_error const& that) noexcept { this->__my_msg = that.__my_msg; return *this; }
+	runtime_error& runtime_error::operator=(runtime_error&&) noexcept = default;
+	runtime_error::~runtime_error() noexcept {}
+	const char* runtime_error::what() const noexcept { return __my_msg.c_str(); }
+	range_error::range_error(string const& __msg) : runtime_error(__msg) {}
+	range_error::range_error(const char* __msg) : runtime_error(__msg) {}
+	range_error::~range_error() noexcept {}
+	overflow_error::overflow_error(string const& __msg) : runtime_error(__msg) {}
+	overflow_error::overflow_error(const char* __msg) : runtime_error(__msg) {}
+	overflow_error::~overflow_error() noexcept {}
+	underflow_error::underflow_error(string const& __msg) : runtime_error(__msg) {}
+	underflow_error::underflow_error(const char* __msg) : runtime_error(__msg) {}
+	underflow_error::~underflow_error() noexcept {}
 } // namespace std
 extension void xpanic(std::string const& str) noexcept { panic(str.c_str()); }

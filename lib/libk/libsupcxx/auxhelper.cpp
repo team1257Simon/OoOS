@@ -38,8 +38,8 @@
  */
 extern "C" void __cxa_bad_cast()
 {
-    panic("(DBG) std::bad_cast");
-    throw std::bad_cast{};
+	panic("(DBG) std::bad_cast");
+	throw std::bad_cast{};
 }
 /**
  * Called to generate a bad typeid exception.  This function is intended to
@@ -48,8 +48,8 @@ extern "C" void __cxa_bad_cast()
  */
 extern "C" void __cxa_bad_typeid()
 {
-    panic("(DBG) std::bad_typeid");
-    throw std::bad_typeid{};
+	panic("(DBG) std::bad_typeid");
+	throw std::bad_typeid{};
 }
 /**
  * Compilers may (but are not required to) set any deleted-virtual function's
@@ -59,16 +59,16 @@ extern "C" void __cxa_bad_typeid()
  */
 extern "C" void __cxa_deleted_virtual()
 {
-    panic("(DBG) deleted virtual");
-    abort();
+	panic("(DBG) deleted virtual");
+	abort();
 }
 extern "C" void __cxa_throw_bad_array_new_length()
 {
-    panic("(DBG) std::bad_array_new_length");
-    throw std::bad_array_new_length{};
+	panic("(DBG) std::bad_array_new_length");
+	throw std::bad_array_new_length{};
 }
 extern "C" void __cxa_throw_bad_alloc()
 {
-    panic("(DBG) std::bad_alloc");
-    throw std::bad_alloc{};
+	panic("(DBG) std::bad_alloc");
+	throw std::bad_alloc{};
 }

@@ -17,7 +17,7 @@ time_t cpu_timer_stopwatch::get(tsplit_t) const { return diff_tsc(__split); }
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio()
 {
     cpuid_leaf leaf_0x15 = cpuid(0x15U, 0);
-    if(leaf_0x15.ebx && leaf_0x15.eax) return (leaf_0x15.ecx ? std::pair<time_t, time_t>{ leaf_0x15.ecx * leaf_0x15.ebx, leaf_0x15.eax } : std::pair<time_t, time_t>{ leaf_0x15.ebx, leaf_0x15.eax });
+    if(leaf_0x15.ebx && leaf_0x15.eax) return (leaf_0x15.ecx ? std::pair<time_t, time_t>(leaf_0x15.ecx * leaf_0x15.ebx, leaf_0x15.eax) : std::pair<time_t, time_t>(leaf_0x15.ebx, leaf_0x15.eax));
     return { cpuid(0x16U, 0).ecx, 1UL };
 }
 void cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function<bool()> const& fn)

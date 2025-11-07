@@ -40,140 +40,140 @@ constexpr size_t max_block_index    = block_index_range - 1;
 constexpr addr_t sysres_base        { 0xFFFF800000000000 };
 struct block_tag
 {
-    uint64_t magic          { block_magic };
-    size_t block_size;
-    size_t held_size;
-    block_tag* left_split   { nullptr };
-    block_tag* right_split  { nullptr };
-    block_tag* previous     { nullptr };
-    block_tag* next         { nullptr };
-    int index;
-    uint32_t align_bytes;
-    constexpr block_tag() = default;
-    constexpr block_tag(size_t size, size_t held, int idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, uint32_t align = 0U) noexcept :
-        block_size      { size },
-        held_size       { held },
-        left_split      { left },
-        right_split     { right },
-        previous        { prev },
-        next            { nxt },
-        index           { idx },
-        align_bytes     { align }
-                        {}
-    constexpr block_tag(size_t size, size_t held, int idx = -1, uint32_t align = 0U) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
-    constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
-    constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
-    constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }
-    block_tag* split();
+	uint64_t magic          { block_magic };
+	size_t block_size;
+	size_t held_size;
+	block_tag* left_split   { nullptr };
+	block_tag* right_split  { nullptr };
+	block_tag* previous     { nullptr };
+	block_tag* next         { nullptr };
+	int index;
+	uint32_t align_bytes;
+	constexpr block_tag() = default;
+	constexpr block_tag(size_t size, size_t held, int idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, uint32_t align = 0U) noexcept :
+		block_size      { size },
+		held_size       { held },
+		left_split      { left },
+		right_split     { right },
+		previous        { prev },
+		next            { nxt },
+		index           { idx },
+		align_bytes     { align }
+						{}
+	constexpr block_tag(size_t size, size_t held, int idx = -1, uint32_t align = 0U) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
+	constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
+	constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
+	constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }
+	block_tag* split();
 } __pack;
 struct kframe_tag
 {
-    uint64_t magic{ kframe_magic };
-    uint16_t complete_regions[block_index_range]{};
-    block_tag* available_blocks[block_index_range]{};
+	uint64_t magic{ kframe_magic };
+	uint16_t complete_regions[block_index_range]{};
+	block_tag* available_blocks[block_index_range]{};
 private:
-    spinlock_t __my_mutex{};
+	spinlock_t __my_mutex{};
 public:
-    constexpr kframe_tag() = default;
-    void insert_block(block_tag* blk, int idx);
-    void remove_block(block_tag* blk);
-    addr_t allocate(size_t size, size_t align = 0UL);
-    void deallocate(addr_t ptr, size_t align = 0UL);
-    addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL);
-    addr_t array_allocate(size_t num, size_t size);
+	constexpr kframe_tag() = default;
+	void insert_block(block_tag* blk, int idx);
+	void remove_block(block_tag* blk);
+	addr_t allocate(size_t size, size_t align = 0UL);
+	void deallocate(addr_t ptr, size_t align = 0UL);
+	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL);
+	addr_t array_allocate(size_t num, size_t size);
 protected:
-    block_tag* create_tag(size_t size, size_t align);
-    block_tag* melt_left(block_tag* tag) noexcept;
-    block_tag* melt_right(block_tag* tag) noexcept;
-    block_tag* find_tag(addr_t ptr, size_t align);
-    block_tag* get_for_allocation(size_t size, size_t align);
-    void release_block(block_tag* tag);
+	block_tag* create_tag(size_t size, size_t align);
+	block_tag* melt_left(block_tag* tag) noexcept;
+	block_tag* melt_right(block_tag* tag) noexcept;
+	block_tag* find_tag(addr_t ptr, size_t align);
+	block_tag* get_for_allocation(size_t size, size_t align);
+	void release_block(block_tag* tag);
 private:
-    void __lock();
-    void __unlock();
+	void __lock();
+	void __unlock();
 } __pack;
 struct kframe_exports
 {
-    typedef addr_t (kframe_tag::*alloc_fn)(size_t, size_t);
-    typedef void (kframe_tag::*dealloc_fn)(addr_t, size_t);
-    typedef addr_t (kframe_tag::*realloc_fn)(addr_t, size_t, size_t);
-    alloc_fn allocate;
-    alloc_fn array_allocate;
-    dealloc_fn deallocate;
-    realloc_fn reallocate;
+	typedef addr_t (kframe_tag::*alloc_fn)(size_t, size_t);
+	typedef void (kframe_tag::*dealloc_fn)(addr_t, size_t);
+	typedef addr_t (kframe_tag::*realloc_fn)(addr_t, size_t, size_t);
+	alloc_fn allocate;
+	alloc_fn array_allocate;
+	dealloc_fn deallocate;
+	realloc_fn reallocate;
 };
 struct block_descriptor
 {
-    addr_t physical_start;
-    addr_t virtual_start;
-    size_t size;
-    size_t align    { 0UL };
-    bool write      { true };
-    bool execute    { true };
+	addr_t physical_start;
+	addr_t virtual_start;
+	size_t size;
+	size_t align    { 0UL };
+	bool write      { true };
+	bool execute    { true };
 };
 struct uframe_tag
 {
-    uint64_t magic  { uframe_magic };
-    paging_table pml4;
-    addr_t base;
-    addr_t extent;
-    addr_t mapped_max;
-    addr_t sysres_wm;
-    addr_t sysres_extent;
-    addr_t dynamic_extent;
-    std::vector<addr_t> kernel_allocated_blocks;
-    std::vector<block_descriptor> usr_blocks;
-    std::vector<block_descriptor*> shared_blocks;
+	uint64_t magic  { uframe_magic };
+	paging_table pml4;
+	addr_t base;
+	addr_t extent;
+	addr_t mapped_max;
+	addr_t sysres_wm;
+	addr_t sysres_extent;
+	addr_t dynamic_extent;
+	std::vector<addr_t> kernel_allocated_blocks;
+	std::vector<block_descriptor> usr_blocks;
+	std::vector<block_descriptor*> shared_blocks;
 private:
-    spinlock_t __my_mutex;
-    void __lock();
-    void __unlock();
+	spinlock_t __my_mutex;
+	void __lock();
+	void __unlock();
 public:
-    constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : 
-        pml4                    { cr3 },
-        base                    { st_base },
-        extent                  { st_extent },
-        mapped_max              { st_extent },
-        sysres_wm               { sysres_base },
-        sysres_extent           { sysres_base },
-        dynamic_extent          { nullptr },
-        kernel_allocated_blocks {},
-        usr_blocks              {},
-        shared_blocks           {}
-                                {}
-    friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
-    bool shift_extent(ptrdiff_t amount);
-    addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
-    addr_t sysres_add(size_t n);
-    bool mmap_remove(addr_t addr, size_t len);
-    void accept_block(block_descriptor&& desc);
-    void transfer_block(uframe_tag& that, block_descriptor const& which);
-    void drop_block(block_descriptor const& which);
-    block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true, bool allow_global_shared = false);
-    addr_t translate(addr_t addr);
+	constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : 
+		pml4                    { cr3 },
+		base                    { st_base },
+		extent                  { st_extent },
+		mapped_max              { st_extent },
+		sysres_wm               { sysres_base },
+		sysres_extent           { sysres_base },
+		dynamic_extent          { nullptr },
+		kernel_allocated_blocks {},
+		usr_blocks              {},
+		shared_blocks           {}
+								{}
+	friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
+	bool shift_extent(ptrdiff_t amount);
+	addr_t mmap_add(addr_t addr, size_t len, bool write, bool exec);
+	addr_t sysres_add(size_t n);
+	bool mmap_remove(addr_t addr, size_t len);
+	void accept_block(block_descriptor&& desc);
+	void transfer_block(uframe_tag& that, block_descriptor const& which);
+	void drop_block(block_descriptor const& which);
+	block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true, bool allow_global_shared = false);
+	addr_t translate(addr_t addr);
 };
 enum block_idx : uint8_t
 {
-    I0  = 0x01,
-    I1  = 0x02,
-    I2  = 0x04,
-    I3  = 0x08,
-    I4  = 0x10,
-    I5  = 0x20,
-    I6  = 0x40,
-    I7  = 0x80,
-    ALL = 0xFF
+	I0  = 0x01,
+	I1  = 0x02,
+	I2  = 0x04,
+	I3  = 0x08,
+	I4  = 0x10,
+	I5  = 0x20,
+	I6  = 0x40,
+	I7  = 0x80,
+	ALL = 0xFF
 };
 enum block_size : uint32_t
 {
-    S512 = 512 * page_size,
-    S256 = 256 * page_size,
-    S128 = 128 * page_size,
-    S64  =  64 * page_size,
-    S32  =  32 * page_size,
-    S16  =  16 * page_size,
-    S08  =   8 * page_size,
-    S04  =   4 * page_size
+	S512 = 512 * page_size,
+	S256 = 256 * page_size,
+	S128 = 128 * page_size,
+	S64  =  64 * page_size,
+	S32  =  32 * page_size,
+	S16  =  16 * page_size,
+	S08  =   8 * page_size,
+	S04  =   4 * page_size
 };
 #define BS2BI(i) i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i ==  S16 ? I4 : (i ==  S32 ? I3 : (i ==  S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))
 /*
@@ -204,82 +204,82 @@ enum block_size : uint32_t
  */
 typedef struct attribute(packed, aligned(1)) mem_status_byte
 {
-    uint8_t the_byte : 8;
+	uint8_t the_byte : 8;
 private:
-    constexpr bool __has(uint8_t i) const noexcept { return (the_byte & i) == 0; }
+	constexpr bool __has(uint8_t i) const noexcept { return (the_byte & i) == 0; }
  public:
-    constexpr bool all_free() const noexcept { return the_byte == 0; }
-    constexpr bool has_free(block_idx i) const noexcept { return __has(i); }
-    constexpr bool all_used() const noexcept { return the_byte == 0xFF; }
-    constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
-    constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
-    constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
-    constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i == S16 ? I4 : (i == S32 ? I3 : (i == S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))); }
-    constexpr operator bool() const noexcept { return !all_used(); }
-    constexpr bool operator!() const noexcept { return all_used(); }
-    constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
-    constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
+	constexpr bool all_free() const noexcept { return the_byte == 0; }
+	constexpr bool has_free(block_idx i) const noexcept { return __has(i); }
+	constexpr bool all_used() const noexcept { return the_byte == 0xFF; }
+	constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
+	constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
+	constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
+	constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i == S16 ? I4 : (i == S32 ? I3 : (i == S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))); }
+	constexpr operator bool() const noexcept { return !all_used(); }
+	constexpr bool operator!() const noexcept { return all_used(); }
+	constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
+	constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
 } status_byte, gb_status[512];
 class kernel_memory_mgr
 {
-    spinlock_t __heap_mutex;                    // Calls to kernel allocations lock this mutex to prevent comodification
-    spinlock_t __user_mutex;                    // Separate mutex for userspace calls because userspace memory will be split from kernel blocks
-    gb_status* const __status_bytes;            // Array of 512-byte arrays
-    size_t const __num_status_bytes;            // Length of said array
-    uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
-    uintptr_t __watermark;                      // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
-    addr_t __suspended_cr3;                     // Saved cr3 value for a frame suspended in order to access kernel paging structures
-    uframe_tag* __active_frame;
-    static kernel_memory_mgr* __instance;
-    constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
-        __heap_mutex                {},
-        __user_mutex                {},
-        __status_bytes              { status_bytes },
-        __num_status_bytes          { num_status_bytes },
-        __kernel_heap_begin         { kernel_heap_addr },
-        __watermark                 { 0UL },
-        __suspended_cr3             { nullptr },
-        __active_frame              { nullptr }
-                                    {}
-    constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
-    constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
-    void __mark_used(uintptr_t addr_start, size_t num_regions);
-    uintptr_t __claim_region(uintptr_t addr, block_idx idx);
-    uintptr_t __find_and_claim(size_t sz);
-    void __release_region(size_t sz, uintptr_t start);
-    void __lock();
-    void __unlock();
-    void __userlock();
-    void __userunlock();
-    void __suspend_frame() noexcept;
-    void __resume_frame() noexcept;
+	spinlock_t __heap_mutex;                    // Calls to kernel allocations lock this mutex to prevent comodification
+	spinlock_t __user_mutex;                    // Separate mutex for userspace calls because userspace memory will be split from kernel blocks
+	gb_status* const __status_bytes;            // Array of 512-byte arrays
+	size_t const __num_status_bytes;            // Length of said array
+	uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
+	uintptr_t __watermark;                      // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+	addr_t __suspended_cr3;                     // Saved cr3 value for a frame suspended in order to access kernel paging structures
+	uframe_tag* __active_frame;
+	static kernel_memory_mgr* __instance;
+	constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
+		__heap_mutex                {},
+		__user_mutex                {},
+		__status_bytes              { status_bytes },
+		__num_status_bytes          { num_status_bytes },
+		__kernel_heap_begin         { kernel_heap_addr },
+		__watermark                 { 0UL },
+		__suspended_cr3             { nullptr },
+		__active_frame              { nullptr }
+									{}
+	constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
+	constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
+	void __mark_used(uintptr_t addr_start, size_t num_regions);
+	uintptr_t __claim_region(uintptr_t addr, block_idx idx);
+	uintptr_t __find_and_claim(size_t sz);
+	void __release_region(size_t sz, uintptr_t start);
+	void __lock();
+	void __unlock();
+	void __userlock();
+	void __userunlock();
+	void __suspend_frame() noexcept;
+	void __resume_frame() noexcept;
 public:
-    constexpr uintptr_t open_wm() const { return __watermark; }
-    static void init_instance(mmap_t* mmap);
-    static kernel_memory_mgr& get();
-    static size_t aligned_size(addr_t start, size_t requested);
-    static size_t dma_size(size_t requested);
-    static void suspend_user_frame();
-    static void resume_user_frame();
-    kernel_memory_mgr(kernel_memory_mgr const&) = delete;
-    kernel_memory_mgr(kernel_memory_mgr&&) = delete;
-    kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;
-    kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
-    void enter_frame(uframe_tag* ft) noexcept;
-    void exit_frame() noexcept;
-    void map_to_current_frame(std::vector<block_descriptor> const& blocks);
-    void map_to_current_frame(block_descriptor const& block);
-    paging_table allocate_pt();
-    uintptr_t frame_translate(addr_t addr);
-    addr_t allocate_kernel_block(size_t sz);
-    addr_t allocate_dma(size_t sz, bool prefetchable);
-    void deallocate_dma(addr_t addr, size_t sz);
-    addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
-    addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);
-    addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
-    addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
-    void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
-    addr_t copy_kernel_mappings(paging_table target);
+	constexpr uintptr_t open_wm() const { return __watermark; }
+	static void init_instance(mmap_t* mmap);
+	static kernel_memory_mgr& get();
+	static size_t aligned_size(addr_t start, size_t requested);
+	static size_t dma_size(size_t requested);
+	static void suspend_user_frame();
+	static void resume_user_frame();
+	kernel_memory_mgr(kernel_memory_mgr const&) = delete;
+	kernel_memory_mgr(kernel_memory_mgr&&) = delete;
+	kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;
+	kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
+	void enter_frame(uframe_tag* ft) noexcept;
+	void exit_frame() noexcept;
+	void map_to_current_frame(std::vector<block_descriptor> const& blocks);
+	void map_to_current_frame(block_descriptor const& block);
+	paging_table allocate_pt();
+	uintptr_t frame_translate(addr_t addr);
+	addr_t allocate_kernel_block(size_t sz);
+	addr_t allocate_dma(size_t sz, bool prefetchable);
+	void deallocate_dma(addr_t addr, size_t sz);
+	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
+	addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);
+	addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
+	addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
+	void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
+	addr_t copy_kernel_mappings(paging_table target);
 };
 #define kmm kernel_memory_mgr::get()
 extern "C" void* aligned_malloc(size_t size, size_t align);

@@ -36,6 +36,7 @@ namespace std
         template<typename T, typename ... Args, size_t ... Is> constexpr T* __tuple_construct(T* ptr, tuple<Args...>&& args, index_sequence<Is...>) { return construct_at(ptr, get<Is>(forward<tuple<Args...>>(args))...);  }
         template<typename T, typename ... Args> requires constructible_from<T, Args...> constexpr T* tuple_construct(T* ptr, tuple<Args...>&& args) { return __tuple_construct(ptr, forward<tuple<Args...>>(args), make_index_sequence<sizeof...(Args)>{}); }
     }
+    namespace __detail { void* __aligned_reallocate(void* ptr, size_t count, size_t align); }
     #pragma endregion
 }
 #endif
@@ -64,7 +65,7 @@ constexpr void release(mutex_t m) { __atomic_clear(m, __ATOMIC_SEQ_CST); }
 constexpr void lock(mutex_t m) { while(acquire(m)) { pause(); } }
 constexpr bool test_lock(cmutex_t m) { bool b; __atomic_load(m, std::addressof(b), __ATOMIC_SEQ_CST); return b; }
 qword get_flags();
-extern int setjmp(jmp_buf jb);
+extern int setjmp(jmp_buf jb) attribute(returns_twice);
 extern void longjmp(jmp_buf jb, int status) attribute(noreturn);
 #if defined(__KERNEL__) || defined(__LIBK__)
 void panic(const char* msg) noexcept;
@@ -96,13 +97,13 @@ template<typename T> constexpr void init_if_consteval(T* array, std::size_t n) {
 template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_fill(T* dest, T const& value, std::size_t n) { init_if_consteval(dest, n); for(std::size_t i = 0; i < n; i++) { dest[i] = value; } }
 template<nontrivial_copy T> constexpr void array_copy(T* dest, const T* src, std::size_t n) { for(std::size_t i = 0; i < n; i++) std::construct_at(std::addressof(dest[i]), src[i]); }
 template<trivial_copy T> constexpr void array_copy(void* dest, const T* src, std::size_t n) { if consteval { for(size_t i = 0; i < n; i++) { new(std::addressof(static_cast<T*>(dest)[i])) T(src[i]); } } else { __builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T))); } }
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_fill(void* dest, T value, std::size_t n)  { if constexpr(std::is_copy_constructible_v<T> && !std::integral<T>) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value); } } else { init_if_consteval(dest, n); if consteval { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } } else { __builtin_memset(dest, value, n); } } }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_fill(void* dest, T value, std::size_t n)  noexcept { if constexpr(std::is_copy_constructible_v<T> && !std::integral<T>) { for(size_t i = 0; i < n; i++) { std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value); } } else { init_if_consteval(dest, n); if consteval { for(size_t i = 0; i < n; i++) { *std::bit_cast<T*>(std::bit_cast<uintptr_t>(dest) + (i * sizeof(T))) = value; } } else { __builtin_memset(dest, value, n); } } }
 // Constructs n elements at the destination location using the constructor arguments. If any of the arguments are move-assigned away from their original location by the constructor with n > 1, the behavior is undefined.
 template<nontrivial_copy T, typename ... Args> requires std::constructible_from<T, Args...> constexpr void array_fill(T* dest, std::tuple<Args...>&& arg_tuple, size_t n) { for(size_t i = 0; i < n; i++) std::ext::tuple_construct(std::addressof(dest[i]), std::forward<std::tuple<Args...>>(arg_tuple)); }
 // If T is default-constructible, this default-initializes n elements at the destination location. Otherwise, this does nothing (use array_fill instead and provide constructor arguments)
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
-template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n);
-template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); } } }
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n) noexcept;
+template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n) noexcept;
+template<nontrivial_copy T> constexpr void array_zero(T* dest, std::size_t n) noexcept(std::is_nothrow_default_constructible_v<T> || !std::is_default_constructible_v<T>) { if constexpr(std::is_default_constructible_v<T>) { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); } } }
 template<integral_structure I, integral_structure J>
 struct arithmetic_result
 {
@@ -125,7 +126,7 @@ template<nontrivial_copy T> constexpr void array_move(T* dest, T* src, std::size
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2UC) return leap ? 29UC : 28UC; if(month == 1UC || month == 3UC || month == 5UC || month == 7UC || month == 10UC || month == 12UC) return 31UC; return 30UC; }
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from) { return ((yr - from) * 365U + (yr - up_to_nearest(from, 4US)) / 4U + 1U); }
 constexpr uint16_t day_of_year(uint8_t month, uint16_t day, bool leap) { uint16_t result = day - 1US; for(uint8_t i = 1UC; i < month; i++) result += days_in_month(i, leap); return result; }
-template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
+template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n) noexcept
 {
     if constexpr(std::is_default_constructible_v<T> && !std::integral<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) == 8) array_fill(dest, 0UL, n);
@@ -133,7 +134,7 @@ template<trivial_copy T> requires std::not_larger<T, uint64_t> constexpr void ar
     else if constexpr(sizeof(T) == 2) array_fill(dest, 0US, n);
     else array_fill(dest, 0UC, n * sizeof(T));
 }
-template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n)
+template<trivial_copy T> requires std::larger<T, uint64_t> constexpr void array_zero(T* dest, std::size_t n) noexcept
 {
     if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) % 8 == 0) array_fill(dest, 0UL, n * sizeof(T) / 8);
@@ -160,6 +161,12 @@ template<typename T> constexpr void atomic_copy(T* dest, T const* src, size_t n)
     push_cli();
     array_copy(dest, src, n);
     pop_flags();
+}
+template<typename T> constexpr void copy_or_move(T* dest, T const* src, size_t n)
+{
+    if constexpr(!std::is_copy_assignable_v<T> && !std::is_copy_constructible_v<T>)
+        array_move(dest, src, n);
+    else array_copy(dest, src, n);
 }
 #if defined(__KERNEL__) || defined(__LIBK__)
 template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }

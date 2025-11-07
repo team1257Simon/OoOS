@@ -13,5 +13,4 @@ extern "C"
 }
 void xdirect_write(std::string const& str);
 void xdirect_writeln(std::string const& str);
-#define debug_hold() direct_write("|"); dbg_hold = true; do { asm volatile ("pause" ::: "memory"); } while(dbg_hold.load())
 #endif
