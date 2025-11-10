@@ -11,3 +11,4 @@ void direct_text_render::print_text(const char* text) { if (__fb_ptr) { for(size
 void direct_text_render::print_text(std::string const& text) { if(__fb_ptr) for(size_t i = 0; i < text.size(); i++) __write_one(text[i]); }
 void direct_text_render::print_line(const char* text) { print_text(text); endl(); }
 void direct_text_render::print_line(std::string const& text) { print_text(text); endl(); }
+void direct_text_render::putch(wchar_t ch) { if(ch < 127) __write_one(static_cast<char>(ch)); }

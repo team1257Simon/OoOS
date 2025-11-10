@@ -33,5 +33,6 @@ public:
 	void print_text(std::string const& text);
 	void print_line(const char* text);
 	void print_line(std::string const& text);
+	void putch(wchar_t ch);
 };
 #endif

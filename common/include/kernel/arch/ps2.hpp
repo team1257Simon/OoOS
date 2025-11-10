@@ -149,8 +149,8 @@ namespace ooos
 		KBC_SCANSET		= 0xF0UC,	// Get/Set scanset; subcommand value 0 means get, or value 1/2/3 for the corresponding scanset
 		KBC_IDENTIFY	= 0xF2UC,	// Get ID bytes
 		KBC_TYPEMATIC	= 0xF3UC,	// Set the typematic byte (value as subcommand)
-		KBC_SCDIS		= 0xF4UC,	// Disable scanning
-		KBC_SCEN		= 0xF5UC,	// Enable scanning
+		KBC_SCEN		= 0xF4UC,	// Enable scanning
+		KBC_SCDIS		= 0xF5UC,	// Disable scanning
 		KBC_PARAMRST	= 0xF6UC,	// Reset to default parameters
 		KBC_TMONLY_ALL	= 0xF7UC,	// Set all keys to typematic only (req. scanset 3)
 		KBC_MRONLY_ALL	= 0xF8UC,	// Set all keys to make/release only (req. scanset 3)
@@ -190,6 +190,9 @@ namespace ooos
         bool right_shift : 1     = false;
         bool caps_lock   : 1     = false;
         bool num_lock    : 1     = false;
+		constexpr bool ctrl() const noexcept { return left_ctrl || right_ctrl; }
+		constexpr bool alt() const noexcept { return left_alt || right_alt; }
+		constexpr bool shift() const noexcept { return left_shift || right_shift; }
     };
 	// State-vector for the LEDs on the keyboard.
 	struct __pack keyboard_lstate

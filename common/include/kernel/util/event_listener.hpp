@@ -5,6 +5,11 @@ namespace ooos
 {
 	namespace __internal
 	{
+		template<typename AT, __explicitly_convertible<AT> BT, __callable<AT> FT>
+		struct __conversion_bind {
+			FT f;
+			constexpr void operator()(BT bt) const noexcept(std::is_nothrow_invocable_v<FT, AT>) { f(static_cast<AT>(bt)); }
+		};
 		template<typename ET>
 		struct __listener_base
 		{
@@ -23,7 +28,7 @@ namespace ooos
 				constexpr static void __destroy(functor_store& tgt, std::true_type) { tgt.template cast<FT>().~FT(); }
 				constexpr static void __destroy(functor_store& tgt) { __destroy(tgt, __is_locally_storable()); }
 				constexpr static FT* __get_ptr(functor_store const& f) { if constexpr(__is_local_store) return std::addressof(const_cast<FT&>(f.template cast<FT>())); else return f.template cast<FT*>(); }
-				static void __invoke(functor_store const& f, ET&& e) { __invoke_v(std::forward<FT>(*__get_ptr()), std::forward<ET>(e)); }
+				static void __invoke(functor_store const& f, ET&& e) { __invoke_v(std::forward<FT>(*__get_ptr(f)), std::forward<ET>(e)); }
 				static void __action(functor_store& dst, functor_store const& src, mgr_op op)
 				{
 					switch(op)
@@ -49,7 +54,7 @@ namespace ooos
 			__manager_type __my_manager;
 			__invoke_type __my_invoke;
 			constexpr bool __empty() const noexcept { return __my_manager && __my_invoke; }
-			constexpr ~__listener_base() { if(__my_manager) (*__my_manager)(__my_invoke, __my_invoke, destroy); }
+			constexpr ~__listener_base() { if(__my_manager) (*__my_manager)(__my_listener, __my_listener, destroy); }
 		};
 	};
 	template<typename ET> struct event_listener;
@@ -60,13 +65,26 @@ namespace ooos
 		constexpr operator bool() const noexcept { return !this->__empty(); }
 		constexpr event_listener() noexcept = default;
 		constexpr ~event_listener() noexcept = default;
-		template<__internal::__wrappable_cb<ET> FT>
+		template<__internal::__callable<ET> FT>
 		constexpr event_listener(FT&& f) : __internal::__listener_base<ET>()
 		{
 			typedef typename __internal::__listener_base<ET>::__manager<std::decay_t<FT>> __mgr;
-			if(not_empty(f))
+			if(__internal::__listener_base<ET>::not_empty(f))
 			{
 				__mgr::__create(this->__my_listener, std::forward<FT>(f));
+				this->__my_manager	= std::addressof(__mgr::__action);
+				this->__my_invoke	= std::addressof(__mgr::__invoke);
+			}
+		}
+		template<typename DT, __internal::__callable<DT> FT> requires(__internal::__explicitly_convertible<ET, DT>) 
+		constexpr event_listener(parameter_type_t<DT>, FT&& f) : __internal::__listener_base<ET>()
+		{
+			typedef __internal::__conversion_bind<ET, DT, std::decay_t<FT>> __cvt;
+			typedef typename __internal::__listener_base<ET>::__manager<std::decay_t<__cvt>> __mgr;
+			if(__internal::__listener_base<ET>::not_empty(f))
+			{
+				__cvt c(std::forward<FT>(f));
+				__mgr::__create(this->__my_listener, std::forward<__cvt>(c));
 				this->__my_manager	= std::addressof(__mgr::__action);
 				this->__my_invoke	= std::addressof(__mgr::__invoke);
 			}
@@ -84,7 +102,7 @@ namespace ooos
 		{
 			if(static_cast<bool>(that))
 			{
-				this->__my_listener = that->__my_callback;
+				this->__my_listener = that.__my_listener;
 				this->__my_manager 	= that.__my_manager;
 				this->__my_invoke	= that.__my_invoke;
 				that.__my_manager	= nullptr;

@@ -2,6 +2,7 @@
 #include "arch/cpu_time.hpp"
 #include "arch/hpet_amd64.hpp"
 #include "arch/idt_amd64.h"
+#include "arch/keyboard.hpp"
 #include "arch/pci_device_list.hpp"
 #include "arch/net/e1000e.hpp"
 #include "bits/icxxabi.h"
@@ -39,16 +40,19 @@ static device_stream* com;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
 volatile apic bsp_lapic{ 0U };
-static bool direct_print_enable{ false };
-static bool fx_enable{ false };
-static char dbgbuf[19]{ '0', 'x' };
+static bool direct_print_enable{};
+static bool fx_enable{};
+static char dbgbuf[19]{ '0', 'x', };
 static char dbg_serial_io[2]{};
-static const char test_argv[]{ "Hello task world " };
+static const char test_argv[] = "Hello task world ";
 static char test_e1000e_drv[sizeof(e1000e)]{};
-std::atomic<bool> dbg_hold{ false };
+static ooos::ps2_controller test_ps2{};
+static ooos::ps2_keyboard* test_kb = nullptr;
+static char kb_pos[sizeof(ooos::ps2_keyboard)]{};
+std::atomic<bool> dbg_hold{};
 ooos::delegate_hda test_delegate;
 extern uintptr_t saved_stack_ptr;
-static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', };
 extern "C"
 {
 	extern uint64_t errinst;
@@ -484,7 +488,17 @@ constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 };
 void run_tests()
 {
-	interrupt_table::add_interrupt_callback(test_dbg_callback);
+	test_kb = new(std::addressof(kb_pos)) ooos::ps2_keyboard(test_ps2);
+	test_kb->add_listener(test_kb, [](ooos::keyboard_event e) -> void
+	{
+		wchar_t ch = e;
+		if(!e.kv_release && ch < 127)
+		{
+			if(e.kv_vstate.ctrl()) startup_tty.putch('^');
+			if(e.kv_vstate.alt()) startup_tty.putch('~');
+			startup_tty.putch(ch);
+		}
+	});
 	// First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
 	startup_tty.print_line("string test...");
 	str_tests();
@@ -564,11 +578,11 @@ extern "C"
 		sysinfo 	= si;
 		kproc.self 	= std::addressof(kproc);
 		// This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator.
-		kernel_memory_mgr::init_instance(mmap); 
-		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
-		_init();
+		kernel_memory_mgr::init_instance(mmap);
 		// Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
 		__register_frame(std::addressof(__ehframe));
+		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
+		_init();
 		init_tss(std::addressof(kernel_isr_stack_top));
 		enable_fs_gs_insns();
 		set_kernel_gs_base(std::addressof(kproc));

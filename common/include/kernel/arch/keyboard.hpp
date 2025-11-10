@@ -42,7 +42,7 @@ namespace ooos
 		keyboard_cstate __state;
 		bool __state_valid;
 		void __send_cmd_byte(keyboard_cmd_byte b);
-		void __execute_next() noexcept;
+		__nointerrupts void __execute_next() noexcept;
 		__nointerrupts bool __initialize() noexcept;
 		friend class ooos::ps2_keyboard;
 	public:
@@ -50,6 +50,7 @@ namespace ooos
 		bool enqueue_command(keyboard_command&& cmd) noexcept;
 		bool scanset(keyboard_scanset value) noexcept;
 		bool typematic(typematic_byte value) noexcept;
+		bool set_leds(keyboard_lstate lstate) noexcept;
 		keyboard_scanset scanset() const noexcept;
 		typematic_byte typematic() const noexcept;
 		uint16_t id_word() const noexcept;
@@ -65,7 +66,7 @@ namespace ooos
 		void __init();
 	public:
 		ps2_keyboard(ps2_controller& ps2);
-		template<typename ... Args> requires(std::constructible_from<keyboard_listener, Args...>) constexpr bool add_listener(void* owner, Args&& ... args) { return __listeners.emplace(std::piecewise_construct, std::tuple<void*>(owner), std::forward_as_tuple<Args...>(std::forward<Args>(args)...)).second; }
+		template<__internal::__callable<keyboard_event> FT> constexpr bool add_listener(void* owner, FT&& ft) { return __listeners.emplace(std::piecewise_construct, std::tuple<void*>(owner), std::forward_as_tuple<FT>(std::forward<FT>(ft))).second; }
 	};
 }
 #endif

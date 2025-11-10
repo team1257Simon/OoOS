@@ -1,5 +1,6 @@
 #include "arch/ps2.hpp"
 #include "stdexcept"
+#include "kdebug.hpp"
 namespace ooos
 {
 	void ps2_controller::io_wait()
@@ -15,16 +16,16 @@ namespace ooos
 			(ps2 << PSC_P2DIS << PSC_P1DIS).dbump();
 			ps2_config_byte cfg;
 			ps2 << PSC_MEM_READ;
-			if(!ps2.wait_for(cfg)) throw std::runtime_error("[PS2] controller timeout");
+			if(!ps2.wait_for(cfg)) throw std::runtime_error("[PS2] controller timeout reading CFG[0]");
 			cfg.ps2_p1_xlat	= false;
 			cfg.ps2_p1_ien	= false;
 			cfg.ps2_p1_cdis	= false;
 			ps2 << PSC_MEM_WRITE << cfg << PSC_CIST;
 			uint8_t response;
-			if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout");
+			if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout on selftest[0]");
 			else if(response != 0x55UC) throw std::runtime_error("[PS2] controller self-test returned error code " + std::to_string(response, std::ext::hex));
-			ps2 << PSC_MEM_WRITE << cfg << PSC_P2EN;
-			if(!ps2.wait_for(cfg)) throw std::runtime_error("[PS2] controller timeout");
+			ps2 << PSC_MEM_WRITE << cfg << PSC_P2EN << PSC_MEM_READ;
+			if(!ps2.wait_for(cfg)) throw std::runtime_error("[PS2] controller timeout writing CFG[1]");
 			ps2.port2		= !cfg.ps2_p2_cdis;
 			if(ps2.port2)
 			{
@@ -33,12 +34,12 @@ namespace ooos
 				ps2 << PSC_P2DIS << PSC_MEM_WRITE << cfg;
 			}
 			ps2 << PSC_P1IST;
-			if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout");
+			if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout on selftest[1]");
 			ps2.port1			= !response;
 			if(ps2.port2)
 			{
 				ps2 << PSC_P2IST;
-				if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout");
+				if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout on selftest[2]");
 				ps2.port2	= !response;
 			}
 			if(!ps2.port1 && !ps2.port2) throw std::runtime_error("[PS2] no ports are functional");

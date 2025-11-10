@@ -37,6 +37,7 @@ namespace ooos
         template<typename T> concept __can_be_parameter_type 				= std::is_standard_layout_v<T> && (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T> || std::is_default_constructible_v<T>) && (std::is_copy_assignable_v<T> || std::is_move_assignable_v<T>);
         template<typename T> concept __simple_swappable 					= std::is_move_assignable_v<T> && std::is_move_constructible_v<T>;
 		template<typename T, typename ... Args> concept __callable			= std::is_invocable_v<T, Args...>;
+		template<typename T, typename U> concept __explicitly_convertible	= requires(T t) { static_cast<U>(t); };
         template<__has_defined_difference_type IT> struct __use_difference_type<IT> { typedef typename IT::difference_type type; };
         template<__has_implicit_difference_type IT> struct __use_difference_type<IT> { typedef decltype(std::declval<IT>() - std::declval<IT>()) type; };
         template<typename T> struct __use_difference_type<T const> : __use_difference_type<T> {};
@@ -134,7 +135,10 @@ namespace ooos
         template<typename R, typename C, typename ... Args> using member_fn = R (C::*)(Args...);
         template<typename GT> constexpr static bool not_empty(GT* gt) noexcept { return gt != nullptr; }
         template<typename R, typename C, typename ... Args> constexpr static bool not_empty(member_fn<R, C, Args...> mf) noexcept { return mf != nullptr; }
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Waddress"
         template<boolable T> constexpr static bool not_empty(T t) noexcept { return t ? true : false; }
+		#pragma GCC diagnostic pop
         template<typename T> constexpr static bool not_empty(T t) noexcept { return true; }
         template<no_args_invoke FT>
         class actor_manager

@@ -45,7 +45,7 @@ namespace ooos
 				{ that.__reset(); }
 			constexpr void __reset() noexcept { __base = __curr = __last = __bmax = pointer(); }
 			constexpr void __rewind() noexcept { __curr = __last = __base; }
-			constexpr void __flush() noexcept { __curr = __last; }
+			constexpr void __flush() noexcept { __rewind(); if constexpr(std::is_default_constructible_v<value_type>) new(__curr) value_type(); }
 			constexpr size_type __capacity() const noexcept { return static_cast<size_type>(__bmax - __base); }
 			constexpr void __create() { __base = allocator_type::allocate(4UZ); __curr = __last = __base; __bmax = __base + 4UZ; }
 			constexpr void __destroy() noexcept { allocator_type::deallocate(__base, __capacity()); }
