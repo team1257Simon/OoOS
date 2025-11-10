@@ -50,6 +50,7 @@ uint64_t ext_pipe_pair::size() const noexcept { return in.size(); }
 bool ext_pipe_pair::fsync() { return in.update_inode(); }
 bool ext_pipe_pair::truncate() { return in.truncate(); }
 bool ext_pipe_pair::is_pipe() const noexcept { return true; }
+void ext_file_vnode::release() { __destroy(); __my_data.__reset(); for(disk_block& db : block_data) db.data_buffer = nullptr; }
 struct guarded_inode_buffer
 {
 	std::allocator<uint8_t> alloc;
@@ -139,8 +140,8 @@ bool ext_vnode::expand_buffer(size_t added_bytes)
 std::streamsize ext_vnode::xsputn(const char* s, std::streamsize n)
 {
 	if(n > __capacity() && __builtin_expect(!on_overflow(static_cast<std::streamsize>(n - __capacity())), false)) return 0;
-	uint64_t sblk = block_of_data_ptr(__size());
-	size_t nblk = div_round_up(n, parent_fs->block_size());
+	uint64_t sblk 	= block_of_data_ptr(__size());
+	size_t nblk		= div_round_up(n, parent_fs->block_size());
 	array_copy(__cur(), s, n);
 	__bumpc(n);
 	for(size_t i = 0; i < nblk; i++) block_data[sblk + i].dirty = true;
@@ -163,6 +164,8 @@ bool ext_file_vnode::grow(size_t added)
 }
 bool ext_file_vnode::fsync() 
 {
+	// Nothing to do if we have no data yet
+	if(!__initialized) return true;
 	size_t updated_size = __size();
 	if(size() < updated_size)
 	{
@@ -188,13 +191,28 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
 }
 bool ext_file_vnode::initialize()
 {
-	if(__initialized) { __rst(); return true; }
+	if(__initialized) 
+	{
+		__initialized 			= false;
+		if(__beg()) __rst();
+		else
+		{
+			if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
+			if(extents.total_extent)
+			{ 
+				update_block_ptrs(); 
+				for(disk_block& db : block_data)
+					if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; }
+			}
+		}
+		return (__initialized 	= true);
+	}
 	if(!init_extents()) return false;
 	if(extents.total_extent)
 	{
 		if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
 		update_block_ptrs();
-		for(disk_block& db : block_data) { if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; } }
+		for(disk_block& db : block_data) if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; }
 		qword timestamp                 = sys_time(nullptr);
 		on_disk_node->accessed_time     = timestamp.lo;
 		on_disk_node->access_time_hi    = (timestamp.hi.hi.hi >> 4) & 0x03;

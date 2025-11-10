@@ -598,6 +598,7 @@ public:
     virtual bool grow(size_t added) override;
     virtual void force_write() override;
     virtual ~ext_file_vnode();
+	void release();
     ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
     ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
 };
@@ -720,6 +721,7 @@ protected:
     virtual pipe_pair mkpipe(directory_node* parent, std::string const& name) override;
     virtual target_pair get_parent(directory_node* start, std::string const& path, bool create) override;
     virtual dev_t xgdevid() const noexcept override;
+	virtual void on_close(file_node* override);
     virtual file_node* on_open(tnode* node) override;
     virtual file_node* on_open(tnode* node, std::ios_base::openmode mode) override;
     ext_jbd2_mode journal_mode() const;

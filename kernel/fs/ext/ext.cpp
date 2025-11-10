@@ -715,3 +715,9 @@ tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link
 	}
 	return from->find_r(pathspec.back(), checked);
 }
+void extfs::on_close(file_node* f) 
+{
+	filesystem::on_close(f);
+	if(ext_file_vnode* ef = dynamic_cast<ext_file_vnode*>(f))
+		ef->release();
+}
