@@ -719,5 +719,5 @@ void extfs::on_close(file_node* f)
 {
 	filesystem::on_close(f);
 	if(ext_file_vnode* ef = dynamic_cast<ext_file_vnode*>(f))
-		ef->release();
+		ef->on_close();
 }

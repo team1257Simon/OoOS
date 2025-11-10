@@ -184,6 +184,7 @@ protected:
     virtual std::streamsize on_overflow(std::streamsize n) override;
     virtual int sync() override;
     bool grow_file(size_t added);
+	void release();
 public:
     fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_file_node* parent);
 };
@@ -223,6 +224,7 @@ public:
     virtual bool grow(size_t added) override;
     virtual void force_write() override;
     void on_open();
+	void on_close();
     uint32_t claim_next(uint32_t cl);
     uint64_t cl_to_s(uint32_t cl);    
     fat32_file_node(fat32* pfs, std::string const& real_name, fat32_directory_node* pdir, uint32_t cl_st, size_t dirent_idx);
@@ -287,6 +289,7 @@ protected:
     virtual file_node* mkfilenode(directory_node* parent, std::string const& name) override;
     virtual directory_node* mkdirnode(directory_node* parent, std::string const& name) override;
     virtual dev_t xgdevid() const noexcept override;
+	virtual void on_close(file_node*) override;
     virtual file_node* on_open(tnode*) override;
     fat32_file_node* put_file_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);
     fat32_directory_node* put_directory_node(std::string const& name, fat32_directory_node* parent, uint32_t cl0, size_t dirent_idx);

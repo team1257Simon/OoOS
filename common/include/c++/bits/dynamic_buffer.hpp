@@ -223,7 +223,7 @@ namespace std::__impl
 		}
 		constexpr void __destroy()
 		{
-			if(__unlikely(!__beg())) return;
+			if(__unlikely(!this->__beg())) return;
 			__allocator.deallocate(__beg(), __capacity());
 			__my_data.__reset();
 		}

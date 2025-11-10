@@ -50,7 +50,7 @@ uint64_t ext_pipe_pair::size() const noexcept { return in.size(); }
 bool ext_pipe_pair::fsync() { return in.update_inode(); }
 bool ext_pipe_pair::truncate() { return in.truncate(); }
 bool ext_pipe_pair::is_pipe() const noexcept { return true; }
-void ext_file_vnode::release() { __destroy(); __my_data.__reset(); for(disk_block& db : block_data) db.data_buffer = nullptr; }
+void ext_file_vnode::on_close() { __destroy(); for(disk_block& db : block_data) db.data_buffer = nullptr; }
 struct guarded_inode_buffer
 {
 	std::allocator<uint8_t> alloc;

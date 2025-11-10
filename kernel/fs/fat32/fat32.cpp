@@ -134,3 +134,9 @@ bool fat32::init_instance(block_device* dev)
 	__instance->tie_block_device(dev);
 	return (__has_init = __instance->init());
 }
+void fat32::on_close(file_node* f)
+{
+	filesystem::on_close(f);
+	if(fat32_file_node* ff = dynamic_cast<fat32_file_node*>(f))
+		ff->on_close();
+}

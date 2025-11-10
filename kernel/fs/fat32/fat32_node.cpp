@@ -29,6 +29,7 @@ std::vector<fat32_directory_entry>::iterator fat32_directory_node::__get_longnam
 tnode* fat32_directory_node::add(fs_node* n) { return directory_tnodes.emplace(n, n->name()).first.base(); }
 bool fat32_directory_node::link(tnode* original, std::string const& target) { panic("fat32 does not support hard links"); return false; }
 void fat32_file_node::force_write() { __my_filebuf.is_dirty = true; }
+void fat32_file_node::on_close() { __my_filebuf.release(); }
 bool fat32_file_node::grow(size_t added)
 {
 	if(!__my_filebuf.grow_file(added)) return false;
