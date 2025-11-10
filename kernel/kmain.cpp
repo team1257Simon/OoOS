@@ -409,7 +409,8 @@ void circular_queue_tests()
 			startup_tty.print_text(", ");
 		else startup_tty.print_text("; ");
 	}
-	for(char c = 'a'; c < 'h'; c++ /* oh, that's why they call it that. */) test_queue.push(c);
+	for(char c = 'a'; c < 'j'; c++ /* oh, that's why they call it that. */) test_queue.push(c);
+	test_queue.bump(4UZ);
 	l = test_queue.length();
 	for(size_t i = 0; i < l; i++)
 	{

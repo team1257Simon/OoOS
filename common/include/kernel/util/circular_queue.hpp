@@ -87,40 +87,47 @@ namespace ooos
 					__last                  = __base + actual_tpos;
 				}
 			}
+			constexpr void __adv_pop() noexcept
+			{
+				if(__capacity() && __curr != __last)
+				{
+					if constexpr(!__trivial) __curr->~T();
+					if(!(++__curr < __bmax))
+						__curr 				= __base;
+				}
+			}
 			constexpr void __adv_pop(size_type n) noexcept
 			{
-				size_type cap 				= __capacity();
-				if(cap)
+				if(n == 1UZ) __adv_pop();
+				else
 				{
-					pointer target          = __curr + n;
-					size_type tpos          = static_cast<size_type>(target - __base);
-					size_type actual_tpos   = tpos % cap;
-					if constexpr(!__trivial)
+					size_type cap 					= __capacity();
+					if(cap)
 					{
-						for(size_type i = 0UZ; i < n; i++)
+						size_type l = this->__length();
+						if(n > l) n = l;
+						if constexpr(!__trivial) for(size_type i = 0; i < n; i++) __adv_pop();
+						else
 						{
-							pointer next 			= __curr + 1UZ;
-							__curr->~T();
-							size_type npos			= static_cast<size_type>(next - __base);
-							size_type actual_npos 	= npos % cap;
-							__curr					= pclamp(__base + actual_npos, __base, (npos > actual_npos || __curr < __last) ? __last : __bmax);
+							size_type tpos          = static_cast<size_type>((__curr + n) - __base);
+							size_type actual_tpos   = tpos % cap;
+							__curr 					= pclamp(__base + actual_tpos, __base, __bmax);
 						}
 					}
-					else __curr 					= pclamp(__base + actual_tpos, __base, (tpos > actual_tpos || __curr < __last) ? __last : __bmax);
 				}
 			}
 			constexpr value_type __pop()
 			requires(std::is_move_constructible_v<value_type>)
 			{
 				value_type result(std::move(*__curr));
-				__adv_pop(static_cast<size_type>(1UZ));
+				__adv_pop();
 				return result;
 			}
 			constexpr value_type __pop()
 			requires(std::is_copy_constructible_v<value_type> && !std::is_move_constructible_v<value_type>)
 			{
 				value_type result(*__curr);
-				__adv_pop(static_cast<size_type>(1UZ));
+				__adv_pop();
 				return result;
 			}
 			constexpr void __push(value_type const& v)
@@ -145,9 +152,10 @@ namespace ooos
 			}
 			constexpr size_type __length() const noexcept
 			{
-				size_type lpos = static_cast<size_type>(__last - __base);
-				if(__curr > __last) return lpos + static_cast<size_type>(__bmax - __curr);
-				else return lpos;
+				difference_type diff 	= __last - __curr;
+				if(!diff) return 0UZ;
+				size_type cap 			= __capacity();
+				return static_cast<size_type>((cap + diff) % cap);
 			}
 			template<typename ... Args> requires(std::constructible_from<value_type, Args...>)
 			constexpr void __emplace(Args&& ... args) {

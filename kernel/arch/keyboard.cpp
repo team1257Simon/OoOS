@@ -587,13 +587,11 @@ seq_fail:
 	keyboard_event keyboard_scan_decoder::decode(byte_queue& scan_bytes)
 	{
 		if(__unlikely(!scan_bytes)) return uk_sc(0x00UC);
-		keyboard_event e 			= __decode_one(scan_bytes.pop(), scan_bytes);
+		keyboard_event e 		= __decode_one(scan_bytes.pop(), scan_bytes);
 		if((dword(e).hi.hi & 0x0EUC) != 0x0EUC)
 		{
 			uint8_t mod_state	= std::bit_cast<uint8_t>(current_state) ^ std::bit_cast<uint8_t>(e.kv_vstate);
-			barrier();
 			e.kv_vstate			= current_state;
-			barrier();
 			current_state		= std::bit_cast<keyboard_vstate>(mod_state);
 			if(!e.kv_release)
 			{
@@ -601,7 +599,7 @@ seq_fail:
 				led_state.num_lock		^= (e == KC_NUM);
 				led_state.scroll_lock	^= (e == KC_SCRLL);
 			}
-			e.kv_code				= static_cast<wchar_t>(compute_by_state(e));
+			e.kv_code			= static_cast<wchar_t>(compute_by_state(e));
 		}
 		scan_bytes.flush();
 		return e;
@@ -657,7 +655,7 @@ seq_fail:
 					n++;
 			__send_cmd_byte(KBC_PARAMRST);
 			__send_cmd_byte(KBC_SCEN);
-			interrupt_table::add_irq_handler(0UC, [this]() -> void { if(__cmd_queue) __execute_next(); });
+			interrupt_table::add_irq_handler(0UC, [this]() -> void { while(__cmd_queue) __execute_next(); });
 			return true;
 		}
 		catch(std::exception& e) { panic(e.what()); }
