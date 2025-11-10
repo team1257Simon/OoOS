@@ -162,9 +162,9 @@ template<typename T> constexpr void atomic_copy(T* dest, T const* src, size_t n)
     array_copy(dest, src, n);
     pop_flags();
 }
-template<typename T> constexpr void copy_or_move(T* dest, T const* src, size_t n)
+template<typename T> constexpr void copy_or_move(T* dest, T* src, size_t n)
 {
-    if constexpr(!std::is_copy_assignable_v<T> && !std::is_copy_constructible_v<T>)
+    if constexpr(!trivial_copy<T>)
         array_move(dest, src, n);
     else array_copy(dest, src, n);
 }

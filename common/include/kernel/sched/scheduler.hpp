@@ -21,7 +21,7 @@ class scheduler
 protected:
 	task_t* select_next();
 	void on_tick();
-	attribute(nointerrupts)	bool init() noexcept;
+	__nointerrupts bool init() noexcept;
 	scheduler();
 public:
 	constexpr bool is_running() const noexcept  { return __running; }

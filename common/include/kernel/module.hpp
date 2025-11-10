@@ -1,9 +1,8 @@
 #ifndef __KMOD
 #define __KMOD
 #include <kernel_api.hpp>
-#ifndef __unlikely
-#define __unlikely(x) __builtin_expect((x), false)
-#endif
+// Some things won't be defined the same in module-land as they are in kernel-land, so we need to patch them up
+#pragma region module-land specific
 #ifndef ABI_NAMESPACE
 #define ABI_NAMESPACE __cxxabiv1
 namespace ABI_NAMESPACE
@@ -38,6 +37,32 @@ namespace ABI_NAMESPACE
 	};
 }
 #endif
+/**
+ * EXPORT_MODULE(T, Args...)
+ * All modules must invoke this macro exactly once in order to build properly.
+ * When invoked, it defines a function that the kernel will call when the module loads.
+ * That function allocates a separate page frame structure which is used to implement most of the underlying "glue" needed by C++ to function fully.
+ * It then also sets up some pointers which tie in kernel functionality modules might need to use.
+ * This includes a patch to the typeinfo struct representing the module's class, which points the base-type-info pointers at the kernel symbol representing each of its bases if one exists.
+ * The process occurs recursively in case a module class inherits from a fully-inline base or one that is itself defined within the module, making the change to the first matching pointer it finds within each inheritance chain (but no others).
+ * Doing so allows the kernel to use dynamic_cast to upcast the module class into something more specific, e.g. block_io_provider_module or io_module_base<char>.
+ */
+#define EXPORT_MODULE(module_class, ...)																																\
+	static char __instance[sizeof(module_class)];																														\
+	static ooos::cxxabi_abort __abort_handler;																															\
+	extern "C"																																							\
+	{																																									\
+		ooos::abstract_module_base* module_init(ooos::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)())				\
+		{																																								\
+			__abort_handler.abort_msg 	= "abort() called in module " # module_class;																					\
+			__abort_handler.abort_msg 	= "pure virtual call in module " # module_class;																				\
+			__abort_handler.api 		= api;																															\
+			return ooos::setup_instance<module_class>(std::addressof(__instance), api, frame_tag, kframe_fns, init, fini, __abort_handler __VA_OPT__(, __VA_ARGS__));	\
+		}																																								\
+		[[noreturn]] void abort() { __abort_handler.terminate(); }																										\
+		[[noreturn]] void __cxa_pure_virtual() { __abort_handler.pure_virt(); }																							\
+	}
+#pragma endregion
 class elf64_kernel_object;
 namespace ooos
 {
@@ -51,11 +76,11 @@ namespace ooos
 		module_eh_ctx __eh_ctx{};
 		friend class ::elf64_kernel_object;
 		friend module_eh_ctx* get_ctx(abstract_module_base*);
-		inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, &typeid(ABI_NAMESPACE::__si_class_type_info), &typeid(ABI_NAMESPACE::__vmi_class_type_info)); }
+		inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, std::addressof(typeid(ABI_NAMESPACE::__si_class_type_info)), std::addressof(typeid(ABI_NAMESPACE::__vmi_class_type_info))); }
 		inline void __save_init_jb() { __saved_jb[0] = __eh_ctx.handler_ctx[0]; }
 	public:
-		virtual bool initialize() = 0;
-		virtual void finalize() = 0;
+		virtual bool initialize() 	= 0;
+		virtual void finalize() 	= 0;
 		inline virtual generic_config_table& get_config() { return empty_config; }
 		inline abstract_module_base* tie_api_mm(kernel_api* api, kmod_mm* mm) { if(!__api_hooks && !__allocated_mm && api && mm) { __api_hooks = api; __allocated_mm = mm; } return this; }
 		inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
@@ -70,10 +95,10 @@ namespace ooos
 		inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
 		inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
 		template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
-		template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(__forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, __forward<isr_actor>(actor), this); }
+		template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(std::forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, std::forward<isr_actor>(actor), this); }
 		inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); __save_init_jb(); } }
 		friend void module_takedown(abstract_module_base* mod);
-		inline void put_ctx(cxxabi_abort& abort_handler) { abort_handler.eh_ctx = __addressof(__eh_ctx); }
+		inline void put_ctx(cxxabi_abort& abort_handler) { abort_handler.eh_ctx = std::addressof(__eh_ctx); }
 		inline jmp_buf& ctx_jmp() { return __eh_ctx.handler_ctx; }
 		inline const char* ctx_msg() { return __eh_ctx.msg; }
 		inline int ctx_status() { return __eh_ctx.status; }
@@ -98,12 +123,12 @@ namespace ooos
 	{
 		if(addr && api && frame_tag && kframe_fns && fini)
 		{
-			if(kmod_mm* mm = api->create_mm())
+			if(kmod_mm* mm 	= api->create_mm())
 			{
-				*frame_tag = mm->get_frame();
+				*frame_tag 	= mm->get_frame();
 				api->init_memory_fns(kframe_fns);
 				(*init)();
-				T* result = new (addr) T(static_cast<Args&&>(args)...);
+				T* result 	= new(addr) T(std::forward<Args>(args)...);
 				result->setup(api, mm, fini);
 				result->put_ctx(abort_handler);
 				return result;
@@ -248,28 +273,5 @@ namespace ooos
 		constexpr void release() noexcept { mod = nullptr; }
 		constexpr ~eh_exit_guard() noexcept { mod->ctx_end(); }
 	};
-}
-/**
- * EXPORT_MODULE(T, Args...)
- * All modules must invoke this macro exactly once in order to build properly.
- * When invoked, it defines a function that the kernel will call when the module loads.
- * That function allocates a separate page frame structure which is used to implement most of the underlying "glue" needed by C++ to function fully.
- * It then also sets up some pointers which tie in kernel functionality modules might need to use.
- * This includes a patch to the typeinfo struct representing the module's class, which points the base-type-info pointers at the kernel symbol representing each of its bases if one exists.
- * The process occurs recursively in case a module class inherits from a fully-inline base or one that is itself defined within the module, making the change to the first matching pointer it finds within each inheritance chain (but no others).
- * Doing so allows the kernel to use dynamic_cast to upcast the module class into something more specific, e.g. block_io_provider_module or io_module_base<char>.
- */
-#define EXPORT_MODULE(module_class, ...)\
-	static char __instance[sizeof(module_class)];\
-	static ooos::cxxabi_abort __abort_handler;\
-	extern "C" {\
-	ooos::abstract_module_base* module_init(ooos::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)()) {\
-		__abort_handler.abort_msg = "abort() called in module " # module_class;\
-		__abort_handler.abort_msg = "pure virtual call in module " # module_class;\
-		__abort_handler.api = api;\
-		return ooos::setup_instance<module_class>(&__instance, api, frame_tag, kframe_fns, init, fini, __abort_handler __VA_OPT__(,) __VA_ARGS__);\
-	}\
-	[[noreturn]] void abort() { __abort_handler.terminate(); }\
-	[[noreturn]] void __cxa_pure_virtual() { __abort_handler.pure_virt(); }\
 }
 #endif

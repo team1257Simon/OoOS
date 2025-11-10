@@ -74,7 +74,7 @@ namespace ooos
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{
 			char* result    = nullptr;
-			size_t count    = kvasprintf(__addressof(result), fmt, args);
+			size_t count    = kvasprintf(std::addressof(result), fmt, args);
 			if(!count) return 0UZ;
 			char* str       = static_cast<char*>(mm->mem_allocate(count, alignof(char)));
 			array_copy(str, result, count);
@@ -85,7 +85,7 @@ namespace ooos
 		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args)
 		{
 			char* result    = nullptr;
-			size_t count    = kvasprintf(__addressof(result), fmt, args);
+			size_t count    = kvasprintf(std::addressof(result), fmt, args);
 			if(!count) return 0UZ;
 			xklog("[" + std::ext::demangle(from) + "]: " + result);
 			free(result);

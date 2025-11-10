@@ -47,7 +47,7 @@ shared_object_map::iterator shared_object_map::get_if_resident(file_node* so_fil
 }
 shared_object_map::iterator shared_object_map::add(file_node* so_file) 
 {
-    std::pair<iterator, bool> result = emplace(so_file, shared_frame); 
+    std::pair<iterator, bool> result = emplace(so_file, shared_frame);
     if(result.second && !result.first->load()) { erase(result.first); throw std::runtime_error("[PRG/SO] load failed"); } 
     if(!result.second) result.first->incref();
     else if(std::addressof(__globals) == this) { result.first->set_global(); }

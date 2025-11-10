@@ -42,7 +42,7 @@ int protocol_arp::receive(abstract_packet_base& p)
 }
 mac_t& protocol_arp::resolve(ipv4_addr addr)
 {
-	if(!await_result([&]() -> bool { return check_presence(addr); }))
+	if(!await_result([addr, this]() -> bool { return check_presence(addr); }))
 		throw std::runtime_error("[ARP] could not resolve IP " + stringify(addr) + " because its owner did not respond");
 	return previously_resolved[addr];
 }

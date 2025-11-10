@@ -117,11 +117,11 @@ task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t st
         { 
             .rbp            { stack_base + stack_size },
             .rsp            { stack_base + stack_size },
+            .cr3            { pml4_of(frame_ptr) },
             .rflags         { 0x202UL },
             .ds             { data_segment(get_frame_magic(frame_ptr)) },
             .ss             { data_segment(get_frame_magic(frame_ptr)) },
             .cs             { code_segment(get_frame_magic(frame_ptr)) },
-            .cr3            { pml4_of(frame_ptr) },
         }, 
         .quantum_val        { quantum }, 
         .task_ctl           
@@ -159,11 +159,11 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
         { 
             .rbp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
             .rsp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
+            .cr3            { pml4_of(desc.frame_ptr) },
             .rflags         { 0x202UL },
             .ds             { data_segment(get_frame_magic(desc.frame_ptr)) },
             .ss             { data_segment(get_frame_magic(desc.frame_ptr)) },
             .cs             { code_segment(get_frame_magic(desc.frame_ptr)) },
-            .cr3            { pml4_of(desc.frame_ptr) } 
         },
         .quantum_val        { quantum }, 
         .task_ctl           
@@ -465,11 +465,11 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
         { 
             .rbp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
             .rsp            { addr_t(desc.prg_stack).plus(desc.stack_size) },
+            .cr3            { pml4_of(desc.frame_ptr) },
             .rflags         { 0x202UL },
             .ds             { data_segment(get_frame_magic(desc.frame_ptr)) },
             .ss             { data_segment(get_frame_magic(desc.frame_ptr)) },
             .cs             { code_segment(get_frame_magic(desc.frame_ptr)) },
-            .cr3            { pml4_of(desc.frame_ptr) } 
         },
         .quantum_val        { quantum }, 
         .task_ctl           
@@ -489,8 +489,8 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
         },
         .tls_block          { addr_t(desc.prg_tls).plus(desc.tls_size) }
     };
-    arg_vec = std::move(args);
-    env_vec = std::move(env);
+    arg_vec					= std::move(args);
+    env_vec 				= std::move(env);
     opened_directories.clear();
     init_task_state();
     return true;

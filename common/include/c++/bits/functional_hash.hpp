@@ -10,7 +10,7 @@ namespace std
 	extension template<basic_char_type CT> struct object_elf_hash<const CT*>{ constexpr uint64_t operator()(const CT* str) const noexcept { return elf64_gnu_hash{}(str); } };
 	extension template<basic_char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT> struct object_elf_hash<basic_string<CT, TT, AT>> { constexpr uint64_t operator()(basic_string<CT> const& str) const noexcept { return object_elf_hash<const CT*>{}(str.c_str()); } };
 	extension struct ext_legacy_hash_signed { uint64_t operator()(const void* data, size_t n); };
-	extension struct ext_legacy_hash_unsigned{ uint64_t operator()(const void* data, size_t n); };
+	extension struct ext_legacy_hash_unsigned { uint64_t operator()(const void* data, size_t n); };
 	extension struct half_md4_hash_signed { uint32_t seed[4]{}; uint64_t operator()(const void* data, size_t n); };
 	extension struct half_md4_hash_unsigned { uint32_t seed[4]{}; uint64_t operator()(const void* data, size_t n); };
 	extension struct tea_hash_signed { uint32_t seed[4]{}; uint64_t operator()(const void* data, size_t n); };

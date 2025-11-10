@@ -306,9 +306,9 @@ void elf64_tests()
 		test_extfs.close_file(tst);
 		if(test_exec)
 		{
-			file_node* c    = test_extfs.get_file_or_null("/dev/console");
-			if(!c) c        = test_extfs.lndev("/dev/console", 0, com->get_device_id());
-			elf64_program_descriptor const& desc = test_exec->describe();
+			file_node* c    						= test_extfs.get_file_or_null("/dev/console");
+			if(!c) c        						= test_extfs.lndev("/dev/console", 0, com->get_device_id());
+			elf64_program_descriptor const& desc 	= test_exec->describe();
 			startup_tty.print_line("Entry at " + std::to_string(desc.entry));
 			sch.start();
 			task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
@@ -393,10 +393,9 @@ void sysfs_tests()
 }
 void circular_queue_tests()
 {
-	ooos::circular_queue<char> test_queue(4UZ);
+	ooos::circular_queue<char> test_queue{};
 	char buffer[2]{ 0, 0 };
-	for(char c = 'a'; c < 'h'; c++ /* he said the thing! */)
-		test_queue.push(c);
+	for(char c = 'a'; c < 'h'; c++ /* he said the thing! */) test_queue.push(c);
 	size_t l = test_queue.length();
 	for(size_t i = 0; i < l - 3; i++)
 	{
@@ -406,8 +405,7 @@ void circular_queue_tests()
 			startup_tty.print_text(", ");
 		else startup_tty.print_text("; ");
 	}
-	for(char c = 'a'; c < 'h'; c++ /* oh, that's why they call it that. */)
-		test_queue.push(c);
+	for(char c = 'a'; c < 'h'; c++ /* oh, that's why they call it that. */) test_queue.push(c);
 	l = test_queue.length();
 	for(size_t i = 0; i < l; i++)
 	{
@@ -558,14 +556,14 @@ extern "C"
 		asm volatile("movq %0, %%rbp" :: "r"(std::addressof(kernel_stack_base)) : "memory");
 		// Don't want to get interrupted during early initialization...
 		cli();
-		// The GDT is only used to set up the IDT (as well as enabling switching rings), so setting it up after the heap allocator is fine.
+		// The GDT is only used to set up the IDT (as well as enabling switching rings), but it's still a requirement because Intel wants back-compatibility.
 		gdt_setup();
 		// The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
 		idt_init();
 		nmi_disable();
-		sysinfo = si;
-		kproc.self = std::addressof(kproc);
-		// This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator (e.g. the serial driver).
+		sysinfo 	= si;
+		kproc.self 	= std::addressof(kproc);
+		// This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator.
 		kernel_memory_mgr::init_instance(mmap); 
 		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
 		_init();
@@ -574,20 +572,20 @@ extern "C"
 		init_tss(std::addressof(kernel_isr_stack_top));
 		enable_fs_gs_insns();
 		set_kernel_gs_base(std::addressof(kproc));
-		kproc.saved_regs.cr3 = get_cr3();
-		kproc.saved_regs.rsp = std::addressof(kernel_stack_top);
-		kproc.saved_regs.rbp = std::addressof(kernel_stack_base);
+		kproc.saved_regs.cr3 	= get_cr3();
+		kproc.saved_regs.rsp 	= std::addressof(kernel_stack_top);
+		kproc.saved_regs.rbp 	= std::addressof(kernel_stack_base);
 		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
 		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);     
-		fadt_t* fadt = nullptr;
+		fadt_t* fadt 			= nullptr;
 		// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
-		if(sysinfo->xsdt) fadt = find_fadt();
+		if(sysinfo->xsdt) fadt 	= find_fadt();
 		if(fadt) rtc::init_instance(fadt->century_register);
 		else rtc::init_instance();
 		// The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
 		new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFFU, 0);
 		startup_tty.cls();
-		direct_print_enable = true;
+		direct_print_enable 	= true;
 		bsp_lapic.init();
 		nmi_enable();
 		sti();

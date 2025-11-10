@@ -75,19 +75,19 @@ private:
 	spinlock_t __my_mutex{};
 public:
 	constexpr kframe_tag() = default;
-	void insert_block(block_tag* blk, int idx);
-	void remove_block(block_tag* blk);
+	__nointerrupts void insert_block(block_tag* blk, int idx) noexcept;
+	__nointerrupts void remove_block(block_tag* blk) noexcept;
 	addr_t allocate(size_t size, size_t align = 0UL);
 	void deallocate(addr_t ptr, size_t align = 0UL);
 	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL);
 	addr_t array_allocate(size_t num, size_t size);
 protected:
-	block_tag* create_tag(size_t size, size_t align);
-	block_tag* melt_left(block_tag* tag) noexcept;
-	block_tag* melt_right(block_tag* tag) noexcept;
-	block_tag* find_tag(addr_t ptr, size_t align);
-	block_tag* get_for_allocation(size_t size, size_t align);
-	void release_block(block_tag* tag);
+	__nointerrupts block_tag* create_tag(size_t size, size_t align) noexcept;
+	__nointerrupts block_tag* melt_left(block_tag* tag) noexcept;
+	__nointerrupts block_tag* melt_right(block_tag* tag) noexcept;
+	__nointerrupts block_tag* find_tag(addr_t ptr, size_t align) noexcept;
+	__nointerrupts block_tag* get_for_allocation(size_t size, size_t align) noexcept;
+	__nointerrupts void release_block(block_tag* tag) noexcept;
 private:
 	void __lock();
 	void __unlock();
@@ -269,16 +269,16 @@ public:
 	void exit_frame() noexcept;
 	void map_to_current_frame(std::vector<block_descriptor> const& blocks);
 	void map_to_current_frame(block_descriptor const& block);
-	paging_table allocate_pt();
+	__nointerrupts paging_table allocate_pt() noexcept;
 	uintptr_t frame_translate(addr_t addr);
-	addr_t allocate_kernel_block(size_t sz);
-	addr_t allocate_dma(size_t sz, bool prefetchable);
-	void deallocate_dma(addr_t addr, size_t sz);
+	__nointerrupts addr_t allocate_kernel_block(size_t sz) noexcept;
+	__nointerrupts addr_t allocate_dma(size_t sz, bool prefetchable) noexcept;
+	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
-	addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true);
-	addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute);
-	addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true);
-	void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false);
+	__nointerrupts addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
+	__nointerrupts addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute) noexcept;
+	__nointerrupts addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true) noexcept;
+	__nointerrupts void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false) noexcept;
 	addr_t copy_kernel_mappings(paging_table target);
 };
 #define kmm kernel_memory_mgr::get()

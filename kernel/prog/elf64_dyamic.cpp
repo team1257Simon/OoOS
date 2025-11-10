@@ -220,6 +220,7 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 		break;
 	}
 }
+#include "kdebug.hpp"
 bool elf64_dynamic_object::load_syms()
 {
 	if(__unlikely(!elf64_object::load_syms())) { panic("[PRG/DYN] no symbol table present"); return false; }

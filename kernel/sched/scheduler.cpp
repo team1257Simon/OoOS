@@ -170,7 +170,7 @@ void scheduler::on_tick()
     if(cur->quantum_rem) { cur->quantum_rem--; }
     if(cur->quantum_rem == 0 || cur->task_ctl.block) { if(task_t* next = select_next()) __do_task_change(cur, next); else { cur->quantum_rem = cur->quantum_val; } }
 }
-attribute(nointerrupts) bool scheduler::init() noexcept
+__nointerrupts bool scheduler::init() noexcept
 {
     try
     {

@@ -92,7 +92,7 @@ bool e1000e::dev_reset()
 	barrier();
 	ctrl->reset = true;
 	write_dma(e1000_ctrl, ctrl);
-	if(__unlikely(!await_result([&]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) { panic("[e1000e] device hung on reset"); return false; }
+	if(__unlikely(!await_result([&ctrl, this]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) { panic("[e1000e] device hung on reset"); return false; }
 	barrier();
 	write_dma(e1000_imc, ~0U);
 	barrier();
@@ -137,7 +137,7 @@ void e1000e::write_dma(int reg_id, uint32_t const& w_in)
 }
 bool e1000e::__mdio_await(mdic& mdic_reg)
 {
-	return await_result([&]() -> bool 
+	return await_result([&mdic_reg, this]() -> bool 
 	{
 		io_wait();
 		read_dma(e1000_mdic, mdic_reg);
@@ -176,7 +176,7 @@ uint16_t e1000e::read_eeprom(uint16_t eep_addr)
 		}
 	};
 	write_dma(e1000_eerd, rd);
-	await_result([&]() -> bool { io_wait(); read_dma(e1000_eerd, rd); return rd->read_done; });
+	await_result([&rd, this]() -> bool { io_wait(); read_dma(e1000_eerd, rd); return rd->read_done; });
 	return rd->read_data;
 }
 void e1000e::write_phy(int phy_reg, uint16_t data)
@@ -250,7 +250,7 @@ bool e1000e::configure_mac_phy(dev_status& st)
 	read_dma(e1000_ctrl, ctl);
 	ctl->set_link_up    = true;
 	write_dma(e1000_ctrl, ctl);
-	if(await_result([&]() -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
+	if(await_result([&st, this]() -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
 	panic("[NET/e1000e] device hung on link-up signal");
 	return false;
 }
@@ -347,7 +347,7 @@ int e1000e::poll_tx(netstack_buffer& buff)
 	tail.fields.status                  = 0UC;
 	tx_ring.tail_descriptor             = (tx_ring.tail_descriptor + 1U) % tx_ring.count();
 	write_dma(txt, tx_ring.tail_descriptor);
-	if(!await_result([&]() -> bool { io_wait(); return (tail.fields.status & 0x1UC) != 0; })) return -ENETDOWN;
+	if(!await_result([&tail, this]() -> bool { io_wait(); return (tail.fields.status & 0x1UC) != 0; })) return -ENETDOWN;
 	return 0;
 }
 int e1000e::poll_rx()

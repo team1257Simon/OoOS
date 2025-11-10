@@ -167,7 +167,7 @@ struct amd64_serial : ooos::io_module_base<char>
 private:
 	static config_type __cfg;
 	char* __input_pos;
-	void __trim_old();
+	void __trim_old() noexcept;
 public:
 	virtual bool overflow(size_type needed) override;
 	virtual ooos::generic_config_table& get_config() override;

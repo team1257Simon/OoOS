@@ -11,64 +11,61 @@ namespace ooos
     class abstract_module_base;
     class isr_actor;
     struct module_eh_ctx;
-    template<typename T> [[nodiscard]] constexpr T&& __forward(typename std::remove_reference<T>::type& t) { return static_cast<T&&>(t); }
-    template<typename T> [[nodiscard]] constexpr T&& __forward(typename std::remove_reference<T>::type&& t) { return static_cast<T&&>(t); }
-    template<typename T> constexpr typename std::remove_reference<T>::type&& __move(T&& __t) noexcept { return static_cast<std::remove_reference<T>::type&&>(__t); }
-    template<typename T> constexpr T* __addressof(T& arg) noexcept { return __builtin_addressof(arg); }
-    template<typename T> const T* __addressof(const T&&) = delete;
     template<typename T> concept no_args_invoke = requires(T t) { t(); };
     namespace __internal
     {
         class __anything;
-        template<typename T> using __ref = T&;
-        template<typename T> concept __can_reference = requires { typename __ref<T>; };
-        template<typename T> concept __object = std::is_object_v<T>;
-        template<typename T> concept __can_dereference = requires(std::add_lvalue_reference_t<T> __t) { { *__t } -> __can_reference; };
-        template<typename T> concept __can_reference_and_dereference = __can_reference<T> && __can_dereference<T>;
-        template<typename PT, typename VT> concept __points_to = std::is_convertible_v<decltype(*std::declval<PT>()), std::add_lvalue_reference_t<VT>>;
-        template<typename PT, typename VT> concept __points_to_maybe_const = __points_to<PT, std::add_const_t<VT>>;
-        template<typename PT, typename VT> concept __points_to_const = __points_to_maybe_const<PT, VT> && !__points_to<PT, VT>;
-        template<typename IT> concept __has_defined_value_type = requires { typename IT::value_type; };
-        template<typename IT> concept __has_implicit_value_type = !__has_defined_value_type<IT> && __can_reference_and_dereference<IT>;
-        template<typename IT> concept __has_defined_difference_type = requires { typename IT::difference_type; };
-        template<typename IT> concept __has_implicit_difference_type = !__has_defined_difference_type<IT> && requires(std::add_lvalue_reference_t<std::add_const_t<IT>> a, std::add_lvalue_reference_t<std::add_const_t<IT>> b) { { b - a } -> std::integral; };
+        template<typename> struct __use_value_type {};
         template<typename> struct __use_difference_type {};
+        template<typename T> using __ref 									= T&;
+        template<typename T> concept __can_reference 						= requires { typename __ref<T>; };
+        template<typename T> concept __object 								= std::is_object_v<T>;
+        template<typename T> concept __can_dereference 						= requires(std::add_lvalue_reference_t<T> __t) { { *__t } -> __can_reference; };
+        template<typename T> concept __can_reference_and_dereference 		= __can_reference<T> && __can_dereference<T>;
+        template<typename PT, typename VT> concept __points_to 				= std::is_convertible_v<decltype(*std::declval<PT>()), std::add_lvalue_reference_t<VT>>;
+        template<typename PT, typename VT> concept __points_to_maybe_const 	= __points_to<PT, std::add_const_t<VT>>;
+        template<typename PT, typename VT> concept __points_to_const 		= __points_to_maybe_const<PT, VT> && !__points_to<PT, VT>;
+        template<typename IT> concept __has_defined_value_type 				= requires { typename IT::value_type; };
+        template<typename IT> concept __has_implicit_value_type 			= !__has_defined_value_type<IT> && __can_reference_and_dereference<IT>;
+        template<typename IT> concept __has_defined_difference_type 		= requires { typename IT::difference_type; };
+        template<typename IT> concept __has_implicit_difference_type 		= !__has_defined_difference_type<IT> && requires(std::add_lvalue_reference_t<std::add_const_t<IT>> a, std::add_lvalue_reference_t<std::add_const_t<IT>> b) { { b - a } -> std::integral; };
+        template<typename T> concept __has_difference_type 					= requires { typename __use_difference_type<T>::type; };
+        template<typename T> concept __has_value_type 						= requires { typename __use_value_type<T>::type; };
+        template<typename T> concept __convertible_to_weak 					= std::is_convertible_v<T, std::weak_ordering>;
+        template<typename T> concept __weakly_ordered 						= requires(T&& t1, T&& t2) { { static_cast<T&&>(t1) <=> static_cast<T&&>(t2) } -> __convertible_to_weak; };
+        template<typename T> concept __non_register 						= sizeof(T) > sizeof(long long);
+        template<typename T> concept __can_be_parameter_type 				= std::is_standard_layout_v<T> && (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T> || std::is_default_constructible_v<T>) && (std::is_copy_assignable_v<T> || std::is_move_assignable_v<T>);
+        template<typename T> concept __simple_swappable 					= std::is_move_assignable_v<T> && std::is_move_constructible_v<T>;
+		template<typename T, typename ... Args> concept __callable			= std::is_invocable_v<T, Args...>;
         template<__has_defined_difference_type IT> struct __use_difference_type<IT> { typedef typename IT::difference_type type; };
         template<__has_implicit_difference_type IT> struct __use_difference_type<IT> { typedef decltype(std::declval<IT>() - std::declval<IT>()) type; };
         template<typename T> struct __use_difference_type<T const> : __use_difference_type<T> {};
-        template<typename T> concept __has_difference_type = requires { typename __use_difference_type<T>::type; };
-        template<typename> struct __use_value_type {};
         template<__has_defined_value_type IT> struct __use_value_type<IT> { typedef typename IT::value_type type; };
         template<__has_implicit_value_type IT> struct __use_value_type<IT> { typedef std::remove_reference_t<decltype(*std::declval<IT>())> type; };
         template<typename T> struct __use_value_type<T const> : __use_value_type<T> {};
-        template<typename T> concept __has_value_type = requires { typename __use_value_type<T>::type; };
-        template<typename T> concept __convertible_to_weak = std::is_convertible_v<T, std::weak_ordering>;
-        template<typename T> concept __weakly_ordered = requires(T&& t1, T&& t2) { { static_cast<T&&>(t1) <=> static_cast<T&&>(t2) } -> __convertible_to_weak; };
-        template<typename T> concept __non_register = sizeof(T) > sizeof(long long);
         template<typename T> struct __single_buffer_value { typedef std::remove_cvref_t<T> type; typedef std::remove_reference_t<T> const_type; };
         template<__non_register T> struct __single_buffer_value<T> { typedef std::add_lvalue_reference_t<T> type; typedef std::add_lvalue_reference_t<std::add_const_t<T>> const_type; };
-        template<typename T> concept __can_be_parameter_type = std::is_standard_layout_v<T> && (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T> || std::is_default_constructible_v<T>) && (std::is_copy_assignable_v<T> || std::is_move_assignable_v<T>);
         template<typename T> struct __pack_type_select { typedef T type; };
         template<typename T> struct __pack_type_select<T[]> { typedef T* type; };
         template<typename T, size_t N> struct __pack_type_select<T[N]> { typedef T* const type; };
         template<size_t N, typename ... Ts> struct __nth_pack_param;
         template<template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<0, C<H, Ts...>> { typedef typename __pack_type_select<H>::type type; };
         template<size_t N, template<typename ...> class C, typename H, typename ... Ts> struct __nth_pack_param<N, C<H, Ts...>> : __nth_pack_param<N - 1, C<Ts...>> {};
-        template<no_args_invoke FT, typename RT = decltype((std::declval<FT&&>())())> constexpr RT __invoke_f(FT&& f) { if constexpr(!std::is_void_v<RT>) { return (__forward<FT>(f))(); } else { (__forward<FT>(f))(); } }
-        template<typename T> concept __simple_swappable = std::is_move_assignable_v<T> && std::is_move_constructible_v<T>;
-        template<__simple_swappable T> constexpr void __swap(T& a, T& b) noexcept(std::is_nothrow_move_assignable_v<T> && std::is_nothrow_move_constructible_v<T>) { T tmp = __move(a); a = __move(b); b = __move(tmp); }
+        template<no_args_invoke FT, typename RT = decltype((std::declval<FT&&>())())> constexpr RT __invoke_f(FT&& f) { if constexpr(!std::is_void_v<RT>) { return (std::forward<FT>(f))(); } else { (std::forward<FT>(f))(); } }
+        template<typename VT, __callable<VT> FT> constexpr void __invoke_v(FT&& f, VT&& v) { std::forward<FT>(f)(std::forward<VT>(v)); }
+		template<__simple_swappable T> constexpr void __swap(T& a, T& b) noexcept(std::is_nothrow_move_assignable_v<T> && std::is_nothrow_move_constructible_v<T>) { T tmp = std::move(a); a = std::move(b); b = std::move(tmp); }
     }
-    template<typename T> concept wrappable_actor = no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
-    template<typename T> concept boolable = requires(T t) { t ? true : false; };
-    template<typename T> concept io_buffer_ok = std::is_default_constructible_v<T> && !std::is_volatile_v<T> && std::is_copy_assignable_v<T>;
-    template<typename IT, typename VT> concept value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to<IT, VT>;
-    template<typename IT, typename VT> concept maybe_const_value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to_maybe_const<IT, std::remove_const_t<VT>>;
-    template<typename IT, typename VT> concept const_value_iterator = __internal::__can_reference_and_dereference<IT> && __internal::__points_to_const<IT, std::remove_const_t<VT>>;
-    template<__internal::__has_difference_type IT> using iterator_difference_t = typename __internal::__use_difference_type<IT>::type;
-    template<__internal::__has_value_type IT> using dereference_value_t = typename __internal::__use_value_type<IT>::type;
-    template<typename T> using in_value = typename __internal::__single_buffer_value<T>::const_type;
-    template<typename T> using out_value = typename __internal::__single_buffer_value<T>::type;
-    template<typename IT> concept incrementable_iterator = __internal::__has_value_type<IT> && __internal::__has_difference_type<IT>;
+    template<typename T> concept wrappable_actor 								= no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
+    template<typename T> concept boolable 										= requires(T t) { t ? true : false; };
+    template<typename T> concept io_buffer_ok 									= std::is_default_constructible_v<T> && !std::is_volatile_v<T> && std::is_copy_assignable_v<T>;
+    template<typename IT, typename VT> concept value_iterator 					= __internal::__can_reference_and_dereference<IT> && __internal::__points_to<IT, VT>;
+    template<typename IT, typename VT> concept maybe_const_value_iterator 		= __internal::__can_reference_and_dereference<IT> && __internal::__points_to_maybe_const<IT, std::remove_const_t<VT>>;
+    template<typename IT, typename VT> concept const_value_iterator 			= __internal::__can_reference_and_dereference<IT> && __internal::__points_to_const<IT, std::remove_const_t<VT>>;
+    template<__internal::__has_difference_type IT> using iterator_difference_t 	= typename __internal::__use_difference_type<IT>::type;
+    template<__internal::__has_value_type IT> using dereference_value_t 		= typename __internal::__use_value_type<IT>::type;
+    template<typename T> using in_value 										= typename __internal::__single_buffer_value<T>::const_type;
+    template<typename T> using out_value 										= typename __internal::__single_buffer_value<T>::type;
+    template<typename IT> concept incrementable_iterator 						= __internal::__has_value_type<IT> && __internal::__has_difference_type<IT>;
     template<incrementable_iterator IT>
     struct simple_iterator
     {
@@ -102,25 +99,25 @@ namespace ooos
     };
     struct kmod_mm
     {
-        virtual void* mem_allocate(size_t size, size_t align) = 0;
-        virtual void mem_release(void* block, size_t align) = 0;
-        virtual void* mem_resize(void* old, size_t old_size, size_t target, size_t align) = 0;
-        virtual kframe_tag* get_frame() = 0;
-        virtual ~kmod_mm() = default;
+        virtual void* mem_allocate(size_t size, size_t align) 								= 0;
+        virtual void mem_release(void* block, size_t align) 								= 0;
+        virtual void* mem_resize(void* old, size_t old_size, size_t target, size_t align) 	= 0;
+        virtual kframe_tag* get_frame() 													= 0;
+        virtual ~kmod_mm() 																	= default;
     };
-    union actors
+    union local_functor_types
     {
         void* object;
         const void* const_object;
         void (*function_ptr)();
         void (abstract_module_base::*member_function_ptr)();
     };
-    union [[gnu::may_alias]] actor_store
+    union [[gnu::may_alias]] functor_store
     {
-        actors ignored;
-        char actual[sizeof(actors)];
-        constexpr void* access() noexcept { return &actual[0]; }
-        constexpr const void* access() const noexcept { return &actual[0]; }
+        local_functor_types ignored;
+        char actual[sizeof(local_functor_types)];
+        constexpr void* access() noexcept { return std::addressof(actual[0]); }
+        constexpr const void* access() const noexcept { return std::addressof(actual[0]); }
         template<typename T> constexpr T& cast() noexcept { return *static_cast<T*>(access()); }
         template<typename T> constexpr T const& cast() const noexcept { return *static_cast<T const*>(access()); }
         template<typename T> constexpr void set_ptr(T* ptr) noexcept { *static_cast<T**>(access()) = ptr; }
@@ -142,20 +139,20 @@ namespace ooos
         template<no_args_invoke FT>
         class actor_manager
         {
-            constexpr static size_t __max_size  = sizeof(actors);
-            constexpr static size_t __max_align = alignof(actors);
-            template<typename GT> static inline void __create_wrapper(actor_store& dst, GT&& ftor, kmod_mm*, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(__forward<GT>(ftor)); }
-            template<typename GT> static inline void __create_wrapper(actor_store& dst, GT&& ftor, kmod_mm* alloc, std::false_type) { dst.set_ptr(new(alloc->mem_allocate(sizeof(FT), alignof(FT))) FT(__forward<GT>(ftor))); }
-            static inline void __delete_wrapper(actor_store& target, kmod_mm*, std::true_type) { target.template cast<FT>().~FT(); }
-            static inline void __delete_wrapper(actor_store& target, kmod_mm* alloc, std::false_type) { FT* ptr = target.template cast<FT*>(); ptr->~FT(); alloc->mem_release(ptr, alignof(FT)); }
+            constexpr static size_t __max_size  = sizeof(local_functor_types);
+            constexpr static size_t __max_align = alignof(local_functor_types);
+            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, kmod_mm*, std::true_type) noexcept(std::is_nothrow_constructible<FT, GT>::value) { new(dst.access()) FT(std::forward<GT>(ftor)); }
+            template<typename GT> static inline void __create_wrapper(functor_store& dst, GT&& ftor, kmod_mm* alloc, std::false_type) { dst.set_ptr(new(alloc->mem_allocate(sizeof(FT), alignof(FT))) FT(std::forward<GT>(ftor))); }
+            static inline void __delete_wrapper(functor_store& target, kmod_mm*, std::true_type) { target.template cast<FT>().~FT(); }
+            static inline void __delete_wrapper(functor_store& target, kmod_mm* alloc, std::false_type) { FT* ptr = target.template cast<FT*>(); ptr->~FT(); alloc->mem_release(ptr, alignof(FT)); }
             using __is_locally_storable = std::bool_constant<std::is_trivially_copyable_v<FT> && (sizeof(FT) <= __max_size && alignof(FT) <= __max_align && __max_align % alignof(FT) == 0)>;
             constexpr static bool __is_local_store = __is_locally_storable::value;
         public:
-            constexpr static FT* get_ptr(actor_store const& src) { if constexpr(__is_local_store) { return __addressof(const_cast<FT&>(src.template cast<FT>())); } else { return src.template cast<FT*>(); } }
-            template<typename GT> static inline void init_actor(actor_store& dst, GT&& src, kmod_mm* alloc) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, __forward<GT>(src), alloc, __is_locally_storable()); }
-            static inline void destroy_actor(actor_store& dst, kmod_mm* alloc) { __delete_wrapper(dst, alloc, __is_locally_storable()); }
-            static void invoke_fn(actor_store& fn) { __internal::__invoke_f(__forward<FT>(*get_ptr(fn))); }
-            static void action(actor_store& dst, actor_store const& src, kmod_mm* alloc, mgr_op op)
+            constexpr static FT* get_ptr(functor_store const& src) { if constexpr(__is_local_store) { return std::addressof(const_cast<FT&>(src.template cast<FT>())); } else { return src.template cast<FT*>(); } }
+            template<typename GT> static inline void init_actor(functor_store& dst, GT&& src, kmod_mm* alloc) noexcept(std::is_nothrow_constructible<FT, GT>::value && __is_local_store) { __create_wrapper(dst, std::forward<GT>(src), alloc, __is_locally_storable()); }
+            static inline void destroy_actor(functor_store& dst, kmod_mm* alloc) { __delete_wrapper(dst, alloc, __is_locally_storable()); }
+            static void invoke_fn(functor_store& fn) { __internal::__invoke_f(std::forward<FT>(*get_ptr(fn))); }
+            static void action(functor_store& dst, functor_store const& src, kmod_mm* alloc, mgr_op op)
             {
                 switch(op)
                 {
@@ -169,14 +166,14 @@ namespace ooos
                     destroy_actor(dst, alloc);
                     break;
                 case get_type_info:
-                    dst.set_ptr(&typeid(FT));
+                    dst.set_ptr(std::addressof(typeid(FT)));
                     break;
                 }
             }
         };
-        using manager_type = void(*)(actor_store&, actor_store const&, kmod_mm*, mgr_op);
-        using invoker_type = void(*)(actor_store&);
-        actor_store __my_actor;
+        using manager_type = void(*)(functor_store&, functor_store const&, kmod_mm*, mgr_op);
+        using invoker_type = void(*)(functor_store&);
+        functor_store __my_actor;
         manager_type __my_manager;
         invoker_type __my_invoke;
         kmod_mm* __my_alloc;
@@ -193,9 +190,9 @@ namespace ooos
             typedef actor_manager<std::decay_t<FT>> __mgr;
             if(not_empty(ft))
             {
-                __mgr::init_actor(__my_actor, __forward<FT>(ft), alloc);
-                __my_manager    = &__mgr::action;
-                __my_invoke     = &__mgr::invoke_fn;
+                __mgr::init_actor(__my_actor, std::forward<FT>(ft), alloc);
+                __my_manager    = std::addressof(__mgr::action);
+                __my_invoke     = std::addressof(__mgr::invoke_fn);
                 __my_alloc      = alloc;
             } 
         }
@@ -224,31 +221,31 @@ namespace ooos
         }
         constexpr void swap(isr_actor& that) noexcept { using __internal::__swap; __swap(this->__my_actor, that.__my_actor); __swap(this->__my_invoke, that.__my_invoke); __swap(this->__my_manager, that.__my_manager); __swap(this->__my_alloc, that.__my_alloc); }
         isr_actor& operator=(isr_actor const& that) { isr_actor(that).swap(*this); return *this; }
-        isr_actor& operator=(isr_actor&& that) { isr_actor(__move(that)).swap(*this); return *this; }
+        isr_actor& operator=(isr_actor&& that) { isr_actor(std::move(that)).swap(*this); return *this; }
         constexpr void operator()() { if(!__empty()) __my_invoke(__my_actor); }
-        constexpr std::type_info const& target_type() const noexcept { if(__my_manager) { actor_store tmp_store; __my_manager(tmp_store, __my_actor, __my_alloc, get_type_info); if(std::type_info const* result = tmp_store.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
+        constexpr std::type_info const& target_type() const noexcept { if(__my_manager) { functor_store tmp_store; __my_manager(tmp_store, __my_actor, __my_alloc, get_type_info); if(std::type_info const* result = tmp_store.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
     };
     struct kernel_api
     {
         friend class abstract_module_base;
-        virtual void* allocate_dma(size_t size, bool prefetchable) = 0;
-        virtual void release_dma(void* ptr, size_t size) = 0;
-        virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) = 0;
-        virtual void* acpi_get_table(const char* label) = 0;
-        virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) = 0;
-        virtual void remove_actors(abstract_module_base* owner) = 0;
-        virtual kmod_mm* create_mm() = 0;
-        virtual void destroy_mm(kmod_mm* mm) = 0;
-        virtual void log(std::type_info const& from, const char* message) = 0;
-        virtual uint32_t register_device(dev_stream<char>* stream, device_type type) = 0;
-        virtual bool deregister_device(dev_stream<char>* stream) = 0;
-        virtual void init_memory_fns(kframe_exports* ptrs) = 0;
-        [[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) = 0;
-        virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) = 0;
-        virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) = 0;
+        virtual void* allocate_dma(size_t size, bool prefetchable) 																		= 0;
+        virtual void release_dma(void* ptr, size_t size) 																				= 0;
+        virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) 												= 0;
+        virtual void* acpi_get_table(const char* label) 																				= 0;
+        virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) 												= 0;
+        virtual void remove_actors(abstract_module_base* owner) 																		= 0;
+        virtual kmod_mm* create_mm() 																									= 0;
+        virtual void destroy_mm(kmod_mm* mm) 																							= 0;
+        virtual void log(std::type_info const& from, const char* message) 																= 0;
+        virtual uint32_t register_device(dev_stream<char>* stream, device_type type) 													= 0;
+        virtual bool deregister_device(dev_stream<char>* stream) 																		= 0;
+        virtual void init_memory_fns(kframe_exports* ptrs) 																				= 0;
+        [[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) 											= 0;
+        virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) 											= 0;
+        virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) 												= 0;
     protected:
-        virtual void register_type_info(std::type_info const* ti) = 0;
-        virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) = 0;
+        virtual void register_type_info(std::type_info const* ti) 																		= 0;
+        virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) 	= 0;
     };
     kernel_api* get_api_instance();
     void init_api();
@@ -285,9 +282,9 @@ namespace ooos
     {
         return config_parameter<T>
         {
-            .name       { name },
-            .value_size { sizeof(value) },
-            .value      { __move(value) }
+            .name		{ name },
+            .value_size	{ sizeof(value) },
+            .value		{ std::move(value) }
         };
     }
     template<__internal::__can_be_parameter_type T, std::convertible_to<T> ... Us> 
@@ -296,9 +293,9 @@ namespace ooos
         typedef T array_type[sizeof...(Us)];
         return config_parameter<array_type>
         {
-            .name       { name },
-            .value_size { sizeof(array_type) },
-            .value      { __forward<Us>(values)... }
+            .name		{ name },
+            .value_size	{ sizeof(array_type) },
+            .value		{ std::forward<Us>(values)... }
         };
     }
     struct config_iterator
@@ -363,7 +360,7 @@ namespace ooos
         struct __config_entry_base<I, T, false>
         { 
             config_parameter<T> __param;
-            constexpr __config_entry_base(config_parameter<T>&& p) : __param(__move(p)) {}
+            constexpr __config_entry_base(config_parameter<T>&& p) : __param(std::move(p)) {}
             constexpr static T& __get(__config_entry_base& t) { return t.__param.value; }
             constexpr static T const& __get(__config_entry_base const& t) noexcept { return t.__param.value; }
             constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.__param.value_size; }
@@ -374,7 +371,7 @@ namespace ooos
             const char* name;
             size_t value_size;
             constexpr static size_t __size_value = sizeof(config_parameter<T>);
-            constexpr __config_entry_base(config_parameter<T>&& p) : T(__move(p.value)), name(p.name), value_size(p.value_size) {}
+            constexpr __config_entry_base(config_parameter<T>&& p) : T(std::move(p.value)), name(p.name), value_size(p.value_size) {}
             constexpr static T& __get(__config_entry_base& t) noexcept { return t; }
             constexpr static T const& __get(__config_entry_base const& t) noexcept { return t; }
             constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.value_size; }
@@ -388,7 +385,7 @@ namespace ooos
             constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
             constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t); }
-            constexpr __config_table_impl(config_parameter<T>&& p) : __base(__move(p)) {}
+            constexpr __config_table_impl(config_parameter<T>&& p) : __base(std::move(p)) {}
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us>
         struct __config_table_impl<I, T, Us...> : private __config_entry_base<I, T>, public __config_table_impl<I + 1, Us...>
@@ -401,7 +398,7 @@ namespace ooos
             constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
             constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t) + __next::__size(t); }
-            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(__move(tparam)), __next(__forward<config_parameter<Us>>(uparams)...) {} 
+            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(std::move(tparam)), __next(std::forward<config_parameter<Us>>(uparams)...) {} 
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T& __get(__config_table_impl<I, T, Us...>& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T const& __get(__config_table_impl<I, T, Us...> const& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
@@ -417,7 +414,7 @@ namespace ooos
     };
     template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
     template<__internal::__can_be_parameter_type ... Ts> union [[gnu::may_alias]] module_config { generic_config_table generic; module_config_table<Ts...> actual; constexpr module_config& compute_size_value() noexcept { actual.compute_size(); return *this; } };
-    template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ __forward<config_parameter<Ts>>(params)... } } }.compute_size_value(); }
+    template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ std::forward<config_parameter<Ts>>(params)... } } }.compute_size_value(); }
     template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...>& get_element(module_config<Ts...>& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
     template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...> const& get_element(module_config<Ts...> const& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
     template<typename FT> concept eh_functor = requires(FT ft, const char* c, int i) { ft(c, i); };
@@ -431,34 +428,34 @@ namespace ooos
     };
     enum class blockdev_type : uint8_t
     {
-        BDT_NONE    = 0UC,  // Unknown or no device
-        BDT_HDD     = 1UC,  // Hard disk drive
-        BDT_CDD     = 2UC,  // CD/DVD drive
-        BDT_SSD     = 3UC,  // Solid state drive
+        BDT_NONE	= 0UC,  // Unknown or no device
+        BDT_HDD		= 1UC,  // Hard disk drive
+        BDT_CDD		= 2UC,  // CD/DVD drive
+        BDT_SSD		= 3UC,  // Solid state drive
     };
     using enum blockdev_type;
     struct abstract_block_device
     {
         typedef unsigned int utticket;
         typedef signed int stticket;
-        virtual stticket read(void* dest, uintptr_t src_start, size_t sector_count) = 0;
-        virtual stticket write(uintptr_t dest_start, const void* src, size_t sector_count) = 0;
-        virtual size_t block_size() const noexcept = 0;
-        virtual bool io_busy() const = 0;
-        virtual bool io_complete(utticket task_ticket) const = 0;
-        virtual size_t io_count(utticket task_ticket) const = 0;
-        virtual blockdev_type device_type() const noexcept = 0;
-        virtual size_t max_operation_blocks() const noexcept = 0;
+        virtual stticket read(void* dest, uintptr_t src_start, size_t sector_count) 		= 0;
+        virtual stticket write(uintptr_t dest_start, const void* src, size_t sector_count) 	= 0;
+        virtual size_t block_size() const noexcept 											= 0;
+        virtual bool io_busy() const 														= 0;
+        virtual bool io_complete(utticket task_ticket) const 								= 0;
+        virtual size_t io_count(utticket task_ticket) const 								= 0;
+        virtual blockdev_type device_type() const noexcept 									= 0;
+        virtual size_t max_operation_blocks() const noexcept 								= 0;
         inline bool io_ready() const { return !io_busy(); }
         struct provider
         {
             typedef unsigned int uidx_t;
             typedef signed int sidx_t;
-            virtual uidx_t count() const noexcept = 0;
-            virtual sidx_t index_of(blockdev_type dev_type) const noexcept = 0;
-            virtual blockdev_type type_at_index(uidx_t idx) const noexcept = 0;
-            virtual abstract_block_device& operator[](uidx_t idx) = 0;
-            virtual abstract_block_device const& operator[](uidx_t idx) const = 0;
+            virtual uidx_t count() const noexcept 											= 0;
+            virtual sidx_t index_of(blockdev_type dev_type) const noexcept 					= 0;
+            virtual blockdev_type type_at_index(uidx_t idx) const noexcept 					= 0;
+            virtual abstract_block_device& operator[](uidx_t idx) 							= 0;
+            virtual abstract_block_device const& operator[](uidx_t idx) const 				= 0;
         };
     };
     struct empty_blockdev_slot : abstract_block_device
@@ -486,8 +483,8 @@ namespace ooos
     [[nodiscard]]
     constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
     {
-        T* result = alloc.allocate(ncount);
-        size_t ccount = ncount < ocount ? ncount : ocount;
+        T* result 		= alloc.allocate(ncount);
+        size_t ccount 	= ncount < ocount ? ncount : ocount;
         copy_or_move(result, array, ccount);
         alloc.deallocate(array, ocount);
         return result;

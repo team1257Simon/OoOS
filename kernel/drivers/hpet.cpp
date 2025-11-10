@@ -19,9 +19,9 @@ uint64_t hpet_amd64::count() { return __instance.__hpet->main_counter; }
 time_t hpet_amd64::count_usec() { return __instance.__hpet->main_counter / __instance.__frequency_megahertz; }
 void hpet_amd64::delay_usec(time_t usec) { __instance.delay_us(usec); }
 void hpet_amd64::delay_usec(time_t usec, void (*action)()) { __instance.delay_us(usec, action); }
-attribute(nointerrupts) bool hpet_amd64::__init() noexcept
+__nointerrupts bool hpet_amd64::__init() noexcept
 {
-	void* tbl = find_system_table("HPET");
+	void* tbl 				= find_system_table("HPET");
 	if(__unlikely(!tbl)) return false;
 	hpet_desc_table* dtbl   = static_cast<hpet_desc_table*>(tbl);
 	addr_t mapped           = kmm.map_dma(dtbl->base_addr.address, sizeof(hpet_t), false);

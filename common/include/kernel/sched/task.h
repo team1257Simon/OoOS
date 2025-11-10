@@ -82,12 +82,12 @@ typedef struct __reg_state
 	addr_t      rbp;
 	addr_t      rsp;
 	addr_t      rip;
+	addr_t      cr3;
 	register_t  rflags;
 	uint16_t    ds;
 	uint16_t    ss;
 	uint16_t    cs;
-	addr_t      cr3;
-} attribute(packed, aligned(2)) regstate_t;
+} attribute(packed, aligned(8)) regstate_t;
 typedef struct __task_signal_info
 {
 	sigset_t        blocked_signals;
@@ -135,7 +135,7 @@ typedef struct __task_info
 	size_t      num_child_procs;                    // how many children are in the array below
 	addr_t*     child_procs;                        // array of pointers to child process info structures (for things like process-tree termination)
 	addr_t      next            CXX_INI(nullptr);   // updated when the scheduling event fires.
-} attribute(packed, aligned(16)) task_t;
+} attribute(aligned(16)) task_t;
 inline void fx_save(task_t* tx) { asm volatile("fxsave %0" : "=m"(tx->fxsv) :: "memory"); }
 inline void fx_restore(task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx->fxsv) :: "memory"); }
 #ifdef __cplusplus

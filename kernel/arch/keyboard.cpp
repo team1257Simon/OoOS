@@ -1,9 +1,11 @@
 #include "arch/keyboard.hpp"
 #include "arch/arch_amd64.h"
+#include "isr_table.hpp"
 #include "array"
 namespace ooos
 {
 	using enum keyboard_scanset;
+	using enum keyboard_cmd_byte;
 	using enum keycode;
 	typedef keyboard_event const scancode_table[2][256];
 	// Helper functions to build the prototype packets for the scancode tables. 
@@ -45,7 +47,7 @@ namespace ooos
 		// Everything except the values of kv_release, kv_vstate.caps_lock, and kv_vstate.num_lock remain identical.
 		// Break events shouldn't toggle the locks, so we clear those bits in the XOR mask.
 		keyboard_event result(make);
-		result.kv_release 		= true;
+		result.kv_release 			= true;
 		result.kv_vstate.caps_lock 	= false;
 		result.kv_vstate.num_lock 	= false;
 		return result;
@@ -167,13 +169,13 @@ namespace ooos
 			s_dn(KC_M1),		uk_ex(0x11UC),		uk_ex(0x12UC),		uk_ex(0x13UC),
 			uk_ex(0x14UC),		uk_ex(0x15UC),		uk_ex(0x16UC),		uk_ex(0x17UC),
 			uk_ex(0x18UC),		s_dn(KC_M2),		uk_ex(0x1AUC),		uk_ex(0x1BUC),
-			n_dn('\n'),		s_dn(KC_RCTRL),		uk_ex(0x1EUC),		uk_ex(0x1FUC),
+			n_dn('\n'),			s_dn(KC_RCTRL),		uk_ex(0x1EUC),		uk_ex(0x1FUC),
 			s_dn(KC_M3),		s_dn(KC_M4),		s_dn(KC_M5),		uk_ex(0x23UC),
 			s_dn(KC_M6),		uk_ex(0x25UC),		uk_ex(0x26UC),		uk_ex(0x27UC),
 			uk_ex(0x28UC),		uk_ex(0x29UC),		prtscr_packet,		uk_ex(0x2BUC),
 			uk_ex(0x2CUC),		uk_ex(0x2DUC),		s_dn(KC_M7),		uk_ex(0x2FUC),
 			s_dn(KC_M8),		uk_ex(0x31UC),		s_dn(KC_M9),		uk_ex(0x33UC),
-			uk_ex(0x34UC),		n_dn('/'),		uk_ex(0x36UC),		prtscr_packet,
+			uk_ex(0x34UC),		n_dn('/'),			uk_ex(0x36UC),		prtscr_packet,
 			s_dn(KC_RALT),		uk_ex(0x39UC),		uk_ex(0x3AUC),		uk_ex(0x3BUC),
 			uk_ex(0x3CUC),		uk_ex(0x3DUC),		uk_ex(0x3EUC),		uk_ex(0x3FUC),
 			uk_ex(0x40UC),		uk_ex(0x41UC),		uk_ex(0x42UC),		uk_ex(0x43UC),
@@ -441,7 +443,7 @@ namespace ooos
 	};
 #pragma endregion
 	// Helper functions for handling the character value in the packets and the multiplexing for the scanset tables
-#pragma region miscellaneous helpers		
+#pragma region miscellaneous helpers
 	// Case difference, for shifts and caps lock
 	constexpr char cdiff = 'a' - 'A';
 	static std::array<char, 127> shift_table = std::ext::range_evaluate<char, '\177'>([](char value) -> char
@@ -491,12 +493,13 @@ namespace ooos
 			default:		return static_cast<keycode>(base);
 		}
 	}
-	static keycode compute_by_state(keyboard_event const& p)
+	static keycode compute_by_state(keyboard_event const& e)
 	{
-		wchar_t value = p.kv_code;
-		if(p.kv_numpad) return numpad_shift(value);
-		if(p.kv_vstate.caps_lock && (value >= 'a' && value <= 'z')) value -= cdiff;
-		if(value < 127 && (p.kv_vstate.left_shift || p.kv_vstate.right_shift)) value = shift_table[value];
+		wchar_t value = e.kv_code;
+		bool is_shift = e.kv_vstate.left_shift || e.kv_vstate.right_shift;
+		if(e.kv_numpad && (e.kv_vstate.num_lock || is_shift)) return numpad_shift(value);
+		if(e.kv_vstate.caps_lock && (value >= 'a' && value <= 'z')) value -= cdiff;
+		if(value < 127 && is_shift) value = shift_table[value];
 		return static_cast<keycode>(value);
 	}
 	static keyboard_event const* base_scan_table(keyboard_scanset ss) noexcept { return ss == SC_SET2 ? set2[0] : ss == SC_SET3 ? set3[0] : set1[0]; }
@@ -504,45 +507,43 @@ namespace ooos
 	static uint8_t const* pause_sequence(keyboard_scanset ss) noexcept { return ss == SC_SET3 ? nullptr : ss == SC_SET2 ? pause_set2 : pause_set1; }
 	static size_t pause_sequence_length(keyboard_scanset ss) noexcept { return ss == SC_SET3 ? 0UZ : ss == SC_SET2 ? sizeof(pause_set2) : sizeof(pause_set1); }
 #pragma endregion
-	// These helpers encapsulate some special handling required to prevent bitfield sign-extension problems in equality checks for special keycodes.
-#pragma region placeholder packet helpers
-	constexpr static bool is_unknown(keyboard_event const& p) noexcept { return (dword(p.kv_code).hi.hi & 0x0EUC) == 0x0EUC; }
-	constexpr static bool is_extended_escape(keyboard_event const& p) noexcept { return p.kv_code == keyboard_event(static_cast<wchar_t>(KC_EXB)).kv_code; }
-	constexpr static bool is_sequence_escape(keyboard_event const& p) noexcept { return p.kv_code == keyboard_event(static_cast<wchar_t>(KC_SEQB)).kv_code; }
-	constexpr static bool is_break_escape(keyboard_event const& p) noexcept { return p.kv_code == keyboard_event(static_cast<wchar_t>(KC_BRB)).kv_code; }
-#pragma endregion
+	uint16_t ps2_keyboard_controller::id_word() const noexcept { return __be16(__state.id_bytes); }
+	typematic_byte ps2_keyboard_controller::typematic() const noexcept { return __state.typematic; }
+	keyboard_scanset ps2_keyboard_controller::scanset() const noexcept { return __state.scanset; }
+	ps2_keyboard_controller::operator bool() const noexcept { return __state_valid; }
+	ps2_keyboard::ps2_keyboard(ps2_controller& ps2) : __controller(ps2), __decoder(), __input_queue(8UZ), __listeners() { __init(); }
 	keyboard_event keyboard_scan_decoder::__decode_one(uint8_t scan, byte_queue& rem) const
 	{
-		keyboard_event p 		= __scans[scan];
-		if(is_extended_escape(p)) {
+		keyboard_event e 		= __scans[scan];
+		if(e == KC_EXB) {
 			if(__unlikely(!rem)) return uk_sc(scan);
 			return __decode_one_escaped(rem.pop(), rem);
 		}
-		else if(is_sequence_escape(p)) {
+		else if(e == KC_SEQB) {
 			if(__unlikely(!rem)) return uk_sc(scan);
 			return __decode_one_seq(scan, rem);
 		}
-		else if(is_break_escape(p)) {
+		else if(e == KC_BRB) {
 			if(__unlikely(!rem)) return uk_sc(scan);
 			return to_break(__decode_one(rem.pop(), rem));
 		}
-		else return p;
+		else return e;
 	}
 	keyboard_event keyboard_scan_decoder::__decode_one_escaped(uint8_t scan, byte_queue& rem) const
 	{
-		keyboard_event p 		= __escaped_scans[scan];
-		if(is_break_escape(p)) {
+		keyboard_event e 	= __escaped_scans[scan];
+		if(e == KC_BRB) {
 			if(__unlikely(!rem)) return uk_ex(scan);
-			p 			= to_break(__decode_one_escaped(rem.pop(), rem));
+			e 				= to_break(__decode_one_escaped(rem.pop(), rem));
 		}
-		if(p.kv_multiscan)
+		if(e.kv_multiscan)
 		{
 			if(__unlikely(!rem)) return uk_ex(scan);
-			uint8_t next 	= rem.peek();
-			keyboard_event q		= __decode_one(rem.pop(), rem);
-			if(q.kv_code != p.kv_code || q.kv_release != p.kv_release) return uk_seq(scan, next);
+			uint8_t next 		= rem.peek();
+			keyboard_event f	= __decode_one(rem.pop(), rem);
+			if(f.kv_code != e.kv_code || f.kv_release != e.kv_release) return uk_seq(scan, next);
 		}
-		return p;
+		return e;
 	}
 	keyboard_event keyboard_scan_decoder::__decode_one_seq(uint8_t seq_bookend, byte_queue& rem) const
 	{
@@ -583,20 +584,168 @@ seq_fail:
 	keyboard_event keyboard_scan_decoder::decode(byte_queue& scan_bytes)
 	{
 		if(__unlikely(!scan_bytes)) return uk_sc(0x00UC);
-		struct __exit_guard {
-			byte_queue& q;
-			~__exit_guard() { q.clear(); }
-		} g(scan_bytes);
-		keyboard_event p 				= __decode_one(scan_bytes.pop(), scan_bytes);
-		if(!is_unknown(p))
+		struct __exit_guard
 		{
-			uint8_t& p_state		= addr_t(std::addressof(p.kv_vstate)).deref<uint8_t>();
-			uint8_t mod_state		= p_state;
+			byte_queue& q;
+			/**
+			 * If any of the helpers returns prematurely, there will be leftover bytes in the queue. This will remove those bytes in such a case.
+			 * Unlike the clear() method (which zeroes the queue's data), flush() is O(1) for circular queues.
+			 * The method sets the "current" pointer to equal the "last" pointer, effectively clearing the queue.
+			 * This does mean there will be garbage data in the queue, but it will be overwritten by future pushes.
+			 * Note that calling peek() or pop() on a queue with length 0 is undefined behavior (hence the operator bool to check if the queue is not empty).
+			 */
+			~__exit_guard() { if(q) q.flush(); }
+		} g(scan_bytes);
+		keyboard_event e 			= __decode_one(scan_bytes.pop(), scan_bytes);
+		if((dword(e).hi.hi & 0x0EUC) != 0x0EUC)
+		{
+			uint8_t& e_state		= addr_t(std::addressof(e.kv_vstate)).deref<uint8_t>();
+			uint8_t mod_state		= e_state;
 			uint8_t& s_state		= addr_t(std::addressof(current_state)).deref<uint8_t>();
-			p_state					= s_state;
+			e_state					= s_state;
 			s_state					^= mod_state;
-			p.kv_code				= static_cast<wchar_t>(compute_by_state(p));
+			if(!e.kv_release)
+			{
+				led_state.caps_lock		^= (e == KC_CAPS);
+				led_state.num_lock		^= (e == KC_NUM);
+				led_state.scroll_lock	^= (e == KC_SCRLL);
+			}
+			e.kv_code				= static_cast<wchar_t>(compute_by_state(e));
 		}
-		return p;
+		return e;
+	}
+	void ps2_keyboard_controller::__send_cmd_byte(keyboard_cmd_byte b)
+	{
+		uint8_t response_byte;
+		size_t attempts = 0UZ;
+		do {
+			if(!(__ps2_controller << b).wait_for(response_byte)) throw std::runtime_error("[KBD] timeout waiting for controller");
+			attempts++;
+			if(attempts > 3UZ) throw std::runtime_error("[KBD] unsupported command or controller error");
+		} while(response_byte != sig_keybd_ack);
+	}
+	void ps2_keyboard_controller::__execute_next() noexcept
+	{
+		keyboard_command cmd = __cmd_queue.pop();
+		try 
+		{
+			if(cmd.expects_response) __send_cmd_byte(KBC_SCDIS);
+			__send_cmd_byte(cmd.cmd_byte);
+			if(cmd.expects_response)
+			{
+				if(cmd.response_out)
+					if(__unlikely(!__ps2_controller.wait_for(cmd.response_out.deref<uint8_t>())))
+						cmd.response_out.deref<int8_t>() = -1SC;
+				__send_cmd_byte(KBC_SCEN);
+			}
+		}
+		catch(std::exception& e)
+		{
+			panic(e.what());
+			if(cmd.response_out)
+				cmd.response_out.deref<int8_t>() = -1SC;
+		}
+	}
+	__nointerrupts bool ps2_keyboard_controller::__initialize() noexcept
+	{
+		if(__unlikely(!__ps2_controller.ready && !ps2_init(__ps2_controller))) return false;
+		try
+		{
+			uint8_t echo_reply;
+			size_t attempts = 0UZ;
+			do {
+				if(attempts++ > 3UZ) throw std::runtime_error("[KBD] keyboard is absent or nonfunctional");
+				__send_cmd_byte(KBC_RESET);
+				(__ps2_controller << KBC_ECHO) >> echo_reply;
+			} while(echo_reply != sig_keybd_ping);
+			__send_cmd_byte(KBC_SCDIS);
+			size_t n = 0UZ;
+			__send_cmd_byte(KBC_IDENTIFY);
+			for(size_t i = 0UZ; i < 100UZ && n < 2UZ; i++)
+				if(__ps2_controller >> __state.id_bytes[n])
+					n++;
+			__send_cmd_byte(KBC_PARAMRST);
+			__send_cmd_byte(KBC_SCEN);
+			interrupt_table::add_irq_handler(0UC, [this]() __nointerrupts -> void { while(__cmd_queue) __execute_next(); });
+			return true;
+		}
+		catch(std::exception& e) { panic(e.what()); }
+		return false;
+	}
+	ps2_keyboard_controller::ps2_keyboard_controller(ps2_controller& ps2) noexcept :
+		__ps2_controller(ps2),
+		__cmd_queue(),
+		__state(SC_SET2, typematic_byte()),
+		__state_valid(__initialize())
+	{}
+	bool ps2_keyboard_controller::enqueue_command(keyboard_command&& cmd) noexcept
+	{
+		if(__unlikely(!__state_valid)) return false;
+		try { __cmd_queue.push(std::move(cmd)); return true; }
+		catch(std::exception& e) { panic(e.what()); }
+		return false;
+	}
+	bool ps2_keyboard_controller::scanset(keyboard_scanset value) noexcept
+	{
+		// nothing to do if the value is already there
+		if(__unlikely(__state.scanset == value)) return true;
+		keyboard_command cmd(true, false, KBC_SCANSET);
+		switch(value)
+		{
+		case SC_SET1:
+			cmd.sub = 1UC;
+			break;
+		case SC_SET2:
+			cmd.sub = 2UC;
+			break;
+		case SC_SET3:
+			cmd.sub = 3UC;
+			break;
+		default:
+			return false;
+		}
+		return enqueue_command(std::move(cmd));
+	}
+	bool ps2_keyboard_controller::typematic(typematic_byte value) noexcept
+	{
+		uint8_t as_uchar = std::bit_cast<uint8_t>(value);
+		// nothing to do if the value is already there
+		if(__unlikely(as_uchar == std::bit_cast<uint8_t>(__state.typematic))) return true;
+		keyboard_command cmd
+		{
+			.has_sub 	= true,
+			.cmd_byte 	= KBC_TYPEMATIC,
+			.sub		= as_uchar
+		};
+		return enqueue_command(std::move(cmd));
+	}
+	void ps2_keyboard::__init()
+	{
+		if(__unlikely(!__controller)) return;
+		irq_callback cb(std::bind(&ps2_keyboard::__on_irq, this));
+		interrupt_table::add_irq_handler(1UZ, std::move(cb));	
+	}
+	void ps2_keyboard::__on_irq()
+	{
+		uint8_t lights 			= std::bit_cast<uint8_t>(__decoder.led_state);
+		ps2_controller& ps2		= __controller.__ps2_controller;
+		ps2_status_byte status{};
+		uint8_t data_byte{};
+		do {
+			if(ps2 >> data_byte) __input_queue.push(data_byte);
+			status = __controller.__ps2_controller.status();
+		} while(status.ps2_out_avail);
+		keyboard_event e 		= __decoder.decode(__input_queue);
+		if(uint8_t nlights = std::bit_cast<uint8_t>(__decoder.led_state); nlights != lights)
+		{
+			keyboard_command led_command
+			{
+				.has_sub 	= true,
+				.cmd_byte 	= KBC_SET_LEDS,
+				.sub 		= nlights
+			};
+			__controller.enqueue_command(std::move(led_command));
+		}
+		for(keyboard_listener_registry::value_type const& p : __listeners) p.second(e);
 	}
 }

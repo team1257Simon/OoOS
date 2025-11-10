@@ -57,7 +57,7 @@ class hpet_amd64
     time_t __frequency_megahertz;
     static hpet_amd64 __instance;
     hpet_amd64();
-    attribute(nointerrupts) bool __init() noexcept;
+    __nointerrupts bool __init() noexcept;
 public:
     static hpet_amd64& get();
     static bool init_instance() noexcept;

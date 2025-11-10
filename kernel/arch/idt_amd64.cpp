@@ -17,7 +17,7 @@ namespace interrupt_table
     spinlock_t __itable_mutex;
     void __lock() { lock(std::addressof(__itable_mutex)); }
     void __unlock() { release(std::addressof(__itable_mutex)); }
-    attribute(nointerrupts) void deregister_owner(void* owner) noexcept
+    __nointerrupts void deregister_owner(void* owner) noexcept
 	{
 		if(owner)
 		{
@@ -26,7 +26,7 @@ namespace interrupt_table
 			__unlock();
 		}
 	}
-    attribute(nointerrupts) bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
+    __nointerrupts bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
 	{
 		try
 		{
@@ -44,7 +44,7 @@ namespace interrupt_table
 			abort();
 		}
 	}
-    attribute(nointerrupts) bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
+    __nointerrupts bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
 	{
 		try
 		{
@@ -62,7 +62,7 @@ namespace interrupt_table
 			abort();
 		}
 	}
-    attribute(nointerrupts) void add_interrupt_callback(interrupt_callback&& cb) noexcept
+    __nointerrupts void add_interrupt_callback(interrupt_callback&& cb) noexcept
 	{
 		try { __registered_callbacks.push_back(std::move(cb)); }
 		catch(...) {
@@ -108,11 +108,11 @@ extern "C"
     void isr_dispatch(uint8_t idx)
     {
         if(idx == 0x28UC) { (*callback_8)(); delay_flag = false; callback_8 = no_waiting_op; }
-        bool is_err = (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
+        bool is_err 	= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
         asm volatile("movq %%rsp, %0" : "=m"(saved_stack_ptr) :: "memory");
         if(idx > 0x19UC && idx < 0x30UC) 
         { 
-            byte irq{ uint8_t(idx - 0x20UC) };
+            byte irq 	= static_cast<uint8_t>(idx - 0x20UC);
             kernel_memory_mgr::suspend_user_frame();
             kfx_save();
             for(std::pair<void* const, ooos::isr_actor>& p : __managed_handlers[irq]) p.second();

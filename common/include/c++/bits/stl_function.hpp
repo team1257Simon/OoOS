@@ -48,10 +48,10 @@ namespace std
 		{
 			constexpr static size_t __max_size  = sizeof(__no_copy);
 			constexpr static size_t __max_align = alignof(__no_copy);
-			template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { ::new(dest.__access()) FT(forward<F2>(src)); }
-			template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { dest.__access<FT*>() = new FT(forward<F2>(src)); }
+			template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { new(dest.__access()) FT(forward<F2>(src)); }
+			template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { dest.__access<FT*>() = new(::operator new(sizeof(FT), static_cast<std::align_val_t>(alignof(FT)))) FT(forward<F2>(src)); }
 			constexpr static void __delete_wrapper(__data_store& target, true_type) { target.__access<FT>().~FT(); }
-			constexpr static void __delete_wrapper(__data_store& target, false_type) { ::operator delete(target.__access<FT*>()); }
+			constexpr static void __delete_wrapper(__data_store& target, false_type) { ::operator delete(target.__access<FT*>(), sizeof(FT), static_cast<std::align_val_t>(alignof(FT))); }
 		protected:
 			using __is_locally_storable = __and_<is_trivially_copyable<FT>, bool_constant<sizeof(FT) <= __max_size && __alignof__(FT) <= __max_align && __max_align % __alignof__(FT) == 0>>;
 			constexpr static bool __is_local_store = __is_locally_storable::value;
@@ -73,7 +73,7 @@ namespace std
 					__init_fn(dest, *const_cast<FT const*>(__get_pointer(src)));
 					break;
 				case __destroy_functor:
-					__delete_wrapper(dest, __is_locally_storable{});
+					__delete_wrapper(dest, __is_locally_storable());
 					break;
 				case __get_type_info:
 					dest.__access<type_info const*>() = &typeid(FT);

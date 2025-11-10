@@ -321,6 +321,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define HAVE_STDINT 1
 #define __pack attribute(packed)
 #define __align(n) attribute(aligned(n))
+#define __nointerrupts attribute(nointerrupts)
 #define __unlikely(x) __builtin_expect((x), false)
 #ifndef __cplusplus
 #ifdef NEED_STDBOOL
@@ -380,9 +381,9 @@ typedef struct attribute(packed) __pt_entry
 } pt_entry;
 typedef pt_entry* paging_table;
 #ifdef __cplusplus 
-typedef union __pack __may_alias __vaddr
+typedef union __pack alignas(uintptr_t) __may_alias __vaddr
 #else
-typedef struct attribute(packed) __vaddr
+typedef struct attribute(packed, aligned(8)) __vaddr
 #endif
 {
 #ifdef __cplusplus 
@@ -417,23 +418,23 @@ typedef struct attribute(packed) __vaddr
 	template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(volatile T* ptr) noexcept : __vaddr(static_cast<volatile void*>(ptr)) {}
 	template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(const volatile T* ptr) noexcept : __vaddr(static_cast<const volatile void*>(ptr)) {}
 	template<typename RT, typename ... Args> constexpr explicit __vaddr(RT (*ptr)(Args...)) noexcept : __vaddr(__builtin_bit_cast(void*, ptr)) {}
-	constexpr __vaddr() = default;
-	constexpr ~__vaddr() = default;
-	constexpr __vaddr(__vaddr const&) = default;
-	constexpr __vaddr(__vaddr &&) = default;
-	constexpr __vaddr& operator=(__vaddr const&) = default;
-	constexpr __vaddr& operator=(__vaddr &&) = default;
+	constexpr __vaddr() noexcept = default;
+	constexpr ~__vaddr() noexcept = default;
+	constexpr __vaddr(__vaddr const&) noexcept = default;
+	constexpr __vaddr(__vaddr &&) noexcept = default;
+	constexpr __vaddr& operator=(__vaddr const&) noexcept = default;
+	constexpr __vaddr& operator=(__vaddr &&) noexcept = default;
 	constexpr operator uintptr_t() const noexcept { return full; }
-	constexpr __vaddr operator+(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
-	constexpr __vaddr& operator+=(ptrdiff_t value) { full += value; return *this; }
-	constexpr __vaddr operator%(uint64_t unit) const { return __vaddr(full % unit); }
-	constexpr __vaddr& operator%=(uint64_t unit) { return *this = (*this % unit); }
-	constexpr __vaddr operator-(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
-	constexpr __vaddr& operator-=(ptrdiff_t value) { full -= value; return *this; }
-	constexpr __vaddr plus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full + value)); }
-	constexpr __vaddr minus(ptrdiff_t value) const { return __vaddr(static_cast<uintptr_t>(full - value)); }
-	constexpr __vaddr trunc(size_t alignval) const { return alignval > 1UZ ? minus(full % alignval) : *this; }
-	constexpr __vaddr alignup(size_t alignval) const { return (alignval > 1UZ && full % alignval) ? plus(alignval).trunc(alignval) : *this; }
+	constexpr __vaddr operator+(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full + value)); }
+	constexpr __vaddr& operator+=(ptrdiff_t value) noexcept { full += value; return *this; }
+	constexpr __vaddr operator%(uint64_t unit) const noexcept { return __vaddr(full % unit); }
+	constexpr __vaddr& operator%=(uint64_t unit) noexcept { return *this = (*this % unit); }
+	constexpr __vaddr operator-(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full - value)); }
+	constexpr __vaddr& operator-=(ptrdiff_t value) noexcept { full -= value; return *this; }
+	constexpr __vaddr plus(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full + value)); }
+	constexpr __vaddr minus(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full - value)); }
+	constexpr __vaddr trunc(size_t alignval) const noexcept { return alignval > 1UZ ? minus(full % alignval) : *this; }
+	constexpr __vaddr alignup(size_t alignval) const noexcept { return (alignval > 1UZ && full % alignval) ? plus(alignval).trunc(alignval) : *this; }
 	constexpr __vaddr page_aligned() const noexcept { return minus(full % PAGESIZE); }
 	constexpr __vaddr next_page_aligned() const noexcept { return full % PAGESIZE ? plus(PAGESIZE).page_aligned() : *this; }
 	typedef const void* cvptr;
@@ -444,9 +445,9 @@ typedef struct attribute(packed) __vaddr
 	template<non_void T> using cvtptr = const volatile T*;
 	template<typename T = void> constexpr T* as() const noexcept { return __builtin_bit_cast(std::remove_cv_t<T>*, full); }
 	template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return __builtin_bit_cast(volatile std::remove_cv_t<T>*, const_cast<__vaddr const*>(this)->full); }
-	template<non_void T> constexpr T& deref() const { return *as<T>(); }
-	template<non_void T> constexpr T& assign(T const& value) const { return deref<T>() = value; }
-	template<non_void T> constexpr T& assign(T&& value) const { return deref<std::remove_reference_t<T>>() = std::move(value); }
+	template<non_void T> constexpr T& deref() const noexcept { return *as<T>(); }
+	template<non_void T> constexpr T& assign(T const& value) const noexcept { return deref<T>() = value; }
+	template<non_void T> constexpr T& assign(T&& value) const noexcept { return deref<std::remove_reference_t<T>>() = std::move(value); }
 	template<typename T, typename ... Args> using functor_t = T(*)(Args...);
 	template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
 	constexpr operator void*() const noexcept { return this->as<void>(); }
@@ -473,7 +474,7 @@ typedef union __may_alias __idx_addr
 {
 	addr_t idx;
 	uintptr_t addr;
-} __pack indexed_address;
+} attribute(packed, aligned(8)) indexed_address;
 #endif
 #ifdef __cplusplus
 extern "C"
@@ -848,6 +849,7 @@ typedef struct __s_le16
 	__byte hi;
 	constexpr __s_le16() noexcept = default;
 	constexpr __s_le16(byte l, byte h) noexcept : lo(l), hi(h) {}
+	constexpr __s_le16(const uint8_t bytes[2]) noexcept : lo(bytes[0]), hi(bytes[1]) {}
 	constexpr __s_le16(uint16_t value) noexcept { *this = __builtin_bit_cast(__s_le16, value); }
 	template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
 	constexpr __s_le16(__s_le16 const&) noexcept = default;
@@ -880,7 +882,7 @@ typedef struct __s_le32
 	constexpr __s_le32() noexcept = default;
 	constexpr __s_le32(__le16 l, __le16 h) noexcept : lo(l), hi(h) {}
 	constexpr __s_le32(uint32_t value) noexcept { *this = __builtin_bit_cast(__s_le32, value); }
-	constexpr __s_le32(uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
+	constexpr __s_le32(const uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
 	template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __s_le32(IT it) noexcept : __s_le32(static_cast<uint32_t>(it)) {}
 	constexpr __s_le32(__s_le32 const&) noexcept = default;
 	constexpr __s_le32(__s_le32&&) noexcept = default;
@@ -912,7 +914,7 @@ typedef struct __s_le64
 	constexpr __s_le64() noexcept = default;
 	constexpr __s_le64(__le32 l, __le32 h) noexcept : lo(l), hi(h) {}
 	constexpr __s_le64(uint64_t value) noexcept { *this = __builtin_bit_cast(__s_le64, value); }
-	constexpr __s_le64(uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
+	constexpr __s_le64(const uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
 	template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __s_le64(IT it) noexcept : __s_le64{ static_cast<uint64_t>(it) } {}
 	constexpr __s_le64(__s_le64 const&) noexcept = default;
 	constexpr __s_le64(__s_le64&&) noexcept = default;
@@ -954,7 +956,7 @@ typedef struct __s_be16
 	uint8_t lo;
 	constexpr explicit __s_be16(uint16_t i) noexcept : hi(static_cast<uint8_t>((i >> 8) & 0xFF)), lo(static_cast<uint8_t>(i & 0xFF)) {}
 	constexpr __s_be16(uint8_t h, uint8_t l) noexcept : hi(h), lo(l) {}
-	constexpr __s_be16(uint8_t bytes[2]) noexcept : hi(bytes[0]), lo(bytes[1]) {}
+	constexpr __s_be16(const uint8_t bytes[2]) noexcept : hi(bytes[0]), lo(bytes[1]) {}
 	constexpr __s_be16() noexcept = default;
 	constexpr __s_be16(__s_be16&&) noexcept = default;
 	constexpr __s_be16(__s_be16 const&) noexcept = default;
@@ -973,7 +975,7 @@ typedef struct __s_be32
 	constexpr explicit __s_be32(uint32_t i) noexcept : hi(static_cast<uint16_t>((i >> 16) & 0xFFFF)), lo(static_cast<uint16_t>(i & 0xFFFF)) {}
 	constexpr __s_be32(__be16 h, __be16 l) noexcept : hi(h), lo(l) {}
 	constexpr __s_be32(uint8_t hh, uint8_t hl, uint8_t lh, uint8_t ll) noexcept : hi(hh, hl), lo(lh, ll) {}
-	constexpr __s_be32(uint8_t bytes[4]) noexcept : hi(bytes[0], bytes[1]), lo(bytes[2], bytes[3]) {}
+	constexpr __s_be32(const uint8_t bytes[4]) noexcept : hi(bytes[0], bytes[1]), lo(bytes[2], bytes[3]) {}
 	constexpr __s_be32() noexcept = default;
 	constexpr __s_be32(__s_be32&&) noexcept = default;
 	constexpr __s_be32(__s_be32 const&) noexcept = default;
@@ -993,7 +995,7 @@ typedef struct __s_be64
 	constexpr __s_be64(__be32 h, __be32 l) noexcept : hi(h), lo(l) {}
 	constexpr __s_be64(__be16 hh, __be16 hl, __be16 lh, __be16 ll) noexcept : hi(hh, hl), lo(lh, ll) {}
 	constexpr __s_be64(uint8_t hhh, uint8_t hhl, uint8_t hlh, uint8_t hll, uint8_t lhh, uint8_t lhl, uint8_t llh, uint8_t lll) : hi(hhh, hhl, hlh, hll), lo(lhh, lhl, llh, lll) {}
-	constexpr __s_be64(uint8_t bytes[8]) noexcept : hi(bytes[0], bytes[1], bytes[2], bytes[3]), lo(bytes[4], bytes[5], bytes[6], bytes[7]) {}
+	constexpr __s_be64(const uint8_t bytes[8]) noexcept : hi(bytes[0], bytes[1], bytes[2], bytes[3]), lo(bytes[4], bytes[5], bytes[6], bytes[7]) {}
 	constexpr __s_be64() noexcept = default;
 	constexpr __s_be64(__s_be64&&) noexcept = default;
 	constexpr __s_be64(__s_be64 const&) noexcept = default;

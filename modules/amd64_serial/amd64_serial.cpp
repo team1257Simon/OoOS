@@ -5,15 +5,19 @@ static bool serial_have_input(word p) { line_status_byte b = inb(p); return b.da
 amd64_serial::size_type amd64_serial::avail() const { return __input_pos > in.cur ? static_cast<size_type>(__input_pos - in.cur) : 0UZ; }
 ooos::generic_config_table& amd64_serial::get_config() { return __cfg.generic; }
 amd64_serial::amd64_serial() = default;
-void amd64_serial::__trim_old()
+void amd64_serial::__trim_old() noexcept
 {
-	size_type rem       = amd64_serial::avail();
-	size_type old_cap   = in.capacity();
-	pointer new_buf     = static_cast<pointer>(allocate_buffer(in.capacity(), alignof(value_type)));
-	__builtin_memcpy(new_buf, in.cur, rem);
-	destroy_buffer(in);
-	in.set(new_buf, new_buf, new_buf + old_cap);
-	__input_pos         = in.beg + rem;
+	try
+	{
+		size_type rem       = amd64_serial::avail();
+		size_type old_cap   = in.capacity();
+		pointer new_buf     = static_cast<pointer>(allocate_buffer(in.capacity(), alignof(value_type)));
+		__builtin_memcpy(new_buf, in.cur, rem);
+		destroy_buffer(in);
+		in.set(new_buf, new_buf, new_buf + old_cap);
+		__input_pos         = in.beg + rem;
+	}
+	catch(...) { raise_error("out of memory"); }
 }
 static bool loopback_test(word port)
 {
@@ -105,9 +109,18 @@ int amd64_serial::sync()
 }
 typename amd64_serial::size_type amd64_serial::read(pointer dest, size_type n)
 {
-	size_type rem = amd64_serial::avail();
-	size_type old = in.size();
-	if(rem && old && ooos::get_element<4>(__cfg)) __trim_old();
+	if(ooos::get_element<4>(__cfg))
+	{
+		size_type old = in.size();
+		if(old && __input_pos > in.cur)
+		{
+			// for some reason the no-interrupts attribute doesn't want to work with this function, so we have to force it
+			asm volatile("pushf\n cli");
+			this->__trim_old();
+			asm volatile("popf");
+		}
+	}
+	size_type rem = __input_pos > in.cur ? static_cast<size_type>(__input_pos - in.cur) : 0UZ;
 	if(n > rem) n = rem;
 	__builtin_memcpy(dest, in.cur, n);
 	in.cur += n;
