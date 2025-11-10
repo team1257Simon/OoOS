@@ -15,7 +15,7 @@ class posix_directory
     addr_t __buffer_mapped_vaddr;
     directory_buffer* __my_dir_buffer;
 public:
-    posix_directory(directory_node* dirnode, uframe_tag* calling_tag);
+    posix_directory(directory_vnode* dirnode, uframe_tag* calling_tag);
     posix_directory(uframe_tag* owning_tag, addr_t buffer_vaddr);
     ~posix_directory();
     posix_directory(posix_directory&& that);

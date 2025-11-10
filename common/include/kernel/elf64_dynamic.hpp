@@ -50,7 +50,7 @@ public:
 	constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
 	constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }
 	addr_t resolve_rela_target(elf64_rela const& r) const;
-	elf64_dynamic_object(file_node* n);
+	elf64_dynamic_object(file_vnode* n);
 	elf64_dynamic_object(addr_t start, size_t size);
 	elf64_dynamic_object(elf64_dynamic_object const& that);
 	elf64_dynamic_object(elf64_dynamic_object&& that);

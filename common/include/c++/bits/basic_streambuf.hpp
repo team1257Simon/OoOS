@@ -7,7 +7,7 @@ namespace std
 	template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>>
 	class basic_streambuf
 	{
-		friend class device_node;
+		friend class device_vnode;
 	public:
 		typedef CT                      char_type;
 		typedef TT                      traits_type;

@@ -6,7 +6,7 @@ template<typename ... Args> requires(std::constructible_from<elf64_kernel_object
 module_loader module_loader::__instance{};
 module_loader::module_loader() : __base(64UZ) {}
 module_loader& module_loader::get_instance() { return __instance; }
-std::pair<module_loader::iterator, bool> module_loader::add(file_node* file) { return add_obj(*this, file); }
+std::pair<module_loader::iterator, bool> module_loader::add(file_vnode* file) { return add_obj(*this, file); }
 std::pair<module_loader::iterator, bool> module_loader::add(addr_t start, size_t size) { return add_obj(*this, start, size); }
 bool module_loader::remove(std::string const& name) { return this->erase(name) != 0UZ; }
 bool module_loader::remove(abstract_module_base* mod) { return this->erase(name_for(mod)) != 0UZ; }

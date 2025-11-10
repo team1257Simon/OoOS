@@ -35,6 +35,7 @@ template class std::vector<partition_entry_t>;
 #else
 extern template class std::vector<partition_entry_t>;
 #endif
+// Interface for block device I/O handlers.
 struct block_device
 {
     virtual bool read(void* out, uint64_t start_sector, uint32_t count) = 0;

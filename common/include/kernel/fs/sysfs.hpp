@@ -176,10 +176,10 @@ protected:
 };
 struct sysfs_file_ptrs
 {
-    file_node* data_file;
-    file_node* index_file;
-    file_node* extents_file;
-    file_node* directory_file;
+    file_vnode* data_file;
+    file_vnode* index_file;
+    file_vnode* extents_file;
+    file_vnode* directory_file;
 };
 struct sysfs_backup_filenames
 {
@@ -190,10 +190,10 @@ struct sysfs_backup_filenames
 };
 class sysfs
 {
-    file_node& __data_file;
-    file_node& __index_file;
-    file_node& __extents_file;
-    file_node& __directory_file;
+    file_vnode& __data_file;
+    file_vnode& __index_file;
+    file_vnode& __extents_file;
+    file_vnode& __directory_file;
     std::unordered_map<std::string, uint32_t> __directory_map;
     std::unordered_map<uint32_t, sysfs_vnode> __opened_nodes;
     sysfs_index_file& __index();

@@ -38,14 +38,14 @@ bool shared_object_map::remove(iterator so_handle)
     __obj_paths.erase(so_handle); erase(so_handle);
     return true; 
 }
-shared_object_map::iterator shared_object_map::get_if_resident(file_node* so_file) 
+shared_object_map::iterator shared_object_map::get_if_resident(file_vnode* so_file) 
 {
     elf64_shared_object so(so_file, shared_frame); 
     iterator result = find(so.get_soname()); 
     if(result != end()) result->incref(); 
     return result; 
 }
-shared_object_map::iterator shared_object_map::add(file_node* so_file) 
+shared_object_map::iterator shared_object_map::add(file_vnode* so_file) 
 {
     std::pair<iterator, bool> result = emplace(so_file, shared_frame);
     if(result.second && !result.first->load()) { erase(result.first); throw std::runtime_error("[PRG/SO] load failed"); } 
@@ -72,7 +72,7 @@ shared_object_map::iterator shared_object_map::get_ldso_object(filesystem* fs)
     if(__ld_so			== __globals.end())
     {
         if(!fs) throw std::invalid_argument("[PRG/SO] need fs pointer to initialize ld.so object");
-        file_node* n	= fs->open_file("lib/ld-ooos.so", std::ios_base::in);
+        file_vnode* n	= fs->open_file("lib/ld-ooos.so", std::ios_base::in);
         __ld_so			= __globals.add(n);
         fs->close_file(n);
     }

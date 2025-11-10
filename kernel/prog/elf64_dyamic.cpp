@@ -14,7 +14,7 @@ addr_t elf64_dynamic_object::global_offset_table() const { return got_vaddr ? re
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return dyn_segment_idx ? resolve(phdr(dyn_segment_idx).p_vaddr) : nullptr; }
 addr_t elf64_dynamic_object::translate_in_frame(addr_t addr) { return get_frame()->translate(addr); }
 elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :	elf64_object(start, size), symbol_index(symstrtab, symtab) {}
-elf64_dynamic_object::elf64_dynamic_object(file_node* n) : elf64_object(n), symbol_index(symstrtab, symtab) {}
+elf64_dynamic_object::elf64_dynamic_object(file_vnode* n) : elf64_object(n), symbol_index(symstrtab, symtab) {}
 elf64_dynamic_object::~elf64_dynamic_object()
 {
 	symbol_index.destroy_if_present();

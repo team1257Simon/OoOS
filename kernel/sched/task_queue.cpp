@@ -10,10 +10,11 @@ task_pl_queue& prio_level_task_queues::operator[](priority_val pv) noexcept { re
 task_pl_queue const& prio_level_task_queues::operator[](priority_val pv) const noexcept { return __base::operator[](__idx_by_prio(pv)); }
 extern "C" void init_tss(addr_t k_rsp)
 {
-	system_tss.rsp[0] = k_rsp;
-	system_tss.rsp[1] = k_rsp;
-	system_tss.rsp[2] = k_rsp;
-	for(int i = 0; i < 7; i++) system_tss.ist[i] = k_rsp;
+	system_tss.rsp[0] 		= k_rsp;
+	system_tss.rsp[1] 		= k_rsp;
+	system_tss.rsp[2] 		= k_rsp;
+	for(int i = 0; i < 7; i++)
+		system_tss.ist[i] 	= k_rsp;
 }
 unsigned int task_wait_queue::cumulative_remaining_ticks() const noexcept
 {

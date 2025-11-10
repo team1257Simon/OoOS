@@ -3,7 +3,7 @@
 #include "map"
 #include "set"
 #include "bits/ios_base.hpp"
-struct file_node;
+struct file_vnode;
 struct file_lock_span
 {
     size_t start_pos;
@@ -27,10 +27,10 @@ class fd_locks_container
 protected:
     std::set<file_lock> read_locks;
     std::set<file_lock> write_locks;
-    file_node* locking_file;
+    file_vnode* locking_file;
     size_t compute_start(ptrdiff_t start, std::ios_base::seekdir whence);
 public:
-    fd_locks_container(file_node* fn);
+    fd_locks_container(file_vnode* fn);
     ~fd_locks_container();
     bool test(file_lock const& l);
     bool test(short type, ptrdiff_t start, std::ios_base::seekdir whence, size_t len);

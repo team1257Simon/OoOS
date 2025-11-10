@@ -9,7 +9,7 @@ static addr_t map_dirent_buffer(uframe_tag* tag, size_t num_entries)
 	if(!result) throw std::bad_alloc();
 	return result;
 }
-static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, directory_node* dirnode)
+static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, directory_vnode* dirnode)
 {
 	std::vector<tnode*> tnodes(dirnode->size());
 	size_t buffer_len           = (dirnode->readdir(tnodes) + 1) * sizeof(dirent);
@@ -66,7 +66,7 @@ posix_directory& posix_directory::operator=(posix_directory&& that)
 	that.__my_dir_buffer            = nullptr;
 	return *this;
 }
-posix_directory::posix_directory(directory_node* dirnode, uframe_tag* calling_tag) :
+posix_directory::posix_directory(directory_vnode* dirnode, uframe_tag* calling_tag) :
 	__owning_frame          { calling_tag },
 	__buffer_mapped_vaddr   { map_dirent_buffer(calling_tag, dirnode->size()) },
 	__my_dir_buffer         { create_dir_buffer(__buffer_mapped_vaddr, calling_tag, dirnode) }

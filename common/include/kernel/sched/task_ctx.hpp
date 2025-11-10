@@ -40,7 +40,7 @@ struct task_ctx
 	addr_t tls;
 	size_t tls_size;
 	filesystem* ctx_filesystem;
-	file_node* stdio_ptrs[3]                                {};
+	file_vnode* stdio_ptrs[3]                                {};
 	execution_state current_state                           { execution_state::STOPPED };
 	int exit_code                                           { 0 };
 	addr_t exit_target                                      { nullptr };
@@ -70,8 +70,8 @@ struct task_ctx
 	task_ctx(task_ctx const& that);         // implements vfork()
 	task_ctx(task_ctx&& that);
 	~task_ctx();
-	void set_stdio_ptrs(std::array<file_node*, 3>&& ptrs);
-	void set_stdio_ptrs(file_node* ptrs[3]);
+	void set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs);
+	void set_stdio_ptrs(file_vnode* ptrs[3]);
 	filesystem* get_vfs_ptr();
 	void add_child(task_ctx* that);
 	bool remove_child(task_ctx* that);
@@ -92,7 +92,7 @@ struct task_ctx
 	bool set_fork();                            // implements fork()
 	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);    // implements execve()
 } __align(16);
-file_node* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
+file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 // Task struct base when in ISRs. In syscalls, use current_active_task instead
 inline task_t* get_task_base() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb; }
 // Task struct base when in syscalls. In ISRs, use get_task_base instead
@@ -101,7 +101,7 @@ inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x00
 inline task_ctx* active_task_context() { return current_active_task()->self; }
 // Shortcut because this also gets used a lot
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
-void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);
+void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);
 extern "C"
 {
 	[[noreturn]] void handle_exit();

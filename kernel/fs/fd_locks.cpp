@@ -1,6 +1,6 @@
 #include "fs/fd_locks.hpp"
 #include "fs/fs.hpp"
-fd_locks_container::fd_locks_container(file_node* fn) : read_locks{}, write_locks{}, locking_file{ fn } {}
+fd_locks_container::fd_locks_container(file_vnode* fn) : read_locks{}, write_locks{}, locking_file{ fn } {}
 fd_locks_container::~fd_locks_container() = default;
 size_t fd_locks_container::compute_start(ptrdiff_t start, std::ios_base::seekdir whence)
 {

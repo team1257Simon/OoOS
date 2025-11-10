@@ -16,7 +16,7 @@ public:
 	using __base::cbegin;
 	using __base::cend;
 	static module_loader& get_instance();
-	std::pair<iterator, bool> add(file_node* file);
+	std::pair<iterator, bool> add(file_vnode* file);
 	std::pair<iterator, bool> add(addr_t start, size_t size);
 	bool remove(std::string const& name);
 	bool remove(ooos::abstract_module_base* mod);

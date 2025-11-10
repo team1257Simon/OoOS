@@ -89,7 +89,7 @@ extern "C"
 		if(__unlikely(!fs_ptr)) return -ENOSYS;
 		name = translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
-		file_node* n;
+		file_vnode* n;
 		try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
 		elf64_executable* ex = prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;
@@ -116,7 +116,7 @@ extern "C"
 		if(__unlikely(!fs_ptr)) return -ENOSYS;
 		name				= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
-		file_node* n;
+		file_vnode* n;
 		try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
 		elf64_executable* ex = prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;

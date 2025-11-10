@@ -4,7 +4,7 @@
 #include "errno.h"
 #include "kdebug.hpp"
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
-static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st) 
+static inline void __stat_init(vnode* n, filesystem* fsptr, stat* st) 
 {
 	size_t bs = fsptr->block_size();
 	new(st) stat
@@ -15,7 +15,7 @@ static inline void __stat_init(fs_node* n, filesystem* fsptr, stat* st)
 		.st_nlink   = n->num_refs(),
 		.st_uid     = 0,    // WIP
 		.st_gid     = 0,    // WIP
-		.st_rdev    = n->is_device() ? dynamic_cast<device_node*>(n)->get_device_id() : 0U, 
+		.st_rdev    = n->is_device() ? dynamic_cast<device_vnode*>(n)->get_device_id() : 0U, 
 		.st_size    = static_cast<long>(n->size()),
 		.st_atim    = timestamp_to_timespec(n->create_time),
 		.st_mtim    = timestamp_to_timespec(n->modif_time), 
@@ -39,9 +39,9 @@ extern "C"
 		mode.trunc  = (flags & O_TRUNC);
 		try 
 		{
-			if(fs_node* existing = fsptr->find_node(name, false, mode))
+			if(vnode* existing = fsptr->find_node(name, false, mode))
 			{
-				if(file_node* fn = dynamic_cast<file_node*>(existing))
+				if(file_vnode* fn = dynamic_cast<file_vnode*>(existing))
 					fn->current_mode = mode;
 				if(flags & O_TRUNC) 
 					if(__unlikely(!existing->truncate())) return -EIO;
@@ -49,7 +49,7 @@ extern "C"
 			}
 			else if(__unlikely(!(flags & O_CREAT)))
 				return -ENOENT;
-			else if(file_node* n = fsptr->open_file(name, mode)) 
+			else if(file_vnode* n = fsptr->open_file(name, mode)) 
 				return n->vid();
 		}
 		catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }
@@ -64,7 +64,7 @@ extern "C"
 	{
 		filesystem* fsptr = get_task_vfs();
 		if(!fsptr) return -ENOSYS;
-		try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+		try { if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
 		return ENOMEM;
 	}
 	int syscall_write(int fd, char* ptr, int len)
@@ -75,7 +75,7 @@ extern "C"
 		if(!ptr) return -EFAULT;
 		try
 		{ 
-			if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) 
+			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) 
 			{
 				if(__unlikely(!n->current_mode.out)) return -EACCES;
 				n->write(ptr, len);
@@ -101,7 +101,7 @@ extern "C"
 		if(__unlikely(!ptr)) return -EFAULT;
 		try 
 		{ 
-			if(file_node* n = get_by_fd(fsptr, active_task_context(), fd))
+			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd))
 			{
 				if(!n->current_mode.in) return -EACCES;
 				n->read(ptr, len); 
@@ -136,7 +136,7 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		try 
 		{ 
-			if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) 
+			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) 
 			{
 				std::ios_base::seekdir xway;
 				if(way == 0) xway       = std::ios_base::beg;
@@ -167,7 +167,7 @@ extern "C"
 	{
 		filesystem* fsptr = get_task_vfs();
 		if(__unlikely(!fsptr)) return -ENOSYS;
-		try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+		try { if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
 		return -ENOMEM;
 	}
 	int syscall_fstat(int fd, stat* st)
@@ -176,7 +176,7 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		st = translate_user_pointer(st);
 		if(__unlikely(!st)) return -EFAULT;
-		try { if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+		try { if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
 		return -ENOMEM;
 	}
 	int syscall_stat(const char* restrict name, stat* restrict st)
@@ -188,7 +188,7 @@ extern "C"
 		if(__unlikely(!st || !name)) return -EFAULT;
 		try
 		{
-			fs_node* fn = fsptr->find_node(name);
+			vnode* fn = fsptr->find_node(name);
 			if(fn) { __stat_init(fn, fsptr, st); return 0; } 
 			return -ENOENT;
 		}
@@ -202,7 +202,7 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		try 
 		{ 
-			if(file_node* n = get_by_fd(fsptr, active_task_context(), fd)) 
+			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) 
 			{
 				n->mode = m;
 				n->fsync();
@@ -221,7 +221,7 @@ extern "C"
 		if(__unlikely(!name)) return -EFAULT;
 		try
 		{ 
-			if(file_node* n = fsptr->get_file(name))
+			if(file_vnode* n = fsptr->get_file(name))
 			{
 				n->mode = m;
 				n->fsync();
@@ -257,8 +257,8 @@ extern "C"
 		task_ctx* task = active_task_context();
 		try
 		{
-			fs_node* node       = fsptr->get_fd_node(fd);
-			directory_node* dir = dynamic_cast<directory_node*>(node);
+			vnode* node       = fsptr->get_fd_node(fd);
+			directory_vnode* dir = dynamic_cast<directory_vnode*>(node);
 			if(!node)   return addr_t(static_cast<uintptr_t>(-EBADF));
 			if(!dir)    return addr_t(static_cast<uintptr_t>(-ENOTDIR));
 			return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first->second.get_dir_struct_vaddr();
@@ -275,7 +275,7 @@ extern "C"
 		if(__unlikely(!name)) return addr_t(static_cast<uintptr_t>(-EFAULT));
 		try
 		{
-			directory_node* dir = fsptr->get_directory_or_null(name, false);
+			directory_vnode* dir = fsptr->get_directory_or_null(name, false);
 			if(__unlikely(!dir)) return addr_t(static_cast<uintptr_t>(-ENOENT));
 			int fd = dir->vid();
 			return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first->second.get_dir_struct_vaddr();
@@ -302,7 +302,7 @@ extern "C"
 		if(__unlikely(!st || !name)) return -EFAULT;
 		try
 		{
-			fs_node* fn = fsptr->find_node(name, true);
+			vnode* fn = fsptr->find_node(name, true);
 			if(fn) { __stat_init(fn, fsptr, st); return 0; } 
 			return -ENOENT;
 		}
@@ -331,9 +331,9 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		name = translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
-		fs_node* node = fsptr->get_fd_node(fd);
+		vnode* node = fsptr->get_fd_node(fd);
 		if(__unlikely(!node)) return -EBADF;
-		directory_node* dirnode = dynamic_cast<directory_node*>(node);
+		directory_vnode* dirnode = dynamic_cast<directory_vnode*>(node);
 		if(__unlikely(!node)) return -ENOTDIR;
 		try { fsptr->create_node(dirnode, name, mode, dev); }
 		catch(std::overflow_error& e)   { panic(e.what()); return -EMLINK; }

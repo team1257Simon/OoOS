@@ -125,7 +125,7 @@ uint32_t jbd2::calculate_sb_checksum()
 	sb->checksum        = sb_cs_val;
 	return result;
 }
-bool jbd2::initialize()
+bool jbd2::on_open()
 {
 	if(has_init) return true;
 	if(!init_extents()) return false;

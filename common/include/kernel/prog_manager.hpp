@@ -18,7 +18,7 @@ class prog_manager : std::list<elf64_executable>, std::list<elf64_dynamic_execut
 	elf64_executable* __add(addr_t img_start, size_t img_size, size_t stack_sz, size_t tls_sz);
 	prog_manager();
 public:
-	elf64_executable* add(file_node* exec_file, size_t stack_sz = S04, size_t tls_sz = S04);
+	elf64_executable* add(file_vnode* exec_file, size_t stack_sz = S04, size_t tls_sz = S04);
 	elf64_executable* clone(elf64_executable const* exec);
 	void remove(elf64_executable* e);
 	static prog_manager& get_instance();

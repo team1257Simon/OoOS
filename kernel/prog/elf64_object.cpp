@@ -78,7 +78,7 @@ off_t elf64_object::segment_index(size_t offset) const
 			return static_cast<off_t>(i);
 	return -1L;
 }
-elf64_object::elf64_object(file_node* n) : elf64_object(n->data(), n->size())
+elf64_object::elf64_object(file_vnode* n) : elf64_object(n->data(), n->size())
 {
 	if(__unlikely(!__image_start))
 	{

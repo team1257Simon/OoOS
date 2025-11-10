@@ -31,11 +31,11 @@ bool scheduler::__set_untimed_wait(task_t* task)
 }
 bool scheduler::interrupt_wait(task_t* waiting)
 {
-    if(task_wait_queue::const_iterator i = __sleepers.find(waiting); i != __sleepers.end() && (*i)->task_ctl.can_interrupt) { return __sleepers.interrupt_wait(i); } 
-    else if(std::vector<task_t*>::iterator i = __non_timed_sleepers.find(waiting); i != __non_timed_sleepers.end()) 
+    if(task_wait_queue::const_iterator i 		= __sleepers.find(waiting); i != __sleepers.end() && (*i)->task_ctl.can_interrupt) { return __sleepers.interrupt_wait(i); } 
+    else if(std::vector<task_t*>::iterator i 	= __non_timed_sleepers.find(waiting); i != __non_timed_sleepers.end()) 
     {
-        task_t* task            = *i;
-        task->task_ctl.block    = false;
+        task_t* task            				= *i;
+        task->task_ctl.block    				= false;
         __non_timed_sleepers.erase(i);
         return true;
     }
@@ -48,12 +48,12 @@ bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interr
     unsigned int total              = __sleepers.cumulative_remaining_ticks();
     if(time < total)
     {
-        unsigned int cumulative = 0;
+        unsigned int cumulative 	= 0;
         for(task_wait_queue::const_iterator i = __sleepers.current(); i != __sleepers.end(); i++)
         {
-            unsigned int cwait = (*i)->task_ctl.wait_ticks_delta;
+            unsigned int cwait 		= (*i)->task_ctl.wait_ticks_delta;
             if(cwait + cumulative > time) { task->task_ctl.wait_ticks_delta = time - cumulative; return __sleepers.insert(i, task) != __sleepers.end(); }
-            cumulative += cwait;
+            cumulative 				+= cwait;
         }
     }
     task->task_ctl.wait_ticks_delta = time - total;

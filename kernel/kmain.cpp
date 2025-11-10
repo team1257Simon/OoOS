@@ -272,7 +272,7 @@ void extfs_tests()
 	{
 		test_extfs.initialize();
 		test_extfs.open_directory("files");
-		file_node* fn = test_extfs.open_file("files/memes.txt");
+		file_vnode* fn = test_extfs.open_file("files/memes.txt");
 		fn->write("derple blerple\n", 15);
 		test_extfs.close_file(fn);
 		startup_tty.print_line("Wrote files/memes.txt");
@@ -305,12 +305,12 @@ void elf64_tests()
 {
 	if(test_extfs.has_init()) try
 	{
-		file_node* tst              = test_extfs.open_file("test.elf");
+		file_vnode* tst              = test_extfs.open_file("test.elf");
 		elf64_executable* test_exec = prog_manager::get_instance().add(tst);
 		test_extfs.close_file(tst);
 		if(test_exec)
 		{
-			file_node* c    						= test_extfs.get_file_or_null("/dev/console");
+			file_vnode* c    						= test_extfs.get_file_or_null("/dev/console");
 			if(!c) c        						= test_extfs.lndev("/dev/console", 0, com->get_device_id());
 			elf64_program_descriptor const& desc 	= test_exec->describe();
 			startup_tty.print_line("Entry at " + std::to_string(desc.entry));
@@ -489,10 +489,10 @@ constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 };
 void run_tests()
 {
-	test_kb = new(std::addressof(kb_pos)) ooos::ps2_keyboard(test_ps2);
+	test_kb 		= new(std::addressof(kb_pos)) ooos::ps2_keyboard(test_ps2);
 	test_kb->add_listener(test_kb, [](ooos::keyboard_event e) -> void
 	{
-		wchar_t ch = e;
+		wchar_t ch 	= e;
 		if(!e.kv_release && ch < 127)
 		{
 			if(e.kv_vstate.ctrl()) startup_tty.putch('^');
@@ -576,8 +576,8 @@ extern "C"
 		// The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
 		idt_init();
 		nmi_disable();
-		sysinfo 	= si;
-		kproc.self 	= std::addressof(kproc);
+		sysinfo 				= si;
+		kproc.self 				= std::addressof(kproc);
 		// This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator.
 		kernel_memory_mgr::init_instance(mmap);
 		// Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
@@ -611,7 +611,7 @@ extern "C"
 		asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
 		array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
 		for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
-		fx_enable = true;
+		fx_enable 				= true;
 		scheduler::init_instance();
 		hpet_amd64::init_instance();
 		try
@@ -625,7 +625,7 @@ extern "C"
 				{
 					test_delegate.initialize(*hda);
 					startup_tty.print_line("Initialized delegate HDA");
-					test_extfs.tie_block_device(&test_delegate);
+					test_extfs.tie_block_device(std::addressof(test_delegate));
 					run_tests();
 				}
 			}

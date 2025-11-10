@@ -721,7 +721,8 @@ seq_fail:
 	}
 	void ps2_keyboard::__init()
 	{
-		if(__unlikely(!__controller)) return;
+		if(__unlikely(!__controller)) 
+			return;
 		interrupt_table::add_irq_handler(1UC, [this]() -> void { __on_irq(); });
 	}
 	void ps2_keyboard::__on_irq()

@@ -13,7 +13,7 @@ elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, si
 	elf64_dynamic_object(start, size),
 	virtual_load_base(base_offset)
 {}
-elf64_dynamic_executable::elf64_dynamic_executable(file_node* n, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
+elf64_dynamic_executable::elf64_dynamic_executable(file_vnode* n, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
 	elf64_object(n),
 	elf64_executable(n, stack_sz, tls_sz),
 	elf64_dynamic_object(n),

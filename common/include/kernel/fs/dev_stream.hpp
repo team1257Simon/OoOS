@@ -11,6 +11,7 @@ enum device_type : uint16_t
     ENTRO = 4,
     //...
 };
+// Interface for various types of devices as I/O streams.
 template<typename T>
 struct dev_stream
 {

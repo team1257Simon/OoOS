@@ -21,7 +21,7 @@ elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, s
 	frame_tag           { nullptr },
 	program_descriptor  {}
 						{}
-elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) : elf64_object(n),
+elf64_executable::elf64_executable(file_vnode* n, size_t stack_sz, size_t tls_sz) : elf64_object(n),
 	stack_size          { stack_sz },
 	tls_size            { tls_sz },
 	frame_base          { nullptr },

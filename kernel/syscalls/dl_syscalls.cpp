@@ -149,15 +149,15 @@ extern "C"
 			std::vector<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
 			paths.push_back("lib");
 			paths.push_back("usr/lib");
-			file_node* n = nullptr;
+			file_vnode* n = nullptr;
 			std::string const* found_path = nullptr;
-			for(std::string const& path : paths) { if(directory_node* d = fs_ptr->get_directory_or_null(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = fs_ptr->on_open(tn); found_path = std::addressof(path); break; } } }
+			for(std::string const& path : paths) { if(directory_vnode* d = fs_ptr->get_directory_or_null(path, false)) { if(tnode* tn = d->find(xname); tn && tn->is_file()) { n = fs_ptr->on_open(tn); found_path = std::addressof(path); break; } } }
 			if(!n) { return addr_t(static_cast<uintptr_t>(-ENOENT)); }
 			struct __guard
 			{
-				file_node* __my_file;
+				file_vnode* __my_file;
 				filesystem* __fs_ptr;
-				__guard(file_node* n, filesystem* fs) : __my_file{ n }, __fs_ptr{ fs } {}
+				__guard(file_vnode* n, filesystem* fs) : __my_file{ n }, __fs_ptr{ fs } {}
 				~__guard() { if(__my_file) __fs_ptr->close_file(__my_file); }
 			} g(n, fs_ptr);
 			if(flags & RTLD_NOLOAD)

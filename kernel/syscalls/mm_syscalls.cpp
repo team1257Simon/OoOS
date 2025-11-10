@@ -30,10 +30,10 @@ extern "C"
 			if(__unlikely(!fsptr)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 			else try
 			{
-				file_node* n = get_by_fd(fsptr, active_task_context(), fd);
+				file_vnode* n = get_by_fd(fsptr, active_task_context(), fd);
 				if(n)
 				{
-					file_node::pos_type pos = n->tell();
+					file_vnode::pos_type pos = n->tell();
 					n->seek(offset, std::ios_base::beg);
 					n->read(translate_user_pointer(result), std::min(size_t(len - offset), n->size()));
 					n->seek(pos);

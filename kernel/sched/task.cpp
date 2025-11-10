@@ -15,19 +15,19 @@ void sys_task_exit() { int retv; asm volatile("movl %%eax, %0" : "=r"(retv) :: "
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 void task_ctx::add_child(task_ctx* that) { child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
 bool task_ctx::remove_child(task_ctx* that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
-void task_ctx::set_stdio_ptrs(std::array<file_node*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
+void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))); }
-void task_ctx::set_stdio_ptrs(file_node* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
+void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
 task_ctx::~task_ctx()
 {
     if(local_so_map)
     {
-        shared_object_map& globals = shared_object_map::get_globals();
+        shared_object_map& globals 	= shared_object_map::get_globals();
         std::vector<shared_object_map::iterator> stickies{};
         for(shared_object_map::iterator i = local_so_map->begin(); i != local_so_map->end(); i++) { if(i->is_sticky()) { stickies.push_back(i); } }
         for(shared_object_map::iterator i : stickies) { local_so_map->transfer(globals, i); }
-        local_so_map->shared_frame = nullptr;
+        local_so_map->shared_frame 	= nullptr;
         sm_alloc.deallocate(local_so_map, 1);
     }
     if(is_user()) try { fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>()); } catch(std::exception& e) { panic(e.what()); }
@@ -352,7 +352,7 @@ tms task_ctx::get_times() const noexcept
     for(task_ctx* child : child_tasks) { result += child->get_times(); }
     return result;
 }
-void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_node*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
+void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
 {
     task_ctx* ctx   = tl.create_user_task(prg, std::move(args), parent_pid, pv, quantum);
     ctx->env_vec    = std::move(env);

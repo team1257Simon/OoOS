@@ -39,7 +39,7 @@ public:
 	virtual addr_t resolve(elf64_sym const& sym) const override;
 	const char* sym_lookup(addr_t addr) const;
 	program_segment_descriptor const* segment_of(addr_t symbol_vaddr) const;
-	elf64_shared_object(file_node* n, uframe_tag* frame);
+	elf64_shared_object(file_vnode* n, uframe_tag* frame);
 	elf64_shared_object(elf64_shared_object&& that);
 	elf64_shared_object(elf64_shared_object const& that);
 	virtual ~elf64_shared_object();

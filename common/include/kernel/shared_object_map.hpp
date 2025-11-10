@@ -53,8 +53,8 @@ public:
 	const_iterator find(std::string const& what) const noexcept;
 	void clear();
 	size_type size() const noexcept;
-	iterator add(file_node* so_file);
-	iterator get_if_resident(file_node* so_file);
+	iterator add(file_vnode* so_file);
+	iterator get_if_resident(file_vnode* so_file);
 	bool remove(iterator so_handle);
 	iterator transfer(shared_object_map& that, iterator handle);
 	void set_path(iterator obj, std::string const& path);
