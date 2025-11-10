@@ -15,19 +15,8 @@ bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() noexcept { return has_init() || (__has_init = __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
 void scheduler::register_task(task_t* task) { __queues[task->task_ctl.prio_base].push(task); __total_tasks++; }
-using priority_val::PVLOW;
-using priority_val::PVEXTRA;
-using priority_val::PVSYS;
-scheduler::scheduler()      :
-    __queues                {},
-    __sleepers              {},
-    __non_timed_sleepers    {},
-    __tick_rate             {},
-    __cycle_divisor         {},
-    __tick_cycles           {},
-    __running               { false },
-    __total_tasks           { 0UZ }
-                            {}
+using enum priority_val;
+scheduler::scheduler() = default;
 bool scheduler::__set_untimed_wait(task_t* task)
 {
     try 
@@ -40,7 +29,6 @@ bool scheduler::__set_untimed_wait(task_t* task)
     catch(std::exception& e) { panic(e.what()); }
     return false;
 }
-
 bool scheduler::interrupt_wait(task_t* waiting)
 {
     if(task_wait_queue::const_iterator i = __sleepers.find(waiting); i != __sleepers.end() && (*i)->task_ctl.can_interrupt) { return __sleepers.interrupt_wait(i); } 
@@ -101,7 +89,12 @@ bool scheduler::unregister_task_tree(task_t* task)
 task_t* scheduler::select_next()
 {
     // first check system priority (I/O drivers and such will go here; most of the time they will be sleeping)
-    if(!__queues[PVSYS].empty()) { if(__queues[PVSYS].at_end()) __queues[PVSYS].restart(); return __queues[PVSYS].pop(); }
+    if(!__queues[PVSYS].empty())
+	{
+		if(__queues[PVSYS].at_end())
+			__queues[PVSYS].restart();
+		return __queues[PVSYS].pop();
+	}
     task_t* target = nullptr;
     for(priority_val pv = PVEXTRA; pv >= PVLOW; pv = decr_pv(pv))
     {

@@ -4,7 +4,6 @@
 #include "stdexcept"
 #include "sched/task_ctx.hpp"
 #include "algorithm"
-#include "kdebug.hpp"
 #include "sys/errno.h"
 #include "arch/arch_amd64.h"
 typedef std::pair<addr_t, bool> search_result;
@@ -18,7 +17,7 @@ static search_result global_search(const char* name)
 	{
 		std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
 		if(!result_pair.second) continue;
-		if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+		if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
 		else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
 	}
 	return { result, have_weak };
@@ -31,7 +30,7 @@ static search_result full_search(task_ctx* task, const char* name)
 	{   
 		if(std::pair<elf64_sym, addr_t> result_pair = dyn->resolve_by_name(name); result_pair.second)
 		{
-			if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+			if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
 			else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
 			else result = nullptr;
 		}
@@ -40,14 +39,14 @@ static search_result full_search(task_ctx* task, const char* name)
 	{
 		std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
 		if(!result_pair.second) continue;
-		if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+		if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
 		else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
 	}
 	for(elf64_shared_object const& so : shared_object_map::get_globals())
 	{
 		std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
 		if(!result_pair.second) continue;
-		if(result_pair.first.st_info.bind == SB_GLOBAL) return { result_pair.second, true };
+		if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
 		else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
 	}
 	return { result, have_weak };
@@ -59,7 +58,7 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 	if(so && so->is_symbolic()) 
 	{
 		std::pair<elf64_sym, addr_t> result_pair = so->resolve_by_name(name);
-		if(result_pair.second) return { result_pair.second, true };
+		if(result_pair.second) return search_result(result_pair.second, true);
 		else if(result_pair.first.st_info.bind == SB_WEAK) have_weak = true;
 	}
 	search_result res = full_search(task, name);
@@ -275,7 +274,6 @@ extern "C"
 		ent->vaddr_offset               = so->get_load_offset();
 		ent->object_handle              = obj;
 		ent->global_offset_table_start  = obj->global_offset_table();
-		debug_print_addr(obj->global_offset_table());
 		return 0;
 	}
 	addr_t syscall_depends(addr_t handle)

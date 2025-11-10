@@ -8,13 +8,12 @@
 #include "stdexcept"
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
 using namespace ABI_NAMESPACE;
-/**
- * Vtable header.
- */
 struct vtable_header
 {
-	ptrdiff_t          leaf_offset; /** Offset of the leaf object. */
-	__class_type_info* type;        /** Type of the object. */
+	/** Offset of the leaf object. */
+	ptrdiff_t          leaf_offset;
+	/** Type of the object. */
+	__class_type_info* type;
 };
 static __si_class_type_info* meta_dyncast_si(std::type_info* ti, __class_type_info const* local_si)
 {
@@ -39,7 +38,12 @@ namespace ooos
 		typedef std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexcial_equals<char>, std::allocator<std::type_info const*>, get_name> __base;
 	public:
 		type_info_map() : __base(64UZ) {}
-		__class_type_info const* operator[](const char* key) const { const_iterator result = find(key); if(result != end()) { return dynamic_cast<__class_type_info const*>(*result); } return nullptr; }
+		__class_type_info const* operator[](const char* key) const
+		{
+			const_iterator result = find(key);
+			if(result != end()) return dynamic_cast<__class_type_info const*>(*result);
+			return nullptr;
+		}
 	};
 	struct kmod_mm_impl : kmod_mm, kframe_tag
 	{
@@ -70,7 +74,7 @@ namespace ooos
 		virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
 		virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
 		virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
-		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(&typeid(*mod)), local_si, local_vmi); }
+		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))), local_si, local_vmi); }
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{
 			char* result    = nullptr;
@@ -132,7 +136,7 @@ namespace ooos
 				__relocate_vmi_r(vmi->__base_info, vmi->__base_count, local_si, local_vmi);
 		}
 	} __api_impl{};
-	void register_type(std::type_info const& ti) { __api_impl.register_type_info(&ti); }
+	void register_type(std::type_info const& ti) { __api_impl.register_type_info(std::addressof(ti)); }
 	kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm), first_managed_block(nullptr) {}
 	void* kmod_mm_impl::mem_allocate(size_t size, size_t align)
 	{
@@ -164,7 +168,7 @@ namespace ooos
 			release(std::addressof(mod_mutex));
 		}
 	}
-	void* ooos::kmod_mm_impl::mem_resize(void* old, size_t old_size, size_t target, size_t align)
+	void* kmod_mm_impl::mem_resize(void* old, size_t old_size, size_t target, size_t align)
 	{
 		void* result = mem_allocate(target, align);
 		if(!old) return result;

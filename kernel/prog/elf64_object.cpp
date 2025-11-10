@@ -6,6 +6,13 @@
 constexpr static std::allocator<char> ch_alloc{};
 constexpr static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
+static inline addr_t clone_image(addr_t start, size_t size);
+elf64_object::elf64_object(addr_t start, size_t size) : __image_start(clone_image(start, size)), __image_size(size) {}
+void elf64_object::release_segments() { xrelease(); }
+void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
+void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
+off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
+addr_t elf64_object::resolve(elf64_sym const& sym) const { return resolve(sym.st_value); }
 static inline addr_t clone_image(addr_t start, size_t size)
 {
 	if(__unlikely(!size)) return nullptr;
@@ -13,11 +20,6 @@ static inline addr_t clone_image(addr_t start, size_t size)
 	if(result) array_copy<uint8_t>(result, start, size);
 	return result;
 }
-void elf64_object::release_segments() { xrelease(); }
-void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
-void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
-off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
-addr_t elf64_object::resolve(elf64_sym const& sym) const { return resolve(sym.st_value); }
 elf64_object::~elf64_object()
 {
 	if(__image_start) elf_alloc.deallocate(__image_start, __image_size);
@@ -76,17 +78,6 @@ off_t elf64_object::segment_index(size_t offset) const
 			return static_cast<off_t>(i);
 	return -1L;
 }
-elf64_object::elf64_object(addr_t start, size_t size) :
-	__validated         { false },
-	__loaded            { false },
-	__image_start       { clone_image(start, size) },
-	__image_size        { size },
-	num_seg_descriptors { 0UZ },
-	segments            { nullptr },
-	symtab              {},
-	symstrtab           {},
-	shstrtab            {}
-						{}
 elf64_object::elf64_object(file_node* n) : elf64_object(n->data(), n->size())
 {
 	if(__unlikely(!__image_start))

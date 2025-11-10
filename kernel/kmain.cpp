@@ -279,18 +279,18 @@ void dyn_elf_tests()
 {
 	if(test_extfs.has_init()) try
 	{
-		shared_object_map& sm               = shared_object_map::get_globals();
-		shared_object_map::iterator test_so = shared_object_map::get_ldso_object(nullptr);
+		shared_object_map& sm				= shared_object_map::get_globals();
+		shared_object_map::iterator test_so	= shared_object_map::get_ldso_object(nullptr);
 		kmm.enter_frame(sm.shared_frame);
-		addr_t sym                          = test_so->get_load_offset();
+		addr_t sym							= test_so->get_load_offset();
 		startup_tty.print_line("Dynamic Linker SO name: " + test_so->get_soname());
-		sym                                 = test_so->entry_point();
+		sym									= test_so->entry_point();
 		startup_tty.print_text("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");
 		startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-		sym                                 = test_so->resolve_by_name("dlopen").second;
+		sym									= test_so->resolve_by_name("dlopen").second;
 		startup_tty.print_text("Symbol dlopen: " + std::to_string(sym.as()) + " (");
 		startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
-		sym                                 = test_so->resolve_by_name("dlclose").second;
+		sym									= test_so->resolve_by_name("dlclose").second;
 		startup_tty.print_text("Symbol dlclose: " + std::to_string(sym.as()) + " (");
 		startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
 		kmm.exit_frame();
@@ -352,11 +352,11 @@ typedef sysfs_hash_table<const char*, test_sys_struct, test_extract, std::hash<c
 void sysfs_node_test(sysfs& s)
 {
 	test_map tm(s, "some_test_data", sysfs_object_type::GENERAL_CONFIG);
-	std::pair<test_map::value_handle, bool> added = tm.add({ 0, { .data_full{ 0x12345UL, 0xABCDEUL } }, "abcdefg" });
+	std::pair<test_map::value_handle, bool> added	= tm.add({ 0, { .data_full{ 0x12345UL, 0xABCDEUL } }, "abcdefg" });
 	added.first->something = 43;
-	std::pair<test_map::value_handle, bool> again = tm.add({ 42, {}, "hijklmn" });
-	again.first->something_else.data_full[0] = 0xEDCBAUL;
-	again.first->something_else.data_full[1] = 0x54321UL;
+	std::pair<test_map::value_handle, bool> again	= tm.add({ 42, {}, "hijklmn" });
+	again.first->something_else.data_full[0]		= 0xEDCBAUL;
+	again.first->something_else.data_full[1]		= 0x54321UL;
 }
 void sysfs_tests()
 {
@@ -572,20 +572,20 @@ extern "C"
 		init_tss(std::addressof(kernel_isr_stack_top));
 		enable_fs_gs_insns();
 		set_kernel_gs_base(std::addressof(kproc));
-		kproc.saved_regs.cr3 	= get_cr3();
-		kproc.saved_regs.rsp 	= std::addressof(kernel_stack_top);
-		kproc.saved_regs.rbp 	= std::addressof(kernel_stack_base);
+		kproc.saved_regs.cr3	= get_cr3();
+		kproc.saved_regs.rsp	= std::addressof(kernel_stack_top);
+		kproc.saved_regs.rbp	= std::addressof(kernel_stack_base);
 		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
 		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);     
-		fadt_t* fadt 			= nullptr;
+		fadt_t* fadt			= nullptr;
 		// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
-		if(sysinfo->xsdt) fadt 	= find_fadt();
+		if(sysinfo->xsdt) fadt	= find_fadt();
 		if(fadt) rtc::init_instance(fadt->century_register);
 		else rtc::init_instance();
 		// The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
 		new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFFU, 0);
 		startup_tty.cls();
-		direct_print_enable 	= true;
+		direct_print_enable		= true;
 		bsp_lapic.init();
 		nmi_enable();
 		sti();

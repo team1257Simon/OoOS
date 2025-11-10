@@ -24,7 +24,7 @@ bool extfs::read_block(disk_block& bl) { if(bl.data_buffer && bl.block_number) r
 bool extfs::write_block(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_blockdev(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
-char *extfs::allocate_block_buffer() { size_t bs = block_size(); char* result = buff_alloc.allocate(bs); array_zero(result, bs); return result; }
+char* extfs::allocate_block_buffer() { size_t bs = block_size(); char* result = buff_alloc.allocate(bs); array_zero(result, bs); return result; }
 void extfs::free_block_buffer(disk_block& bl) { if(bl.data_buffer && bl.chain_len) buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
 off_t extfs::inode_block_offset(uint32_t inode) { return static_cast<off_t>(inode_pos_in_group(inode) * sb->inode_size); }
 uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group); }

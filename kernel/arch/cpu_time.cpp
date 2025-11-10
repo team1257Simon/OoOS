@@ -16,14 +16,14 @@ time_t cpu_timer_stopwatch::get() const { return diff_tsc(__initial); }
 time_t cpu_timer_stopwatch::get(tsplit_t) const { return diff_tsc(__split); }
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio()
 {
-    cpuid_leaf leaf_0x15 = cpuid(0x15U, 0);
+    cpuid_leaf leaf_0x15	= cpuid(0x15U, 0);
     if(leaf_0x15.ebx && leaf_0x15.eax) return (leaf_0x15.ecx ? std::pair<time_t, time_t>(leaf_0x15.ecx * leaf_0x15.ebx, leaf_0x15.eax) : std::pair<time_t, time_t>(leaf_0x15.ebx, leaf_0x15.eax));
-    return { cpuid(0x16U, 0).ecx, 1UL };
+    return std::pair<time_t, time_t>(cpuid(0x16U, 0).ecx, 1UL);
 }
 void cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function<bool()> const& fn)
 {
-    time_t tsc_interval = cpu_timer_info::instance.us_to_tsc(interval);
-    bool result         = false;
+    time_t tsc_interval	= cpu_timer_info::instance.us_to_tsc(interval);
+    bool result			= false;
     if(!__is_started) start();
     do {
         split();
@@ -33,14 +33,14 @@ void cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function
 }
 bool cpu_timer_stopwatch::repeat_on_interval(suseconds_t interval, std::function<bool()> const& fn, size_t max_reps)
 {
-    time_t tsc_interval = cpu_timer_info::instance.us_to_tsc(interval);
-    size_t reps = 0;
-    bool result = false;
+    time_t tsc_interval	= cpu_timer_info::instance.us_to_tsc(interval);
+    size_t reps			= 0;
+    bool result			= false;
     if(!__is_started) start();
     do {
         split();
         while(get(tsplit) < tsc_interval) pause();
-        result = fn();
+        result			= fn();
     } while(!result && ++reps < max_reps);
     return result;
 }

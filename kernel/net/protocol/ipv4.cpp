@@ -22,10 +22,10 @@ std::type_info const& protocol_ipv4::packet_type() const { return typeid(ipv4_he
 protocol_handler& protocol_ipv4::add_transport(ipv4_transport_protocol id, protocol_handler&& ph) { return transports.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(std::move(ph))).first->second; }
 int protocol_ipv4::transmit(abstract_packet_base& p)
 {
-	ipv4_standard_header* pkt = p.get_as<ipv4_standard_header>();
+	ipv4_standard_header* pkt	= p.get_as<ipv4_standard_header>();
 	if(!pkt) throw std::bad_cast();
-	pkt->time_to_live = pkt->protocol_type == TCP ? client_config.time_to_live_tcp_default : client_config.time_to_live_default;
-	pkt->total_length = net16(static_cast<uint16_t>(p.packet_size - sizeof(ethernet_header)));
+	pkt->time_to_live			= pkt->protocol_type == TCP ? client_config.time_to_live_tcp_default : client_config.time_to_live_default;
+	pkt->total_length			= static_cast<uint16_t>(p.packet_size - sizeof(ethernet_header));
 	pkt->compute_ipv4_csum();
 	return next->transmit(p);
 }

@@ -12,23 +12,13 @@ uframe_tag* elf64_shared_object::get_frame() const { return frame_tag; }
 void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descriptor& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
 void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && (dyn_entries[i].d_val & 0x02UL))) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
 elf64_shared_object::~elf64_shared_object() = default;
-elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) :
-	elf64_object            ( n ),
-	elf64_dynamic_object    ( n ),
-	soname                  ( find_so_name(img_ptr(), n) ),
+elf64_shared_object::elf64_shared_object(file_node* n, uframe_tag* frame) : elf64_object(n), elf64_dynamic_object(n),
+	soname                  { find_so_name(img_ptr(), n) },
 	virtual_load_base       { frame->dynamic_extent },
-	total_segment_size      { 0UL },
-	frame_tag               { frame },
-	ref_count               { 1UZ },
-	sticky                  { false },
-	symbolic                { false },
-	global                  { false },
-	entry                   { nullptr }
+	frame_tag               { frame }
 							{}
-elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : 
-	elf64_object            ( std::move(that) ),
-	elf64_dynamic_object    ( std::move(that) ),
-	soname                  ( std::move(that.soname) ),
+elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : elf64_object(std::move(that)), elf64_dynamic_object(std::move(that)),
+	soname                  { std::move(that.soname) },
 	virtual_load_base       { that.virtual_load_base },
 	total_segment_size      { that.total_segment_size },
 	frame_tag               { that.frame_tag },
@@ -38,9 +28,7 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) :
 	global                  { that.global },
 	entry                   { that.entry }
 							{ that.frame_tag = nullptr; }
-elf64_shared_object::elf64_shared_object(elf64_shared_object const& that) :
-	elf64_object            ( that ),
-	elf64_dynamic_object    ( that ),
+elf64_shared_object::elf64_shared_object(elf64_shared_object const& that) : elf64_object(that), elf64_dynamic_object(that),
 	virtual_load_base       { that.virtual_load_base },
 	total_segment_size      { that.total_segment_size },
 	frame_tag               { that.frame_tag },

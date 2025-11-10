@@ -21,24 +21,24 @@ void hpet_amd64::delay_usec(time_t usec) { __instance.delay_us(usec); }
 void hpet_amd64::delay_usec(time_t usec, void (*action)()) { __instance.delay_us(usec, action); }
 __nointerrupts bool hpet_amd64::__init() noexcept
 {
-	void* tbl 				= find_system_table("HPET");
+	void* tbl				= find_system_table("HPET");
 	if(__unlikely(!tbl)) return false;
-	hpet_desc_table* dtbl   = static_cast<hpet_desc_table*>(tbl);
-	addr_t mapped           = kmm.map_dma(dtbl->base_addr.address, sizeof(hpet_t), false);
+	hpet_desc_table* dtbl	= static_cast<hpet_desc_table*>(tbl);
+	addr_t mapped			= kmm.map_dma(dtbl->base_addr.address, sizeof(hpet_t), false);
 	if(__unlikely(!mapped)) return false;
-	__hpet                  = mapped.as<hpet_t volatile>();
-	uint32_t period         = __hpet->period;
-	__frequency_megahertz   = period_dividend / period;
+	__hpet					= mapped.as<hpet_t volatile>();
+	uint32_t period			= __hpet->period;
+	__frequency_megahertz	= period_dividend / period;
 	set_irq_vector(__hpet->timers[2], 8UC);
 	fence();
-	uint64_t cfg    = __hpet->timers[2].caps_and_config;
-	cfg             |= timer_n_interrupt_enable;
+	uint64_t cfg						= __hpet->timers[2].caps_and_config;
+	cfg									|= timer_n_interrupt_enable;
 	barrier();
-	__hpet->timers[2].caps_and_config = cfg;
+	__hpet->timers[2].caps_and_config	= cfg;
 	fence();
-	cfg = __hpet->general_config;
-	cfg |= 0x1UL;
-	cfg &= ~0x2UL;
+	cfg									= __hpet->general_config;
+	cfg									|= 0x1UL;
+	cfg									&= ~0x2UL;
 	barrier();
 	__hpet->general_config = cfg;
 	fence();
@@ -46,16 +46,16 @@ __nointerrupts bool hpet_amd64::__init() noexcept
 }
 void hpet_amd64::delay_us(time_t usec)
 {
-	delay_flag                          = true;
-	time_t time_val                     = __frequency_megahertz * usec + __hpet->main_counter;
-	__hpet->timers[2].comparator_value  = time_val;
+	delay_flag							= true;
+	time_t time_val						= __frequency_megahertz * usec + __hpet->main_counter;
+	__hpet->timers[2].comparator_value	= time_val;
 	while(delay_flag) { if(__hpet->main_counter > time_val) delay_flag = false; fence(); }
 }
 void hpet_amd64::delay_us(time_t usec, void (*action)())
 {
-	if(action) callback_8               = action;
-	delay_flag                          = true;
-	time_t time_val                     = __frequency_megahertz * usec + __hpet->main_counter;
-	__hpet->timers[2].comparator_value  = time_val;
+	if(action) callback_8				= action;
+	delay_flag							= true;
+	time_t time_val						= __frequency_megahertz * usec + __hpet->main_counter;
+	__hpet->timers[2].comparator_value	= time_val;
 	while(delay_flag) { if(__hpet->main_counter > time_val) delay_flag = false; fence(); }
 }

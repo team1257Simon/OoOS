@@ -39,7 +39,7 @@ uframe_tag& frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 }
 uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)
 {
-	uframe_tag& result = create_frame(old_frame->base, old_frame->extent);
+	uframe_tag& result				= create_frame(old_frame->base, old_frame->extent);
 	for(block_descriptor& bd : old_frame->usr_blocks)
 	{
 		if(!bd.write)
@@ -48,9 +48,9 @@ uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)
 			result.accept_block(std::move(block_descriptor(bd.physical_start, bd.virtual_start, bd.size, bd.align, false, bd.execute)));
 			continue;
 		}
-		block_descriptor* allocated = result.add_block(bd.size, bd.virtual_start, bd.align, bd.write, bd.execute);
+		block_descriptor* allocated	= result.add_block(bd.size, bd.virtual_start, bd.align, bd.write, bd.execute);
 		if(!allocated) throw std::bad_alloc();
-		addr_t target               = result.translate(bd.virtual_start);
+		addr_t target				= result.translate(bd.virtual_start);
 		array_copy<uint8_t>(target, bd.physical_start, bd.size);
 	}
 	for(block_descriptor* bd : old_frame->shared_blocks)
@@ -70,10 +70,10 @@ block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size,
 	if(result_it == __global_shared_blocks.end()) 
 	{
 		kmm.enter_frame(tag);
-		addr_t allocated    = kmm.allocate_user_block(size, start, align, false, execute);
+		addr_t allocated		= kmm.allocate_user_block(size, start, align, false, execute);
 		kmm.exit_frame();
 		if(__builtin_expect(!allocated, false)) return nullptr;
-		result_it           = __global_shared_blocks.insert(std::make_pair(start, shared_block{ allocated, start, size, align, false, execute, 1UL })).first;
+		result_it				= __global_shared_blocks.insert(std::make_pair(start, shared_block{ allocated, start, size, align, false, execute, 1UL })).first;
 	}
 	else
 	{
@@ -82,7 +82,7 @@ block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size,
 		kmm.exit_frame();
 		result_it->second.num_refs++;
 	}
-	block_descriptor* result = std::addressof(result_it->second);
+	block_descriptor* result	= std::addressof(result_it->second);
 	tag->shared_blocks.push_back(result);
 	return result;
 }

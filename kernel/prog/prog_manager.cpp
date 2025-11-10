@@ -39,7 +39,7 @@ elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t 
 	if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) { panic("[PRG] missing identifier; invalid object"); return nullptr; }
 	if(size_t dyn = find_dyn(img_start.deref<elf64_ehdr>()))
 	{
-		__dynamic_base::iterator result = __dynamic_base::emplace_back(img_start, img_size, stack_sz, tls_sz, get_load_base(img_start, dyn));
+		__dynamic_base::iterator result	= __dynamic_base::emplace_back(img_start, img_size, stack_sz, tls_sz, get_load_base(img_start, dyn));
 		if(__unlikely(!result->load())) { __dynamic_base::erase(result); return nullptr; }
 		return result.base();
 	}
@@ -49,8 +49,8 @@ elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t 
 }
 elf64_executable* prog_manager::add(file_node* exec_file, size_t stack_sz, size_t tls_sz)
 {
-	size_t size     = static_cast<size_t>(exec_file->size() - exec_file->tell());
-	addr_t start    = elf_alloc.allocate(size);
+	size_t size		= static_cast<size_t>(exec_file->size() - exec_file->tell());
+	addr_t start	= elf_alloc.allocate(size);
 	if(__unlikely(!exec_file->read(start, size)))
 	{ 
 		elf_alloc.deallocate(start, size); 

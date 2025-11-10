@@ -49,16 +49,16 @@ abstract_packet_base& abstract_packet_base::operator=(abstract_packet_base const
 abstract_packet_base& abstract_packet_base::operator=(abstract_packet_base&& that)
 {
 	if(packet_data) (*release_fn)(packet_data, packet_size);
-	packet_data         = that.packet_data;
-	packet_type         = std::move(that.packet_type);
-	packet_size         = that.packet_size;
-	release_fn          = that.release_fn;
-	that.packet_data    = nullptr;
+	packet_data			= that.packet_data;
+	packet_type			= std::move(that.packet_type);
+	packet_size			= that.packet_size;
+	release_fn			= that.release_fn;
+	that.packet_data	= nullptr;
 	return *this;
 }
 int abstract_packet_base::read_from(netstack_buffer& buff)
 {
-	size_t read_size = buff.count(std::ios_base::in);
+	size_t read_size	= buff.count(std::ios_base::in);
 	if(read_size < packet_size) return -EPROTO;
 	array_copy(packet_data, buff.eback(), packet_size);
 	return 0;
@@ -66,8 +66,8 @@ int abstract_packet_base::read_from(netstack_buffer& buff)
 int abstract_packet_base::write_to(netstack_buffer& buff) const
 {
 	try { buff.sputn(static_cast<const char*>(packet_data), packet_size); }
-	catch(std::overflow_error&) { return -EOVERFLOW; }
-	catch(std::bad_alloc&) { return -ENOMEM; }
+	catch(std::overflow_error&)	{ return -EOVERFLOW; }
+	catch(std::bad_alloc&)		{ return -ENOMEM; }
 	return 0;
 }
 mac_t const& abstract_ip_resolver::operator[](ipv4_addr addr)
@@ -78,11 +78,11 @@ mac_t const& abstract_ip_resolver::operator[](ipv4_addr addr)
 }
 int protocol_ethernet::receive(abstract_packet_base& p) 
 { 
-	ethernet_header* hdr    = static_cast<ethernet_header*>(p.packet_data);
+	ethernet_header* hdr	= static_cast<ethernet_header*>(p.packet_data);
 	if(handlers.contains(hdr->protocol_type))
 	{
-		protocol_handler& h = handlers[hdr->protocol_type];
-		p.packet_type       = h->packet_type();
+		protocol_handler& h	= handlers[hdr->protocol_type];
+		p.packet_type		= h->packet_type();
 		return h->receive(p);
 	}
 	return -EPROTONOSUPPORT;

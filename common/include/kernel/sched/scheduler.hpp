@@ -5,14 +5,14 @@
 #include "vector"
 class scheduler
 {
-	prio_level_task_queues __queues;
-	task_wait_queue __sleepers;
-	std::vector<task_t*> __non_timed_sleepers;
-	unsigned int __tick_rate;
-	unsigned int __cycle_divisor;
-	std::atomic<unsigned> __tick_cycles;
-	bool __running;
-	size_t __total_tasks;
+	prio_level_task_queues __queues{};
+	task_wait_queue __sleepers{};
+	std::vector<task_t*> __non_timed_sleepers{};
+	unsigned int __tick_rate{};
+	unsigned int __cycle_divisor{};
+	std::atomic<unsigned> __tick_cycles{};
+	bool __running{};
+	size_t __total_tasks{};
 	static scheduler __instance;
 	static bool __has_init;
 	bool __set_wait_time(task_t* task, unsigned int time, bool can_interrupt);

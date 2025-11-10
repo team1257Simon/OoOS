@@ -162,7 +162,7 @@ log_read_state jbd2::read_next_log_entry()
 }
 void jbd2::parse_revocation()
 {
-	blocknum_set block_nums{ 64 };
+	blocknum_set block_nums(64UZ);
 	char* entry_start       = __cur();
 	jbd2_revoke_header* rh  = reinterpret_cast<jbd2_revoke_header*>(entry_start);
 	__be64* start           = reinterpret_cast<__be64*>(entry_start + sizeof(jbd2_revoke_header));

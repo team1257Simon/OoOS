@@ -30,11 +30,11 @@ void udp_header::compute_udp_csum()
 	if((static_cast<size_t>(udp_length) % 2) != 0)
 		intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
-	dword dw_csum       = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	dw_csum             = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	udp_csum            = ~(static_cast<uint16_t>(intermediate_csum));
+	dword dw_csum       		= intermediate_csum;
+	intermediate_csum   		= dw_csum.hi + dw_csum.lo;
+	dw_csum             		= intermediate_csum;
+	intermediate_csum   		= dw_csum.hi + dw_csum.lo;
+	udp_csum            		= ~(static_cast<uint16_t>(intermediate_csum));
 }
 bool udp_header::verify_udp_csum() const
 {
@@ -50,24 +50,24 @@ bool udp_header::verify_udp_csum() const
 	if((static_cast<size_t>(udp_length) % 2) != 0)
 		intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
-	dword dw_csum       = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	dw_csum             = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	dw_csum             = intermediate_csum;
+	dword dw_csum       		= intermediate_csum;
+	intermediate_csum   		= dw_csum.hi + dw_csum.lo;
+	dw_csum             		= intermediate_csum;
+	intermediate_csum   		= dw_csum.hi + dw_csum.lo;
+	dw_csum             		= intermediate_csum;
 	return static_cast<uint16_t>(~(dw_csum.lo)) == 0US;
 }
 int protocol_udp::transmit(abstract_packet_base& p)
 {
-	udp_header* hdr = p.get_as<udp_header>();
+	udp_header* hdr	= p.get_as<udp_header>();
 	if(!hdr) throw std::bad_cast();
-	hdr->udp_length = static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_header));
+	hdr->udp_length	= static_cast<uint16_t>(p.packet_size - sizeof(ipv4_standard_header));
 	hdr->compute_udp_csum();
 	return next->transmit(p);
 }
 int protocol_udp::receive(abstract_packet_base& p)
 {
-	udp_header* hdr = p.get_as<udp_header>();
+	udp_header* hdr				= p.get_as<udp_header>();
 	if(__unlikely(!hdr)) return -EPROTOTYPE;
 	if(__unlikely(!hdr->verify_udp_csum())) return -EPROTO;
 	if(ports.contains(hdr->destination_port))

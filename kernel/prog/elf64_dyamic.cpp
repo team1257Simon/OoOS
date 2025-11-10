@@ -2,61 +2,19 @@
 #include "kernel_mm.hpp"
 #include "stdlib.h"
 #include "algorithm"
-static std::allocator<program_segment_descriptor> sd_alloc{};
-static std::allocator<uint32_t> w_alloc{};
-static std::allocator<uint64_t> q_alloc{};
-static std::allocator<elf64_rela> r_alloc{};
-static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
-static bool is_object_rela(elf64_rela const& r) { return r.r_info.type == R_X86_64_GLOB_DAT; }
+constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
+constexpr static std::allocator<uint32_t> w_alloc{};
+constexpr static std::allocator<uint64_t> q_alloc{};
+constexpr static std::allocator<elf64_rela> r_alloc{};
+constexpr static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
+constexpr static bool is_object_rela(elf64_rela const& r) { return r.r_info.type == R_X86_64_GLOB_DAT; }
 bool elf64_dynamic_object::load_preinit() { return true; /* stub; only applicable to executables */ }
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
 addr_t elf64_dynamic_object::global_offset_table() const { return got_vaddr ? resolve(got_vaddr) : nullptr; }
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return dyn_segment_idx ? resolve(phdr(dyn_segment_idx).p_vaddr) : nullptr; }
 addr_t elf64_dynamic_object::translate_in_frame(addr_t addr) { return get_frame()->translate(addr); }
-elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :
-	elf64_object    ( start, size ),
-	num_dyn_entries { 0UL },
-	dyn_entries     { nullptr },
-	num_plt_relas   { 0UL },
-	plt_relas       { nullptr },
-	got_vaddr       { 0UL },
-	dyn_segment_idx { 0UL },
-	relocations     {},
-	object_relas    {},
-	dependencies    {},
-	ld_paths        {},
-	init_array      {},
-	fini_array      {},
-	init_fn         { 0UL },
-	fini_fn         { 0UL },
-	init_array_ptr  { 0UL },
-	fini_array_ptr  { 0UL },
-	init_array_size { 0UL },
-	fini_array_size { 0UL },
-	symbol_index    { symstrtab, symtab }
-					{}
-elf64_dynamic_object::elf64_dynamic_object(file_node* n) :
-	elf64_object    ( n ),
-	num_dyn_entries { 0UL },
-	dyn_entries     { nullptr },
-	num_plt_relas   { 0UL },
-	plt_relas       { nullptr },
-	got_vaddr       { 0UL },
-	dyn_segment_idx { 0UL },
-	relocations     {},
-	object_relas    {},
-	dependencies    {},
-	ld_paths        {},
-	init_array      {},
-	fini_array      {},
-	init_fn         { 0UL },
-	fini_fn         { 0UL },
-	init_array_ptr  { 0UL },
-	fini_array_ptr  { 0UL },
-	init_array_size { 0UL },
-	fini_array_size { 0UL },
-	symbol_index    { symstrtab, symtab } 
-					{}
+elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :	elf64_object(start, size), symbol_index(symstrtab, symtab) {}
+elf64_dynamic_object::elf64_dynamic_object(file_node* n) : elf64_object(n), symbol_index(symstrtab, symtab) {}
 elf64_dynamic_object::~elf64_dynamic_object()
 {
 	symbol_index.destroy_if_present();
@@ -290,7 +248,10 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::fallback_resolve(std::string 
 }
 std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
-	if(__unlikely(!segments || !num_seg_descriptors)) { panic("[PRG/DYN] cannot load symbols from an uninitialized object"); return std::make_pair(elf64_sym(), nullptr); }
+	if(__unlikely(!segments || !num_seg_descriptors)) {
+		panic("[PRG/DYN] cannot load symbols from an uninitialized object");
+		return std::make_pair(elf64_sym(), nullptr);
+	}
 	elf64_sym const* sym = symbol_index[symbol];
 	return sym ? std::make_pair(*sym, resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
@@ -355,7 +316,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
 	fini_array_ptr      { that.fini_array_ptr },
 	init_array_size     { that.init_array_size },
 	fini_array_size     { that.fini_array_size },
-	symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ .header{ that.symbol_index.htbl.header } } }
+	symbol_index        { symstrtab, symtab, elf64_gnu_htbl(that.symbol_index.htbl.header) }
 {
 	symbol_index.htbl.bloom_filter_words    = q_alloc.allocate(symbol_index.htbl.header.maskwords);
 	symbol_index.htbl.buckets               = w_alloc.allocate(symbol_index.htbl.header.nbucket);
@@ -386,7 +347,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
 	fini_array_ptr      { that.fini_array_ptr },
 	init_array_size     { that.init_array_size },
 	fini_array_size     { that.fini_array_size },
-	symbol_index        { symstrtab, symtab, elf64_gnu_htbl{ std::move(that.symbol_index.htbl) } }
+	symbol_index        { symstrtab, symtab, elf64_gnu_htbl(std::move(that.symbol_index.htbl)) }
 {
 	that.symbol_index.htbl.bloom_filter_words   = nullptr;
 	that.symbol_index.htbl.buckets              = nullptr;

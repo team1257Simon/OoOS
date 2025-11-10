@@ -6,9 +6,9 @@ class elf64_dynamic_executable : public elf64_executable, public elf64_dynamic_o
 {
 protected:
 	addr_t virtual_load_base;
-	std::vector<addr_t> preinit_array;
-	uintptr_t preinit_array_ptr;
-	uintptr_t preinit_array_size;
+	std::vector<addr_t> preinit_array{};
+	uintptr_t preinit_array_ptr{};
+	uintptr_t preinit_array_size{};
 	virtual bool xload() override;
 	virtual bool load_preinit() override;
 	virtual void process_dyn_entry(size_t i) override;

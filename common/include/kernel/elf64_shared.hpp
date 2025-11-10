@@ -8,13 +8,13 @@ class elf64_shared_object : public elf64_dynamic_object
 protected:
 	std::string soname;
 	addr_t virtual_load_base;
-	size_t total_segment_size;
+	size_t total_segment_size{};
 	uframe_tag* frame_tag;
-	size_t ref_count;
-	bool sticky;
-	bool symbolic;
-	bool global;
-	addr_t entry;
+	size_t ref_count = 1UZ;
+	bool sticky{};
+	bool symbolic{};
+	bool global{};
+	addr_t entry{};
 	virtual bool load_segments() override;
 	virtual bool xvalidate() override;
 	virtual void xrelease() override;

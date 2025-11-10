@@ -7,24 +7,24 @@
 class elf64_dynamic_object : public virtual elf64_object
 {
 protected:
-	size_t num_dyn_entries;
-	elf64_dyn* dyn_entries;
-	size_t num_plt_relas;
-	elf64_rela* plt_relas;
-	size_t got_vaddr;
-	size_t dyn_segment_idx;
-	std::vector<elf64_relocation> relocations;
-	std::vector<elf64_rela> object_relas;
-	std::vector<std::string> dependencies;
-	std::vector<std::string> ld_paths;
-	std::vector<addr_t> init_array;
-	std::vector<addr_t> fini_array;
-	uintptr_t init_fn;
-	uintptr_t fini_fn;
-	uintptr_t init_array_ptr;
-	uintptr_t fini_array_ptr;
-	size_t init_array_size;
-	size_t fini_array_size;
+	size_t num_dyn_entries{};
+	elf64_dyn* dyn_entries{};
+	size_t num_plt_relas{};
+	elf64_rela* plt_relas{};
+	size_t got_vaddr{};
+	size_t dyn_segment_idx{};
+	std::vector<elf64_relocation> relocations{};
+	std::vector<elf64_rela> object_relas{};
+	std::vector<std::string> dependencies{};
+	std::vector<std::string> ld_paths{};
+	std::vector<addr_t> init_array{};
+	std::vector<addr_t> fini_array{};
+	uintptr_t init_fn{};
+	uintptr_t fini_fn{};
+	uintptr_t init_array_ptr{};
+	uintptr_t fini_array_ptr{};
+	size_t init_array_size{};
+	size_t fini_array_size{};
 	elf64_dynsym_index symbol_index;
 	virtual bool xload() override;
 	virtual bool load_syms() override;

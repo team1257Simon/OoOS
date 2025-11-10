@@ -12,23 +12,23 @@ namespace ooos
 	bool ooos::delegate_hda::__await_disk(unsigned int ticket) { return await_result(std::bind(&abstract_block_device::io_complete, __block_device, ticket), max_wait * max_wait); }
 	void delegate_hda::initialize(block_io_provider_module& provider)
 	{
-		int idx             = provider.index_of(BDT_HDD);
+		int idx				= provider.index_of(BDT_HDD);
 		if(idx < 0) throw std::runtime_error("[HDA] no HDD is present");
-		__provider_module   = std::addressof(provider);
-		__block_device      = std::addressof(provider[static_cast<unsigned>(idx)]);
+		__provider_module	= std::addressof(provider);
+		__block_device		= std::addressof(provider[static_cast<unsigned>(idx)]);
 		__read_pt();
 	}
 	void delegate_hda::__read_pt()
 	{
 		array_zero(__init_pt_hdr, sizeof(pt_header_t));
 		if(!read(__init_pt_hdr, 1UL, 1U)) throw std::runtime_error("[HDA] failed to read GPT header");
-		pt_header_t* hdr        = reinterpret_cast<pt_header_t*>(__init_pt_hdr);
-		unsigned sz_multi       = hdr->part_entry_size / sizeof(partition_entry_t);
+		pt_header_t* hdr		= reinterpret_cast<pt_header_t*>(__init_pt_hdr);
+		unsigned sz_multi		= hdr->part_entry_size / sizeof(partition_entry_t);
 		if(!sz_multi) throw std::runtime_error("[HDA] invalid size for pt entries — GPT header is corrupted");
-		size_t n                = hdr->num_part_entries * sz_multi;
-		size_t block_size       = __block_device->block_size();
-		size_t actual           = div_round_up(div_round_up(n * sizeof(partition_entry_t), block_size) * block_size, sizeof(partition_entry_t));
-		partition_entry_t* arr  = pt_alloc.allocate(actual);
+		size_t n				= hdr->num_part_entries * sz_multi;
+		size_t block_size		= __block_device->block_size();
+		size_t actual			= div_round_up(div_round_up(n * sizeof(partition_entry_t), block_size) * block_size, sizeof(partition_entry_t));
+		partition_entry_t* arr	= pt_alloc.allocate(actual);
 		std::ext::ptr_guard<partition_entry_t> guard(arr, actual, pt_alloc);
 		array_zero<partition_entry_t>(arr, n);
 		if(!read(arr, hdr->lba_partition_entry_array, div_round_up(n * sizeof(partition_entry_t), block_size))) throw std::runtime_error("[HDA] failed to read GPT");
@@ -47,22 +47,22 @@ namespace ooos
 			panic(__provider_module->ctx_msg());
 			return false;
 		}
-		size_t rem          = count;
-		size_t t_read       = 0UZ;
-		size_t s_read       = 0UZ;
-		size_t s_per_op     = __block_device->max_operation_blocks();
-		size_t b_per_s      = sector_size();
+		size_t rem			= count;
+		size_t t_read		= 0UZ;
+		size_t s_read		= 0UZ;
+		size_t s_per_op		= __block_device->max_operation_blocks();
+		size_t b_per_s		= sector_size();
 		if(__unlikely(!await_result(check_io_avail, max_wait))) { panic("[HDA] block device is unresponsive"); return false; }
 		fence();
 		while(rem)
 		{
-			size_t sct      = std::min(rem, s_per_op);
-			int ticket      = __block_device->read(addr_t(out).plus(t_read), start_sector + s_read, sct);
+			size_t sct		= std::min(rem, s_per_op);
+			int ticket		= __block_device->read(addr_t(out).plus(t_read), start_sector + s_read, sct);
 			if(__unlikely(ticket < 0)) { panic("[HDA] block device has no available bandwidth"); return false; }
 			if(__unlikely(!__await_disk(static_cast<unsigned>(ticket)))) { panic("[HDA] block device hung"); return false; }
-			t_read          += b_per_s * sct;
-			s_read          += sct;
-			rem             -= sct;
+			t_read			+= b_per_s * sct;
+			s_read			+= sct;
+			rem				-= sct;
 		}
 		fence();
 		return true;
@@ -78,22 +78,22 @@ namespace ooos
 			panic(__provider_module->ctx_msg());
 			return false;
 		}
-		size_t rem          = count;
-		size_t t_write      = 0UZ;
-		size_t s_write      = 0UZ;
-		size_t s_per_op     = __block_device->max_operation_blocks();
-		size_t b_per_s      = sector_size();
+		size_t rem			= count;
+		size_t t_write		= 0UZ;
+		size_t s_write		= 0UZ;
+		size_t s_per_op		= __block_device->max_operation_blocks();
+		size_t b_per_s		= sector_size();
 		if(__unlikely(!await_result(check_io_avail, max_wait))) { panic("[HDA] block device is unresponsive"); return false; }
 		fence();
 		while(rem)
 		{
-			size_t sct      = std::min(rem, s_per_op);
-			int ticket      = __block_device->write(start_sector + s_write, addr_t(in).plus(t_write), sct);
+			size_t sct		= std::min(rem, s_per_op);
+			int ticket		= __block_device->write(start_sector + s_write, addr_t(in).plus(t_write), sct);
 			if(__unlikely(ticket < 0)) { panic("[HDA] block device has no available bandwidth"); return false; }
 			if(__unlikely(!__await_disk(static_cast<unsigned>(ticket)))) { panic("[HDA] block device hung"); return false; }
-			t_write         += b_per_s * sct;
-			s_write         += sct;
-			rem             -= sct;
+			t_write			+= b_per_s * sct;
+			s_write			+= sct;
+			rem				-= sct;
 		}
 		fence();
 		return true;

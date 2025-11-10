@@ -54,45 +54,45 @@ std::streamsize tcp_session_buffer::rx_push(const void* payload_start, const voi
 }
 void tcp_header::compute_tcp_checksum()
 {
-	uint32_t intermediate_csum  = 0U;
-	size_t tcp_length           = static_cast<size_t>(static_cast<uint16_t>(total_length)) - ihl * sizeof(net32);
-	intermediate_csum           += source_addr.hi;
-	intermediate_csum           += source_addr.lo;
-	intermediate_csum           += destination_addr.hi;
-	intermediate_csum           += destination_addr.lo;
-	intermediate_csum           += protocol;
-	intermediate_csum           += tcp_length;
-	net16 const* words          = std::addressof(source_port);
-	size_t num_words            = tcp_length / sizeof(net16);
+	uint32_t intermediate_csum	= 0U;
+	size_t tcp_length			= static_cast<size_t>(static_cast<uint16_t>(total_length)) - ihl * sizeof(net32);
+	intermediate_csum			+= source_addr.hi;
+	intermediate_csum			+= source_addr.lo;
+	intermediate_csum			+= destination_addr.hi;
+	intermediate_csum			+= destination_addr.lo;
+	intermediate_csum			+= protocol;
+	intermediate_csum			+= tcp_length;
+	net16 const* words			= std::addressof(source_port);
+	size_t num_words			= tcp_length / sizeof(net16);
 	if((tcp_length % 2) != 0) 
-		intermediate_csum       += payload_end().minus(1Z).deref<net8>();
+		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
-	dword dw_csum       = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	dw_csum             = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	tcp_checksum        = net16(~(static_cast<uint16_t>(intermediate_csum)));
+	dword dw_csum				= intermediate_csum;
+	intermediate_csum			= dw_csum.hi + dw_csum.lo;
+	dw_csum						= intermediate_csum;
+	intermediate_csum			= dw_csum.hi + dw_csum.lo;
+	tcp_checksum				= net16(~(static_cast<uint16_t>(intermediate_csum)));
 }
 bool tcp_header::verify_tcp_checksum() const
 {
-	uint32_t intermediate_csum  = 0U;
-	size_t tcp_length           = static_cast<size_t>(static_cast<uint16_t>(total_length)) - ihl * sizeof(net32);
-	intermediate_csum           += source_addr.hi;
-	intermediate_csum           += source_addr.lo;
-	intermediate_csum           += destination_addr.hi;
-	intermediate_csum           += destination_addr.lo;
-	intermediate_csum           += protocol;
-	intermediate_csum           += tcp_length;
-	net16 const* words          = std::addressof(source_port);
-	size_t num_words            = tcp_length / sizeof(net16);
+	uint32_t intermediate_csum	= 0U;
+	size_t tcp_length			= static_cast<size_t>(static_cast<uint16_t>(total_length)) - ihl * sizeof(net32);
+	intermediate_csum			+= source_addr.hi;
+	intermediate_csum			+= source_addr.lo;
+	intermediate_csum			+= destination_addr.hi;
+	intermediate_csum			+= destination_addr.lo;
+	intermediate_csum			+= protocol;
+	intermediate_csum			+= tcp_length;
+	net16 const* words			= std::addressof(source_port);
+	size_t num_words			= tcp_length / sizeof(net16);
 	if((tcp_length % 2) != 0) 
-		intermediate_csum       += payload_end().minus(1Z).deref<net8>();
+		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
-	dword dw_csum       = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	dw_csum             = intermediate_csum;
-	intermediate_csum   = dw_csum.hi + dw_csum.lo;
-	dw_csum             = intermediate_csum;
+	dword dw_csum				= intermediate_csum;
+	intermediate_csum			= dw_csum.hi + dw_csum.lo;
+	dw_csum						= intermediate_csum;
+	intermediate_csum			= dw_csum.hi + dw_csum.lo;
+	dw_csum						= intermediate_csum;
 	return static_cast<uint16_t>(~(dw_csum.lo)) == 0US;
 }
 constexpr static time_t abs_diff(time_t a, time_t b) 
@@ -106,15 +106,15 @@ void tcp_transmission_timer::update()
 	time_t r = stopwatch.split();
 	if(smoothed_round_trip_time)
 	{
-		round_trip_time_variation *= 3;
-		round_trip_time_variation /= 4;
-		round_trip_time_variation += abs_diff(smoothed_round_trip_time, r) / 4;
-		smoothed_round_trip_time *= 7;
-		smoothed_round_trip_time /= 8;
-		smoothed_round_trip_time += r / 8;
+		round_trip_time_variation	*= 3;
+		round_trip_time_variation	/= 4;
+		round_trip_time_variation	+= abs_diff(smoothed_round_trip_time, r) / 4;
+		smoothed_round_trip_time	*= 7;
+		smoothed_round_trip_time	/= 8;
+		smoothed_round_trip_time	+= r / 8;
 	}
 	else { smoothed_round_trip_time = r; round_trip_time_variation = r / 2; }
-	retransmission_timeout = smoothed_round_trip_time + std::max(1UL, round_trip_time_variation * 4);
+	retransmission_timeout 			= smoothed_round_trip_time + std::max(1UL, round_trip_time_variation * 4);
 }
 uint32_t isn_gen::operator()(ipv4_addr localip, uint16_t localport, ipv4_addr remoteip, uint16_t remoteport) const
 {
@@ -143,14 +143,14 @@ void tcp_port_handler::open(ipv4_addr peer, uint16_t port, tcp_connection_type l
 {
 	new(std::addressof(connection_info)) tcp_connection_info
 	{
-		.remote_host            { peer },
-		.remote_port            { port },
-		.local_connection_type  { local_type },
-		.remote_connection_type { remote_type },
-		.initial_send_sequence  { local_host.generate_isn(local_host.ipconfig.leased_addr, local_port, peer, port) }
+		.remote_host			{ peer },
+		.remote_port			{ port },
+		.local_connection_type	{ local_type },
+		.remote_connection_type	{ remote_type },
+		.initial_send_sequence	{ local_host.generate_isn(local_host.ipconfig.leased_addr, local_port, peer, port) }
 	};
-	connection_info.current_send_sequence   = connection_info.initial_send_sequence;
-	connection_info.next_send_sequence      = connection_info.initial_send_sequence;
+	connection_info.current_send_sequence	= connection_info.initial_send_sequence;
+	connection_info.next_send_sequence		= connection_info.initial_send_sequence;
 }
 int tcp_port_handler::rx_process(tcp_packet& p)
 {
@@ -221,27 +221,27 @@ int tcp_port_handler::rx_process(tcp_packet& p)
 }
 tcp_packet& tcp_port_handler::create_packet(size_t payload_size, size_t option_size, uint16_t window_size)
 {
-	size_t padded_option_size                   = option_size ? up_to_nearest(option_size + 1UZ, 4UZ) : 0UZ;
-	abstract_ip_resolver& res                   = *base->ip_resolver;
-	mac_t remote_mac                            = res[res.check_presence(connection_info.remote_host) ? connection_info.remote_host : local_host.ipconfig.primary_gateway];
-	sequence_map::iterator i                    = send_packets.emplace(std::piecewise_construct, std::forward_as_tuple(connection_info.next_send_sequence), std::forward_as_tuple(sizeof(tcp_header) + padded_option_size + payload_size, std::in_place_type<tcp_header>, std::forward<ipv4_standard_header>(base->create_packet(remote_mac)))).first;
+	size_t padded_option_size					= option_size ? up_to_nearest(option_size + 1UZ, 4UZ) : 0UZ;
+	abstract_ip_resolver& res					= *base->ip_resolver;
+	mac_t remote_mac							= res[res.check_presence(connection_info.remote_host) ? connection_info.remote_host : local_host.ipconfig.primary_gateway];
+	sequence_map::iterator i					= send_packets.emplace(std::piecewise_construct, std::forward_as_tuple(connection_info.next_send_sequence), std::forward_as_tuple(sizeof(tcp_header) + padded_option_size + payload_size, std::in_place_type<tcp_header>, std::forward<ipv4_standard_header>(base->create_packet(remote_mac)))).first;
 	if(padded_option_size)
 	{
-		addr_t option_start = i->second->options;
+		addr_t option_start						= i->second->options;
 		option_start.plus(padded_option_size - 1Z).assign(0UC);
 		if(option_size != padded_option_size) array_fill(option_start.plus(option_size), 1UC, static_cast<size_t>(padded_option_size - option_size - 1Z));
 	}
-	i->second->total_length                     = net16(static_cast<uint16_t>(i->second.packet_size));
-	i->second->sequence_number                  = net32(i->first);
-	i->second->ack_number                       = net32(connection_info.next_receive_sequence);
-	i->second->window_size                      = net16(window_size);
-	i->second->fields.data_offset               = static_cast<net8>((sizeof(tcp_header) - sizeof(ipv4_standard_header) + padded_option_size) / sizeof(net32));
-	i->second->source_addr                      = local_host.ipconfig.leased_addr;
-	i->second->source_port                      = net16(local_port);
-	i->second->destination_addr                 = connection_info.remote_host;
-	i->second->destination_port                 = net16(connection_info.remote_port);
-	connection_info.current_send_sequence       = i->first;
-	connection_info.next_send_sequence          = static_cast<uint32_t>(i->first + i->second->segment_len());
+	i->second->total_length						= static_cast<uint16_t>(i->second.packet_size);
+	i->second->sequence_number					= i->first;
+	i->second->ack_number						= connection_info.next_receive_sequence;
+	i->second->window_size						= window_size;
+	i->second->fields.data_offset				= static_cast<net8>((sizeof(tcp_header) - sizeof(ipv4_standard_header) + padded_option_size) / sizeof(net32));
+	i->second->source_addr						= local_host.ipconfig.leased_addr;
+	i->second->source_port						= local_port;
+	i->second->destination_addr					= connection_info.remote_host;
+	i->second->destination_port					= connection_info.remote_port;
+	connection_info.current_send_sequence		= i->first;
+	connection_info.next_send_sequence			= static_cast<uint32_t>(i->first + i->second->segment_len());
 	return i->second;
 }
 int tcp_port_handler::rx_initial(tcp_packet& p)
@@ -249,27 +249,27 @@ int tcp_port_handler::rx_initial(tcp_packet& p)
 	using enum tcp_connection_state;
 	try
 	{
-		connection_info.peer_window_size                = p->window_size;
+		connection_info.peer_window_size				= p->window_size;
 		if(p->has_data())
 		{
-			sequence_map::iterator i                    = rx_add_packet(p);
-			connection_info.initial_receive_sequence    = i->first;
-			connection_info.current_receive_sequence    = i->first;
-			connection_info.receive_commit_sequence     = i->first;
-			connection_info.next_receive_sequence       = static_cast<uint32_t>(i->first + i->second->segment_len());
+			sequence_map::iterator i					= rx_add_packet(p);
+			connection_info.initial_receive_sequence	= i->first;
+			connection_info.current_receive_sequence	= i->first;
+			connection_info.receive_commit_sequence		= i->first;
+			connection_info.next_receive_sequence		= static_cast<uint32_t>(i->first + i->second->segment_len());
 		}
 		else
 		{
-			connection_info.initial_receive_sequence    = p->sequence_number;
-			connection_info.current_receive_sequence    = p->sequence_number;
-			connection_info.next_receive_sequence       = p->sequence_number + 1U;
+			connection_info.initial_receive_sequence	= p->sequence_number;
+			connection_info.current_receive_sequence	= p->sequence_number;
+			connection_info.next_receive_sequence		= p->sequence_number + 1U;
 		}
-		tcp_packet& ack_packet                      = create_packet(0UZ);
-		ack_packet->fields.ack_flag                 = true;
-		ack_packet->fields.syn_flag                 = true;
+		tcp_packet& ack_packet							= create_packet(0UZ);
+		ack_packet->fields.ack_flag						= true;
+		ack_packet->fields.syn_flag						= true;
 		ack_packet->compute_tcp_checksum();
 		if(int err = tx_send_next(); __unlikely(err != 0)) return err;
-		connection_state                            = SYN_RECEIVED;
+		connection_state								= SYN_RECEIVED;
 	}
 	catch(std::bad_alloc&) { return -ENOMEM; }
 	return 0;
@@ -291,23 +291,23 @@ int tcp_port_handler::rx_establish(tcp_packet& p)
 		bool is_first = !connection_info.initial_receive_sequence;
 		if(is_first)   // first received packet; this occurs when the local host initiated the connection to a passive peer
 		{
-			connection_info.initial_receive_sequence    = p->sequence_number;
-			connection_info.current_receive_sequence    = p->sequence_number;
-			connection_info.next_receive_sequence       = p->sequence_number;
-			connection_info.peer_window_size            = p->window_size;
+			connection_info.initial_receive_sequence	= p->sequence_number;
+			connection_info.current_receive_sequence	= p->sequence_number;
+			connection_info.next_receive_sequence		= p->sequence_number;
+			connection_info.peer_window_size			= p->window_size;
 		}
 		if(is_first || p->seq_chk(p->fields.ack_flag ? connection_info.current_receive_sequence : connection_info.next_receive_sequence))
 		{
-			connection_info.current_receive_sequence    = connection_info.next_receive_sequence;
-			connection_info.next_receive_sequence       += p->segment_len();
+			connection_info.current_receive_sequence	= connection_info.next_receive_sequence;
+			connection_info.next_receive_sequence		+= p->segment_len();
 			if(p->has_data()) rx_add_packet(p);
 			rx_commit();
-			tcp_packet& ack_packet                      = create_packet(0UZ);
-			ack_packet->fields.ack_flag                 = true;
-			ack_packet->fields.syn_flag                 = true;
+			tcp_packet& ack_packet						= create_packet(0UZ);
+			ack_packet->fields.ack_flag					= true;
+			ack_packet->fields.syn_flag					= true;
 			ack_packet->compute_tcp_checksum();
 			if(int err = tx_send_next(); __unlikely(err != 0)) return err;
-			connection_state                            = ESTABLISHED;
+			connection_state							= ESTABLISHED;
 		}
 	}
 	catch(std::bad_alloc&) { return -ENOMEM; }
@@ -332,17 +332,17 @@ void tcp_port_handler::rx_reset()
 	receive_packets.clear();
 	new(std::addressof(timer)) tcp_transmission_timer();
 	data.reset();
-	ipv4_addr remote            = connection_info.remote_host;
-	uint16_t port               = connection_info.remote_port;
-	tcp_connection_type rtype   = connection_info.remote_connection_type, ltype = connection_info.local_connection_type;
+	ipv4_addr remote			= connection_info.remote_host;
+	uint16_t port				= connection_info.remote_port;
+	tcp_connection_type rtype	= connection_info.remote_connection_type, ltype = connection_info.local_connection_type;
 	new(std::addressof(connection_info)) tcp_connection_info
 	{
-		.remote_host            { remote },
-		.remote_port            { port },
-		.local_connection_type  { ltype },
-		.remote_connection_type { rtype }
+		.remote_host			{ remote },
+		.remote_port			{ port },
+		.local_connection_type	{ ltype },
+		.remote_connection_type	{ rtype }
 	};
-	connection_state            = tcp_connection_state::LISTEN;
+	connection_state			= tcp_connection_state::LISTEN;
 }
 int tcp_port_handler::rx_accept_payload(tcp_packet& p)
 {
@@ -374,34 +374,34 @@ int tcp_port_handler::rx_begin_close(tcp_packet& p)
 }
 int tcp_port_handler::tx_reset(uint32_t use_seq)
 {
-	abstract_ip_resolver& res                   = *base->ip_resolver;
-	mac_t remote_mac                            = res[res.check_presence(connection_info.remote_host) ? connection_info.remote_host : local_host.ipconfig.primary_gateway];
-	sequence_map::iterator i                    = send_packets.emplace(std::piecewise_construct, std::forward_as_tuple(connection_info.next_send_sequence), std::forward_as_tuple(sizeof(tcp_header), std::in_place_type<tcp_header>, std::forward<ipv4_standard_header>(base->create_packet(remote_mac)))).first;
-	i->second->total_length                     = static_cast<uint16_t>(i->second.packet_size);
-	i->second->sequence_number                  = use_seq;
-	i->second->window_size                      = 16384US;
-	i->second->fields.data_offset               = static_cast<net8>((sizeof(tcp_header) - sizeof(ipv4_standard_header)) / sizeof(net32));
-	i->second->source_addr                      = local_host.ipconfig.leased_addr;
-	i->second->source_port                      = net16(local_port);
-	i->second->destination_addr                 = connection_info.remote_host;
-	i->second->destination_port                 = net16(connection_info.remote_port);
+	abstract_ip_resolver& res		= *base->ip_resolver;
+	mac_t remote_mac				= res[res.check_presence(connection_info.remote_host) ? connection_info.remote_host : local_host.ipconfig.primary_gateway];
+	sequence_map::iterator i		= send_packets.emplace(std::piecewise_construct, std::forward_as_tuple(connection_info.next_send_sequence), std::forward_as_tuple(sizeof(tcp_header), std::in_place_type<tcp_header>, std::forward<ipv4_standard_header>(base->create_packet(remote_mac)))).first;
+	i->second->total_length			= static_cast<uint16_t>(i->second.packet_size);
+	i->second->sequence_number		= use_seq;
+	i->second->window_size			= 16384USBE;
+	i->second->fields.data_offset	= static_cast<net8>((sizeof(tcp_header) - sizeof(ipv4_standard_header)) / sizeof(net32));
+	i->second->source_addr			= local_host.ipconfig.leased_addr;
+	i->second->source_port			= local_port;
+	i->second->destination_addr		= connection_info.remote_host;
+	i->second->destination_port		= connection_info.remote_port;
 	if(int err = next->transmit(i->second); __unlikely(err != 0)) return err;
 	// TODO: we might need to retransmit the correct sequence...add that here if applicable
 	return 0;
 }
 int tcp_port_handler::tx_ack()
 {
-	tcp_packet& ack_packet                      = create_packet(0UZ);
-	ack_packet->fields.ack_flag                 = true;
+	tcp_packet& ack_packet		= create_packet(0UZ);
+	ack_packet->fields.ack_flag	= true;
 	ack_packet->compute_tcp_checksum();
 	if(int err = tx_send_next(); __unlikely(err != 0)) return err;
 	return 0;
 }
 int tcp_port_handler::tx_begin_close()
 {
-	tcp_packet& fin_packet          = create_packet(0UZ);
-	fin_packet->fields.ack_flag     = true;
-	fin_packet->fields.finish_flag  = true;
+	tcp_packet& fin_packet			= create_packet(0UZ);
+	fin_packet->fields.ack_flag		= true;
+	fin_packet->fields.finish_flag	= true;
 	fin_packet->compute_tcp_checksum();
 	if(int err = tx_send_next(); __unlikely(err != 0)) return err;
 	connection_state = tcp_connection_state::FIN_WAIT_1;

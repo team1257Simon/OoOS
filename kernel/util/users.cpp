@@ -138,29 +138,29 @@ int user_accounts_manager::__create_vpwd_records(user_info& user, const char* ho
 }
 int user_accounts_manager::create_user(std::string const& name, std::string const& pw, const char* shell, const char* gecos, const char* home, user_capabilities* caps)
 {
-	global_accounts_info& inf = *__global_info;
+	global_accounts_info& inf 	= *__global_info;
 	user_info account
 	{
 		.uid            { inf.next_uid },
 		.gid            { inf.next_gid },
 		.capabilities   { nonnull_or_else(caps, inf.default_permissions) }
 	};
-	int err = __create_credentials(account, name, pw);
+	int err 					= __create_credentials(account, name, pw);
 	if(__unlikely(err != 0)) return err;
-	user_handle result  = __table.add(account).first;
-	err                 = __create_vpwd_records(*result, home, gecos, shell);
+	user_handle result  		= __table.add(account).first;
+	err                 		= __create_vpwd_records(*result, home, gecos, shell);
 	if(__unlikely(err != 0)) return err;
 	inf.next_uid++;
 	inf.next_gid++;
 	inf.num_users++;
 	inf.num_groups++;
-	inf.last_updated = sys_time(nullptr);
+	inf.last_updated 			= sys_time(nullptr);
 	__global_info.commit_object();
 	return !__sysfs.sync() ? -EIO : 0;
 }
 int user_accounts_manager::create_service_account(std::string const& name, std::string const& pw, const char* shell, const char* gecos, const char* home, user_capabilities* caps)
 {
-	global_accounts_info& inf = *__global_info;
+	global_accounts_info& inf 	= *__global_info;
 	user_info account
 	{
 		.uid            { inf.next_service_uid },
@@ -169,14 +169,14 @@ int user_accounts_manager::create_service_account(std::string const& name, std::
 	};
 	int err = __create_credentials(account, name, pw);
 	if(__unlikely(err != 0)) return err;
-	user_handle result  = __table.add(account).first;
-	err                 = __create_vpwd_records(*result, home, gecos, shell ? shell : "/sbin/nologin");
+	user_handle result  		= __table.add(account).first;
+	err                 		= __create_vpwd_records(*result, home, gecos, shell ? shell : "/sbin/nologin");
 	if(__unlikely(err != 0)) return err;
 	inf.next_service_uid++;
 	inf.next_service_gid++;
 	inf.num_users++;
 	inf.num_groups++;
-	inf.last_updated = sys_time(nullptr);
+	inf.last_updated 			= sys_time(nullptr);
 	__global_info.commit_object();
 	return !__sysfs.sync() ? -EIO : 0;
 }

@@ -16,25 +16,25 @@ namespace ooos
 			ps2_config_byte cfg;
 			ps2 << PSC_MEM_READ;
 			if(!ps2.wait_for(cfg)) throw std::runtime_error("[PS2] controller timeout");
-			cfg.ps2_p1_xlat = false;
-			cfg.ps2_p1_ien 	= false;
-			cfg.ps2_p1_cdis = false;
+			cfg.ps2_p1_xlat	= false;
+			cfg.ps2_p1_ien	= false;
+			cfg.ps2_p1_cdis	= false;
 			ps2 << PSC_MEM_WRITE << cfg << PSC_CIST;
 			uint8_t response;
 			if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout");
 			else if(response != 0x55UC) throw std::runtime_error("[PS2] controller self-test returned error code " + std::to_string(response, std::ext::hex));
 			ps2 << PSC_MEM_WRITE << cfg << PSC_P2EN;
 			if(!ps2.wait_for(cfg)) throw std::runtime_error("[PS2] controller timeout");
-			ps2.port2 		= !cfg.ps2_p2_cdis;
+			ps2.port2		= !cfg.ps2_p2_cdis;
 			if(ps2.port2)
 			{
-				cfg.ps2_p2_cdis = false;
+				cfg.ps2_p2_cdis	= false;
 				cfg.ps2_p2_ien	= false;
 				ps2 << PSC_P2DIS << PSC_MEM_WRITE << cfg;
 			}
 			ps2 << PSC_P1IST;
 			if(!ps2.wait_for(response)) throw std::runtime_error("[PS2] controller timeout");
-			ps2.port1 		= !response;
+			ps2.port1			= !response;
 			if(ps2.port2)
 			{
 				ps2 << PSC_P2IST;
@@ -42,7 +42,7 @@ namespace ooos
 				ps2.port2	= !response;
 			}
 			if(!ps2.port1 && !ps2.port2) throw std::runtime_error("[PS2] no ports are functional");
-			cfg.ps2_p1_cdis = !ps2.port1;
+			cfg.ps2_p1_cdis	= !ps2.port1;
 			cfg.ps2_p1_ien	= ps2.port1;
 			cfg.ps2_p2_cdis	= !ps2.port2;
 			cfg.ps2_p2_ien	= ps2.port2;

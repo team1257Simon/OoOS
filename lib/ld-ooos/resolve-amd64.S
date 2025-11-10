@@ -1,24 +1,24 @@
 	.code64
-	.section    .text
-	.global     resolve
-	.hidden     resolve
-	.type       resolve,        @function
+	.section	.text
+	.global		resolve
+	.hidden		resolve
+	.type		resolve,	@function
 resolve:
-	xchgq   8(%rsp),        %rdi
-	xchgq   (%rsp),         %rsi
-	pushq   %rcx
-	movq    $29,            %rax
+	xchgq	8(%rsp),		%rdi
+	xchgq	(%rsp),			%rsi
+	pushq	%rcx
+	movq	$29,			%rax
 	syscall
-	cmpq    $-4096,         %rax
-	ja      1f
-	popq    %rcx
-	popq    %rsi
-	popq    %rdi
-	jmp     *%rax
+	cmpq	$-4096,			%rax
+	ja		1f
+	popq	%rcx
+	popq	%rsi
+	popq	%rdi
+	jmp	 *%rax
 1:
-	movq    $6,             last_error_action(%rip)
-	negq    %rax
-	movq    %rax,           %rdi
-	xorq    %rax,           %rax
+	movq	$6,				last_error_action(%rip)
+	negq	%rax
+	movq	%rax,			%rdi
+	xorq	%rax,			%rax
 	syscall
-	.size       resolve,        .-resolve
+	.size	resolve,		.-resolve

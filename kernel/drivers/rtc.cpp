@@ -15,37 +15,37 @@ extern "C" { uint64_t sys_time(uint64_t* tm_target) { uint64_t t = rtc::get_inst
 void rtc::rtc_time_update() volatile noexcept
 {
 	while(is_cmos_update_in_progress()) pause();
-	uint16_t century = (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20UC);
+	uint16_t century	= (__century_register > 0U ? read_rtc_register_dyn(__century_register) : 20UC);
 	rtc_time nt
 	{
-		.sec    = read_rtc_register<0x00UC>(),
-		.min    = read_rtc_register<0x02UC>(),
-		.hr     = read_rtc_register<0x04UC>(),
-		.wkday  = 0UC,
-		.day    = read_rtc_register<0x07UC>(),
-		.month  = read_rtc_register<0x08UC>(),
-		.year   = read_rtc_register<0x09UC>()
+		.sec	= read_rtc_register<0x00UC>(),
+		.min	= read_rtc_register<0x02UC>(),
+		.hr		= read_rtc_register<0x04UC>(),
+		.wkday	= 0UC,
+		.day	= read_rtc_register<0x07UC>(),
+		.month	= read_rtc_register<0x08UC>(),
+		.year	= read_rtc_register<0x09UC>()
 	};
 	if(__is_12h)
 	{
-		bool pm     = ((nt.hr & 0x80UC) != 0);
-		nt.hr       &= ~0x80UC;
-		nt.hr       %= 12UC;
+		bool pm		= ((nt.hr & 0x80UC) != 0);
+		nt.hr		&= ~0x80UC;
+		nt.hr		%= 12UC;
 		if(pm)
-			nt.hr   += 12UC;
+			nt.hr	+= 12UC;
 	}
 	if(__is_bcd)
 	{
 		if(__century_register > 0)
-			century = bcd_conv(century);
-		nt.sec      = bcd_conv(nt.sec);
-		nt.min      = bcd_conv(nt.min);
-		nt.hr       = bcd_conv(nt.hr);
-		nt.day      = bcd_conv(nt.day);
-		nt.month    = bcd_conv(nt.month);
-		nt.year     = bcd_conv(nt.year);
+			century	= bcd_conv(century);
+		nt.sec		= bcd_conv(nt.sec);
+		nt.min		= bcd_conv(nt.min);
+		nt.hr		= bcd_conv(nt.hr);
+		nt.day		= bcd_conv(nt.day);
+		nt.month	= bcd_conv(nt.month);
+		nt.year		= bcd_conv(nt.year);
 	}
-	nt.year     += century * 100US;
-	nt.wkday    = day_of_week(nt.year, nt.month, nt.day);
+	nt.year			+= century * 100US;
+	nt.wkday		= day_of_week(nt.year, nt.month, nt.day);
 	__my_time.store(nt);
 }

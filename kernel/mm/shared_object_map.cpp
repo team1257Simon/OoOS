@@ -55,13 +55,13 @@ shared_object_map::iterator shared_object_map::add(file_node* so_file)
 }
 shared_object_map::iterator shared_object_map::transfer(shared_object_map& that, iterator handle) 
 { 
-    const char* hpath = get_path(handle); 
+    const char* hpath	= get_path(handle); 
     std::string xhpath(hpath ? hpath : ""); 
-    iterator result = that.emplace(std::move(*handle)).first; 
+    iterator result		= that.emplace(std::move(*handle)).first; 
     __obj_paths.erase(handle); 
     erase(result->get_soname()); 
     for(block_descriptor& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); } 
-    result->frame_tag = that.shared_frame; 
+    result->frame_tag	= that.shared_frame; 
     that.set_path(result, xhpath);
     if(std::addressof(that) == std::addressof(__globals)) result->set_global();
     else result->set_global(false);
@@ -69,21 +69,21 @@ shared_object_map::iterator shared_object_map::transfer(shared_object_map& that,
 }
 shared_object_map::iterator shared_object_map::get_ldso_object(filesystem* fs)
 {
-    if(__ld_so == __globals.end())
+    if(__ld_so			== __globals.end())
     {
         if(!fs) throw std::invalid_argument("[PRG/SO] need fs pointer to initialize ld.so object");
-        file_node* n    = fs->open_file("lib/ld-ooos.so", std::ios_base::in);
-        __ld_so         = __globals.add(n);
+        file_node* n	= fs->open_file("lib/ld-ooos.so", std::ios_base::in);
+        __ld_so			= __globals.add(n);
         fs->close_file(n);
     }
     return __ld_so;
 }
 void shared_object_map::copy(shared_object_map const& that)
 {
-    if(std::addressof(that) == std::addressof(__globals)) throw std::invalid_argument("[PRG/SO] cannot clone global objects");
-    for(const_iterator i = that.begin(); i != that.end(); i++)
+    if(std::addressof(that)	== std::addressof(__globals)) throw std::invalid_argument("[PRG/SO] cannot clone global objects");
+    for(const_iterator i	= that.begin(); i != that.end(); i++)
     {
-        iterator j = emplace(*i).first;
+        iterator j			= emplace(*i).first;
         j->on_copy(shared_frame);
         set_path(j, that.get_path(iterator(const_cast<__node_ptr>(i.get_node()))));
     }

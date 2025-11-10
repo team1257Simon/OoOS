@@ -8,8 +8,8 @@ extern "C"
 	{
 		uframe_tag* ctask_frame = active_frame();
 		if(__unlikely(ctask_frame->magic != uframe_magic)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-		addr_t result   = ctask_frame->extent;
-		bool success    = ctask_frame->shift_extent(incr);
+		addr_t result	= ctask_frame->extent;
+		bool success	= ctask_frame->shift_extent(incr);
 		if(success) { return result; }
 		else return addr_t(static_cast<uintptr_t>(-ENOMEM));
 	}
@@ -26,7 +26,7 @@ extern "C"
 		addr_t result = ctask_frame->mmap_add(addr, len, prot & PROT_WRITE, prot & PROT_READ);
 		if(!(flags & MAP_ANONYMOUS))
 		{
-			filesystem* fsptr = get_task_vfs();
+			filesystem* fsptr	= get_task_vfs();
 			if(__unlikely(!fsptr)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 			else try
 			{

@@ -6,16 +6,16 @@
 #include "kernel/fs/fs.hpp"
 class elf64_object
 {
-	bool __validated;
-	bool __loaded;
+	bool __validated{};
+	bool __loaded{};
 	addr_t __image_start;
 	size_t __image_size;
 protected:
-	size_t num_seg_descriptors;
-	program_segment_descriptor* segments;
-	elf64_sym_table symtab;
-	elf64_string_table symstrtab;
-	elf64_string_table shstrtab;
+	size_t num_seg_descriptors{};
+	program_segment_descriptor* segments{};
+	elf64_sym_table symtab{};
+	elf64_string_table symstrtab{};
+	elf64_string_table shstrtab{};
 	constexpr elf64_ehdr const& ehdr() const noexcept { return __image_start.deref<elf64_ehdr>(); }
 	constexpr elf64_phdr const& phdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize).deref<elf64_phdr>(); }
 	constexpr elf64_shdr const& shdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize).deref<elf64_shdr>(); }

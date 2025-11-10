@@ -6,8 +6,13 @@
 using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
 task_list task_list::__instance{};
-pid_t task_list::__upid() const noexcept { pid_t pid; do { pid = static_cast<pid_t>(rand()); } while(pid == 0 || contains(pid)); return pid; }
 task_list& task_list::get() { return __instance; }
+pid_t task_list::__upid() const noexcept
+{
+	pid_t pid;
+	do { pid = static_cast<pid_t>(rand()); } while(pid == 0 || contains(pid));
+	return pid;
+}
 task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size_t st_sz, size_t tls_sz, priority_val pv, uint16_t qv)
 {
     kframe_tag* ft  = __kernel_frame_tag;

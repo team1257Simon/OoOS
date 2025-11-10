@@ -5,10 +5,10 @@
 class elf64_kernel_object : public elf64_dynamic_object
 {
 protected:
-	addr_t load_base;
-	std::align_val_t load_align;
-	addr_t entry;
-	ooos::abstract_module_base* module_object;
+	addr_t load_base{};
+	std::align_val_t load_align{};
+	addr_t entry{};
+	ooos::abstract_module_base* module_object{};
 	virtual void process_headers() override;
 	virtual addr_t translate_in_frame(addr_t addr) override;
 	virtual void set_frame(uframe_tag* ft) override;

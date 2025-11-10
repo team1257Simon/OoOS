@@ -15,12 +15,12 @@ pci_capabilities_register* get_first_capability_register(pci_config_space* devic
     if(device->status.capabilities_list)
     {
         uint8_t caps_ptr;
-        char* dev_space = reinterpret_cast<char*>(device);
+        char* dev_space			= reinterpret_cast<char*>(device);
         switch(device->header_type & ~0x80UC)
         {
-            case st: caps_ptr = device->header_0x0.capabilities_pointer; break;
-            case br: caps_ptr = device->header_0x1.capabilities_pointer; break;
-            case cb: caps_ptr = device->header_0x2.capabilities_pointer; break;
+            case st: caps_ptr	= device->header_0x0.capabilities_pointer; break;
+            case br: caps_ptr	= device->header_0x1.capabilities_pointer; break;
+            case cb: caps_ptr	= device->header_0x2.capabilities_pointer; break;
             default: panic("[PCI] invalid device header type"); return nullptr;
         }
         return reinterpret_cast<pci_capabilities_register*>(dev_space + caps_ptr);
@@ -30,7 +30,7 @@ pci_capabilities_register* get_first_capability_register(pci_config_space* devic
 }
 pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r)
 {
-    char* dev_space = reinterpret_cast<char*>(device);
-    uint8_t next    = r->next;
+    char* dev_space	= reinterpret_cast<char*>(device);
+    uint8_t next	= r->next;
     return reinterpret_cast<pci_capabilities_register*>(dev_space + next);
 }

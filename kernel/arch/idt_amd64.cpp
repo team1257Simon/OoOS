@@ -83,10 +83,9 @@ extern "C"
     extern void* isr_table[];
     extern idt_entry_t idt_table[256];
     extern void no_waiting_op();
-    void (*callback_8)() = no_waiting_op;
+    void (*callback_8)()	= no_waiting_op;
     extern volatile bool delay_flag;
-    struct 
-    {
+    struct {
         uint16_t size;
         void* idt_ptr;
     } __pack idt_descriptor{};
@@ -97,22 +96,22 @@ extern "C"
     {
         new(static_cast<void*>(std::addressof(idt_table[vector]))) idt_entry_t
         {
-            .isr_low    { static_cast<uint16_t>(isr.full & 0xFFFFUS) },
-            .kernel_cs  { 0x8US },
-            .ist        { static_cast<uint8_t>((vector < 0x30UC) ? 1 : 0) },
-            .attributes { 0xEEUC },
-            .isr_mid    { static_cast<uint16_t>((isr.full >> 16) & 0xFFFFUS) },
-            .isr_high   { static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFFU) }
+            .isr_low	{ static_cast<uint16_t>(isr.full & 0xFFFFUS) },
+            .kernel_cs	{ 0x8US },
+            .ist		{ static_cast<uint8_t>((vector < 0x30UC) ? 1 : 0) },
+            .attributes	{ 0xEEUC },
+            .isr_mid	{ static_cast<uint16_t>((isr.full >> 16) & 0xFFFFUS) },
+            .isr_high	{ static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFFU) }
         };
     }
     void isr_dispatch(uint8_t idx)
     {
         if(idx == 0x28UC) { (*callback_8)(); delay_flag = false; callback_8 = no_waiting_op; }
-        bool is_err 	= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
+        bool is_err		= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
         asm volatile("movq %%rsp, %0" : "=m"(saved_stack_ptr) :: "memory");
         if(idx > 0x19UC && idx < 0x30UC) 
         { 
-            byte irq 	= static_cast<uint8_t>(idx - 0x20UC);
+            byte irq	= static_cast<uint8_t>(idx - 0x20UC);
             kernel_memory_mgr::suspend_user_frame();
             kfx_save();
             for(std::pair<void* const, ooos::isr_actor>& p : __managed_handlers[irq]) p.second();
@@ -135,8 +134,8 @@ extern "C"
     {
         pic_remap<0x20UC, 0x28UC>();
         for(int i = 0; i < 256; i++) idt_set_descriptor(i, isr_table[i]);
-        idt_descriptor.size     = 4095US;
-        idt_descriptor.idt_ptr  = idt_table;
+        idt_descriptor.size		= 4095US;
+        idt_descriptor.idt_ptr	= idt_table;
         idt_register();
     }
 }

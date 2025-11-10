@@ -9,9 +9,8 @@ addr_t elf64_executable::segment_vaddr(size_t n) const { return addr_t(phdr(n).p
 elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
 void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
 void elf64_executable::set_frame(uframe_tag* ft) { frame_tag = ft; program_descriptor.frame_ptr = ft; }
-uframe_tag *elf64_executable::get_frame() const { return frame_tag; }
-elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz) :
-	elf64_object        ( start, size ),
+uframe_tag* elf64_executable::get_frame() const { return frame_tag; }
+elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz) : elf64_object(start, size),
 	stack_size          { stack_sz },
 	tls_size            { tls_sz },
 	frame_base          { nullptr },
@@ -22,8 +21,7 @@ elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, s
 	frame_tag           { nullptr },
 	program_descriptor  {}
 						{}
-elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) : 
-	elf64_object        { n },
+elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz) : elf64_object(n),
 	stack_size          { stack_sz },
 	tls_size            { tls_sz },
 	frame_base          { nullptr },
@@ -34,8 +32,7 @@ elf64_executable::elf64_executable(file_node* n, size_t stack_sz, size_t tls_sz)
 	frame_tag           { nullptr },
 	program_descriptor  {}
 						{}
-elf64_executable::elf64_executable(elf64_executable&& that) :
-	elf64_object        ( std::move(that) ),
+elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object (std::move(that)),
 	stack_size          { that.stack_size },
 	tls_size            { that.tls_size },
 	frame_base          { std::move(that.frame_base) },
@@ -54,8 +51,7 @@ elf64_executable::elf64_executable(elf64_executable&& that) :
 	that.frame_tag                      = nullptr;
 	program_descriptor.object_handle    = this;
 }
-elf64_executable::elf64_executable(elf64_executable const& that) :
-	elf64_object        ( that ),
+elf64_executable::elf64_executable(elf64_executable const& that) : elf64_object(that),
 	stack_size          { that.stack_size },
 	tls_size            { that.tls_size },
 	frame_base          { that.frame_base },
@@ -104,7 +100,10 @@ bool elf64_executable::load_segments()
 		addr_t target       = addr.trunc(h.p_align);
 		size_t full_size    = h.p_memsz + (addr - target);
 		addr_t img_dat      = segment_ptr(n);
-		if(__unlikely(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h)))) { panic("[PRG/EXEC] failed allocate blocks for executable"); return false; }
+		if(__unlikely(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h)))) {
+			panic("[PRG/EXEC] failed allocate blocks for executable");
+			return false;
+		}
 		addr_t idmap = frame_tag->translate(addr);
 		array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
 		if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
