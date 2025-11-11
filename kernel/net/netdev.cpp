@@ -6,8 +6,8 @@ protocol_handler& net_device::add_protocol(net16 id, protocol_handler&& ph) { re
 int net_device::transmit(abstract_packet_base& p)
 {
 	if(transfer_buffers.at_end()) transfer_buffers.restart();
-	netstack_buffer& buffer = transfer_buffers.pop();
-	int err                 = p.write_to(buffer);
+	netstack_buffer& buffer	= transfer_buffers.pop();
+	int err					= p.write_to(buffer);
 	if(__unlikely(err != 0)) return err;
 	return buffer.tx_flush();
 }
@@ -18,8 +18,8 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 		abstract_packet<ethernet_header> p(b);
 		if(p->protocol_type == ethertype_arp) 
 		{
-			p.packet_type   = arp_handler.packet_type();
-			if(int err      = arp_handler.receive(p); __unlikely(err != 0)) return err;
+			p.packet_type	= arp_handler.packet_type();
+			if(int err		= arp_handler.receive(p); __unlikely(err != 0)) return err;
 			return 0;
 		}
 		int result = base_handler.receive(p);
@@ -27,7 +27,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 		if(result == -EPROTONOSUPPORT) { klog("[net_device] W: unrecognized protocol"); return 0; }
 		return result;
 	}
-	catch(std::bad_alloc&)      { return -ENOMEM; }
-	catch(std::bad_cast&)       { return -EPROTO; }
-	catch(std::exception& e)    { panic(e.what()); return -EINVAL; }
+	catch(std::bad_alloc&)		{ return -ENOMEM; }
+	catch(std::bad_cast&)		{ return -EPROTO; }
+	catch(std::exception& e)	{ panic(e.what()); return -EINVAL; }
 }

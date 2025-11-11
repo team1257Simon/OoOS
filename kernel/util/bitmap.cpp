@@ -9,19 +9,19 @@ off_t bitmap_scan_chain_zeroes(const unsigned long* bitmap, size_t num_ulongs, s
 	if(num_zeroes == 1) return bitmap_scan_single_zero(bitmap, num_ulongs);
 	if(__unlikely(num_zeroes > ulsize)) 
 	{
-		size_t num_needed_ulongs = div_round_up(num_zeroes, ulsize);
-		for(size_t i = 0; i < num_ulongs; )
+		size_t num_needed_ulongs	= div_round_up(num_zeroes, ulsize);
+		for(size_t i = 0; i < num_ulongs; barrier())
 		{
-			size_t n = std::strnlen<unsigned long>(bitmap + i, num_needed_ulongs);
+			size_t n				= std::strnlen<unsigned long>(bitmap + i, num_needed_ulongs);
 			if(n == num_needed_ulongs) return i * ulsize;
 			i += n;
 		}
 	}
 	else for(size_t i = 0; i < num_ulongs; i++)
 	{
-		unsigned long cur = bitmap[i];
+		unsigned long cur	= bitmap[i];
 		if(num_zeroes == ulsize && !cur) return i * ulsize; 
-		unsigned long mask = ~(~0UL >> num_zeroes);
+		unsigned long mask	= ~(~0UL >> num_zeroes);
 		for(off_t j = 0; j < static_cast<off_t>(ulsize - num_zeroes); j++) if(!(cur & (mask << j))) return i * ulsize + j;
 	}
 	return -1;
@@ -31,18 +31,18 @@ void bitmap_set_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits
 	if(num_bits == 1) bitmap_set_bit(bitmap, bit_pos);
 	else
 	{
-		off_t ulpos     = bit_pos / ulsize;
-		off_t bit_off   = bit_pos % ulsize;
+		off_t ulpos			= bit_pos / ulsize;
+		off_t bit_off		= bit_pos % ulsize;
 		if(__unlikely(num_bits >= ulsize))
 		{ 
-			size_t actual = std::min(num_bits, static_cast<size_t>(ulsize - bit_off));
-			bitmap[ulpos] |= (~0UL << bit_off); 
+			size_t actual	= std::min(num_bits, static_cast<size_t>(ulsize - bit_off));
+			bitmap[ulpos]	|= (~0UL << bit_off); 
 			if(num_bits > actual) { bitmap_set_chain_bits(bitmap, bit_pos + actual, static_cast<size_t>(num_bits - actual)); }
 		}
 		else
 		{
-			uint64_t mask = num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
-			bitmap[ulpos] |= (mask << bit_off);
+			uint64_t mask	= num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
+			bitmap[ulpos]	|= (mask << bit_off);
 			if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] |= (mask >> ((num_bits + bit_off) % ulsize));
 		}
 	}
@@ -52,18 +52,18 @@ void bitmap_clear_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bi
     if(num_bits == 1) bitmap_clear_bit(bitmap, bit_pos); 
     else
 	{
-		off_t ulpos     = bit_pos / ulsize;
-		off_t bit_off   = bit_pos % ulsize;
+		off_t ulpos		= bit_pos / ulsize;
+		off_t bit_off	= bit_pos % ulsize;
 		if(__unlikely(num_bits >= ulsize))
 		{ 
-			size_t actual = std::min(num_bits, static_cast<size_t>(ulsize - bit_off)); 
-			bitmap[ulpos] &= ~(~0UL << bit_off); 
+			size_t actual	= std::min(num_bits, static_cast<size_t>(ulsize - bit_off)); 
+			bitmap[ulpos]	&= ~(~0UL << bit_off); 
 			if(num_bits > actual) { bitmap_set_chain_bits(bitmap, bit_pos + actual, static_cast<size_t>(num_bits - actual)); } 
 		}
 		else
 		{
-			uint64_t mask = num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
-			bitmap[ulpos] &= ~(mask << bit_off);
+			uint64_t mask	= num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
+			bitmap[ulpos]	&= ~(mask << bit_off);
 			if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] &= ~(mask >> ((num_bits + bit_off) % ulsize));
 		}
 	}

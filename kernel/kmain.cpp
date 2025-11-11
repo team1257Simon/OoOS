@@ -332,7 +332,7 @@ void hpet_tests()
 		fence();
 		hpet_amd64::delay_usec(1000UL, fn);
 		fence();
-		if(start_read > end_read) startup_tty.print_line("emulator too unstable; start read was " + std::to_string(start_read) + " microseconds"); 
+		if(start_read > end_read) startup_tty.print_line("emulator too unstable; start read was " + std::to_string(start_read) + " microseconds");
 		else startup_tty.print_line("time split: " + std::to_string(end_read - start_read));
 	}
 	else panic("hpet init failed");
@@ -421,7 +421,7 @@ void circular_queue_tests()
 	}
 	startup_tty.endl();
 }
-static const char* codes[] = 
+static const char* codes[] =
 {
 	"#DE [Division by Zero]",
 	"#DB [Debug Trap]",
@@ -459,7 +459,7 @@ static const char* codes[] =
 constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 {
 	if(get_gs_base<task_t>() != std::addressof(kproc)) return;
-	if(idx < 0x20) 
+	if(idx < 0x20)
 	{
 		startup_tty.print_text(codes[idx]);
 		if(has_ecode(idx))
@@ -470,7 +470,7 @@ constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 		}
 		if(svinst && !errinst) { errinst = addr_t(svinst); }
 		if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
-		if(idx == 0x0EUC) 
+		if(idx == 0x0EUC)
 		{
 			uint64_t fault_addr;
 			asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
@@ -518,15 +518,15 @@ void run_tests()
 	// Test the complicated stuff
 	startup_tty.print_line("extfs tests...");
 	extfs_tests();
-	if(test_extfs.has_init()) 
+	if(test_extfs.has_init())
 	{
 		startup_tty.print_line("sysfs tests...");
 		sysfs_tests();
 		shared_object_map::get_ldso_object(std::addressof(test_extfs));
 		startup_tty.print_line("SO loader tests...");
 		dyn_elf_tests();
-		startup_tty.print_line("elf64 tests..."); 
-		elf64_tests(); 
+		startup_tty.print_line("elf64 tests...");
+		elf64_tests();
 	}
 	startup_tty.print_line("task tests...");
 	task_tests();
@@ -560,9 +560,9 @@ extern "C"
 		__serial_write("[KERNEL] E: " + std::string(msg));
 	}
 	void klog(const char* msg) noexcept
-	{ 
-		startup_tty.print_line(msg); 
-		__serial_write("[KERNEL] " + std::string(msg));  
+	{
+		startup_tty.print_line(msg);
+		__serial_write("[KERNEL] " + std::string(msg));
 	}
 	void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
 	{
@@ -582,7 +582,7 @@ extern "C"
 		kernel_memory_mgr::init_instance(mmap);
 		// Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
 		__register_frame(std::addressof(__ehframe));
-		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init. 
+		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init.
 		_init();
 		init_tss(std::addressof(kernel_isr_stack_top));
 		enable_fs_gs_insns();
@@ -591,7 +591,7 @@ extern "C"
 		kproc.saved_regs.rsp	= std::addressof(kernel_stack_top);
 		kproc.saved_regs.rbp	= std::addressof(kernel_stack_base);
 		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);     
+		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
 		fadt_t* fadt			= nullptr;
 		// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
 		if(sysinfo->xsdt) fadt	= find_fadt();
@@ -631,8 +631,8 @@ extern "C"
 			}
 			else startup_tty.print_line("PCI enum failed");
 			// The test tasks might trip after this point, so add a backstop to avoid any shenanigans
-			while(1);  
-		} 
+			while(1);
+		}
 		catch(std::exception& e)
 		{
 			// Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.

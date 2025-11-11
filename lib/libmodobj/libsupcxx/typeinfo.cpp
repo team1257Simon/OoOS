@@ -30,8 +30,8 @@ using std::type_info;
 type_info::~type_info() {}
 bool type_info::operator==(const type_info& other) const { return __type_name == other.__type_name; }
 bool type_info::operator!=(const type_info& other) const { return __type_name != other.__type_name; }
-bool            type_info::before(const type_info& other) const { return __type_name < other.__type_name; }
-const char*     type_info::name() const { return __type_name; }
+bool type_info::before(const type_info& other) const { return __type_name < other.__type_name; }
+const char* type_info::name() const { return __type_name; }
 type_info::type_info(const type_info& rhs) { __type_name = rhs.__type_name; }
 type_info& type_info::operator=(const type_info& rhs) { return *new type_info(rhs); }
 ABI_NAMESPACE::__fundamental_type_info::~__fundamental_type_info() {}
@@ -44,35 +44,3 @@ ABI_NAMESPACE::__vmi_class_type_info::~__vmi_class_type_info() {}
 ABI_NAMESPACE::__pbase_type_info::~__pbase_type_info() {}
 ABI_NAMESPACE::__pointer_type_info::~__pointer_type_info() {}
 ABI_NAMESPACE::__pointer_to_member_type_info::~__pointer_to_member_type_info() {}
-// From libelftc
-extern "C" char* __cxa_demangle_gnu3(const char*);
-extern "C" char* __cxa_demangle(const char* mangled_name, char* buf, size_t* n, int* status)
-{
-	char* demangled = __cxa_demangle_gnu3(mangled_name);
-	if(demangled)
-	{
-		size_t len = strlen(demangled);
-		if(!buf || (*n < len + 1)) buf = static_cast<char*>(realloc(buf, len + 1));
-		if(buf)
-		{
-			memcpy(buf, demangled, len);
-			buf[len] = 0;
-			if(n) *n = len;
-			if(status) *status = 0;
-		}
-		else if(status) *status = -1;
-		free(demangled);
-	}
-	else { if(status) *status = -2; return nullptr; }
-	return buf;
-}
-extension std::string std::ext::demangle(std::type_info const& ti)
-{
-	if(char* buf = __cxa_demangle_gnu3(ti.name()))
-	{
-		std::string result{buf};
-		free(buf);
-		return result;
-	}
-	return "DEMANGLE ERROR";
-}

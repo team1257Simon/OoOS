@@ -295,52 +295,52 @@ bool cached_extent_node::push_extent_recurse_legacy(ext_node_extent_tree* parent
 		}
 		return false;
 	}
-	uint32_t* bptrs     = reinterpret_cast<uint32_t*>(my_blk->data_buffer);
-	uint32_t* target    = nullptr;
-	uint16_t nd         = depth - 1;
-	auto last           = next_level_extents.max();
+	uint32_t* bptrs								= reinterpret_cast<uint32_t*>(my_blk->data_buffer);
+	uint32_t* target							= nullptr;
+	uint16_t nd									= depth - 1;
+	auto last	= next_level_extents.max();
 	if(last == next_level_extents.end() || !parent->get_cached(last->second)->push_extent_recurse_legacy(parent, blk))
 	{
 		for(size_t i = 0; i < ndwords; i++) { if(!bptrs[i]) { target = bptrs + i; break; } }
 		if(!target) return false;
-		disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(parent);
+		disk_block* nl_blk			= tracked_node->parent_fs->claim_metadata_block(parent);
 		if(!nl_blk) throw std::runtime_error("[FS/EXT4/EXTENT] failed to allocate block");
-		cached_extent_node* base = std::addressof(parent->tracked_extents.emplace_back(nl_blk, tracked_node, nd));
+		cached_extent_node* base	= std::addressof(parent->tracked_extents.emplace_back(nl_blk, tracked_node, nd));
 		next_level_extents.insert(std::move(std::make_pair(parent->total_extent, parent->cached_node_pos(base))));
-		*target         = nl_blk->block_number;
-		my_blk->dirty   = true;
+		*target						= nl_blk->block_number;
+		my_blk->dirty				= true;
 		return base->push_extent_recurse_legacy(parent, blk);
 	}
 	return true;
 }
 bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree* parent, disk_block* blk)
 {
-	disk_block* my_blk      = block();
-	ext_extent_header* hdr  = reinterpret_cast<ext_extent_header*>(my_blk->data_buffer);
+	disk_block* my_blk				= block();
+	ext_extent_header* hdr			= reinterpret_cast<ext_extent_header*>(my_blk->data_buffer);
 	if(hdr->magic != ext_extent_magic) { throw std::runtime_error("[FS/EXT4/EXTENT] invalid header"); }
 	if(depth < 2)
 	{
 		if(hdr->entries < hdr->max_entries)
 		{
-			ext_extent_node* node   = reinterpret_cast<ext_extent_node*>(my_blk->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
+			ext_extent_node* node	= reinterpret_cast<ext_extent_node*>(my_blk->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
 			populate_leaf(node->leaf, blk, parent->total_extent);
-			parent->total_extent    += blk->chain_len;
-			my_blk->dirty           = true;
+			parent->total_extent	+= blk->chain_len;
+			my_blk->dirty			= true;
 			csum_update();
 			return true;
 		}
 		return false;
 	}
-	uint16_t nd     = depth - 1US;
-	auto last       = next_level_extents.max();
+	uint16_t nd							= depth - 1US;
+	auto last	= next_level_extents.max();
 	if(last == next_level_extents.end() || !parent->get_cached(last->second)->push_extent_recurse_ext4(parent, blk))
 	{
 		if(hdr->entries < hdr->max_entries)
 		{
-			disk_block* nl_blk = tracked_node->parent_fs->claim_metadata_block(parent);
+			disk_block* nl_blk			= tracked_node->parent_fs->claim_metadata_block(parent);
 			if(!nl_blk) throw std::runtime_error("[FS/EXT4/EXTENT] failed to allocate block");
-			ext_extent_node* node       = reinterpret_cast<ext_extent_node*>(my_blk->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
-			cached_extent_node* base    = std::addressof(parent->tracked_extents.emplace_back(nl_blk, tracked_node, nd));
+			ext_extent_node* node		= reinterpret_cast<ext_extent_node*>(my_blk->data_buffer + sizeof(ext_extent_header)) + hdr->entries;
+			cached_extent_node* base	= std::addressof(parent->tracked_extents.emplace_back(nl_blk, tracked_node, nd));
 			next_level_extents.insert(std::move(std::make_pair(parent->total_extent, parent->cached_node_pos(base))));
 			populate_index(node->idx, nl_blk->block_number, parent->total_extent);
 			my_blk->dirty = true;
@@ -353,13 +353,13 @@ bool cached_extent_node::push_extent_recurse_ext4(ext_node_extent_tree* parent, 
 }
 void cached_extent_node::csum_update()
 {
-	size_t bs           = tracked_node->parent_fs->block_size();
-	uint32_t csum       = tracked_node->parent_fs->get_uuid_csum();
-	csum                = crc32c(csum, tracked_node->inode_number);
-	csum                = crc32c(csum, tracked_node->on_disk_node->version_lo);
-	csum                = crc32c(csum, tracked_node->on_disk_node->version_hi);
-	uint32_t* target    = reinterpret_cast<uint32_t*>(block()->data_buffer + bs - 4);
-	*target             = 0U;
-	csum                = crc32c_blk(csum, *block(), bs);
-	*target             = csum;
+	size_t bs			= tracked_node->parent_fs->block_size();
+	uint32_t csum		= tracked_node->parent_fs->get_uuid_csum();
+	csum				= crc32c(csum, tracked_node->inode_number);
+	csum				= crc32c(csum, tracked_node->on_disk_node->version_lo);
+	csum				= crc32c(csum, tracked_node->on_disk_node->version_hi);
+	uint32_t* target	= reinterpret_cast<uint32_t*>(block()->data_buffer + bs - 4);
+	*target				= 0U;
+	csum				= crc32c_blk(csum, *block(), bs);
+	*target				= csum;
 }

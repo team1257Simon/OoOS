@@ -5,9 +5,9 @@ device_registry::~device_registry() = default;
 device_registry& device_registry::get_instance() { return __instance; }
 device_stream* device_registry::operator[](dword id) const
 {
-	const_iterator i = find(id.hi);
+	const_iterator i				= find(id.hi);
 	if(i == end()) return nullptr;
-	dev_class_map::const_iterator j = i->second.find(id.lo);
+	dev_class_map::const_iterator j	= i->second.find(id.lo);
 	if(j) return j->second;
 	return nullptr;
 }
@@ -20,7 +20,7 @@ uint32_t device_registry::add(device_stream* dev, device_type type)
 }
 bool device_registry::remove(device_stream* dev)
 {
-	dword id = dev->get_device_id();
+	dword id			= dev->get_device_id();
 	if(this->erase(id.hi)) return true;
 	return false;
 }

@@ -14,9 +14,9 @@ extern "C"
 	[[noreturn]] void handle_exit()
 	{
 		cli();
-		task_ctx* task = active_task_context();
+		task_ctx* task	= active_task_context();
 		if(task->is_user()) { task->terminate(); tl.destroy_task(task->get_pid()); }
-		if(task_t* next = sch.fallthrough_yield(); next != nullptr) { fallthrough_reentry(next); }
+		if(task_t* next	= sch.fallthrough_yield(); next != nullptr) { fallthrough_reentry(next); }
 		else { kernel_reentry(); }
 		__builtin_unreachable();
 	}
@@ -104,21 +104,21 @@ extern "C"
 				return task->task_struct.saved_regs.rax;
 			else return -ENOMEM;
 		}
-		catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
-		catch(std::out_of_range& e)     { panic(e.what()); return -EFAULT; }
-		catch(std::bad_alloc&)          { panic("no memory for argument vectors"); return -ENOMEM; }
+		catch(std::invalid_argument& e)	{ panic(e.what()); return -ECANCELED; }
+		catch(std::out_of_range& e)	 	{ panic(e.what()); return -EFAULT; }
+		catch(std::bad_alloc&)			{ panic("no memory for argument vectors"); return -ENOMEM; }
 		__builtin_unreachable();
 	}
 	spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env)
 	{
-		task_ctx* task		= active_task_context();
-		filesystem* fs_ptr	= get_task_vfs();
+		task_ctx* task			= active_task_context();
+		filesystem* fs_ptr		= get_task_vfs();
 		if(__unlikely(!fs_ptr)) return -ENOSYS;
-		name				= translate_user_pointer(name);
+		name					= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
 		file_vnode* n;
 		try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
-		elf64_executable* ex = prog_manager::get_instance().add(n);
+		elf64_executable* ex	= prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;
 		std::vector<const char*> argv_v{}, env_v{};
 		for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
@@ -134,8 +134,8 @@ extern "C"
 				else return -ENOMEM;
 			}
 			catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
-			catch(std::out_of_range& e)     { panic(e.what()); return -EFAULT; }
-			catch(std::bad_alloc&)          { panic("[EXEC/spawn] no memory for argument vectors"); return -ENOMEM; }            
+			catch(std::out_of_range& e)	 	{ panic(e.what()); return -EFAULT; }
+			catch(std::bad_alloc&)			{ panic("[EXEC/spawn] no memory for argument vectors"); return -ENOMEM; }			
 		}
 		return -EAGAIN;
 	}

@@ -245,13 +245,13 @@ void extfs::release_blocks(uint64_t start, size_t num)
 }
 uint64_t extfs::inode_to_block(uint32_t inode)
 {
-	size_t grp = (static_cast<size_t>(inode - 1)) / sb->inodes_per_group;
-	size_t idx = (static_cast<size_t>(inode - 1)) % sb->inodes_per_group;
+	size_t grp	= (static_cast<size_t>(inode - 1)) / sb->inodes_per_group;
+	size_t idx	= (static_cast<size_t>(inode - 1)) % sb->inodes_per_group;
 	return qword(blk_group_descs[grp].inode_table_start_block, blk_group_descs[grp].inode_table_start_block_hi) + (static_cast<uint64_t>(idx * sb->inode_size) / block_size());
 }
 ext_inode* extfs::get_inode(uint32_t inode_num)
 {
-	size_t grp = group_num_for_inode(inode_num);
+	size_t grp	= group_num_for_inode(inode_num);
 	if(grp >= block_groups.size()) throw std::out_of_range("[FS/EXT4] invalid inode group");
 	return reinterpret_cast<ext_inode*>(block_groups[grp].inode_block.data_buffer + inode_block_offset(inode_num));
 }
@@ -259,20 +259,20 @@ file_vnode* extfs::on_open(tnode* fd, std::ios_base::openmode mode)
 {
 	if(fd->is_pipe())
 	{
-		ext_pipe_pair* p = dynamic_cast<ext_pipe_pair*>(fd->ptr());
+		ext_pipe_pair* p	= dynamic_cast<ext_pipe_pair*>(fd->ptr());
 		if(!p) return fd->as_file();
 		if(mode.in) return addressof(p->in);
 		return addressof(p->out);
 	}
-	file_vnode* fn = fd->as_file();
+	file_vnode* fn			= fd->as_file();
 	if(fn && fn->on_open()) return fn;
 	return nullptr; 
 }
 filesystem::target_pair extfs::get_parent(directory_vnode* start, std::string const& path, bool create)
 {
-	std::vector<std::string> pathspec = std::ext::split(path, path_separator());
+	std::vector<std::string> pathspec	= std::ext::split(path, path_separator());
 	if(pathspec.empty()) throw std::logic_error("[FS/EXT4] empty path");
-	directory_vnode* cur = start;
+	directory_vnode* cur				= start;
 	for(size_t i = 0; i < pathspec.size() - 1; i++)
 	{
 		if(pathspec[i].empty()) continue;
@@ -281,15 +281,15 @@ filesystem::target_pair extfs::get_parent(directory_vnode* start, std::string co
 		{
 			if(create) 
 			{
-				directory_vnode* created = mkdirnode(cur, pathspec[i]);
-				if(!created) throw std::runtime_error("[FS/EXT4] failed to create " + pathspec[i]);
-				cur = created;
+				directory_vnode* cn	= mkdirnode(cur, pathspec[i]);
+				if(!cn) throw std::runtime_error("[FS/EXT4] failed to create " + pathspec[i]);
+				cur					= cn;
 			} 
 			else { throw std::out_of_range("[FS/EXT4] path " + pathspec[i] + " does not exist (use open_directory(\".../" + pathspec[i] + "\", true) to create it)"); } 
 		}
 		else if(cur->is_mount())
 		{
-			mount_vnode* mount = node->as_mount();
+			mount_vnode* mount		= node->as_mount();
 			std::vector<std::string> rem(pathspec.begin() + i, pathspec.end());
 			return target_pair(std::piecewise_construct, std::forward_as_tuple(mount), std::forward_as_tuple(std::ext::join(rem, mount->mounted->path_separator())));   
 		}
@@ -300,16 +300,16 @@ filesystem::target_pair extfs::get_parent(directory_vnode* start, std::string co
 }
 file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
-	target_pair parent      = filesystem::get_parent(path, false);
-	if(mount_vnode* mount    = dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->open_file(parent.second, mode, create);
-	tnode* node             = parent.first->find(parent.second);
+	target_pair parent		= filesystem::get_parent(path, false);
+	if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->open_file(parent.second, mode, create);
+	tnode* node				= parent.first->find(parent.second);
 	if(node && node->is_directory()) throw std::logic_error("[FS/EXT4] path " + path + " exists and is a directory");
 	file_vnode* result;
-	bool pipe = false;
+	bool pipe				= false;
 	if(!node)
 	{
 		if(!create) throw std::out_of_range("[FS/EXT4] file not found: " + path); 
-		if(file_vnode* created = mkfilenode(parent.first, parent.second)) result = created;
+		if(file_vnode* cn = mkfilenode(parent.first, parent.second)) result = cn;
 		else throw std::runtime_error("[FS/EXT4] failed to create file: " + path);
 	}
 	else result = on_open(node, mode);
@@ -321,17 +321,17 @@ file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mo
 directory_vnode* extfs::open_directory(std::string const& path, bool create)
 {
 	if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
-	target_pair parent      = filesystem::get_parent(path, create);
-	if(mount_vnode* mount    = dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->open_directory(parent.second, create);
-	tnode* node             = parent.first->find(parent.second);
+	target_pair parent		= filesystem::get_parent(path, create);
+	if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->open_directory(parent.second, create);
+	tnode* node				= parent.first->find(parent.second);
 	directory_vnode* result;
 	if(!node)
 	{
 		if(create) 
 		{
-			directory_vnode* cn = mkdirnode(parent.first, parent.second);
+			directory_vnode* cn	= mkdirnode(parent.first, parent.second);
 			if(!cn) throw std::runtime_error("[FS/EXT4] failed to create " + path);
-			result = cn;
+			result				= cn;
 		} 
 		else throw std::out_of_range("[FS/EXT4] path " + path + " does not exist (use open_directory(\"" + path + "\", true) to create it)"); 
 	}
@@ -342,40 +342,40 @@ directory_vnode* extfs::open_directory(std::string const& path, bool create)
 }
 directory_vnode* extfs::mkdirnode(directory_vnode* parent, std::string const& name)
 {
-	qword tstamp            = sys_time(nullptr);
-	uint8_t extrabits       = (tstamp.hi.hi >> 4) & 0x03UC;
-	uint32_t inode_num      = claim_inode(true);
+	qword tstamp			= sys_time(nullptr);
+	uint8_t extrabits		= (tstamp.hi.hi >> 4) & 0x03UC;
+	uint32_t inode_num		= claim_inode(true);
 	if(__builtin_expect(inode_num != 0, true)) try
 	{
 		ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
 		{
-			.mode               { 0040666U },
-			.size_lo            { 0U },
-			.changed_time       { tstamp.lo },
-			.modified_time      { tstamp.lo },
-			.flags              { use_extents },
+			.mode				{ 0040666U },
+			.size_lo			{ 0U },
+			.changed_time		{ tstamp.lo },
+			.modified_time		{ tstamp.lo },
+			.flags				{ use_extents },
 			.block_info         
 			{ 
 				.ext4_extent
 				{ 
 					.header
 					{ 
-						.magic          { ext_extent_magic },
-						.entries        { 0US },
-						.max_entries    { 4US },
-						.depth          { 0US }
+						.magic			{ ext_extent_magic },
+						.entries		{ 0US },
+						.max_entries	{ 4US },
+						.depth			{ 0US }
 					} 
 				} 
 			},
-			.size_hi            { 0U },
-			.extra_isize        { isize_val },
-			.changed_time_hi    { extrabits },
-			.mod_time_extra     { extrabits },
-			.created_time       { tstamp.lo },
-			.created_time_hi    { extrabits }
+			.size_hi			{ 0U },
+			.extra_isize		{ isize_val },
+			.changed_time_hi	{ extrabits },
+			.mod_time_extra		{ extrabits },
+			.created_time		{ tstamp.lo },
+			.created_time_hi	{ extrabits }
 		};
-		ext_directory_vnode* vnode      = dir_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
-		ext_directory_vnode& exparent   = dynamic_cast<ext_directory_vnode&>(*parent);
+		ext_directory_vnode* vnode		= dir_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
+		ext_directory_vnode& exparent	= dynamic_cast<ext_directory_vnode&>(*parent);
 		if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size())) 
 		{
 			if(!vnode->init_dir_blank(std::addressof(exparent))) { panic("[FS/EXT4] failed to initialize directory"); return nullptr; }
@@ -390,40 +390,40 @@ directory_vnode* extfs::mkdirnode(directory_vnode* parent, std::string const& na
 }
 file_vnode* extfs::mkfilenode(directory_vnode* parent, std::string const& name)
 {
-	qword tstamp        = sys_time(nullptr);
-	uint8_t extrabits   = (tstamp.hi.hi >> 4) & 0x03;
-	uint32_t inode_num  = claim_inode(false);
+	qword tstamp		= sys_time(nullptr);
+	uint8_t extrabits	= (tstamp.hi.hi >> 4) & 0x03;
+	uint32_t inode_num	= claim_inode(false);
 	if(__builtin_expect(inode_num != 0, true)) try
 	{
-		ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
+		ext_inode* inode	= new(static_cast<void*>(get_inode(inode_num))) ext_inode
 		{
-			.mode               { 0100666U },
-			.size_lo            { 0U },
-			.changed_time       { tstamp.lo },
-			.modified_time      { tstamp.lo },
-			.flags              { use_extents },
+			.mode				{ 0100666U },
+			.size_lo			{ 0U },
+			.changed_time		{ tstamp.lo },
+			.modified_time		{ tstamp.lo },
+			.flags				{ use_extents },
 			.block_info         
 			{ 
 				.ext4_extent
 				{ 
 					.header
 					{ 
-						.magic          { ext_extent_magic },
-						.entries        { 0US },
-						.max_entries    { 4US },
-						.depth          { 0US } 
+						.magic			{ ext_extent_magic },
+						.entries		{ 0US },
+						.max_entries	{ 4US },
+						.depth			{ 0US } 
 					} 
 				} 
 			},
-			.size_hi            { 0U },
-			.extra_isize        { isize_val },
-			.changed_time_hi    { extrabits },
-			.mod_time_extra     { extrabits },
-			.created_time       { tstamp.lo },
-			.created_time_hi    { extrabits }
+			.size_hi			{ 0U },
+			.extra_isize		{ isize_val },
+			.changed_time_hi	{ extrabits },
+			.mod_time_extra		{ extrabits },
+			.created_time		{ tstamp.lo },
+			.created_time_hi	{ extrabits }
 		};
-		ext_file_vnode* vnode           = file_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
-		ext_directory_vnode& exparent   = dynamic_cast<ext_directory_vnode&>(*parent);
+		ext_file_vnode* vnode			= file_nodes.emplace(this, inode_num, inode, next_fd++).first.base();
+		ext_directory_vnode& exparent	= dynamic_cast<ext_directory_vnode&>(*parent);
 		if(__builtin_expect(exparent.add_dir_entry(vnode, dti_regular, name.data(), name.size()), true)) 
 		{
 			if(__builtin_expect(!vnode->on_open(), false)) { panic("[FS/EXT4] failed to initialize node"); return nullptr; };
@@ -438,31 +438,31 @@ file_vnode* extfs::mkfilenode(directory_vnode* parent, std::string const& name)
 }
 device_vnode* extfs::mkdevnode(directory_vnode* parent, std::string const& name, dev_t id, int fd)
 {
-	device_stream* dev = dreg[id];
+	device_stream* dev	= dreg[id];
 	if(!dev) { throw std::invalid_argument("[FS/EXT4] no device found with id " + std::to_string(id)); }
-	qword tstamp        = sys_time(nullptr);
-	uint8_t extrabits   = (tstamp.hi.hi >> 4) & 0x03;
-	uint32_t inode_num  = claim_inode(false);
+	qword tstamp		= sys_time(nullptr);
+	uint8_t extrabits	= (tstamp.hi.hi >> 4) & 0x03;
+	uint32_t inode_num	= claim_inode(false);
 	if(__builtin_expect(inode_num != 0, true)) try
 	{
-		ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
+		ext_inode* inode	= new(static_cast<void*>(get_inode(inode_num))) ext_inode
 		{
-			.mode               { 0020666U },
-			.size_lo            { 0U },
-			.changed_time       { tstamp.lo },
-			.modified_time      { tstamp.lo },
-			.flags              { use_extents },
-			.device_hardlink_id { id },
-			.size_hi            { 0U },
-			.extra_isize        { isize_val },
-			.changed_time_hi    { extrabits },
-			.mod_time_extra     { extrabits },
-			.created_time       { tstamp.lo },
-			.created_time_hi    { extrabits }
+			.mode				{ 0020666U },
+			.size_lo			{ 0U },
+			.changed_time		{ tstamp.lo },
+			.modified_time		{ tstamp.lo },
+			.flags				{ use_extents },
+			.device_hardlink_id	{ id },
+			.size_hi			{ 0U },
+			.extra_isize		{ isize_val },
+			.changed_time_hi	{ extrabits },
+			.mod_time_extra		{ extrabits },
+			.created_time		{ tstamp.lo },
+			.created_time_hi	{ extrabits }
 		};
 		array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
-		ext_device_vnode* vnode         = dev_nodes.emplace(this, inode_num, dev, fd).first.base();
-		ext_directory_vnode& exparent   = dynamic_cast<ext_directory_vnode&>(*parent);
+		ext_device_vnode* vnode			= dev_nodes.emplace(this, inode_num, dev, fd).first.base();
+		ext_directory_vnode& exparent	= dynamic_cast<ext_directory_vnode&>(*parent);
 		if(exparent.add_dir_entry(vnode, dti_chardev, name.data(), name.size()) && vnode->update_inode()) { return vnode; }
 		else panic("[FS/EXT4] failed to add directory entry");
 	}
@@ -472,34 +472,34 @@ device_vnode* extfs::mkdevnode(directory_vnode* parent, std::string const& name,
 }
 pipe_pair extfs::mkpipe(directory_vnode* parent, std::string const& name)
 {
-	qword tstamp        = sys_time(nullptr);
-	uint8_t extrabits   = (tstamp.hi.hi >> 4) & 0x03;
-	uint32_t inode_num  = claim_inode(false);
+	qword tstamp		= sys_time(nullptr);
+	uint8_t extrabits	= (tstamp.hi.hi >> 4) & 0x03;
+	uint32_t inode_num	= claim_inode(false);
 	if(__builtin_expect(inode_num != 0, true)) try
 	{
-		ext_inode* inode = new(static_cast<void*>(get_inode(inode_num))) ext_inode
+		ext_inode* inode	= new(static_cast<void*>(get_inode(inode_num))) ext_inode
 		{
-			.mode               { 0010666U },
-			.size_lo            { 0U },
-			.changed_time       { tstamp.lo },
-			.modified_time      { tstamp.lo },
-			.flags              { use_extents },
-			.size_hi            { 0U },
-			.extra_isize        { isize_val },
-			.changed_time_hi    { extrabits },
-			.mod_time_extra     { extrabits },
-			.created_time       { tstamp.lo },
-			.created_time_hi    { extrabits }
+			.mode				{ 0010666U },
+			.size_lo			{ 0U },
+			.changed_time		{ tstamp.lo },
+			.modified_time		{ tstamp.lo },
+			.flags				{ use_extents },
+			.size_hi			{ 0U },
+			.extra_isize		{ isize_val },
+			.changed_time_hi	{ extrabits },
+			.mod_time_extra		{ extrabits },
+			.created_time		{ tstamp.lo },
+			.created_time_hi	{ extrabits }
 		};
 		array_copy(inode->block_info.link_target, name.c_str(), std::min(name.size(), 60UZ));
-		ext_directory_vnode& exparent   = dynamic_cast<ext_directory_vnode&>(*parent);
-		ext_pipe_pair& result           = __init_pipes(inode_num, name);
+		ext_directory_vnode& exparent	= dynamic_cast<ext_directory_vnode&>(*parent);
+		ext_pipe_pair& result			= __init_pipes(inode_num, name);
 		if(__builtin_expect(exparent.add_dir_entry(addressof(result.in), dti_fifo, name.c_str(), name.size()) && result.in.update_inode(), true)) { return { addressof(result.in), addressof(result.out) }; }
 		else panic("[FS/EXT4] failed to add directory entry");
 	}
 	catch(std::exception& e) { panic(e.what()); }
 	else panic("[FS/EXT4] failed to get inode");
-	return { nullptr, nullptr };
+	return pipe_pair(nullptr, nullptr);
 }
 void extfs::release_all(ext_vnode& extn)
 {
@@ -513,9 +513,9 @@ void extfs::release_all(ext_vnode& extn)
 void extfs::dldirnode(directory_vnode* dd)
 {
 	if(!dd->is_empty()) { throw std::logic_error("[FS/EXT4] cannot delete non-empty directory " + std::string(dd->name())); }
-	uint64_t cid                = dd->cid();
-	ext_directory_vnode& exdn   = dynamic_cast<ext_directory_vnode&>(*dd);
-	uint32_t inode_num          = exdn.inode_number;
+	uint64_t cid				= dd->cid();
+	ext_directory_vnode& exdn	= dynamic_cast<ext_directory_vnode&>(*dd);
+	uint32_t inode_num			= exdn.inode_number;
 	release_all(exdn);
 	release_inode(inode_num, true);
 	array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
@@ -524,9 +524,9 @@ void extfs::dldirnode(directory_vnode* dd)
 }
 void extfs::dlfilenode(file_vnode* fd)
 {
-	uint64_t cid            = fd->cid();
-	ext_file_vnode& exfn    = dynamic_cast<ext_file_vnode&>(*fd);
-	uint32_t inode_num      = exfn.inode_number;
+	uint64_t cid			= fd->cid();
+	ext_file_vnode& exfn	= dynamic_cast<ext_file_vnode&>(*fd);
+	uint32_t inode_num		= exfn.inode_number;
 	release_all(exfn);
 	release_inode(inode_num, false);
 	array_zero(reinterpret_cast<char*>(exfn.on_disk_node), sb->inode_size);
@@ -535,9 +535,9 @@ void extfs::dlfilenode(file_vnode* fd)
 }
 void extfs::dldevnode(device_vnode* dd)
 {
-	ext_device_vnode& exdn  = dynamic_cast<ext_device_vnode&>(*dd);
-	dev_t dn                = dd->get_device_id();
-	uint32_t inode_num      = exdn.inode_number;
+	ext_device_vnode& exdn	= dynamic_cast<ext_device_vnode&>(*dd);
+	dev_t dn				= dd->get_device_id();
+	uint32_t inode_num		= exdn.inode_number;
 	release_inode(inode_num, false);
 	array_zero(reinterpret_cast<char*>(exdn.on_disk_node), sb->inode_size);
 	persist_inode(inode_num);
@@ -545,9 +545,9 @@ void extfs::dldevnode(device_vnode* dd)
 }
 void extfs::dlpipenode(vnode* fn)
 {
-	if(ext_pipe_pair* pipes = dynamic_cast<ext_pipe_pair*>(fn))
+	if(ext_pipe_pair* pipes	= dynamic_cast<ext_pipe_pair*>(fn))
 	{
-		uint32_t inode_num = pipes->in.inode_number;
+		uint32_t inode_num	= pipes->in.inode_number;
 		release_inode(inode_num, false);
 		array_zero(reinterpret_cast<char*>(pipes->in.on_disk_node), sb->inode_size);
 		persist_inode(inode_num);
@@ -562,18 +562,18 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 	{
 		if(block_groups[i].has_available_blocks(how_many))
 		{
-			unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-			off_t avail         = bitmap_scan_chain_zeroes(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
+			unsigned long* bmp	= reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
+			off_t avail			= bitmap_scan_chain_zeroes(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long), how_many);
 			if(avail < 0) continue;
 			bitmap_set_chain_bits(bmp, avail, how_many);
 			if(!block_groups[i].alter_available_blocks(static_cast<int>(-how_many))) return nullptr;
-			uint64_t result = i * sb->blocks_per_group + avail;
-			disk_block* blk = std::addressof(requestor->block_data.emplace_back(result, nullptr, false, how_many));
+			uint64_t result		= i * sb->blocks_per_group + avail;
+			disk_block* blk		= std::addressof(requestor->block_data.emplace_back(result, nullptr, false, how_many));
 			if(!((requestor->on_disk_node->flags & use_extents) ? requestor->extents.push_extent_ext4(blk) : requestor->extents.push_extent_legacy(blk))) return nullptr;
 			dword blcnt(requestor->on_disk_node->blocks_count_lo, requestor->on_disk_node->blocks_count_hi);
-			blcnt                                       += how_many;
-			requestor->on_disk_node->blocks_count_lo    = blcnt.lo;
-			requestor->on_disk_node->blocks_count_hi    = blcnt.hi;
+			blcnt										+= how_many;
+			requestor->on_disk_node->blocks_count_lo	= blcnt.lo;
+			requestor->on_disk_node->blocks_count_hi	= blcnt.hi;
 			if(!persist_group_metadata(i)) return nullptr;
 			return blk;
 		}
@@ -587,11 +587,11 @@ disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
 	{
 		if(block_groups[i].has_available_blocks())
 		{
-			unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
-			off_t avail         = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
+			unsigned long* bmp	= reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
+			off_t avail			= bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
 			bitmap_set_chain_bits(bmp, avail, 1);
 			if(!block_groups[i].alter_available_blocks(-1)) return nullptr; // this only gets called from push extent, which in turn gets called from claim blocks which calls persist metadata
-			uint64_t result = i * sb->blocks_per_group + avail;
+			uint64_t result		= i * sb->blocks_per_group + avail;
 			dword blcnt(requestor->tracked_node->on_disk_node->blocks_count_lo, requestor->tracked_node->on_disk_node->blocks_count_hi);
 			blcnt++;
 			requestor->tracked_node->on_disk_node->blocks_count_lo = blcnt.lo;
@@ -632,12 +632,12 @@ bool extfs::persist_group_metadata(size_t group_num)
 }
 bool extfs::persist_inode(uint32_t inode_num)
 {
-	size_t grp = group_num_for_inode(inode_num);
+	size_t grp		= group_num_for_inode(inode_num);
 	if(__builtin_expect(grp >= block_groups.size(), false)) { panic("[FS/EXT4] invalid group number"); return false; }
 	std::vector<disk_block> blks{};
-	size_t bs       = block_size();
-	uint64_t iblk   = inode_to_block(inode_num);
-	off_t ipos      = inode_block_offset(inode_num);
+	size_t bs		= block_size();
+	uint64_t iblk	= inode_to_block(inode_num);
+	off_t ipos		= inode_block_offset(inode_num);
 	blks.emplace_back(iblk, block_groups[grp].inode_block.data_buffer + (ipos - (ipos % bs)), true, 1UL);
 	return fs_journal.create_txn(blks);
 }
@@ -654,7 +654,7 @@ static ext_dirent_type mode_to_dirent_type(file_mode mode)
 }
 vnode* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
 {
-	ext_inode* n = get_inode(idx);
+	ext_inode* n	= get_inode(idx);
 	if(!(sb->required_features & dirent_type)) type = mode_to_dirent_type(n->mode);
 	if(type == dti_dir) return dir_nodes.emplace(this, idx, next_fd++).first.base();
 	else if(type == dti_fifo)
@@ -665,31 +665,31 @@ vnode* extfs::inode_to_vnode(uint32_t idx, ext_dirent_type type)
 	}
 	else if(type == dti_chardev || type == dti_blockdev)
 	{ 
-		dev_t id = n->device_hardlink_id;
+		dev_t id			= n->device_hardlink_id;
 		if(dev_linked_nodes.contains(id)) return dev_linked_nodes[id];
-		device_stream* dev = dreg[id];
+		device_stream* dev	= dreg[id];
 		return (dev_linked_nodes[id] = dev_nodes.emplace(this, idx, dev, next_fd++).first.base());
 	}
 	else 
 	{ 
-		next_fd         = std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
-		vnode* result = file_nodes.emplace(this, idx, next_fd++).first.base();
+		next_fd				= std::max(3, static_cast<int>(file_nodes.size() + device_nodes.size()));
+		vnode* result		= file_nodes.emplace(this, idx, next_fd++).first.base();
 		return result;
 	}
 }
 device_vnode* extfs::lndev(const std::string& where, int fd, dev_t id, bool create_parents)
 {
-	target_pair parent      = filesystem::get_parent(where, create_parents);
-	if(mount_vnode* mount    = dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->lndev(parent.second, fd, id, create_parents);
+	target_pair parent				= filesystem::get_parent(where, create_parents);
+	if(mount_vnode* mount			= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->lndev(parent.second, fd, id, create_parents);
 	if(parent.first->find(parent.second)) throw std::logic_error("[FS/EXT4] cannot create link " + parent.second + " because it already exists");
-	ext_directory_vnode& exparent = dynamic_cast<ext_directory_vnode&>(*parent.first);
+	ext_directory_vnode& exparent	= dynamic_cast<ext_directory_vnode&>(*parent.first);
 	if(dev_linked_nodes.contains(id))
 	{
-		ext_device_vnode* node = dev_linked_nodes[id];
+		ext_device_vnode* node		= dev_linked_nodes[id];
 		if(exparent.add_dir_entry(node, dti_chardev, parent.second.data(), parent.second.size()) && node->update_inode()) return node;
 		throw std::runtime_error("[FS/EXT4] failed to create directory entry");
 	}
-	device_vnode* result = mkdevnode(parent.first, parent.second, id, fd);
+	device_vnode* result			= mkdevnode(parent.first, parent.second, id, fd);
 	register_fd(result);
 	return result; 
 }
@@ -702,13 +702,13 @@ bool extfs::truncate_node(ext_vnode* n)
 }
 tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link, std::set<vnode*>& checked)
 {
-	if(!from) from = dynamic_cast<ext_directory_vnode*>(root_dir);
-	std::vector<std::string> pathspec = std::ext::split(link, path_separator());
+	if(!from) from						= dynamic_cast<ext_directory_vnode*>(root_dir);
+	std::vector<std::string> pathspec	= std::ext::split(link, path_separator());
 	if(pathspec.empty()) throw std::logic_error("[FS/EXT4] empty path");
 	for(size_t i = 0; i < pathspec.size() - 1; i++)
 	{
 		if(pathspec[i].empty()) continue;
-		tnode* node = from->find_r(pathspec[i], checked);
+		tnode* node						= from->find_r(pathspec[i], checked);
 		if(!node) throw std::out_of_range("[FS/EXT4] broken link");
 		else if(node->is_directory()) { from = dynamic_cast<ext_directory_vnode*>(node->as_directory()); if(!from) throw std::bad_cast(); }
 		else throw std::invalid_argument("[FS/EXT4] symlink path component .../" + pathspec[i] + "/ is not a directory");

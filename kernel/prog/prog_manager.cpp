@@ -24,8 +24,8 @@ static bool is_pic_exec(elf64_dyn* dyn_entries, size_t n)
 }
 static uintptr_t get_load_base(addr_t img_start, size_t dyn_idx)
 {
-	elf64_ehdr const& hdr       = img_start.deref<elf64_ehdr const>();
-	elf64_phdr const& dyn_phdr  = phdr(hdr, dyn_idx);
+	elf64_ehdr const& hdr		= img_start.deref<elf64_ehdr const>();
+	elf64_phdr const& dyn_phdr	= phdr(hdr, dyn_idx);
 	if(is_pic_exec(img_start.plus(dyn_phdr.p_offset), dyn_phdr.p_filesz / sizeof(elf64_dyn)))
 	{
 		srand(static_cast<unsigned int>(sys_time(nullptr)));

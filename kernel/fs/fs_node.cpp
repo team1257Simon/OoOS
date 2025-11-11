@@ -52,10 +52,10 @@ device_vnode::size_type device_vnode::write(const_pointer src, size_type n) { si
 device_vnode::size_type device_vnode::read(pointer dest, size_type n) { return __dev_buffer->read(dest, n); }
 device_vnode::pos_type device_vnode::seek(off_type off, std::ios_base::seekdir way) { return __dev_buffer->seek(way, off, std::ios_base::out | std::ios_base::in); }
 device_vnode::pos_type device_vnode::seek(pos_type pos) { return __dev_buffer->seek(pos, std::ios_base::out | std::ios_base::in); }
-tnode::tnode(vnode* node, std::string const& name) : __my_node{ node }, __my_name{ name } { if(__my_node) __my_node->refs.insert(this); }
-tnode::tnode(vnode* node, const char* name) : __my_node{ node }, __my_name{ name } { if(__my_node) __my_node->refs.insert(this); }
-tnode::tnode(std::string name) : __my_node{ nullptr }, __my_name{ name } {}
-tnode::tnode(const char* name) : __my_node{ nullptr }, __my_name{ name } {}
+tnode::tnode(vnode* node, std::string const& name) : __my_node(node), __my_name(name) { if(__my_node) __my_node->refs.insert(this); }
+tnode::tnode(vnode* node, const char* name) : __my_node(node), __my_name(name) { if(__my_node) __my_node->refs.insert(this); }
+tnode::tnode(std::string name) : __my_node(nullptr), __my_name(name) {}
+tnode::tnode(const char* name) : __my_node(nullptr), __my_name(name) {}
 void tnode::rename(std::string const& n) { __my_name = n; }
 void tnode::rename(const char* n) { rename(std::string(n, std::strlen(n))); }
 const char* tnode::name() const { return __my_name.c_str(); }

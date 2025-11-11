@@ -31,7 +31,7 @@ void elf64_object::cleanup()
 {
 	if(__image_start)
 		elf_alloc.deallocate(__image_start, __image_size);
-	__image_start = nullptr;
+	__image_start	= nullptr;
 }
 addr_t elf64_object::resolve(uint64_t offs) const
 {
@@ -90,20 +90,20 @@ elf64_object::elf64_object(file_vnode* n) : elf64_object(n->data(), n->size())
 bool elf64_object::load_syms()
 {
 	elf64_shdr const& shstrtab_shdr = shdr(ehdr().e_shstrndx);
-	shstrtab.total_size             = shstrtab_shdr.sh_size;
-	shstrtab.data                   = aligned_malloc(shstrtab_shdr.sh_size, shstrtab_shdr.sh_addralign);
+	shstrtab.total_size				= shstrtab_shdr.sh_size;
+	shstrtab.data					= aligned_malloc(shstrtab_shdr.sh_size, shstrtab_shdr.sh_addralign);
 	array_copy<char>(shstrtab.data, img_ptr(shstrtab_shdr.sh_offset), shstrtab_shdr.sh_size);
 	for(size_t i = 0; i < ehdr().e_shnum; i++)
 	{
 		elf64_shdr const& h = shdr(i);
 		if(h.sh_type == ST_DYNSYM || h.sh_type == ST_SYMTAB)
 		{
-			elf64_shdr const& strtab_shdr   = shdr(h.sh_link);
-			symstrtab.total_size            = strtab_shdr.sh_size;
-			symtab.total_size               = h.sh_size;
-			symtab.entry_size               = h.sh_entsize;
-			symstrtab.data                  = aligned_malloc(strtab_shdr.sh_size, strtab_shdr.sh_addralign);
-			symtab.data                     = aligned_malloc(h.sh_size, h.sh_addralign);
+			elf64_shdr const& strtab_shdr	= shdr(h.sh_link);
+			symstrtab.total_size			= strtab_shdr.sh_size;
+			symtab.total_size				= h.sh_size;
+			symtab.entry_size				= h.sh_entsize;
+			symstrtab.data					= aligned_malloc(strtab_shdr.sh_size, strtab_shdr.sh_addralign);
+			symtab.data					= aligned_malloc(h.sh_size, h.sh_addralign);
 			array_copy<char>(symstrtab.data, img_ptr(strtab_shdr.sh_offset), strtab_shdr.sh_size);
 			array_copy<char>(symtab.data, img_ptr(h.sh_offset), h.sh_size);
 			return true;
@@ -127,7 +127,7 @@ std::vector<block_descriptor> elf64_object::segment_blocks() const
 	{ 
 		if(segments[i].size)
 		{
-			size_t align        = segments[i].seg_align;
+			size_t align		= segments[i].seg_align;
 			elf_segment_prot pr = segments[i].perms;
 			result.emplace_back(segments[i].absolute_addr.trunc(align), segments[i].virtual_addr.trunc(align), segments[i].size, segments[i].seg_align, is_write(pr), is_exec(pr));
 		}
@@ -136,15 +136,15 @@ std::vector<block_descriptor> elf64_object::segment_blocks() const
 }
 // Copy and move constructors are nontrivial. Executables and the like delete the copy constructor and can inherit the move constructor (dynamic objects will have to extend the nontrivial constructors)
 elf64_object::elf64_object(elf64_object const& that) :
-	__validated         { that.__validated },
-	__loaded            { that.__loaded },
-	__image_start       { that.__image_start }, 
-	__image_size        { that.__image_size },
+	__validated			{ that.__validated },
+	__loaded			{ that.__loaded },
+	__image_start		{ that.__image_start }, 
+	__image_size		{ that.__image_size },
 	num_seg_descriptors { that.num_seg_descriptors }, 
-	segments            { sd_alloc.allocate(num_seg_descriptors) },
-	symtab              { that.symtab.total_size, that.symtab.entry_size, ch_alloc.allocate(that.symtab.total_size) },
-	symstrtab           { that.symstrtab.total_size, ch_alloc.allocate(that.symstrtab.total_size) },
-	shstrtab            { that.symstrtab.total_size, ch_alloc.allocate(that.shstrtab.total_size) }
+	segments			{ sd_alloc.allocate(num_seg_descriptors) },
+	symtab				{ that.symtab.total_size, that.symtab.entry_size, ch_alloc.allocate(that.symtab.total_size) },
+	symstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.symstrtab.total_size) },
+	shstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.shstrtab.total_size) }
 {
 	if(__loaded)
 	{
@@ -155,22 +155,22 @@ elf64_object::elf64_object(elf64_object const& that) :
 	}
 }
 elf64_object::elf64_object(elf64_object&& that) :
-	__validated         { that.__validated },
-	__loaded            { that.__loaded },
-	__image_start       { that.__image_start }, 
-	__image_size        { that.__image_size }, 
+	__validated			{ that.__validated },
+	__loaded			{ that.__loaded },
+	__image_start		{ that.__image_start }, 
+	__image_size		{ that.__image_size }, 
 	num_seg_descriptors { that.num_seg_descriptors },
-	segments            { that.segments },
-	symtab              { std::move(that.symtab) },
-	symstrtab           { std::move(that.symstrtab) },
-	shstrtab            { std::move(that.shstrtab) }
+	segments			{ that.segments },
+	symtab				{ std::move(that.symtab) },
+	symstrtab			{ std::move(that.symstrtab) },
+	shstrtab			{ std::move(that.shstrtab) }
 {
-	that.__validated            = false;
-	that.__loaded               = false;
-	that.__image_size           = 0;
-	that.__image_start          = nullptr;
-	that.segments               = nullptr;
-	that.num_seg_descriptors    = 0;
+	that.__validated			= false;
+	that.__loaded				= false;
+	that.__image_size			= 0;
+	that.__image_start			= nullptr;
+	that.segments				= nullptr;
+	that.num_seg_descriptors	= 0;
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {
@@ -179,7 +179,7 @@ void elf64_object::on_copy(uframe_tag* new_frame)
 	for(size_t i = 0; i < num_seg_descriptors; i++)
 	{
 		if(!segments[i].absolute_addr || !segments[i].size) continue;
-		segments[i].absolute_addr = new_frame->translate(segments[i].virtual_addr);
+		segments[i].absolute_addr	= new_frame->translate(segments[i].virtual_addr);
 		if(!segments[i].absolute_addr) throw std::runtime_error("[PRG] cannot change frame before remapping blocks");
 	}
 }

@@ -36,14 +36,14 @@ simplex_pipe::pos_type simplex_pipe::seekoff(off_type off, std::ios_base::seekdi
 {
 	if(mode.in)
 	{
-		pointer pos = (way > 0 ? (__end() + off) : way < 0 ? (__qbeg() + off) : __qcur() + off);
+		pointer pos	= (way > 0 ? (__end() + off) : way < 0 ? (__qbeg() + off) : __qcur() + off);
 		if(__unlikely(__q_out_of_range(pos))) return pos_type(off_type(-1));
 		__qsetn(pos);
 		sync();
 	}
 	if(mode.out)
 	{
-		pointer pos = (way > 0 ? (__end() + off) : way < 0 ? (__qbeg() + off) : __end() + off);
+		pointer pos	= (way > 0 ? (__end() + off) : way < 0 ? (__qbeg() + off) : __end() + off);
 		if(__unlikely(__q_out_of_range(pos))) return pos_type(off_type(-1));
 		__qsete(pos);
 		sync();

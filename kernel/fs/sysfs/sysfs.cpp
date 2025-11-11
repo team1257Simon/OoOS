@@ -81,11 +81,11 @@ uint32_t sysfs::add_extent_branch()
 	uint32_t n = static_cast<uint32_t>(__extents().total_branches) + 1;
 	if(__extents_file.grow(sizeof(sysfs_extent_branch)))
 	{
-		sysfs_extents_file& ext = __extents();
+		sysfs_extents_file& ext	= __extents();
 		ext.total_branches++;
-		ext.header_checksum = 0U;
-		uint32_t csum       = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ext)), offsetof(sysfs_extents_file, header_checksum));
-		ext.header_checksum = csum;
+		ext.header_checksum 	= 0U;
+		uint32_t csum			= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ext)), offsetof(sysfs_extents_file, header_checksum));
+		ext.header_checksum 	= csum;
 		return n;
 	}
 	return 0U;
@@ -95,11 +95,11 @@ uint32_t sysfs::add_blocks(uint16_t how_many)
 	uint32_t n = static_cast<uint32_t>(__num_blocks()) + 1;
 	if(__data_file.grow(how_many * sysfs_data_block_size))
 	{
-		sysfs_data_file_header& hdr = __header();
-		hdr.total_size              += how_many * sysfs_data_block_size;
-		hdr.header_checksum         = 0U;
-		uint32_t csum               = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(hdr)), offsetof(sysfs_data_file_header, header_checksum));
-		hdr.header_checksum         = csum;
+		sysfs_data_file_header& hdr	= __header();
+		hdr.total_size				+= how_many * sysfs_data_block_size;
+		hdr.header_checksum			= 0U;
+		uint32_t csum				= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(hdr)), offsetof(sysfs_data_file_header, header_checksum));
+		hdr.header_checksum			= csum;
 		return n;
 	}
 	return 0U;
@@ -109,11 +109,11 @@ uint32_t sysfs::add_inode()
 	uint32_t n = static_cast<uint32_t>(__index().total_inodes) + 1;
 	if(__index_file.grow(sizeof(sysfs_inode)))
 	{
-		sysfs_index_file& idx   = __index();
+		sysfs_index_file& idx	= __index();
 		idx.total_inodes++;
-		idx.header_checksum     = 0U;
-		uint32_t csum           = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(idx)), offsetof(sysfs_index_file, header_checksum));
-		idx.header_checksum     = csum;
+		idx.header_checksum		= 0U;
+		uint32_t csum			= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(idx)), offsetof(sysfs_index_file, header_checksum));
+		idx.header_checksum		= csum;
 		return n;
 	}
 	return 0U;
@@ -123,34 +123,34 @@ uint32_t sysfs::add_directory_entry()
 	uint32_t n = static_cast<uint32_t>(__dir().total_entries) + 1;
 	if(__directory_file.grow(sizeof(sysfs_dir_entry)))
 	{
-		sysfs_directory_file& dir   = __dir();
+		sysfs_directory_file& dir	= __dir();
 		dir.total_entries++;
-		dir.header_checksum         = 0U;
-		uint32_t csum               = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(dir)), offsetof(sysfs_directory_file, header_checksum));
-		dir.header_checksum         = csum;
+		dir.header_checksum			= 0U;
+		uint32_t csum				= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(dir)), offsetof(sysfs_directory_file, header_checksum));
+		dir.header_checksum			= csum;
 		return n;
 	}
 	return 0U;
 }
 sysfs_extent_branch& sysfs::extend_to_leaf(size_t from_idx, uint32_t ordinal)
 {
-	if(sysfs_extent_branch& br  = get_extent_branch(from_idx); !br.depth) return br;
-	uint32_t next               = add_extent_branch();
+	if(sysfs_extent_branch& br	= get_extent_branch(from_idx); !br.depth) return br;
+	uint32_t next				= add_extent_branch();
 	if(__unlikely(!next)) throw std::runtime_error("[FS/SYSFS] failed to expand extents file");
-	sysfs_extent_branch& br     = get_extent_branch(from_idx);
-	sysfs_extent_branch* added  = new(std::addressof(get_extent_branch(next))) sysfs_extent_branch
+	sysfs_extent_branch& br		= get_extent_branch(from_idx);
+	sysfs_extent_branch* added	= new(std::addressof(get_extent_branch(next))) sysfs_extent_branch
 	{
-		.depth      { br.depth - 1 },
-		.entries    {},
-		.checksum   {}
+		.depth		{ br.depth - 1 },
+		.entries	{},
+		.checksum	{}
 	};
 	uint32_t csum               = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(added), offsetof(sysfs_extent_branch, checksum));
 	added->checksum             = csum;
 	new(br.entries) sysfs_extent_entry
 	{
-		.ordinal    { ordinal },
-		.length     {},
-		.start      { next }
+		.ordinal	{ ordinal },
+		.length		{},
+		.start		{ next }
 	};
 	return extend_to_leaf(next, ordinal);
 }
@@ -179,13 +179,13 @@ std::pair<sysfs_extent_branch*, size_t> sysfs::next_available_extent_entry(size_
 }
 void sysfs::dir_add_object(std::string const& name, uint32_t ino)
 {
-	uint32_t eno            = add_directory_entry();
+	uint32_t eno			= add_directory_entry();
 	if(__unlikely(!eno)) throw std::runtime_error("[FS/SYSFS] failed to expand directory file");
 	std::pair<std::string, uint32_t> map_entry(name, ino);
-	sysfs_dir_entry& ent    = get_dir_entry(eno);
-	ent.inode_number        = ino;
+	sysfs_dir_entry& ent	= get_dir_entry(eno);
+	ent.inode_number		= ino;
 	std::strncpy(ent.object_name, name.c_str(), sysfs_object_name_size_max);
-	ent.checksum            = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ent)), offsetof(sysfs_dir_entry, checksum));
+	ent.checksum			= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ent)), offsetof(sysfs_dir_entry, checksum));
 	__directory_map.insert(map_entry);
 }
 uint32_t sysfs::find_node(std::string const& name)
@@ -196,24 +196,24 @@ uint32_t sysfs::find_node(std::string const& name)
 }
 void sysfs::init_blank(sysfs_backup_filenames const& bak)
 {
-	size_t needed_data      = sizeof(sysfs_data_file_header) - std::min(__data_file.size(), sizeof(sysfs_data_file_header));
-	size_t needed_index     = sizeof(sysfs_index_file) - std::min(__index_file.size(), sizeof(sysfs_index_file));
-	size_t needed_extents   = sizeof(sysfs_extents_file) - std::min(__extents_file.size(), sizeof(sysfs_extents_file));
-	size_t needed_directory = sizeof(sysfs_directory_file) - std::min(__directory_file.size(), sizeof(sysfs_directory_file));
+	size_t needed_data		= sizeof(sysfs_data_file_header) - std::min(__data_file.size(), sizeof(sysfs_data_file_header));
+	size_t needed_index		= sizeof(sysfs_index_file) - std::min(__index_file.size(), sizeof(sysfs_index_file));
+	size_t needed_extents	= sizeof(sysfs_extents_file) - std::min(__extents_file.size(), sizeof(sysfs_extents_file));
+	size_t needed_directory	= sizeof(sysfs_directory_file) - std::min(__directory_file.size(), sizeof(sysfs_directory_file));
 	if((needed_data && !__data_file.grow(needed_data)) || (needed_index && !__index_file.grow(needed_index)) || (needed_extents && !__extents_file.grow(needed_extents)) || (needed_directory && !__directory_file.grow(needed_directory)))
 		throw std::runtime_error("[FS/SYSFS] no space on disk for storage");
-	sysfs_data_file_header* data    = new(std::addressof(__header())) sysfs_data_file_header{};
-	sysfs_index_file* idx           = new(std::addressof(__index())) sysfs_index_file{};
-	sysfs_extents_file* exts        = new(std::addressof(__extents())) sysfs_extents_file{};
-	sysfs_directory_file* dirfile   = new(std::addressof(__dir())) sysfs_directory_file{};
+	sysfs_data_file_header* data	= new(std::addressof(__header())) sysfs_data_file_header{};
+	sysfs_index_file* idx			= new(std::addressof(__index())) sysfs_index_file{};
+	sysfs_extents_file* exts		= new(std::addressof(__extents())) sysfs_extents_file{};
+	sysfs_directory_file* dirfile	= new(std::addressof(__dir())) sysfs_directory_file{};
 	array_copy(data->backup_file_name, bak.data_backup_file_name, 16UZ);
 	array_copy(idx->backup_file_name, bak.index_backup_file_name, 16UZ);
 	array_copy(exts->backup_file_name, bak.extents_backup_file_name, 16UZ);
 	array_copy(dirfile->backup_file_name, bak.directory_backup_file_name, 16UZ);
-	data->header_checksum           = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(data), offsetof(sysfs_data_file_header, header_checksum));
-	idx->header_checksum            = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(idx), offsetof(sysfs_index_file, header_checksum));
-	exts->header_checksum           = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(exts), offsetof(sysfs_extents_file, header_checksum));
-	dirfile->header_checksum        = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(dirfile), offsetof(sysfs_directory_file, header_checksum));
+	data->header_checksum			= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(data), offsetof(sysfs_data_file_header, header_checksum));
+	idx->header_checksum			= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(idx), offsetof(sysfs_index_file, header_checksum));
+	exts->header_checksum			= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(exts), offsetof(sysfs_extents_file, header_checksum));
+	dirfile->header_checksum		= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(dirfile), offsetof(sysfs_directory_file, header_checksum));
 	__data_file.force_write();
 	__index_file.force_write();
 	__extents_file.force_write();
@@ -222,7 +222,7 @@ void sysfs::init_blank(sysfs_backup_filenames const& bak)
 }
 void sysfs::init_load()
 {
-	sysfs_directory_file& dirfile = __dir();
+	sysfs_directory_file& dirfile	= __dir();
 	for(size_t i = 0; i < dirfile.total_entries; i++)
 	{
 		uint32_t ino = dirfile.entries[i].inode_number;
@@ -242,13 +242,13 @@ sysfs_vnode& sysfs::open(uint32_t ino)
 }
 uint32_t sysfs::mknod(std::string const& name, sysfs_object_type type)
 {
-	uint32_t result     = add_inode();
+	uint32_t result		= add_inode();
 	if(!result) throw std::runtime_error("[FS/SYSFS] failed to expand index file");
-	sysfs_inode& node   = get_inode(result);
-	node.type           = type;
-	node.checksum       = 0U;
-	uint32_t csum       = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(node)), offsetof(sysfs_inode, checksum));
-	node.checksum       = csum;
+	sysfs_inode& node	= get_inode(result);
+	node.type			= type;
+	node.checksum		= 0U;
+	uint32_t csum		= crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(node)), offsetof(sysfs_inode, checksum));
+	node.checksum		= csum;
 	dir_add_object(name, result);
 	return result;
 }

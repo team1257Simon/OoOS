@@ -5,8 +5,8 @@ static std::elf64_gnu_hash __hash{};
 elf64_sym const* elf64_dynsym_index::operator[](std::string const& str) const
 {
 	if(__unlikely(!*this)) return nullptr;
-	uint32_t hash	= __hash(str.c_str());
-	uint32_t i		= htbl.buckets[hash % htbl.header.nbucket];
+	uint32_t hash		= __hash(str.c_str());
+	uint32_t i			= htbl.buckets[hash % htbl.header.nbucket];
 	// TODO get bloom filter to actually work
 	if(__unlikely(!i)) return nullptr;
 	uint32_t hash_val	= hash & ~1U;
@@ -23,6 +23,6 @@ elf64_sym const* elf64_dynsym_index::operator[](std::string const& str) const
 void elf64_dynsym_index::destroy_if_present()
 {
 	if(htbl.bloom_filter_words) free(htbl.bloom_filter_words);
-	if(htbl.buckets)            free(htbl.buckets);
-	if(htbl.hash_value_array)   free(htbl.hash_value_array);
+	if(htbl.buckets)			free(htbl.buckets);
+	if(htbl.hash_value_array)	free(htbl.hash_value_array);
 }

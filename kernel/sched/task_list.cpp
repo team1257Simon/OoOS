@@ -15,24 +15,24 @@ pid_t task_list::__upid() const noexcept
 }
 task_ctx* task_list::create_system_task(task_functor task, cstr_vec&& args, size_t st_sz, size_t tls_sz, priority_val pv, uint16_t qv)
 {
-    kframe_tag* ft  = __kernel_frame_tag;
-    addr_t stk      = ft->allocate(st_sz, page_size);
-    addr_t tls      = ft->allocate(tls_sz, st_sz);
+    kframe_tag* ft	= __kernel_frame_tag;
+    addr_t stk		= ft->allocate(st_sz, page_size);
+    addr_t tls		= ft->allocate(tls_sz, st_sz);
     if(__unlikely(!stk || !tls)) throw std::bad_alloc();
-    iterator result = emplace(task, move(args), stk, static_cast<ptrdiff_t>(st_sz), tls, tls_sz, ft, __upid(), 0, pv, qv).first;
+    iterator result	= emplace(task, move(args), stk, static_cast<ptrdiff_t>(st_sz), tls, tls_sz, ft, __upid(), 0, pv, qv).first;
     result->init_task_state();
     return result.base();
 }
 task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, spid_t parent_pid, priority_val pv, uint16_t qv, pid_t pid) 
 {
-    iterator result = emplace(program_desc, move(args), pid ? pid : __upid(), parent_pid, pv, qv).first; 
+    iterator result	= emplace(program_desc, move(args), pid ? pid : __upid(), parent_pid, pv, qv).first; 
     result->init_task_state(); 
     return result.base(); 
 }
 bool task_list::destroy_task(pid_t pid)
 {
-    iterator i = find(pid);
-    if(__unlikely(i == end())) return false;
+    iterator i		= find(pid);
+    if(__unlikely(i	== end())) return false;
     erase(i);
     return true;
 }

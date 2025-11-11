@@ -11,20 +11,20 @@ using namespace ABI_NAMESPACE;
 struct vtable_header
 {
 	/** Offset of the leaf object. */
-	ptrdiff_t          leaf_offset;
+	ptrdiff_t			leaf_offset;
 	/** Type of the object. */
-	__class_type_info* type;
+	__class_type_info*	type;
 };
 static __si_class_type_info* meta_dyncast_si(std::type_info* ti, __class_type_info const* local_si)
 {
-	vtable_header* vt           = addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
-	__class_type_info* ti_meta  = vt->type;
+	vtable_header* vt			= addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
+	__class_type_info* ti_meta	= vt->type;
 	return static_cast<__si_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_si));
 }
 static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_info const* local_vmi)
 {
-	vtable_header* vt           = addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
-	__class_type_info* ti_meta  = vt->type;
+	vtable_header* vt			= addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
+	__class_type_info* ti_meta	= vt->type;
 	return static_cast<__vmi_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_vmi));
 }
 namespace ooos
@@ -77,19 +77,19 @@ namespace ooos
 		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))), local_si, local_vmi); }
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{
-			char* result    = nullptr;
-			size_t count    = kvasprintf(std::addressof(result), fmt, args);
+			char* result	= nullptr;
+			size_t count	= kvasprintf(std::addressof(result), fmt, args);
 			if(!count) return 0UZ;
-			char* str       = static_cast<char*>(mm->mem_allocate(count, alignof(char)));
+			char* str		= static_cast<char*>(mm->mem_allocate(count, alignof(char)));
 			array_copy(str, result, count);
 			free(result);
-			out             = str;
+			out			 	= str;
 			return count;
 		}
 		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args)
 		{
-			char* result    = nullptr;
-			size_t count    = kvasprintf(std::addressof(result), fmt, args);
+			char* result	= nullptr;
+			size_t count	= kvasprintf(std::addressof(result), fmt, args);
 			if(!count) return 0UZ;
 			xklog("[" + std::ext::demangle(from) + "]: " + result);
 			free(result);
@@ -97,42 +97,42 @@ namespace ooos
 		}
 		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) override
 		{
-			ctx.msg            = msg;
-			ctx.status         = status ? status : -1;
+			ctx.msg			= msg;
+			ctx.status		 = status ? status : -1;
 			longjmp(ctx.handler_ctx, ctx.status);
 		}
 		virtual void init_memory_fns(kframe_exports* ptrs) override
 		{
 			new(ptrs) kframe_exports
 			{
-				.allocate       = &kframe_tag::allocate,
-				.array_allocate = &kframe_tag::array_allocate,
-				.deallocate     = &kframe_tag::deallocate,
-				.reallocate     = &kframe_tag::reallocate
+				.allocate		= &kframe_tag::allocate,
+				.array_allocate	= &kframe_tag::array_allocate,
+				.deallocate	 	= &kframe_tag::deallocate,
+				.reallocate		= &kframe_tag::reallocate
 			};
 		}
 		void __relocate_si_r(__si_class_type_info* ti, std::type_info const* local_si, std::type_info const* local_vmi)
 		{
-			__class_type_info* base         = const_cast<__class_type_info*>(ti->__base_type);
-			__class_type_info const* equiv  = kernel_type_info[base->__type_name];
+			__class_type_info* base			= const_cast<__class_type_info*>(ti->__base_type);
+			__class_type_info const* equiv	= kernel_type_info[base->__type_name];
 			if(!equiv) this->__relocate_ti_r(base, local_si, local_vmi);
-			else ti->__base_type = equiv;
+			else ti->__base_type			= equiv;
 		}
 		void __relocate_vmi_r(__base_class_type_info* bases, size_t num_bases, std::type_info const* local_si, std::type_info const* local_vmi)
 		{
 			for(size_t i = 0; i < num_bases; i++)
 			{
-				__class_type_info* base         = const_cast<__class_type_info*>(bases[i].__base_type);
-				__class_type_info const* equiv  = kernel_type_info[base->__type_name];
+				__class_type_info* base			= const_cast<__class_type_info*>(bases[i].__base_type);
+				__class_type_info const* equiv	= kernel_type_info[base->__type_name];
 				if(!equiv) this->__relocate_ti_r(base, local_si, local_vmi);
-				else bases[i].__base_type       = equiv;
+				else bases[i].__base_type		= equiv;
 			}
 		}
 		void __relocate_ti_r(std::type_info* ti, std::type_info const* local_si, std::type_info const* local_vmi)
 		{
-			if(__si_class_type_info* si         = meta_dyncast_si(ti, addr_t(local_si)))
+			if(__si_class_type_info* si			= meta_dyncast_si(ti, addr_t(local_si)))
 				__relocate_si_r(si, local_si, local_vmi);
-			else if(__vmi_class_type_info* vmi  = meta_dyncast_vmi(ti, addr_t(local_vmi)))
+			else if(__vmi_class_type_info* vmi	= meta_dyncast_vmi(ti, addr_t(local_vmi)))
 				__relocate_vmi_r(vmi->__base_info, vmi->__base_count, local_si, local_vmi);
 		}
 	} __api_impl{};
@@ -146,9 +146,9 @@ namespace ooos
 		if(!first_managed_block) first_managed_block = tag;
 		else
 		{
-			tag->next                       = first_managed_block;
-			first_managed_block->previous   = tag;
-			first_managed_block             = tag;
+			tag->next						= first_managed_block;
+			first_managed_block->previous	= tag;
+			first_managed_block				= tag;
 		}
 		release(std::addressof(mod_mutex));
 		return tag->actual_start();
@@ -159,18 +159,18 @@ namespace ooos
 		if(block_tag* tag = find_tag(block, align))
 		{
 			lock(std::addressof(mod_mutex));
-			if(tag->previous) tag->previous->next               = tag->next;
-			if(tag->next) tag->next->previous                   = tag->previous;
-			if(first_managed_block == tag) first_managed_block  = tag->next;
-			tag->previous   = nullptr;
-			tag->next       = nullptr;
+			if(tag->previous) tag->previous->next				= tag->next;
+			if(tag->next) tag->next->previous					= tag->previous;
+			if(first_managed_block == tag) first_managed_block	= tag->next;
+			tag->previous										= nullptr;
+			tag->next											= nullptr;
 			release_block(tag);
 			release(std::addressof(mod_mutex));
 		}
 	}
 	void* kmod_mm_impl::mem_resize(void* old, size_t old_size, size_t target, size_t align)
 	{
-		void* result = mem_allocate(target, align);
+		void* result		= mem_allocate(target, align);
 		if(!old) return result;
 		array_copy<char>(static_cast<char*>(result), static_cast<char*>(old), old_size < target ? old_size : target);
 		mem_release(old, align);
@@ -178,17 +178,17 @@ namespace ooos
 	}
 	kmod_mm_impl::~kmod_mm_impl()
 	{
-		block_tag* tag = first_managed_block;
+		block_tag* tag		= first_managed_block;
 		while(tag)
 		{
-			block_tag* next     = tag->next;
+			block_tag* next	 = tag->next;
 			release_block(tag);
-			tag                 = next;
+			tag				= next;
 		}
 	}
 	void init_api()
 	{
-		__api_impl.pci = pci_device_list::get_instance();
+		__api_impl.pci		= pci_device_list::get_instance();
 		register_type(typeid(abstract_module_base));
 		register_type(typeid(device_stream));
 		register_type(typeid(io_module_base<char>));

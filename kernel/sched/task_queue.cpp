@@ -18,13 +18,13 @@ extern "C" void init_tss(addr_t k_rsp)
 }
 unsigned int task_wait_queue::cumulative_remaining_ticks() const noexcept
 {
-	unsigned int result = 0;
-	for(const_iterator i = current(); i != end(); i++) result += (*i)->task_ctl.wait_ticks_delta;
+	unsigned int result		= 0;
+	for(const_iterator i	= current(); i != end(); i++) result += (*i)->task_ctl.wait_ticks_delta;
 	return result;
 }
 bool task_wait_queue::interrupt_wait(const_iterator where)
 { 
 	if(__unlikely(!(where < end() && (*where)->task_ctl.can_interrupt))) return false;
-	if(const_iterator subs = where + 1; subs < end()) (*subs)->task_ctl.wait_ticks_delta += (*where)->task_ctl.wait_ticks_delta;
-	(*where)->task_ctl.block = false;
+	if(const_iterator subs		= where + 1; subs < end()) (*subs)->task_ctl.wait_ticks_delta += (*where)->task_ctl.wait_ticks_delta;
+	(*where)->task_ctl.block	= false;
 	return erase(where) != 0; }

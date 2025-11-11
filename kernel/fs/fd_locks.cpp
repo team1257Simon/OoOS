@@ -4,8 +4,8 @@ fd_locks_container::fd_locks_container(file_vnode* fn) : read_locks{}, write_loc
 fd_locks_container::~fd_locks_container() = default;
 size_t fd_locks_container::compute_start(ptrdiff_t start, std::ios_base::seekdir whence)
 {
-	ptrdiff_t base  = (whence > 0 ? static_cast<ptrdiff_t>(locking_file->size()) : whence == std::ios_base::cur ? static_cast<ptrdiff_t>(locking_file->tell()) : 0L);
-	base            = std::max(base + start, 0L);
+	ptrdiff_t base	= (whence > 0 ? static_cast<ptrdiff_t>(locking_file->size()) : whence == std::ios_base::cur ? static_cast<ptrdiff_t>(locking_file->tell()) : 0L);
+	base			= std::max(base + start, 0L);
 	return static_cast<size_t>(base);
 }
 bool fd_locks_container::test(file_lock const& l)
@@ -30,7 +30,7 @@ file_lock& fd_locks_container::add(uint64_t pid, short type, std::ios_base::seek
 }
 bool fd_locks_container::remove(ptrdiff_t start, std::ios_base::seekdir whence, size_t len)
 {
-	size_t actual_start = compute_start(start, whence);
+	size_t actual_start	= compute_start(start, whence);
 	file_lock test_file_lock(file_lock_span(actual_start, len));
 	return read_locks.erase(test_file_lock) || write_locks.erase(test_file_lock);
 }

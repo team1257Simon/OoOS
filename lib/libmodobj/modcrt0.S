@@ -1,9 +1,9 @@
-	.global	_start
-	.extern	_init
-	.extern	_fini
-	.extern	module_init
-	.global	__module_frame_tag
-	.global	__frame_functions
+	.global		_start
+	.extern		_init
+	.extern		_fini
+	.extern		module_init
+	.global		__module_frame_tag
+	.global		__frame_functions
 	.type		_start,				@function
 	.type		_init,				@function
 	.type		_fini,				@function
@@ -21,7 +21,7 @@ _start:
 	leaq	_init(%rip),				%rcx
 	leaq	_fini(%rip),				%r8
 	call	module_init
-	jmp	2f
+	jmp		2f
 1:
 	xorq	%rax,						%rax
 2:

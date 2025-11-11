@@ -7,27 +7,23 @@
 	.global		memcmp
 	.global		memcpy
 	.global		memset
-	.global		memchr	
+	.global		memchr
+	.global		strlen
 	.global		__errno
-	.weak		__rdseed
-	.weak		get_flags
 	.weak		getenv
-	.weak		abort
 	.global		setjmp
 	.global		longjmp
 	.type		memcmp,		@function
 	.type		memcpy,		@function
 	.type		memset,		@function
-	.type		memchr,		@function 
+	.type		memchr,		@function
+	.type		strlen,		@function
 	.type		__errno,	@function
-	.type		__rdseed,	@function
-	.type		get_flags,	@function
 	.type		getenv,		@function
-	.type		abort,		@function
 	.type		setjmp,		@function
 	.type		longjmp,	@function
 //	This sort of feels hacky, since we shaved off every possible byte using conditional set and conditional move in addition to the string instruction.
-//	I don't particularly mind, though, since it ends up being another stupidly short routine.
+//	I don't particularly mind, though, since it ends up being a stupidly short routine.
 memcmp:
 	xorl	%eax,		%eax
 	movq	%rdx,		%rcx
@@ -168,23 +164,32 @@ memset:
 	sfence
 	movq	%rdx,				%rcx
 	andq	$127,				%rcx
-	rep	stosb
+	rep		stosb
 	movq	%r9,				%rax
 	ret
 3:
-	rep	stosb
+	rep		stosb
 	movq	%r9,				%rax
 	ret
 4:
 	shrq	$3,					%rcx
 	.p2align 4
-	rep	stosq
+	rep		stosq
 	movq	%rdx,				%rcx
 	andq	$7,					%rcx
-	rep	stosb
+	rep		stosb
 	movq	%r9,				%rax
 	ret
-	.size memset,				.-memset
+	.size	memset,				.-memset
+strlen:
+	xorl	%eax,		%eax
+	movq	$-1,		%rcx
+	movq	%rdi,		%rdx
+	repne	scasb
+	movq	%rdx,		%rax
+	subq	%rdi,		%rax
+	ret
+	.size	strlen,		.-strlen
 memchr:
 	movq	%rdx, 		%rcx
 	movq	%rsi, 		%rax
@@ -201,16 +206,6 @@ __errno:
 	leaq	errno(%rip),	%rax
 	ret
 	.size	__errno,		.-__errno
-__rdseed:
-	rdseed		%rax
-	cmovncq	%rdi,	%rax
-	ret
-	.size	__rdseed,		.-__rdseed
-get_flags:
-	pushfq
-	popq		%rax
-	ret
-	.size	get_flags,		.-get_flags
 // for now this will just always return null
 getenv:
 	xorq		%rax,		%rax

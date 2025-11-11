@@ -24,13 +24,13 @@ bool fat32::read_clusters(char* buffer, uint32_t cl_st, size_t num) { return rea
 bool fat32::has_init() { return __has_init; }
 fat32* fat32::get_instance() { return __instance; }
 fat32::fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial) :
-	filesystem              {},
-	__root_cl_num           { root_cl },
-	__sectors_per_cluster   { sectors_per_cl },
-	__sector_base           { first_sect + fat_sectors },
-	__dev_serial            { drive_serial },
-	__sector_size           { bps },
-	__the_table             { fat_sectors, bps, first_sect, this }
+	filesystem				{},
+	__root_cl_num			{ root_cl },
+	__sectors_per_cluster	{ sectors_per_cl },
+	__sector_base			{ first_sect + fat_sectors },
+	__dev_serial			{ drive_serial },
+	__sector_size			{ bps },
+	__the_table				{ fat_sectors, bps, first_sect, this }
 							{}
 fat32_file_vnode* fat32::put_file_node(std::string const& name, fat32_directory_vnode* parent, uint32_t cl0, size_t dirent_idx)
 {
@@ -79,57 +79,57 @@ file_vnode* fat32::mkfilenode(directory_vnode* parent, std::string const& name)
 	rtc_time t = rtc::get_instance().get_time();
 	new(std::addressof(avail->regular_entry)) fat32_regular_entry
 	{
-		.created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-		.created_date       { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-		.first_cluster_hi   { cl.hi },
-		.modified_time      { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-		.modified_date      { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-		.first_cluster_lo   { cl.lo }
+		.created_time		{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+		.created_date		{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+		.first_cluster_hi	{ cl.hi },
+		.modified_time		{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+		.modified_date		{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+		.first_cluster_lo	{ cl.lo }
 	};
 	set_filename(avail->regular_entry.filename, sfname);
-	size_t idx              = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
-	fat32_file_vnode* result = put_file_node(name, std::addressof(fparent), cl, idx);
+	size_t idx					= static_cast<size_t>(avail - fparent.__my_dir_data.begin());
+	fat32_file_vnode* result	= put_file_node(name, std::addressof(fparent), cl, idx);
 	add_start_cluster_ref(result->start_cluster());
 	return result;
 }
 directory_vnode* fat32::mkdirnode(directory_vnode* parent, std::string const& name)
 {
-	dword cl = claim_cluster(__the_table);
+	dword cl											= claim_cluster(__the_table);
 	if(!cl) return nullptr;
-	fat32_directory_vnode& fparent                       = dynamic_cast<fat32_directory_vnode&>(*parent);
-	std::vector<fat32_directory_entry>::iterator avail  = fparent.first_unused_entry();
+	fat32_directory_vnode& fparent						= dynamic_cast<fat32_directory_vnode&>(*parent);
+	std::vector<fat32_directory_entry>::iterator avail	= fparent.first_unused_entry();
 	std::string sfname{};
 	fparent.get_short_name(name, sfname);
-	rtc_time t = rtc::get_instance().get_time();
+	rtc_time t											= rtc::get_instance().get_time();
 	new(std::addressof(avail->regular_entry)) fat32_regular_entry
 	{
-		.attributes         { 0x10UC },
-		.created_time       { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-		.created_date       { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-		.first_cluster_hi   { cl.hi },
-		.modified_time      { static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
-		.modified_date      { t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
-		.first_cluster_lo   { cl.lo }
+		.attributes			{ 0x10UC },
+		.created_time		{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+		.created_date		{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+		.first_cluster_hi	{ cl.hi },
+		.modified_time		{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr },
+		.modified_date		{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) },
+		.first_cluster_lo	{ cl.lo }
 	};
 	set_filename(avail->regular_entry.filename, sfname);
-	size_t idx                      = static_cast<size_t>(avail - fparent.__my_dir_data.begin());
-	fat32_directory_vnode* result    = this->put_directory_node(name, std::addressof(fparent), cl, idx);
+	size_t idx						= static_cast<size_t>(avail - fparent.__my_dir_data.begin());
+	fat32_directory_vnode* result	= this->put_directory_node(name, std::addressof(fparent), cl, idx);
 	add_start_cluster_ref(result->start_cluster());
 	return result;
 }
 bool fat32::init_instance(block_device* dev)
 {
 	if(__has_init) return true;
-	uint64_t ss = 2048UL;
+	uint64_t ss				= 2048UL;
 	if(partitioned_block_device* pdev = dynamic_cast<partitioned_block_device*>(dev))
 	{
-		partition_table& pt = pdev->get_partition_table();
+		partition_table& pt	= pdev->get_partition_table();
 		// TODO: check the label to make sure this is in fact a FAT32 filesystem
 		if(!pt.empty())
 			ss = pt.front().start_lba;
 	}
 	if(__unlikely(!dev->read(std::addressof(bootsect), ss, div_round_up(sizeof(fat32_bootsect), dev->sector_size())))) return false;
-	__instance = new(driver_space) fat32(bootsect.root_cluster_num, bootsect.sectors_per_cluster, bootsect.bytes_per_sector, ss + bootsect.num_reserved_sectors, bootsect.num_fats * bootsect.fat_size, bootsect.volume_serial);
+	__instance				= new(driver_space) fat32(bootsect.root_cluster_num, bootsect.sectors_per_cluster, bootsect.bytes_per_sector, ss + bootsect.num_reserved_sectors, bootsect.num_fats * bootsect.fat_size, bootsect.volume_serial);
 	__instance->tie_block_device(dev);
-	return (__has_init = __instance->init());
+	return (__has_init		= __instance->init());
 }

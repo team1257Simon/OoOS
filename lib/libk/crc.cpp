@@ -19,8 +19,8 @@ static uint16_t const crc16_table[256]
 };
 uint16_t crc16_calc(const void* data, size_t len, uint16_t seed)
 {
-	uint8_t const* cdata  = static_cast<uint8_t const*>(data);
-	uint16_t       result = seed;
+	uint8_t const*	cdata	= static_cast<uint8_t const*>(data);
+	uint16_t		result	= seed;
 	for(size_t i = 0; i < len; i++) { result = (((result >> 8) & 0xFFUS) ^ crc16_table[(result ^ cdata[i]) & 0xFFUS]) & 0xFFFFUS; }
 	return result;
 }
