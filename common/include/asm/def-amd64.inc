@@ -1,4 +1,4 @@
-#include "asm-defs.inc"
+#include "x86_64-defs.inc"
 .altmacro
 .macro      syscall_state_save
 	movq    %rsp,                   %gs:T_OFFS(rsp)

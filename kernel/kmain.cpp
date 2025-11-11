@@ -597,7 +597,7 @@ extern "C"
 		if(sysinfo->xsdt) fadt	= find_fadt();
 		if(fadt) rtc::init_instance(fadt->century_register);
 		else rtc::init_instance();
-		// The startup "terminal" just directly renders text to the screen using a font that's stored in a data section linked in from libk.
+		// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
 		new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFFU, 0);
 		startup_tty.cls();
 		direct_print_enable		= true;

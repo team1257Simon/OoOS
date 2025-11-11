@@ -7,12 +7,12 @@ GEN_PRG		= $(OBJDIR)/headergen
 OUT_INC		= $(OUTDIR)/$(ARCH)-defs.inc
 $(GEN_PRG): $(OBJDIR) $(SRC) 
 	$(CCLD) $(CCLDFLAGS) $(SRC) -o $@
+	$(GEN_PRG) > $(OUT_INC)
 $(OBJDIR):
 	@mkdir -p $@
 $(OUTDIR):
 	@mkdir -p $@
 all: $(OUTDIR) $(GEN_PRG)
-	$(GEN_PRG) > $(OUT_INC)
 clean:
 	rm -rf $(OBJDIR)
 .PHONY: all

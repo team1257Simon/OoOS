@@ -43,7 +43,7 @@ EMUFLAGS := -rtc base=utc -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_C
 	-cpu max,+sse2,+sse4.1,+sse4.2,+sse4a,+ssse3 -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -smp cores=$(CORES) -device intel-iommu,intremap=on\
 	-netdev user,id=net0 -device e1000e,netdev=net0 -object filter-dump,id=f1,netdev=net0,file=dump.bin\
 	-monitor vc -serial stdio
-.PHONY: all $(SUBDIRS) asmtest
+.PHONY: all $(SUBDIRS) asmtest clean distclean
 all: $(LOG_DIR) $(OUT_IMG) 
 run: $(LOG_DIR) $(OUT_IMG)
 	$(EMULATE) $(EMUFLAGS) -drive file=$(OUT_IMG),if=ide,format=raw
@@ -51,13 +51,16 @@ $(BUILD_DIR):
 	@mkdir -p $@
 $(LOG_DIR):
 	@mkdir -p $@
-lib: headergen
 test: lib
 $(SUBDIRS):
 	$(MAKE) -C $@
 $(ATTR_PLUGIN):
 	$(MAKE) -C lib/ooos-attrs
 clean:
+	rm -rf $(OUT_IMG) *.bin common/include/asm-generated/* boot/uefi/*.o boot/uefi/*.a || true
+	cd kernel && $(MAKE) clean
+	cd headergen && $(MAKE) clean
+distclean:
 	rm -rf $(OUT_IMG) $(ATTR_PLUGIN) boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
 	rm *.bin || true
 	rm -rf common/include/asm-generated/* || true
@@ -68,7 +71,7 @@ clean:
 	done
 $(OUT_IMG): $(ATTR_PLUGIN) $(BUILD_DIR) create_image.sh $(SUBDIRS)
 	sh create_image.sh $@ $(BUILD_DIR) $(IMAGE_FILE_DIR)
-asmtest: 
+asmtest: $(ATTR_PLUGIN)
 	cd kernel && $(MAKE) asmtest
 	cd modules && $(MAKE) asmtest
 	cd lib && $(MAKE) asmtest
