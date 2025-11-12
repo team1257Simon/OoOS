@@ -1,8 +1,8 @@
 ## OoOS
-OoOS, or the Object-oriented Operanting System (working name in development) is, as the name suggests, an OS developed using OoP concepts, among other things.
+OoOS, or the Object-oriented Operating System (working name in development) is, as the name suggests, an OS developed using OoP concepts, among other things.
 It exists because I am insane and, as an insane person, wanted to see if it was possible to do silly things like using lambdas to implement ISRs and using exceptions to handle internal error checking and using abstraction to implement a VFS (okay, the last one is pretty normal).
 Feel free to contribute to my project, though be advised that it's still in relatively early stages and a lot of it is either untested or only partially-tested and prone to breaking if you breathe on it too hard.
-...okay, it's a lot less fragile than it used to be, at least.
+Well, okay, it's a lot less fragile than it used to be, at least.
 
 # Building
 You can install the targeted compiler from the releases (under ooos_sysroot); the archive contains the sysroot directory which contains all the compiler binaries, libraries, and headers so you don't have to wrangle autotools. Remember to add the ooos_sysroot/usr/bin directory to your PATH and set the $SYSROOT environment variable to `/path/to/your/ooos_sysroot` (replace the placeholders obviously).
