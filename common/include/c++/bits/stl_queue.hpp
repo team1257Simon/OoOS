@@ -27,8 +27,8 @@ namespace std
 			typedef ::__impl::__iterator<const_pointer, resettable_queue> const_iterator;
 			typedef std::reverse_iterator<iterator> reverse_iterator;
 			typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-			constexpr resettable_queue() noexcept : __base{} {}
-			constexpr resettable_queue(size_type st_cap, allocator_type const& alloc = allocator_type{}) : __base{ st_cap, alloc } {}
+			constexpr resettable_queue() noexcept = default;
+			constexpr resettable_queue(size_type st_cap, allocator_type const& alloc = allocator_type{}) : __base(st_cap, alloc) {}
 			constexpr void reserve(size_type ncap) { if(this->__qcapacity() < ncap && ! this->__q_grow_buffer(static_cast<size_type>(ncap - this->__qcapacity()))) throw std::runtime_error{ "failed to allocate buffer" }; }
 			constexpr void clear() { this->__qclear(); }
 			constexpr size_type size() const noexcept { return this->__qrem(); }

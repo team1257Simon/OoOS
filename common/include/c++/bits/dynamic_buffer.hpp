@@ -35,7 +35,6 @@ namespace std::__impl
 		__buf_ptrs(__ptr start, __ptr end) : __begin(start), __end(end), __max(end) {}
 		__buf_ptrs(__ptr start, __size_type cap) : __begin(start), __end(start), __max(start + cap) {}
 		void __copy_ptrs(__buf_ptrs const& that) { __begin = that.__begin; __end = that.__end; __max = that.__max; }
-		void __swap_ptrs(__buf_ptrs& that) { __buf_ptrs tmp; tmp.__copy_ptrs(*this); __copy_ptrs(that); that.__copy_ptrs(tmp); }
 		void __set_ptrs(__ptr begin, __ptr end, __ptr max) { __begin = begin; __end = end; __max = max; }
 		void __set_ptrs(__ptr begin, __size_type ncap) { __set_ptrs(begin, begin + min(ncap, static_cast<__size_type>(__end - __begin)), begin + ncap); }
 		__ptr __get_ptr(__size_type offs) { return __begin + offs; }
@@ -44,6 +43,12 @@ namespace std::__impl
 		void __adv(__size_type n) { __end += n; }
 		void __bck(__size_type n) { __end -= n; }
 		__size_type __capacity() const { return __begin ? static_cast<__size_type>(__max - __begin) : 0UZ; }
+		void __swap_ptrs(__buf_ptrs& that)
+		{
+			__buf_ptrs tmp(this->__begin, this->__end, this->__max);
+			this->__copy_ptrs(that);
+			that.__copy_ptrs(tmp);
+		}
 	};
 	/**
 	 * This base-type implements the functionality shared by the dynamic-container types (mainly string and vector). 
@@ -303,8 +308,8 @@ namespace std::__impl
 	template<matching_input_iterator<T> IT> 
 	constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__append_elements(IT start_it, IT end_it)
 	{
-		__size_type rem = __rem();
-		__size_type num = distance(start_it, end_it);
+		__size_type rem	= __rem();
+		__size_type num	= distance(start_it, end_it);
 		if((!__beg() || num > rem) && __unlikely(!__grow_buffer(num - rem))) return nullptr;
 		for(IT i = start_it; i < end_it; i++, __advance(1UZ)) construct_at(__cur(), *i);
 		__post_modify_check_nt();
@@ -315,7 +320,7 @@ namespace std::__impl
 	constexpr typename __dynamic_buffer<T, A, NT>::__ptr __dynamic_buffer<T, A, NT>::__insert_elements(__const_ptr pos, IT start_ptr, IT end_ptr)
 	{
 		if(__unlikely(__out_of_range(pos))) return nullptr;
-		__ptr ncpos = __get_ptr(__diff(pos));
+		__ptr ncpos					= __get_ptr(__diff(pos));
 		try
 		{
 			__size_type range_size 	= distance(start_ptr, end_ptr);
@@ -333,28 +338,28 @@ namespace std::__impl
 					__allocator.deallocate(temp, n);
 					__advance(range_size);
 				}
-				else {
-					__transfer(__get_ptr(offs), start_ptr, end_ptr);
+				else
+				{
+					__ptr target	= __get_ptr(offs);
+					__transfer(target, start_ptr, end_ptr);
 					__setc(offs + range_size);
 				}
 			}
 			else 
 			{
-				__size_type target_cap = __capacity() + __needed(pos + range_size);
+				__size_type target_cap	= __capacity() + __needed(pos + range_size);
 				__buf_ptrs nwdat(__allocator.allocate(target_cap), target_cap);
+				__size_type osz			= __size();
 				if(prepending)
 				{
 					__size_type rem = __ediff(pos);
 					__move(nwdat.__begin, __beg(), offs);
 					__move(nwdat.__get_ptr(offs + range_size), ncpos, rem);
-					nwdat.__setc(__size() + range_size);
 				}
-				else {
-					__move(nwdat.__begin, __beg(), __size());
-					nwdat.__setc(__size() + range_size);
-				}
+				else __move(nwdat.__begin, __beg(), osz);
 				__allocator.deallocate(__beg(), __size());
 				__my_data.__copy_ptrs(nwdat);
+				__setc(osz + range_size);
 				__transfer(__get_ptr(offs), start_ptr, end_ptr);
 			}
 			__post_modify_check_nt();
@@ -414,7 +419,8 @@ namespace std::__impl
 		__post_modify_check_nt();
 		return __get_ptr(start_pos);
 	}
-	extension template<typename T, allocator_object<T> A, bool NT> constexpr void __dynamic_buffer<T, A, NT>::__post_modify_check_nt() 
+	template<typename T, allocator_object<T> A, bool NT> 
+	constexpr void __dynamic_buffer<T, A, NT>::__post_modify_check_nt() 
 	{ 
 		if constexpr(__end_zero) 
 		{ 
