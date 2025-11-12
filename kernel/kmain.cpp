@@ -211,7 +211,8 @@ void map_tests()
 void str_tests()
 {
 	srand(sys_time(nullptr));
-	startup_tty.print_text(std::to_string(42) + " ");
+	constexpr int the_answer = linear_combination<int>()(std::array{ 3, 2, 4, 1 }, std::array{ 2, 5, 5, 6 });
+	startup_tty.print_text(std::to_string(the_answer) + " ");
 	startup_tty.print_text(std::to_string(sysinfo) + " ");
 	startup_tty.print_text(std::to_string(3.14159265358L) + " ");
 	startup_tty.print_text(std::to_string(rand()) + " ");

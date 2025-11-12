@@ -17,7 +17,7 @@ public:
 	constexpr direct_text_render() noexcept = default;
 	constexpr direct_text_render(sysinfo_t* fb_info, psf2_t* font_data, uint32_t fg_color, uint32_t bg_color) noexcept :
 		__fb_ptr    	{ fb_info->fb_ptr },
-		__render    	{ font_data, fb_info->fb_pitch, fg_color, bg_color },
+		__render    	{ font_data, fb_info->fb_pitch, fb_info->fb_width, fg_color, bg_color },
 		__fb_wid    	{ fb_info->fb_width },
 		__fb_ht     	{ fb_info->fb_height },
 		__cursor_pos	{ 0U, 0U }

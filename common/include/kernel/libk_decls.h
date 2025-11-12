@@ -9,6 +9,7 @@
 #if defined(__KERNEL__) || defined(__LIBK__)
 #include "new"
 #include "memory"
+#include "tuple"
 #else
 #include <new>
 #include <memory>
