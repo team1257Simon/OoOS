@@ -167,7 +167,7 @@ namespace std
 		template<typename ... CArgs> constexpr invoke_result_t<FT, BArgs..., CArgs...> operator()(CArgs&&... __args) && noexcept(is_nothrow_invocable_v<FT, BArgs..., CArgs...>) { return __s_call(move(*this), __bound_indices{}, forward<CArgs>(__args)...); }
 		template<typename ... CArgs> constexpr invoke_result_t<const FT, const BArgs..., CArgs...> operator()(CArgs&&... __args) const && noexcept(is_nothrow_invocable_v<const FT, const BArgs..., CArgs...>) { return __s_call(move(*this), __bound_indices{}, forward<CArgs>(__args)...); }
 	};
-	template<move_constructible FT, move_constructible ... BArgs> constexpr __bind_front_expr<FT, BArgs...> bind_front(FT&& ft, BArgs&& ... args) { return __bind_front_expr(0, std::move(ft), std::forward<BArgs>(args)...); }
+	template<move_constructible FT, move_constructible ... BArgs> constexpr __bind_front_expr<FT, BArgs...> bind_front(FT&& ft, BArgs&& ... args) { return __bind_front_expr<FT, BArgs...>(0, std::move(ft), std::forward<BArgs>(args)...); }
 }
 constexpr uint64_t max_wait = 10000000UL;
 /**

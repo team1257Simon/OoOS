@@ -26,16 +26,16 @@ extern "C"
 	void on_invalid_syscall() { panic("[EXEC] D: invalid syscall"); force_signal(active_task_context(), 12); }
 	long syscall_sigret()
 	{
-		task_ctx* task = active_task_context();
+		task_ctx* task	= active_task_context();
 		if(!task->task_sig_info.pending_signals.btr(task->task_sig_info.active_signal)) { return -EINVAL; }
-		long rax = task->end_signal();
+		register_t rax	= task->end_signal();
 		if(task->task_sig_info.pending_signals) task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals), false); // state is already saved
 		return rax;
 	}
 	signal_handler syscall_signal(int sig, signal_handler new_handler)
 	{
-		task_ctx* task = active_task_context();
-		signal_handler old_handler = task->task_sig_info.signal_handlers[sig];
+		task_ctx* task				= active_task_context();
+		signal_handler old_handler	= task->task_sig_info.signal_handlers[sig];
 		task->task_sig_info.signal_handlers[sig] = new_handler;
 		return old_handler;
 	}

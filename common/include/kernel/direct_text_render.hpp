@@ -35,5 +35,6 @@ public:
 	void print_line(const char* text);
 	void print_line(std::string const& text);
 	void putch(wchar_t ch);
+	constexpr font_render const& render() const noexcept { return __render; }
 };
 #endif
