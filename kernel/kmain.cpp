@@ -85,10 +85,10 @@ static void descr_pt(partition_table const& pt)
 	for(partition_table::const_iterator i = pt.begin(); i != pt.end(); i++)
 	{
 		if(i->type_guid.data_full[0] == 0 && i->type_guid.data_full[1] == 0) continue;
-		startup_tty.print_text("Partition at: ");
-		startup_tty.print_text(std::to_string(i->start_lba));
-		startup_tty.print_text(" to ");
-		startup_tty.print_line(std::to_string(i->end_lba));
+		direct_write("Partition at: ");
+		xdirect_write(std::to_string(i->start_lba));
+		direct_write(" to ");
+		xdirect_writeln(std::to_string(i->end_lba));
 	}
 }
 module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
@@ -96,7 +96,7 @@ module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
 	module_loader& loader = module_loader::get_instance();
 	if(mod_desc.buffer && mod_desc.size)
 	{
-		startup_tty.print_line("Loading module " + std::string(mod_desc.filename));
+		xdirect_writeln("Loading module " + std::string(mod_desc.filename));
 		addr_t mod_buffer = ::operator new(mod_desc.size, static_cast<std::align_val_t>(page_size));
 		atomic_copy<char>(mod_buffer, static_cast<char const*>(mod_desc.buffer), mod_desc.size);
 		return loader.add(mod_buffer, mod_desc.size).first;
@@ -141,15 +141,15 @@ void net_tests()
 		else
 		{
 			mac_t const& mac        = test_dev->get_mac_addr();
-			startup_tty.print_line("MAC: " + stringify(mac));
+			xdirect_writeln("MAC: " + stringify(mac));
 			protocol_ipv4& p_ip     = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
 			protocol_udp& p_udp     = p_ip.add_transport_handler<protocol_udp>(UDP);
 			protocol_dhcp& p_dhcp   = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
 			p_dhcp.base->ip_resolver->check_presence("10.0.2.2"IPV4);
 			p_dhcp.transition_state(ipv4_client_state::INIT);
 			hpet.delay_us(2000UL);
-			startup_tty.print_line("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway) + ", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
-			startup_tty.print_line("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) + "; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
+			xdirect_writeln("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway) + ", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
+			xdirect_writeln("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) + "; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
 		}
 	}
 	else panic("net device not found on PCI bus");
@@ -163,51 +163,51 @@ void map_tests()
 	m.insert_or_assign("bweep", 42);
 	m["fweep"] = 84;
 	m.insert_or_assign("dreep", 105);
-	startup_tty.print_text("initial map values: ");
+	xdirect_write("initial map values: ");
 	for(map_type::iterator i = m.begin(); i != m.end(); ++i)
 	{
-		startup_tty.print_text(i->first);
-		startup_tty.print_text(": ");
-		startup_tty.print_text(std::to_string(i->second));
-		startup_tty.print_text("; ");
+		xdirect_write(i->first);
+		direct_write(": ");
+		xdirect_write(std::to_string(i->second));
+		direct_write("; ");
 	}
-	startup_tty.endl();
+	dwendl();
 	m.erase("gyeep");
-	startup_tty.print_text("map values after erase: ");
+	direct_write("map values after erase: ");
 	for(map_type::iterator i = m.begin(); i != m.end(); ++i)
 	{
-		startup_tty.print_text(i->first);
-		startup_tty.print_text(": ");
-		startup_tty.print_text(std::to_string(i->second));
-		startup_tty.print_text("; ");
+		xdirect_write(i->first);
+		direct_write(": ");
+		xdirect_write(std::to_string(i->second));
+		direct_write("; ");
 	}
-	startup_tty.endl();
+	dwendl();
 	m["dreep"] = 45;
 	m.insert_or_assign("fweep", 37);
-	startup_tty.print_text("map values after reassign: ");
+	direct_write("map values after reassign: ");
 	for(map_type::iterator i = m.begin(); i != m.end(); ++i)
 	{
-		startup_tty.print_text(i->first);
-		startup_tty.print_text(": ");
-		startup_tty.print_text(std::to_string(i->second));
-		startup_tty.print_text("; ");
+		xdirect_write(i->first);
+		direct_write(": ");
+		xdirect_write(std::to_string(i->second));
+		direct_write("; ");
 	}
-	startup_tty.endl();
+	dwendl();
 	m.clear();
 	m.insert(std::make_pair("meep", 21));
 	m["gyeep"] = 63;
 	m.insert_or_assign("bweep", 42);
 	m["fweep"] = 84;
 	m.insert_or_assign("dreep", 105);
-	startup_tty.print_text("map values after reset: ");
+	direct_write("map values after reset: ");
 	for(map_type::iterator i = m.begin(); i != m.end(); ++i)
 	{
-		startup_tty.print_text(i->first);
-		startup_tty.print_text(": ");
-		startup_tty.print_text(std::to_string(i->second));
-		startup_tty.print_text("; ");
+		xdirect_write(i->first);
+		direct_write(": ");
+		xdirect_write(std::to_string(i->second));
+		direct_write("; ");
 	}
-	startup_tty.endl();
+	dwendl();
 }
 constexpr static int8_t test_array[]
 {
@@ -243,27 +243,27 @@ void str_tests()
 	srand(sys_time(nullptr));
 	constexpr int the_answer 			= linear_combination<int>()(std::array{ 3, 2, 4, 1 }, std::array{ 2, 5, 5, 6 });
 	constexpr int8_t other_answer		= test_multi.at(1UZ, 1UZ, 1UZ, 2UZ);
-	startup_tty.print_text(std::to_string(the_answer) + " ");
-	startup_tty.print_text(std::to_string(other_answer) + " ");
-	startup_tty.print_text(std::to_string(sysinfo) + " ");
-	startup_tty.print_text(std::to_string(3.14159265358L) + " ");
-	startup_tty.print_text(std::to_string(rand()) + " ");
-	startup_tty.print_text(std::string(10UL, 'e') + " ");
+	xdirect_write(std::to_string(the_answer) + " ");
+	xdirect_write(std::to_string(other_answer) + " ");
+	xdirect_write(std::to_string(sysinfo) + " ");
+	xdirect_write(std::to_string(3.14159265358L) + " ");
+	xdirect_write(std::to_string(rand()) + " ");
+	xdirect_write(std::string(10UL, 'e') + " ");
 	std::string test_str("I/like/to/eat/apples/and/bananas");
-	for(std::string s : std::ext::split(test_str, "/")) startup_tty.print_text(s + " ");
+	for(std::string s : std::ext::split(test_str, "/")) xdirect_write(s + " ");
 	std::vector<std::string> v{ "Dewey", "Cheatem", "and Howe" };
-	startup_tty.print_line(std::ext::join(v, ", "));
-	startup_tty.print_text("crc32c test: ");
+	xdirect_writeln(std::ext::join(v, ", "));
+	xdirect_write("crc32c test: ");
 	debug_print_num(crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(test_str.c_str()), test_str.size()), 8);
-	startup_tty.endl();
-	startup_tty.print_text("dragon test: ");
+	dwendl();
+	direct_write("dragon test: ");
 	std::ext::dragon<std::string> sdragon{};
 	debug_print_num(sdragon(test_str));
-	startup_tty.print_line(" (rawr)");
+	direct_writeln(" (rawr)");
 	std::string setting = create_hash_setting_string();
-	startup_tty.print_line("crypt setting: " + setting);
+	xdirect_writeln("crypt setting: " + setting);
 	std::string crypto = create_crypto_string("fleedle deedle", setting);
-	startup_tty.print_line("crypt of fleedle deedle: " + crypto);
+	xdirect_writeln("crypt of fleedle deedle: " + crypto);
 }
 int test_task_1(int argc, char** argv)
 {
@@ -286,7 +286,7 @@ void test_landing_pad()
 	free(ctx->allocated_stack);
 	free(ctx->tls);
 	tl.destroy_task(ctx->get_pid());
-	startup_tty.print_line("returned " + std::to_string(retv));
+	xdirect_writeln("returned " + std::to_string(retv));
 	sti();
 	while(1);
 }
@@ -308,7 +308,7 @@ void extfs_tests()
 		file_vnode* fn = test_extfs.open_file("files/memes.txt");
 		fn->write("derple blerple\n", 15);
 		test_extfs.close_file(fn);
-		startup_tty.print_line("Wrote files/memes.txt");
+		xdirect_writeln("Wrote files/memes.txt");
 	}
 	catch(std::exception& e) { panic(e.what()); }
 }
@@ -320,16 +320,16 @@ void dyn_elf_tests()
 		shared_object_map::iterator test_so	= shared_object_map::get_ldso_object(nullptr);
 		kmm.enter_frame(sm.shared_frame);
 		addr_t sym							= test_so->get_load_offset();
-		startup_tty.print_line("Dynamic Linker SO name: " + test_so->get_soname());
+		xdirect_writeln("Dynamic Linker SO name: " + test_so->get_soname());
 		sym									= test_so->entry_point();
-		startup_tty.print_text("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");
-		startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+		xdirect_write("Dynamic Linker Entry: " + std::to_string(sym.as()) + " (");
+		xdirect_writeln(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
 		sym									= test_so->resolve_by_name("dlopen").second;
-		startup_tty.print_text("Symbol dlopen: " + std::to_string(sym.as()) + " (");
-		startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+		xdirect_write("Symbol dlopen: " + std::to_string(sym.as()) + " (");
+		xdirect_writeln(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
 		sym									= test_so->resolve_by_name("dlclose").second;
-		startup_tty.print_text("Symbol dlclose: " + std::to_string(sym.as()) + " (");
-		startup_tty.print_line(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
+		xdirect_write("Symbol dlclose: " + std::to_string(sym.as()) + " (");
+		xdirect_writeln(std::to_string(kmm.frame_translate(sym), std::ext::hex) + ")");
 		kmm.exit_frame();
 	}
 	catch(std::exception& e) { panic(e.what()); }
@@ -346,12 +346,12 @@ void elf64_tests()
 			file_vnode* c    						= test_extfs.get_file_or_null("/dev/console");
 			if(!c) c        						= test_extfs.lndev("/dev/console", 0, com->get_device_id());
 			elf64_program_descriptor const& desc 	= test_exec->describe();
-			startup_tty.print_line("Entry at " + std::to_string(desc.entry));
+			xdirect_writeln("Entry at " + std::to_string(desc.entry));
 			sch.start();
 			task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
 			prog_manager::get_instance().remove(test_exec);
 		}
-		else startup_tty.print_line("Executable failed to validate");
+		else xdirect_writeln("Executable failed to validate");
 	}
 	catch(std::exception& e) { panic(e.what()); }
 }
@@ -365,8 +365,8 @@ void hpet_tests()
 		fence();
 		hpet_amd64::delay_usec(1000UL, fn);
 		fence();
-		if(start_read > end_read) startup_tty.print_line("emulator too unstable; start read was " + std::to_string(start_read) + " microseconds");
-		else startup_tty.print_line("time split: " + std::to_string(end_read - start_read));
+		if(start_read > end_read) xdirect_writeln("emulator too unstable; start read was " + std::to_string(start_read) + " microseconds");
+		else xdirect_writeln("time split: " + std::to_string(end_read - start_read));
 	}
 	else panic("hpet init failed");
 }
@@ -409,7 +409,7 @@ void sysfs_tests()
 		};
 		sysfs test_sysfs(sys_files);
 		test_sysfs.init_blank(test_backup_filenames);
-		startup_tty.print_line("Initialized in directory sys/sysfs");
+		direct_writeln("Initialized in directory sys/sysfs");
 		sysfs_node_test(test_sysfs);
 		test_sysfs.sync();
 		uint32_t ino = test_sysfs.find_node("some_test_data");
@@ -418,9 +418,9 @@ void sysfs_tests()
 			sysfs_vnode& n = test_sysfs.open(ino);
 			test_map tm(n);
 			test_map::value_handle hdl = tm.find("abcdefg");
-			startup_tty.print_line("string abcdefg is associated with the number " + std::to_string(hdl->something));
+			xdirect_writeln("string abcdefg is associated with the number " + std::to_string(hdl->something));
 		}
-		else startup_tty.print_line("[sysfs directory did not contain expected key]");
+		else xdirect_writeln("[sysfs directory did not contain expected key]");
 		test_extfs.close_file(sys_files.data_file);
 		test_extfs.close_file(sys_files.index_file);
 		test_extfs.close_file(sys_files.extents_file);
@@ -437,10 +437,10 @@ void circular_queue_tests()
 	for(size_t i = 0; i < l - 3; i++)
 	{
 		buffer[0] = test_queue.pop();
-		startup_tty.print_text(buffer);
+		direct_write(buffer);
 		if(i + 1 < l - 3)
-			startup_tty.print_text(", ");
-		else startup_tty.print_text("; ");
+			direct_write(", ");
+		else direct_write("; ");
 	}
 	for(char c = 'a'; c < 'j'; c++ /* oh, that's why they call it that. */) test_queue.push(c);
 	test_queue.bump(4UZ);
@@ -448,11 +448,11 @@ void circular_queue_tests()
 	for(size_t i = 0; i < l; i++)
 	{
 		buffer[0] = test_queue.pop();
-		startup_tty.print_text(buffer);
+		direct_write(buffer);
 		if(i + 1 < l)
-			startup_tty.print_text(", ");
+			direct_write(", ");
 	}
-	startup_tty.endl();
+	dwendl();
 }
 static const char* codes[] =
 {
@@ -494,30 +494,30 @@ constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 	if(get_gs_base<task_t>() != std::addressof(kproc)) return;
 	if(idx < 0x20)
 	{
-		startup_tty.print_text(codes[idx]);
+		direct_write(codes[idx]);
 		if(has_ecode(idx))
 		{
-			startup_tty.print_text("(");
+			direct_write("(");
 			__dbg_num(ecode, __xdigits(ecode));
-			startup_tty.print_text(")");
+			direct_write(")");
 		}
 		if(svinst && !errinst) { errinst = addr_t(svinst); }
-		if(errinst) { startup_tty.print_text(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
+		if(errinst) { direct_write(" at instruction "); __dbg_num(errinst, __xdigits(errinst)); }
 		if(idx == 0x0EUC)
 		{
 			uint64_t fault_addr;
 			asm volatile("movq %%cr2, %0" : "=a"(fault_addr) :: "memory");
-			startup_tty.print_text("; page fault address = ");
+			direct_write("; page fault address = ");
 			__dbg_num(fault_addr, __xdigits(fault_addr));
 		}
 		if(idx != 0x01) debug_stop_flag = true;
-		else startup_tty.endl();
+		else dwendl();
 	}
 	else if(idx != 0xFF)
 	{
-		startup_tty.print_text("Received interrupt ");
+		direct_write("Received interrupt ");
 		__dbg_num(idx, 2);
-		startup_tty.print_line(" from software.");
+		direct_write(" from software.");
 	}
 };
 void run_tests()
@@ -528,41 +528,41 @@ void run_tests()
 		wchar_t ch 	= e;
 		if(!e.kv_release && ch < 127)
 		{
-			if(e.kv_vstate.ctrl()) startup_tty.putch('^');
-			if(e.kv_vstate.alt()) startup_tty.putch('~');
-			startup_tty.putch(ch);
+			if(e.kv_vstate.ctrl()) direct_putch('^');
+			if(e.kv_vstate.alt()) direct_putch('~');
+			direct_putch(ch);
 		}
 	});
 	// First test some of the specialized pseudo-stdlibc++ stuff, since a lot of the following code uses it
-	startup_tty.print_line("string test...");
+	direct_writeln("string test...");
 	str_tests();
-	startup_tty.print_line("data structure tests...");
+	direct_writeln("data structure tests...");
 	map_tests();
 	circular_queue_tests();
 	// Some barebones drivers...the keyboard driver is kinda hard to have a static test for here so uh ye
-	if(__unlikely(!(com = load_com_module()))) startup_tty.print_line("failed to load serial driver");
-	startup_tty.print_line("ahci test...");
+	if(__unlikely(!(com = load_com_module()))) direct_writeln("failed to load serial driver");
+	direct_writeln("ahci test...");
 	descr_pt(test_delegate.get_partition_table());
-	startup_tty.print_line("hpet test...");
+	direct_writeln("hpet test...");
 	hpet_tests();
-	startup_tty.print_line("net test...");
+	direct_writeln("net test...");
 	net_tests();
 	// Test the complicated stuff
-	startup_tty.print_line("extfs tests...");
+	direct_writeln("extfs tests...");
 	extfs_tests();
 	if(test_extfs.has_init())
 	{
-		startup_tty.print_line("sysfs tests...");
+		direct_writeln("sysfs tests...");
 		sysfs_tests();
 		shared_object_map::get_ldso_object(std::addressof(test_extfs));
-		startup_tty.print_line("SO loader tests...");
+		direct_writeln("SO loader tests...");
 		dyn_elf_tests();
-		startup_tty.print_line("elf64 tests...");
+		direct_writeln("elf64 tests...");
 		elf64_tests();
 	}
-	startup_tty.print_line("task tests...");
+	direct_writeln("task tests...");
 	task_tests();
-	startup_tty.print_line("complete");
+	direct_writeln("complete");
 }
 static void __serial_write(std::string const& msg)
 {
@@ -580,20 +580,23 @@ extern "C"
 	extern void do_syscall();
 	extern void enable_fs_gs_insns();
 	paging_table get_kernel_cr3() { return kproc.saved_regs.cr3; }
+	void dwclear() { if(direct_print_enable) startup_tty.cls(); }
+	void dwendl() { if(direct_print_enable) startup_tty.endl(); }
+	void direct_putch(wchar_t ch) { if(direct_print_enable) startup_tty.putch(ch); }
 	void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
 	void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
 	void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
 	void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
-	[[noreturn]] void abort() { __serial_write("KERNEL ABORT"); startup_tty.print_line("abort() called in kernel"); while(1); }
+	[[noreturn]] void abort() { __serial_write("KERNEL ABORT"); direct_writeln("abort() called in kernel"); while(1); }
 	void panic(const char* msg) noexcept
 	{
-		startup_tty.print_text("E: ");
-		startup_tty.print_line(msg);
+		direct_write("E: ");
+		direct_writeln(msg);
 		__serial_write("[KERNEL] E: " + std::string(msg));
 	}
 	void klog(const char* msg) noexcept
 	{
-		startup_tty.print_line(msg);
+		direct_writeln(msg);
 		__serial_write("[KERNEL] " + std::string(msg));
 	}
 	void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
@@ -631,8 +634,8 @@ extern "C"
 		else rtc::init_instance();
 		// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
 		new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFFU, 0);
-		startup_tty.cls();
 		direct_print_enable		= true;
+		dwclear();
 		bsp_lapic.init();
 		nmi_enable();
 		sti();
@@ -656,12 +659,12 @@ extern "C"
 				else
 				{
 					test_delegate.initialize(*hda);
-					startup_tty.print_line("Initialized delegate HDA");
+					direct_writeln("Initialized delegate HDA");
 					test_extfs.tie_block_device(std::addressof(test_delegate));
 					run_tests();
 				}
 			}
-			else startup_tty.print_line("PCI enum failed");
+			else direct_writeln("PCI enum failed");
 			// The test tasks might trip after this point, so add a backstop to avoid any shenanigans
 			while(1);
 		}
