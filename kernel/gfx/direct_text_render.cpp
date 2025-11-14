@@ -1,25 +1,79 @@
-#include "direct_text_render.hpp"
-#include "kernel/libk_decls.h"
-#include "string.h"
-void direct_text_render::__advance() noexcept { if(__cursor_pos.x + 1 < __fb_col_cap()) __cursor_pos.x++; else endl(); }
-void direct_text_render::__write_one(char c) { if(c == '\n') endl(); else if(c) { __render(c, __fb_ptr, __cursor_pos); __advance(); } }
-void direct_text_render::endl() { __cursor_pos.x = 0; if(__cursor_pos.y < __fb_row_cap()) __cursor_pos.y++; else __cursor_pos.y = 0; }
-void direct_text_render::cr() { __cursor_pos.x = 0; }
-void direct_text_render::up() { if(__cursor_pos.y) __cursor_pos.y--; }
-void direct_text_render::print_text(std::string const& text) { if(__fb_ptr) for(size_t i = 0; i < text.size(); i++) __write_one(text[i]); }
-void direct_text_render::print_line(const char* text) { print_text(text); endl(); }
-void direct_text_render::print_line(std::string const& text) { print_text(text); endl(); }
-void direct_text_render::putch(wchar_t ch) { if(ch < 128) __write_one(static_cast<char>(ch)); }
-void direct_text_render::print_text(const char* text)
-{
-	if (__fb_ptr)
-		for(size_t i = 0; i < strnlen(text, __fb_col_cap() * __fb_row_cap()); i++)
-			__write_one(text[i]); 
+#include <direct_text_render.hpp>
+#include <string.h>
+#include <functional>
+size_t direct_text_render::__bounds_check_idx(wchar_t c) {
+	if(__unlikely(static_cast<uint32_t>(c) > __font->numglyph || c < 1)) c = ' ';
+	return static_cast<size_t>(c * __font->bpg);
 }
+uint32_t direct_text_render::__glyph_px(size_t glyph_idx, ooos::vec2 pt)
+{
+	if(__unlikely(pt[0] >= __font->width || pt[1] >= __font->height || glyph_idx >= __font->numglyph * __font->bpg)) return background;
+	uint8_t glyph_byte = __font->glyph_data[glyph_idx + (pt[0] / 8) + pt[1]];
+	return (glyph_byte & (0x80UC >> (pt[0] % 8))) ? foreground : background;
+}
+void direct_text_render::__scur(int i)
+{
+	size_t target 	= (__cursor[0] + i + __cols) % __cols;
+	if(target < __cursor[0]) __cursor[1] = (__cursor[1] + 1) % __rows;
+	__cursor[0] 	= target;	
+}
+direct_text_render::direct_text_render(sysinfo_t const* si) noexcept :
+	__font(std::addressof(__startup_font_data)),
+	__cols(si->fb_width / __font->width),
+	__rows(si->fb_height / __font->height),
+	__fb(si->fb_ptr, si->fb_width, si->fb_height, __font->width, __font->height),
+	__cursor(),
+	__ident(),
+	foreground(0x00FFFFFFU),
+	background(0U)
+{}
 void direct_text_render::cls()
 {
-	if(__fb_ptr)
-		for(point p(0, 0); p.y < __fb_row_cap(); p.y++)
-			for(p.x = 0; p.x < __fb_col_cap(); p.x++)
-				__render.fill(__render.bg_color(), __fb_ptr, p);
+	for(ooos::vec2 pos 	= ooos::vec(0UZ, 0UZ); pos[1] < __rows; ++pos[1])
+		for(pos[0] 		= 0UZ; pos[0] < __cols; ++pos[0])
+			__fb.fill(pos, background);
+}
+void direct_text_render::endl()
+{
+	__cursor[1]++;
+	__cursor[1]	%= __rows;
+	__cursor[0]	= 0UZ;
+}
+void direct_text_render::print_text(const char* str)
+{
+	for(size_t i = 0; str[i]; i++)
+		putc(str[i]);
+}
+void direct_text_render::print_line(const char* str)
+{
+	for(size_t i = 0; str[i]; i++)
+		putc(str[i]);
+	endl();
+}
+void direct_text_render::putc(wchar_t c)
+{
+	switch(c)
+	{
+	case L'\n':
+		endl();
+		return;
+	case L'\r':
+		__ident		= 0UZ;
+		__cursor[0] = 0UZ;
+		return;
+	case L'\t':
+		if(!__cursor[0] && __ident < __cols)
+			__ident += 4UZ;
+		__scur(4);
+		return;
+	case L'\b':
+		__scur(-1);
+		__fb.fill(__cursor, background);
+		break;
+	// more as needed
+	default:
+		__fb.draw(__cursor, std::bind_front(&direct_text_render::__glyph_px, this, __bounds_check_idx(c)));
+		break;	
+	}
+	__scur(1);
 }

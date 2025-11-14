@@ -5,7 +5,7 @@ CCLDFLAGS 	:= -O2 -Wall -std=gnu++2c
 OUTDIR		= $(INCLUDES)/asm-generated
 GEN_PRG		= $(OBJDIR)/headergen
 OUT_INC		= $(OUTDIR)/$(ARCH)-defs.inc
-$(GEN_PRG): $(OBJDIR) $(SRC) 
+$(GEN_PRG): $(OBJDIR) $(OUTDIR) $(SRC) 
 	$(CCLD) $(CCLDFLAGS) $(SRC) -o $@
 	$(GEN_PRG) > $(OUT_INC)
 $(OBJDIR):

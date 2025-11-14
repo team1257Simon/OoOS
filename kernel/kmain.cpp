@@ -35,7 +35,6 @@
 #include "shared_object_map.hpp"
 #include "stdlib.h"
 sysinfo_t* sysinfo;
-extern psf2_t* __startup_font;
 static direct_text_render startup_tty;
 static device_stream* com;
 static ramfs testramfs;
@@ -240,8 +239,9 @@ void str_tests()
 {
 	srand(sys_time(nullptr));
 	constexpr int the_answer 			= linear_combination<int>()(std::array{ 3, 2, 4, 1 }, std::array{ 2, 5, 5, 6 });
-	constexpr int8_t other_answer		= test_multi.at(2UZ, 1UZ, 2UZ, 0UZ);
+	constexpr int8_t other_answer		= test_multi[ooos::vec(2UZ, 1UZ, 2UZ, 0UZ)];
 	xdirect_write(std::to_string(the_answer) + " ");
+	xdirect_write(std::to_string(other_answer) + " ");
 	xdirect_write(std::to_string(sysinfo) + " ");
 	xdirect_write(std::to_string(3.14159265358L) + " ");
 	xdirect_write(std::to_string(rand()) + " ");
@@ -579,7 +579,7 @@ extern "C"
 	paging_table get_kernel_cr3() { return kproc.saved_regs.cr3; }
 	void dwclear() { if(direct_print_enable) startup_tty.cls(); }
 	void dwendl() { if(direct_print_enable) startup_tty.endl(); }
-	void direct_putch(wchar_t ch) { if(direct_print_enable) startup_tty.putch(ch); }
+	void direct_putch(wchar_t ch) { if(direct_print_enable) startup_tty.putc(ch); }
 	void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
 	void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
 	void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
@@ -630,7 +630,7 @@ extern "C"
 		if(fadt) rtc::init_instance(fadt->century_register);
 		else rtc::init_instance();
 		// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
-		new(std::addressof(startup_tty)) direct_text_render(si, __startup_font, 0x00FFFFFFU, 0);
+		new(std::addressof(startup_tty)) direct_text_render(sysinfo);
 		direct_print_enable		= true;
 		dwclear();
 		bsp_lapic.init();

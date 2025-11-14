@@ -1,40 +1,27 @@
 #ifndef __DIRECT_RENDER
 #define __DIRECT_RENDER
-#include "kernel/font.hpp"
-#include "string"
+#include <font.hpp>
+#include <frame_buffer.hpp>
 class direct_text_render
 {
-	uint32_t* __fb_ptr;
-	font_render __render;
-	uint32_t __fb_wid;
-	uint32_t __fb_ht;
-	point __cursor_pos;
-	constexpr uint32_t __fb_col_cap() const { return __fb_wid / __render.glyph_width(); }
-	constexpr uint32_t __fb_row_cap() const { return __fb_ht / __render.glyph_height(); }
-	void __advance() noexcept;
-	void __write_one(char c);
+	psf2_t const* __font;
+	size_t __cols;
+	size_t __rows;
+	ooos::scaled_frame_buffer<uint32_t> __fb;
+	ooos::vec2 __cursor;
+	size_t __ident;
+	void __scur(int i);
+	uint32_t __glyph_px(size_t glyph_idx, ooos::vec2 pt);
+	size_t __bounds_check_idx(wchar_t c);
 public:
+	uint32_t foreground;
+	uint32_t background;
 	constexpr direct_text_render() noexcept = default;
-	constexpr direct_text_render(sysinfo_t* fb_info, psf2_t* font_data, uint32_t fg_color, uint32_t bg_color) noexcept :
-		__fb_ptr    	{ fb_info->fb_ptr },
-		__render    	{ font_data, fb_info->fb_width, fg_color, bg_color },
-		__fb_wid    	{ fb_info->fb_width },
-		__fb_ht     	{ fb_info->fb_height },
-		__cursor_pos	{ 0U, 0U }
-						{}
-	constexpr void set_fg_color(uint32_t color) noexcept { __render.set_fg_color(color); }
-	constexpr uint32_t get_fg_color() const noexcept { return __render.fg_color(); }
-	constexpr void set_bg_color(uint32_t color) noexcept { __render.set_bg_color(color); }
-	constexpr uint32_t get_bg_color() const noexcept { return __render.bg_color(); }
+	direct_text_render(sysinfo_t const* si) noexcept;
 	void cls();
 	void endl();
-	void cr();
-	void up();
 	void print_text(const char* text);
-	void print_text(std::string const& text);
 	void print_line(const char* text);
-	void print_line(std::string const& text);
-	void putch(wchar_t ch);
-	constexpr font_render const& render() const noexcept { return __render; }
+	void putc(wchar_t ch);
 };
 #endif
