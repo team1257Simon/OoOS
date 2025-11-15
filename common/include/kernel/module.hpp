@@ -75,7 +75,6 @@ namespace ooos
 		jmp_buf __saved_jb{};
 		module_eh_ctx __eh_ctx{};
 		friend class ::elf64_kernel_object;
-		friend module_eh_ctx* get_ctx(abstract_module_base*);
 		inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, std::addressof(typeid(ABI_NAMESPACE::__si_class_type_info)), std::addressof(typeid(ABI_NAMESPACE::__vmi_class_type_info))); }
 		inline void __save_init_jb() { __saved_jb[0] = __eh_ctx.handler_ctx[0]; }
 	public:

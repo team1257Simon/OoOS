@@ -178,7 +178,6 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 		break;
 	}
 }
-#include "kdebug.hpp"
 bool elf64_dynamic_object::load_syms()
 {
 	if(__unlikely(!elf64_object::load_syms())) { panic("[PRG/DYN] no symbol table present"); return false; }
@@ -253,7 +252,7 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string c
 		return std::make_pair(elf64_sym(), nullptr);
 	}
 	elf64_sym const* sym = symbol_index[symbol];
-	return sym ? std::make_pair(*sym, resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
+	return sym ? std::make_pair(*sym, resolve(*sym)) : fallback_resolve(symbol);
 }
 bool elf64_dynamic_object::process_got()
 {
@@ -298,25 +297,25 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
 	}
 }
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
-	elf64_object		{ that },
+	elf64_object	{ that },
 	num_dyn_entries	{ that.num_dyn_entries },
 	dyn_entries		{ dynseg_alloc.allocate(num_dyn_entries) },
-	num_plt_relas		{ that.num_plt_relas },
-	plt_relas			{ that.plt_relas ? r_alloc.allocate(that.num_plt_relas) : nullptr },
-	got_vaddr			{ that.got_vaddr },
+	num_plt_relas	{ that.num_plt_relas },
+	plt_relas		{ that.plt_relas ? r_alloc.allocate(that.num_plt_relas) : nullptr },
+	got_vaddr		{ that.got_vaddr },
 	dyn_segment_idx	{ that.dyn_segment_idx },
 	relocations		{ that.relocations },
-	dependencies		{ that.dependencies },
-	ld_paths			{ that.ld_paths },
-	init_array			{ that.init_array },
-	fini_array			{ that.fini_array },
+	dependencies	{ that.dependencies },
+	ld_paths		{ that.ld_paths },
+	init_array		{ that.init_array },
+	fini_array		{ that.fini_array },
 	init_fn			{ that.init_fn },
 	fini_fn			{ that.fini_fn },
-	init_array_ptr		{ that.init_array_ptr },
-	fini_array_ptr		{ that.fini_array_ptr },
+	init_array_ptr	{ that.init_array_ptr },
+	fini_array_ptr	{ that.fini_array_ptr },
 	init_array_size	{ that.init_array_size },
 	fini_array_size	{ that.fini_array_size },
-	symbol_index		{ symstrtab, symtab, elf64_gnu_htbl(that.symbol_index.htbl.header) }
+	symbol_index	{ symstrtab, symtab, elf64_gnu_htbl(that.symbol_index.htbl.header) }
 {
 	symbol_index.htbl.bloom_filter_words	= q_alloc.allocate(symbol_index.htbl.header.maskwords);
 	symbol_index.htbl.buckets				= w_alloc.allocate(symbol_index.htbl.header.nbucket);

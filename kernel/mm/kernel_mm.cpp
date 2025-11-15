@@ -427,7 +427,7 @@ addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t al
 	__userunlock();
 	return result;
 }
-paging_table kernel_memory_mgr::allocate_pt()	noexcept
+paging_table kernel_memory_mgr::allocate_pt() noexcept
 {
 	constexpr size_t pt_size	= sizeof(pt_entry) * page_table_length;
 	constexpr size_t total_sz	= up_to_nearest(pt_size + bt_offset, page_size);

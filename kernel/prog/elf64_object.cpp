@@ -103,7 +103,7 @@ bool elf64_object::load_syms()
 			symtab.total_size				= h.sh_size;
 			symtab.entry_size				= h.sh_entsize;
 			symstrtab.data					= aligned_malloc(strtab_shdr.sh_size, strtab_shdr.sh_addralign);
-			symtab.data					= aligned_malloc(h.sh_size, h.sh_addralign);
+			symtab.data						= aligned_malloc(h.sh_size, h.sh_addralign);
 			array_copy<char>(symstrtab.data, img_ptr(strtab_shdr.sh_offset), strtab_shdr.sh_size);
 			array_copy<char>(symtab.data, img_ptr(h.sh_offset), h.sh_size);
 			return true;
@@ -151,7 +151,7 @@ elf64_object::elf64_object(elf64_object const& that) :
 		array_copy<char>(symtab.data, that.symtab.data, that.symtab.total_size);
 		array_copy<char>(symstrtab.data, that.symstrtab.data, that.symstrtab.total_size);
 		array_copy<char>(shstrtab.data, that.shstrtab.data, that.shstrtab.total_size);
-		array_copy<program_segment_descriptor>(segments, that.segments, that.num_seg_descriptors); // based generic memcpy routine
+		array_copy<program_segment_descriptor>(segments, that.segments, that.num_seg_descriptors); // based generic "memcpy" routine
 	}
 }
 elf64_object::elf64_object(elf64_object&& that) :

@@ -32,7 +32,7 @@ elf64_executable::elf64_executable(file_vnode* n, size_t stack_sz, size_t tls_sz
 	frame_tag			{ nullptr },
 	program_descriptor	{}
 						{}
-elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object (std::move(that)),
+elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object(std::move(that)),
 	stack_size			{ that.stack_size },
 	tls_size			{ that.tls_size },
 	frame_base			{ std::move(that.frame_base) },
@@ -43,9 +43,9 @@ elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object (std:
 	frame_tag			{ std::move(that.frame_tag) },
 	program_descriptor	{ std::move(that.program_descriptor) }
 {
-	that.frame_base					= nullptr;
+	that.frame_base						= nullptr;
 	that.frame_extent					= nullptr;
-	that.stack_base					= nullptr;
+	that.stack_base						= nullptr;
 	that.tls_base						= nullptr;
 	that.entry							= nullptr;
 	that.frame_tag						= nullptr;

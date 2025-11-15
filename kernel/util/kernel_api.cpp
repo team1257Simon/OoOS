@@ -29,7 +29,6 @@ static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_
 }
 namespace ooos
 {
-	module_eh_ctx* get_ctx(abstract_module_base* mod) { return &mod->__eh_ctx; }
 	template<typename T> struct type_tag { constexpr explicit type_tag() = default; };
 	template<typename T> constexpr inline type_tag<T> tag{};
 	struct get_name { constexpr const char* const& operator()(std::type_info const* const& ti) const noexcept { return ti->__type_name; } };

@@ -26,9 +26,8 @@ shared_object_map::const_iterator shared_object_map::find(std::string const& wha
 shared_object_map::size_type shared_object_map::size() const noexcept { return __base::size(); }
 void shared_object_map::set_path(iterator obj, std::string const& path) { __obj_paths.insert(std::make_pair(obj, std::move(std::string(path)))); }
 const char* shared_object_map::get_path(iterator obj) const { if(auto i = __obj_paths.find(obj); i != __obj_paths.end()) { return i->second.c_str(); } else return nullptr; }
-shared_object_map::shared_object_map(uframe_tag* frame, size_type init_ct) : 
-    __base          ( init_ct ), 
-    __obj_paths     ( init_ct ), 
+shared_object_map::shared_object_map(uframe_tag* frame, size_type init_ct) : __base(init_ct), 
+    __obj_paths     { init_ct }, 
     shared_frame    { frame ? frame : create_shared_frame() } 
                     { if(!shared_frame->dynamic_extent) { shared_frame->dynamic_extent = __global_dynamic_extent(); } }
 bool shared_object_map::remove(iterator so_handle)

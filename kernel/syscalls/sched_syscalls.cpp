@@ -37,13 +37,18 @@ extern "C"
 	{
 		task_ctx* task	= active_task_context();
 		sc_out			= translate_user_pointer(sc_out);
-		if(task->last_notified) { if(sc_out) *sc_out = task->last_notified->exit_code; return task->last_notified->get_pid(); } 
+		if(task->last_notified)
+		{ 
+			if(sc_out)
+				*sc_out = task->last_notified->exit_code;
+			return task->last_notified->get_pid();
+		} 
 		else if(sch.set_wait_untimed(task->header())) 
 		{
 			task->notif_target							= sc_out;
 			task->task_struct.task_ctl.should_notify	= true;
 			task_t* next								= sch.yield();
-			if(__unlikely(next == task->header())) { return -ECHILD; }
+			if(__unlikely(next == task->header())) return -ECHILD;
 			return next->saved_regs.rax;
 		}
 		return -ENOMEM;

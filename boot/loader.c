@@ -154,13 +154,12 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
 efi_status_t map_id_pages(size_t num_pages)
 {
 	size_t n = required_tables(num_pages);
-	printf("map %i pages\n", num_pages);
+	printf("Identity-mapping %i pages\n", num_pages);
 	paging_table tables_start;
 	efi_status_t status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, n, (efi_physical_address_t*)&tables_start);
-	printf("%p\n", tables_start);
 	if(EFI_ERROR(status)) 
 	{
-		printf("Unable to get pages for page tables: 0x%X\n", status);
+		printf("Unable to get pages for page tables: 0x%X ", status);
 		if(status == EFI_NOT_FOUND) printf("EFI_NOT_FOUND\n");
 		else if(status == EFI_OUT_OF_RESOURCES) printf("EFI_OUT_OF_RESOURCES\n");
 		else printf("EFI_INVALID_PARAMETER\n");
@@ -189,7 +188,7 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
 		memset(boot_page_frame->tables + old_num, 0, delta * sizeof(paging_table));
 	}
 	paging_table tables_start;
-	if (n == 0)
+	if(n == 0)
 	{
 		tables_start = boot_page_frame->tables[direct_table_idx(sv_start.idx)];
 		if(tables_start == NULL)
@@ -218,7 +217,7 @@ size_t fsize(FILE* file)
 #define MALLOC_CK(ptr) do {\
 	if(!ptr)\
 	{\
-		fprintf(stderr, "unable to allocate memory\n");\
+		fprintf(stderr, "Unable to allocate memory\n");\
 		return -EMALLOC;\
 	}\
 } while(0)
@@ -289,7 +288,7 @@ efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
 		*out = NULL;
 		goto end; 
 	}
-	printf("Loading from %li files\n", count);
+	printf("Loading %li module files\n", count);
 	if(!(result = (boot_modules_list*)malloc(sizeof(boot_modules_list) + count * sizeof(boot_loaded_module)))) {
 		fprintf(stderr, "unable to allocate memory\n");
 		status = -EMALLOC;
@@ -347,14 +346,6 @@ int main(int argc, char** argv)
 	memory_map_size += 4 * desc_size;
 	memory_map  = (efi_memory_descriptor_t*)malloc(memory_map_size);
 	MALLOC_CK(memory_map);
-	status      = map_id_pages(MMAP_MAX_PG);
-	if(EFI_ERROR(status))
-	{
-		fprintf(stderr, "unable to allocate memory\n");
-		return EMALLOC;
-	}
-	// Put the new paging tables into cr3
-	asm volatile("movq %0, %%rax\n" "movq %%rax, %%cr3" :: "r"(__boot_pml4) : "%rax");
 	status = BS->GetMemoryMap(&memory_map_size, memory_map, &map_key, &desc_size, NULL);
 	if(EFI_ERROR(status)) 
 	{
@@ -365,13 +356,13 @@ int main(int argc, char** argv)
 	size_t k                        = 0;
 	size_t predicted                = (memory_map_size / desc_size);
 	mmap_t* map                     = (mmap_t*)malloc(sizeof(mmap_t) + predicted * sizeof(mmap_entry));
-	map->total_memory               = 0x200000000; // TODO: use ACPI to get this number for real
+	map->total_memory               = 0;
+	size_t top						= 0;
 	efi_memory_descriptor_t* prev   = NULL;
-	printf("Address              Size Type\n");
 	for(mement = memory_map; n < memory_map_size; mement = NextMemoryDescriptor(mement, desc_size)) 
-	{        
-		printf("%016x %8d %02x %s\n", mement->PhysicalStart, mement->NumberOfPages, mement->Type, types[mement->Type]);
-		if (prev != NULL && mement->Type == prev->Type && prev->PhysicalStart + prev->NumberOfPages * 4096 == mement->PhysicalStart) map->entries[k].len += mement->NumberOfPages;
+	{
+		if(prev != NULL && mement->Type == prev->Type && prev->PhysicalStart + prev->NumberOfPages * 4096 == mement->PhysicalStart)
+			map->entries[k-1].len += mement->NumberOfPages;
 		else 
 		{
 			if(k >= predicted) map  = (mmap_t*)realloc(map, sizeof(mmap_t) + (k + 1) * sizeof(mmap_entry));
@@ -403,8 +394,20 @@ int main(int argc, char** argv)
 		}
 		prev = mement;
 		n += desc_size;
+		if(mement->Type == 7) map->total_memory += mement->NumberOfPages * PAGESIZE;
+		uintptr_t end = mement->PhysicalStart + mement->NumberOfPages * PAGESIZE;
+		if(end > top) top = end;
 	}
 	map->num_entries    = k;
+	printf("Total memory: %lu\n", map->total_memory);
+	status      		= map_id_pages(top / PAGESIZE);
+	if(EFI_ERROR(status))
+	{
+		fprintf(stderr, "Unable to allocate memory\n");
+		return EMALLOC;
+	}
+	// Put the new paging tables into cr3
+	asm volatile("movq %0, %%rax\n" "movq %%rax, %%cr3" :: "r"(__boot_pml4) : "%rax");
 	sysinfo             = (sysinfo_t*)malloc(sizeof(sysinfo_t));
 	MALLOC_CK(sysinfo);
 	efi_guid_t gopGuid  = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
@@ -418,20 +421,20 @@ int main(int argc, char** argv)
 		ST->StdErr->Reset(ST->StdErr, 0);
 		if(EFI_ERROR(status)) 
 		{
-			fprintf(stderr, "unable to set video mode\n");
+			fprintf(stderr, "Unable to set video mode\n");
 			return ESETGFX;
 		}
 		sysinfo->fb_ptr     = (uint32_t*)gop->Mode->FrameBufferBase;
 		sysinfo->fb_width   = gop->Mode->Information->HorizontalResolution;
 		sysinfo->fb_height  = gop->Mode->Information->VerticalResolution;
-		sysinfo->fb_pitch   = sizeof(unsigned int) * gop->Mode->Information->PixelsPerScanLine;
+		sysinfo->fb_pitch   = sizeof(uint32_t) * gop->Mode->Information->PixelsPerScanLine;
 	} 
 	else 
 	{
-		fprintf(stderr, "unable to get graphics output protocol\n");
+		fprintf(stderr, "Unable to get graphics output protocol\n");
 		return ENOGFX;
 	}
-	status = map_pages((uintptr_t)sysinfo->fb_ptr, (uintptr_t) sysinfo->fb_ptr, (4 * sysinfo->fb_height * sysinfo->fb_width * sysinfo->fb_pitch) / 4096);
+	status = map_pages((uintptr_t)sysinfo->fb_ptr, (uintptr_t)sysinfo->fb_ptr, (4 * sysinfo->fb_height * sysinfo->fb_width * sysinfo->fb_pitch) / PAGESIZE);
 	if(EFI_ERROR(status)) return status;
 	boot_modules_list* mods;
 	status = load_modules_from(MOD_DIR, &mods);
@@ -486,19 +489,18 @@ int main(int argc, char** argv)
 		{
 			if(phdr->p_type == PT_LOAD) 
 			{
-				printf("ELF segment %p %d bytes (bss %d bytes)\n", phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz - phdr->p_filesz);
+				printf("Loading ELF segment at %p of %d bytes (bss %d bytes)\n", phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz - phdr->p_filesz);
 				memcpy((void*)phdr->p_vaddr, buff + phdr->p_offset, phdr->p_filesz);
 				memset((void*)(phdr->p_vaddr + phdr->p_filesz), 0, phdr->p_memsz - phdr->p_filesz);
 			}
 		}
-		entry                           = elf->e_entry;
+		entry = elf->e_entry;
 	} 
 	else 
 	{
-		fprintf(stderr, "not a valid ELF executable for this architecture\n");
+		fprintf(stderr, "Not a valid ELF executable for this architecture\n");
 		return ENOELF; // must be an orc
 	}
-	printf("ELF entry point %p\n", entry);
 	kernel_entry_fn fn = (kernel_entry_fn)entry;
 	// free resources
 	free(buff);

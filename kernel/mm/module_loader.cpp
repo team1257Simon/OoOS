@@ -14,14 +14,14 @@ template<typename ... Args> requires(std::constructible_from<elf64_kernel_object
 static result_pair add_obj(std::unordered_map<std::string, elf64_kernel_object>& map, Args&& ... args)
 {
 	elf64_kernel_object obj(std::forward<Args>(args)...);
-	abstract_module_base* mod = obj.load_module();
+	abstract_module_base* mod	= obj.load_module();
 	if(mod)
 	{
 		std::string key(name_for(mod));
 		if(__unlikely(map.contains(key))) obj.unload_pre_init();
 		else
 		{
-			result_pair result = map.emplace(std::move(key), std::move(obj));
+			result_pair result	= map.emplace(std::move(key), std::move(obj));
 			if(__unlikely(!mod->initialize())) map.erase(result.first);
 			else return result;
 		}

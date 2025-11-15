@@ -53,7 +53,7 @@ file_vnode* filesystem::get_file_or_null(std::string const& path)
 vnode* fd_map::find_fd(int i) noexcept
 {
 	iterator result = find(i);
-	if(result != end()) { return *result; }
+	if(result != end()) return *result;
 	return nullptr;
 }
 int fd_map::add_fd(vnode* node)
@@ -253,8 +253,9 @@ file_vnode* filesystem::open_file(std::string const& path, std::ios_base::openmo
 	if(node && node->is_directory()) throw std::logic_error("[FS] path " + path + " exists and is a directory");
 	if(!node)
 	{
-		if(!create) throw std::out_of_range("[FS] file not found: " + path); 
-		if(file_vnode* created = mkfilenode(parent.first, parent.second)) { node = parent.first->add(created); }
+		if(!create) throw std::out_of_range("[FS] file not found: " + path);
+		file_vnode* created	= mkfilenode(parent.first, parent.second);
+		if(created) node	= parent.first->add(created);
 		else throw std::runtime_error("[FS] failed to create file: " + path); 
 	}
 	file_vnode* result		= on_open(node, mode);
@@ -316,6 +317,9 @@ void filesystem::create_node(directory_vnode* from, std::string const& path, mod
 void filesystem::create_pipe(int fds[2])
 {
 	pipe_pair result	= mkpipe();
-	if(result.in && result.out) { fds[0] = result.in->vid(); fds[1] = result.out->vid(); }
+	if(result.in && result.out) {
+		fds[0]	= result.in->vid();
+		fds[1]	= result.out->vid();
+	}
 	else throw std::runtime_error("[FS] failed to create pipe");
 }

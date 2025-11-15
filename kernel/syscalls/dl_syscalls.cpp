@@ -27,20 +27,17 @@ static search_result full_search(task_ctx* task, const char* name)
 	addr_t result;
 	bool have_weak = false;
 	if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->program_handle))
-	{	
-		if(std::pair<elf64_sym, addr_t> result_pair = dyn->resolve_by_name(name); result_pair.second)
-		{
-			if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
-			else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
-			else result = nullptr;
-		}
+	{
+		std::pair<elf64_sym, addr_t> result_pair = dyn->resolve_by_name(name);
+		if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
+		else if(result_pair.second) return search_result(result_pair.second, true);
 	}
 	for(elf64_shared_object& so : *task->local_so_map)
 	{
 		std::pair<elf64_sym, addr_t> result_pair = so.resolve_by_name(name);
 		if(!result_pair.second) continue;
-		if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
 		else if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
+		else return search_result(result_pair.second, true);
 	}
 	for(elf64_shared_object const& so : shared_object_map::get_globals())
 	{
@@ -79,7 +76,7 @@ extern "C"
 		elf64_dynamic_object* obj_handle = validate_handle(handle);
 		if(!obj_handle) { return addr_t(static_cast<uintptr_t>(-EBADF)); }
 		obj_handle->set_resolver(resolve);
-		task_ctx* task = active_task_context();
+		task_ctx* task			= active_task_context();
 		if(!task->local_so_map) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 		// References to objects in the GOT must be resolved now
 		for(elf64_rela const& r : obj_handle->get_object_relas())

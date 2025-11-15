@@ -8,7 +8,7 @@ extern "C"
 	extern task_t kproc;
 }
 scheduler scheduler::__instance{};
-bool scheduler::__has_init{ false };
+bool scheduler::__has_init = false;
 constexpr static priority_val incr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) + 1); }
 constexpr static priority_val decr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) - 1); }
 bool scheduler::has_init() noexcept { return __has_init; }

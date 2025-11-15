@@ -3,8 +3,10 @@
 #include "stdexcept"
 #include "errno.h"
 #include "kdebug.hpp"
+typedef std::map<int, posix_directory>::iterator pdir_it;
 static inline timespec timestamp_to_timespec(time_t ts) { return { ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L }; }
-static inline void __stat_init(vnode* n, filesystem* fsptr, stat* st) 
+static inline pdir_it __open_pdir(task_ctx* task, directory_vnode* dir, int fd) { return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first; }
+static inline void __stat_init(vnode* n, filesystem* fsptr, stat* st)
 {
 	size_t bs = fsptr->block_size();
 	new(st) stat
@@ -64,7 +66,13 @@ extern "C"
 	{
 		filesystem* fsptr		= get_task_vfs();
 		if(!fsptr) return -ENOSYS;
-		try { if(file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd)) { fsptr->close_file(n); return 0; } else return EBADF; } catch(std::exception& e) { panic(e.what()); }
+		try
+		{
+			if(file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd)) fsptr->close_file(n);
+			else return EBADF;
+			return 0;
+		}
+		catch(std::exception& e) { panic(e.what()); }
 		return ENOMEM;
 	}
 	int syscall_write(int fd, char* ptr, int len)
@@ -167,7 +175,13 @@ extern "C"
 	{
 		filesystem* fsptr		= get_task_vfs();
 		if(__unlikely(!fsptr)) return -ENOSYS;
-		try { if(file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd)) return n->is_device() ? 1 : 0; else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+		try
+		{
+			if(file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd))
+				return n->is_device() ? 1 : 0;
+			else return -EBADF;
+		}
+		catch(std::exception& e) { panic(e.what()); }
 		return -ENOMEM;
 	}
 	int syscall_fstat(int fd, stat* st)
@@ -176,7 +190,12 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		st					= translate_user_pointer(st);
 		if(__unlikely(!st)) return -EFAULT;
-		try { if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) { __stat_init(n, fsptr, st); return 0; } else return -EBADF; } catch(std::exception& e) { panic(e.what()); }
+		try
+		{
+			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) __stat_init(n, fsptr, st);
+			else return -EBADF;
+			return 0;
+		} catch(std::exception& e) { panic(e.what()); }
 		return -ENOMEM;
 	}
 	int syscall_stat(const char* restrict name, stat* restrict st)
@@ -261,7 +280,7 @@ extern "C"
 			directory_vnode* dir	= dynamic_cast<directory_vnode*>(node);
 			if(!node)	return addr_t(static_cast<uintptr_t>(-EBADF));
 			if(!dir)	return addr_t(static_cast<uintptr_t>(-ENOTDIR));
-			return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first->second.get_dir_struct_vaddr();
+			return __open_pdir(task, dir, fd)->second.get_dir_struct_vaddr();
 		}
 		catch(std::exception& e) { panic(e.what()); }
 		return addr_t(static_cast<uintptr_t>(-ENOMEM));
@@ -278,7 +297,7 @@ extern "C"
 			directory_vnode* dir	= fsptr->get_directory_or_null(name, false);
 			if(__unlikely(!dir)) return addr_t(static_cast<uintptr_t>(-ENOENT));
 			int fd					= dir->vid();
-			return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first->second.get_dir_struct_vaddr();
+			return __open_pdir(task, dir, fd)->second.get_dir_struct_vaddr();
 		}
 		catch(std::exception& e) { panic(e.what()); }
 		return addr_t(static_cast<uintptr_t>(-ENOMEM));

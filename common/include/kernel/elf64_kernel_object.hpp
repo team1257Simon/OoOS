@@ -23,6 +23,7 @@ public:
 	elf64_kernel_object(file_vnode* file);
 	elf64_kernel_object(addr_t start, size_t size);
 	elf64_kernel_object(elf64_kernel_object&& that);
+	elf64_kernel_object(elf64_kernel_object const&) = delete; 
 	virtual ~elf64_kernel_object();
 	virtual addr_t resolve(uint64_t offs) const override;
 	ooos::abstract_module_base* load_module();

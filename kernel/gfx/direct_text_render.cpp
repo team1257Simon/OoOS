@@ -18,15 +18,13 @@ void direct_text_render::__scur(int i)
 	__cursor[0] 	= target;	
 }
 direct_text_render::direct_text_render(sysinfo_t const* si) noexcept :
-	__font(std::addressof(__startup_font_data)),
-	__cols(si->fb_width / __font->width),
-	__rows(si->fb_height / __font->height),
-	__fb(si->fb_ptr, si->fb_width, si->fb_height, __font->width, __font->height),
-	__cursor(),
-	__ident(),
-	foreground(0x00FFFFFFU),
-	background(0U)
-{}
+	__font		{ std::addressof(__startup_font_data) },
+	__cols		{ si->fb_width / __font->width },
+	__rows		{ si->fb_height / __font->height },
+	__fb		{ si->fb_ptr, si->fb_width, si->fb_height, __font->width, __font->height },
+	foreground	{ 0x00FFFFFFU },
+	background	{ 0x00000000U }
+				{}
 void direct_text_render::cls()
 {
 	for(ooos::vec2 pos 	= ooos::vec(0UZ, 0UZ); pos[1] < __rows; ++pos[1])

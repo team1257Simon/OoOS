@@ -27,4 +27,5 @@ bool task_wait_queue::interrupt_wait(const_iterator where)
 	if(__unlikely(!(where < end() && (*where)->task_ctl.can_interrupt))) return false;
 	if(const_iterator subs		= where + 1; subs < end()) (*subs)->task_ctl.wait_ticks_delta += (*where)->task_ctl.wait_ticks_delta;
 	(*where)->task_ctl.block	= false;
-	return erase(where) != 0; }
+	return erase(where) != 0;
+}
