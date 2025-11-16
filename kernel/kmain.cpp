@@ -148,7 +148,13 @@ void net_tests()
 			p_dhcp.transition_state(ipv4_client_state::INIT);
 			hpet.delay_us(2000UL);
 			xdirect_writeln("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway) + ", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
-			xdirect_writeln("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) + "; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration));
+			xdirect_write("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) + "; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration) + ". ");
+			direct_writeln("Initiating timer of 2 seconds to test schedule-on-delay.");
+			time_t ts				= hpet.count_usec();
+			scheduler::defer_sec(2UL, [ts]() -> void {
+				time_t result = hpet.count_usec() - ts;
+				xdirect_writeln("[timed " + std::to_string(result) + " microseconds]");
+			});
 		}
 	}
 	else panic("net device not found on PCI bus");
@@ -294,7 +300,6 @@ void task_tests()
 	task_ctx* tt2 = tl.create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
 	tt1->start_task(exit_test_fn);
 	tt2->start_task(exit_test_fn);
-	sch.start();
 }
 void extfs_tests()
 {
@@ -344,7 +349,6 @@ void elf64_tests()
 			if(!c) c        						= test_extfs.lndev("/dev/console", 0, com->get_device_id());
 			elf64_program_descriptor const& desc 	= test_exec->describe();
 			xdirect_writeln("Entry at " + std::to_string(desc.entry));
-			sch.start();
 			task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
 			prog_manager::get_instance().remove(test_exec);
 		}
@@ -519,6 +523,7 @@ constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 };
 void run_tests()
 {
+	sch.start();
 	test_kb 		= new(std::addressof(kb_pos)) ooos::ps2_keyboard(test_ps2);
 	test_kb->add_listener(test_kb, [](ooos::keyboard_event e) -> void
 	{

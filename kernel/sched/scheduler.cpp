@@ -4,6 +4,7 @@
 extern "C" 
 {
 	extern std::atomic<bool> task_change_flag;
+	extern std::atomic<bool> task_lock_flag;
 	extern std::atomic<int8_t> task_signal_code;
 	extern task_t kproc;
 }
@@ -31,7 +32,9 @@ bool scheduler::__set_untimed_wait(task_t* task)
 }
 bool scheduler::interrupt_wait(task_t* waiting)
 {
-	if(task_wait_queue::const_iterator i 		= __sleepers.find(waiting); i != __sleepers.end() && (*i)->task_ctl.can_interrupt) { return __sleepers.interrupt_wait(i); } 
+	task_wait_queue::const_iterator i 			= __sleepers.find(waiting);
+	if(i != __sleepers.end() && (*i)->task_ctl.can_interrupt)
+		return __sleepers.interrupt_wait(i);
 	else if(std::vector<task_t*>::iterator i 	= __non_timed_sleepers.find(waiting); i != __non_timed_sleepers.end()) 
 	{
 		task_t* task							= *i;
@@ -52,7 +55,10 @@ bool scheduler::__set_wait_time(task_t* task, unsigned int time, bool can_interr
 		for(task_wait_queue::const_iterator i	= __sleepers.current(); i != __sleepers.end(); i++)
 		{
 			unsigned int cwait 		= (*i)->task_ctl.wait_ticks_delta;
-			if(cwait + cumulative > time) { task->task_ctl.wait_ticks_delta	= time - cumulative; return __sleepers.insert(i, task) != __sleepers.end(); }
+			if(cwait + cumulative > time) {
+				task->task_ctl.wait_ticks_delta		= time - cumulative;
+				return __sleepers.insert(i, task)	!= __sleepers.end();
+			}
 			cumulative 				+= cwait;
 		}
 	}
@@ -72,8 +78,18 @@ void scheduler::__do_task_change(task_t* cur, task_t* next)
 bool scheduler::unregister_task(task_t* task) 
 {
 	bool result			= false;
-	if(task->task_ctl.prio_base	== PVSYS) { if(task_pl_queue::const_iterator i	= __queues[PVSYS].find(task, true); i != __queues[PVSYS].end()) { result	= __queues[PVSYS].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
-	for(priority_val pv	= task->task_ctl.prio_base; pv <= PVEXTRA; pv	= incr_pv(pv)) { if(task_pl_queue::const_iterator i	= __queues[pv].find(task, true); i != __queues[pv].end()) { result	= __queues[pv].erase(i) != 0; asm volatile("mfence" ::: "memory"); } }
+	if(task->task_ctl.prio_base	== PVSYS)
+	{
+		task_pl_queue::const_iterator i			= __queues[PVSYS].find(task, true); 
+		if(i != __queues[PVSYS].end()) result	= __queues[PVSYS].erase(i) != 0;
+		asm volatile("mfence" ::: "memory");
+	}
+	for(priority_val pv	= task->task_ctl.prio_base; pv <= PVEXTRA; pv	= incr_pv(pv))
+	{
+		task_pl_queue::const_iterator i		= __queues[pv].find(task, true); 
+		if(i != __queues[pv].end())	result	= __queues[pv].erase(i) != 0;
+		asm volatile("mfence" ::: "memory");
+	}
 	__sync_synchronize();
 	if(__total_tasks) __total_tasks--;
 	return result;
@@ -83,7 +99,7 @@ bool scheduler::unregister_task_tree(task_t* task)
 	if(!task->num_child_procs || !task->child_procs) return unregister_task(task);
 	bool result		= true;
 	task_ctx* xtask	= task->self;
-	for(task_ctx* c : xtask->child_tasks) { result &= unregister_task_tree(c->task_struct.self); }
+	for(task_ctx* c : xtask->child_tasks)	result &= unregister_task_tree(c->task_struct.self);
 	return result && unregister_task(task);
 }
 task_t* scheduler::select_next()
@@ -111,7 +127,7 @@ task_t* scheduler::select_next()
 				j						= queue.current();
 			} while(result->task_ctl.block && i != j);
 			if(result->task_ctl.block) continue;
-			result->task_ctl.skips		= 0;
+			result->task_ctl.skips		= 0UC;
 			if(result->task_ctl.prio_base != pv)
 			{ 
 				__queues[pv].unpop();
@@ -124,9 +140,9 @@ task_t* scheduler::select_next()
 				queue.on_skipped(); 
 				if(queue.skip_flag()) 
 				{ 
-					priority_val rv	= escalate(qv);
+					priority_val rv						= escalate(qv);
 					queue.transfer_next(__queues[rv]);
-					__queues[rv].back()->task_ctl.skips			= 0;
+					__queues[rv].back()->task_ctl.skips	= 0UC;
 				}
 			}
 			break;
@@ -143,11 +159,14 @@ bool scheduler::set_wait_untimed(task_t* task)
 bool scheduler::set_wait_timed(task_t* task, unsigned int time, bool can_interrupt)
 {
 	if(!task->task_ctl.block)
-		return __set_wait_time(task, time, can_interrupt);
+		return __set_wait_time(task, static_cast<uint32_t>(__deferred_actions.compute_ticks(time)), can_interrupt);
 	return false;
 }
 void scheduler::on_tick()
 {
+	if(__deferred_actions) __deferred_actions.tick();
+	if(__unlikely(!__total_tasks)) return;
+	if(task_lock_flag) return;
 	__sleepers.tick_wait();
 	if(!__sleepers.at_end())
 	{ 
@@ -159,9 +178,14 @@ void scheduler::on_tick()
 			front_sleeper			= __sleepers.next();
 		} 
 	}
-	task_t* cur	= get_task_base();
-	if(cur->quantum_rem) { cur->quantum_rem--; }
-	if(cur->quantum_rem	== 0 || cur->task_ctl.block) { if(task_t* next	= select_next()) __do_task_change(cur, next); else { cur->quantum_rem	= cur->quantum_val; } }
+	task_t* cur					= get_task_base();
+	if(cur->quantum_rem) cur->quantum_rem--;
+	if(cur->quantum_rem	== 0 || cur->task_ctl.block)
+	{
+		if(task_t* next			= select_next())
+			__do_task_change(cur, next);
+		else cur->quantum_rem	= cur->quantum_val;
+	}
 }
 __nointerrupts bool scheduler::init() noexcept
 {
@@ -170,14 +194,16 @@ __nointerrupts bool scheduler::init() noexcept
 		__sleepers.reserve(16UZ);
 		__non_timed_sleepers.reserve(16UZ);
 		for(prio_level_task_queues::iterator i	= __queues.begin(); i != __queues.end(); i++) i->reserve(16);
+		__deferred_actions.create_if_empty(4UZ);
 	}
 	catch(std::exception& e) { panic(e.what()); return false; }
 	task_change_flag.store(false);
-	uint32_t timer_frequency	= cpuid(0x15U, 0).ecx;
+	uint32_t timer_frequency		= cpuid(0x15U, 0).ecx;
 	if(!timer_frequency)
-		timer_frequency			= cpuid(0x16U, 0).ecx;
-	__cycle_divisor				= timer_frequency;
-	__tick_rate					= magnitude(timer_frequency);
+		timer_frequency				= cpuid(0x16U, 0).ecx;
+	__cycle_divisor					= timer_frequency;
+	__tick_rate						= magnitude(timer_frequency);
+	__deferred_actions.ticks_per_ms	= (1.0L / static_cast<long double>(__cycle_divisor)) * __tick_rate;
 	interrupt_table::add_irq_handler(0, std::move([this]() -> void
 	{
 		if(__running)
@@ -193,12 +219,13 @@ __nointerrupts bool scheduler::init() noexcept
 			if(task_ctx* task		= get_task_base()->self; task->is_user())
 				task_signal_code	= exception_signals[idx];
 	});
+	__total_tasks 					= 0UZ;
 	return true;
 }
 task_t* scheduler::yield()
 {
 	task_t* cur			= current_active_task();
-	cur->quantum_rem	= 0;
+	cur->quantum_rem	= 0US;
 	task_t* next		= select_next();
 	if(!next) next		= cur; 
 	else asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory"); 
@@ -207,7 +234,8 @@ task_t* scheduler::yield()
 }
 task_t* scheduler::fallthrough_yield()
 {
-	if(__total_tasks		== 0) return nullptr;
+	if(!__total_tasks)
+		return nullptr;
 	task_t* next			= select_next();
 	if(next)
 		next->quantum_rem	= next->quantum_val;

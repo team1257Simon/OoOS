@@ -11,11 +11,17 @@
 extern "C"
 {
 	extern task_t* kproc;
+	extern std::atomic<bool> task_lock_flag;
 	[[noreturn]] void handle_exit()
 	{
 		cli();
 		task_ctx* task	= active_task_context();
-		if(task->is_user()) { task->terminate(); tl.destroy_task(task->get_pid()); }
+		if(task->is_user())
+		{
+			task->terminate();
+			tl.destroy_task(task->get_pid());
+			task_lock_flag = false;
+		}
 		if(task_t* next	= sch.fallthrough_yield(); next != nullptr) { fallthrough_reentry(next); }
 		else { kernel_reentry(); }
 		__builtin_unreachable();

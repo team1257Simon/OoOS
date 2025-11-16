@@ -128,7 +128,8 @@ namespace ooos
         get_pointer,
         clone,
         destroy,
-        get_type_info
+        get_type_info,
+		move
     };
     struct isr_actor_base
     {
@@ -164,6 +165,7 @@ namespace ooos
                     dst.template cast<FT*>() = get_ptr(src);
                     break;
                 case clone:
+				case move:
                     init_actor(dst, *const_cast<FT const*>(get_ptr(src)), alloc);
                     break;
                 case destroy:
@@ -223,7 +225,14 @@ namespace ooos
                 that.__my_alloc     = nullptr;
             }
         }
-        constexpr void swap(isr_actor& that) noexcept { using __internal::__swap; __swap(this->__my_actor, that.__my_actor); __swap(this->__my_invoke, that.__my_invoke); __swap(this->__my_manager, that.__my_manager); __swap(this->__my_alloc, that.__my_alloc); }
+        constexpr void swap(isr_actor& that) noexcept
+		{
+			using __internal::__swap;
+			__swap(this->__my_actor, that.__my_actor);
+			__swap(this->__my_invoke, that.__my_invoke);
+			__swap(this->__my_manager, that.__my_manager);
+			__swap(this->__my_alloc, that.__my_alloc);
+		}
         isr_actor& operator=(isr_actor const& that) { isr_actor(that).swap(*this); return *this; }
         isr_actor& operator=(isr_actor&& that) { isr_actor(std::move(that)).swap(*this); return *this; }
         constexpr void operator()() { if(!__empty()) __my_invoke(__my_actor); }

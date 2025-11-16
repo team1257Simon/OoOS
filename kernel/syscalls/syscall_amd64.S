@@ -74,6 +74,7 @@
 	.extern							syscall_getvpwnam
 	.extern							on_invalid_syscall
 	.global							syscall_vec
+	.global							task_lock_flag
 	.extern							kernel_cr3
 	.type	do_syscall,				@function
 	.type	syscall_exit,			@function
@@ -192,11 +193,14 @@ syscv_end:
 	.size syscall_vec,				.-syscall_vec	
 	.size syscv_end,				.-syscv_end
 __held_pc:
-	.quad 0
-	.size __held_pc,				.-__held_pc
+	.quad	0
+	.size	__held_pc,				.-__held_pc
 __held_rbx:
-	.quad 0
-	.size __held_rbx,				.-__held_rbx
+	.quad	0
+	.size	__held_rbx,				.-__held_rbx
+task_lock_flag:
+	.byte	0
+	.size	task_lock_flag,			.-task_lock_flag
 	.text
 do_syscall:
 	movq	%rbx,					__held_rbx
@@ -208,6 +212,8 @@ do_syscall:
 	movq	%gs:T_OFFS(self),		%rcx
 	swapgs
 	movq	%rcx,					%gs:T_OFFS(next)
+	movb	$1,						%cl
+	lock 	xchgb	%cl,			task_lock_flag
 	movq	%gs:T_OFFS(rsp),		%rsp
 	movq	%gs:T_OFFS(rbp),		%rbp
 	movq	%r8,					%rcx
@@ -223,8 +229,11 @@ do_syscall:
 	cmpq	$syscv_end,				%rax
 	jg		2f
 	movq	(%rax),					%rax
+	pushf
+	sti
 1:
 	call	*%rax
+	popf
 user_reentry:
 	fxsave	%gs:T_OFFS(fxsv)
 	swapgs
@@ -232,6 +241,8 @@ user_reentry:
 	movq	%rcx,					__held_pc
 	movq	%gs:T_OFFS(cr3),		%rcx
 	movq	%rcx,					%cr3
+	xorb	%cl,					%cl
+	lock 	xchgb	%cl,			task_lock_flag
 	movq	__held_pc,				%rcx
 	sysretq
 	.size	user_reentry,			.-user_reentry

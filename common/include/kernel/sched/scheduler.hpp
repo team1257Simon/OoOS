@@ -1,18 +1,20 @@
 #ifndef __SCHED
 #define __SCHED
-#include "kernel/sched/task_queue.hpp"
+#include "sched/task_queue.hpp"
+#include "sched/deferred_action.hpp"
 #include "atomic"
 #include "vector"
 class scheduler
 {
-	prio_level_task_queues __queues{};
-	task_wait_queue __sleepers{};
-	std::vector<task_t*> __non_timed_sleepers{};
-	unsigned int __tick_rate{};
-	unsigned int __cycle_divisor{};
-	std::atomic<unsigned> __tick_cycles{};
-	bool __running{};
-	size_t __total_tasks{};
+	prio_level_task_queues __queues;
+	task_wait_queue __sleepers;
+	std::vector<task_t*> __non_timed_sleepers;
+	unsigned int __tick_rate;
+	unsigned int __cycle_divisor;
+	std::atomic<unsigned> __tick_cycles;
+	bool __running;
+	size_t __total_tasks;
+	ooos::deferred_action_queue __deferred_actions;
 	static scheduler __instance;
 	static bool __has_init;
 	bool __set_wait_time(task_t* task, unsigned int time, bool can_interrupt);
@@ -40,6 +42,8 @@ public:
 	static bool init_instance() noexcept;
 	static bool has_init() noexcept;
 	static scheduler& get() noexcept;
+	template<ooos::__internal::__extended_runnable FT> static inline void defer_millis(time_t delay_ms, FT&& action) { __instance.__deferred_actions.add(delay_ms, std::forward<FT>(action)); }
+	template<ooos::__internal::__extended_runnable FT> static inline void defer_sec(time_t delay_sec, FT&& action) { defer_millis(delay_sec * 1000UL, std::forward<FT>(action)); }
 };
 #define sch scheduler::get()
 #endif

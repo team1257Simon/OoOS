@@ -37,6 +37,7 @@ namespace ooos
 						dst.set_ptr(__get_ptr(src));
 						break;
 					case clone:
+					case move:
 						__create(dst, *__get_ptr(src));
 						break;
 					case destroy:

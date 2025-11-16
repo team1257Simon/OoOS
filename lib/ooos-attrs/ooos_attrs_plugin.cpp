@@ -89,7 +89,7 @@ int plugin_init(plugin_name_args* info, plugin_gcc_version* ver)
 		.pass 						= std::addressof(gimple_pass),
 		.reference_pass_name 		= "ssa",
 		.ref_pass_instance_number 	= 1,
-		.pos_op 					= PASS_POS_INSERT_AFTER
+		.pos_op 					= PASS_POS_INSERT_BEFORE
 	};
 	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, nullptr, std::addressof(gp));
 	register_callback(plugin_name, PLUGIN_ATTRIBUTES, register_attributes, nullptr);

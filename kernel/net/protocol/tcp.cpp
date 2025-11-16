@@ -1,6 +1,7 @@
 #include "net/protocol/tcp.hpp"
-#include "ow-crypt.h"
+#include "sched/scheduler.hpp"
 #include "sys/errno.h"
+#include "ow-crypt.h"
 tcp_transmission_timer::tcp_transmission_timer() noexcept : retransmission_timeout(tsci.us_to_tsc(1000000UL)) {}
 isn_gen::isn_gen() : selector_clock(cpu_timer_stopwatch::started), selector_crypto_salt(create_hash_setting_string()) {}
 void isn_gen::regen_salt() { selector_crypto_salt = std::move(create_hash_setting_string()); }
@@ -415,7 +416,7 @@ int tcp_port_handler::tx_simultaneous_close()
 }
 int tcp_port_handler::set_await_close()
 {
-	// TODO: set a timer for 2 seconds and close when that expires
 	connection_state = tcp_connection_state::TIME_WAIT;
+	scheduler::defer_sec(2UL, std::bind(&tcp_port_handler::close, this));
 	return 0;
 }

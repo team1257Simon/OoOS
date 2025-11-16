@@ -121,7 +121,7 @@ template<integral_structure I, integral_structure J> constexpr alignup_type<I, J
 template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, J>::quotient_type div_to_nearest(I num, J denom) { return (num % denom >= div_round_up(denom, static_cast<J>(2))) ? div_round_up(num, denom) : num / denom; }
 template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, I>::product_type raise_power(I base, J power) { if(power < static_cast<J>(2)) return power ? base : static_cast<I>(1); I srt = raise_power(base, static_cast<J>(power >> 1)); return static_cast<I>(srt * srt * (power % 2 ? base : 1)); }
 // Returns the power of 10 with the same number of digits as the input in standard (i.e. not scientific) base-10 notation.
-template<integral_structure I> constexpr I magnitude(I num) { I i; for(i = I(1); num > I(10); i *= I(10), num /= I(10)); return i; }
+template<integral_structure I> constexpr I magnitude(I num) { I i; for(i = I(1); num >= I(10); i *= I(10), num /= I(10)); return i; }
 template<trivial_copy T> constexpr void array_move(T* dest, T* src, std::size_t n) { array_copy(dest, src, n); }
 template<nontrivial_copy T> constexpr void array_move(T* dest, T* src, std::size_t n) { for(size_t i = 0; i < n; i++) { new(dest + i) T(std::move(src[i])); } }
 constexpr uint8_t days_in_month(uint8_t month, bool leap) { if(month == 2UC) return leap ? 29UC : 28UC; if(month == 1UC || month == 3UC || month == 5UC || month == 7UC || month == 10UC || month == 12UC) return 31UC; return 30UC; }

@@ -75,19 +75,19 @@ private:
 	spinlock_t __my_mutex{};
 public:
 	constexpr kframe_tag() = default;
-	__nointerrupts void insert_block(block_tag* blk, int idx) noexcept;
-	__nointerrupts void remove_block(block_tag* blk) noexcept;
-	addr_t allocate(size_t size, size_t align = 0UL);
-	void deallocate(addr_t ptr, size_t align = 0UL);
-	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL);
-	addr_t array_allocate(size_t num, size_t size);
+	void __nointerrupts insert_block(block_tag* blk, int idx) noexcept;
+	void __nointerrupts remove_block(block_tag* blk) noexcept;
+	addr_t attribute(noinline, nointerrupts) allocate(size_t size, size_t align = 0UL) noexcept;
+	void attribute(noinline, nointerrupts) deallocate(addr_t ptr, size_t align = 0UL) noexcept;
+	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL) noexcept;
+	addr_t array_allocate(size_t num, size_t size) noexcept;
 protected:
-	__nointerrupts block_tag* create_tag(size_t size, size_t align) noexcept;
-	__nointerrupts block_tag* melt_left(block_tag* tag) noexcept;
-	__nointerrupts block_tag* melt_right(block_tag* tag) noexcept;
-	__nointerrupts block_tag* find_tag(addr_t ptr, size_t align) noexcept;
-	__nointerrupts block_tag* get_for_allocation(size_t size, size_t align) noexcept;
-	__nointerrupts void release_block(block_tag* tag) noexcept;
+	block_tag* __nointerrupts create_tag(size_t size, size_t align) noexcept;
+	block_tag* __nointerrupts melt_left(block_tag* tag) noexcept;
+	block_tag* __nointerrupts melt_right(block_tag* tag) noexcept;
+	block_tag* __nointerrupts find_tag(addr_t ptr, size_t align) noexcept;
+	block_tag* __nointerrupts get_for_allocation(size_t size, size_t align) noexcept;
+	void __nointerrupts release_block(block_tag* tag) noexcept;
 private:
 	void __lock();
 	void __unlock();

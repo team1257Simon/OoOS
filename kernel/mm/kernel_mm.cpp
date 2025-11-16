@@ -92,9 +92,7 @@ static void __set_kernel_page_flags(uintptr_t max)
 
 static paging_table __build_new_pt(paging_table in, uint16_t idx, bool write_thru)
 {
-	push_cli();
 	paging_table result			= kmm.allocate_pt();
-	pop_flags();
 	if(result)
 	{
 		new(addressof(in[idx])) pt_entry
@@ -529,7 +527,7 @@ void kernel_memory_mgr::map_to_current_frame(std::vector<block_descriptor> const
 	for(block_descriptor const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute); }
 	__unlock();
 }
-__nointerrupts block_tag* kframe_tag::create_tag(size_t size, size_t align) noexcept
+block_tag* kframe_tag::create_tag(size_t size, size_t align) noexcept
 {
 	size_t actual_size	= std::max(size + bt_offset, align) + align;
 	addr_t allocated	= kmm.allocate_kernel_block(actual_size);
@@ -554,7 +552,7 @@ block_tag* kframe_tag::melt_right(block_tag* tag) noexcept
 	if(right->right_split) right->right_split->left_split = tag;
 	return tag;
 }
-__nointerrupts block_tag* kframe_tag::find_tag(addr_t ptr, size_t align) noexcept
+block_tag* kframe_tag::find_tag(addr_t ptr, size_t align) noexcept
 {
 	block_tag* tag	= ptr - bt_offset;
 	for(size_t i 	= 0; tag && (tag->magic != block_magic) && (!align || i < align); i++)
@@ -572,7 +570,7 @@ void kframe_tag::insert_block(block_tag* blk, int idx) noexcept
 	}
 	available_blocks[blk->index]				= blk;
 }
-__nointerrupts void kframe_tag::remove_block(block_tag* blk) noexcept
+void kframe_tag::remove_block(block_tag* blk) noexcept
 {
 	if(available_blocks[blk->index]		== blk)
 		available_blocks[blk->index]	= blk->next;
@@ -584,7 +582,7 @@ __nointerrupts void kframe_tag::remove_block(block_tag* blk) noexcept
 	blk->previous						= nullptr;
 	blk->index							= -1;
 }
-__nointerrupts block_tag* kframe_tag::get_for_allocation(size_t size, size_t align) noexcept
+block_tag* kframe_tag::get_for_allocation(size_t size, size_t align) noexcept
 {
 	__lock();
 	int64_t	idx					= calculate_block_index(size);
@@ -631,7 +629,7 @@ __nointerrupts block_tag* kframe_tag::get_for_allocation(size_t size, size_t ali
 	__unlock();
 	return tag;
 }
-__nointerrupts void kframe_tag::release_block(block_tag* tag) noexcept
+void kframe_tag::release_block(block_tag* tag) noexcept
 {
 	tag->held_size		= 0;
 	tag->align_bytes	= 0;
@@ -646,14 +644,14 @@ __nointerrupts void kframe_tag::release_block(block_tag* tag) noexcept
 		insert_block(tag, idx);
 	}
 }
-addr_t kframe_tag::allocate(size_t size, size_t align)
+addr_t kframe_tag::allocate(size_t size, size_t align) noexcept
 {
 	if(__unlikely(!size)) { direct_writeln("[MM] W: size zero alloc"); return nullptr; }
 	block_tag* tag	= get_for_allocation(size, align);
 	if(__unlikely(!tag)) return nullptr;
 	return tag->actual_start();
 }
-void kframe_tag::deallocate(addr_t ptr, size_t align)
+void kframe_tag::deallocate(addr_t ptr, size_t align) noexcept
 {
 	if(ptr)
 	{
@@ -669,7 +667,7 @@ void kframe_tag::deallocate(addr_t ptr, size_t align)
 		__unlock();
 	}
 }
-addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
+addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align) noexcept
 {
 	if(!ptr) return allocate(size, align);
 	if(!size)
@@ -690,7 +688,7 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align)
 	deallocate(ptr, align);
 	return result;
 }
-addr_t kframe_tag::array_allocate(size_t num, size_t size)
+addr_t kframe_tag::array_allocate(size_t num, size_t size) noexcept
 {
 	addr_t result	= allocate(num * size, size);
 	if(__builtin_expect(static_cast<bool>(result), true)) __builtin_memset(result, 0, num * size);
