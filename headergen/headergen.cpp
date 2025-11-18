@@ -39,10 +39,13 @@ int main()
 	DEF(run_split);
 	DEF(run_time);
 	DEF(sys_time);
-	DEF(tls_block);
+	DEF(tls_master);
+	DEF(tls_size);
+	DEF(thread_ptr);
 	DEF(num_child_procs);
 	DEF(child_procs);
 	DEF(next);
 	std::cout << "#define T_OFFS(m) __TASK_MEMBER_##m##_OFFSET" << std::endl;
+	std::cout << "#define T_SIZE 0x" << sizeof(task_t) << std::endl;
 	return 0;
 }

@@ -309,8 +309,8 @@ extern "C"
 		case RTLD_DI_LINKMAP:
 			if(__builtin_expect(!(lm = rtld_map.find(handle)), false))
 			{
-				errno             = EINVAL;
-				last_error_action = DLA_GETINFO;
+				errno				= EINVAL;
+				last_error_action	= DLA_GETINFO;
 				return -1;
 			}
 			*static_cast<link_map**>(info) = lm;
@@ -318,8 +318,8 @@ extern "C"
 		case RTLD_DI_ORIGIN:
 			if(__builtin_expect(!(lm = rtld_map.find(handle)), false))
 			{
-				errno             = EINVAL;
-				last_error_action = DLA_GETINFO;
+				errno				= EINVAL;
+				last_error_action	= DLA_GETINFO;
 				return -1;
 			}
 			__copy(info, lm->l_name, __strlen(lm->l_name));
@@ -341,9 +341,9 @@ extern "C"
 	{
 		__zero(dl_error_str, sizeof(dl_error_str));
 		if(__builtin_expect(!errno || !last_error_action, false)) return nullptr;
-		const char* err_str = __get_dl_error();
-		last_error_action = DLA_NONE;
-		errno = 0;
+		const char* err_str	= __get_dl_error();
+		last_error_action	= DLA_NONE;
+		errno				= 0;
 		__copy(dl_error_str, err_str, __strlen(err_str));
 		return dl_error_str;
 	}

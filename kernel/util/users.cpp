@@ -8,7 +8,6 @@ bool user_accounts_manager::__has_init{};
 static inline sysfs_vnode& get_global_account_info(sysfs& s);
 static addr_t alloc_sys_vpwd(size_t n) { return ::operator new(n, align_data); }
 static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx);
-static void check_is_user(task_ctx const& context) { if(!context.is_user()) throw std::invalid_argument("[UAM] userspace vpwd entry call is usable in system process"); }
 void user_info::compute_csum() { checksum = crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(this), offsetof(user_info, checksum)); }
 bool user_info::verify_csum() const { return checksum == crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(this), offsetof(user_info, checksum)); }
 vpwd_entry* user_accounts_manager::__get_vpwd_entry(user_info const& user, task_ctx& context) { return __load_vpwd_data(user, std::bind(alloc_user_vpwd, std::placeholders::_1, context)); }
@@ -225,7 +224,6 @@ int user_accounts_manager::__get_vpwd_entry(user_info const& user, std::function
 }
 vpwd_entry* user_accounts_manager::get_vpwd_entry(uid_t uid, task_ctx& context)
 {
-	check_is_user(context);
 	user_handle handle	= get_user(uid);
 	user_info& info		= *handle;
 	handle.release();
@@ -233,7 +231,6 @@ vpwd_entry* user_accounts_manager::get_vpwd_entry(uid_t uid, task_ctx& context)
 }
 vpwd_entry* user_accounts_manager::get_vpwd_entry(std::string const& name, task_ctx& context)
 {
-	check_is_user(context);
 	user_handle handle	= get_user(name);
 	user_info& info		= *handle;
 	handle.release();
@@ -255,7 +252,6 @@ int user_accounts_manager::get_vpwd_entry(std::string const& name, std::function
 }
 vpwd_entry* user_accounts_manager::first_vpwd_entry(task_ctx& context)
 {
-	check_is_user(context);
 	if(__unlikely(!__table.size())) return nullptr;
 	user_handle handle(__table, 1UZ);
 	user_info& info		= *handle;
@@ -266,7 +262,6 @@ vpwd_entry* user_accounts_manager::first_vpwd_entry(task_ctx& context)
 }
 vpwd_entry* user_accounts_manager::next_vpwd_entry(uid_t prev, task_ctx& context)
 {
-	check_is_user(context);
 	user_handle handle		= get_user(prev);
 	if(handle.value_index < __table.size())
 	{

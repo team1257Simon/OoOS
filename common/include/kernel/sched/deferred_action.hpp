@@ -50,7 +50,7 @@ namespace ooos
 			template<__extended_runnable FT>
 			struct manager
 			{
-				template<typename GT> constexpr static void construct(__extended_storage& dest, GT&& gt) noexcept(std::is_nothrow_constructible_v<FT, GT>) { new(dest.get()) FT(std::forward<GT>(gt)); }
+				template<typename GT> constexpr static void construct(__extended_storage& dest, GT&& gt) noexcept(noexcept(FT(std::declval<GT>()))) { new(dest.get()) FT(std::forward<GT>(gt)); }
 				constexpr static void destruct(__extended_storage& tgt) noexcept(std::is_nothrow_destructible_v<FT>) { tgt.template get_as<FT>()->~FT(); }
 				constexpr static FT* get_ptr(__extended_storage& fn) noexcept { return fn.template get_as<FT>(); }
 				constexpr static FT const* get_ptr(__extended_storage const& fn) { return fn.template get_as<FT>(); }
@@ -85,19 +85,36 @@ namespace ooos
 			constexpr bool __empty() const noexcept { return !__manager || !__invoker; }
 			constexpr ~__deferred_action_base() { if(__manager) (*__manager)(__functor, __functor, destroy); }
 			constexpr __deferred_action_base() noexcept = default;
-			constexpr __deferred_action_base(time_t delay) noexcept : __manager(), __invoker(), __functor(), __delay_ticks(delay) {}
+			constexpr __deferred_action_base(time_t delay) noexcept : __manager(), __invoker(), __functor(), __delay_ticks(delay) { if(!__delay_ticks) __delay_ticks++; }
 		};
 	}
-	class deferred_action;
 	class deferred_action : public __internal::__deferred_action_base
 	{
 		using __base = __internal::__deferred_action_base;
 		template<__internal::__extended_runnable FT> constexpr static bool __nt_construct() noexcept { return noexcept(__base::manager<FT>::construct(std::declval<__internal::__extended_storage&>(), std::declval<FT>())); }
 	public:
+		/**
+		 * Returns true if the function has already executed, i.e. the delay timer is already zero.
+		 * Because the decrement occurs immediately before the functor is invoked, the timer will not be zero.
+		 * If a zero is passed to the constructor, the timer will be initialized to 1, which effectively creates a functor with a minimal delay.
+		 * This is not recommended, however, as short-delay calls are more precisely handled by the HPET.
+		 */
 		constexpr bool is_done() const noexcept { return !__delay_ticks; }
+		/**
+		 * Essentially the same as std::function<void()>::operator bool(); returns true if the functor is valid and false otherwise.
+		 * Note that, unlike std::function, this class will not throw an exception if the functor is invalid when a call to operator() is made.
+		 * The lack of an assign operator means the functor will be valid unless the initial constructor was passed a null function pointer or it is moved away.
+		 */
 		constexpr operator bool() const noexcept { return !__base::__empty(); }
 		constexpr deferred_action() noexcept = default;
 		constexpr ~deferred_action() = default;
+		/**
+		 * Unlike std::function, the polymorphic wrapper is more limited: it is fixed-size and always stored in the space allocated to this object.
+		 * The limit is enough to store a function pointer and up to 32 bytes of bound arguments, or a pointer to a member function with 24 bytes of bound arguments.
+		 * A lambda can store up to 40 bytes of captures. Any other callable object must likewise be 40 bytes or smaller.
+		 * The delay is measured in scheduler ticks, which have a length determined by the processor's speed.
+		 * As a result one should compute the value using the compute_ticks method on the action queue or the scheduler's ms_to_ticks method.
+		 */
 		template<__internal::__extended_runnable FT>
 		constexpr deferred_action(time_t delay, FT&& ft) noexcept(__nt_construct<FT>()) : __base(delay)
 		{
@@ -129,11 +146,16 @@ namespace ooos
 				that.__invoker	= nullptr;
 			}
 		}
+		/**
+		 * If the delay timer is already zero, this function does nothing.
+		 * Otherwise, it decrements the delay timer.
+		 * After the decrement, if the timer has reached zero, the functor is invoked if it is valid.
+		 */
 		constexpr void operator()() 
 		{
-			
+			if(__unlikely(!__delay_ticks)) return;
+			__delay_ticks--;
 			if(__unlikely(__empty())) return;
-			else if(__delay_ticks) __delay_ticks--;
 			if(!__delay_ticks) (*__invoker)(__functor);
 		}
 	};
@@ -143,7 +165,7 @@ namespace ooos
 		deferred_action_queue() noexcept;
 		~deferred_action_queue() noexcept;
 		void tick();
-		time_t compute_ticks(time_t millis);
+		time_t compute_ticks(time_t millis) const noexcept;
 		template<__internal::__extended_runnable FT> constexpr void add(time_t delay_ms, FT&& f) { this->emplace(compute_ticks(delay_ms), std::forward<FT>(f)); }
 	};
 }

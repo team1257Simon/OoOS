@@ -11,7 +11,8 @@ namespace ooos
     class abstract_module_base;
     class isr_actor;
     struct module_eh_ctx;
-    template<typename T> concept no_args_invoke = requires(T t) { t(); };
+    template<typename T> concept no_args_invoke					= requires(T t) { t(); };
+	template<typename T, typename R> concept no_args_supplier	= no_args_invoke<T> && requires(T t) { { t() } -> std::convertible_to<R>; };
     namespace __internal
     {
         class __anything;

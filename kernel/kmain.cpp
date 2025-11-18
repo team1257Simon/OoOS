@@ -15,6 +15,8 @@
 #include "sched/scheduler.hpp"
 #include "sched/task_ctx.hpp"
 #include "sched/task_list.hpp"
+#include "sched/worker.hpp"
+#include "sched/worker_list.hpp"
 #include "util/circular_queue.hpp"
 #include "util/multiarray.hpp"
 #include "algorithm"
@@ -39,12 +41,12 @@ static direct_text_render startup_tty;
 static device_stream* com;
 static ramfs testramfs;
 static extfs test_extfs(94208UL);
-volatile apic bsp_lapic{ 0U };
+volatile apic bsp_lapic(0U);
 static bool direct_print_enable{};
 static bool fx_enable{};
-static char dbgbuf[19]{ '0', 'x', };
+static char dbgbuf[19] = "0x";
 static char dbg_serial_io[2]{};
-static const char test_argv[] = "Hello task world ";
+static const char test_arg[] = "Hello world ";
 static char test_e1000e_drv[sizeof(e1000e)]{};
 static ooos::ps2_controller test_ps2{};
 static ooos::ps2_keyboard* test_kb = nullptr;
@@ -268,38 +270,17 @@ void str_tests()
 	std::string crypto = create_crypto_string("fleedle deedle", setting);
 	xdirect_writeln("crypt of fleedle deedle: " + crypto);
 }
-int test_task_1(int argc, char** argv)
+int test_worker_1(const char* arg)
 {
-	direct_write(argv[0]);
-	direct_writeln("in task 1");
+	direct_write(arg);
+	direct_writeln("in worker 1");
 	return 1;
 }
-int test_task_2(int argc, char** argv)
+int test_worker_2(const char* arg)
 {
-	direct_write(argv[0]);
-	direct_writeln("in task 2");
+	direct_write(arg);
+	direct_writeln("in worker 2");
 	return 2;
-}
-void test_landing_pad()
-{
-	cli();
-	task_ctx* ctx = get_gs_base<task_ctx>();
-	long retv = ctx->exit_code;
-	ctx->terminate();
-	free(ctx->allocated_stack);
-	free(ctx->tls);
-	tl.destroy_task(ctx->get_pid());
-	xdirect_writeln("returned " + std::to_string(retv));
-	sti();
-	while(1);
-}
-void task_tests()
-{
-	addr_t exit_test_fn(std::addressof(test_landing_pad));
-	task_ctx* tt1 = tl.create_system_task(&test_task_1, std::vector<const char*>{ test_argv }, S04, S04, priority_val::PVHIGH);
-	task_ctx* tt2 = tl.create_system_task(&test_task_2, std::vector<const char*>{ test_argv }, S04, S04);
-	tt1->start_task(exit_test_fn);
-	tt2->start_task(exit_test_fn);
 }
 void extfs_tests()
 {
@@ -340,8 +321,8 @@ void elf64_tests()
 {
 	if(test_extfs.has_init()) try
 	{
-		file_vnode* tst              = test_extfs.open_file("test.elf");
-		elf64_executable* test_exec = prog_manager::get_instance().add(tst);
+		file_vnode* tst             = test_extfs.open_file("test.elf");
+		elf64_executable* test_exec	= prog_manager::get_instance().add(tst);
 		test_extfs.close_file(tst);
 		if(test_exec)
 		{
@@ -455,6 +436,28 @@ void circular_queue_tests()
 	}
 	dwendl();
 }
+void worker_tests()
+{
+	ooos::worker* volatile w1 = wl.create_worker(std::bind(test_worker_1, test_arg));
+	ooos::worker* volatile w2 = wl.create_worker(std::bind(test_worker_2, test_arg));
+	cli();
+	int i;
+	if(__unlikely(i = start_worker(w1))) {
+		xdirect_writeln("returned " + std::to_string(i));
+		wl.destroy(w1);
+		w1 = nullptr;
+	}
+	else if(__unlikely(i = start_worker(w2))) {
+		xdirect_writeln("returned " + std::to_string(i));
+		wl.destroy(w2);
+		w2 = nullptr;
+	}
+	else {
+		direct_writeln("started workers");
+		sti();
+	}
+	while(w1 || w2) { pause(); }
+}
 static const char* codes[] =
 {
 	"#DE [Division by Zero]",
@@ -562,8 +565,8 @@ void run_tests()
 		direct_writeln("elf64 tests...");
 		elf64_tests();
 	}
-	direct_writeln("task tests...");
-	task_tests();
+	direct_writeln("worker tests...");
+	worker_tests();
 	direct_writeln("complete");
 }
 static void __serial_write(std::string const& msg)

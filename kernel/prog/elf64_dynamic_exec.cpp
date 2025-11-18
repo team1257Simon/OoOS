@@ -7,15 +7,15 @@ addr_t elf64_dynamic_executable::resolve(uintptr_t offs) const { return virtual_
 addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base ? virtual_load_base.plus(sym.st_value) : addr_t(sym.st_value); }
 bool elf64_dynamic_executable::xload() { return elf64_dynamic_object::xload(); }
 bool elf64_dynamic_executable::load_syms() { return elf64_dynamic_object::load_syms(); }
-elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
+elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, uintptr_t base_offset) :
 	elf64_object(start, size),
-	elf64_executable(start, size, stack_size, tls_size),
+	elf64_executable(start, size, stack_size),
 	elf64_dynamic_object(start, size),
 	virtual_load_base(base_offset)
 {}
-elf64_dynamic_executable::elf64_dynamic_executable(file_vnode* n, size_t stack_sz, size_t tls_sz, uintptr_t base_offset) :
+elf64_dynamic_executable::elf64_dynamic_executable(file_vnode* n, size_t stack_sz, uintptr_t base_offset) :
 	elf64_object(n),
-	elf64_executable(n, stack_sz, tls_sz),
+	elf64_executable(n, stack_sz),
 	elf64_dynamic_object(n),
 	virtual_load_base(base_offset)
 {}
@@ -36,18 +36,19 @@ void elf64_dynamic_executable::process_headers()
 		off_t diff = static_cast<off_t>(virtual_load_base.full);
 		if(diff > 0Z)
 		{
-			frame_base		+= diff;
-			frame_extent	+= diff;
-			stack_base		+= diff;
-			tls_base		+= diff;
-			entry			+= diff;
+			frame_base			+= diff;
+			frame_extent		+= diff;
+			stack_base			+= diff;
+			entry				+= diff;
+			if(tls_base)
+				tls_base		+= diff;
 		}
 	}
 }
 bool elf64_dynamic_executable::load_segments()
 {
 	if(elf64_executable::load_segments()) 
-	{ 
+	{
 		program_descriptor.ld_path_count	= ld_paths.size();
 		program_descriptor.ld_path			= strptr_alloc.allocate(program_descriptor.ld_path_count);
 		size_t i							= 0;

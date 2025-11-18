@@ -61,12 +61,10 @@ public:
 	unsigned int cumulative_remaining_ticks() const noexcept;
 	bool interrupt_wait(const_iterator where);
 };
-constexpr static priority_val escalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVEXTRA) return pv; return priority_val(static_cast<int8_t>(pv) + 1); }
-constexpr static priority_val deescalate(priority_val pv) { if(pv == priority_val::PVSYS || pv == priority_val::PVLOW) return pv; return priority_val(static_cast<int8_t>(pv) - 1); }
 class prio_level_task_queues : public std::array<task_pl_queue, 5UZ>
 {
 	typedef std::array<task_pl_queue, 5UZ> __base;
-	constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(static_cast<int8_t>(pv) + 1); }
+	constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(static_cast<int8_t>(pv)); }
 public:
 	task_pl_queue& operator[](priority_val pv) noexcept;
 	task_pl_queue const& operator[](priority_val pv) const noexcept;

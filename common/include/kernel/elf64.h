@@ -59,6 +59,7 @@ enum elf_segment_type : uint32_t
 	PT_NOTE     = 4,
 	PT_SHLIB    = 5,
 	PT_PHDR     = 6,
+	PT_TLS		= 7,
 	// PC-Specific = 0x70000000~0x7FFFFFFF
 };
 enum elf_section_type : uint32_t
@@ -85,7 +86,8 @@ enum elf_sym_type : uint8_t
 	SYM_OBJECT      = 1,
 	SYM_FUNCTION    = 2,
 	SYM_SECTION     = 3,
-	SYM_FILE        = 4
+	SYM_FILE        = 4,
+	SYM_TLS			= 6,
 };
 enum elf_sym_bind : uint8_t
 {
@@ -356,6 +358,7 @@ typedef struct __elf64_program_desc
 	size_t stack_size;
 	void* prg_tls;
 	size_t tls_size;
+	size_t tls_align;
 	void* entry;
 	const char** ld_path;
 	size_t ld_path_count;
@@ -365,7 +368,8 @@ typedef struct __elf64_program_desc
 #include "string"
 constexpr bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
 constexpr bool is_exec(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_execute; }
-constexpr bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD; }
+constexpr bool is_tls(elf64_phdr const& seg) { return seg.p_type == PT_TLS; }
+constexpr bool is_load(elf64_phdr const& seg) { return seg.p_type == PT_LOAD || is_tls(seg); }
 constexpr bool is_dynamic(elf64_phdr const& seg) { return seg.p_type == PT_DYNAMIC; }
 struct elf64_string_table
 {

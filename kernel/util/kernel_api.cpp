@@ -58,7 +58,7 @@ namespace ooos
 	};
 	static struct : kernel_api
 	{
-		kernel_memory_mgr* mm = std::addressof(kmm);
+		kernel_memory_mgr* mm	= std::addressof(kmm);
 		type_info_map kernel_type_info;
 		pci_device_list* pci;
 		virtual void* allocate_dma(size_t size, bool prefetchable) override { return mm->allocate_dma(size, prefetchable); }
@@ -69,11 +69,14 @@ namespace ooos
 		virtual void destroy_mm(kmod_mm* mod_mm) override { if(mod_mm) delete mod_mm; }
 		virtual void log(std::type_info const& from, const char* message) override { xklog("[" + std::ext::demangle(from) + "]: " + message); }
 		virtual void remove_actors(abstract_module_base* owner) override { interrupt_table::deregister_owner(owner); }
-		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
 		virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
 		virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
 		virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
 		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))), local_si, local_vmi); }
+		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { 
+			try { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
+			catch(...) { owner->raise_error("out of memory"); } 
+		}
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{
 			char* result	= nullptr;
@@ -97,7 +100,7 @@ namespace ooos
 		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) override
 		{
 			ctx.msg			= msg;
-			ctx.status		 = status ? status : -1;
+			ctx.status		= status ? status : -1;
 			longjmp(ctx.handler_ctx, ctx.status);
 		}
 		virtual void init_memory_fns(kframe_exports* ptrs) override
@@ -142,7 +145,8 @@ namespace ooos
 		block_tag* tag = get_for_allocation(size ? size : 1UL, align);
 		if(!tag) throw std::bad_alloc();
 		lock(std::addressof(mod_mutex));
-		if(!first_managed_block) first_managed_block = tag;
+		if(!first_managed_block)
+			first_managed_block				= tag;
 		else
 		{
 			tag->next						= first_managed_block;

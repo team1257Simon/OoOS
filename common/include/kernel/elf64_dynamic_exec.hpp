@@ -21,8 +21,8 @@ public:
 	virtual addr_t resolve(uintptr_t offs) const override;    
 	virtual addr_t resolve(elf64_sym const& sym) const override;
 	virtual ~elf64_dynamic_executable();
-	elf64_dynamic_executable(file_vnode* n, size_t stack_sz = S04, size_t tls_sz = S04, uintptr_t base_offset = 0UL);
-	elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz = S04, size_t tls_sz = S04, uintptr_t base_offset = 0UL);
+	elf64_dynamic_executable(file_vnode* n, size_t stack_sz = S04, uintptr_t base_offset = 0UL);
+	elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz = S04, uintptr_t base_offset = 0UL);
 	elf64_dynamic_executable(elf64_dynamic_executable const& that);
 };
 #endif

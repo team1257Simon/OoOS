@@ -15,7 +15,7 @@ extern "C"
 	}
 	addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset)
 	{
-		uframe_tag* ctask_frame = active_frame();
+		uframe_tag* ctask_frame					= active_frame();
 		if(__unlikely(ctask_frame->magic != uframe_magic)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 		if(__unlikely(!len || size_t(offset) > len || offset % page_size)) return addr_t(static_cast<uintptr_t>(-EINVAL));
 		if(__unlikely(!prot)) return nullptr;
@@ -30,7 +30,7 @@ extern "C"
 			if(__unlikely(!fsptr)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 			else try
 			{
-				file_vnode* n					= get_by_fd(fsptr, active_task_context(), fd);
+				file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd);
 				if(n)
 				{
 					file_vnode::pos_type pos	= n->tell();

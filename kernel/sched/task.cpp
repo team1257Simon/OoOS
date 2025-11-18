@@ -9,147 +9,12 @@
 #include "isr_table.hpp"
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
-constexpr static uint64_t get_frame_magic(addr_t tag) { return tag.deref<uint64_t>(); }
-static inline addr_t pml4_of(addr_t frame_ptr) { if(get_frame_magic(frame_ptr) == uframe_magic) return frame_ptr.as<uframe_tag>()->pml4; else return get_cr3(); }
-void sys_task_exit() { int retv; asm volatile("movl %%eax, %0" : "=r"(retv) :: "memory"); get_gs_base<task_ctx>()->set_exit(retv); }
+constexpr static addr_t pml4_of(addr_t frame) noexcept { return frame.deref<uframe_tag>().pml4; }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
-void task_ctx::add_child(task_ctx* that) { child_tasks.push_back(that); task_struct.num_child_procs = child_tasks.size(); task_struct.child_procs = reinterpret_cast<addr_t*>(child_tasks.data()); }
-bool task_ctx::remove_child(task_ctx* that) { if(std::vector<task_ctx*>::const_iterator i = child_tasks.find(that); i != child_tasks.end()) { child_tasks.erase(i); return true; } return false; }
 void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
-task_ctx::~task_ctx()
-{
-	if(local_so_map)
-	{
-		shared_object_map& globals 	= shared_object_map::get_globals();
-		std::vector<shared_object_map::iterator> stickies{};
-		for(shared_object_map::iterator i = local_so_map->begin(); i != local_so_map->end(); i++) { if(i->is_sticky()) { stickies.push_back(i); } }
-		for(shared_object_map::iterator i : stickies) { local_so_map->transfer(globals, i); }
-		local_so_map->shared_frame 	= nullptr;
-		sm_alloc.deallocate(local_so_map, 1);
-	}
-	if(is_user()) try { fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>()); } catch(std::exception& e) { panic(e.what()); }
-}
-void task_ctx::init_task_state()
-{
-	if(arg_vec.empty() || arg_vec.back()) arg_vec.push_back(nullptr);
-	register_t rdi_val;
-	if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle))
-	{
-		rdi_val								= reinterpret_cast<register_t>(dyn);
-		task_struct.saved_regs.rbx			= static_cast<register_t>(entry.full);
-		shared_object_map::iterator ldso	= shared_object_map::get_ldso_object(ctx_filesystem);
-		if(addr_t ldso_entry = ldso->entry_point(); __builtin_expect(static_cast<bool>(ldso_entry), true)) { task_struct.saved_regs.rip = ldso_entry; }
-		else { throw std::runtime_error("[PRG/EXEC] dynamic linker object has no entry point"); }
-		attach_object(ldso.base());
-	}
-	else
-	{
-		// Static executables go directly to the entry point
-		rdi_val					= arg_vec.size() - 1;
-		task_struct.saved_regs.rip	= entry;
-	}
-	fx_save(std::addressof(task_struct));
-	array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-	for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
-	if(is_user())
-	{
-		array_zero(reinterpret_cast<void**>(task_sig_info.signal_handlers), num_signals);
-		uframe_tag* tag		= task_struct.frame_ptr;
-		addr_t old_ext		= tag->extent;
-		size_t total_len	= (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
-		for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
-		for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
-		if(!tag->shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
-		rt_argv_ptr			= old_ext;
-		char** argv_real	= tag->translate(rt_argv_ptr);
-		rt_env_ptr			= old_ext.plus((arg_vec.size() + 1) * sizeof(char*));
-		old_ext				= rt_env_ptr;
-		char** env_real		= tag->translate(rt_env_ptr);
-		old_ext				+= (env_vec.size() + 1) * sizeof(char*);
-		for(const char* str : arg_vec)
-		{
-			addr_t target_ptr	= old_ext;
-			char* target_real	= tag->translate(target_ptr);
-			size_t len			= std::strlen(str);
-			array_copy(target_real, str, len);
-			target_real[len]	= 0;
-			*argv_real			= target_ptr;
-			argv_real++;
-			old_ext				+= len + 1;
-		}
-		*argv_real = nullptr;
-		for(const char* str : env_vec)
-		{
-			addr_t target_ptr	= old_ext;
-			char* target_real	= tag->translate(target_ptr);
-			size_t len			= std::strlen(str);
-			array_copy(target_real, str, len);
-			target_real[len]	= 0;
-			*env_real			= target_ptr;
-			env_real++;
-			old_ext				+= len + 1;
-		}
-		*env_real				= nullptr;
-	}
-	else
-	{
-		task_struct.saved_regs.rsp.assign(std::addressof(sys_task_exit));
-		rt_argv_ptr				= arg_vec.data();
-		rt_env_ptr				= env_vec.data();
-	}
-	set_arg_registers(rdi_val, rt_argv_ptr.full, rt_env_ptr.full);
-}
-void task_ctx::set_arg_registers(register_t rdi, register_t rsi, register_t rdx)
-{
-	task_struct.saved_regs.rdi = rdi;
-	task_struct.saved_regs.rsi = rsi;
-	task_struct.saved_regs.rdx = rdx;
-}
-task_ctx::task_ctx(task_functor task, std::vector<const char*>&& args, addr_t stack_base, ptrdiff_t stack_size, addr_t tls_base, size_t tls_len, addr_t frame_ptr, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum) : 
-	task_struct
-	{ 
-		.self				{ std::addressof(task_struct) }, 
-		.frame_ptr			{ frame_ptr }, 
-		.saved_regs		
-		{ 
-			.rbp			{ stack_base + stack_size },
-			.rsp			{ stack_base + stack_size },
-			.cr3			{ pml4_of(frame_ptr) },
-			.rflags			{ 0x202UL },
-			.ds				{ data_segment(get_frame_magic(frame_ptr)) },
-			.ss				{ data_segment(get_frame_magic(frame_ptr)) },
-			.cs				{ code_segment(get_frame_magic(frame_ptr)) },
-		}, 
-		.quantum_val		{ quantum }, 
-		.task_ctl			
-		{ 
-			{
-				.block			{ false },
-				.can_interrupt	{ false },
-				.should_notify	{ false },
-				.killed			{ false },
-				.prio_base		{ prio }
-			}, 
-			{
-				.signal_info	{ std::addressof(task_sig_info) },
-				.parent_pid		{ parent_pid }, 
-				.task_id		{ pid }
-			}
-		},
-		.tls_block			{ tls_base.plus(tls_len) }
-	},
-	arg_vec					{ std::move(args) },
-	entry					{ task },
-	allocated_stack			{ stack_base },
-	stack_allocated_size	{ static_cast<size_t>(stack_size) },
-	tls						{ tls_base },
-	tls_size				{ tls_len },
-	ctx_filesystem			{ create_task_vfs() },
-	local_so_map			{ is_user() ? sm_alloc.allocate(1) : nullptr }
-							{ if(local_so_map) { std::construct_at(local_so_map, frame_ptr); } }
 task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char *>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum) :
 	task_struct
 	{
@@ -160,10 +25,10 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 			.rbp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.rsp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.cr3			{ pml4_of(desc.frame_ptr) },
-			.rflags			{ 0x202UL },
-			.ds				{ data_segment(get_frame_magic(desc.frame_ptr)) },
-			.ss				{ data_segment(get_frame_magic(desc.frame_ptr)) },
-			.cs				{ code_segment(get_frame_magic(desc.frame_ptr)) },
+			.rflags			{ ini_flags },
+			.ds				{ user_data },
+			.ss				{ user_data },
+			.cs				{ user_code }
 		},
 		.quantum_val		{ quantum }, 
 		.task_ctl			
@@ -181,19 +46,23 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 				.task_id		{ pid }
 			}
 		},
-		.tls_block			{ addr_t(desc.prg_tls).plus(desc.tls_size) }
+		.tls_master			{ addr_t(desc.prg_tls) },
+		.tls_size			{ desc.tls_size },
+		.tls_align			{ desc.tls_align }
 	},
 	arg_vec					{ std::move(args) },
 	dl_search_paths			( desc.ld_path_count ),
 	entry					{ desc.entry },
 	allocated_stack			{ desc.prg_stack },
 	stack_allocated_size	{ desc.stack_size },
-	tls						{ desc.prg_tls },
-	tls_size				{ desc.tls_size },
 	ctx_filesystem			{ create_task_vfs() },
 	program_handle			{ static_cast<elf64_executable*>(desc.object_handle) },
 	local_so_map			{ sm_alloc.allocate(1) }
-							{ std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.frame_ptr)); if(desc.ld_path && desc.ld_path_count) { dl_search_paths.push_back(desc.ld_path, desc.ld_path + desc.ld_path_count); } }
+							{
+								std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.frame_ptr));
+								if(desc.ld_path && desc.ld_path_count)
+									dl_search_paths.push_back(desc.ld_path, desc.ld_path + desc.ld_path_count);
+							}
 task_ctx::task_ctx(task_ctx const& that) :
 	task_struct
 	{
@@ -218,7 +87,9 @@ task_ctx::task_ctx(task_ctx const& that) :
 			}
 		},
 		.fxsv				{ that.task_struct.fxsv },
-		.tls_block			{ that.task_struct.tls_block }
+		.tls_master			{ that.task_struct.tls_master },
+		.tls_size			{ that.task_struct.tls_size },
+		.tls_align			{ that.task_struct.tls_align }
 	},
 	child_tasks				{},
 	arg_vec					{ that.arg_vec },
@@ -228,8 +99,6 @@ task_ctx::task_ctx(task_ctx const& that) :
 	entry					{ that.entry },
 	allocated_stack			{ that.allocated_stack },
 	stack_allocated_size	{ that.stack_allocated_size },
-	tls						{ that.tls },
-	tls_size				{ that.tls_size },
 	ctx_filesystem			{ that.ctx_filesystem },
 	stdio_ptrs				{ that.stdio_ptrs[0], that.stdio_ptrs[1], that.stdio_ptrs[2] },
 	current_state			{ that.current_state },
@@ -255,8 +124,6 @@ task_ctx::task_ctx(task_ctx&& that) :
 	entry					{ std::move(that.entry) },
 	allocated_stack			{ std::move(that.allocated_stack) },
 	stack_allocated_size	{ std::move(that.stack_allocated_size) },
-	tls						{ std::move(that.tls) },
-	tls_size				{ std::move(that.tls_size) },
 	ctx_filesystem			{ std::move(that.ctx_filesystem) },
 	stdio_ptrs				{ std::move(that.stdio_ptrs[0]), std::move(that.stdio_ptrs[1]), std::move(that.stdio_ptrs[2]) },
 	current_state			{ std::move(that.current_state) },
@@ -277,9 +144,108 @@ task_ctx::task_ctx(task_ctx&& that) :
 		task_struct.task_ctl.signal_info	= std::addressof(task_sig_info);
 		that.task_struct.frame_ptr			= nullptr;
 	}
+task_ctx::~task_ctx()
+{
+	if(local_so_map)
+	{
+		shared_object_map& globals 			= shared_object_map::get_globals();
+		std::vector<shared_object_map::iterator> stickies{};
+		for(shared_object_map::iterator i	= local_so_map->begin(); i != local_so_map->end(); i++)
+			if(i->is_sticky())
+				stickies.push_back(i);
+		for(shared_object_map::iterator i : stickies) { local_so_map->transfer(globals, i); }
+		local_so_map->shared_frame 			= nullptr;
+		sm_alloc.deallocate(local_so_map, 1);
+	}
+	if(!task_struct.frame_ptr) return; 
+	try { fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>()); }
+	catch(std::exception& e) { panic(e.what()); }
+}
+void task_ctx::add_child(task_ctx* that)
+{
+	child_tasks.push_back(that);
+	task_struct.num_child_procs	= child_tasks.size();
+	task_struct.child_procs		= reinterpret_cast<addr_t*>(child_tasks.data());
+}
+bool task_ctx::remove_child(task_ctx* that)
+{
+	std::vector<task_ctx*>::const_iterator i	= child_tasks.find(that);
+	if(i == child_tasks.end()) return false;
+	child_tasks.erase(i);
+	return true;
+}
+void task_ctx::init_task_state()
+{
+	if(arg_vec.empty() || arg_vec.back()) arg_vec.push_back(nullptr);
+	register_t rdi_val;
+	if(elf64_dynamic_object* dyn			= dynamic_cast<elf64_dynamic_object*>(program_handle))
+	{
+		rdi_val								= reinterpret_cast<register_t>(dyn);
+		task_struct.saved_regs.rbx			= static_cast<register_t>(entry.full);
+		shared_object_map::iterator ldso	= shared_object_map::get_ldso_object(ctx_filesystem);
+		addr_t ldso_entry 					= ldso->entry_point(); 
+		if(ldso_entry)
+			task_struct.saved_regs.rip		= ldso_entry;
+		else throw std::runtime_error("[PRG/EXEC] dynamic linker object has no entry point");
+		attach_object(ldso.base());
+	}
+	else
+	{
+		// Static executables go directly to the entry point
+		rdi_val						= arg_vec.size() - 1;
+		task_struct.saved_regs.rip	= entry;
+	}
+	fx_save(std::addressof(task_struct));
+	array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
+	for(int i = 0; i < 8; i++) task_struct.fxsv.stmm[i] = 0.L;
+	array_zero(reinterpret_cast<void**>(task_sig_info.signal_handlers), num_signals);
+	uframe_tag* tag		= task_struct.frame_ptr;
+	addr_t old_ext		= tag->extent;
+	size_t total_len	= (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
+	for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
+	for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
+	if(!tag->shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
+	rt_argv_ptr			= old_ext;
+	char** argv_real	= tag->translate(rt_argv_ptr);
+	rt_env_ptr			= old_ext.plus((arg_vec.size() + 1) * sizeof(char*));
+	old_ext				= rt_env_ptr;
+	char** env_real		= tag->translate(rt_env_ptr);
+	old_ext				+= (env_vec.size() + 1) * sizeof(char*);
+	for(const char* str : arg_vec)
+	{
+		addr_t target_ptr	= old_ext;
+		char* target_real	= tag->translate(target_ptr);
+		size_t len			= std::strlen(str);
+		array_copy(target_real, str, len);
+		target_real[len]	= 0;
+		*argv_real			= target_ptr;
+		argv_real++;
+		old_ext				+= len + 1;
+	}
+	*argv_real				= nullptr;
+	for(const char* str : env_vec)
+	{
+		addr_t target_ptr	= old_ext;
+		char* target_real	= tag->translate(target_ptr);
+		size_t len			= std::strlen(str);
+		array_copy(target_real, str, len);
+		target_real[len]	= 0;
+		*env_real			= target_ptr;
+		env_real++;
+		old_ext				+= len + 1;
+	}
+	*env_real				= nullptr;
+	set_arg_registers(rdi_val, rt_argv_ptr.full, rt_env_ptr.full);
+}
+void task_ctx::set_arg_registers(register_t rdi, register_t rsi, register_t rdx)
+{
+	task_struct.saved_regs.rdi	= rdi;
+	task_struct.saved_regs.rsi	= rsi;
+	task_struct.saved_regs.rdx	= rdx;
+}
 void task_ctx::start_task(addr_t exit_fn)
 {
-	exit_target	= exit_fn ? exit_fn : addr_t(std::addressof(handle_exit));
+	exit_target		= exit_fn ? exit_fn : addr_t(std::addressof(handle_exit));
 	sch.register_task(header());
 	current_state	= execution_state::RUNNING;
 }
@@ -322,8 +288,7 @@ void task_ctx::set_exit(int n)
 				task_struct.saved_regs.rdi	= reinterpret_cast<register_t>(dyn);
 				task_struct.saved_regs.rip	= dynamic_exit;
 				current_state				= execution_state::IN_DYN_EXIT;
-				user_reentry();
-				__builtin_unreachable();
+				return;
 			}
 		}
 	}
@@ -333,7 +298,6 @@ void task_ctx::set_exit(int n)
 }
 void task_ctx::attach_object(elf64_object* obj)
 {
-	if(!is_user()) return;
 	std::vector<block_descriptor> blocks	= obj->segment_blocks();
 	kmm.enter_frame(task_struct.frame_ptr);
 	kmm.map_to_current_frame(blocks);
@@ -349,7 +313,7 @@ void task_ctx::terminate()
 tms task_ctx::get_times() const noexcept
 {
 	tms result(task_struct.run_time, task_struct.sys_time, 0UL, 0UL);
-	for(task_ctx* child : child_tasks) { result += child->get_times(); }
+	for(task_ctx* child : child_tasks) result += child->get_times();
 	return result;
 }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
@@ -365,28 +329,34 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 void task_ctx::stack_push(register_t val)
 {
 	task_struct.saved_regs.rsp	-= sizeof(register_t);
-	addr_t stack				= is_user() ? task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
+	addr_t stack				= task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp);
 	stack.assign(val);
 }
 register_t task_ctx::stack_pop()
 {
-	addr_t stack				= is_user() ? task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp) : task_struct.saved_regs.rsp;
+	addr_t stack				= task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp);
 	register_t result			= stack.deref<register_t>();
 	task_struct.saved_regs.rsp	+= sizeof(register_t);
 	return result;
 }
 void task_ctx::set_signal(int sig, bool save_state)
 {
-	if((ignored_mask & BIT(sig)) && !(task_sig_info.signal_handlers[sig])) { task_sig_info.pending_signals.btr(sig); return; }
-	if(save_state) { task_sig_info.sigret_frame = task_struct.saved_regs; task_sig_info.sigret_fxsave = task_struct.fxsv; }
-	task_sig_info.active_signal			= sig;
-	task_struct.saved_regs.rdi			= sig;
-	signal_handler handler				= task_sig_info.signal_handlers[sig];
-	if(!handler) handler				= signal_exit;
-	task_struct.saved_regs.rsi			= reinterpret_cast<register_t>(handler);
-	task_sig_info.signal_handlers[sig]	= nullptr;
-	task_struct.saved_regs.rip			= addr_t(sigtramp_enter);
-	stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.full));
+	if((ignored_mask & BIT(sig)) && !(task_sig_info.signal_handlers[sig])) task_sig_info.pending_signals.btr(sig);
+	else
+	{
+		if(save_state) {
+			task_sig_info.sigret_frame	= task_struct.saved_regs;
+			task_sig_info.sigret_fxsave	= task_struct.fxsv;
+		}
+		task_sig_info.active_signal			= sig;
+		task_struct.saved_regs.rdi			= sig;
+		signal_handler handler				= task_sig_info.signal_handlers[sig];
+		if(!handler) handler				= signal_exit;
+		task_struct.saved_regs.rsi			= reinterpret_cast<register_t>(handler);
+		task_sig_info.signal_handlers[sig]	= nullptr;
+		task_struct.saved_regs.rip			= addr_t(sigtramp_enter);
+		stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.full));
+	}
 }
 register_t task_ctx::end_signal()
 {
@@ -410,7 +380,7 @@ bool task_ctx::set_fork()
 		uframe_tag* new_frame			= std::addressof(fm.fork_frame(old_frame));
 		task_struct.frame_ptr			= new_frame;
 		task_struct.saved_regs.cr3		= new_frame->pml4;
-		if(old_so_map) local_so_map		= sm_alloc.allocate(1);
+		if(old_so_map) local_so_map		= sm_alloc.allocate(1UZ);
 		if(local_so_map)
 		{ 
 			std::construct_at(local_so_map, new_frame);
@@ -423,15 +393,17 @@ bool task_ctx::set_fork()
 			local_so_map->copy(*old_so_map);
 		}
 		program_handle					= prog_manager::get_instance().clone(program_handle);
-		if(!program_handle) return false;
+		if(__unlikely(!program_handle)) return false;
 		program_handle->on_copy(new_frame);
 		if(opened_directories.empty()) return true;
 		std::map<int, posix_directory> old_dirs(std::move(opened_directories));
 		opened_directories.clear();
-		for(std::map<int, posix_directory>::iterator i = old_dirs.begin(); i != old_dirs.end(); i++) { opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(i->first), std::forward_as_tuple(new_frame, i->second.get_base_vaddr())); }
+		for(std::map<int, posix_directory>::iterator i = old_dirs.begin(); i != old_dirs.end(); i++)
+			opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(i->first), std::forward_as_tuple(new_frame, i->second.get_base_vaddr()));
 		return true;
 	}
-	catch(std::exception& e) { panic(e.what()); return false; }
+	catch(std::exception& e) { panic(e.what()); }
+	return false;
 }
 bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env)
 {
@@ -442,18 +414,16 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 		{
 			local_so_map->shared_frame	= nullptr;
 			fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>());
-			sm_alloc.deallocate(local_so_map, 1);
+			sm_alloc.deallocate(local_so_map, 1UZ);
 		}
-		local_so_map	= sm_alloc.allocate(1UZ);
-		if(!local_so_map) return false;
+		local_so_map		= sm_alloc.allocate(1UZ);
+		if(__unlikely(!local_so_map)) return false;
 	}
 	uframe_tag* new_tag		= static_cast<uframe_tag*>(desc.frame_ptr);
 	if(!new_tag) throw std::invalid_argument("[COMPAT/execve] frame must not be null");
 	task_struct.frame_ptr	= new_tag;
 	allocated_stack			= desc.prg_stack;
 	stack_allocated_size	= desc.stack_size;
-	tls						= desc.prg_tls;
-	tls_size				= desc.tls_size;
 	pid_t pid				= get_pid();
 	priority_val prio		= task_struct.task_ctl.prio_base;
 	uint16_t quantum		= task_struct.quantum_val;
@@ -462,14 +432,14 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 		.self				{ std::addressof(task_struct) },
 		.frame_ptr			{ desc.frame_ptr },
 		.saved_regs		
-		{ 
+		{
 			.rbp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.rsp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.cr3			{ pml4_of(desc.frame_ptr) },
-			.rflags			{ 0x202UL },
-			.ds				{ data_segment(get_frame_magic(desc.frame_ptr)) },
-			.ss				{ data_segment(get_frame_magic(desc.frame_ptr)) },
-			.cs				{ code_segment(get_frame_magic(desc.frame_ptr)) },
+			.rflags			{ ini_flags },
+			.ds				{ user_data },
+			.ss				{ user_data },
+			.cs				{ user_code }
 		},
 		.quantum_val		{ quantum }, 
 		.task_ctl			
@@ -487,7 +457,9 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 				.task_id		{ pid }
 			}
 		},
-		.tls_block			{ addr_t(desc.prg_tls).plus(desc.tls_size) }
+		.tls_master			{ addr_t(desc.prg_tls) },
+		.tls_size			{ desc.tls_size },
+		.tls_align			{ desc.tls_align }
 	};
 	arg_vec					= std::move(args);
 	env_vec 				= std::move(env);

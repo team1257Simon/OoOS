@@ -36,18 +36,28 @@ void elf64_kernel_object::unload_pre_init()
 void elf64_kernel_object::process_headers()
 {
 	elf64_dynamic_object::process_headers();
-	size_t seg_base = 0UZ, extent = 0UZ, needed_align = 0UZ;
+	size_t seg_base = 0UZ, extent = 0UZ, needed_align = 0UZ, tls_off = 0UZ;
 	size_t n		= ehdr().e_phnum;
 	for(size_t i = 0; i < n; i++)
 	{
 		elf64_phdr const& ph	= phdr(i);
+		if(is_tls(ph)) {
+			tls_size			= ph.p_memsz;
+			tls_align			= ph.p_align;
+			continue;
+		}
 		if(!is_load(ph)) continue;
 		needed_align			= std::max(needed_align, ph.p_align);
 		seg_base				= addr_t(std::max(extent, ph.p_vaddr)).alignup(ph.p_align);
 		extent					= seg_base + ph.p_memsz;
 	}
+	if(tls_size) {
+		tls_off		= addr_t(extent).alignup(tls_align);
+		extent		= addr_t(tls_off).plus(tls_size).next_page_aligned();
+	}
 	load_align		= static_cast<std::align_val_t>(needed_align);
 	load_base		= ::operator new(extent, load_align);
+	tls_base		= load_base.plus(tls_off);
 }
 bool elf64_kernel_object::load_segments()
 {
@@ -58,7 +68,7 @@ bool elf64_kernel_object::load_segments()
 	{
 		elf64_phdr const& ph = phdr(j);
 		if(!is_load(ph) || !ph.p_memsz) continue;
-		addr_t addr		= load_base.plus(ph.p_vaddr);
+		addr_t addr		= is_tls(ph) ? tls_base : load_base.plus(ph.p_vaddr);
 		addr_t img_dat	= img_ptr(ph.p_offset);
 		array_copy<uint8_t>(addr, img_dat, ph.p_filesz);
 		if(ph.p_memsz > ph.p_filesz) array_zero<uint8_t>(addr.plus(ph.p_filesz), static_cast<size_t>(ph.p_memsz - ph.p_filesz));

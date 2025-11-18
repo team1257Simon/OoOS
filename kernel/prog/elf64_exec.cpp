@@ -10,35 +10,29 @@ elf64_executable::~elf64_executable() = default; // the resources allocated for 
 void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
 void elf64_executable::set_frame(uframe_tag* ft) { frame_tag = ft; program_descriptor.frame_ptr = ft; }
 uframe_tag* elf64_executable::get_frame() const { return frame_tag; }
-elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz, size_t tls_sz) : elf64_object(start, size),
+elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz) : elf64_object(start, size),
 	stack_size			{ stack_sz },
-	tls_size			{ tls_sz },
 	frame_base			{ nullptr },
 	frame_extent		{ nullptr },
 	stack_base			{ nullptr },
-	tls_base			{ nullptr },
 	entry				( ehdr().e_entry ),
 	frame_tag			{ nullptr },
 	program_descriptor	{}
 						{}
-elf64_executable::elf64_executable(file_vnode* n, size_t stack_sz, size_t tls_sz) : elf64_object(n),
+elf64_executable::elf64_executable(file_vnode*n, size_t stack_sz) : elf64_object(n),
 	stack_size			{ stack_sz },
-	tls_size			{ tls_sz },
 	frame_base			{ nullptr },
 	frame_extent		{ nullptr },
 	stack_base			{ nullptr },
-	tls_base			{ nullptr },
 	entry				( ehdr().e_entry ),
 	frame_tag			{ nullptr },
 	program_descriptor	{}
 						{}
 elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object(std::move(that)),
 	stack_size			{ that.stack_size },
-	tls_size			{ that.tls_size },
 	frame_base			{ std::move(that.frame_base) },
 	frame_extent		{ std::move(that.frame_extent) },
 	stack_base			{ std::move(that.stack_base) },
-	tls_base			{ std::move(that.tls_base)},
 	entry				{ std::move(that.entry) },
 	frame_tag			{ std::move(that.frame_tag) },
 	program_descriptor	{ std::move(that.program_descriptor) }
@@ -53,11 +47,9 @@ elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object(std::
 }
 elf64_executable::elf64_executable(elf64_executable const& that) : elf64_object(that),
 	stack_size			{ that.stack_size },
-	tls_size			{ that.tls_size },
 	frame_base			{ that.frame_base },
 	frame_extent		{ that.frame_extent },
 	stack_base			{ that.stack_base },
-	tls_base			{ that.tls_base },
 	entry				{ that.entry },
 	frame_tag			{ that.frame_tag },
 	program_descriptor	{ that.program_descriptor }
@@ -72,41 +64,55 @@ bool elf64_executable::xvalidate()
 }
 void elf64_executable::process_headers()
 {
-	elf64_object::process_headers();
-	stack_size	= std::max(stack_size, min_blk_sz);
-	tls_size	= std::max(tls_size, min_blk_sz);
+	if(!segments) elf64_object::process_headers();
+	stack_size			= std::max(stack_size, min_blk_sz);
+	size_t tls_seg		= 0UZ;
 	for(size_t n = 0; n < ehdr().e_phnum; n++)
 	{
-		elf64_phdr const& h = phdr(n);
+		elf64_phdr const& h 	= phdr(n);
+		uintptr_t addr			= h.p_vaddr;
+		if(is_tls(h)) {
+			tls_seg				= n;
+			tls_align			= h.p_align;
+			continue;
+		}
 		if(!is_load(h)) continue;
-		if(!frame_base || frame_base > h.p_vaddr)
-			frame_base	= addr_t(h.p_vaddr);
-		frame_extent	= std::max(frame_extent, addr_t(h.p_vaddr + h.p_memsz));
+		if(!frame_base || frame_base > addr)
+			frame_base	= addr_t(addr);
+		frame_extent	= std::max(frame_extent, addr_t(addr + h.p_memsz));
 	}
 	frame_base			= frame_base.page_aligned();
 	stack_base			= frame_extent.next_page_aligned();
-	tls_base			= stack_base.plus(stack_size).next_page_aligned();
-	frame_extent		= tls_base.plus(tls_size).next_page_aligned();
+	frame_extent		= stack_base.plus(stack_size).next_page_aligned();
+	if(tls_seg) {
+		tls_base		= frame_extent.alignup(tls_align);
+		frame_extent	= tls_base.plus(phdr(tls_seg).p_memsz).next_page_aligned();
+	}
 }
 bool elf64_executable::load_segments()
 {
-	frame_tag = std::addressof(fm.create_frame(frame_base, frame_extent)); 
+	frame_tag			= std::addressof(fm.create_frame(frame_base, frame_extent)); 
 	if(__unlikely(!frame_tag)) { panic("[PRG/EXEC] failed to allocate frame"); return false; }
 	for(size_t n = 0, i = 0; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h = phdr(n);
 		if(!is_load(h) || !h.p_memsz) continue;
-		addr_t addr			= segment_vaddr(n);
+		addr_t addr			= is_tls(h) ? tls_base : segment_vaddr(n);
 		addr_t target		= addr.trunc(h.p_align);
 		size_t full_size	= h.p_memsz + (addr - target);
 		addr_t img_dat		= segment_ptr(n);
-		if(__unlikely(!frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h)))) {
+		block_descriptor* b	= frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h));
+		if(__unlikely(!b)) {
 			panic("[PRG/EXEC] failed allocate blocks for executable");
 			return false;
 		}
+		if(is_tls(h)) {
+			tls_base		= b->virtual_start;
+			tls_size		= b->size;
+		}
 		addr_t idmap		= frame_tag->translate(addr);
 		array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
-		if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
+		if(h.p_memsz > h.p_filesz) array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz));
 		new(std::addressof(segments[i++])) program_segment_descriptor
 		{ 
 			.absolute_addr	= idmap, 
@@ -118,9 +124,7 @@ bool elf64_executable::load_segments()
 		};
 	}
 	block_descriptor* s		= frame_tag->add_block(stack_size, stack_base, page_size, true, false);
-	block_descriptor* t		= frame_tag->add_block(tls_size, tls_base, page_size, true, false);
-	if(__unlikely(!s || !t)) { panic("[PRG/EXEC] failed to allocate blocks for stack/tls");	return false; }
-	frame_extent			= std::max(frame_extent, t->virtual_start.plus(t->size).next_page_aligned());
+	if(__unlikely(!s)) { panic("[PRG/EXEC] failed to allocate block for stack"); return false; }
 	frame_tag->extent		= frame_extent;
 	frame_tag->mapped_max	= frame_extent;
 	new(std::addressof(program_descriptor)) elf64_program_descriptor
@@ -128,11 +132,12 @@ bool elf64_executable::load_segments()
 		.frame_ptr		= frame_tag,
 		.prg_stack		= s->virtual_start,
 		.stack_size		= s->size,
-		.prg_tls		= t->virtual_start, 
-		.tls_size		= t->size,
+		.prg_tls		= tls_base, 
+		.tls_size		= tls_size,
+		.tls_align		= tls_align,
 		.entry			= entry,
 		.ld_path		= nullptr,
-		.ld_path_count	= 0,
+		.ld_path_count	= 0UZ,
 		.object_handle	= this
 	};
 	return true;

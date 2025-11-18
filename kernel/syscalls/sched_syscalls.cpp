@@ -15,21 +15,19 @@ extern "C"
 	[[noreturn]] void handle_exit()
 	{
 		cli();
-		task_ctx* task	= active_task_context();
-		if(task->is_user())
-		{
-			task->terminate();
-			tl.destroy_task(task->get_pid());
-			task_lock_flag = false;
-		}
-		if(task_t* next	= sch.fallthrough_yield(); next != nullptr) { fallthrough_reentry(next); }
-		else { kernel_reentry(); }
+		task_ctx* task		= active_task_context();
+		task->terminate();
+		tl.destroy_task(task->get_pid());
+		task_lock_flag		= false;
+		task_t* next		= sch.fallthrough_yield();
+		if(next != nullptr) fallthrough_reentry(next);
+		else kernel_reentry();
 		__builtin_unreachable();
 	}
-	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context(); task->is_user()) { new(out) tms{ active_task_context()->get_times() }; return sys_time(nullptr); } else return -ENOSYS; }
+	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context()) { new(out) tms(task->get_times()); return sys_time(nullptr); } else return -ENOSYS; }
 	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
-	spid_t syscall_getpid() { if(task_ctx* task = active_task_context(); task->is_user()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
-	void syscall_exit(int n) { if(task_ctx* task = active_task_context(); task->is_user()) { task->set_exit(n); } }
+	spid_t syscall_getpid() { if(task_ctx* task = active_task_context()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
+	void syscall_exit(int n) { if(task_ctx* task = active_task_context()) { task->set_exit(n); } }
 	int syscall_sleep(unsigned long seconds)
 	{
 		task_ctx* task	= active_task_context();
@@ -74,8 +72,9 @@ extern "C"
 	}
 	spid_t syscall_vfork()
 	{
-		task_ctx* task = active_task_context();
-		if(task_ctx* clone = tl.task_vfork(task); clone && sch.set_wait_untimed(task->header()))
+		task_ctx* task	= active_task_context();
+		task_ctx* clone	= tl.task_vfork(task); 
+		if(clone && sch.set_wait_untimed(task->header()))
 		{
 			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
 			task->add_child(clone);

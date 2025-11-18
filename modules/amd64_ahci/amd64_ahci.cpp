@@ -60,6 +60,10 @@ bool amd64_ahci::initialize()
 	__abar          = addr_t((bar & 0x00000001U) ? static_cast<uintptr_t>(bar & 0xFFFFFFFCU) : static_cast<uintptr_t>(bar & 0xFFFFFFF0U));
 	__dma_size      = __at_least(__cap_size(ooos::get_element<0>(__cfg), 2097152UZ), 65536UZ);
 	__dma_block     = allocate_dma(__dma_size, (bar & BIT(3)) != 0);
+	if(!__dma_block) {
+		log("E: failed to allocate DMA");
+		return false;
+	}
 	barrier();
 	__ahci_pci_space->command.bus_master           = true;
 	__ahci_pci_space->command.memory_space         = true;

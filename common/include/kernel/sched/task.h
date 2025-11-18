@@ -38,7 +38,7 @@ __task_prio
 	PVNORM  = 1,
 	PVHIGH  = 2,
 	PVEXTRA = 3,
-	PVSYS   = 4
+	PVSYS   = 4,
 } priority_val;
 typedef enum __sm_action
 {
@@ -113,12 +113,12 @@ typedef struct __task_control
 		uint8_t             skips;                      // the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.    
 		task_signal_info_t* signal_info;                // points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
 		uint32_t            wait_ticks_delta;           // for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
-		spid_t              parent_pid;                 // a negative number indicates no parent
-		pid_t               task_id;                    // pid or thread-id; kernel itself is zero (i.e. a task with a parent pid of zero is a kernel task)
+		spid_t              parent_pid;                 // a negative number indicates no parent; a zero here means the task is actually a kernel thread
+		pid_t               task_id;                    // PID of process; kernel itself is zero
 		uid_t               task_uid;                   // WIP
 		gid_t               task_gid;                   // WIP
 	} attribute(packed, aligned(1));
-} __pack tcb_t;
+} __pack tctl_t;
 typedef struct __task_info
 {
 	addr_t      self;                               // self-pointer
@@ -126,12 +126,15 @@ typedef struct __task_info
 	regstate_t  saved_regs;                         // this stores all the register states when the process is not active
 	uint16_t    quantum_val;                        // base amount of time allocated per timeslice
 	uint16_t    quantum_rem     CXX_INI(0US);       // amount of time remaining in the current timeslice
-	tcb_t       task_ctl;                           // this contains information related to the process' scheduling information, as well as PID and signaling info
+	tctl_t      task_ctl;                           // this contains information related to the process' scheduling, as well as PID and signaling info
 	fx_state    fxsv            CXX_INI();          // stored state for floating-point registers
 	uint64_t    run_split       CXX_INI(0UL);       // timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
 	uint64_t    run_time        CXX_INI(0UL);       // total runtime
-	uint64_t    sys_time        CXX_INI(0UL);       // approximate time in syscalls (for the moment, all syscalls simply count as 1)
-	addr_t      tls_block;                          // pointer to the end of the process TLS template block (WIP)
+	uint64_t    sys_time        CXX_INI(0UL);       // approximate time in syscalls (measured via CPU timestamps)
+	addr_t      tls_master;                         // pointer to the t master TLS template block for the program (WIP)
+	size_t		tls_size;							// size of the TLS template block (WIP)
+	size_t		tls_align;							// alignment requirement for the TLS block (WIP)
+	addr_t		thread_ptr;							// pointer to the currrent thread's info block (WIP)
 	size_t      num_child_procs;                    // how many children are in the array below
 	addr_t*     child_procs;                        // array of pointers to child process info structures (for things like process-tree termination)
 	addr_t      next            CXX_INI(nullptr);   // updated when the scheduling event fires.
@@ -140,5 +143,39 @@ inline void fx_save(task_t* tx) { asm volatile("fxsave %0" : "=m"(tx->fxsv) :: "
 inline void fx_restore(task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx->fxsv) :: "memory"); }
 #ifdef __cplusplus
 }
+#endif
+#if defined(__cplusplus) && (defined(__KERNEL__) || defined(__LIBK__))
+constexpr priority_val& operator++(priority_val& pv) noexcept
+{
+	using enum priority_val;
+	int8_t qv			= static_cast<int8_t>(pv) + 1SC;
+	return (pv			= static_cast<priority_val>(qv));
+}
+constexpr priority_val& operator--(priority_val& pv)
+{
+	using enum priority_val;
+	int8_t qv			= static_cast<int8_t>(pv) - 1SC;
+	return (pv			= static_cast<priority_val>(qv));
+}
+constexpr priority_val operator+(priority_val pv, int8_t i)
+{
+	using enum priority_val;
+	int8_t qv 			= static_cast<int8_t>(pv) + i;
+	return static_cast<priority_val>(qv);
+}
+constexpr priority_val operator-(priority_val pv, int8_t i)
+{
+	using enum priority_val;
+	int8_t qv			= static_cast<int8_t>(pv) - i;
+	return static_cast<priority_val>(qv);
+}
+enum class execution_state
+{
+	STOPPED     = 0,
+	RUNNING     = 1,
+	TERMINATED  = 2,
+	IN_DYN_EXIT = 3
+};
+constexpr register_t ini_flags	= 0x00000202UL;
 #endif
 #endif

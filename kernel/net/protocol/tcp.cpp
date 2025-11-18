@@ -39,7 +39,7 @@ std::streamsize tcp_session_buffer::xsputn(const char* s, size_type n)
 }
 std::streamsize tcp_session_buffer::xsgetn(char* s, size_type n)
 {
-	size_type avail = static_cast<size_type>(__in_region.__max - __in_region.__end);
+	size_type avail = static_cast<size_type>(__in_region.__max() - __in_region.__end);
 	n               = std::min(n, avail);
 	array_copy(s, __in_region.__end, n);
 	gbump(n);

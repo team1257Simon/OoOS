@@ -144,7 +144,10 @@ elf64_object::elf64_object(elf64_object const& that) :
 	segments			{ sd_alloc.allocate(num_seg_descriptors) },
 	symtab				{ that.symtab.total_size, that.symtab.entry_size, ch_alloc.allocate(that.symtab.total_size) },
 	symstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.symstrtab.total_size) },
-	shstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.shstrtab.total_size) }
+	shstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.shstrtab.total_size) },
+	tls_base			{ that.tls_base },
+	tls_size			{ that.tls_size },
+	tls_align			{ that.tls_align }
 {
 	if(__loaded)
 	{
@@ -163,7 +166,10 @@ elf64_object::elf64_object(elf64_object&& that) :
 	segments			{ that.segments },
 	symtab				{ std::move(that.symtab) },
 	symstrtab			{ std::move(that.symstrtab) },
-	shstrtab			{ std::move(that.shstrtab) }
+	shstrtab			{ std::move(that.shstrtab) },
+	tls_base			{ that.tls_base },
+	tls_size			{ that.tls_size },
+	tls_align			{ that.tls_align }
 {
 	that.__validated			= false;
 	that.__loaded				= false;
@@ -171,6 +177,9 @@ elf64_object::elf64_object(elf64_object&& that) :
 	that.__image_start			= nullptr;
 	that.segments				= nullptr;
 	that.num_seg_descriptors	= 0;
+	that.tls_base				= nullptr;
+	that.tls_size				= 0UZ;
+	that.tls_align				= 0UZ;
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {

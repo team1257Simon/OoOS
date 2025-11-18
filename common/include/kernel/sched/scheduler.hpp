@@ -1,9 +1,11 @@
 #ifndef __SCHED
 #define __SCHED
+#include "arch/cpu_time.hpp"
 #include "sched/task_queue.hpp"
 #include "sched/deferred_action.hpp"
 #include "atomic"
 #include "vector"
+#include "kdebug.hpp"
 class scheduler
 {
 	prio_level_task_queues __queues;
@@ -12,6 +14,7 @@ class scheduler
 	unsigned int __tick_rate;
 	unsigned int __cycle_divisor;
 	std::atomic<unsigned> __tick_cycles;
+	cpu_timer_stopwatch __timestamp_stopwatch;
 	bool __running;
 	size_t __total_tasks;
 	ooos::deferred_action_queue __deferred_actions;
@@ -42,6 +45,9 @@ public:
 	static bool init_instance() noexcept;
 	static bool has_init() noexcept;
 	static scheduler& get() noexcept;
+	static void add_worker_task(task_t* worker);
+	static void remove_worker_task(task_t* worker);
+	static inline time_t ms_to_ticks(time_t ms) noexcept { return __instance.__deferred_actions.compute_ticks(ms); }
 	template<ooos::__internal::__extended_runnable FT> static inline void defer_millis(time_t delay_ms, FT&& action) { __instance.__deferred_actions.add(delay_ms, std::forward<FT>(action)); }
 	template<ooos::__internal::__extended_runnable FT> static inline void defer_sec(time_t delay_sec, FT&& action) { defer_millis(delay_sec * 1000UL, std::forward<FT>(action)); }
 };

@@ -2,7 +2,7 @@
 #include "errno.h"
 static bool check_kill(task_ctx* caller, task_list::iterator target)
 { 
-	if(caller->is_system() || static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true;
+	if(static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true;
 	for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } 
 	return false;
 }
@@ -16,7 +16,7 @@ static void kill_one(task_ctx* target, int sig, bool force = false)
 static int kill_all(task_ctx* caller, int sig)
 {
 	for(task_list::iterator target = tl.begin(); target != tl.end(); target++)
-		if(!target->is_system() && check_kill(caller, target)) 
+		if(check_kill(caller, target)) 
 			kill_one(target.base(), sig);
 	return 0;
 }
@@ -27,7 +27,7 @@ extern "C"
 	long syscall_sigret()
 	{
 		task_ctx* task	= active_task_context();
-		if(!task->task_sig_info.pending_signals.btr(task->task_sig_info.active_signal)) { return -EINVAL; }
+		if(!task->task_sig_info.pending_signals.btr(task->task_sig_info.active_signal)) return -EINVAL;
 		register_t rax	= task->end_signal();
 		if(task->task_sig_info.pending_signals) task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals), false); // state is already saved
 		return rax;
@@ -41,22 +41,18 @@ extern "C"
 	}
 	int syscall_kill(long pid, unsigned long sig)
 	{
-		if(__unlikely(sig > num_signals)) { return -EINVAL; }
+		if(__unlikely(sig > num_signals)) return -EINVAL;
 		task_ctx* task = active_task_context();
 		if(pid < 0) { return kill_all(task, static_cast<int>(sig)); }
 		task_list::iterator target = tl.find(pid);
 		if(target == tl.end()) return -ESRCH;
-		if(!target->is_system())
-		{ 
-			if(__unlikely(!check_kill(task, target))) return -EPERM;
-			if(sig) kill_one(target.base(), static_cast<int>(sig));
-			return 0;
-		}
-		return -EPERM;
+		if(__unlikely(!check_kill(task, target))) return -EPERM;
+		if(sig) kill_one(target.base(), static_cast<int>(sig));
+		return 0;
 	}
 	int syscall_raise(int sig)
 	{
-		if(__unlikely(sig > num_signals)) { return -EINVAL; }
+		if(__unlikely(sig > num_signals)) return -EINVAL;
 		kill_one(active_task_context(), sig);
 		return 0;
 	}

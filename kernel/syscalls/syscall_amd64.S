@@ -129,12 +129,12 @@
 	.type	syscall_getvpwent,		@function
 	.type	syscall_getvpwuid,		@function
 	.type	syscall_getvpwuid,		@function
+	.type	syscall_getvpwnam,		@function
 	.type	on_invalid_syscall,		@function
-	.type	syscall_vec,			@object
-	.type	syscv_end,				@object
 	.type	kernel_cr3,				@object
-	.type	__held_pc,				@object
-	.type	__held_rbx,				@object
+	.type	task_lock_flag,			@object
+	.type	syscall_vec,			@object
+	.align	16
 syscall_vec:
 	.quad syscall_exit				// 0
 	.quad syscall_sleep				// 1
@@ -188,32 +188,58 @@ syscall_vec:
 	.quad syscall_getvpwent			// 49
 	.quad syscall_getvpwuid			// 50
 	.quad syscall_getvpwnam			// 51
-syscv_end:
+.L_syscv_end:
 	.quad on_invalid_syscall		// handler for out-of-range syscalls
 	.size syscall_vec,				.-syscall_vec	
-	.size syscv_end,				.-syscv_end
-__held_pc:
+	.size .L_syscv_end,				.-.L_syscv_end
+	.align	8
+.L_held_pc:
 	.quad	0
-	.size	__held_pc,				.-__held_pc
-__held_rbx:
+	.size	.L_held_pc,				.-.L_held_pc
+	.align	8
+.L_held_rbx:
 	.quad	0
-	.size	__held_rbx,				.-__held_rbx
+	.size	.L_held_rbx,			.-.L_held_rbx
+	.align	8
+.L_held_rax:
+	.quad	0
+	.size	.L_held_rax,			.-.L_held_rax
+	.align	8
+.L_held_rdx:
+	.quad	0
+	.size	.L_held_rdx,			.-.L_held_rdx
+	.align	8
+.L_pre_timestamp:
+.L_pre_timestamp_lo:
+	.zero	4
+	.size	.L_pre_timestamp_lo,	.-.L_pre_timestamp_lo
+.L_pre_timestamp_hi:
+	.zero	4
+	.size	.L_pre_timestamp_hi,	.-.L_pre_timestamp_hi
+	.size	.L_pre_timestamp,		.-.L_pre_timestamp
+	.align	8
+.L_post_timestamp:
+.L_post_timestamp_lo:
+	.zero	4
+	.size	.L_post_timestamp_lo,	.-.L_post_timestamp_lo
+.L_post_timestamp_hi:
+	.zero	4
+	.size	.L_post_timestamp_hi,	.-.L_post_timestamp_hi
 task_lock_flag:
 	.byte	0
 	.size	task_lock_flag,			.-task_lock_flag
 	.text
 do_syscall:
-	movq	%rbx,					__held_rbx
+	movb	$1,						task_lock_flag
+	xchgq	%rbx,					.L_held_rbx
 	movq	kernel_cr3,				%rbx
 	movq	%rbx,					%cr3
-	movq	__held_rbx,				%rbx
+	xorq	%rbx,					%rbx
+	xchgq	%rbx,					.L_held_rbx
 	syscall_state_save
-	incq	%gs:T_OFFS(sys_time)
 	movq	%gs:T_OFFS(self),		%rcx
 	swapgs
 	movq	%rcx,					%gs:T_OFFS(next)
-	movb	$1,						%cl
-	lock 	xchgb	%cl,			task_lock_flag
 	movq	%gs:T_OFFS(rsp),		%rsp
 	movq	%gs:T_OFFS(rbp),		%rbp
 	movq	%r8,					%rcx
@@ -226,24 +252,55 @@ do_syscall:
 	jl		2f
 	leaq	syscall_vec,			%r10
 	leaq	(%r10, %rax, 8),		%rax
-	cmpq	$syscv_end,				%rax
+	cmpq	$.L_syscv_end,			%rax
 	jg		2f
 	movq	(%rax),					%rax
+	//		Inconveniently, we can't choose where the RDTSC instruction places its result
+	xchgq	%rax,					.L_held_rax
+	xchgq	%rdx,					.L_held_rdx
+	//		Using MFENCE -> LFENCE -> RDTSC -> LFENCE is a DWIS sequence that guarantees the ordering of RDTSC between the preceding and following operations
+	mfence
+	lfence
+	rdtsc
+	lfence
+	//		The result here will be subtracted from the value measured afterward to compute the addend for the task's timer
+	movl	%eax,					.L_pre_timestamp_lo
+	movl	%edx,					.L_pre_timestamp_hi
+	xorq	%rax,					%rax
+	xorq	%rdx,					%rdx
+	xchgq	%rax,					.L_held_rax
+	xchgq	%rdx,					.L_held_rdx
 	pushf
 	sti
 1:
 	call	*%rax
-	popf
 user_reentry:
+	popf
+	xchgq	%rax,					.L_held_rax
+	xchgq	%rdx,					.L_held_rdx
+	mfence
+	lfence
+	rdtsc
+	lfence
+	movl	%eax,					.L_post_timestamp_lo
+	movl	%edx,					.L_post_timestamp_hi
+	movq	.L_pre_timestamp,		%rdx
+	movq	.L_post_timestamp,		%rax
+	subq	%rdx,					%rax
+	addq	%rax,					%gs:T_OFFS(sys_time)
+	xorq	%rax,					%rax
+	xorq	%rdx,					%rdx
+	xchgq	%rax,					.L_held_rax
+	xchgq	%rdx,					.L_held_rdx
 	fxsave	%gs:T_OFFS(fxsv)
 	swapgs
 	syscall_state_restore
-	movq	%rcx,					__held_pc
+	xchgq	%rcx,					.L_held_pc
 	movq	%gs:T_OFFS(cr3),		%rcx
 	movq	%rcx,					%cr3
-	xorb	%cl,					%cl
-	lock 	xchgb	%cl,			task_lock_flag
-	movq	__held_pc,				%rcx
+	xorq	%rcx,					%rcx
+	xchgq	%rcx,					.L_held_pc
+	movb 	$0,						task_lock_flag
 	sysretq
 	.size	user_reentry,			.-user_reentry
 2:

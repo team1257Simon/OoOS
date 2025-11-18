@@ -77,13 +77,13 @@ extern "C"
 	}
 	int syscall_write(int fd, char* ptr, int len)
 	{
-		filesystem* fsptr	= get_task_vfs();
-		ptr					= translate_user_pointer(ptr);
+		filesystem* fsptr		= get_task_vfs();
+		ptr						= translate_user_pointer(ptr);
 		if(!fsptr) return -ENOSYS;
 		if(!ptr) return -EFAULT;
 		try
 		{ 
-			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) 
+			if(file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd)) 
 			{
 				if(__unlikely(!n->current_mode.out)) return -EACCES;
 				n->write(ptr, len);
@@ -94,7 +94,7 @@ extern "C"
 		} 
 		catch(std::logic_error&)
 		{
-			task_ctx* task = active_task_context();
+			task_ctx* task	= active_task_context();
 			force_signal(task, 13); // SIGPIPE
 			return -EPIPE;
 		}
@@ -346,13 +346,13 @@ extern "C"
 	}
 	int syscall_mknodat(int fd, const char* name, mode_t mode, dev_t dev)
 	{
-		filesystem* fsptr = get_task_vfs();
+		filesystem* fsptr			= get_task_vfs();
 		if(__unlikely(!fsptr)) return -ENOSYS;
-		name = translate_user_pointer(name);
+		name						= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
-		vnode* node = fsptr->get_fd_node(fd);
+		vnode* node					= fsptr->get_fd_node(fd);
 		if(__unlikely(!node)) return -EBADF;
-		directory_vnode* dirnode = dynamic_cast<directory_vnode*>(node);
+		directory_vnode* dirnode	= dynamic_cast<directory_vnode*>(node);
 		if(__unlikely(!node)) return -ENOTDIR;
 		try { fsptr->create_node(dirnode, name, mode, dev); }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }

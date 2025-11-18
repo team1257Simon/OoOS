@@ -48,7 +48,7 @@ extern "C"
 // constexpr implies inline in c++, and inline functions exist in c
 #define constexpr inline
 #endif
-typedef struct spinlock_t { volatile bool : 8; } __pack *mutex_t;
+typedef struct spinlock_t { volatile bool : 8; } *mutex_t;
 typedef struct __jmp_buf
 {
     uint64_t rbx;

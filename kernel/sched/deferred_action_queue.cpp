@@ -5,16 +5,15 @@ namespace ooos
 	deferred_action_queue::~deferred_action_queue() noexcept = default;
 	void deferred_action_queue::tick()
 	{
-		bool pass = false;
+		bool pass		= false;
 		for(deferred_action& action : *this)
 		{
 			action();
-			// pop() only invalidates the front iterator, so this is safe in this case (it will be advanced before further use no matter what)
 			if(!pass && action.is_done()) this->pop();
-			else pass = true;
+			else pass	= true;
 		}
 	}
-	time_t deferred_action_queue::compute_ticks(time_t millis)
+	time_t deferred_action_queue::compute_ticks(time_t millis) const noexcept
 	{
 		long double ms 		= static_cast<long double>(millis);
 		long double result 	= ms * ticks_per_ms;

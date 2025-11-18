@@ -25,6 +25,7 @@ protected:
 	uintptr_t fini_array_ptr{};
 	size_t init_array_size{};
 	size_t fini_array_size{};
+	bool static_tls{};
 	elf64_dynsym_index symbol_index;
 	virtual bool xload() override;
 	virtual bool load_syms() override;
@@ -32,6 +33,7 @@ protected:
 	virtual bool load_preinit();
 	virtual void process_dyn_entry(size_t i);
 	virtual addr_t translate_in_frame(addr_t addr);
+	virtual void process_flags(elf_dyn_flags flags);
 	void process_relas(elf64_rela* rela, size_t n);
 	void process_dynamic();
 	void find_and_process_relas();
@@ -46,6 +48,7 @@ public:
 	constexpr std::vector<std::string> const& get_dependencies() const noexcept { return dependencies; }
 	constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
 	constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
+	constexpr bool is_static_tls() const noexcept { return static_tls; }
 	constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
 	constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
 	constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }

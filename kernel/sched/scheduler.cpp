@@ -1,23 +1,22 @@
 #include "sched/scheduler.hpp"
 #include "isr_table.hpp"
 #include "arch/arch_amd64.h"
+using enum priority_val;
 extern "C" 
 {
 	extern std::atomic<bool> task_change_flag;
 	extern std::atomic<bool> task_lock_flag;
 	extern std::atomic<int8_t> task_signal_code;
 	extern task_t kproc;
+	extern void direct_reentry(task_t*) attribute(noreturn);
 }
-scheduler scheduler::__instance{};
-bool scheduler::__has_init = false;
-constexpr static priority_val incr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) + 1); }
-constexpr static priority_val decr_pv(priority_val v) { return static_cast<priority_val>(static_cast<int8_t>(v) - 1); }
+scheduler scheduler::__instance;
+bool scheduler::__has_init;
+scheduler::scheduler() = default;
 bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() noexcept { return has_init() || (__has_init	= __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
 void scheduler::register_task(task_t* task) { __queues[task->task_ctl.prio_base].push(task); __total_tasks++; }
-using enum priority_val;
-scheduler::scheduler() = default;
 bool scheduler::__set_untimed_wait(task_t* task)
 {
 	try 
@@ -71,7 +70,7 @@ void scheduler::__do_task_change(task_t* cur, task_t* next)
 	next->quantum_rem	= next->quantum_val;
 	cur->next			= next;
 	task_change_flag.store(true);
-	uint64_t ts			= sys_time(nullptr);
+	uint64_t ts			= __timestamp_stopwatch.get();
 	next->run_split		= ts;
 	cur->run_time		+= (ts - cur->run_split);
 }
@@ -84,7 +83,7 @@ bool scheduler::unregister_task(task_t* task)
 		if(i != __queues[PVSYS].end()) result	= __queues[PVSYS].erase(i) != 0;
 		asm volatile("mfence" ::: "memory");
 	}
-	for(priority_val pv	= task->task_ctl.prio_base; pv <= PVEXTRA; pv	= incr_pv(pv))
+	for(priority_val pv	= task->task_ctl.prio_base; pv <= PVEXTRA; ++pv)
 	{
 		task_pl_queue::const_iterator i		= __queues[pv].find(task, true); 
 		if(i != __queues[pv].end())	result	= __queues[pv].erase(i) != 0;
@@ -92,27 +91,22 @@ bool scheduler::unregister_task(task_t* task)
 	}
 	__sync_synchronize();
 	if(__total_tasks) __total_tasks--;
+	if(__unlikely(!__total_tasks)) set_gs_base(std::addressof(kproc));
 	return result;
 }
 bool scheduler::unregister_task_tree(task_t* task)
 {
 	if(!task->num_child_procs || !task->child_procs) return unregister_task(task);
 	bool result		= true;
-	task_ctx* xtask	= task->self;
-	for(task_ctx* c : xtask->child_tasks)	result &= unregister_task_tree(c->task_struct.self);
+	for(size_t i = 0UZ; i < task->num_child_procs; i++)
+		result		&= unregister_task(task->child_procs[i]);
 	return result && unregister_task(task);
 }
 task_t* scheduler::select_next()
 {
-	// first check system priority (I/O drivers and such will go here; most of the time they will be sleeping)
-	if(!__queues[PVSYS].empty())
-	{
-		if(__queues[PVSYS].at_end())
-			__queues[PVSYS].restart();
-		return __queues[PVSYS].pop();
-	}
+	if(__unlikely(!__total_tasks)) return nullptr;
 	task_t* target		= nullptr;
-	for(priority_val pv	= PVEXTRA; pv >= PVLOW; pv	= decr_pv(pv))
+	for(priority_val pv	= PVSYS; pv >= PVLOW; --pv)
 	{
 		task_pl_queue& queue			= __queues[pv];
 		if(!queue.empty())
@@ -128,19 +122,19 @@ task_t* scheduler::select_next()
 			} while(result->task_ctl.block && i != j);
 			if(result->task_ctl.block) continue;
 			result->task_ctl.skips		= 0UC;
-			if(result->task_ctl.prio_base != pv)
+			if(result->task_ctl.prio_base != pv && pv != PVSYS)
 			{ 
 				__queues[pv].unpop();
-				__queues[pv].transfer_next(__queues[deescalate(pv)]);
+				__queues[pv].transfer_next(__queues[pv - 1SC]);
 				fence();
 			}
 			target						= result;
-			for(priority_val qv	= decr_pv(pv); qv >= PVLOW; qv	= decr_pv(qv)) 
+			for(priority_val qv	= pv - 1SC; qv >= PVLOW; --qv) 
 			{ 
 				queue.on_skipped(); 
 				if(queue.skip_flag()) 
 				{ 
-					priority_val rv						= escalate(qv);
+					priority_val rv						= qv + 1SC;
 					queue.transfer_next(__queues[rv]);
 					__queues[rv].back()->task_ctl.skips	= 0UC;
 				}
@@ -215,11 +209,16 @@ __nointerrupts bool scheduler::init() noexcept
 	}));
 	interrupt_table::add_interrupt_callback([this](byte idx, qword) -> void
 	{
-		if(idx < 0x20UC && get_task_base() != std::addressof(kproc))
-			if(task_ctx* task		= get_task_base()->self; task->is_user())
-				task_signal_code	= exception_signals[idx];
+		if(idx < 0x20UC)
+		{
+			task_t* task_base	= get_task_base();
+			uint64_t fmagic		= task_base->frame_ptr.deref<uint64_t>();
+			if(fmagic			!= uframe_magic) return;
+			task_signal_code	= exception_signals[idx];
+		}
 	});
 	__total_tasks 					= 0UZ;
+	__timestamp_stopwatch.start();
 	return true;
 }
 task_t* scheduler::yield()
@@ -234,10 +233,24 @@ task_t* scheduler::yield()
 }
 task_t* scheduler::fallthrough_yield()
 {
-	if(!__total_tasks)
-		return nullptr;
-	task_t* next			= select_next();
-	if(next)
-		next->quantum_rem	= next->quantum_val;
+	if(!__total_tasks) return nullptr;
+	task_t* next				= select_next();
+	if(next) next->quantum_rem	= next->quantum_val;
 	return next;
+}
+void scheduler::add_worker_task(task_t* w)
+{
+	__instance.register_task(w);
+	task_t* cur = get_task_base();
+	if(cur == std::addressof(kproc))
+		asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(w) : "memory");
+}
+void scheduler::remove_worker_task(task_t* w)
+{
+	task_t* cur			= get_task_base();
+	if(cur == w) {
+		task_t* next	= __instance.fallthrough_yield();
+		if(next && next != cur) __instance.__do_task_change(cur, next);
+	}
+	__instance.unregister_task(w);
 }

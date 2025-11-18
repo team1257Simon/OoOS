@@ -137,9 +137,9 @@ template<std::unsigned_integral IT> constexpr auto operator<=>(IT a, fat32_longn
 template<std::unsigned_integral IT> constexpr auto operator<=>(fat32_longname_entry const& a, IT b) noexcept -> decltype(a.ordinal <=> std::declval<IT>()) { return a.ordinal <=> b; }
 constexpr bool operator==(fat32_longname_entry const& a, fat32_longname_entry const& b) noexcept { return __builtin_memcmp(&a, &b, sizeof(fat32_longname_entry)) == 0; }
 class fat32;
-class fat32_allocation_table : protected std::__impl::__dynamic_buffer<uint32_t, std::allocator<uint32_t>>
+class fat32_allocation_table : protected std::__impl::__dynamic_buffer<uint32_t, std::allocator<uint32_t>, false>
 {
-    typedef std::__impl::__dynamic_buffer<uint32_t, std::allocator<uint32_t>> __base;
+    typedef std::__impl::__dynamic_buffer<uint32_t, std::allocator<uint32_t>, false> __base;
     size_t __num_sectors;
     uint64_t __start_sector;
     fat32* __parent;

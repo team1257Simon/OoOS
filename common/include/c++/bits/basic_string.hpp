@@ -145,7 +145,6 @@ namespace std
 		constexpr int compare(basic_string const& that) const { const size_type __my_size = this->size(); const size_type __your_size = that.size(); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that.data(), __len); return (result != 0) ? result : __size_compare(__my_size, __your_size); }
 		constexpr int compare(const_pointer that) const { const size_type __my_size = this->size(); const size_type __your_size = traits_type::length(that); const size_type __len = std::min(__my_size, __your_size); int result = traits_type::compare(this->data(), that, __len); return (result != 0) ? result : __size_compare(__my_size, __your_size); }
 		extension constexpr size_type count(value_type val) const { size_type result{}; for(const_iterator i = begin(); i != end(); i++) { if(*i == val) result++; } return result; }
-		extension constexpr basic_string without(value_type val) const { basic_string result(size() - count(val), get_allocator()); for(const_iterator i = begin(); i != end(); i++) { if(*i != val) result.append(*i); } return result; }
 		extension constexpr size_type count_of(basic_string const& that) const { size_type result{}; for(const_iterator i = that.begin(); i != that.end(); i++) result += count(*i); return result; }
 		extension constexpr basic_string without_any_of(basic_string const& that) const { basic_string result(size() - count_of(that), get_allocator()); for(const_iterator i = begin(); i != end(); i++) { if(!that.contains(*i)) result.append(*i); } return result; }
 	};

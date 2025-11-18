@@ -61,6 +61,8 @@ namespace ooos
 			constexpr void __destroy() noexcept { allocator_type::deallocate(__base, __capacity()); }
 			constexpr reference __peek() noexcept { return *__curr; }
 			constexpr const_reference __peek() const noexcept { return *__curr; }
+			constexpr reference __peek_back() noexcept { return *pclamp(__last - 1Z, __curr, __last); }
+			constexpr const_reference __peek_back() const noexcept { return *pclamp(__last - 1Z, __curr, __last); }
 			constexpr void __expand_splice()
 			{
 				size_type s         = __capacity();
@@ -256,6 +258,9 @@ namespace ooos
 		constexpr void push(value_type&& v) requires(__move_assign || __move_construct) { create_if_empty(4UZ); __buffer.__push(std::move(v)); }
 		constexpr value_type pop() { return __buffer.__pop(); }
 		constexpr reference peek() noexcept { return __buffer.__peek(); }
+		constexpr const_reference peek() const noexcept { return __buffer.__peek(); }
+		constexpr reference peek_back() noexcept { return __buffer.__peek_back(); }
+		constexpr const_reference peek_back() const noexcept { return __buffer.__peek_back(); }
 		constexpr void bump(size_type n) noexcept { __buffer.__adv_pop(n); }
 		constexpr void flush() noexcept requires(__trivial) { __buffer.__flush(); }
 		template<typename ... Args> requires(std::constructible_from<value_type, Args...>)

@@ -24,11 +24,11 @@ namespace std
 		basic_streambuf& operator=(basic_streambuf const&) = default;
 		char_type* eback() const { return __in_region.__begin;  }
 		char_type* gptr()  const { return __in_region.__end;    }
-		char_type* egptr() const { return __in_region.__max;    }
+		char_type* egptr() const { return __in_region.__max(); }
 		void gbump(int n)        { __in_region.__end += n;      }
 		char_type* pbase() const { return __out_region.__begin; }
 		char_type* pptr()  const { return __out_region.__end;   }
-		char_type* epptr() const { return __out_region.__max;   }
+		char_type* epptr() const {  return __out_region.__max(); }
 		void pbump(int n)        { __out_region.__end += n;     }
 		void setp(char_type* pbeg, char_type* pend)                         { __out_region.__set_ptrs(pbeg, pbeg, pend); }
 		void setp(char_type* pbeg, char_type* pcur, char_type* pend)        { __out_region.__set_ptrs(pbeg, pcur, pend); }

@@ -15,6 +15,7 @@ protected:
 	bool symbolic{};
 	bool global{};
 	addr_t entry{};
+	virtual void process_headers() override;
 	virtual bool load_segments() override;
 	virtual bool xvalidate() override;
 	virtual void xrelease() override;

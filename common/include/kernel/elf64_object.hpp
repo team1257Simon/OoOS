@@ -16,6 +16,9 @@ protected:
 	elf64_sym_table symtab{};
 	elf64_string_table symstrtab{};
 	elf64_string_table shstrtab{};
+	addr_t tls_base{};
+	size_t tls_size{};
+	size_t tls_align{};
 	constexpr elf64_ehdr const& ehdr() const noexcept { return __image_start.deref<elf64_ehdr>(); }
 	constexpr elf64_phdr const& phdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_phoff + n * ehdr().e_phentsize).deref<elf64_phdr>(); }
 	constexpr elf64_shdr const& shdr(size_t n) const noexcept { return __image_start.plus(ehdr().e_shoff + n * ehdr().e_shentsize).deref<elf64_shdr>(); }
@@ -38,6 +41,9 @@ protected:
 	void cleanup();
 public:
 	constexpr elf64_sym const& get_sym(size_t idx) const noexcept { return symtab[idx]; }
+	constexpr addr_t module_tls() const noexcept  { return tls_base; }
+	constexpr size_t module_tls_size() const noexcept  { return tls_size; }
+	constexpr size_t module_tls_align() const noexcept { return tls_align; }
 	elf64_object(file_vnode* n);
 	elf64_object(addr_t start, size_t size);
 	elf64_object(elf64_object const&);

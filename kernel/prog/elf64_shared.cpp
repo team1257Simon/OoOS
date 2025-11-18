@@ -52,8 +52,8 @@ static const char* find_so_name(addr_t image_start, file_vnode* so_file)
 			size_t strtab_off	= 0UZ, name_off = 0UZ;
 			for(size_t j = 0; j < n; j++)
 			{
-				if(dyn_ent[j].d_tag == DT_STRTAB) strtab_off = dyn_ent[j].d_ptr;
-				else if(dyn_ent[j].d_tag == DT_SONAME) name_off = dyn_ent[j].d_val;
+				if(dyn_ent[j].d_tag == DT_STRTAB) strtab_off	= dyn_ent[j].d_ptr;
+				else if(dyn_ent[j].d_tag == DT_SONAME) name_off	= dyn_ent[j].d_val;
 				if(strtab_off && name_off) break;
 			}
 			if(!(strtab_off && name_off)) return so_file->name();
@@ -80,6 +80,19 @@ program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_
 	if(__unlikely(seg_idx < 0)) return nullptr;
 	return segments + seg_idx;
 }
+void elf64_shared_object::process_headers()
+{
+	elf64_dynamic_object::process_headers();
+	size_t total_size = 0UZ, tls_idx = 0UZ;
+	for(size_t n = 0; n < ehdr().e_phnum; n++)
+	{
+		elf64_phdr const& h			= phdr(n);
+		if(is_tls(h)) tls_idx 		= n;
+		else if(is_load(h))
+			total_size				= addr_t(total_size).alignup(h.p_align).plus(h.p_memsz);
+	}
+	if(tls_idx) tls_base			= virtual_load_base.plus(total_size).alignup(phdr(tls_idx).p_align);
+}
 bool elf64_shared_object::xvalidate()
 {
 	if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("[PRG/EXEC] not an object for the correct machine"); return false; }
@@ -95,20 +108,26 @@ bool elf64_shared_object::load_segments()
 	size_t i = 0;
 	for(size_t n = 0; n < ehdr().e_phnum; n++)
 	{
-		elf64_phdr const& h = phdr(n);
+		elf64_phdr const& h			= phdr(n);
 		if(!h.p_memsz) continue;
 		if(is_load(h))
 		{
-			addr_t addr				= virtual_load_base.plus(h.p_vaddr);
+			addr_t addr				= is_tls(h) ? tls_base : virtual_load_base.plus(h.p_vaddr);
 			addr_t target			= addr.trunc(h.p_align);
 			size_t full_size		= h.p_memsz + (addr - target);
 			block_descriptor* bd	= frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h), is_global());
 			if(!bd) throw std::bad_alloc{};
+			if(is_tls(h))
+			{
+				tls_base			= bd->virtual_start;
+				tls_size			= bd->size;
+				tls_align			= bd->align;
+			}
 			addr_t idmap			= frame_tag->translate(addr);
 			size_t actual_size		= kernel_memory_mgr::aligned_size(target, full_size);
 			if(fm.count_references(bd->virtual_start) < 2)
 			{
-				addr_t img_dat = segment_ptr(n);
+				addr_t img_dat		= segment_ptr(n);
 				array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
 				if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
 			}

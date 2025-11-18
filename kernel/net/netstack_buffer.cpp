@@ -43,7 +43,7 @@ std::streamsize netstack_buffer::xsputn(const char* s, size_type n)
 }
 std::streamsize netstack_buffer::xsgetn(char* s, size_type n)
 {
-	size_type avail	= static_cast<size_type>(__in_region.__max - __in_region.__end);
+	size_type avail	= static_cast<size_type>(__in_region.__max() - __in_region.__end);
 	n				= std::min(n, avail);
 	array_copy(s, __in_region.__end, n);
 	gbump(n);
@@ -63,10 +63,10 @@ netstack_buffer::netstack_buffer(size_type initial_rx_cap, size_type initial_tx_
 { 
 	__in_region.__begin		= __allocator.allocate(initial_rx_cap);
 	__in_region.__end		= __in_region.__begin;
-	__in_region.__max		= __in_region.__begin + initial_rx_cap;
+	__in_region.__cap		= initial_rx_cap;
 	__out_region.__begin	= __allocator.allocate(initial_tx_cap);
 	__out_region.__end		= __out_region.__begin;
-	__out_region.__max		= __out_region.__begin + initial_tx_cap;
+	__out_region.__cap		= initial_tx_cap;
 	array_zero(__in_region.__begin, initial_rx_cap);
 	array_zero(__out_region.__begin, initial_tx_cap); 
 }

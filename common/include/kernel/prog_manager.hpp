@@ -15,10 +15,10 @@ class prog_manager : std::list<elf64_executable>, std::list<elf64_dynamic_execut
 	constexpr static off_t __dynamic_node_offset = offsetof(typename __dynamic_base::__node_type, __data);
 #pragma GCC diagnostic pop
 	static prog_manager __instance;
-	elf64_executable* __add(addr_t img_start, size_t img_size, size_t stack_sz, size_t tls_sz);
+	elf64_executable* __add(addr_t img_start, size_t img_size, size_t stack_sz);
 	prog_manager();
 public:
-	elf64_executable* add(file_vnode* exec_file, size_t stack_sz = S04, size_t tls_sz = S04);
+	elf64_executable* add(file_vnode* exec_file, size_t stack_sz = S04);
 	elf64_executable* clone(elf64_executable const* exec);
 	void remove(elf64_executable* e);
 	static prog_manager& get_instance();

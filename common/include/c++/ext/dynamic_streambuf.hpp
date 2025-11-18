@@ -7,9 +7,9 @@ namespace std
 	extension namespace ext
 	{
 		template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>, std::allocator_object<CT> AT = std::allocator<CT>>
-		class dynamic_streambuf : public virtual std::basic_streambuf<CT, TT>, protected std::__impl::__dynamic_buffer<CT, AT>
+		class dynamic_streambuf : public virtual std::basic_streambuf<CT, TT>, protected std::__impl::__dynamic_buffer<CT, AT, false>
 		{
-			using __dynamic_base = typename std::__impl::__dynamic_buffer<CT, AT>;
+			using __dynamic_base = typename std::__impl::__dynamic_buffer<CT, AT, false>;
 		public:
 			using typename std::basic_streambuf<CT, TT>::char_type;
 			using typename std::basic_streambuf<CT, TT>::traits_type;

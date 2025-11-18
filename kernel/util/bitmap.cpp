@@ -1,9 +1,15 @@
 #include "util/bitmap.hpp"
 #include "string"
 constexpr off_t ulsize = CHAR_BIT * sizeof(unsigned long);
-off_t bitmap_scan_single_zero(const unsigned long* bitmap, size_t num_ulongs) { for(size_t i = 0; i < num_ulongs; i++) { if(unsigned long ul = ~(bitmap[i])) return (ulsize * i) + __builtin_ctzl(ul); } return -1L; }
 void bitmap_set_bit(unsigned long* bitmap, off_t bit_pos) { bitmap[bit_pos / ulsize] |= (1 << (bit_pos % ulsize)); }
 void bitmap_clear_bit(unsigned long* bitmap, off_t bit_pos) { bitmap[bit_pos / ulsize] &= ~(1 << (bit_pos % ulsize)); }
+off_t bitmap_scan_single_zero(const unsigned long* bitmap, size_t num_ulongs)
+{
+	for(size_t i = 0; i < num_ulongs; i++)
+		if(unsigned long ul = ~(bitmap[i]))
+			return (ulsize * i) + __builtin_ctzl(ul);
+	return -1L;
+}
 off_t bitmap_scan_chain_zeroes(const unsigned long* bitmap, size_t num_ulongs, size_t num_zeroes)
 {
 	if(num_zeroes == 1) return bitmap_scan_single_zero(bitmap, num_ulongs);
@@ -20,7 +26,7 @@ off_t bitmap_scan_chain_zeroes(const unsigned long* bitmap, size_t num_ulongs, s
 	else for(size_t i = 0; i < num_ulongs; i++)
 	{
 		unsigned long cur	= bitmap[i];
-		if(num_zeroes == ulsize && !cur) return i * ulsize; 
+		if(num_zeroes == ulsize && !cur) return i * ulsize;
 		unsigned long mask	= ~(~0UL >> num_zeroes);
 		for(off_t j = 0; j < static_cast<off_t>(ulsize - num_zeroes); j++) if(!(cur & (mask << j))) return i * ulsize + j;
 	}

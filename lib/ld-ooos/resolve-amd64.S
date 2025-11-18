@@ -14,7 +14,7 @@ resolve:
 	popq	%rcx
 	popq	%rsi
 	popq	%rdi
-	jmp	 *%rax
+	jmp		*%rax
 1:
 	movq	$6,				last_error_action(%rip)
 	negq	%rax

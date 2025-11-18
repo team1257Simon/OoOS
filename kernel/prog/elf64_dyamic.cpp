@@ -15,6 +15,7 @@ addr_t elf64_dynamic_object::dyn_segment_ptr() const { return dyn_segment_idx ? 
 addr_t elf64_dynamic_object::translate_in_frame(addr_t addr) { return get_frame()->translate(addr); }
 elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :	elf64_object(start, size), symbol_index(symstrtab, symtab) {}
 elf64_dynamic_object::elf64_dynamic_object(file_vnode* n) : elf64_object(n), symbol_index(symstrtab, symtab) {}
+void elf64_dynamic_object::process_flags(elf_dyn_flags flags) { if(flags & DF_STATIC_TLS) static_tls = true; }
 elf64_dynamic_object::~elf64_dynamic_object()
 {
 	symbol_index.destroy_if_present();
@@ -173,6 +174,9 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 		break;
 	case DT_RUNPATH:
 		ld_paths		= std::move(std::ext::split(std::forward<std::string>(symstrtab[dyn_entries[i].d_val]), ':'));
+		break;
+	case DT_FLAGS:
+		process_flags(static_cast<elf_dyn_flags>(dyn_entries[i].d_val));
 		break;
 	default:
 		break;

@@ -6,7 +6,7 @@ namespace std
 	{
 		namespace __impl
 		{
-			unordered_map<const type_info*, __generic_ptr_container> __delegate_ptr_mgr_inst{ 256 };
+			unordered_map<const type_info*, __generic_ptr_container> __delegate_ptr_mgr_inst(256);
 			size_t __generic_ptr_container::__target_idx()
 			{
 				if(__last_idx)
