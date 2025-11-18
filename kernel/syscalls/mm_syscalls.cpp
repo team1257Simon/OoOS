@@ -19,7 +19,7 @@ extern "C"
 		if(__unlikely(ctask_frame->magic != uframe_magic)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 		if(__unlikely(!len || size_t(offset) > len || offset % page_size)) return addr_t(static_cast<uintptr_t>(-EINVAL));
 		if(__unlikely(!prot)) return nullptr;
-		addr_t min(std::max(mmap_min_addr, ctask_frame->mapped_max.full));
+		addr_t min								= std::max(mmap_min_addr, ctask_frame->mapped_max);
 		if(min != min.page_aligned()) min		= min.plus(page_size).page_aligned();
 		if(addr && !(flags & MAP_FIXED)) addr	= std::max(min, addr).page_aligned();
 		else if(__unlikely(addr && (addr < min || addr != addr.page_aligned()))) return addr_t(static_cast<uintptr_t>(-EINVAL));

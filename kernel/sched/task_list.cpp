@@ -5,8 +5,7 @@
 #include "stdlib.h" // rand()
 using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
-task_list task_list::__instance{};
-task_list& task_list::get() { return __instance; }
+task_list task_list::instance{};
 pid_t task_list::__upid() const noexcept
 {
 	pid_t pid;

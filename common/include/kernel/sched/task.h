@@ -1,6 +1,6 @@
 #ifndef __TASK
 #define __TASK
-#include "sys/types.h"
+#include <sys/types.h>
 #if !(defined(__KERNEL__) || defined(__LIBK__))
 typedef int32_t spid_t;
 typedef void* addr_t;
@@ -11,7 +11,7 @@ typedef bool spinlock_t;
 #define __align(n) __attribute__((aligned(n)))
 #define attribute(...) __attribute__((__VA_ARGS__))
 #elif defined(__cplusplus)
-#include "kernel/libk_decls.h"
+#include <libk_decls.h>
 typedef qword sigset_t;
 #else
 typedef unsigned long sigset_t;

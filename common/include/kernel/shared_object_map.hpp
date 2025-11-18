@@ -28,7 +28,7 @@ public:
 //  The purpose of this is really just to allow for theoretical future changes to that data structure without breaking this code.
 //  This offset is used to compute the location of a containing node given a shared object's handle.
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
-	constexpr static off_t node_offset = offsetof(__node_type, __data.__my_storage);
+	constexpr static off_t node_offset	= offsetof(__node_type, __data.__my_storage);
 #pragma GCC diagnostic pop
 	using typename __base::iterator;
 	using typename __base::const_iterator;

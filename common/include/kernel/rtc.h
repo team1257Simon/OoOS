@@ -22,11 +22,11 @@ int syscall_gettimeofday(struct timeval* restrict tm, void* restrict tz);
 }
 class rtc
 {
-	uint8_t __century_register      {};
-	std::atomic<rtc_time> __my_time {};
-	bool __is_bcd                   {};
-	bool __is_12h                   {};
-	rtc() = default;
+	uint8_t __century_register;
+	std::atomic<rtc_time> __my_time;
+	bool __is_bcd;
+	bool __is_12h;
+	constexpr rtc() = default;
 	static rtc __instance;
 public:
 	void rtc_time_update() volatile noexcept;
@@ -35,7 +35,7 @@ public:
 	rtc_time get_time() volatile;
 	uint64_t get_timestamp() volatile;
 };
-constexpr timeval timestamp_to_timeval(uint64_t ts) { return { ts, 0UL }; }
+constexpr timeval timestamp_to_timeval(uint64_t ts) { return timeval(ts, 0UL); }
 #endif
 struct fadt_t* find_fadt();
 #endif

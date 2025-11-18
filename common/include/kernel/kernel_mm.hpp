@@ -34,10 +34,10 @@ constexpr uint64_t uframe_magic     = 0xACED17C001B012;
 constexpr size_t page_size          = PAGESIZE;
 constexpr size_t page_table_length  = PT_LEN;
 constexpr size_t region_size        = page_size * page_table_length;
-constexpr uintptr_t mmap_min_addr   = 0x500000UL;
+constexpr addr_t mmap_min_addr   	= 0x500000LA;
 constexpr size_t block_index_range  = max_exponent - min_exponent;
 constexpr size_t max_block_index    = block_index_range - 1;
-constexpr addr_t sysres_base        { 0xFFFF800000000000 };
+constexpr addr_t sysres_base        = 0xFFFF800000000000LA;
 struct block_tag
 {
 	uint64_t magic          { block_magic };

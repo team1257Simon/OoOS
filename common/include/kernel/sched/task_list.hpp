@@ -8,7 +8,6 @@ typedef std::vector<const char*> cstr_vec;
 class task_list : std::set<task_ctx>
 {
 	using __base = std::set<task_ctx>;
-	static task_list __instance;
 	constexpr task_list() : __base{} {}
 	pid_t __upid() const noexcept;
 	friend class task_ctx;
@@ -24,7 +23,7 @@ public:
 	task_ctx* create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, spid_t parent_pid = -1, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3US, pid_t pid = 0);
 	task_ctx* task_vfork(task_ctx const* ctx);
 	bool destroy_task(pid_t pid);
-	static task_list& get();
+	static task_list instance;
 };
-#define tl task_list::get()
+#define tl task_list::instance
 #endif

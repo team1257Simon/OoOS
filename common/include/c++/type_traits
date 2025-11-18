@@ -34,28 +34,28 @@ namespace std
 	template<typename T> using __type_identity_t = typename __type_identity<T>::type;
 	namespace __detail
 	{
-		template<typename T, typename...> using __first_t = T;
-		template<typename...BN> auto __or_fn(int) -> __first_t<false_type, __enable_if_t<!bool(BN::value)> ...>;
-		template<typename...BN> auto __or_fn(...) -> true_type;
-		template<typename...BN> auto __and_fn(int) -> __first_t<true_type, __enable_if_t<bool(BN::value)> ...>;
-		template<typename...BN> auto __and_fn(...) -> false_type;
-		template<typename, typename B1, typename...BN> struct __disjunction_impl { using type = B1; };
-		template<typename B1, typename B2, typename...BN> struct __disjunction_impl<__enable_if_t <!bool(B1::value)>, B1, B2, BN...> { using type = typename __disjunction_impl<void, B2, BN...>::type; };
-		template<typename, typename B1, typename...BN> struct __conjunction_impl { using type = B1; };
-		template<typename B1, typename B2, typename...BN> struct __conjunction_impl<__enable_if_t <bool(B1::value)>, B1, B2, BN...> { using type = typename __conjunction_impl<void, B2, BN...>::type; };
+		template<typename T, typename ... RTs> using __first_t = T;
+		template<typename ... BN> auto __or_fn(int) -> __first_t<false_type, __enable_if_t<!bool(BN::value)>...>;
+		template<typename ... BN> auto __or_fn(...) -> true_type;
+		template<typename ... BN> auto __and_fn(int) -> __first_t<true_type, __enable_if_t<bool(BN::value)>...>;
+		template<typename ... BN> auto __and_fn(...) -> false_type;
+		template<typename, typename B1, typename ... BN> struct __disjunction_impl { using type = B1; };
+		template<typename B1, typename B2, typename ... BN> struct __disjunction_impl<__enable_if_t<!bool(B1::value)>, B1, B2, BN...> { using type = typename __disjunction_impl<void, B2, BN...>::type; };
+		template<typename, typename B1, typename ... BN> struct __conjunction_impl { using type = B1; };
+		template<typename B1, typename B2, typename ... BN> struct __conjunction_impl<__enable_if_t<bool(B1::value)>, B1, B2, BN...> { using type = typename __conjunction_impl<void, B2, BN...>::type; };
 	}
-	template<typename...BN> struct __or_ : decltype(__detail::__or_fn <BN...> (0)) {};
-	template<typename...BN> struct __and_ : decltype(__detail::__and_fn <BN...> (0)) {};
+	template<typename ... BN> struct __or_ : decltype(__detail::__or_fn<BN...>(0)) {};
+	template<typename ... BN> struct __and_ : decltype(__detail::__and_fn<BN...>(0)) {};
 	template<typename P> struct __not_ : __bool_constant<!bool(P::value)> {};
-	template<typename...BN> inline constexpr bool __or_v = __or_<BN...>::value;
-	template<typename...BN> inline constexpr bool __and_v = __and_<BN...>::value;
-	template<typename...BN> struct conjunction : __detail::__conjunction_impl <void, BN...>::type {};
+	template<typename ... BN> inline constexpr bool __or_v = __or_<BN...>::value;
+	template<typename ... BN> inline constexpr bool __and_v = __and_<BN...>::value;
+	template<typename ... BN> struct conjunction : __detail::__conjunction_impl<void, BN...>::type {};
 	template<> struct conjunction<> : true_type {};
-	template<typename...BN> struct disjunction : __detail::__disjunction_impl <void, BN...>::type {};
+	template<typename ... BN> struct disjunction : __detail::__disjunction_impl<void, BN...>::type {};
 	template<> struct disjunction<> : false_type {};
 	template<typename P> struct negation : __not_<P>::type {};
-	template<typename...BN> inline constexpr bool conjunction_v = conjunction<BN...>::value;
-	template<typename...BN> inline constexpr bool disjunction_v = disjunction<BN...>::value;
+	template<typename ... BN> inline constexpr bool conjunction_v = conjunction<BN...>::value;
+	template<typename ... BN> inline constexpr bool disjunction_v = disjunction<BN...>::value;
 	template<typename P> inline constexpr bool negation_v = negation<P>::value;
 	template<typename> struct is_reference;
 	template<typename> struct is_function;
@@ -133,12 +133,12 @@ namespace std
 	template<typename T, typename CT> struct __is_member_pointer_helper<T CT::*> : public true_type {};
 	template<typename T> struct is_member_pointer : public __is_member_pointer_helper<__remove_cv_t<T>>::type {};
 	template<typename, typename> struct is_same;
-	template<typename T, typename...Ts> using __is_one_of = __or_<is_same<T, Ts> ...>;
-	__extension__ template<typename T> using __is_signed_integer = __is_one_of<__remove_cv_t<T>, signed char, signed short, signed int, signed long, signed long long>;
-	__extension__ template<typename T> using __is_unsigned_integer = __is_one_of<__remove_cv_t<T>, unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long>;
+	template<typename T, typename...Ts> using __is_one_of = __or_<is_same<T, Ts>...>;
+	extension template<typename T> using __is_signed_integer = __is_one_of<__remove_cv_t<T>, signed char, signed short, signed int, signed long, signed long long>;
+	extension template<typename T> using __is_unsigned_integer = __is_one_of<__remove_cv_t<T>, unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long>;
 	template<typename T> using __is_standard_integer = __or_<__is_signed_integer<T>, __is_unsigned_integer<T>>;
 	template<typename T> struct is_object : public __or_<is_scalar<T>, is_array<T>, is_union<T>, is_class<T>>::type {};
-	template<typename...> using __void_t = void;
+	template<typename ... Ts> using __void_t = void;
 	template<typename> struct is_const : public false_type {};
 	template<typename T> struct is_const<T const> : public true_type {};
 	template<typename> struct is_volatile : public false_type {};
@@ -151,12 +151,12 @@ namespace std
 	template<typename T> struct is_final : public __bool_constant<__is_final(T)> {};
 	template<typename T> struct is_abstract : public __bool_constant<__is_abstract(T)> {};
 	template<typename T, bool = is_arithmetic<T>::value> struct __is_signed_helper : public false_type {};
-	template<typename T> struct __is_signed_helper<T, true> : public __bool_constant<T(-1) < T(0)> {};
-	template<typename T> struct is_signed : public __is_signed_helper<T>::type {};
-	template<typename T> struct is_unsigned : public __and_<is_arithmetic<T>, __not_<is_signed<T>>>::type {};
+	template<typename T> struct __is_signed_helper<T, true> : public __bool_constant<(T(-1) < T(0))> {};
 	template<typename T, typename U = T&&> U __declval(int);
 	template<typename T> T __declval(long);
 	template<typename T> auto declval() noexcept -> decltype(__declval<T>(0));
+	template<typename T> struct is_signed : public __is_signed_helper<T>::type {};
+	template<typename T> struct is_unsigned : public __and_<is_arithmetic<T>, __not_<is_signed<T>>>::type {};
 	template<typename> struct remove_all_extents;
 	template<typename T> struct __is_array_known_bounds : public false_type {};
 	template<typename T, size_t S> struct __is_array_known_bounds<T[S]> : public true_type {};
@@ -203,7 +203,7 @@ namespace std
 	template<typename T, typename...Args> using __is_trivially_constructible_impl = __bool_constant<__is_trivially_constructible(T, Args...)>;
 	template<typename T, typename...Args> struct is_trivially_constructible : public __is_trivially_constructible_impl<T, Args...> { ARGCHK(T); };
 	template<typename T> struct is_trivially_default_constructible: public __is_trivially_constructible_impl<T> { ARGCHK(T); };
-	struct __do_is_implicitly_default_constructible_impl { template<typename T> static void __helper(const T & ); template<typename T> static true_type __test(const T &, decltype(__helper <const T &> ({})) * = 0); static false_type __test(...); };
+	struct __do_is_implicitly_default_constructible_impl { template<typename T> static void __helper(const T&); template<typename T> static true_type __test(const T&, decltype(__helper<const T&>({}))* = nullptr); static false_type __test(...); };
 	template<typename T> struct __is_implicitly_default_constructible_impl : public __do_is_implicitly_default_constructible_impl { using type = decltype(__test(declval<T>())); };
 	template<typename T> struct __is_implicitly_default_constructible_safe : public __is_implicitly_default_constructible_impl<T>::type {};
 	template<typename T> struct __is_implicitly_default_constructible : public __and_<__is_constructible_impl<T>, __is_implicitly_default_constructible_safe<T>>::type {};
@@ -227,10 +227,10 @@ namespace std
 	template<typename T, typename U> struct is_same : public false_type {};
 	template<typename T> struct is_same<T, T> : public true_type {};
 	template<typename BT, typename DT> struct is_base_of : public __bool_constant<__is_base_of(BT, DT)> {};
-	template<typename FT, typename TT, bool = __or_<is_void <FT>, is_function<TT>, is_array<TT>>::value> struct __is_convertible_helper { using type = typename is_void<TT>::type; };
+	template<typename FT, typename TT, bool = __or_<is_void<FT>, is_function<TT>, is_array<TT>>::value> struct __is_convertible_helper { using type = typename is_void<TT>::type; };
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wctor-dtor-privacy"
-	template<typename FT, typename TT> class __is_convertible_helper<FT, TT, false> { template<typename T1> static void __test_aux(T1) noexcept; template<typename F1, typename T1, typename = decltype(__test_aux <T1> (declval<F1>()))> static true_type __test(int); template<typename, typename> static false_type __test(...); public: using type = decltype(__test <FT, TT> (0)); };
+	template<typename FT, typename TT> class __is_convertible_helper<FT, TT, false> { template<typename T1> static void __test_aux(T1) noexcept; template<typename F1, typename T1, typename = decltype(__test_aux <T1> (declval<F1>()))> static true_type __test(int); template<typename, typename> static false_type __test(...); public: using type = decltype(__test<FT, TT>(0)); };
 	#pragma GCC diagnostic pop
 	template<typename FT, typename TT> struct is_convertible : public __is_convertible_helper<FT, TT>::type {};
 	template<typename TET, typename FET> using __is_array_convertible = is_convertible<FET(*)[], TET(*)[]>;
@@ -486,9 +486,9 @@ namespace std
 	template<typename T, size_t N> inline constexpr bool is_array_v<T[N]> = true;
 	template<typename T> inline constexpr bool is_pointer_v = is_pointer<T>::value;
 	template<typename T> inline constexpr bool is_lvalue_reference_v = false;
-	template<typename T> inline constexpr bool is_lvalue_reference_v<T &> = true;
+	template<typename T> inline constexpr bool is_lvalue_reference_v<T&> = true;
 	template<typename T> inline constexpr bool is_rvalue_reference_v = false;
-	template<typename T> inline constexpr bool is_rvalue_reference_v<T &&> = true;
+	template<typename T> inline constexpr bool is_rvalue_reference_v<T&&> = true;
 	template<typename T> inline constexpr bool is_member_object_pointer_v = is_member_object_pointer<T>::value;
 	template<typename T> inline constexpr bool is_member_function_pointer_v = is_member_function_pointer<T>::value;
 	template<typename T> inline constexpr bool is_enum_v = __is_enum(T);
@@ -618,8 +618,8 @@ namespace std
 	template<typename T1, typename T2, typename ... Ts> struct common_reference<T1, T2, Ts...> : __common_type_fold<common_reference <T1, T2>, __common_type_pack<Ts...>> {};
 	template<typename T1, typename T2, typename ... Ts> struct __common_type_fold<common_reference <T1, T2>, __common_type_pack<Ts...>, void_t<common_reference_t <T1, T2>>> : public common_reference<common_reference_t <T1, T2>, Ts...> {};
 	template<typename T> struct __is_nonvolatile_trivially_copyable { enum { __value = __is_trivially_copyable(T) }; };
-	template<typename T> struct __is_nonvolatile_trivially_copyable<volatile T> { enum { __value = 0 }; };
-	template<typename OIT, typename IIT> struct __memcpyable { enum { __value = 0 }; };
+	template<typename T> struct __is_nonvolatile_trivially_copyable<volatile T> { enum { __value = false }; };
+	template<typename OIT, typename IIT> struct __memcpyable { enum { __value = false }; };
 	template<typename T> struct __memcpyable<T*, T*> : __is_nonvolatile_trivially_copyable<T> {};
 	template<typename T> struct __memcpyable<T*, const T*> : __is_nonvolatile_trivially_copyable<T> {};
 	template<typename T> constexpr inline bool __is_nonvolatile_trivially_copyable_v = __is_nonvolatile_trivially_copyable<T>::__value;

@@ -380,7 +380,19 @@ typedef struct attribute(packed) __pt_entry
 	bool execute_disable         : 1;
 } pt_entry;
 typedef pt_entry* paging_table;
-#ifdef __cplusplus 
+/**
+ * This structure serves two major purposes.
+ * First, it makes decoding virtual addresses into page table indices less of an exercise in patience.
+ * Second, it makes pointer arithmetic on open-coded structs look a little bit (read: a lot) less ugly.
+ * It can be implicitly converted from any pointer type, and explicitly converted from any integral type.
+ * It also implicitly converts to both pointer types and unsigned long.
+ * An explicit type-pun operation is therefore implemented via U* ptr_to_u = addr_t(ptr_to_t);
+ * The same explicit type-punning can be achieved with addr_t(ptr_to_t).as<U>(), or with addr_t(&ref_to_t).deref<U>() for references.
+ * If a function returns addr_t, the effect is to simulate C-style malloc being able to return a pointer without requiring an explicit cast.
+ * While most of its functions are marked as constexpr for theoretical future compatibility when things become more advanced,
+ * 	these will never evaluate in constant expressions because they require type punning pointers.
+ */
+#ifdef __cplusplus
 typedef union __pack alignas(uintptr_t) __may_alias __vaddr
 #else
 typedef struct attribute(packed, aligned(8)) __vaddr
@@ -1015,6 +1027,8 @@ typedef struct __s_be64
 // As such, I opted to omit the (frankly, pretty ugly in this context) underscore and create normal-looking suffixes for my literal operators.
 // UC stands for unsigned char, US stands for unsigned short, SC stands for signed char, and S stands for short.
 // USBE stands for unsigned short big-endian, UBE stands for unsigned big-endian, and ULBE stands for unsigned long big-endian.
+// LA stands for literal address. Obviously, it can't be used to create an arbitrary constexpr pointer.
+// Instead, it's useful when establishing a minimum, maximum, or default value for some pointer to a generic memory location.
 #pragma GCC diagnostic ignored "-Wliteral-suffix"
 constexpr uint8_t operator""UC(unsigned long long i) noexcept { return static_cast<uint8_t>(i); }
 constexpr uint16_t operator""US(unsigned long long i) noexcept { return static_cast<uint16_t>(i); }
@@ -1023,6 +1037,7 @@ constexpr int16_t operator""S(unsigned long long i) noexcept { return static_cas
 constexpr __be16 operator""USBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
 constexpr __be32 operator""UBE(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
 constexpr __be64 operator""ULBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
+constexpr addr_t operator""LA(unsigned long long i) noexcept { return addr_t(i); }
 #include <sys/types.h>
 #pragma GCC diagnostic pop
 #else
