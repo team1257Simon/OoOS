@@ -38,50 +38,60 @@ constexpr addr_t mmap_min_addr   	= 0x500000LA;
 constexpr size_t block_index_range  = max_exponent - min_exponent;
 constexpr size_t max_block_index    = block_index_range - 1;
 constexpr addr_t sysres_base        = 0xFFFF800000000000LA;
+constexpr addr_t thread_info_base	= 0x0000400000000000LA;
 struct block_tag
 {
-	uint64_t magic          { block_magic };
+	uint64_t magic			= block_magic;
 	size_t block_size;
 	size_t held_size;
-	block_tag* left_split   { nullptr };
-	block_tag* right_split  { nullptr };
-	block_tag* previous     { nullptr };
-	block_tag* next         { nullptr };
+	block_tag* left_split;
+	block_tag* right_split;
+	block_tag* previous;
+	block_tag* next;
 	int index;
 	uint32_t align_bytes;
-	constexpr block_tag() = default;
+	constexpr block_tag()	= default;
 	constexpr block_tag(size_t size, size_t held, int idx, block_tag* left, block_tag* right, block_tag* prev = nullptr, block_tag* nxt = nullptr, uint32_t align = 0U) noexcept :
-		block_size      { size },
-		held_size       { held },
-		left_split      { left },
-		right_split     { right },
-		previous        { prev },
-		next            { nxt },
-		index           { idx },
-		align_bytes     { align }
-						{}
-	constexpr block_tag(size_t size, size_t held, int idx = -1, uint32_t align = 0U) noexcept : block_size{ size }, held_size{ held }, index { idx }, align_bytes { align } {}
+		block_size	{ size },
+		held_size	{ held },
+		left_split	{ left },
+		right_split	{ right },
+		previous	{ prev },
+		next		{ nxt },
+		index		{ idx },
+		align_bytes	{ align }
+					{}
+	constexpr block_tag(size_t size, size_t held, int idx = -1, uint32_t align = 0U) noexcept :
+		block_size	{ size },
+		held_size	{ held },
+		left_split	{ nullptr },
+		right_split	{ nullptr },
+		previous	{ nullptr },
+		next		{ nullptr },
+		index		{ idx },
+		align_bytes	{ align }
+					{}
 	constexpr size_t allocated_size() const noexcept { return block_size - sizeof(block_tag); }
+	constexpr size_t aligned_size() const noexcept { return block_size - (align_bytes + sizeof(block_tag)); }
 	constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
 	constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }
 	block_tag* split();
 } __pack;
 struct kframe_tag
 {
-	uint64_t magic{ kframe_magic };
-	uint16_t complete_regions[block_index_range]{};
-	block_tag* available_blocks[block_index_range]{};
+	uint64_t magic			= kframe_magic;
+	uint16_t complete_regions[block_index_range];
+	block_tag* available_blocks[block_index_range];
 private:
-	spinlock_t __my_mutex{};
+	spinlock_t __my_mutex;
 public:
-	constexpr kframe_tag() = default;
+	constexpr kframe_tag()	= default;
 	void __nointerrupts insert_block(block_tag* blk, int idx) noexcept;
 	void __nointerrupts remove_block(block_tag* blk) noexcept;
 	addr_t attribute(noinline, nointerrupts) allocate(size_t size, size_t align = 0UL) noexcept;
 	void attribute(noinline, nointerrupts) deallocate(addr_t ptr, size_t align = 0UL) noexcept;
 	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL) noexcept;
 	addr_t array_allocate(size_t num, size_t size) noexcept;
-protected:
 	block_tag* __nointerrupts create_tag(size_t size, size_t align) noexcept;
 	block_tag* __nointerrupts melt_left(block_tag* tag) noexcept;
 	block_tag* __nointerrupts melt_right(block_tag* tag) noexcept;
@@ -113,33 +123,30 @@ struct block_descriptor
 };
 struct uframe_tag
 {
-	uint64_t magic  { uframe_magic };
+	uint64_t magic;
 	paging_table pml4;
 	addr_t base;
 	addr_t extent;
 	addr_t mapped_max;
 	addr_t sysres_wm;
 	addr_t sysres_extent;
-	addr_t dynamic_extent;
-	std::vector<addr_t> kernel_allocated_blocks;
-	std::vector<block_descriptor> usr_blocks;
-	std::vector<block_descriptor*> shared_blocks;
+	addr_t dynamic_extent{};
+	std::vector<addr_t> kernel_allocated_blocks{};
+	std::vector<block_descriptor> usr_blocks{};
+	std::vector<block_descriptor*> shared_blocks{};
 private:
 	spinlock_t __my_mutex;
 	void __lock();
 	void __unlock();
 public:
-	constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept : 
+	constexpr uframe_tag(paging_table cr3, addr_t st_base, addr_t st_extent) noexcept :
+		magic					{ uframe_magic },
 		pml4                    { cr3 },
 		base                    { st_base },
 		extent                  { st_extent },
 		mapped_max              { st_extent },
 		sysres_wm               { sysres_base },
-		sysres_extent           { sysres_base },
-		dynamic_extent          { nullptr },
-		kernel_allocated_blocks {},
-		usr_blocks              {},
-		shared_blocks           {}
+		sysres_extent           { sysres_base }
 								{}
 	friend constexpr std::strong_ordering operator<=>(uframe_tag const& __this, uframe_tag const& __that) noexcept { return __this.pml4 <=> __that.pml4; }
 	bool shift_extent(ptrdiff_t amount);
@@ -222,24 +229,19 @@ private:
 } status_byte, gb_status[512];
 class kernel_memory_mgr
 {
-	spinlock_t __heap_mutex;                    // Calls to kernel allocations lock this mutex to prevent comodification
-	spinlock_t __user_mutex;                    // Separate mutex for userspace calls because userspace memory will be split from kernel blocks
-	gb_status* const __status_bytes;            // Array of 512-byte arrays
-	size_t const __num_status_bytes;            // Length of said array
-	uintptr_t const __kernel_heap_begin;        // Convenience pointer to the end of above array
-	uintptr_t __watermark;                      // Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
-	addr_t __suspended_cr3;                     // Saved cr3 value for a frame suspended in order to access kernel paging structures
-	uframe_tag* __active_frame;
+	spinlock_t __heap_mutex{};					// Calls to kernel allocations lock this mutex to prevent comodification
+	spinlock_t __user_mutex{};					// Separate mutex for userspace calls because userspace memory will be split from kernel blocks
+	gb_status* const __status_bytes;			// Array of 512-byte arrays
+	size_t const __num_status_bytes;			// Length of said array
+	uintptr_t const __kernel_heap_begin;		// Convenience pointer to the end of above array
+	uintptr_t __watermark{};					// Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+	addr_t __suspended_cr3{};					// Saved cr3 value for a frame suspended in order to access kernel paging structures
+	uframe_tag* __active_frame{};				// Tag for the frame currently being modified, if any
 	static kernel_memory_mgr* __instance;
 	constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
-		__heap_mutex                {},
-		__user_mutex                {},
 		__status_bytes              { status_bytes },
 		__num_status_bytes          { num_status_bytes },
-		__kernel_heap_begin         { kernel_heap_addr },
-		__watermark                 { 0UL },
-		__suspended_cr3             { nullptr },
-		__active_frame              { nullptr }
+		__kernel_heap_begin         { kernel_heap_addr }
 									{}
 	constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
 	constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }
@@ -283,6 +285,10 @@ public:
 };
 #define kmm kernel_memory_mgr::get()
 extern "C" void* aligned_malloc(size_t size, size_t align);
+extern "C" void aligned_free(void* ptr, size_t align);
+extern "C" block_tag* block_malloc(size_t size, size_t align);
+extern "C" void block_free(block_tag* tag);
+extern "C" block_tag* locate_block(void* object, size_t align);
 extern "C" addr_t syscall_sbrk(ptrdiff_t incr);                                                             // void* sbrk(ptrdiff_t incr);
 extern "C" addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset);     // void* mmap(void* addr, size_t len, int prot, int flags, ptrdiff_t offset);
 extern "C" int syscall_munmap(addr_t addr, size_t len);                                                     // int munmap(void* addr, size_t len);

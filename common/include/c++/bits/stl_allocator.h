@@ -54,7 +54,7 @@ namespace std
 		typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
 		typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
 		template<typename U> struct rebind { typedef allocator<U> other; };
-		typedef true_type propagate_on_container_move_assignment;
+		typedef false_type propagate_on_container_move_assignment;
 		typedef decltype(sizeof(T)) size_type;
 		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
 		constexpr allocator() noexcept = default;
@@ -74,7 +74,7 @@ namespace std
 		typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
 		typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
 		template<typename V, typename W = U> struct rebind { typedef std::alignas_allocator<V, W> other; };
-		typedef true_type propagate_on_container_move_assignment;
+		typedef false_type propagate_on_container_move_assignment;
 		typedef decltype(sizeof(T)) size_type;
 		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
 		constexpr alignas_allocator() noexcept = default;
@@ -104,14 +104,16 @@ namespace std
 		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new(total, __align), 0, total)); }
 		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
 	};
+	template<typename A> concept __has_move_propagate = std::convertible_to<typename A::propagate_on_container_move_assignment, std::true_type>;
+	template<typename A, typename T> concept __has_resize = requires { { std::declval<A>().resize(std::declval<T*>(), std::declval<size_t>(), std::declval<size_t>()) } -> std::convertible_to<T*>; };
 #pragma region non-standard memory functions
 	extension template<typename T, allocator_object<T> AT = allocator<T>> [[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT alloc = AT{})
 	{
-		if consteval
+		if constexpr(!std::is_trivially_destructible_v<T>)
 		{
 			T* result = alloc.allocate(ncount);
 			size_t ccount = ncount < ocount ? ncount : ocount;
-			for(size_t i = 0; i < ccount; i++) { ::new(static_cast<void*>(addressof(result[i]))) T(std::move(array[i])); }
+			for(size_t i = 0; i < ccount; i++) { new(addressof(result[i])) T(std::move(array[i])); }
 			alloc.deallocate(array, ocount);
 			return result;
 		}
@@ -119,4 +121,5 @@ namespace std
 	}
 #pragma endregion
 }
+#define __HAVE_ALIGNED_REALLOCATE
 #endif

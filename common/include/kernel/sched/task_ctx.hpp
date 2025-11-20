@@ -1,16 +1,14 @@
 #ifndef __TASK_CTX
 #define __TASK_CTX
-#include "kernel/kernel_mm.hpp"
-#include "kernel/sched/task.h"
-#include "kernel/fs/fs.hpp"
-#include "kernel/shared_object_map.hpp"
-#include "kernel/elf64_exec.hpp"
-#include "sys/times.h"
-#include "fs/posix_dirent.hpp"
-#include "map"
-#include "compare"
-#include "vector"
-#include "array"
+#include <fs/fs.hpp>
+#include <fs/posix_dirent.hpp>
+#include <sched/thread.hpp>
+#include <sys/times.h>
+#include <array>
+#include <compare>
+#include <elf64_exec.hpp>
+#include <map>
+#include <shared_object_map.hpp>
 extern "C"
 {
 	void user_entry(addr_t);
@@ -32,18 +30,20 @@ struct task_ctx
 	size_t stack_allocated_size;
 	filesystem* ctx_filesystem;
 	file_vnode* stdio_ptrs[3]								{};
-	execution_state current_state							{ execution_state::STOPPED };
-	int exit_code											{ 0 };
-	addr_t exit_target										{ nullptr };
-	addr_t dynamic_exit										{ nullptr };
-	addr_t notif_target										{ nullptr };
-	task_ctx* last_notified									{ nullptr };
-	elf64_executable* program_handle						{ nullptr };
-	shared_object_map* local_so_map							{ nullptr };
-	addr_t rt_argv_ptr										{ nullptr };
-	addr_t rt_env_ptr										{ nullptr };
+	execution_state current_state;
+	int exit_code											{};
+	addr_t exit_target										{};
+	addr_t dynamic_exit										{};
+	addr_t notif_target										{};
+	task_ctx* last_notified									{};
+	elf64_executable* program_handle						{};
+	shared_object_map* local_so_map							{};
+	addr_t rt_argv_ptr										{};
+	addr_t rt_env_ptr										{};
 	task_signal_info_t task_sig_info						{};
 	std::map<int, posix_directory> opened_directories		{};
+	ooos::task_dtv dyn_thread								{};
+	std::map<uint32_t, thread_t*> thread_ptr_by_id			{};
 	constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
 	constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
 	constexpr void change_pid(pid_t pid, spid_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
@@ -77,6 +77,9 @@ struct task_ctx
 	register_t end_signal();
 	bool set_fork();                            // implements fork()
 	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);    // implements execve()
+	void tls_assemble();
+	void init_thread_0();
+	elf64_dynamic_object* assert_dynamic();
 } __align(16);
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 // Task struct base when in ISRs. In syscalls, use current_active_task instead
@@ -84,7 +87,7 @@ inline task_t* get_task_base() { task_t* gsb; asm volatile("movq %%gs:0x000, %0"
 // Task struct base when in syscalls. In ISRs, use get_task_base instead
 inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 // Shortcut because this gets used a lot
-inline task_ctx* active_task_context() { return current_active_task()->self; }
+inline task_ctx* active_task_context() { return reinterpret_cast<task_ctx*>(current_active_task()); }
 // Shortcut because this also gets used a lot
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);

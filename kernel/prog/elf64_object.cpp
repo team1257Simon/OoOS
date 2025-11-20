@@ -12,7 +12,7 @@ void elf64_object::release_segments() { xrelease(); }
 void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
 void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
 off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
-addr_t elf64_object::resolve(elf64_sym const& sym) const { return resolve(sym.st_value); }
+addr_t elf64_object::resolve(elf64_sym const& sym) const { return addr_t(sym.st_value); }
 static inline addr_t clone_image(addr_t start, size_t size)
 {
 	if(__unlikely(!size)) return nullptr;
@@ -147,7 +147,8 @@ elf64_object::elf64_object(elf64_object const& that) :
 	shstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.shstrtab.total_size) },
 	tls_base			{ that.tls_base },
 	tls_size			{ that.tls_size },
-	tls_align			{ that.tls_align }
+	tls_align			{ that.tls_align },
+	tls_mod_idx			{ that.tls_mod_idx }
 {
 	if(__loaded)
 	{
@@ -169,7 +170,8 @@ elf64_object::elf64_object(elf64_object&& that) :
 	shstrtab			{ std::move(that.shstrtab) },
 	tls_base			{ that.tls_base },
 	tls_size			{ that.tls_size },
-	tls_align			{ that.tls_align }
+	tls_align			{ that.tls_align },
+	tls_mod_idx			{ that.tls_mod_idx }
 {
 	that.__validated			= false;
 	that.__loaded				= false;
@@ -180,6 +182,7 @@ elf64_object::elf64_object(elf64_object&& that) :
 	that.tls_base				= nullptr;
 	that.tls_size				= 0UZ;
 	that.tls_align				= 0UZ;
+	that.tls_mod_idx			= 0UZ;
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {

@@ -21,6 +21,15 @@
                 "-D__KERNEL__"
             ],
             "configurationProvider": "ms-vscode.makefile-tools"
+        },
+        {
+            "name": "Headergen",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],
     "version": 4

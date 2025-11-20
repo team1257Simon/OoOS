@@ -162,9 +162,9 @@ namespace ooos
 		if(block_tag* tag = find_tag(block, align))
 		{
 			lock(std::addressof(mod_mutex));
+			if(first_managed_block == tag) first_managed_block	= tag->next;
 			if(tag->previous) tag->previous->next				= tag->next;
 			if(tag->next) tag->next->previous					= tag->previous;
-			if(first_managed_block == tag) first_managed_block	= tag->next;
 			tag->previous										= nullptr;
 			tag->next											= nullptr;
 			release_block(tag);
@@ -181,12 +181,14 @@ namespace ooos
 	}
 	kmod_mm_impl::~kmod_mm_impl()
 	{
-		block_tag* tag		= first_managed_block;
+		block_tag* tag			= first_managed_block;
 		while(tag)
 		{
-			block_tag* next	 = tag->next;
+			block_tag* next	 	= tag->next;
+			tag->next			= nullptr;
+			tag->previous		= nullptr;
 			release_block(tag);
-			tag				= next;
+			tag					= next;
 		}
 	}
 	void init_api()

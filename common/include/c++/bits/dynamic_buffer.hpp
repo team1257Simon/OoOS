@@ -28,14 +28,14 @@ namespace std::__impl
 		__ptr __end{};
 		__size_type __cap{};
 		constexpr __buf_ptrs() = default;
-		constexpr __buf_ptrs(__ptr start, __ptr end, __size_type cap) : __begin(start), __end(end), __cap(cap) {}
-		constexpr __buf_ptrs(__ptr start, __ptr end, __ptr max) : __begin(start), __end(end), __cap(static_cast<__size_type>(end - start)) {}
-		constexpr void __reset() { __begin = __end = __ptr(); __cap = 0UZ; }
-		constexpr __buf_ptrs(__buf_ptrs const& that) : __begin(that.__begin), __end(that.__end), __cap(that.__cap) {}
-		constexpr __buf_ptrs(__buf_ptrs&& that) : __begin(that.__begin), __end(that.__end), __cap(that.__cap) { that.__reset(); }
+		constexpr __buf_ptrs(__ptr start, __ptr end, __size_type cap) noexcept : __begin(start), __end(end), __cap(cap) {}
+		constexpr __buf_ptrs(__ptr start, __ptr end, __ptr max) noexcept : __begin(start), __end(end), __cap(static_cast<__size_type>(end - start)) {}
+		constexpr void __reset() noexcept { __begin = __end = __ptr(); __cap = 0UZ; }
+		constexpr __buf_ptrs(__buf_ptrs const& that) noexcept : __begin(that.__begin), __end(that.__end), __cap(that.__cap) {}
+		constexpr __buf_ptrs(__buf_ptrs&& that) noexcept : __begin(that.__begin), __end(that.__end), __cap(that.__cap) { that.__reset(); }
 		constexpr __buf_ptrs(__ptr start, __ptr end) : __begin(start), __end(end), __cap(static_cast<__size_type>(end - start)) {}
 		constexpr __buf_ptrs(__ptr start, __size_type cap) : __begin(start), __end(start), __cap(cap) {}
-		template<allocator_object<T> A> constexpr __buf_ptrs(A const& alloc, __size_type cap) : __begin(alloc.allocate(cap)), __end(__begin), __cap(cap) {}
+		template<allocator_object<T> A> constexpr __buf_ptrs(A& alloc, __size_type cap) : __begin(alloc.allocate(cap)), __end(__begin), __cap(cap) {}
 		constexpr void __copy_ptrs(__buf_ptrs const& that) { __begin = that.__begin; __end = that.__end; __cap = that.__cap; }
 		constexpr void __set_ptrs(__ptr begin, __ptr end, __size_type ncap) { __begin = begin; __end = end; __cap = ncap; }
 		constexpr void __set_ptrs(__ptr begin, __ptr end, __ptr max) { __begin = begin; __end = end; __cap = static_cast<__size_type>(max - begin); }
@@ -50,7 +50,7 @@ namespace std::__impl
 		constexpr __ptr __cur() const { return __end; }
 		constexpr __ptr __max() const { return __begin + __cap; }
 		template<allocator_object<T> A>
-		constexpr void __create(A const& alloc, __size_type cap)
+		constexpr void __create(A& alloc, __size_type cap)
 		{
 			if(__unlikely(__begin != nullptr)) alloc.deallocate(__begin, __cap);
 			__begin	= alloc.allocate(cap);
@@ -58,7 +58,7 @@ namespace std::__impl
 			__cap	= cap;
 		}
 		template<allocator_object<T> A>
-		constexpr void __destroy(A const& alloc)
+		constexpr void __destroy(A& alloc)
 		{
 			if(__begin)
 				alloc.deallocate(__begin, __cap);
@@ -71,13 +71,15 @@ namespace std::__impl
 			that.__copy_ptrs(tmp);
 		}
 		template<allocator_object<T> A>
-		constexpr void __resize(A const& alloc, __size_type ncur, __size_type ncap)
+		constexpr void __resize(A& alloc, __size_type ncur, __size_type ncap)
 		{
-			__begin		= resize(__begin, __cap, ncap, alloc);
-			__cap		= ncap;
+			if constexpr(__has_resize<A, T>)
+				__begin		= alloc.resize(__begin, ncur, ncap);
+			else __begin	= resize(__begin, __cap, ncap, alloc);
+			__cap			= ncap;
 			if(__unlikely(ncur > __cap))
-				ncur	= __cap;
-			__end		= __begin + ncur;
+				ncur		= __cap;
+			__end			= __begin + ncur;
 		}
 	};
 	/**
@@ -159,7 +161,7 @@ namespace std::__impl
 		constexpr __size_type __rem() const noexcept { return static_cast<__size_type>(__max() - __cur()); }
 		constexpr __size_type __ediff(__const_ptr pos) const noexcept { return static_cast<__size_type>(__cur() - pos); }
 		constexpr void __allocate_storage(__size_type n) { if(n) __my_data.__create(__allocator, n); }
-		constexpr explicit __dynamic_buffer(A const& alloc) : __allocator(alloc), __my_data() {}
+		constexpr explicit __dynamic_buffer(A const& alloc) noexcept(noexcept(A(alloc))) : __allocator(alloc), __my_data() {}
 		constexpr __dynamic_buffer() noexcept(noexcept(A())) : __allocator(), __my_data() {}
 		constexpr __dynamic_buffer(__size_type sz) : __allocator(), __my_data() { __allocate_storage(sz); }
 		constexpr __dynamic_buffer(__size_type sz, A const& alloc) : __allocator(alloc), __my_data() { __allocate_storage(sz); }
@@ -169,8 +171,8 @@ namespace std::__impl
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, A const& alloc) : __dynamic_buffer(that.__beg(), that.__cur(), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), that.__cur(), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), __pmin(that.__get_ptr(start + count), that.__cur()), alloc) {}
-		constexpr __dynamic_buffer(__dynamic_buffer&& that) : __allocator(move(that.__allocator)), __my_data(move(that.__my_data)) {}
-		constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) : __allocator(alloc), __my_data(move(that.__my_data)) {}
+		constexpr __dynamic_buffer(__dynamic_buffer&& that) noexcept(noexcept(A(move(that.__allocator)))) : __allocator(move(that.__allocator)), __my_data(move(that.__my_data)) {}
+		constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) noexcept(noexcept(A(alloc))) : __allocator(alloc), __my_data(move(that.__my_data)) {}
 		constexpr ~__dynamic_buffer() { if(__beg()) { __allocator.deallocate(__beg(), __capacity()); } }
 		constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { this->__copy_assign(that); return *this; }
 		constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { this->__move_assign(move(that)); return *this; }
@@ -254,6 +256,7 @@ namespace std::__impl
 		{
 			__destroy();
 			if(__unlikely(!that.__beg())) return;
+			if constexpr(__has_move_propagate<__alloc_type>) this->__allocator = that.__allocator;
 			__allocate_storage(that.__capacity());
 			__copy(__beg(), that.__beg(), that.__capacity());
 			__advance(that.__size());
@@ -267,6 +270,8 @@ namespace std::__impl
 		constexpr void __swap(__dynamic_buffer& that)
 		{
 			this->__my_data.__swap_ptrs(that.__my_data);
+			if constexpr(__has_move_propagate<__alloc_type>)
+				std::swap(this->__allocator, that.__allocator);
 			this->__post_modify_check_nt();
 			that.__post_modify_check_nt();
 		}
@@ -284,6 +289,7 @@ namespace std::__impl
 			this->__destroy();
 			this->__my_data.__reset();
 			this->__my_data.__swap_ptrs(that.__my_data);
+			if constexpr(__has_move_propagate<__alloc_type>) this->__allocator = std::move(that.__allocator);
 		}
 	};
 	template<typename T, allocator_object<T> A, bool NTS>
@@ -333,6 +339,7 @@ namespace std::__impl
 		__size_type target 			= min(max(cur_capacity << 1, cur_capacity + added), __max_capacity());
 		try { __my_data.__resize(__allocator, num_elements, target); }
 		catch(...) { return false; }
+		if(__unlikely(!__cur())) return false;
 		if constexpr(__end_zero && __trivial) __zero(__cur(), added);
 		return true;
 	}

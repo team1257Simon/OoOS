@@ -6,6 +6,9 @@
 #include <typeinfo>
 struct kframe_tag;
 struct kframe_exports;
+#ifndef __HAVE_ALIGNED_REALLOCATE
+namespace std::__detail { [[nodiscard]] [[gnu::externally_visible]] void* __aligned_reallocate(void* ptr, size_t n, size_t align); }
+#endif
 namespace ooos
 {
     class abstract_module_base;
@@ -38,6 +41,7 @@ namespace ooos
         template<typename T> concept __can_be_parameter_type 				= std::is_standard_layout_v<T> && (std::is_copy_constructible_v<T> || std::is_move_constructible_v<T> || std::is_default_constructible_v<T>) && (std::is_copy_assignable_v<T> || std::is_move_assignable_v<T>);
         template<typename T> concept __simple_swappable 					= std::is_move_assignable_v<T> && std::is_move_constructible_v<T>;
 		template<typename T, typename ... Args> concept __callable			= std::is_invocable_v<T, Args...>;
+		template<typename FT, typename T> concept __transfer_fn				= std::assignable_from<std::remove_cvref_t<T>&, decltype(std::declval<FT>()(std::declval<T>()))>;
 		template<typename T, typename U> concept __explicitly_convertible	= requires(T t) { static_cast<U>(t); };
         template<__has_defined_difference_type IT> struct __use_difference_type<IT> { typedef typename IT::difference_type type; };
         template<__has_implicit_difference_type IT> struct __use_difference_type<IT> { typedef decltype(std::declval<IT>() - std::declval<IT>()) type; };
@@ -56,7 +60,7 @@ namespace ooos
         template<no_args_invoke FT, typename RT = decltype((std::declval<FT&&>())())> constexpr RT __invoke_f(FT&& f) { if constexpr(!std::is_void_v<RT>) { return (std::forward<FT>(f))(); } else { (std::forward<FT>(f))(); } }
         template<typename VT, __callable<VT> FT> constexpr void __invoke_v(FT&& f, VT&& v) { std::forward<FT>(f)(std::forward<VT>(v)); }
 		template<__simple_swappable T> constexpr void __swap(T& a, T& b) noexcept(std::is_nothrow_move_assignable_v<T> && std::is_nothrow_move_constructible_v<T>) { T tmp = std::move(a); a = std::move(b); b = std::move(tmp); }
-    }
+	}
     template<typename T> concept wrappable_actor 								= no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
     template<typename T> concept boolable 										= requires(T t) { t ? true : false; };
     template<typename T> concept io_buffer_ok 									= std::is_default_constructible_v<T> && !std::is_volatile_v<T> && std::is_copy_assignable_v<T>;
@@ -497,11 +501,22 @@ namespace ooos
     [[nodiscard]]
     constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
     {
-        T* result 		= alloc.allocate(ncount);
-        size_t ccount 	= ncount < ocount ? ncount : ocount;
-        copy_or_move(result, array, ccount);
-        alloc.deallocate(array, ocount);
-        return result;
+        if constexpr(!std::is_trivially_destructible_v<T>)
+		{
+			T* result 		= alloc.allocate(ncount);
+			size_t ccount 	= ncount < ocount ? ncount : ocount;
+			copy_or_move(result, array, ccount);
+			alloc.deallocate(array, ocount);
+			return result;
+		}
+		else return static_cast<T*>(std::__detail::__aligned_reallocate(array, ncount, alignof(T)));
     }
+	template<typename IT, __internal::__transfer_fn<decltype(*std::declval<IT>())> FT>
+	constexpr IT transform(IT start, IT end, FT&& fn) noexcept(noexcept(fn(*start)))
+	{
+		IT i;
+		for(i = start; i != end; i++) *i = fn(*i);
+		return i;
+	}
 }
 #endif

@@ -109,7 +109,7 @@ extern "C"
 		try
 		{
 			if(task_list::iterator parent = tl.find(task->get_parent_pid()); parent != tl.end())
-				sch.interrupt_wait(parent->task_struct.self);
+				sch.interrupt_wait(std::addressof(parent->task_struct));
 			if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
 				return task->task_struct.saved_regs.rax;
 			else return -ENOMEM;

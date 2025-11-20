@@ -300,10 +300,10 @@ user_reentry:
 	movq	%rcx,					%cr3
 	xorq	%rcx,					%rcx
 	xchgq	%rcx,					.L_held_pc
-	movb 	$0,						task_lock_flag
+	movb	$0,						task_lock_flag
 	sysretq
 	.size	user_reentry,			.-user_reentry
 2:
 	leaq	on_invalid_syscall,		%rax
-	jmp 1b
+	jmp		1b
 	.size do_syscall,				.-do_syscall

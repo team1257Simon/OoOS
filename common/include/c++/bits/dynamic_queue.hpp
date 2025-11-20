@@ -26,7 +26,7 @@ namespace std::__impl
 		constexpr __queue_ptrs(__ptr beg, __ptr nx, __ptr ed, __ptr mx) noexcept : __begin(beg), __next(nx), __end(ed), __qmax(mx) {}
 		constexpr __queue_ptrs(__queue_ptrs const& that) noexcept : __begin(that.__begin), __next(that.__next), __end(that.__end), __qmax(that.__qmax) {}
 		constexpr __queue_ptrs(__queue_ptrs&& that) noexcept : __begin(that.__begin), __next(that.__next), __end(that.__end), __qmax(that.__qmax) { that.__reset(); }
-		constexpr __queue_ptrs(__ptr beg, __size_type sz) noexcept : __queue_ptrs{ beg, beg + sz } {}
+		constexpr __queue_ptrs(__ptr beg, __size_type sz) noexcept : __queue_ptrs(beg, beg + sz) {}
 		constexpr __ptr __q_get_ptr(__size_type offs) noexcept { return __begin + offs; }
 		constexpr void __bumpc(__diff_type n = __diff_type(1L)) noexcept { __end += n; }
 		constexpr void __bumpn(__diff_type n = __diff_type(1L)) noexcept { __next += n; }
@@ -58,8 +58,10 @@ namespace std::__impl
 			__diff_type __stale_size_thresh;
 			unsigned int __stale_op_thresh;
 			unsigned int __op_cnt;
+			typedef std::bool_constant<__has_move_propagate<__alloc_type>> propagate_on_container_move_assignment;
 			constexpr __q_alloc_and_state() noexcept(noexcept(__alloc_type())) : __alloc_type(), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
-			constexpr __q_alloc_and_state(__alloc_type that) noexcept(std::is_nothrow_copy_constructible_v<__alloc_type>) : __alloc_type(that), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
+			constexpr __q_alloc_and_state(__alloc_type const& that) noexcept(std::is_nothrow_copy_constructible_v<__alloc_type>) : __alloc_type(that), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
+			constexpr __q_alloc_and_state(__alloc_type&& that) noexcept(std::is_nothrow_move_constructible_v<__alloc_type>) : __alloc_type(move(that)), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
 		} __qallocator;
 		__ptr_container __my_queue_data;
 		template<matching_input_iterator<T> IT> constexpr void __qtransfer(__ptr where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, addressof(*start), static_cast<__size_type>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
@@ -109,12 +111,13 @@ namespace std::__impl
 		constexpr __diff_type __tell() const noexcept { return __qcur() - __qbeg(); }
 		constexpr __size_type __qcapacity() const noexcept { return static_cast<__size_type>(__qmax() - __qbeg()); }
 		constexpr __size_type __cap_rem() const noexcept { return static_cast<__size_type>(__qmax() - __end()); }
-		constexpr void __q_move_assign(__dynamic_queue&& that) noexcept { __my_queue_data.__move(move(that.__my_queue_data)); __q_state_assign(that); }
+		constexpr void __q_move_assign(__dynamic_queue&& that) noexcept { __my_queue_data.__move(move(that.__my_queue_data)); __q_state_assign(move(that)); }
 		constexpr void __q_copy_assign(__dynamic_queue const& that) noexcept { __my_queue_data.__set_ptrs(__qallocator.allocate(that.__qcapacity()), that.__qcapacity()); __qcopy(__qbeg(), that.__qbeg(), that.__qcapacity()); __q_state_assign(that); }
 		constexpr __size_type __erase_before_next();
 		constexpr void __set_stale_op_threshold(unsigned int value) noexcept { __qallocator.__stale_op_thresh		= value; }
 		constexpr void __set_stale_size_threshold(__diff_type value) noexcept { __qallocator.__stale_size_thresh	= value; }
 		constexpr void __q_state_assign(__dynamic_queue const& that) noexcept { this->__qallocator					= that.__qallocator; }
+		constexpr void __q_state_assign(__dynamic_queue&& that) noexcept { this->__qallocator						= move(that.__qallocator); }
 		constexpr bool __is_stale() const noexcept { return __qallocator.__op_cnt > __qallocator.__stale_op_thresh && (__my_queue_data.__next - __my_queue_data.__begin) > __qallocator.__stale_size_thresh; }
 		/**
 		 * If there have been a number of push operations exceeding the configured operation threshold since the most recent pop or trim,
@@ -272,7 +275,7 @@ namespace std::__impl
 		}
 		catch(...) { return 0UZ; }
 	}
-	template <typename T, allocator_object<T> A>
+	template<typename T, allocator_object<T> A>
 	constexpr typename __dynamic_queue<T, A>::__ptr __dynamic_queue<T, A>::__insert(__const_ptr where, __const_ref what, __size_type how_many)
 	{
 		if(__unlikely(__q_out_of_range(where))) return nullptr;

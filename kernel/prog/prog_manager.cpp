@@ -29,7 +29,7 @@ static uintptr_t get_load_base(addr_t img_start, size_t dyn_idx)
 	if(is_pic_exec(img_start.plus(dyn_phdr.p_offset), dyn_phdr.p_filesz / sizeof(elf64_dyn)))
 	{
 		srand(static_cast<unsigned int>(sys_time(nullptr)));
-		uintptr_t generated = rand() & 0x000FFFFF;
+		uintptr_t generated		= rand() & 0x000FFFFF;
 		return generated << 12;
 	}
 	return 0UL;

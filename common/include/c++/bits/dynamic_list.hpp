@@ -53,7 +53,13 @@ namespace std
 				__tail  { move(that.__tail) },
 				__count { that.__count }
 						{ that.__reset(); }
-			constexpr void __move_assign(__list_base&& that) noexcept { this->__head = move(that.__head); this->__tail = move(that.__tail); this->__count = that.__count; that.__reset(); }
+			constexpr void __move_assign(__list_base&& that) noexcept
+			{
+				this->__head = move(that.__head);
+				this->__tail = move(that.__tail);
+				this->__count = that.__count;
+				that.__reset();
+			}
 		};
 		template<typename T>
 		struct __list_node : __list_node_base
@@ -197,7 +203,7 @@ namespace std
 			constexpr __dynamic_list(initializer_list<value_type> ilist) : __dynamic_list(ilist.begin(), ilist.end()) {}
 			constexpr __dynamic_list(__dynamic_list const& that) : __dynamic_list(that.begin(), that.end()) {}
 			constexpr __dynamic_list(__dynamic_list&& that) : __base(move(that)) {}
-			constexpr __dynamic_list& operator=(__dynamic_list&& that) { clear(); this->__move_assign(move(that)); return *this; }
+			constexpr __dynamic_list& operator=(__dynamic_list&& that) { clear(); this->__move_assign(move(that)); if constexpr(__has_move_propagate<__allocator>) { this->__alloc = std::move(that.__alloc); } return *this; }
 			constexpr __dynamic_list& operator=(__dynamic_list const& that) requires copy_constructible<value_type> { clear(); for(const_iterator i = that.begin(); i != that.end(); i++) { this->__put_back(*i); } return *this; }
 		};
 		template <typename T, allocator_object<T> AT>

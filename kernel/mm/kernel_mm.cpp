@@ -676,7 +676,7 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align) noexcept
 		deallocate(ptr, align);
 		return nullptr;
 	}
-	block_tag* tag = find_tag(ptr, align);
+	block_tag* tag	= find_tag(ptr, align);
 	if(tag && tag->allocated_size() >= size + add_align_size(tag, align))
 	{
 		tag->align_bytes	= add_align_size(tag, align);
@@ -840,6 +840,10 @@ addr_t uframe_tag::sysres_add(size_t n)
 extern "C"
 {
 	void* aligned_malloc(size_t size, size_t align) { return __kernel_frame_tag->allocate(size, align); }
+	void aligned_free(void* ptr, size_t align) { __kernel_frame_tag->deallocate(ptr, align); }
+	block_tag* block_malloc(size_t size, size_t align) { return __kernel_frame_tag->get_for_allocation(size, align); }
+	block_tag* locate_block(void* object, size_t align) { return object ? __kernel_frame_tag->find_tag(object, align) : nullptr; }
+	void block_free(block_tag* tag) { __kernel_frame_tag->release_block(tag); }
 	uintptr_t translate_vaddr(addr_t addr)
 	{
 		paging_table pt = __find_table(addr);

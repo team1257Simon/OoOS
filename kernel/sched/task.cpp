@@ -5,16 +5,42 @@
 #include "kernel_mm.hpp"
 #include "errno.h"
 #include "fs/fat32.hpp"
-#include "elf64_exec.hpp"
+#include "elf64_dynamic_exec.hpp"
 #include "isr_table.hpp"
+typedef std::pair<elf64_sym, addr_t> sym_pair;
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
 constexpr static addr_t pml4_of(addr_t frame) noexcept { return frame.deref<uframe_tag>().pml4; }
+static bool is_tls_sym(elf64_sym const& s) { return s.st_info.type == SYM_TLS; }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
+elf64_dynamic_object* task_ctx::assert_dynamic() { elf64_dynamic_executable& dyn = dynamic_cast<elf64_dynamic_executable&>(*program_handle); return std::addressof(dyn); }
+static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
+{
+	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
+	if(so && so->is_symbolic())
+	{
+		sym_pair result_pair	= so->resolve_by_name(name);
+		if(result_pair.second && is_tls_sym(result_pair.first))
+			return result_pair;
+	}
+	if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->program_handle))
+	{
+		sym_pair result_pair	= dyn->resolve_by_name(name);
+		if(result_pair.second && is_tls_sym(result_pair.first))
+			return result_pair;
+	}
+	for(elf64_shared_object& so : *task->local_so_map)
+	{
+		sym_pair result_pair	= so.resolve_by_name(name);
+		if(result_pair.second && is_tls_sym(result_pair.first))
+			return result_pair;
+	}
+	return sym_pair();
+}
 task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char *>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum) :
 	task_struct
 	{
@@ -56,6 +82,7 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 	allocated_stack			{ desc.prg_stack },
 	stack_allocated_size	{ desc.stack_size },
 	ctx_filesystem			{ create_task_vfs() },
+	current_state			{ execution_state::STOPPED },
 	program_handle			{ static_cast<elf64_executable*>(desc.object_handle) },
 	local_so_map			{ sm_alloc.allocate(1) }
 							{
@@ -66,7 +93,7 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 task_ctx::task_ctx(task_ctx const& that) :
 	task_struct
 	{
-		.self				{ this },
+		.self				{ std::addressof(task_struct) },
 		.frame_ptr			{ that.task_struct.frame_ptr },
 		.saved_regs			{ that.task_struct.saved_regs },
 		.quantum_val		{ that.task_struct.quantum_val },
@@ -105,8 +132,8 @@ task_ctx::task_ctx(task_ctx const& that) :
 	exit_code				{ that.exit_code },
 	exit_target				{ that.exit_target },
 	dynamic_exit			{ that.dynamic_exit },
-	notif_target			{},
-	last_notified			{},
+	notif_target			{ nullptr },
+	last_notified			{ nullptr },
 	program_handle			{ that.program_handle },
 	local_so_map			{ that.local_so_map },
 	rt_argv_ptr				{ that.rt_argv_ptr },
@@ -140,7 +167,7 @@ task_ctx::task_ctx(task_ctx&& that) :
 	opened_directories		{ std::move(that.opened_directories) }
 	{ 
 		array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / sizeof(uint64_t))); 
-		task_struct.self					= this;
+		task_struct.self					= std::addressof(task_struct);
 		task_struct.task_ctl.signal_info	= std::addressof(task_sig_info);
 		that.task_struct.frame_ptr			= nullptr;
 	}
@@ -165,7 +192,7 @@ void task_ctx::add_child(task_ctx* that)
 {
 	child_tasks.push_back(that);
 	task_struct.num_child_procs	= child_tasks.size();
-	task_struct.child_procs		= reinterpret_cast<addr_t*>(child_tasks.data());
+	task_struct.child_procs		= reinterpret_cast<task_t**>(child_tasks.data());
 }
 bool task_ctx::remove_child(task_ctx* that)
 {
@@ -322,9 +349,9 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 	ctx->env_vec	= std::move(env);
 	ctx->init_task_state();
 	ctx->set_stdio_ptrs(std::move(stdio_ptrs));
-	if(exit_fn) { ctx->start_task(exit_fn); }
-	else { ctx->start_task(); }
-	user_entry(ctx->task_struct.self);
+	if(exit_fn) ctx->start_task(exit_fn);
+	else ctx->start_task();
+	user_entry(std::addressof(ctx->task_struct));
 }
 void task_ctx::stack_push(register_t val)
 {
@@ -466,4 +493,112 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 	opened_directories.clear();
 	init_task_state();
 	return true;
+}
+void task_ctx::tls_assemble()
+{
+	if(!dyn_thread.base_offsets.empty()) throw std::invalid_argument("[EXEC/THREAD] attempting to assemble TLS more than once; misplaced syscall?");
+	uframe_tag& frame				= task_struct.frame_ptr.deref<uframe_tag>();
+	elf64_dynamic_object* dyn_prg	= assert_dynamic();
+	struct tls_sub_block
+	{
+		size_t size;
+		size_t align;
+		addr_t real_addr;
+	};
+	std::vector<tls_sub_block> sub_blocks;
+	std::vector<elf64_dynamic_object*> modules_with_tls;
+	for(elf64_shared_object* so : attached_so_handles)
+	{
+		if(addr_t tls_addr	= so->module_tls())
+		{
+			addr_t real		= frame.translate(tls_addr);
+			if(!real) throw std::out_of_range("[EXEC/THREAD] TLS virtual address fault in shared object: " + so->get_soname());
+			sub_blocks.emplace_back(so->module_tls_size(), so->module_tls_align(), real);
+			modules_with_tls.push_back(so);
+		}
+	}
+	size_t base_size		= task_struct.tls_size;
+	if(base_size)
+	{
+		size_t base_align	= task_struct.tls_align;
+		addr_t base_real	= frame.translate(task_struct.tls_master);
+		if(!base_real) throw std::out_of_range("[EXEC/THREAD] TLS base virtual address fault");
+		sub_blocks.emplace_back(base_size, base_align, base_real);
+		modules_with_tls.push_back(dyn_prg);
+	}
+	if(__unlikely(sub_blocks.empty())) return;	// no TLS -> nothing to do
+	size_t midx 			= 1UZ;
+	for(std::vector<elf64_dynamic_object*>::reverse_iterator i = modules_with_tls.rbegin(); i != modules_with_tls.rend(); i++, midx++)
+		(*i)->module_tls_index(midx);
+	addr_t end_virtual		= frame.extent;
+	for(tls_sub_block& b : sub_blocks)
+		end_virtual			= end_virtual.alignup(b.align).plus(b.size);
+	end_virtual				= end_virtual.alignup(alignof(thread_t));
+	task_struct.tls_size	= static_cast<size_t>(end_virtual - frame.extent);
+	if(!frame.shift_extent(static_cast<ptrdiff_t>(task_struct.tls_size))) throw std::bad_alloc();
+	task_struct.tls_align	= sub_blocks.front().align;
+	dyn_thread.base_offsets.push_back(0Z);
+	addr_t sub_block_start	= end_virtual;
+	struct failure_guard
+	{
+		ooos::task_dtv* dtv;
+		void release() noexcept { dtv = nullptr; }
+		~failure_guard() { if(dtv) dtv->base_offsets.clear(); }
+	} g(std::addressof(dyn_thread));
+	for(std::vector<tls_sub_block>::reverse_iterator i = sub_blocks.rbegin(); i != sub_blocks.rend(); i++)
+	{
+		sub_block_start		= sub_block_start.minus(i->size).trunc(i->align);
+		dyn_thread.base_offsets.push_back(end_virtual - sub_block_start);
+		addr_t start_real	= frame.translate(sub_block_start);
+		if(!start_real) throw std::out_of_range("[EXEC/THREAD] TLS virtual address fault");
+		array_copy<uint8_t>(start_real, i->real_addr, i->size);
+	}
+	task_struct.tls_master	= sub_block_start;
+	task_struct.thread_ptr	= end_virtual;
+	for(elf64_rela const& r : dyn_prg->get_tls_relas())
+	{
+		addr_t target					= frame.translate(dyn_prg->resolve_rela_target(r));
+		if(!target) throw std::out_of_range("[EXEC/THREAD] TLS relocation target virtual address fault");
+		sym_pair result					= tls_search(dyn_prg, this, dyn_prg->symbol_name(dyn_prg->get_sym(r.r_info.sym_index)));
+		if(!result.second) throw std::runtime_error("[EXEC/THREAD] TLS relocation has invalid or absent symbol");
+		elf64_dynamic_object* sym_owner	= result.second;
+		target.assign(sym_owner->resolve_tls_rela(result.first, r, dyn_thread.base_offsets));
+	}
+	for(elf64_shared_object* so : attached_so_handles)
+	{
+		for(elf64_rela const& r : so->get_tls_relas())
+		{
+			addr_t target					= frame.translate(so->resolve_rela_target(r));
+			if(!target) throw std::out_of_range("[EXEC/THREAD] TLS relocation target virtual address fault");
+			sym_pair result					= tls_search(so, this, so->symbol_name(so->get_sym(r.r_info.sym_index)));
+			if(!result.second) throw std::runtime_error("[EXEC/THREAD] TLS relocation has invalid or absent symbol");
+			elf64_dynamic_object* sym_owner	= result.second;
+			target.assign(sym_owner->resolve_tls_rela(result.first, r, dyn_thread.base_offsets));
+		}
+	}
+	g.release();
+}
+void task_ctx::init_thread_0()
+{
+	uframe_tag& frame		= task_struct.frame_ptr.deref<uframe_tag>();
+	if(!frame.shift_extent(sizeof(thread_t))) throw std::bad_alloc();
+	thread_t* thread_0		= new(task_struct.thread_ptr) thread_t
+	{
+		.self					= task_struct.thread_ptr,
+		.saved_regs				= task_struct.saved_regs,
+		.fxsv					= task_struct.fxsv,
+		.ctl_info
+		{
+			.state				= execution_state::STOPPED,
+			.park				= false,
+			.non_timed_park		= false,
+			.thread_lock		= spinlock_t(),
+			.thread_id			= 0U,
+			.wait_time_delta	= 0UZ
+		},
+		.stack_base				= allocated_stack,
+		.stack_size				= stack_allocated_size
+	};
+	thread_ptr_by_id.insert(std::make_pair(0U, thread_0));
+	dyn_thread.instantiate(*thread_0);
 }

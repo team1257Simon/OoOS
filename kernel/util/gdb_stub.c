@@ -96,7 +96,7 @@ enum regnames
 	PS /* also known as eflags */,
 	CS, SS, DS
 };
-regstate_t registers;
+struct regstate_t registers;
 #define STACKSIZE 10000
 long remcom_stack[STACKSIZE/sizeof(int)];
 long* stack_ptr = &remcom_stack[STACKSIZE/sizeof(long) - 1];

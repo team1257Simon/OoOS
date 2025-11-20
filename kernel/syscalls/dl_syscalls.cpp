@@ -29,34 +29,23 @@ static search_result global_search(const char* name)
 static search_result full_search(task_ctx* task, const char* name)
 { 
 	addr_t result;
-	bool have_weak	= false;
 	if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->program_handle))
 	{
 		sym_pair result_pair	= dyn->resolve_by_name(name);
-		if(result_pair.first.st_info.bind == SB_WEAK) { result = result_pair.second; have_weak = true; }
+		if(result_pair.first.st_info.bind == SB_WEAK)
+			result				= result_pair.second;
 		else if(result_pair.second) return search_result(result_pair.second, true);
 	}
 	for(elf64_shared_object& so : *task->local_so_map)
 	{
 		sym_pair result_pair	= so.resolve_by_name(name);
 		if(!result_pair.second) continue;
-		else if(result_pair.first.st_info.bind == SB_WEAK) {
-			result		= result_pair.second;
-			have_weak	= true;
-		}
+		else if(result_pair.first.st_info.bind == SB_WEAK)
+			result				= result_pair.second;
 		else return search_result(result_pair.second, true);
 	}
-	for(elf64_shared_object const& so : shared_object_map::get_globals())
-	{
-		sym_pair result_pair	= so.resolve_by_name(name);
-		if(!result_pair.second) continue;
-		if(result_pair.first.st_info.bind == SB_GLOBAL) return search_result(result_pair.second, true);
-		else if(result_pair.first.st_info.bind == SB_WEAK) {
-			result		= result_pair.second;
-			have_weak	= true;
-		}
-	}
-	return search_result(result, have_weak);
+	if(result) return search_result(result, true);
+	return global_search(name);
 }
 static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
 {

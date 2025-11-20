@@ -15,6 +15,7 @@ protected:
 	size_t dyn_segment_idx{};
 	std::vector<elf64_relocation> relocations{};
 	std::vector<elf64_rela> object_relas{};
+	std::vector<elf64_rela> tls_relas{};
 	std::vector<std::string> dependencies{};
 	std::vector<std::string> ld_paths{};
 	std::vector<addr_t> init_array{};
@@ -52,6 +53,8 @@ public:
 	constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
 	constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
 	constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }
+	constexpr std::vector<elf64_rela> const& get_tls_relas() const noexcept { return tls_relas; }
+	int64_t resolve_tls_rela(elf64_sym const& s, elf64_rela const& r, std::vector<ptrdiff_t> const& mod_offsets);
 	addr_t resolve_rela_target(elf64_rela const& r) const;
 	elf64_dynamic_object(file_vnode* n);
 	elf64_dynamic_object(addr_t start, size_t size);

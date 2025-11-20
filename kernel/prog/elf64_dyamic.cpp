@@ -30,6 +30,12 @@ size_t elf64_dynamic_object::to_image_offset(size_t offs)
 			return offs - (phdr(i).p_vaddr - phdr(i).p_offset);
 	return offs; 
 }
+constexpr static bool is_tls_rela(elf64_rela const& r)
+{
+	elf_rel_type t = r.r_info.type;
+	if(t == R_X86_64_DPTMOD64 || t == R_X86_64_DTPOFF64 || t == R_X86_64_TPOFF64 || t == R_X86_64_DTPOFF32 || t == R_X86_64_TPOFF32) return true;
+	else return false;
+}
 static bool is_dynamic_relocation(elf64_rela const& r)
 {
 	elf_rel_type t = r.r_info.type;
@@ -39,7 +45,7 @@ static bool is_dynamic_relocation(elf64_rela const& r)
 static bool recognize_rela_type(elf64_rela const& r)
 {
 	elf_rel_type t = r.r_info.type;
-	if(t == R_X86_64_64 || t == R_X86_64_RELATIVE || t == R_X86_64_DTPOFF64 || t == R_X86_64_JUMP_SLOT || t == R_X86_64_GLOB_DAT) return true;
+	if(t == R_X86_64_64 || t == R_X86_64_RELATIVE || t == R_X86_64_DTPOFF64 || t == R_X86_64_DPTMOD64 || t == R_X86_64_JUMP_SLOT || t == R_X86_64_GLOB_DAT) return true;
 	else return false;
 }
 void elf64_dynamic_object::apply_relocations()
@@ -71,12 +77,31 @@ uint64_t elf64_dynamic_object::resolve_rela_sym(elf64_sym const& s, elf64_rela c
 		return resolve(s.st_value + r.r_addend);
 	case R_X86_64_RELATIVE:
 		return resolve(r.r_addend);
-	case R_X86_64_DTPOFF64:
-		return r.r_addend + s.st_value;
 	default:
-		klog("[PRG/DYN] W: invalid relocation type");
+		klog("[PRG/DYN] W: invalid or unrecognized relocation");
 		return 0UL;
 	}
+}
+int64_t elf64_dynamic_object::resolve_tls_rela(elf64_sym const& s, elf64_rela const& r, std::vector<ptrdiff_t> const& mod_offsets)
+{
+	if(mod_offsets.size() > tls_mod_idx)
+	{
+		switch(r.r_info.type)
+		{
+		case R_X86_64_DTPOFF64:
+			return static_cast<int64_t>(r.r_addend + s.st_value);
+		case R_X86_64_DPTMOD64:
+			return static_cast<int64_t>(tls_mod_idx);
+		case R_X86_64_TPOFF64:
+			return static_cast<int64_t>(s.st_value) - mod_offsets[tls_mod_idx];
+		case R_X86_64_TPOFF32:
+			return static_cast<int64_t>(static_cast<int>(s.st_value) - static_cast<int>(mod_offsets[tls_mod_idx]));
+		default:
+			klog("[PRG/DYN] W: invalid or unrecognized TLS relocation");
+			return 0L;
+		}
+	}
+	else throw std::out_of_range("[PRG/DYN] no TLS offset present for this object");
 }
 bool elf64_dynamic_object::xload()
 {
@@ -96,6 +121,7 @@ void elf64_dynamic_object::process_relas(elf64_rela* rela_array, size_t num_rela
 	for(size_t i = 0; i < num_relas; i++)
 	{
 		if(is_object_rela(rela_array[i])) { object_relas.push_back(rela_array[i]); }
+		else if(is_tls_rela(rela_array[i])) { tls_relas.push_back(rela_array[i]); }
 		else if(is_dynamic_relocation(rela_array[i])) continue; // these are computed / applied by the dynamic linker
 		else if(!recognize_rela_type(rela_array[i])) { unrec_rela_ct++; }
 		else if(rela_array[i].r_info.sym_index) { elf64_sym const* s = symtab + rela_array[i].r_info.sym_index; if(s) relocations.emplace_back(*s, rela_array[i]); }
@@ -245,7 +271,7 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::fallback_resolve(std::string 
 	{
 		read_name = symstrtab[sym.st_name];
 		if(read_name == symbol)
-			return std::make_pair(sym, resolve(sym));
+			return std::make_pair(sym, sym.st_info.type == SYM_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(sym));
 	}
 	return std::make_pair(elf64_sym(), nullptr);
 }
@@ -256,7 +282,7 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string c
 		return std::make_pair(elf64_sym(), nullptr);
 	}
 	elf64_sym const* sym = symbol_index[symbol];
-	return sym ? std::make_pair(*sym, resolve(*sym)) : fallback_resolve(symbol);
+	return sym ? std::make_pair(*sym, sym->st_info.type == SYM_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(*sym)) : fallback_resolve(symbol);
 }
 bool elf64_dynamic_object::process_got()
 {
@@ -309,6 +335,8 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
 	got_vaddr		{ that.got_vaddr },
 	dyn_segment_idx	{ that.dyn_segment_idx },
 	relocations		{ that.relocations },
+	object_relas	{ that.object_relas },
+	tls_relas		{ that.tls_relas },
 	dependencies	{ that.dependencies },
 	ld_paths		{ that.ld_paths },
 	init_array		{ that.init_array },
@@ -340,6 +368,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
 	dyn_segment_idx	{ that.dyn_segment_idx },
 	relocations		{ std::move(that.relocations) },
 	object_relas	{ std::move(that.object_relas) },
+	tls_relas		{ std::move(that.tls_relas) },
 	dependencies	{ std::move(that.dependencies) },
 	ld_paths		{ std::move(that.ld_paths) },
 	init_array		{ std::move(that.init_array) },

@@ -188,10 +188,9 @@ enum elf_rel_type : uint32_t
 	// L:		Represents the place (section offset or address) of the Procedure Linkage Table entry for a symbol.
 	// P:		Represents the place (section offset or address) of the storage unit being relocated (computed using r_offset).
 	// S:		Represents the value of the symbol whose index resides in the relocation entry.
-	// M:       Represents the module TLS block pointer table
+	// M:       Represents the DTV index of the module
 	// T:       Represents the TLS block containing the symbol
-	// D:       Represents the TLS descriptor corresponding to the symbol
-	// Q:       Represents the thread pointer   
+	// Q:       Represents the initial TLS block
 	// Z:       Represents the size of the symbol
 	// I(...):  Represents a program-counter-relative offset
 	// [...]:   Represents a table entry containing a pointer to something
@@ -212,12 +211,12 @@ enum elf_rel_type : uint32_t
 	R_X86_64_PC16		=	13, // 	word16 	S + A - P
 	R_X86_64_8			=	14, // 	word8 	S + A
 	R_X86_64_PC8		=	15, // 	word8 	S + A - P
-	R_X86_64_DPTMOD64	=	16, // 	word64  M[T]
+	R_X86_64_DPTMOD64	=	16, // 	word64  M
 	R_X86_64_DTPOFF64	=	17, // 	word64  S - T
 	R_X86_64_TPOFF64	=	18, // 	word64  S - Q
 	R_X86_64_TLSGD		=	19, // 	word32  I(G[S - T])
 	R_X86_64_TLSLD		=	20, // 	word32  I(G[T])
-	R_X86_64_DTPOFF32	=	21, // 	word32  I(D)
+	R_X86_64_DTPOFF32	=	21, // 	word32  S - T
 	R_X86_64_GOTTPOFF	=	22, // 	word32  I(G[S - Q])
 	R_X86_64_TPOFF32	=	23, // 	word32  S - Q
 	R_X86_64_PC64		=	24, // 	word64 	S + A - P
@@ -270,7 +269,7 @@ typedef unsigned int elf_rel_type;
 #define __may_alias
 #endif
 #endif
-typedef struct __elf64_ehdr
+typedef struct
 {
 	uint8_t             e_ident[16];           /* Magic number and other info */
 	uint16_t            e_type;                /* Object file type */
@@ -287,7 +286,7 @@ typedef struct __elf64_ehdr
 	uint16_t            e_shnum;               /* Section header table entry count */
 	uint16_t            e_shstrndx;            /* Section header string table index */
 } elf64_ehdr;
-typedef struct __elf64_phdr
+typedef struct
 {
 	uint32_t            p_type;                /* Segment type */
 	uint32_t            p_flags;               /* Segment flags */
@@ -298,7 +297,7 @@ typedef struct __elf64_phdr
 	uint64_t            p_memsz;               /* Segment size in memory */
 	uint64_t            p_align;               /* Segment alignment */
 } elf64_phdr;
-typedef struct __elf64_shdr
+typedef struct
 {
 	uint32_t    sh_name;        /* Section name (string tbl index) */
 	uint32_t    sh_type;        /* Section type */
@@ -311,7 +310,7 @@ typedef struct __elf64_shdr
 	uint64_t    sh_addralign;   /* Section alignment */
 	uint64_t    sh_entsize;     /* Entry size if section holds table */
 } elf64_shdr;
-typedef struct __elf64_sym
+typedef struct
 {
 	uint32_t  st_name;                  /* Symbol name (string tbl index) */
 	struct
@@ -324,34 +323,30 @@ typedef struct __elf64_sym
 	uint64_t  st_value;                 /* Symbol value */
 	uint64_t  st_size;                  /* Symbol size */
 } elf64_sym;
-typedef struct __elf64_rel_info
-{
+typedef struct {
 	elf_rel_type type;
 	uint32_t sym_index;
 } elf64_rel_info;
-typedef struct __elf64_rel
-{
+typedef struct {
 	uintptr_t           r_offset;
 	elf64_rel_info      r_info;
 } elf64_rel;
-typedef struct __elf64_rela
+typedef struct
 {
 	uintptr_t       r_offset;
 	elf64_rel_info  r_info;
 	int64_t	        r_addend;
 } elf64_rela;
-typedef struct __elf64_dyn
+typedef struct
 {
 	int64_t         d_tag;
-	union __may_alias
-	{
+	union __may_alias {
 		uint64_t    d_val;
 		uintptr_t   d_ptr;
-		// The above two members are interpreted differently, but represent the same field in the image file.
 	};
 } elf64_dyn;
 // Contains the important details for loading an elf executable as a task.
-typedef struct __elf64_program_desc
+typedef struct
 {
 	void* frame_ptr;
 	void* prg_stack;
@@ -364,6 +359,10 @@ typedef struct __elf64_program_desc
 	size_t ld_path_count;
 	void* object_handle;
 } elf64_program_descriptor;
+typedef struct {
+	uint64_t ti_module;
+	uint64_t ti_offset;
+} tls_index;
 #ifdef __cplusplus
 #include "string"
 constexpr bool is_write(elf64_phdr const& seg) { return seg.p_flags & phdr_flag_write; }
