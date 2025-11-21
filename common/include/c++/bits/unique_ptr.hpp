@@ -6,7 +6,8 @@
 #include "tuple"
 namespace std
 {
-	template<typename T> struct default_delete { constexpr void operator()(T* ptr) const { ::operator delete(ptr, static_cast<std::align_val_t>(alignof(T))); } };
+	template<typename T> struct default_delete { constexpr void operator()(T* ptr) const { operator delete(ptr, static_cast<std::align_val_t>(alignof(T))); } };
+	template<typename T> struct default_delete<T[]> { constexpr void operator()(T* ptr) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); } };
 	namespace __detail
 	{
 		template<typename FT, typename T> concept __ptr_accept_ftor = requires(FT ft) { ft(declval<T*>()); };

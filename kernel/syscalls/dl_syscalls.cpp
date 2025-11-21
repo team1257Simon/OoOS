@@ -188,7 +188,7 @@ extern "C"
 		}
 		if(flags & RTLD_NODELETE) result->set_sticky();
 		elf64_dynamic_object* handle	= result.base();
-		if(result->is_global()) task->attach_object(handle);
+		if(result->is_global()) task->attach_object(handle, !(flags & RTLD_PREINIT));
 		return handle;
 	}
 	int syscall_dlclose(addr_t handle)
@@ -339,5 +339,31 @@ extern "C"
 			return i;
 		}
 		return 0;
+	}
+	int syscall_tlinit()
+	{
+		try
+		{
+			task_ctx* task	= active_task_context();
+			task->tls_assemble();
+			task->init_thread_0();
+		}
+		catch(std::bad_alloc&)			{ return -ENOMEM; }
+		catch(std::bad_cast&)			{ return -EINVAL; }
+		catch(std::invalid_argument& e)	{ panic(e.what()); return -EINVAL; }
+		catch(std::out_of_range& e)		{ panic(e.what()); return -EFAULT; }
+		catch(std::runtime_error& e)	{ panic(e.what()); return -ENOENT; }
+		return 0;
+	}
+	addr_t syscall_tlget(tls_index* idx)
+	{
+		task_ctx* task	= active_task_context();
+		idx				= translate_user_pointer(idx);
+		if(__unlikely(!idx)) return addr_t(static_cast<uintptr_t>(-EFAULT));
+		try { return task->tls_get(idx->ti_module, idx->ti_offset); }
+		catch(std::invalid_argument& e) { panic(e.what()); return addr_t(static_cast<uintptr_t>(-EINVAL)); }
+		catch(std::out_of_range& e)		{ panic(e.what()); return addr_t(static_cast<uintptr_t>(-EFAULT)); }
+		catch(std::runtime_error& e)	{ panic(e.what()); return addr_t(static_cast<uintptr_t>(-ENOSYS)); }
+		catch(std::bad_alloc&)			{ return addr_t(static_cast<uintptr_t>(-ENOMEM)); }
 	}
 }

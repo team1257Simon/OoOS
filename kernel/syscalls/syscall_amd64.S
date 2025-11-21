@@ -72,6 +72,8 @@
 	.extern							syscall_getvpwent
 	.extern							syscall_getvpwuid
 	.extern							syscall_getvpwnam
+	.extern							syscall_tlinit
+	.extern							syscall_tlget
 	.extern							on_invalid_syscall
 	.global							syscall_vec
 	.global							task_lock_flag
@@ -130,6 +132,8 @@
 	.type	syscall_getvpwuid,		@function
 	.type	syscall_getvpwuid,		@function
 	.type	syscall_getvpwnam,		@function
+	.type	syscall_tlinit,			@function
+	.type	syscall_tlget,			@function
 	.type	on_invalid_syscall,		@function
 	.type	kernel_cr3,				@object
 	.type	task_lock_flag,			@object
@@ -188,6 +192,8 @@ syscall_vec:
 	.quad syscall_getvpwent			// 49
 	.quad syscall_getvpwuid			// 50
 	.quad syscall_getvpwnam			// 51
+	.quad syscall_tlinit			// 52; ldso-specific
+	.quad syscall_tlget				// 53; ldso-specific (exported as __tls_get_addr)
 .L_syscv_end:
 	.quad on_invalid_syscall		// handler for out-of-range syscalls
 	.size syscall_vec,				.-syscall_vec	

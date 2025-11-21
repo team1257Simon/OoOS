@@ -160,14 +160,14 @@ namespace std
 			typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 		protected:
 			__allocator __alloc{};
-			template<typename ... Args> requires constructible_from<T, Args...> constexpr __node_ptr __create_after(__const_node_base_ptr prev, Args&& ... args);
-			template<typename ... Args> requires constructible_from<T, Args...> constexpr __node_ptr __create_before(__const_node_base_ptr next, Args&& ... args);
+			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __node_ptr __create_after(__const_node_base_ptr prev, Args&& ... args);
+			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __node_ptr __create_before(__const_node_base_ptr next, Args&& ... args);
 			constexpr __node_base_ptr __erase(__node_ptr what);
 			constexpr void __destroy() { __node_ptr p = static_cast<__node_ptr>(this->__head.__next); for(__node_ptr n = static_cast<__node_ptr>(p->__next); n != addressof(this->__tail); p = n, n = static_cast<__node_ptr>(n->__next)) { __alloc.deallocate(p, 1); } }
-			constexpr __node_ptr __put_front(value_type const& v) requires copy_constructible<value_type> { return this->__create_after(addressof(this->__head), v); }
-			constexpr __node_ptr __put_front(value_type&& v) requires move_constructible<value_type> { return this->__create_after(addressof(this->__head), move(v)); }  
-			constexpr __node_ptr __put_back(value_type const& v) requires copy_constructible<value_type> { return this->__create_before(addressof(this->__tail), v); }
-			constexpr __node_ptr __put_back(value_type&& v) requires move_constructible<value_type> { return this->__create_before(addressof(this->__tail), move(v)); }
+			constexpr __node_ptr __put_front(value_type const& v) requires(copy_constructible<value_type>) { return this->__create_after(addressof(this->__head), v); }
+			constexpr __node_ptr __put_front(value_type&& v) requires(move_constructible<value_type>) { return this->__create_after(addressof(this->__head), move(v)); }  
+			constexpr __node_ptr __put_back(value_type const& v) requires(copy_constructible<value_type>) { return this->__create_before(addressof(this->__tail), v); }
+			constexpr __node_ptr __put_back(value_type&& v) requires(move_constructible<value_type>) { return this->__create_before(addressof(this->__tail), move(v)); }
 		public:
 			constexpr size_type size() const noexcept { return this->__count; }
 			constexpr iterator begin() noexcept { return iterator(this->__begin()); }
@@ -183,16 +183,16 @@ namespace std
 			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cend()); }
 			constexpr const_reverse_iterator rend() const { return crend(); }
 			constexpr AT get_allocator() const noexcept { return AT(__alloc); }
-			template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace_front(Args&& ... args) { return iterator(this->__create_after(addressof(this->__head), forward<Args>(args)...)); }
-			template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace_back(Args&& ... args) { return iterator(this->__create_before(addressof(this->__tail), forward<Args>(args)...)); }
-			template<typename ... Args> requires constructible_from<T, Args...> constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator(this->__create_after(pos.get_node(), forward<Args>(args)...)); }
-			constexpr iterator insert(const_iterator pos, value_type const& v) requires copy_constructible<value_type> { if(pos == end()) pos--; return iterator(this->__create_after(pos.get_node(), v)); }
-			constexpr iterator insert(const_iterator pos, value_type&& v) requires move_constructible<value_type> { if(pos == end()) pos--; return iterator(this->__create_after(pos.get_node(), move(v))); }
+			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace_front(Args&& ... args) { return iterator(this->__create_after(addressof(this->__head), forward<Args>(args)...)); }
+			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace_back(Args&& ... args) { return iterator(this->__create_before(addressof(this->__tail), forward<Args>(args)...)); }
+			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator(this->__create_after(pos.get_node(), forward<Args>(args)...)); }
+			constexpr iterator insert(const_iterator pos, value_type const& v) requires(copy_constructible<value_type>) { if(pos == end()) pos--; return iterator(this->__create_after(pos.get_node(), v)); }
+			constexpr iterator insert(const_iterator pos, value_type&& v) requires(move_constructible<value_type>) { if(pos == end()) pos--; return iterator(this->__create_after(pos.get_node(), move(v))); }
 			template<matching_input_iterator<T> IT> constexpr iterator insert(const_iterator pos, IT start, IT end) { if(start == end) return iterator(const_cast<__node_ptr>(pos.get_node())); iterator result(this->__create_after(pos.base(), *start++)); __node_ptr p = result.get_node(); for(IT i = start; i != end; ++i) { p = this->__create_after(p, *i); } return result; }
-			constexpr void push_front(value_type const& v) requires copy_constructible<value_type> { this->__put_front(v); }
-			constexpr void push_front(value_type&& v) requires move_constructible<value_type> { this->__put_front(move(v)); }
-			constexpr void push_back(value_type const& v) requires copy_constructible<value_type> { this->__put_back(v); }
-			constexpr void push_back(value_type&& v) requires move_constructible<value_type> { this->__put_back(move(v)); }
+			constexpr void push_front(value_type const& v) requires(copy_constructible<value_type>) { this->__put_front(v); }
+			constexpr void push_front(value_type&& v) requires(move_constructible<value_type>) { this->__put_front(move(v)); }
+			constexpr void push_back(value_type const& v) requires(copy_constructible<value_type>) { this->__put_back(v); }
+			constexpr void push_back(value_type&& v) requires(move_constructible<value_type>) { this->__put_back(move(v)); }
 			constexpr iterator erase(const_iterator what) { if(what != end()) return iterator(this->__erase(const_cast<__node_ptr>(what.get_node()))); return end(); }
 			constexpr void clear() { this->__destroy(); this->__reset(); }
 			constexpr void pop_back() { if(this->__count) { this->__erase(static_cast<__node_ptr>(this->__tail.__prev)); } }
@@ -204,11 +204,11 @@ namespace std
 			constexpr __dynamic_list(__dynamic_list const& that) : __dynamic_list(that.begin(), that.end()) {}
 			constexpr __dynamic_list(__dynamic_list&& that) : __base(move(that)) {}
 			constexpr __dynamic_list& operator=(__dynamic_list&& that) { clear(); this->__move_assign(move(that)); if constexpr(__has_move_propagate<__allocator>) { this->__alloc = std::move(that.__alloc); } return *this; }
-			constexpr __dynamic_list& operator=(__dynamic_list const& that) requires copy_constructible<value_type> { clear(); for(const_iterator i = that.begin(); i != that.end(); i++) { this->__put_back(*i); } return *this; }
+			constexpr __dynamic_list& operator=(__dynamic_list const& that) requires(copy_constructible<value_type>) { clear(); for(const_iterator i = that.begin(); i != that.end(); i++) { this->__put_back(*i); } return *this; }
 		};
-		template <typename T, allocator_object<T> AT>
-		template <typename... Args>
-		requires constructible_from<T, Args...>
+		template<typename T, allocator_object<T> AT>
+		template<typename... Args>
+		requires(constructible_from<T, Args...>)
 		constexpr typename __dynamic_list<T, AT>::__node_ptr __dynamic_list<T, AT>::__create_after(__const_node_base_ptr prev, Args&& ...args)
 		{
 			__node_ptr n = construct_at(__alloc.allocate(1), const_cast<__node_base_ptr>(prev));
@@ -216,9 +216,9 @@ namespace std
 			this->__count++;
 			return n;
 		}
-		template <typename T, allocator_object<T> AT>
-		template <typename... Args>
-		requires constructible_from<T, Args...>
+		template<typename T, allocator_object<T> AT>
+		template<typename... Args>
+		requires(constructible_from<T, Args...>)
 		constexpr typename __dynamic_list<T, AT>::__node_ptr __dynamic_list<T, AT>::__create_before(__const_node_base_ptr next, Args&& ...args)
 		{
 			__node_ptr n = construct_at(__alloc.allocate(1), 0, const_cast<__node_base_ptr>(next));
@@ -226,13 +226,14 @@ namespace std
 			this->__count++;
 			return n;
 		}
-		template <typename T, allocator_object<T> AT>
+		template<typename T, allocator_object<T> AT>
 		constexpr typename __dynamic_list<T, AT>::__node_base_ptr __dynamic_list<T, AT>::__erase(__node_ptr what)
 		{
 			__node_base_ptr prev = what->__prev;
 			__node_base_ptr next = what->__next;
 			prev->__relink_next(next);
 			next->__relink_prev(prev);
+			if constexpr(!std::is_trivially_destructible_v<T>) what->__ref().~T();
 			__alloc.deallocate(what, 1);
 			this->__count--;
 			return next;

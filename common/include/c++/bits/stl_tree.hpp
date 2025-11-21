@@ -140,7 +140,7 @@ namespace std
 	private:
 		::__impl::__aligned_buffer<T> __my_data;
 	public:
-		constexpr __node() : __my_data{} {}
+		constexpr __node() : __my_data() {}
 		constexpr T* __get_ptr() { return __my_data.__get_ptr(); }
 		constexpr T const* __get_ptr() const { return __my_data.__get_ptr(); }
 		constexpr T& __get_ref() { return *__get_ptr(); }
@@ -187,7 +187,7 @@ namespace std
 		__base_ptr __my_node;
 	public:
 		constexpr __tree_const_iterator() noexcept : __my_node{} {}
-		constexpr explicit __tree_const_iterator(__base_ptr x) noexcept : __my_node{ x } {}
+		constexpr explicit __tree_const_iterator(__base_ptr x) noexcept : __my_node(x) {}
 		constexpr __tree_const_iterator(__iterator_type const& i) noexcept : __my_node{ i.get_node() } {}
 		extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
 		constexpr pointer base() const noexcept { return get_node()->__get_ptr(); }
@@ -250,7 +250,7 @@ namespace std
 		constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(this->__trunk.__my_right); }
 		constexpr __const_iterator __begin() const noexcept { return __const_iterator(__l_begin()); }
 		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __link __construct_node(Args&& ... args) { __link l = construct_at(__alloc.allocate(1UL)); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
-		constexpr void __destroy_node(__b_ptr n) { if(n) { __alloc.deallocate(static_cast<__link>(n), 1); } }
+
 		constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { bool left = (x || p == __end() || __compare_l(l->__get_ref(), p)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; } 
 		template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U const& u) { return __insert_node(x, p, __construct_node(u)); }
 		template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U&& u) { return __insert_node(x, p, __construct_node(forward<U>(u)));}
@@ -269,11 +269,19 @@ namespace std
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __link __find_node(U const& u) noexcept { __link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __const_link __find_node(U const& u) const noexcept { __const_link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __contains(U const& u) const noexcept { return (this->__find_node(u) != this->__end()); }
-		__b_ptr __erase_node(__b_ptr n)  { __b_ptr y = __rebalance_for_erase(n, this->__trunk); __b_ptr result = __increment_node(y); __destroy_node(y); this->__count--; return result; }
+		__b_ptr __erase_node(__b_ptr n)  { __b_ptr y = __rebalance_for_erase(n, this->__trunk); __b_ptr result = __increment_node(y); this->__destroy_node(y); this->__count--; return result; }
 		__b_ptr __erase_nodes(__b_ptr first, __b_ptr last) { __b_ptr result = __end(); for(__b_ptr cur = first; cur != last; ++cur) { result = this->__erase_node(cur); } return result; }
-		constexpr void __recursive_destroy(__link n) { while(n) { __recursive_destroy(__right_of(n)); __link m = __left_of(n); __destroy_node(n); n = m; } }
+		constexpr void __recursive_destroy(__link n) { while(n) { __recursive_destroy(__right_of(n)); __link m = __left_of(n); this->__destroy_node(n); n = m; } }
 		constexpr void __recursive_destroy_base() { __recursive_destroy(__get_root()); }
 		constexpr void __clear() { __recursive_destroy_base(); this->__clear_base(); }
+		constexpr void __destroy_node(__b_ptr n) 
+		{ 
+			if(__unlikely(!n)) return;
+			__link l	= static_cast<__link>(n);
+			if constexpr(!std::is_trivially_destructible_v<__value_type>)
+				l->__get_ref().~__value_type();
+			__alloc.deallocate(l, 1);
+		}
 	public:
 		constexpr size_t size() const noexcept { return this->__count; }
 		constexpr bool empty() const noexcept { return !this->size(); }

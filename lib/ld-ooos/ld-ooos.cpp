@@ -264,7 +264,7 @@ extern "C"
 		if(__builtin_expect(!preinit, false)) { last_error_action = DLA_PREINIT; return errno; }
 		for(size_t i = 0; preinit[i]; i++) preinit[i](argc, argv, env);
 		if(__builtin_expect(!rtld_map.initialize(256), false)) return -1;
-		if(__builtin_expect(__load_deps(phandle), true)) return 0;
+		if(__builtin_expect(__load_deps(phandle) && (tlinit() == 0), true)) return 0;
 		else return errno;
 	}
 	__hidden [[noreturn]] void dlend(void* phandle)
@@ -279,7 +279,7 @@ extern "C"
 	}
 	void* dlopen(char* name, int flags)
 	{
-		void* result = __so_open(name, flags);
+		void* result = __so_open(name, flags & ~(RTLD_PREINIT));
 		if(__builtin_expect(result && __load_deps(result), true)) return result;
 		else return nullptr;
 	}
@@ -346,5 +346,12 @@ extern "C"
 		errno				= 0;
 		__copy(dl_error_str, err_str, __strlen(err_str));
 		return dl_error_str;
+	}
+	void* __tls_get_addr(tls_index* ti)
+	{
+		long result;
+		asm volatile("syscall" : "=a"(result) : "0"(SCV_TLGET), "D"(ti) : "memory", "%r11", "%rcx");
+		if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); return nullptr; }
+		return reinterpret_cast<void*>(result);
 	}
 }

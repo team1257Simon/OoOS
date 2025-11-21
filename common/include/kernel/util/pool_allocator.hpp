@@ -8,19 +8,19 @@ namespace ooos
 	namespace __internal
 	{
 		constexpr size_t stbits		= __CHAR_BIT__ * sizeof(size_t);
-		constexpr size_t nblocks 	= stbits;
-		constexpr size_t log2ceil(size_t n) noexcept
+		constexpr size_t nblocks 	= stbits / 4;
+		constexpr size_t block_idx(size_t n) noexcept
 		{
 			if(__unlikely(n < 2UZ)) return 0;
 			size_t result = static_cast<size_t>(stbits - (1 + __builtin_clzl(n)));
-			if(n > (1UZ << result)) return result + 1UZ;
+			if(n > (1UZ << result)) result++;
 			return result;
 		}
-		constexpr size_t p2stairs(size_t n) noexcept
+		constexpr size_t block_size(size_t n) noexcept
 		{
 			if(__unlikely(n < 2UZ))
 				return 1UZ;
-			return 1UZ << log2ceil(n);
+			return 1UZ << block_idx(n);
 		}
 		struct __block_pool
 		{
@@ -28,15 +28,15 @@ namespace ooos
 			typedef block_tag** iterator;
 			typedef block_tag* const* const_iterator;
 			constexpr __block_pool() noexcept = default;
-			constexpr block_tag*& operator[](size_t bsz) & noexcept { return block_ptrs[log2ceil(bsz)]; }
-			constexpr block_tag* const& operator[](size_t bsz) const& noexcept { return block_ptrs[log2ceil(bsz)]; }
 			constexpr iterator begin() noexcept { return block_ptrs; }
 			constexpr const_iterator begin() const noexcept { return block_ptrs; }
 			constexpr const_iterator cbegin() const noexcept { return block_ptrs; }
-			constexpr iterator end() noexcept { return block_ptrs + stbits; }
-			constexpr const_iterator end() const noexcept { return block_ptrs + stbits; }
-			constexpr const_iterator cend() const noexcept { return block_ptrs + stbits; }
+			constexpr iterator end() noexcept { return block_ptrs + nblocks; }
+			constexpr const_iterator end() const noexcept { return block_ptrs + nblocks; }
+			constexpr const_iterator cend() const noexcept { return block_ptrs + nblocks; }
 			inline ~__block_pool() noexcept { for(block_tag* t : *this) if(t) block_free(t); }
+			constexpr block_tag*& operator[](size_t bsz) & noexcept { return block_ptrs[block_idx(bsz)]; }
+			constexpr block_tag* const& operator[](size_t bsz) const& noexcept { return block_ptrs[block_idx(bsz)]; }
 		};
 	}
 	/**
@@ -67,8 +67,10 @@ namespace ooos
 		{
 			std::ext::delegate_ptr<__internal::__block_pool> __pool;
 			__block_pool_delegate() : __pool() {}
+			constexpr bool range_check(size_t bsz) const noexcept { return bsz <= (1UZ << (__internal::nblocks - 1Z)); }
 			block_tag*& operator[](size_t bsz) & noexcept { return __pool[bsz]; }
 			block_tag* const& operator[](size_t bsz) const& noexcept { return __pool[bsz]; }
+			block_tag* at(size_t bsz) const& noexcept { if(__unlikely(!range_check(bsz))) return nullptr; return __pool[bsz]; }
 			constexpr bool operator==(__block_pool_delegate const& that) const noexcept { return this->__pool == that.__pool; }
 			constexpr std::strong_ordering operator<=>(__block_pool_delegate const& that) const noexcept { return this->__pool <=> that.__pool; }
 		} __blocks;
@@ -80,8 +82,8 @@ namespace ooos
 		}
 		block_tag* __get_tag(size_type n_objs) noexcept
 		{
-			block_tag* t		= __blocks[n_objs];
-			if(!t) return block_malloc(sizeof(value_type) * __internal::p2stairs(n_objs), A);
+			block_tag* t		= __blocks.at(n_objs);
+			if(!t) return block_malloc(sizeof(value_type) * __internal::block_size(n_objs), A);
 			__blocks[n_objs]	= nullptr;
 			return t;
 		}
@@ -97,7 +99,7 @@ namespace ooos
 		{
 			__destruct(p, n);
 			block_tag* t			= locate_block(p, A);
-			if(!__blocks[n] && t 	!= nullptr)
+			if(__blocks.range_check(n) && !__blocks[n] && t != nullptr)
 				__blocks[n]			= t;
 			else aligned_free(p, A);
 		}
@@ -123,7 +125,7 @@ namespace ooos
 					if(t->allocated_size() >= total)
 					{
 						if(target < old) __destruct(arr + target, static_cast<size_type>(old - target));
-						else if(target > old) __builtin_memset(std::addressof(arr[target]), 0, static_cast<size_type>(target - old) * sizeof(value_type));
+						else if(target > old) array_zero(std::addressof(arr[target]), static_cast<size_type>(target - old) * sizeof(value_type));
 						t->held_size	= total;
 						return t->actual_start();
 					}

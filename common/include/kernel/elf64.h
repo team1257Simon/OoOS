@@ -376,8 +376,8 @@ struct elf64_string_table
 	addr_t data;
 	constexpr const char* operator[](size_t n) const { return data.plus(n); }
 	constexpr elf64_string_table() = default;
-	constexpr elf64_string_table(size_t size, addr_t data_ptr) : total_size{ size }, data{ data_ptr } {}
-	constexpr elf64_string_table(elf64_string_table&& that) : total_size{ that.total_size }, data(std::move(that.data)) { that.data = nullptr; that.total_size = 0; } 
+	constexpr elf64_string_table(size_t size, addr_t data_ptr) : total_size(size), data(data_ptr) {}
+	constexpr elf64_string_table(elf64_string_table&& that) : total_size(that.total_size), data(std::move(that.data)) { that.data = nullptr; that.total_size = 0; } 
 };
 struct elf64_sym_table
 {

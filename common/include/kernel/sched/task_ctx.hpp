@@ -25,6 +25,7 @@ struct task_ctx
 	std::vector<const char*> env_vec						{};     //  Environment variables will go here
 	std::vector<std::string> dl_search_paths				{};     //  Cache of the dynamic linker search paths for this task's program image, if any
 	std::vector<elf64_shared_object*> attached_so_handles	{};     //  Cache of the SO handles attached to this task, if any
+	std::vector<elf64_dynamic_object*> tls_modules			{};
 	addr_t entry;
 	addr_t allocated_stack;
 	size_t stack_allocated_size;
@@ -44,6 +45,7 @@ struct task_ctx
 	std::map<int, posix_directory> opened_directories		{};
 	ooos::task_dtv dyn_thread								{};
 	std::map<uint32_t, thread_t*> thread_ptr_by_id			{};
+	uint32_t next_thread_id									{};
 	constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
 	constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
 	constexpr void change_pid(pid_t pid, spid_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
@@ -67,7 +69,7 @@ struct task_ctx
 	void restart_task();
 	void set_exit(int n);                       // implements exit()
 	void terminate();
-	void attach_object(elf64_object* obj);
+	void attach_object(elf64_object* obj, bool is_init);
 	tms get_times() const noexcept;
 	void init_task_state();
 	void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
@@ -79,6 +81,8 @@ struct task_ctx
 	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);    // implements execve()
 	void tls_assemble();
 	void init_thread_0();
+	void thread_switch(uint32_t to_thread);
+	addr_t tls_get(size_t mod_idx, size_t offs);	// implements __tls_get_addr()
 	elf64_dynamic_object* assert_dynamic();
 } __align(16);
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
@@ -113,5 +117,7 @@ extern "C"
 	int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset);     // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 	long syscall_sigret();                                                                                      // (only called from the signal trampoline)
 	void force_signal(task_ctx* task, int8_t sig);                                                              // (only called by the system on invalid syscalls or hardware exceptions)
+	int syscall_tlinit();																						// int tlinit(); used to initialize TLS for dynamic objects
+	addr_t syscall_tlget(tls_index* idx);																		// void* tlget(tls_index* idx); implements __tls_get_addr via LD-SO
 }
 #endif

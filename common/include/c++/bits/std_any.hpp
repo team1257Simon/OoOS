@@ -38,23 +38,23 @@ namespace std
 		constexpr bool has_value() const { return __ptr != nullptr; }
 		constexpr void swap(any& that) 
 		{
-			void* tptr = this->__ptr;
-			void (*tdealloc)(void*) = this->__dealloc_fn;
-			void* (*tcopy)(const void*) = this->__copy_fn;
-			this->__ptr = that.__ptr;
-			this->__dealloc_fn = that.__dealloc_fn;
-			this->__copy_fn = that.__copy_fn;
+			void* tptr					= this->__ptr;
+			void (*tdealloc)(void*)		= this->__dealloc_fn;
+			void* (*tcopy)(const void*)	= this->__copy_fn;
+			this->__ptr					= that.__ptr;
+			this->__dealloc_fn			= that.__dealloc_fn;
+			this->__copy_fn				= that.__copy_fn;
 			this->__object_type.swap(that.__object_type);
-			that.__copy_fn = tcopy;
-			that.__dealloc_fn = tdealloc;
-			that.__ptr = tptr;
+			that.__copy_fn				= tcopy;
+			that.__dealloc_fn			= tdealloc;
+			that.__ptr					= tptr;
 		}
 		constexpr void reset() 
 		{
-			__ptr = nullptr;
-			__copy_fn = nullptr;
-			__dealloc_fn = nullptr;
-			__object_type = ext::get_erasure<void>();
+			__ptr			= nullptr;
+			__copy_fn		= nullptr;
+			__dealloc_fn	= nullptr;
+			__object_type	= ext::get_erasure<void>();
 		}
 		template<__decay_copy_constructible T> any(T&& t) : 
 			__ptr           { __alloc<T>::__create(move(t)) },
@@ -83,37 +83,37 @@ namespace std
 		constexpr any& operator=(any const& that) 
 		{
 			__destroy_if_present();
-			this->__ptr = that.__copy_fn && that.__ptr ? (*that.__copy_fn)(that.__ptr) : nullptr;
-			this->__copy_fn = that.__copy_fn;
-			this->__dealloc_fn = that.__dealloc_fn;
-			this->__object_type = that.__object_type;
+			this->__ptr			= that.__copy_fn && that.__ptr ? (*that.__copy_fn)(that.__ptr) : nullptr;
+			this->__copy_fn		= that.__copy_fn;
+			this->__dealloc_fn	= that.__dealloc_fn;
+			this->__object_type	= that.__object_type;
 			return *this;
 		}
 		constexpr any& operator=(any&& that)
 		{
 			__destroy_if_present();
-			this->__ptr = that.__ptr;
-			this->__copy_fn = that.__copy_fn;
-			this->__dealloc_fn = that.__dealloc_fn;
-			this->__object_type = that.__object_type;
+			this->__ptr			= that.__ptr;
+			this->__copy_fn		= that.__copy_fn;
+			this->__dealloc_fn	= that.__dealloc_fn;
+			this->__object_type	= that.__object_type;
 			that.reset();
 			return *this;
 		}
 		template<__decay_copy_constructible T> any& operator=(T&& t)
 		{
 			__destroy_if_present();
-			__ptr = __alloc<T>::__create(move(t));
-			__copy_fn = __alloc<T>::__copy_construct;
-			__dealloc_fn = __alloc<T>::__deallocate;
-			__object_type = ext::get_erasure<T>();
+			__ptr			= __alloc<T>::__create(move(t));
+			__copy_fn		= __alloc<T>::__copy_construct;
+			__dealloc_fn	= __alloc<T>::__deallocate;
+			__object_type	= ext::get_erasure<T>();
 		}
 		template<__decay_copy_constructible T, typename ... Args> requires constructible_from<T, Args...> decay_t<T>& emplace(Args&& ... args)
 		{
 			__destroy_if_present();
-			__ptr = __alloc<T>::__create(forward<Args>(args)...);
-			__copy_fn = __alloc<T>::__copy_construct;
-			__dealloc_fn = __alloc<T>::__deallocate;
-			__object_type = ext::get_erasure<T>();
+			__ptr			= __alloc<T>::__create(forward<Args>(args)...);
+			__copy_fn		= __alloc<T>::__copy_construct;
+			__dealloc_fn	= __alloc<T>::__deallocate;
+			__object_type	= ext::get_erasure<T>();
 			return *static_cast<T*>(__ptr);
 		}
 		template<typename T> friend T* std::any_cast(any* a) noexcept;

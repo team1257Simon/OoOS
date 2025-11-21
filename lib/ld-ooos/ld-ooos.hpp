@@ -3,24 +3,26 @@
 #include <stddef.h>
 #include <stdint.h>
 #define __hidden       __attribute__((visibility("hidden")))
-#define SCV_DLPREINIT 24
-#define SCV_DLINIT    25
-#define SCV_DLOPEN    26
-#define SCV_DLCLOSE   27
-#define SCV_DLSYM     28
-#define SCV_DLRESOLVE 29
-#define SCV_DLPATH    30
-#define SCV_DLMAP     31
-#define SCV_DEPENDS   32
-#define SCV_DLADDR    33
-#define SCV_DLFINI    34
-#define RTLD_LAZY     0x0001
-#define RTLD_NOW      0x0002
-#define RTLD_NOLOAD   0x0004
-#define RTLD_PREINIT  0x0010
-#define RTLD_DEEPBIND 0x0008
-#define RTLD_GLOBAL   0x0100
-#define RTLD_NODELETE 0x1000
+#define SCV_DLPREINIT	24
+#define SCV_DLINIT		25
+#define SCV_DLOPEN		26
+#define SCV_DLCLOSE		27
+#define SCV_DLSYM		28
+#define SCV_DLRESOLVE	29
+#define SCV_DLPATH		30
+#define SCV_DLMAP		31
+#define SCV_DEPENDS		32
+#define SCV_DLADDR		33
+#define SCV_DLFINI		34
+#define SCV_TLINIT		52
+#define SCV_TLGET		53
+#define RTLD_LAZY		0x0001
+#define RTLD_NOW		0x0002
+#define RTLD_NOLOAD		0x0004
+#define RTLD_PREINIT	0x0010
+#define RTLD_DEEPBIND	0x0008
+#define RTLD_GLOBAL		0x0100
+#define RTLD_NODELETE	0x1000
 #define	ENOENT 2
 #define	ENOEXEC 8
 #define EBADF 9
@@ -33,6 +35,10 @@
 #define exit(code) asm volatile("syscall" ::"a"(0), "D"(code) : "memory")
 typedef void (*init_fn)(int argc, char** argv, char** env);
 typedef void (*fini_fn)();
+typedef struct {
+	uint64_t ti_module;
+	uint64_t ti_offset;
+} tls_index;
 struct elf64_dyn
 {
 	int64_t d_tag;
@@ -92,18 +98,19 @@ enum dlinfo_req : int
 extern "C"
 {
 	extern dl_action last_error_action;
-	extern int       errno;
-	init_fn*         dlinit(void* handle);
-	init_fn*         dlpreinit(void* handle);
-	fini_fn*         dlfini(void* handle);
+	extern int		errno;
+	init_fn*		dlinit(void* handle);
+	init_fn*		dlpreinit(void* handle);
+	fini_fn*		dlfini(void* handle);
 	__hidden [[noreturn]] void dlend(void* phandle);
-	char**           depends(void* handle);
-	int              dlpath(const char* path_str);
-	int              dlmap(void* handle, link_map* lm);
-	void*            __copy(void* dest, const void* src, size_t n);
-	void             __zero(void*, size_t);
-	char*            __strterm(const char*);
-	[[noreturn]]    void resolve(...);
+	char**			depends(void* handle);
+	int				dlpath(const char* path_str);
+	int				dlmap(void* handle, link_map* lm);
+	int				tlinit();
+	void*			__copy(void* dest, const void* src, size_t n);
+	void			__zero(void*, size_t);
+	char*			__strterm(const char*);
+	[[noreturn]]	void resolve(...);
 }
 __hidden void  deallocate(void* ptr, size_t al);
 __hidden void* allocate(size_t count, size_t al);

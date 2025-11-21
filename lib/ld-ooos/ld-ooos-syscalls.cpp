@@ -47,4 +47,11 @@ extern "C"
 		else { return reinterpret_cast<init_fn*>(result); }
 		return nullptr;
 	}
+	__hidden int tlinit()
+	{
+		int result;
+		asm volatile("syscall" : "=a"(result) : "0"(SCV_TLINIT) : "memory", "%r11", "%rcx");
+		if(__builtin_expect(result < 0 && result > -4096, false)) { errno = static_cast<int>(result * -1); }
+		return result;
+	}
 }

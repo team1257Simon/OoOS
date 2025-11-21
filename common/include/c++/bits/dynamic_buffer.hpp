@@ -50,19 +50,22 @@ namespace std::__impl
 		constexpr __ptr __cur() const { return __end; }
 		constexpr __ptr __max() const { return __begin + __cap; }
 		template<allocator_object<T> A>
+		constexpr void __destroy(A& alloc)
+		{
+			if(__unlikely(!__begin)) return;
+			if constexpr(!std::is_trivially_destructible_v<T>)
+				for(__ptr p = __begin; p < __end; p++)
+					p->~T();
+			alloc.deallocate(__begin, __cap);
+			__reset();
+		}
+		template<allocator_object<T> A>
 		constexpr void __create(A& alloc, __size_type cap)
 		{
-			if(__unlikely(__begin != nullptr)) alloc.deallocate(__begin, __cap);
+			if(__unlikely(__begin != nullptr)) this->__destroy(alloc);
 			__begin	= alloc.allocate(cap);
 			__end	= __begin;
 			__cap	= cap;
-		}
-		template<allocator_object<T> A>
-		constexpr void __destroy(A& alloc)
-		{
-			if(__begin)
-				alloc.deallocate(__begin, __cap);
-			__reset();
 		}
 		constexpr void __swap_ptrs(__buf_ptrs& that)
 		{

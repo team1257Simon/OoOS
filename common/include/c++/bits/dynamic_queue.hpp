@@ -67,8 +67,14 @@ namespace std::__impl
 		template<matching_input_iterator<T> IT> constexpr void __qtransfer(__ptr where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, addressof(*start), static_cast<__size_type>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
 		constexpr void __qset(__ptr where, __value_type const& val, __size_type n) { fill_n(where, n, val); }
 		constexpr void __qassign(__ptr where, __value_type&& val) { *where = move(val); }
-		constexpr void __qzero(__ptr where, __size_type n) { array_zero(where, n); }
 		constexpr void __qcopy(__ptr where, __const_ptr src, __size_type n) { array_copy(where, src, n); }
+		constexpr void __qzero(__ptr where, __size_type n)
+		{
+			if constexpr(!std::is_trivially_destructible_v<T>)
+				for(__size_type i{}; i < n; i++)
+					where[i].~T();
+			array_zero(where, n);
+		}
 		/**
 		 * Called whenever elements are pushed to or popped from the queue.
 		 * As with dynamic_buffer, the setn/sete/bumpn/bumpe functions do not call this function.
@@ -119,6 +125,16 @@ namespace std::__impl
 		constexpr void __q_state_assign(__dynamic_queue const& that) noexcept { this->__qallocator					= that.__qallocator; }
 		constexpr void __q_state_assign(__dynamic_queue&& that) noexcept { this->__qallocator						= move(that.__qallocator); }
 		constexpr bool __is_stale() const noexcept { return __qallocator.__op_cnt > __qallocator.__stale_op_thresh && (__my_queue_data.__next - __my_queue_data.__begin) > __qallocator.__stale_size_thresh; }
+		constexpr void __qdestroy()
+		{
+			if(__unlikely(!__qbeg())) return;
+			if constexpr(!std::is_trivially_destructible_v<T>)
+				for(__ptr p = __qbeg(); p < __end(); p++)
+					p->~T();
+			__qallocator.deallocate(__qbeg(), __qcapacity());
+			__my_queue_data.__reset();
+			__qallocator.__op_cnt = 0;
+		}
 		/**
 		 * If there have been a number of push operations exceeding the configured operation threshold since the most recent pop or trim,
 		 * and the number of elements between the base and current pointers exceeds the configured size threshold (defaults are 3 and 16 respectively),
@@ -139,7 +155,6 @@ namespace std::__impl
 		constexpr __size_type __force_trim() { return __erase_before_next(); }
 		constexpr __ptr __insert(__const_ptr where, __const_ref what, __size_type how_many = 1UZ);
 		template<typename ... Args> requires constructible_from<T, Args...> constexpr __ptr __emplace_element(Args&& ... args) { if(__qmax() <= __end() && !__q_grow_buffer(1UL)) return nullptr; else { __ptr result = construct_at(__end(), forward<Args>(args)...); __bumpe(1L); return result; } }
-		constexpr void __qdestroy() { if(__qbeg()) { __qallocator.deallocate(__qbeg(), __qcapacity()); __my_queue_data.__reset(); } __qallocator.__op_cnt = 0; }
 		constexpr void __qclear() { __size_type cap = __qcapacity(); __qdestroy(); __my_queue_data.__set_ptrs(__qallocator.allocate(cap), cap); on_modify_queue(); }
 		constexpr void __qswap(__dynamic_queue& that) noexcept { __my_queue_data.__swap(that.__my_queue_data); }
 		constexpr __dynamic_queue() noexcept(noexcept(__alloc_type())) = default;

@@ -4,6 +4,7 @@ namespace ooos
 	void task_dtv::__lthread(thread_t& t) { lock(std::addressof(t.ctl_info.thread_lock)); }
 	void task_dtv::__ulthread(thread_t& t) { release(std::addressof(t.ctl_info.thread_lock)); }
 	task_dtv::task_dtv() : __dtv_map(64UZ), __dtv_alloc() {}
+	task_dtv::task_dtv(task_dtv const& that) : __dtv_map(64UZ), __dtv_alloc(), base_offsets(that.base_offsets) {}
 	void task_dtv::instantiate(thread_t& thread)
 	{
 		__lthread(thread);

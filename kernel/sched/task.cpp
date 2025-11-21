@@ -18,6 +18,12 @@ void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
 elf64_dynamic_object* task_ctx::assert_dynamic() { elf64_dynamic_executable& dyn = dynamic_cast<elf64_dynamic_executable&>(*program_handle); return std::addressof(dyn); }
+static inline void init_fx(fx_state& fx)
+{
+	asm volatile("fxsave %0" : "=m"(fx) :: "memory");
+	array_zero(fx.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
+	for(int i = 0; i < 8; i++) fx.stmm[i] = 0.L;
+}
 static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
 {
 	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
@@ -72,7 +78,7 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 				.task_id		{ pid }
 			}
 		},
-		.tls_master			{ addr_t(desc.prg_tls) },
+		.tls_master			{ desc.prg_tls },
 		.tls_size			{ desc.tls_size },
 		.tls_align			{ desc.tls_align }
 	},
@@ -123,6 +129,7 @@ task_ctx::task_ctx(task_ctx const& that) :
 	env_vec					{ that.env_vec },
 	dl_search_paths			{ that.dl_search_paths },
 	attached_so_handles		{ that.attached_so_handles },
+	tls_modules		{ that.tls_modules },
 	entry					{ that.entry },
 	allocated_stack			{ that.allocated_stack },
 	stack_allocated_size	{ that.stack_allocated_size },
@@ -139,7 +146,8 @@ task_ctx::task_ctx(task_ctx const& that) :
 	rt_argv_ptr				{ that.rt_argv_ptr },
 	rt_env_ptr				{ that.rt_env_ptr },
 	task_sig_info			{},
-	opened_directories		{ that.opened_directories }
+	opened_directories		{ that.opened_directories },
+	dyn_thread				{ that.dyn_thread }
 							{}
 task_ctx::task_ctx(task_ctx&& that) :
 	task_struct				{ that.task_struct },
@@ -148,6 +156,7 @@ task_ctx::task_ctx(task_ctx&& that) :
 	env_vec					{ std::move(that.env_vec) },
 	dl_search_paths			{ std::move(that.dl_search_paths) },
 	attached_so_handles		{ std::move(that.attached_so_handles) },
+	tls_modules				{ std::move(that.tls_modules) },
 	entry					{ std::move(that.entry) },
 	allocated_stack			{ std::move(that.allocated_stack) },
 	stack_allocated_size	{ std::move(that.stack_allocated_size) },
@@ -164,7 +173,8 @@ task_ctx::task_ctx(task_ctx&& that) :
 	rt_argv_ptr				{ std::move(that.rt_argv_ptr) },
 	rt_env_ptr				{ std::move(that.rt_env_ptr) },
 	task_sig_info			{ std::move(that.task_sig_info) },
-	opened_directories		{ std::move(that.opened_directories) }
+	opened_directories		{ std::move(that.opened_directories) },
+	dyn_thread				{ std::move(that.dyn_thread) }
 	{ 
 		array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / sizeof(uint64_t))); 
 		task_struct.self					= std::addressof(task_struct);
@@ -214,7 +224,7 @@ void task_ctx::init_task_state()
 		if(ldso_entry)
 			task_struct.saved_regs.rip		= ldso_entry;
 		else throw std::runtime_error("[PRG/EXEC] dynamic linker object has no entry point");
-		attach_object(ldso.base());
+		attach_object(ldso.base(), true);
 	}
 	else
 	{
@@ -222,9 +232,7 @@ void task_ctx::init_task_state()
 		rdi_val						= arg_vec.size() - 1;
 		task_struct.saved_regs.rip	= entry;
 	}
-	fx_save(std::addressof(task_struct));
-	array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-	for(int i = 0; i < 8; i++) task_struct.fxsv.stmm[i] = 0.L;
+	init_fx(task_struct.fxsv);
 	array_zero(reinterpret_cast<void**>(task_sig_info.signal_handlers), num_signals);
 	uframe_tag* tag		= task_struct.frame_ptr;
 	addr_t old_ext		= tag->extent;
@@ -323,13 +331,21 @@ void task_ctx::set_exit(int n)
 	else handle_exit();
 	__builtin_unreachable();	
 }
-void task_ctx::attach_object(elf64_object* obj)
+void task_ctx::attach_object(elf64_object* obj, bool is_init)
 {
 	std::vector<block_descriptor> blocks	= obj->segment_blocks();
 	kmm.enter_frame(task_struct.frame_ptr);
 	kmm.map_to_current_frame(blocks);
 	kmm.exit_frame();
-	if(elf64_shared_object* so				= dynamic_cast<elf64_shared_object*>(obj)) { attached_so_handles.push_back(so); }
+	elf64_shared_object* so					= dynamic_cast<elf64_shared_object*>(obj);
+	if(so)
+	{
+		attached_so_handles.push_back(so);
+		if(so->module_tls() && so->module_tls_size() && !is_init) {
+			so->module_tls_index(tls_modules.size());
+			tls_modules.push_back(so);
+		}
+	}
 }
 void task_ctx::terminate()
 {
@@ -484,13 +500,15 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 				.task_id		{ pid }
 			}
 		},
-		.tls_master			{ addr_t(desc.prg_tls) },
+		.tls_master			{ desc.prg_tls },
 		.tls_size			{ desc.tls_size },
 		.tls_align			{ desc.tls_align }
 	};
 	arg_vec					= std::move(args);
 	env_vec 				= std::move(env);
 	opened_directories.clear();
+	dyn_thread.base_offsets.clear();
+	tls_modules.clear();
 	init_task_state();
 	return true;
 }
@@ -528,8 +546,10 @@ void task_ctx::tls_assemble()
 	}
 	if(__unlikely(sub_blocks.empty())) return;	// no TLS -> nothing to do
 	size_t midx 			= 1UZ;
-	for(std::vector<elf64_dynamic_object*>::reverse_iterator i = modules_with_tls.rbegin(); i != modules_with_tls.rend(); i++, midx++)
+	for(std::vector<elf64_dynamic_object*>::reverse_iterator i = modules_with_tls.rbegin(); i != modules_with_tls.rend(); i++, midx++) {
 		(*i)->module_tls_index(midx);
+		tls_modules.push_back(*i);
+	}
 	addr_t end_virtual		= frame.extent;
 	for(tls_sub_block& b : sub_blocks)
 		end_virtual			= end_virtual.alignup(b.align).plus(b.size);
@@ -553,8 +573,8 @@ void task_ctx::tls_assemble()
 		if(!start_real) throw std::out_of_range("[EXEC/THREAD] TLS virtual address fault");
 		array_copy<uint8_t>(start_real, i->real_addr, i->size);
 	}
-	task_struct.tls_master	= sub_block_start;
-	task_struct.thread_ptr	= end_virtual;
+	task_struct.tls_master		= sub_block_start;
+	task_struct.thread_ptr		= end_virtual;
 	for(elf64_rela const& r : dyn_prg->get_tls_relas())
 	{
 		addr_t target					= frame.translate(dyn_prg->resolve_rela_target(r));
@@ -586,7 +606,6 @@ void task_ctx::init_thread_0()
 	{
 		.self					= task_struct.thread_ptr,
 		.saved_regs				= task_struct.saved_regs,
-		.fxsv					= task_struct.fxsv,
 		.ctl_info
 		{
 			.state				= execution_state::STOPPED,
@@ -599,6 +618,45 @@ void task_ctx::init_thread_0()
 		.stack_base				= allocated_stack,
 		.stack_size				= stack_allocated_size
 	};
+	init_fx(thread_0->fxsv);
 	thread_ptr_by_id.insert(std::make_pair(0U, thread_0));
 	dyn_thread.instantiate(*thread_0);
+	next_thread_id 				= 1U;
+	thread_0->ctl_info.state	= execution_state::RUNNING;
+}
+void task_ctx::thread_switch(uint32_t to_thread)
+{
+	if(!thread_ptr_by_id.contains(to_thread)) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(to_thread));
+	thread_t* next_thread		= thread_ptr_by_id[to_thread];
+	thread_t* current_thread	= task_struct.thread_ptr;
+	current_thread->saved_regs	= task_struct.saved_regs;
+	current_thread->fxsv		= task_struct.fxsv;
+	task_struct.saved_regs		= next_thread->saved_regs;
+	task_struct.fxsv			= next_thread->fxsv;
+	task_struct.thread_ptr		= next_thread;
+}
+addr_t task_ctx::tls_get(size_t mod_idx, size_t offs)
+{
+	if(__unlikely(!(mod_idx < tls_modules.size() && mod_idx))) throw std::invalid_argument("[EXEC/THREAD] module ID is out of range");
+	ooos::dynamic_thread_vector* dtvp	= task_struct.thread_ptr->dtv_ptr;
+	if(!dtvp) throw std::runtime_error("[EXEC/THREAD] cannot load tls address without a DTV");
+	ooos::dynamic_thread_vector& dtv	= *dtvp;
+	uframe_tag& frame					= task_struct.frame_ptr.deref<uframe_tag>();
+	// This indicates a dynamic module that has not been used in this thread yet.
+	// Amortized constant insertions on the vector will minimize resizing.
+	while(!(mod_idx < dtv.size())) dtv.push_back(nullptr);
+	if(!dtv[mod_idx])
+	{
+		elf64_dynamic_object* mod		= tls_modules[mod_idx];
+		addr_t target					= frame.extent.alignup(mod->module_tls_align());
+		addr_t end						= target.plus(mod->module_tls_size());
+		if(!frame.shift_extent(end - frame.extent)) throw std::bad_alloc();
+		addr_t src						= frame.translate(mod->module_tls());
+		addr_t dest						= frame.translate(target);
+		if(!src || !dest) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+		size_t n						= static_cast<size_t>(end - target);
+		array_copy<uint8_t>(dest, src, n);
+		dtv[mod_idx] 					= target;
+	}
+	return dtv[mod_idx].plus(offs);
 }

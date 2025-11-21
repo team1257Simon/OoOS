@@ -42,6 +42,8 @@ namespace ooos
 	public:
 		std::vector<ptrdiff_t> base_offsets;
 		task_dtv();
+		task_dtv(task_dtv&&) = default;
+		task_dtv(task_dtv const& that);		// copy-constructing only copies the base offset vector (i.e. the thread pool remains separate)
 		void instantiate(thread_t& thread);
 		bool takedown(thread_t& thread);
 	};
