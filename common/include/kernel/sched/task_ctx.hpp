@@ -45,7 +45,8 @@ struct task_ctx
 	std::map<int, posix_directory> opened_directories		{};
 	ooos::task_dtv dyn_thread								{};
 	std::map<uint32_t, thread_t*> thread_ptr_by_id			{};
-	uint32_t next_thread_id									{};
+	uint32_t next_assigned_thread_id						{};
+	std::vector<thread_t*> inactive_threads					{};
 	constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
 	constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
 	constexpr void change_pid(pid_t pid, spid_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
@@ -58,6 +59,7 @@ struct task_ctx
 	task_ctx(task_ctx const& that);         // implements vfork()
 	task_ctx(task_ctx&& that);
 	~task_ctx();
+	elf64_dynamic_object* assert_dynamic();
 	void set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs);
 	void set_stdio_ptrs(file_vnode* ptrs[3]);
 	filesystem* get_vfs_ptr();
@@ -80,10 +82,11 @@ struct task_ctx
 	bool set_fork();                            // implements fork()
 	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);    // implements execve()
 	void tls_assemble();
+	addr_t tls_get(size_t mod_idx, size_t offs);	// implements __tls_get_addr()
 	void init_thread_0();
 	void thread_switch(uint32_t to_thread);
-	addr_t tls_get(size_t mod_idx, size_t offs);	// implements __tls_get_addr()
-	elf64_dynamic_object* assert_dynamic();
+	uint32_t thread_fork();
+	void thread_exit(uint32_t thread_id);
 } __align(16);
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 // Task struct base when in ISRs. In syscalls, use current_active_task instead
@@ -91,7 +94,7 @@ inline task_t* get_task_base() { task_t* gsb; asm volatile("movq %%gs:0x000, %0"
 // Task struct base when in syscalls. In ISRs, use get_task_base instead
 inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x000, %0" : "=r"(gsb) :: "memory"); return gsb->next; }
 // Shortcut because this gets used a lot
-inline task_ctx* active_task_context() { return reinterpret_cast<task_ctx*>(current_active_task()); }
+inline task_ctx* active_task_context() { task_t* task = current_active_task(); if(task && task->frame_ptr.deref<uint64_t>() == uframe_magic) return reinterpret_cast<task_ctx*>(task); else return nullptr; }
 // Shortcut because this also gets used a lot
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
 void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);

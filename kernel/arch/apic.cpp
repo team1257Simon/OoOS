@@ -1,11 +1,11 @@
 #include "arch/apic.hpp"
 #include "kernel_mm.hpp"
 constexpr uint64_t ioapic_default_physical_base = 0xFEC00000UL;
-apic::apic(unsigned id) : __apic_mem{ nullptr }, __local_id{ id } {}
+apic::apic(unsigned id) : __apic_mem(nullptr), __local_id(id) {}
 void apic::eoi() volatile { if(__apic_mem) __apic_mem->eoi.value = 0U; } // writing a 0 to this register signals an eoi in apic mode
 bool apic::init() volatile
 {
-    madt_t* madt = static_cast<madt_t*>(find_system_table("APIC"));
+    madt_t* madt					= static_cast<madt_t*>(find_system_table("APIC"));
     if(__unlikely(!madt)) return false;
     uintptr_t physical_base			= madt->local_apic_physical_address;
     uintptr_t ioapic_physical_base	= 0;

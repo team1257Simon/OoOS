@@ -28,6 +28,7 @@ struct __align(16) thread_t
 	thread_ctl ctl_info;					// thread scheduling and control info
 	addr_t stack_base;						// pointer to the thread's local stack
 	size_t stack_size;						// size of the local stack
+	addr_t tls_start;						// start of the TLS block, accounting for alignment shifts
 };
 #if (defined(__KERNEL__) || defined(__LIBK__))
 namespace ooos
@@ -37,8 +38,6 @@ namespace ooos
 	{
 		dtv_by_thread_id __dtv_map;
 		pool_allocator<addr_t> __dtv_alloc;
-		void __lthread(thread_t& t);
-		void __ulthread(thread_t& t);
 	public:
 		std::vector<ptrdiff_t> base_offsets;
 		task_dtv();
@@ -47,6 +46,9 @@ namespace ooos
 		void instantiate(thread_t& thread);
 		bool takedown(thread_t& thread);
 	};
+	void lock_thread_mutex(thread_t& t);
+	void unlock_thread_mutex(thread_t& t);
+	void update_thread_state(thread_t& thread, task_t& task_struct);
 }
 #endif
 #endif

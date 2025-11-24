@@ -220,12 +220,23 @@ namespace std
 		typedef CP __compare_type;
 		typedef __tree_base __trunk_type;
 		__alloc_type __alloc{};
-		constexpr void __clear_base() noexcept { __count = 0; this->__reset(); }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __pos_for_unique(U const& u);
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __pos_for_equal(U && u);
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __insert_unique_hint_pos(__const_link hint, U const& u);
 		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __res_pair __emplace_unique(Args&& ... args);
 		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __res_pair __hint_emplace_unique(__const_link hint, Args&& ... args);
+		template<typename U> requires(__valid_comparator<CP, T, U>) __const_link __lower_bound(__const_link x, __const_link y, U const& u) const noexcept;
+		template<typename U> requires(__valid_comparator<CP, T, U>) __const_link __upper_bound(__const_link x, __const_link y, U const& u) const noexcept;
+		template<typename U> requires(__valid_comparator<CP, T, U>) __link __lower_bound(__link x, __link y, U const& u) noexcept;
+		template<typename U> requires(__valid_comparator<CP, T, U>) __link __upper_bound(__link x, __link y, U const& u) noexcept;
+		template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U const& u);
+		template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U && u);
+		template<std::convertible_to<T> U> constexpr __link __insert_lower(__b_ptr p, U&& u);
+		template<std::convertible_to<T> U> constexpr __link __insert_lower_equal(U&& u);
+		template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U const& u);
+		template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U && u);
+		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __link __construct_node(Args&& ... args);
+		constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l);
 		constexpr static __link __left_of(__link x) noexcept { return static_cast<__link>(x->__my_left); }
 		constexpr static __link __right_of(__link x) noexcept { return static_cast<__link>(x->__my_right); }
 		constexpr static __const_link __left_of(__const_link x) noexcept { return static_cast<__const_link>(x->__my_left); }
@@ -249,63 +260,93 @@ namespace std
 		constexpr __const_link __l_begin() const noexcept { return static_cast<__const_link>(this->__trunk.__my_left); }
 		constexpr __const_link __l_rightmost() const noexcept { return static_cast<__const_link>(this->__trunk.__my_right); }
 		constexpr __const_iterator __begin() const noexcept { return __const_iterator(__l_begin()); }
-		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __link __construct_node(Args&& ... args) { __link l = construct_at(__alloc.allocate(1UL)); construct_at(l->__get_ptr(), forward<Args>(args)...); l->__my_color = RED; return l; }
-
-		constexpr __link __insert_node(__b_ptr x, __b_ptr p, __link l) { bool left = (x || p == __end() || __compare_l(l->__get_ref(), p)); __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; } 
 		template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U const& u) { return __insert_node(x, p, __construct_node(u)); }
 		template<std::convertible_to<T> U> constexpr __link __insert(__b_ptr x, __b_ptr p, U&& u) { return __insert_node(x, p, __construct_node(forward<U>(u)));}
-		template<std::convertible_to<T> U> constexpr __link __insert_lower(__b_ptr p, U&& u) { bool left = (p == __end() || __compare_l(u, p)); __link l = __construct_node(forward<U>(u));  __insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk); this->__count++; return l; }
-		template<std::convertible_to<T> U> constexpr __link __insert_lower_equal(U&& u) { __link x = __get_root(), y = __end(); while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); } return __insert_lower(y, forward<U>(u)); }
-		template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U const& u) { __pos_pair p = __insert_unique_hint_pos(nullptr, u); if(p.second) return __res_pair(__insert(p.first, p.second, u), true); return __res_pair(p.first, false); }
-		template<std::convertible_to<T> U> constexpr __res_pair __insert_unique(U && u) { __pos_pair p = __insert_unique_hint_pos(nullptr, u); if(p.second) return __res_pair(__insert(p.first, p.second, forward<U>(u)), true); return __res_pair(p.first, false); }
 		template<std::convertible_to<T> U> constexpr __link __insert_equal(U && u) { __pos_pair p = __pos_for_equal(u); return __insert(p.first, p.second, forward<U>(u)); }
-		template<typename U> requires(__valid_comparator<CP, T, U>) __const_link __lower_bound(__const_link x, __const_link y, U const& u) const noexcept { while(x) if(!__compare_r(x, u)) y = x, x = __left_of(x); else x = __right_of(x); return y; }
-		template<typename U> requires(__valid_comparator<CP, T, U>) __const_link __upper_bound(__const_link x, __const_link y, U const& u) const noexcept { while(x) if(__compare_l(u, x)) y = x, x = __left_of(x); else x = __right_of(x); return y; }
-		template<typename U> requires(__valid_comparator<CP, T, U>) __link __lower_bound(__link x, __link y, U const& u) noexcept { while(x) if(!__compare_r(x, u)) y = x, x = __left_of(x); else x = __right_of(x); return y; }
-		template<typename U> requires(__valid_comparator<CP, T, U>) __link __upper_bound(__link x, __link y, U const& u) noexcept { while(x) if(__compare_l(u, x)) y = x, x = __left_of(x);  else x = __right_of(x); return y; }
-		template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U const& u) { __pos_pair r = __insert_unique_hint_pos(hint, u); if(r.second) return __insert(r.first, r.second, u); return r.first; }
-		template<std::convertible_to<T> U> constexpr __link __hint_insert_unique(__const_link hint, U && u) { __pos_pair r = __insert_unique_hint_pos(hint, u); if(r.second) return __insert(r.first, r.second, forward<U>(u)); return r.first; }
 		template<matching_input_iterator<T> IT> constexpr void __insert_range_unique(IT st, IT ed) { for(IT i = st; i != ed; i++) __insert_unique(*i); }
-		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __link __find_node(U const& u) noexcept { __link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
-		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __const_link __find_node(U const& u) const noexcept { __const_link result = __lower_bound(__get_root(), __end(), u); return (result == __end() || __compare_l(u, result)) ? __end() : result; }
+		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __link __find_node(U const& u) noexcept;
+		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __const_link __find_node(U const& u) const noexcept;
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __contains(U const& u) const noexcept { return (this->__find_node(u) != this->__end()); }
-		__b_ptr __erase_node(__b_ptr n)  { __b_ptr y = __rebalance_for_erase(n, this->__trunk); __b_ptr result = __increment_node(y); this->__destroy_node(y); this->__count--; return result; }
-		__b_ptr __erase_nodes(__b_ptr first, __b_ptr last) { __b_ptr result = __end(); for(__b_ptr cur = first; cur != last; ++cur) { result = this->__erase_node(cur); } return result; }
-		constexpr void __recursive_destroy(__link n) { while(n) { __recursive_destroy(__right_of(n)); __link m = __left_of(n); this->__destroy_node(n); n = m; } }
-		constexpr void __recursive_destroy_base() { __recursive_destroy(__get_root()); }
-		constexpr void __clear() { __recursive_destroy_base(); this->__clear_base(); }
-		constexpr void __destroy_node(__b_ptr n) 
-		{ 
-			if(__unlikely(!n)) return;
-			__link l	= static_cast<__link>(n);
-			if constexpr(!std::is_trivially_destructible_v<__value_type>)
-				l->__get_ref().~__value_type();
-			__alloc.deallocate(l, 1);
-		}
+		constexpr void __recursive_destroy(__link n);
+		constexpr void __clear();
+		__b_ptr __erase_node(__b_ptr n);
+		__b_ptr __erase_nodes(__b_ptr first, __b_ptr last);
+		constexpr void __destroy_node(__b_ptr n);
+		__rb_tree& __copy_assign(__rb_tree const& that);
+		__rb_tree& __move_assign(__rb_tree&& that);
 	public:
 		constexpr size_t size() const noexcept { return this->__count; }
 		constexpr bool empty() const noexcept { return !this->size(); }
-		constexpr ~__rb_tree() { __recursive_destroy_base(); }
+		constexpr ~__rb_tree() { __recursive_destroy(__get_root()); }
 		constexpr __rb_tree() : __tree_base(), __alloc() {}
 		template<matching_input_iterator<T> IT> constexpr __rb_tree(IT st, IT ed) : __rb_tree() { this->__insert_range_unique(st, ed); }
 		constexpr __rb_tree(__rb_tree const& that) : __rb_tree(__const_iterator(that.__l_begin()), __const_iterator(that.__end())) {}
 		constexpr __rb_tree(__rb_tree&& that) : __tree_base(forward<__tree_base>(that)), __alloc() {}
-		constexpr __rb_tree& operator=(__rb_tree const& that)
-		{
-			__clear();
-			this->__insert_range_unique(__const_iterator(that.__l_begin()), __const_iterator(that.__end()));
-			return *this;
-		}
-		constexpr __rb_tree& operator=(__rb_tree&& that)
-		{
-			__clear();
-			this->__trunk		= move(that.__trunk);
-			this->__count		= that.__count;
-			if constexpr(__has_move_propagate<__alloc_type>)
-				this->__alloc	= move(that.__alloc);
-			return *this;
-		}
+		constexpr __rb_tree& operator=(__rb_tree const& that) { return __copy_assign(that); }
+		constexpr __rb_tree& operator=(__rb_tree&& that) { return __move_assign(move(that)); }
 	};
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename... Args>
+	requires(constructible_from<T, Args...>)
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__construct_node(Args&& ... args)
+	{
+		__link l		= construct_at(__alloc.allocate(1UL));
+		construct_at(l->__get_ptr(), forward<Args>(args)...);
+		l->__my_color	= RED;
+		return l;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__insert_node(__b_ptr x, __b_ptr p, __link l)
+	{
+		bool left	= (x || p == __end() || __compare_l(l->__get_ref(), p));
+		__insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk);
+		this->__count++;
+		return l;
+	} 
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	typename __rb_tree<T, CP, A>::__b_ptr __rb_tree<T, CP, A>::__erase_node(__b_ptr n)
+	{
+		__b_ptr y		= __rebalance_for_erase(n, this->__trunk);
+		__b_ptr result	= __increment_node(y);
+		this->__destroy_node(y);
+		this->__count--;
+		return result;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	typename __rb_tree<T, CP, A>::__b_ptr __rb_tree<T, CP, A>::__erase_nodes(__b_ptr first, __b_ptr last)
+	{
+		__b_ptr result	= __end();
+		for(__b_ptr cur	= first; cur != last; ++cur)
+			result		= this->__erase_node(cur);
+		return result;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	constexpr void __rb_tree<T, CP, A>::__destroy_node(__b_ptr n)
+	{ 
+		if(__unlikely(!n)) return;
+		__link l	= static_cast<__link>(n);
+		if constexpr(!std::is_trivially_destructible_v<__value_type>)
+			l->__get_ref().~__value_type();
+		__alloc.deallocate(l, 1);
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename U>
+	requires(__valid_comparator<CP, T, U>)
+	constexpr typename __rb_tree<T, CP, A>::__const_link __rb_tree<T, CP, A>::__find_node(U const& u) const noexcept
+	{
+		__const_link result	= __lower_bound(__get_root(), __end(), u);
+		if(result == __end()) return result;
+		return __compare_l(u, result) ? __end() : result;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename U>
+	requires(__valid_comparator<CP, T, U>)
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__find_node(U const& u) noexcept
+	{
+		__link result	= __lower_bound(__get_root(), __end(), u);
+		if(result == __end()) return result;
+		return __compare_l(u, result) ? __end() : result;
+	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	template<typename U>
 	requires(__valid_comparator<CP, T, U>)
@@ -402,6 +443,143 @@ namespace std
 		if(r.second) return __res_pair(__insert_node(r.first, r.second, l), true);
 		else __destroy_node(l);
 		return __res_pair(r.first, false);
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<std::convertible_to<T> U>
+	constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__insert_unique(U const& u)
+	{
+		__pos_pair p	= __insert_unique_hint_pos(nullptr, u);
+		if(p.second) return __res_pair(__insert(p.first, p.second, u), true);
+		return __res_pair(p.first, false);
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<std::convertible_to<T> U>
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__insert_lower(__b_ptr p, U&& u)
+	{
+		bool left	= (p == __end() || __compare_l(u, p));
+		__link l	= __construct_node(forward<U>(u));
+		__insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk);
+		this->__count++;
+		return l;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<std::convertible_to<T> U>
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__insert_lower_equal(U&& u)
+	{
+		__link x = __get_root(), y = __end();
+		while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); }
+		return __insert_lower(y, forward<U>(u));
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<std::convertible_to<T> U>
+	constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__insert_unique(U&& u)
+	{
+		__pos_pair p	= __insert_unique_hint_pos(nullptr, u);
+		if(p.second) return __res_pair(__insert(p.first, p.second, forward<U>(u)), true);
+		return __res_pair(p.first, false);
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename U>
+	requires(__valid_comparator<CP, T, U>)
+	typename __rb_tree<T, CP, A>::__const_link __rb_tree<T, CP, A>::__upper_bound(__const_link x, __const_link y, U const& u) const noexcept
+	{
+		while(x)
+		{
+			if(__compare_l(u, x))
+				y	= x, x	= __left_of(x);
+			else x	= __right_of(x);
+		}
+		return y;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename U>
+	requires(__valid_comparator<CP, T, U>)
+	typename __rb_tree<T, CP, A>::__const_link __rb_tree<T, CP, A>::__lower_bound(__const_link x, __const_link y, U const& u) const noexcept
+	{
+		while(x)
+		{
+			if(!__compare_r(x, u))
+				y	= x, x	= __left_of(x);
+			else x	= __right_of(x);
+		}
+		return y;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename U>
+	requires(__valid_comparator<CP, T, U>)
+	typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__upper_bound(__link x, __link y, U const& u) noexcept
+	{
+		while(x)
+		{
+			if(__compare_l(u, x))
+				y	= x, x	= __left_of(x);
+			else x	= __right_of(x);
+		}
+		return y;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<typename U>
+	requires(__valid_comparator<CP, T, U>)
+	typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__lower_bound(__link x, __link y, U const& u) noexcept
+	{
+		while(x)
+		{
+			if(!__compare_r(x, u))
+				y	= x, x	= __left_of(x);
+			else x	= __right_of(x);
+		}
+		return y;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<std::convertible_to<T> U>
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__hint_insert_unique(__const_link hint, U&& u)
+	{
+		__pos_pair r	= __insert_unique_hint_pos(hint, u);
+		if(r.second) return __insert(r.first, r.second, forward<U>(u));
+		return r.first;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	template<std::convertible_to<T> U>
+	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__hint_insert_unique(__const_link hint, U const& u)
+	{
+		__pos_pair r	= __insert_unique_hint_pos(hint, u);
+		if(r.second) return __insert(r.first, r.second, u);
+		return r.first;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	__rb_tree<T, CP, A>& __rb_tree<T, CP, A>::__copy_assign(__rb_tree const &that)
+	{
+		__clear();
+		this->__insert_range_unique(__const_iterator(that.__l_begin()), __const_iterator(that.__end()));
+		return *this;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	__rb_tree<T, CP, A>& __rb_tree<T, CP, A>::__move_assign(__rb_tree&& that)
+	{
+		__clear();
+		this->__trunk		= move(that.__trunk);
+		this->__count		= that.__count;
+		if constexpr(__has_move_propagate<__alloc_type>)
+			this->__alloc	= move(that.__alloc);
+		return *this;
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	constexpr void __rb_tree<T, CP, A>::__clear()
+	{
+		__recursive_destroy(__get_root());
+		__count	= 0;
+		this->__reset();
+	}
+	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
+	constexpr void __rb_tree<T, CP, A>::__recursive_destroy(__link n)
+	{
+		while(n)
+		{
+			__recursive_destroy(__right_of(n));
+			__link m	= __left_of(n);
+			this->__destroy_node(n);
+			n			= m;
+		}
 	}
 }
 #endif

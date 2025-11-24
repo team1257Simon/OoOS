@@ -49,11 +49,10 @@ static char dbg_serial_io[2]{};
 static const char test_arg[] = "Hello world ";
 static char test_e1000e_drv[sizeof(e1000e)]{};
 static ooos::ps2_controller test_ps2{};
-static ooos::ps2_keyboard* test_kb = nullptr;
+static ooos::ps2_keyboard* test_kb{};
 static char kb_pos[sizeof(ooos::ps2_keyboard)]{};
 std::atomic<bool> dbg_hold{};
 ooos::delegate_hda test_delegate;
-extern uintptr_t saved_stack_ptr;
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', };
 extern "C"
 {
@@ -71,7 +70,7 @@ extern "C"
 	int get_debug_char() { if(com && com->read(dbg_serial_io, 1UZ)) { return dbg_serial_io[0]; } return -1; }
 	void put_debug_char(int ch) { dbg_serial_io[1] = static_cast<char>(ch); if(com) com->write(1UZ, dbg_serial_io + 1); }
 }
-filesystem* get_task_vfs() { if(!current_active_task()) return nullptr; return active_task_context()->get_vfs_ptr(); }
+filesystem* get_task_vfs() { if(!active_task_context()) return nullptr; return active_task_context()->get_vfs_ptr(); }
 filesystem* create_task_vfs() { return std::addressof(test_extfs); /* TODO */ }
 void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory"); }
 void kfx_load() { if(fx_enable) asm volatile("fxrstor %0" :: "m"(kproc.fxsv) : "memory"); }
@@ -337,18 +336,16 @@ void elf64_tests()
 	}
 	catch(std::exception& e) { panic(e.what()); }
 }
-uint64_t end_read;
+volatile uint64_t end_read;
 void fn() { end_read = hpet_amd64::count_usec(); }
 void hpet_tests()
 {
 	if(hpet_amd64::init_instance())
 	{
 		uint64_t start_read = hpet_amd64::count_usec();
-		fence();
 		hpet_amd64::delay_usec(1000UL, fn);
-		fence();
-		if(start_read > end_read) xdirect_writeln("emulator too unstable; start read was " + std::to_string(start_read) + " microseconds");
-		else xdirect_writeln("time split: " + std::to_string(end_read - start_read));
+		while(!end_read) pause();
+		xdirect_writeln("time split: " + std::to_string(end_read - start_read) + " microseconds");
 	}
 	else panic("hpet init failed");
 }
@@ -659,7 +656,7 @@ extern "C"
 			if(pci_device_list::init_instance())
 			{
 				ooos::init_api();
-				ooos::block_io_provider_module* hda = load_ahci_module();
+				ooos::block_io_provider_module* hda	= load_ahci_module();
 				if(__unlikely(!hda)) panic("HDA load failed");
 				else
 				{

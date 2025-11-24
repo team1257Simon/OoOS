@@ -25,10 +25,10 @@ namespace std
 	extension template<std::char_type CT> constexpr int to_int_type(CT c) { return static_cast<int>(c); }
 	extension template<std::char_type CT> constexpr bool lt(CT a, CT b) { return a < b; }
 	extension template<std::char_type CT> constexpr bool eq(CT a, CT b) { return a == b; }
-	extension template<std::char_type CT> constexpr CT* strcpy(CT* dest, const CT* src) { array_copy<CT>(dest, src, std::strlen(src)); return dest; }
-	extension template<std::char_type CT> constexpr CT* strncpy(CT* dest, const CT* src, size_t n) { array_copy<CT>(dest, src, std::strnlen(src, n)); return dest; }
-	extension template<std::char_type CT> constexpr CT* stpcpy(CT* dest, const CT* src) { size_t n = std::strlen(src); array_copy<CT>(dest, src, n + 1); return dest + n; }
-	extension template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); array_copy<CT>(dest, src, n + 1); return dest + n; }
+	extension template<std::char_type CT> constexpr CT* strcpy(CT* dest, const CT* src) { return array_copy<CT>(dest, src, std::strlen(src)); }
+	extension template<std::char_type CT> constexpr CT* strncpy(CT* dest, const CT* src, size_t n) { return array_copy<CT>(dest, src, std::strnlen(src, n)); }
+	extension template<std::char_type CT> constexpr CT* stpcpy(CT* dest, const CT* src) { size_t n = std::strlen(src); return array_copy<CT>(dest, src, n + 1) + n; }
+	extension template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); return array_copy<CT>(dest, src, n + 1) + n; }
 	extension template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && (*s2 == *s1) && (*s1 != 0) && (*s2 != 0); ++i, ++s1, ++s2); return (*s1 < *s2) ? -1 : (*s1 > *s2 ? 1 : 0); }
 	extension template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
 	extension template<std::char_type CT> constexpr const CT* find(const CT* str, const CT* what) noexcept { if (!what[0]) return str; for (size_t i = 1; str[0]; str++) { if (str[0] == what[0]) { for (i = 1; what[i]; i++) { if (str[i] != what[i]) break; } if (!what[i]) return str; } } return nullptr; }

@@ -20,7 +20,7 @@ extern "C"
 	{
 		task_ctx* task	= active_task_context();
 		out				= translate_user_pointer(out);
-		if(__unlikely(!out)) return -EFAULT;
+		if(__unlikely(!task || !out)) return -EFAULT;
 		if(__unlikely(!user_accounts_manager::is_initialized())) return -ENOSYS;
 		user_accounts_manager* uam = user_accounts_manager::get_instance();
 		try
@@ -38,7 +38,7 @@ extern "C"
 		task_ctx* task	= active_task_context();
 		name			= translate_user_pointer(name);
 		out				= translate_user_pointer(out);
-		if(__unlikely(!name || !out)) return -EFAULT;
+		if(__unlikely(!task || !name || !out)) return -EFAULT;
 		if(__unlikely(!user_accounts_manager::is_initialized())) return -ENOSYS;
 		user_accounts_manager* uam = user_accounts_manager::get_instance();
 		try
@@ -55,7 +55,7 @@ extern "C"
 	{
 		task_ctx* task	= active_task_context();
 		ent			 	= translate_user_pointer(ent);
-		if(__unlikely(!ent)) return -EFAULT;
+		if(__unlikely(!task || !ent)) return -EFAULT;
 		if(__unlikely(!user_accounts_manager::is_initialized())) return -ENOSYS;
 		user_accounts_manager* uam	= user_accounts_manager::get_instance();
 		try

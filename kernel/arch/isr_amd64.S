@@ -12,6 +12,7 @@
 	.global	test_fault
 	.extern	isr_dispatch
 	.extern	set_task_signal
+	.global callback_8
 	.global	no_waiting_op
 	.type	test_fault,				@function
 	.type	isr_dispatch,			@function
@@ -26,6 +27,7 @@
 	.type	kernel_isr_stack_base,	@object
 	.type	delay_flag,				@object
 	.type	debug_stop_flag,		@object
+	.type	callback_8,				@function
 	.data
 	.align	4096
 kernel_isr_stack_base:
@@ -104,9 +106,7 @@ delay_flag:
 			movq	8(%rsp),	%rax
 			movq	%rax,		svinst
 			.endif
-			pushq	%rbx
 			pushq	%rdi
-			movq	$\i,		%rdi
 			pushq	%rsi
 			pushq	%rdx
 			pushq	%rcx
@@ -114,15 +114,18 @@ delay_flag:
 			pushq	%r9
 			pushq	%r10
 			pushq	%r11
+			pushq	%rbx
 			pushq	%r12
 			pushq	%r13
 			pushq	%r14
 			pushq	%r15
+			movq	$\i,			%rdi
 			call	isr_dispatch
 			popq	%r15
 			popq	%r14
 			popq	%r13
 			popq	%r12
+			popq	%rbx
 			popq	%r11
 			popq	%r10
 			popq	%r9
@@ -131,7 +134,6 @@ delay_flag:
 			popq	%rdx
 			popq	%rsi
 			popq	%rdi
-			popq	%rbx
 			popq	%rax
 			.ifeq	(\i-8)*(\i-10)*(\i-11)*(\i-12)*(\i-13)*(\i-14)*(\i-17)*(\i-21)*(\i-29)*(\i-30)
 			addq	$8,		%rsp
@@ -172,3 +174,6 @@ no_waiting_op:
 isr_table:
 	xm256		wr_id
 	.size		isr_table,		.-isr_table
+callback_8:
+	.quad		no_waiting_op
+	.size		callback_8,		.-callback_8

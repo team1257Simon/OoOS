@@ -10,7 +10,6 @@
 std::array<std::unordered_map<void*, ooos::isr_actor>, 16UZ> __managed_handlers{};
 std::array<std::vector<irq_callback>, 16UZ> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
-uintptr_t saved_stack_ptr{};
 extern volatile apic bsp_lapic;
 namespace interrupt_table
 {
@@ -80,10 +79,10 @@ inline void pic_eoi(byte irq)
 extern "C"
 {
     extern uint64_t ecode;
-    extern void* isr_table[];
+    extern void* isr_table[256];
     extern idt_entry_t idt_table[256];
     extern void no_waiting_op();
-    void (*callback_8)()	= no_waiting_op;
+    extern void (*callback_8)();
     extern volatile bool delay_flag;
     struct {
         uint16_t size;
@@ -106,14 +105,18 @@ extern "C"
     }
     void isr_dispatch(uint8_t idx)
     {
-        if(idx == 0x28UC) { (*callback_8)(); delay_flag = false; callback_8 = no_waiting_op; }
-        bool is_err		= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
-        asm volatile("movq %%rsp, %0" : "=m"(saved_stack_ptr) :: "memory");
+        bool is_err			= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
         if(idx > 0x19UC && idx < 0x30UC) 
         { 
-            byte irq	= static_cast<uint8_t>(idx - 0x20UC);
+            byte irq		= static_cast<uint8_t>(idx - 0x20UC);
             kernel_memory_mgr::suspend_user_frame();
             kfx_save();
+        	if(irq == 8UC)
+			{
+				(*callback_8)();
+				delay_flag	= false;
+				callback_8	= no_waiting_op;
+			}
             for(std::pair<void* const, ooos::isr_actor>& p : __managed_handlers[irq]) p.second();
             for(irq_callback const& h : __handler_tables[irq]) h();
             pic_eoi(irq);    

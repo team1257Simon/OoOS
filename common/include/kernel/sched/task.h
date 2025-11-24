@@ -132,12 +132,10 @@ struct attribute(aligned(16)) task_t
 	uint64_t			run_split		CXX_INI(0UL);		// timer-split of when the task began its most recent timeslice; when it finishes, the delta to the current time is added to the run time counter
 	uint64_t			run_time		CXX_INI(0UL);		// total runtime
 	uint64_t			sys_time		CXX_INI(0UL);		// approximate time in syscalls (measured via CPU timestamps)
-	addr_t				tls_master;							// pointer to the t master TLS template block for the program (WIP)
-	size_t				tls_size;							// size of the TLS template block (WIP)
-	size_t				tls_align;							// alignment requirement for the TLS block (WIP)
-	size_t				num_threads;						// how many threads are in the array below (WIP)
-	struct thread_t**	threads;							// array of pointer to thread info blocks (WIP)
-	struct thread_t*	thread_ptr;							// pointer to the currrent thread's info block (WIP)
+	addr_t				tls_master;							// pointer to the t master TLS template block for the program
+	size_t				tls_size;							// size of the TLS template block
+	size_t				tls_align;							// alignment requirement for the TLS block
+	struct thread_t*	thread_ptr;							// pointer to the current thread's info block
 	size_t				num_child_procs;					// how many children are in the array below
 	struct task_t**		child_procs;						// array of pointers to child process info structures (for things like process-tree termination)
 	struct task_t*		next			CXX_INI(nullptr);	// updated when the scheduling event fires.
@@ -148,6 +146,8 @@ inline void fx_restore(struct task_t* tx) { asm volatile("fxrstor %0" : "=m"(tx-
 }
 #endif
 #if defined(__cplusplus) && (defined(__KERNEL__) || defined(__LIBK__))
+// Set interrupt flag (bit 9); bit 1 must always be set; all other bits are clear
+constexpr register_t ini_flags	= 0x00000202UL;
 constexpr priority_val& operator++(priority_val& pv) noexcept
 {
 	using enum priority_val;
@@ -179,7 +179,25 @@ enum class execution_state : uint8_t
 	TERMINATED	= 2UC,	// finished execution, normally or otherwise
 	IN_DYN_EXIT = 3UC	// for processes or threads with destructors to execute before fully exiting, this state indicates such code is running
 };
-// Set interrupt flag (bit 9); bit 1 must always be set; all other bits are clear
-constexpr register_t ini_flags	= 0x00000202UL;
+/**
+ * Pointer-like struct that is meant to behave abstractly like a pointer to a fake "kthread" structure.
+ * That (exposure-only) object nominally encodes a process and, optionally, a thread within that process.
+ * Certain scheduler functionality does not depend on the thread pointer at all.
+ * Some other scheduler routines use information from the thread pointer if present or the corresponding process information otherwise.
+ * Currently, extracting that info is handled by some global functions, but eventually I plan to shift some or all of it to member functions.
+ */
+struct kthread_ptr
+{
+	task_t* task_ptr;
+	thread_t* thread_ptr;
+	void activate();
+	constexpr task_t* operator->() const noexcept { return task_ptr; }
+	constexpr task_t& operator*() const noexcept { return *task_ptr; }
+	constexpr operator bool() const noexcept { return static_cast<bool>(task_ptr); }
+	constexpr bool operator==(kthread_ptr const& that) const noexcept { return this->task_ptr == that.task_ptr && this->thread_ptr == that.thread_ptr; }
+	friend constexpr bool operator==(task_t* const& __this, kthread_ptr const& __that) noexcept { return __this == __that.task_ptr; }
+	friend constexpr bool operator==(kthread_ptr const& __this, task_t* const& __that) noexcept { return __this.task_ptr == __that; }
+	constexpr std::strong_ordering operator<=>(kthread_ptr const& that) const noexcept { return this->task_ptr == that.task_ptr ? this->thread_ptr <=> that.thread_ptr : this->task_ptr <=> that.task_ptr; }
+};
 #endif
 #endif

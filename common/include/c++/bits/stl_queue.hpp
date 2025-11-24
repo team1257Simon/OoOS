@@ -41,34 +41,34 @@ namespace std
 			constexpr const_reference next() const { return *(this->__qcur()); }
 			constexpr reference back() { return *(this->__end() - 1); }
 			constexpr const_reference back() const { return *(this->__end() - 1); }
-			constexpr iterator begin() { return iterator{ this->__qbeg() }; }
-			constexpr const_iterator cbegin() const { return const_iterator{ this->__qbeg() }; }
+			constexpr iterator begin() { return iterator(this->__qbeg()); }
+			constexpr const_iterator cbegin() const { return const_iterator(this->__qbeg()); }
 			constexpr const_iterator begin() const { return cbegin(); }
 			extension constexpr iterator current() { return iterator{ this->__qcur() }; }
 			extension constexpr const_iterator ccurrent() const { return const_iterator{this->__qcur() }; }
 			extension constexpr const_iterator current() const { return ccurrent(); }
-			constexpr iterator end() { return iterator{ this->__end() }; }
-			constexpr const_iterator cend() const { return const_iterator{ this->__end() }; }
+			constexpr iterator end() { return iterator(this->__end()); }
+			constexpr const_iterator cend() const { return const_iterator(this->__end()); }
 			constexpr const_iterator end() const { return cend(); }
-			constexpr reverse_iterator rbegin() { return reverse_iterator{ begin() }; }
-			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator{ cbegin() }; }
+			constexpr reverse_iterator rbegin() { return reverse_iterator(begin()); }
+			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cbegin()); }
 			constexpr const_reverse_iterator rbegin() const { return crbegin(); }
 			extension constexpr reverse_iterator rcurrent() { return reverse_iterator{ current() }; }
 			extension constexpr const_reverse_iterator crcurrent() const { return const_reverse_iterator{ ccurrent() }; }
 			extension constexpr const_reverse_iterator rcurrent() const { return crcurrent(); }
-			constexpr reverse_iterator rend() { return reverse_iterator{ end() }; }
-			constexpr const_reverse_iterator crend() const { return const_reverse_iterator{ cend() }; }
+			constexpr reverse_iterator rend() { return reverse_iterator(end()); }
+			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cend()); }
 			constexpr const_reverse_iterator rend() const { return crend(); }
 			constexpr void push(value_type const& value) { this->__push_elements(value, 1UL); }
 			constexpr void push(value_type&& value) { this->__push_elements(move(value), 1UL); }
 			constexpr void swap(resettable_queue& that) noexcept { this->__qswap(that); }            
-			template<typename ... Args> requires std::constructible_from<T, Args...> constexpr reference emplace(Args&& ... args) { return *(this->__emplace_element(forward<Args>(args)...)); }
+			template<typename ... Args> requires(std::constructible_from<T, Args...>) constexpr reference emplace(Args&& ... args) { return *(this->__emplace_element(forward<Args>(args)...)); }
 			constexpr reference pop() { pointer result = this->__pop_next(); if(result) return *result; throw std::out_of_range{ "nothing to pop" }; }
 			constexpr size_type erase(const_iterator start, const_iterator end) { return this->__erase_elements(start.base(), std::distance(start, end)); }
 			constexpr size_type erase(const_iterator where) { return this->__erase_elements(where.base()); }
 			constexpr iterator insert(const_iterator where, const_reference what, size_type how_many = 1UL) { pointer result = this->__insert(where.base(), what, how_many); if(result) return iterator{ result }; return end(); }
-			extension constexpr iterator find(const_reference what, bool include_stale = false) noexcept requires equality_comparable<value_type> { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
-			extension constexpr const_iterator find(const_reference what, bool include_stale = false) const noexcept requires equality_comparable<value_type> { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+			extension constexpr iterator find(const_reference what, bool include_stale = false) noexcept requires(equality_comparable<value_type>) { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+			extension constexpr const_iterator find(const_reference what, bool include_stale = false) const noexcept requires(equality_comparable<value_type>) { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
 			extension constexpr pointer unpop() noexcept { return this->__unpop(); }
 			extension constexpr size_type trim() { return this->__force_trim(); }
 			extension constexpr void set_trim_stale(bool enable = true) noexcept { __enable_trim_stale = enable; }
@@ -76,7 +76,9 @@ namespace std
 			extension constexpr size_type transfer(resettable_queue& to_whom, const_iterator start, const_iterator end) { to_whom.__push_elements(start.base(), end.base()); return erase(start, end); }
 			extension constexpr size_type transfer(resettable_queue& to_whom, const_iterator what) { to_whom.__push_elements(what); return erase(what); }
 			extension constexpr size_type transfer(resettable_queue& to_whom, size_type how_many) { to_whom.__push_elements(this->__qcur(), this->__qcur() + how_many); return this->__erase_elements(this->__qcur(), how_many); }
-			extension constexpr size_type transfer(resettable_queue& to_whom) { to_whom.__push_elements(this->front()); return this->__erase_elements(this->__qcur(), 1); }
+			extension constexpr size_type transfer(resettable_queue& to_whom) { return this->transfer(to_whom, 1UZ); }
+			extension template<equality_comparable_to<value_type> U> constexpr iterator find_like(U const& what, bool include_stale = false) noexcept { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+			extension template<equality_comparable_to<value_type> U> constexpr const_iterator find_like(U const& what, bool include_stale = false) const noexcept { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
 		};
 	}
 }

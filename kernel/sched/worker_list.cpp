@@ -7,7 +7,7 @@ namespace ooos
 	pid_t worker_list::__upid() const noexcept
 	{
 		pid_t pid;
-		do { pid = static_cast<pid_t>(rand()); } while(pid == 0 || contains(pid));
+		do pid = static_cast<pid_t>(rand()); while(pid == 0 || contains(pid));
 		return pid;
 	}
 	bool worker_list::destroy(worker* w)

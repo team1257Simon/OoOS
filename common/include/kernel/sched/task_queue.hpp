@@ -13,7 +13,7 @@
 #include "sched/task_ctx.hpp"
 #include "bits/stl_queue.hpp"
 #include "array"
-typedef std::ext::resettable_queue<task_t*, std::allocator<task_t*>> task_ptr_queue_base;
+typedef std::ext::resettable_queue<kthread_ptr, std::allocator<kthread_ptr>> task_ptr_queue_base;
 class task_pl_queue : public task_ptr_queue_base
 {
 	typedef task_ptr_queue_base __base;
@@ -54,7 +54,7 @@ public:
 	using __base::const_iterator;
 	using __base::reverse_iterator;
 	using __base::const_reverse_iterator;
-	constexpr task_wait_queue() noexcept : __base{} { this->set_trim_stale(true); }
+	constexpr task_wait_queue() noexcept : __base() { this->set_trim_stale(true); }
 	constexpr task_wait_queue(size_type start_cap) : __base(start_cap) { this->set_trim_stale(true); }
 	void tick_wait() noexcept;
 	unsigned int next_remaining_wait_ticks() const noexcept;

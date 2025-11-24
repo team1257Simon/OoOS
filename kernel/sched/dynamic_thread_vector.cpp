@@ -1,13 +1,13 @@
 #include <sched/thread.hpp>
 namespace ooos
 {
-	void task_dtv::__lthread(thread_t& t) { lock(std::addressof(t.ctl_info.thread_lock)); }
-	void task_dtv::__ulthread(thread_t& t) { release(std::addressof(t.ctl_info.thread_lock)); }
+	void lock_thread_mutex(thread_t& t) { lock(std::addressof(t.ctl_info.thread_lock)); }
+	void unlock_thread_mutex(thread_t& t) { release(std::addressof(t.ctl_info.thread_lock)); }
 	task_dtv::task_dtv() : __dtv_map(64UZ), __dtv_alloc() {}
 	task_dtv::task_dtv(task_dtv const& that) : __dtv_map(64UZ), __dtv_alloc(), base_offsets(that.base_offsets) {}
 	void task_dtv::instantiate(thread_t& thread)
 	{
-		__lthread(thread);
+		lock_thread_mutex(thread);
 		std::tuple<uint32_t> id_tuple		= std::tuple<uint32_t>(thread.ctl_info.thread_id);
 		size_t target_size					= base_offsets.size() + 1UZ;
 		dtv_by_thread_id::iterator result	= __dtv_map.emplace(std::piecewise_construct, id_tuple, std::forward_as_tuple(target_size, nullptr, __dtv_alloc)).first;
@@ -16,13 +16,37 @@ namespace ooos
 			vec[i + 1]						= addr_t(thread.self).minus(base_offsets[i]);
 		thread.dtv_ptr 						= std::addressof(vec);
 		thread.dtv_len						= vec.size();
-		__ulthread(thread);
+		unlock_thread_mutex(thread);
 	}
 	bool task_dtv::takedown(thread_t& thread)
 	{
-		__lthread(thread);
-		bool result							= __dtv_map.erase(thread.ctl_info.thread_id);
-		__ulthread(thread);
+		lock_thread_mutex(thread);
+		bool result	= __dtv_map.erase(thread.ctl_info.thread_id);
+		unlock_thread_mutex(thread);
 		return result;
+	}
+	void update_thread_state(thread_t& thread, task_t& task_struct)
+	{
+		lock_thread_mutex(thread);
+		thread.saved_regs	= task_struct.saved_regs;
+		thread.fxsv			= task_struct.fxsv;
+		unlock_thread_mutex(thread);
+	}
+}
+void kthread_ptr::activate()
+{
+	if(thread_ptr != task_ptr->thread_ptr && task_ptr->frame_ptr.deref<uint64_t>() == uframe_magic)
+	{
+		uframe_tag& frame		= task_ptr->frame_ptr.deref<uframe_tag>();
+		thread_t* current		= frame.translate(task_ptr->thread_ptr);
+		thread_t* next			= frame.translate(thread_ptr);
+		if(current && next)
+		{
+			ooos::update_thread_state(*current, *task_ptr);
+			task_ptr->saved_regs	= next->saved_regs;
+			task_ptr->fxsv			= next->fxsv;
+			task_ptr->thread_ptr	= next->self;
+		}
+		else klog("[EXEC/THREAD] W: virtual address fault; no thread change occurred");
 	}
 }

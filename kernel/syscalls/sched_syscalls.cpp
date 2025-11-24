@@ -19,8 +19,13 @@ extern "C"
 		task->terminate();
 		tl.destroy_task(task->get_pid());
 		task_lock_flag		= false;
-		task_t* next		= sch.fallthrough_yield();
-		if(next != nullptr) fallthrough_reentry(next);
+		kthread_ptr next	= sch.fallthrough_yield();
+		if(next)
+		{
+			if(next.thread_ptr)
+				next.activate();
+			fallthrough_reentry(next.task_ptr);
+		}
 		else kernel_reentry();
 		__builtin_unreachable();
 	}
@@ -30,16 +35,18 @@ extern "C"
 	void syscall_exit(int n) { if(task_ctx* task = active_task_context()) { task->set_exit(n); } }
 	int syscall_sleep(unsigned long seconds)
 	{
-		task_ctx* task	= active_task_context();
-		task_t* next	= sch.yield();
-		if(__unlikely(next == task->header())) return -ECHILD;
-		if(__unlikely(!sch.set_wait_timed(task->header(), seconds * 1000, false))) return -ENOMEM;
+		task_ctx* task		= active_task_context();
+		kthread_ptr thr(task->header(), task->task_struct.thread_ptr);
+		kthread_ptr next	= sch.yield();
+		if(__unlikely(next.task_ptr == task->header())) return -ECHILD;
+		if(__unlikely(!sch.set_wait_timed(thr, seconds * 1000, false))) return -ENOMEM;
 		task->task_struct.saved_regs.rax = 0;
 		return next->saved_regs.rax;
 	}
 	pid_t syscall_wait(int* sc_out)
 	{
 		task_ctx* task	= active_task_context();
+		kthread_ptr thr(task->header(), task->task_struct.thread_ptr);
 		sc_out			= translate_user_pointer(sc_out);
 		if(task->last_notified)
 		{ 
@@ -47,12 +54,12 @@ extern "C"
 				*sc_out = task->last_notified->exit_code;
 			return task->last_notified->get_pid();
 		} 
-		else if(sch.set_wait_untimed(task->header())) 
+		else if(sch.set_wait_untimed(thr)) 
 		{
 			task->notif_target							= sc_out;
 			task->task_struct.task_ctl.should_notify	= true;
-			task_t* next								= sch.yield();
-			if(__unlikely(next == task->header())) return -ECHILD;
+			kthread_ptr next							= sch.yield();
+			if(__unlikely(next.task_ptr == task->header())) return -ECHILD;
 			return next->saved_regs.rax;
 		}
 		return -ENOMEM;
@@ -74,19 +81,20 @@ extern "C"
 	{
 		task_ctx* task	= active_task_context();
 		task_ctx* clone	= tl.task_vfork(task); 
-		if(clone && sch.set_wait_untimed(task->header()))
+		kthread_ptr thr(task->header(), task->task_struct.thread_ptr);
+		if(clone && sch.set_wait_untimed(thr))
 		{
 			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
 			task->add_child(clone);
 			task->task_struct.task_ctl.should_notify	= true;
 			clone->task_struct.saved_regs.rax			= 0UL;
 			task->task_struct.saved_regs.rax			= clone->get_pid();
-			task_t* next								= sch.yield();
-			if(next == task->header())
+			kthread_ptr next							= sch.yield();
+			if(next.task_ptr == task->header())
 			{ 
-				next				= clone->header();
+				next				= kthread_ptr(clone->header(), nullptr);
 				next->quantum_rem	= next->quantum_val;
-				asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(next) : "memory");
+				write_task_base(*next);
 			}
 			return next->saved_regs.rax;
 		}
@@ -97,7 +105,7 @@ extern "C"
 		task_ctx* task		= active_task_context();
 		filesystem* fs_ptr	= get_task_vfs();
 		if(__unlikely(!fs_ptr)) return -ENOSYS;
-		name = translate_user_pointer(name);
+		name				= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
 		file_vnode* n;
 		try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
