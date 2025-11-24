@@ -146,9 +146,9 @@ class fat32_allocation_table : protected std::__impl::__dynamic_buffer<uint32_t,
     mutable bool __dirty = false;
 public:
     typedef typename __base::__size_type size_type;
-    typedef typename __base::__diff_type difference_type;
-    typedef typename __base::__ref reference;
-    typedef typename __base::__const_ref const_reference;
+    typedef typename __base::__difference_type difference_type;
+    typedef typename __base::__reference reference;
+    typedef typename __base::__const_reference const_reference;
     typedef uint32_t* pointer;
     typedef uint32_t const* const_pointer;
     fat32_allocation_table(size_t num_sectors, size_t bytes_per_sector, uint64_t start_sector, fat32* parent);

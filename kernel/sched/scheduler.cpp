@@ -22,6 +22,7 @@ void write_task_base(task_t const& next) { asm volatile("swapgs; wrgsbase %0; sw
 bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() noexcept { return has_init() || (__has_init	= __instance.init()); }
 scheduler& scheduler::get() noexcept { return __instance; }
+void scheduler::add_worker_task(kthread_ptr const& w) { __instance.register_task(w); }
 void scheduler::register_task(kthread_ptr const& task) {
 	__queues[task->task_ctl.prio_base].push(task);
 	__total_tasks++;
@@ -137,36 +138,36 @@ void scheduler::__do_task_change(kthread_ptr& cur, kthread_ptr& next)
 }
 bool scheduler::unregister_task(task_t* task)
 {
-	bool result				= false;
+	size_t result			= 0UZ;
 	for(priority_val pv 	= task->task_ctl.prio_base; pv <= PVSYS; ++pv)
 	{
 		task_citerator i	= __queues[pv].find_like(task, true);
 		if(i != __queues[pv].end())
-			result			|= __queues[pv].erase(i) != 0;
+			result			+= __queues[pv].erase(i) ? 1UZ : 0UZ;
 	}
 	fence();
-	if(__total_tasks && result) __total_tasks--;
-	if(__unlikely(!__total_tasks)) set_gs_base(std::addressof(kproc));
-	return result;
+	if(__total_tasks && result <= __total_tasks) __total_tasks -= result;
+	return result != 0UZ;
 }
 bool scheduler::unregister_task(kthread_ptr const& task) 
 {
 	bool result				= false;
-	for(priority_val pv		= task->task_ctl.prio_base; pv <= PVSYS; ++pv)
+	for(priority_val pv		= task->task_ctl.prio_base; pv <= PVSYS ; ++pv)
 	{
 		task_citerator i	= __queues[pv].find(task, true); 
-		if(i != __queues[pv].end())
+		if(i != __queues[pv].end()) {
 			result			= __queues[pv].erase(i) != 0;
+			break;
+		}
 	}
 	fence();
 	if(__total_tasks && result) __total_tasks--;
-	if(__unlikely(!__total_tasks)) set_gs_base(std::addressof(kproc));
 	return result;
 }
 kthread_ptr scheduler::select_next()
 {
-	if(__unlikely(!__total_tasks)) return kthread_ptr();
-	kthread_ptr target{};
+	if(__unlikely(!__total_tasks)) return kthread_ptr(nullptr, nullptr);
+	kthread_ptr target(nullptr, nullptr);
 	for(priority_val pv	= PVSYS; pv >= PVLOW; --pv)
 	{
 		task_pl_queue& queue	= __queues[pv];
@@ -305,17 +306,11 @@ kthread_ptr scheduler::yield()
 }
 kthread_ptr scheduler::fallthrough_yield()
 {
-	if(!__total_tasks) return kthread_ptr();
+	if(!__total_tasks) return kthread_ptr(nullptr, nullptr);
 	kthread_ptr next			= select_next();
 	if(next) next->quantum_rem	= next->quantum_val;
 	if(next && next.thread_ptr) next.activate();
 	return next;
-}
-void scheduler::add_worker_task(kthread_ptr const& w)
-{
-	__instance.register_task(w);
-	task_t* cptr	= get_task_base();
-	if(cptr == std::addressof(kproc)) write_task_base(*w);
 }
 void scheduler::remove_worker_task(kthread_ptr const& w)
 {
@@ -324,8 +319,9 @@ void scheduler::remove_worker_task(kthread_ptr const& w)
 	if(cptr == w.task_ptr)
 	{
 		kthread_ptr next	= __instance.fallthrough_yield();
-		if(next.task_ptr)
+		if(next.task_ptr && next.task_ptr != cptr)
 			__instance.__do_task_change(cur, next);
 	}
-	__instance.unregister_task(w);
+	__instance.unregister_task(w.task_ptr);
+	if(__unlikely(!__instance.__total_tasks)) set_gs_base(std::addressof(kproc));
 }

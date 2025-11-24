@@ -11,13 +11,13 @@ namespace std
 	public:
 		typedef TT traits_type;
 		typedef CT value_type;
-		typedef typename __base::__alloc_type allocator_type;
+		typedef typename __base::__allocator_type allocator_type;
 		typedef typename __base::__size_type size_type;
-		typedef typename __base::__diff_type difference_type;
-		typedef typename __base::__ref reference;
-		typedef typename __base::__const_ref const_reference;
-		typedef typename __base::__ptr pointer;
-		typedef typename __base::__const_ptr const_pointer;
+		typedef typename __base::__difference_type difference_type;
+		typedef typename __base::__reference reference;
+		typedef typename __base::__const_reference const_reference;
+		typedef typename __base::__pointer pointer;
+		typedef typename __base::__const_pointer const_pointer;
 		typedef ::__impl::__iterator<pointer, basic_string> iterator;
 		typedef ::__impl::__iterator<const_pointer, basic_string> const_iterator;
 		typedef std::reverse_iterator<iterator> reverse_iterator;
@@ -39,7 +39,7 @@ namespace std
 		constexpr size_type length() const noexcept { return size(); }
 		constexpr size_type max_size() const noexcept { return this->__max_capacity(); }
 		constexpr size_type capacity() const noexcept { return this->__capacity(); }
-		constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
+		constexpr allocator_type get_allocator() const noexcept {  return this->__get_alloc(); }
 		constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base(alloc) {}
 		constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string(allocator_type()) {}
 		constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base(alloc) 
@@ -67,18 +67,11 @@ namespace std
 		constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : basic_string(that.c_str() + pos, that.__cur(), alloc) {}
 		constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string(that.c_str() + pos, that.c_str() + pos + count, alloc) {}
 		constexpr basic_string(initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base(init, alloc) {}
-		constexpr basic_string& operator=(basic_string const& that)
-		{
-			this->__destroy();
-			this->__allocate_storage(that.size() + 1);
-			this->__copy(this->data(), that.data(), that.size());
-			this->__advance(that.size());
-			this->__post_modify_check_nt();
+		constexpr basic_string& operator=(basic_string const& that) {
+			this->__copy_assign(that);
 			return *this;
 		}
-		constexpr basic_string& operator=(basic_string&& that)
-		{
-			this->__destroy();
+		constexpr basic_string& operator=(basic_string&& that) {
 			this->__move_assign(std::move(that));
 			return *this;
 		}

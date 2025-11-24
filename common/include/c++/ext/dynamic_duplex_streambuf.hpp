@@ -12,8 +12,8 @@ namespace std
 		protected:
 			typedef basic_streambuf<CT, TT> __base;
 			typedef std::__impl::__buf_ptrs<CT> __ptr_container;
-			typedef AT __alloc_type;
-			__alloc_type __allocator;
+			typedef AT __allocator_type;
+			__allocator_type __allocator;
 			bool __readonly_input = false;
 		public:
 			typedef typename __base::char_type char_type;
@@ -22,9 +22,9 @@ namespace std
 			typedef typename __base::pos_type pos_type;
 			typedef typename __base::off_type off_type;
 			typedef typename __ptr_container::__size_type size_type;
-			typedef typename __ptr_container::__diff_type difference_type;
-			typedef typename __ptr_container::__ptr pointer;
-			typedef typename __ptr_container::__const_ptr const_pointer;
+			typedef typename __ptr_container::__difference_type difference_type;
+			typedef typename __ptr_container::__pointer pointer;
+			typedef typename __ptr_container::__const_pointer const_pointer;
 			typedef deref_t<pointer> reference;
 			typedef deref_t<const_pointer> const_reference;
 		protected:

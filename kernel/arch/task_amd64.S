@@ -12,6 +12,7 @@
 	.global	set_task_signal
 	.extern	force_signal
 	.global	worker_exit
+	.global	worker_return
 	.extern worker_finish
 	.global	start_worker
 	.extern worker_add
@@ -27,22 +28,31 @@
 	.type	set_task_signal,		@function
 	.type	force_signal,			@function
 	.type	worker_exit,			@function
+	.type	worker_return,			@function
 	.type	start_worker,			@function
 	.type	worker_add,				@function
 	.type	worker_finish,			@function
 	.type	task_signal_code,		@object
 	.type	kernel_isr_stack_top,	@object
 	.type	kernel_cr3,				@object
+	.type	kproc,					@function
 fallthrough_reentry:
-	swapgs
 	movq	%rdi,					%gs:T_OFFS(next)
 	movq	$kernel_isr_stack_top,	%rsp
-	jmp	1f
+	jmp		1f
 task_change:
 	isr_stack_save
 	base_state_save
 1:
 	movq		%gs:T_OFFS(next),		%rax
+	//	As kproc is a global kernel symbol, residing in the data segment (the lowest one), it will always fit into 32 bits.
+	//	Since this is an immediate operand, we can't encode this instruction to more than 32 bits.
+	//	This is hot code, so every instruction counts. I also want to avoid clobbering another register for convenience's sake.
+	//	Therefore we use the immediate to save us from having to perform an additional load into another register.
+	cmpl		$kproc,					%gs:T_OFFS(self)
+	jne			2f
+	swapgs
+2:
 	wrgsbase	%rax
 	movq		%gs:T_OFFS(thread_ptr),	%rax
 	wrfsbase	%rax
@@ -83,7 +93,7 @@ user_entry:
 	sysretq
 	.size		user_entry,			 .-user_entry
 kernel_reentry:
-	movq		%gs:T_OFFS(self),		%rdi
+	leaq		kproc,					%rdi
 	movw		T_OFFS(ds)(%rdi),		%ax
 	movw		%ax,					%ds
 	movw		%ax,					%es
@@ -126,6 +136,19 @@ worker_exit:
 	movq		%rax,				%rsi
 	jmp			worker_finish
 	.size		worker_exit,			.-worker_exit
+worker_return:
+	movq		%rsi,		%rax
+	movq		8(%rdi),	%rbp
+	movq		48(%rdi),	%rsp
+	pushq		56(%rdi)
+	movq		0(%rdi),	%rbx
+	movq		16(%rdi),	%r12
+	movq		24(%rdi),	%r13
+	movq		32(%rdi),	%r14
+	movq		40(%rdi),	%r15
+	sti
+	ret
+	.size		worker_return,			.-worker_return
 start_worker:
 	leaq		T_SIZE(%rdi),			%rsi
 	movq		%rbx,					0(%rsi)

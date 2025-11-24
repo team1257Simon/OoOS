@@ -439,20 +439,22 @@ void worker_tests()
 	ooos::worker* volatile w2 = wl.create_worker(std::bind(test_worker_2, test_arg));
 	cli();
 	int i;
-	if(__unlikely(i = start_worker(w1))) {
+	if(__unlikely(i = start_worker(w1)))
+	{
+		cli();
 		xdirect_writeln("returned " + std::to_string(i));
 		wl.destroy(w1);
 		w1 = nullptr;
 	}
-	else if(__unlikely(i = start_worker(w2))) {
+	else if(__unlikely(i = start_worker(w2)))
+	{
+		cli();
 		xdirect_writeln("returned " + std::to_string(i));
 		wl.destroy(w2);
 		w2 = nullptr;
 	}
-	else {
-		direct_writeln("started workers");
-		sti();
-	}
+	else direct_writeln("started workers");
+	sti();
 	while(w1 || w2) { pause(); }
 }
 static const char* codes[] =

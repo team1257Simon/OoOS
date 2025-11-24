@@ -147,8 +147,8 @@ public:
     typedef decltype(sizeof(char))                                      size_type;
     typedef typename traits_type::pos_type                              pos_type;
     typedef typename traits_type::off_type                              off_type;
-    typedef typename std::__impl::__buf_ptrs<char>::__ptr               pointer;
-    typedef typename std::__impl::__buf_ptrs<char>::__const_ptr         const_pointer;
+    typedef typename std::__impl::__buf_ptrs<char>::__pointer               pointer;
+    typedef typename std::__impl::__buf_ptrs<char>::__const_pointer         const_pointer;
     std::ios_base::openmode current_mode = (std::ios_base::in | std::ios_base::out);
     virtual size_type write(const_pointer src, size_type n) = 0;
     virtual size_type read(pointer dest, size_type n) = 0;

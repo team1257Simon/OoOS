@@ -4,10 +4,10 @@ namespace std
 	static void __local_lrotate(__node_base* const x, __node_base*& root);
 	static void __local_rrotate(__node_base* const x, __node_base*& root);
 	static inline __node_base* __next(__node_base* x, const node_direction dir) { return (dir == RIGHT ? x->__my_right : x->__my_left); }
-	__node_base::__ptr __node_base::__min(__ptr x) { while(x->__my_left) x = x->__my_left; return x; }
-	__node_base::__const_ptr __node_base::__min(__const_ptr x) { while(x->__my_left) x = x->__my_left; return x; }
-	__node_base::__ptr __node_base::__max(__ptr x) { while(x->__my_right) x = x->__my_right; return x; }
-	__node_base::__const_ptr __node_base::__max(__const_ptr x)  { while(x->__my_right) x = x->__my_right; return x; }
+	__node_base::__pointer __node_base::__min(__pointer x) { while(x->__my_left) x = x->__my_left; return x; }
+	__node_base::__const_pointer __node_base::__min(__const_pointer x) { while(x->__my_left) x = x->__my_left; return x; }
+	__node_base::__pointer __node_base::__max(__pointer x) { while(x->__my_right) x = x->__my_right; return x; }
+	__node_base::__const_pointer __node_base::__max(__const_pointer x)  { while(x->__my_right) x = x->__my_right; return x; }
 	static inline node_direction __opposite(const node_direction dir) { return (dir == RIGHT ? LEFT : RIGHT); }
 	static inline void __local_rotate(__node_base* const x, __node_base*& root, const node_direction dir) { if(dir == RIGHT) __local_rrotate(x, root); else __local_lrotate(x, root); }
 	static inline bool __local_erase_rebalance_check_color(__node_base* w, const node_direction dir) { __node_base* w1 = (dir == RIGHT ? w->__my_right : w->__my_left); return (!w1 || w1->__my_color == BLACK); }

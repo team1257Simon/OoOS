@@ -5,7 +5,7 @@ namespace std
 {
 	extension namespace ext
 	{
-		template<typename T, allocator_object<T> A> struct stale_settings { unsigned int op_threshold; typename std::__impl::__dynamic_queue<T, A>::__diff_type size_threshold; };
+		template<typename T, allocator_object<T> A> struct stale_settings { unsigned int op_threshold; typename std::__impl::__dynamic_queue<T, A>::__difference_type size_threshold; };
 		template<typename T, allocator_object<T> A = std::allocator<T>>
 		class resettable_queue : protected std::__impl::__dynamic_queue<T, A>
 		{
@@ -16,13 +16,13 @@ namespace std
 			virtual void on_modify_queue() override { if(__enable_trim_stale) { this->__trim_stale(); } }
 		public:
 			typedef T value_type;
-			typedef typename __base::__alloc_type allocator_type;
+			typedef typename __base::__allocator_type allocator_type;
 			typedef typename __base::__size_type size_type;
-			typedef typename __base::__diff_type difference_type;
-			typedef typename __base::__ref reference;
-			typedef typename __base::__const_ref const_reference;
-			typedef typename __base::__ptr pointer;
-			typedef typename __base::__const_ptr const_pointer;
+			typedef typename __base::__difference_type difference_type;
+			typedef typename __base::__reference reference;
+			typedef typename __base::__const_reference const_reference;
+			typedef typename __base::__pointer pointer;
+			typedef typename __base::__const_pointer const_pointer;
 			typedef ::__impl::__iterator<pointer, resettable_queue> iterator;
 			typedef ::__impl::__iterator<const_pointer, resettable_queue> const_iterator;
 			typedef std::reverse_iterator<iterator> reverse_iterator;

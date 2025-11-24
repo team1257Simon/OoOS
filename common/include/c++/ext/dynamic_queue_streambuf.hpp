@@ -15,11 +15,11 @@ namespace std
 		public:
 			typedef TT                              traits_type;
 			typedef typename __base::__value_type   value_type;
-			typedef typename __base::__alloc_type   allocator_type;
-			typedef typename __base::__ptr          pointer;
-			typedef typename __base::__const_ptr    const_pointer;
+			typedef typename __base::__allocator_type   allocator_type;
+			typedef typename __base::__pointer          pointer;
+			typedef typename __base::__const_pointer    const_pointer;
 			typedef typename __base::__size_type    size_type;
-			typedef typename __base::__diff_type    difference_type;
+			typedef typename __base::__difference_type    difference_type;
 			typedef typename traits_type::pos_type  pos_type;
 			typedef typename traits_type::off_type  off_type;
 			constexpr dynamic_queue_streambuf() = default;

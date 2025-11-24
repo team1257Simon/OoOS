@@ -30,16 +30,16 @@ namespace std
 	};
 	struct __node_base
 	{
-		typedef __node_base* __ptr;
-		typedef __node_base const* __const_ptr;
+		typedef __node_base* __pointer;
+		typedef __node_base const* __const_pointer;
 		node_color __my_color;
-		__ptr __my_parent;
-		__ptr __my_left;
-		__ptr __my_right;
-		static __ptr __min(__ptr x);
-		static __const_ptr __min(__const_ptr x);
-		static __ptr __max(__ptr x);
-		static __const_ptr __max(__const_ptr x);
+		__pointer __my_parent;
+		__pointer __my_left;
+		__pointer __my_right;
+		static __pointer __min(__pointer x);
+		static __const_pointer __min(__const_pointer x);
+		static __pointer __max(__pointer x);
+		static __const_pointer __max(__const_pointer x);
 	};
 	constexpr __node_base* __increment_node(__node_base* x)
 	{
@@ -155,7 +155,7 @@ namespace std
 		typedef ptrdiff_t difference_type;
 	private:
 		typedef __tree_iterator<T> __iterator_type;
-		typedef __node_base::__ptr __base_ptr;
+		typedef __node_base::__pointer __base_ptr;
 		typedef __node<T>* __node_ptr;
 		__base_ptr __my_node;
 	public:
@@ -182,7 +182,7 @@ namespace std
 	private:
 		typedef __tree_iterator<T> __iterator_type;
 		typedef __tree_const_iterator<T> __const_iterator_type;
-		typedef __node_base::__const_ptr __base_ptr;
+		typedef __node_base::__const_pointer __base_ptr;
 		typedef __node<T> const* __node_ptr;
 		__base_ptr __my_node;
 	public:
@@ -216,10 +216,10 @@ namespace std
 		typedef __tree_iterator<T> __iterator;
 		typedef __tree_const_iterator<T> __const_iterator;
 		typedef T __value_type;
-		typedef typename __rebind_alloc::other __alloc_type;
+		typedef typename __rebind_alloc::other __allocator_type;
 		typedef CP __compare_type;
 		typedef __tree_base __trunk_type;
-		__alloc_type __alloc{};
+		__allocator_type __alloc{};
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __pos_for_unique(U const& u);
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __pos_for_equal(U && u);
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __insert_unique_hint_pos(__const_link hint, U const& u);
@@ -559,7 +559,7 @@ namespace std
 		__clear();
 		this->__trunk		= move(that.__trunk);
 		this->__count		= that.__count;
-		if constexpr(__has_move_propagate<__alloc_type>)
+		if constexpr(__has_move_propagate<__allocator_type>)
 			this->__alloc	= move(that.__alloc);
 		return *this;
 	}

@@ -6,6 +6,7 @@ namespace ooos { class worker; }
 extern "C"
 {
 	extern void worker_exit();
+	extern void worker_return(jmp_buf jb, int status) attribute(noreturn);
 	extern task_t kproc;
 	int worker_entry(ooos::worker* w);
 }

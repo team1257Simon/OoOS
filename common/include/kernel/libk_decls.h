@@ -28,7 +28,7 @@ namespace std
     extension template<typename FT, typename RT, typename ... Args> concept functor = requires { { declval<FT&&>()(declval<Args&&>()...) } -> same_as<RT>; };
     extension template<typename T> concept non_object = !is_object_v<T>;
     extension template<typename T> concept object = is_object_v<T>;
-    extension template<class A, typename T> concept __allocator_object = is_default_constructible_v<A> && requires { { declval<A>().allocate(declval<size_t>()) } -> same_as<T*>; declval<A>().deallocate(declval<T*>(), declval<size_t>()); };
+	extension template<class A, typename T> concept __allocator_object = is_default_constructible_v<A> && requires(std::remove_cvref_t<A>& a) { { a.allocate(declval<size_t>()) } -> same_as<T*>; a.deallocate(declval<T*>(), declval<size_t>()); };
     struct __somesuch{};
     extension template<class A, typename T> concept allocator_object = __allocator_object<A, T> && __allocator_object<typename A::template rebind<__somesuch>::other, __somesuch>;
     extension template<template<typename> class PT, typename T> concept recursive_template_derived = derived_from<T, PT<T>>;

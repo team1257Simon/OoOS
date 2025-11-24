@@ -11,13 +11,13 @@ namespace std
 		typedef __impl::__dynamic_buffer<T, A, false> __base;
 	public:
 		typedef T value_type;
-		typedef typename __base::__alloc_type allocator_type;
+		typedef typename __base::__allocator_type allocator_type;
 		typedef typename __base::__size_type size_type;
-		typedef typename __base::__diff_type difference_type;
-		typedef typename __base::__ref reference;
-		typedef typename __base::__const_ref const_reference;
-		typedef typename __base::__ptr pointer;
-		typedef typename __base::__const_ptr const_pointer;
+		typedef typename __base::__difference_type difference_type;
+		typedef typename __base::__reference reference;
+		typedef typename __base::__const_reference const_reference;
+		typedef typename __base::__pointer pointer;
+		typedef typename __base::__const_pointer const_pointer;
 		typedef ::__impl::__iterator<pointer, vector> iterator;
 		typedef ::__impl::__iterator<const_pointer, vector> const_iterator;
 		typedef std::reverse_iterator<iterator> reverse_iterator;
@@ -34,7 +34,7 @@ namespace std
 		constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type()) noexcept(noexcept(std::declval<allocator_type>().allocate(std::declval<size_type>())) && std::is_nothrow_copy_constructible_v<allocator_type>) : __base(init, alloc) {}
 		constexpr vector& operator=(vector const& that) noexcept(noexcept(std::declval<allocator_type>().allocate(std::declval<size_type>())) && std::is_nothrow_copy_assignable_v<allocator_type>) { this->__copy_assign(that); return *this; }
 		constexpr vector& operator=(vector&& that) noexcept(std::is_nothrow_move_assignable_v<allocator_type> || !__has_move_propagate<allocator_type>) { this->__move_assign(move(that)); return *this; }
-		constexpr allocator_type get_allocator() const noexcept { return this->__allocator; }
+		constexpr allocator_type get_allocator() const noexcept { return this->__get_alloc(); }
 		constexpr pointer data() noexcept { return this->__beg(); }
 		constexpr const_pointer data() const noexcept { return this->__beg(); }
 		constexpr reference at(size_type i) { return this->__get(i); }

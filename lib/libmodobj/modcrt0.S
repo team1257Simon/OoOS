@@ -14,7 +14,7 @@
 _start:
 	pushq	%rbp
 	movq	%rsp,						%rbp
-	test	%rdi,						%rdi
+	testq	%rdi,						%rdi
 	jz		1f
 	leaq	__module_frame_tag(%rip),	%rsi
 	leaq	__frame_functions(%rip),	%rdx

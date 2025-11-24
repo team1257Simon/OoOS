@@ -35,8 +35,8 @@ namespace ooos
 			constexpr const_iterator end() const noexcept { return block_ptrs + nblocks; }
 			constexpr const_iterator cend() const noexcept { return block_ptrs + nblocks; }
 			inline ~__block_pool() noexcept { for(block_tag* t : *this) if(t) block_free(t); }
-			constexpr block_tag*& operator[](size_t bsz) & noexcept { return block_ptrs[block_idx(bsz)]; }
-			constexpr block_tag* const& operator[](size_t bsz) const& noexcept { return block_ptrs[block_idx(bsz)]; }
+			constexpr block_tag*& operator[](size_t bsz) noexcept { return block_ptrs[block_idx(bsz)]; }
+			constexpr block_tag* const& operator[](size_t bsz) const noexcept { return block_ptrs[block_idx(bsz)]; }
 		};
 	}
 	/**
@@ -68,8 +68,8 @@ namespace ooos
 			std::ext::delegate_ptr<__internal::__block_pool> __pool;
 			__block_pool_delegate() : __pool() {}
 			constexpr bool range_check(size_t bsz) const noexcept { return bsz <= (1UZ << (__internal::nblocks - 1Z)); }
-			block_tag*& operator[](size_t bsz) & noexcept { return __pool[bsz]; }
-			block_tag* const& operator[](size_t bsz) const& noexcept { return __pool[bsz]; }
+			block_tag*& operator[](size_t bsz) noexcept { return __pool[bsz]; }
+			block_tag* const& operator[](size_t bsz) const noexcept { return __pool[bsz]; }
 			block_tag* at(size_t bsz) const& noexcept { if(__unlikely(!range_check(bsz))) return nullptr; return __pool[bsz]; }
 			constexpr bool operator==(__block_pool_delegate const& that) const noexcept { return this->__pool == that.__pool; }
 			constexpr std::strong_ordering operator<=>(__block_pool_delegate const& that) const noexcept { return this->__pool <=> that.__pool; }
