@@ -1,6 +1,6 @@
 #ifndef __ARP
 #define __ARP
-#include "net/protocol/net_abstract.hpp"
+#include <net/protocol/net_abstract.hpp>
 constexpr net16 ethertype_arp   = 0x0806USBE;
 constexpr net16 arp_req         = 0x0001USBE;
 constexpr net16 arp_res         = 0x0002USBE;

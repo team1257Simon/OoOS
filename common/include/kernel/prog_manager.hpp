@@ -1,7 +1,7 @@
 #ifndef __PROG_MANAGER
 #define __PROG_MANAGER
-#include "kernel/elf64_dynamic_exec.hpp"
-#include "list"
+#include <elf64_dynamic_exec.hpp>
+#include <list>
 class prog_manager : std::list<elf64_executable>, std::list<elf64_dynamic_executable>
 {
 	using __static_base = std::list<elf64_executable>;

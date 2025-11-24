@@ -1,8 +1,8 @@
 #ifndef __NETSKB
 #define __NETSKB
-#include "ext/dynamic_duplex_streambuf.hpp"
-#include "functional"
-#include "net/net_types.hpp"
+#include <ext/dynamic_duplex_streambuf.hpp>
+#include <functional>
+#include <net/net_types.hpp>
 class netstack_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
 	friend class net_device;

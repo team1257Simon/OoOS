@@ -1,8 +1,8 @@
 #ifndef __SCHED_TASKLIST
 #define __SCHED_TASKLIST
-#include "kernel/sched/task_ctx.hpp"
-#include "kernel/elf64.h"
-#include "set"
+#include <sched/task_ctx.hpp>
+#include <elf64.h>
+#include <set>
 typedef elf64_program_descriptor prog_desc_t;
 typedef std::vector<const char*> cstr_vec;
 class task_list : std::set<task_ctx>

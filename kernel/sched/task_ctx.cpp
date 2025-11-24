@@ -1,12 +1,12 @@
-#include "sched/scheduler.hpp"
-#include "sched/task_list.hpp"
-#include "prog_manager.hpp"
-#include "frame_manager.hpp"
-#include "kernel_mm.hpp"
-#include "errno.h"
-#include "fs/fat32.hpp"
-#include "elf64_dynamic_exec.hpp"
-#include "isr_table.hpp"
+#include <sched/scheduler.hpp>
+#include <sched/task_list.hpp>
+#include <errno.h>
+#include <elf64_dynamic_exec.hpp>
+#include <frame_manager.hpp>
+#include <isr_table.hpp>
+#include <kdebug.hpp>
+#include <kernel_mm.hpp>
+#include <prog_manager.hpp>
 typedef std::pair<elf64_sym, addr_t> sym_pair;
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};

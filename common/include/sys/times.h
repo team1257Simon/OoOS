@@ -1,6 +1,6 @@
 #ifndef __TIMES
 #define __TIMES
-#include "sys/types.h"
+#include <sys/types.h>
 struct tms 
 {
 	clock_t	tms_utime;		/* user time */

@@ -1,7 +1,7 @@
 #ifndef __NETDEV
 #define __NETDEV
-#include "net/protocol/arp.hpp"
-#include "bits/stl_queue.hpp"
+#include <net/protocol/arp.hpp>
+#include <bits/stl_queue.hpp>
 class net_device
 {
 	friend void net_tests();

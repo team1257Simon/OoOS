@@ -1,9 +1,8 @@
 #ifndef __ELF64_OBJ
 #define __ELF64_OBJ
-#include "kernel/kernel_defs.h"
-#include "kernel/kernel_mm.hpp"
-#include "kernel/elf64.h"
-#include "kernel/fs/fs.hpp"
+#include <kernel_mm.hpp>
+#include <elf64.h>
+#include <fs/fs.hpp>
 class elf64_object
 {
 	bool __validated{};

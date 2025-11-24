@@ -1,7 +1,7 @@
 #ifndef __HEAP_ALLOC
 #define __HEAP_ALLOC
-#include "kernel/libk_decls.h"
-#include "vector"
+#include <libk_decls.h>
+#include <vector>
 #ifndef MAX_BLOCK_EXP
 #define MAX_BLOCK_EXP 32U
 #endif

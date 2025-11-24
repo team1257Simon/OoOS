@@ -1,7 +1,7 @@
 #ifndef __EXECUTABLE
 #define __EXECUTABLE
-#include "kernel/elf64_object.hpp"
-#include "kernel/kernel_mm.hpp"
+#include <elf64_object.hpp>
+#include <kernel_mm.hpp>
 class elf64_executable : public virtual elf64_object
 {
 protected:

@@ -1,9 +1,9 @@
 #ifndef __DYNAMIC_LINK_MAP
 #define __DYNAMIC_LINK_MAP
-#include "unordered_set"
-#include "unordered_map"
-#include "elf64_shared.hpp"
-/* The MODE argument to `dlopen' contains one of the following: */
+#include <unordered_set>
+#include <unordered_map>
+#include <elf64_shared.hpp>
+/* The MODE argument to 'dlopen' contains one of the following: */
 #define RTLD_LAZY       0x0001
 #define RTLD_NOW        0x0002
 #define RTLD_NOLOAD	    0x0004

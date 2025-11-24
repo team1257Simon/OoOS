@@ -1,7 +1,7 @@
 #ifndef __ELF_KO
 #define __ELF_KO
-#include "elf64_dynamic.hpp"
-#include "module.hpp"
+#include <elf64_dynamic.hpp>
+#include <module.hpp>
 class elf64_kernel_object : public elf64_dynamic_object
 {
 protected:

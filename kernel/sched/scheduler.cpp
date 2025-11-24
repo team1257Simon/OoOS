@@ -1,6 +1,6 @@
-#include "sched/scheduler.hpp"
-#include "isr_table.hpp"
-#include "arch/arch_amd64.h"
+#include <arch/arch_amd64.h>
+#include <sched/scheduler.hpp>
+#include <isr_table.hpp>
 using enum priority_val;
 extern "C" 
 {

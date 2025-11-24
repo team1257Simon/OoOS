@@ -1,10 +1,10 @@
 #ifndef __ISR_TABLE
 #define __ISR_TABLE
-#include "stdint.h"
-#include "kernel/libk_decls.h"
-#include "kernel_api.hpp"
-#include "functional"
-#include "vector"
+#include <stdint.h>
+#include <libk_decls.h>
+#include <kernel_api.hpp>
+#include <functional>
+#include <vector>
 typedef std::function<void()> irq_callback;
 typedef std::function<void(byte, qword)> interrupt_callback;
 namespace interrupt_table

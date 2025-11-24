@@ -118,7 +118,6 @@ namespace ooos
 		friend constexpr bool operator==(worker const& __this, worker const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
 	private:
 		void init_state();
-		void stack_push(addr_t value);
 	} __align(16);
 	template<__internal::__worker_fn FT>
 	inline worker::worker(FT&& wfn, addr_t stack, size_t stacksz, pid_t tid, uint16_t qv) :

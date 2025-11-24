@@ -1,7 +1,7 @@
 #ifndef __DEVICE_REGISTRY
 #define __DEVICE_REGISTRY
-#include "unordered_map"
-#include "fs/dev_stream.hpp"
+#include <unordered_map>
+#include <fs/dev_stream.hpp>
 typedef dev_stream<char> device_stream;
 class dev_class_map : public std::unordered_map<uint16_t, device_stream*>
 {

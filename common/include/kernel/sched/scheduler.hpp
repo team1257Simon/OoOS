@@ -1,11 +1,10 @@
 #ifndef __SCHED
 #define __SCHED
-#include "arch/cpu_time.hpp"
-#include "sched/task_queue.hpp"
-#include "sched/deferred_action.hpp"
-#include "atomic"
-#include "vector"
-#include "kdebug.hpp"
+#include <arch/cpu_time.hpp>
+#include <sched/task_queue.hpp>
+#include <sched/deferred_action.hpp>
+#include <atomic>
+#include <vector>
 class scheduler
 {
 	prio_level_task_queues __queues;

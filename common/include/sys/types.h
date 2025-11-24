@@ -1,7 +1,7 @@
 #ifndef __TYPES
 #define __TYPES
 #ifdef __KERNEL__
-#include "kernel/kernel_defs.h"
+#include <kernel/kernel_defs.h>
 typedef addr_t caddr_t;
 #else
 #include "stdint.h"

@@ -1,8 +1,7 @@
-#include "sched/task_list.hpp"
-#include "sched/scheduler.hpp"
-#include "kernel_mm.hpp"
-#include "frame_manager.hpp"
-#include "stdlib.h" // rand()
+#include <sched/task_list.hpp>
+#include <sched/scheduler.hpp>
+#include <frame_manager.hpp>
+#include <stdlib.h> // rand()
 using namespace std;
 extern "C" kframe_tag* __kernel_frame_tag;
 task_list task_list::instance{};

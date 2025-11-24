@@ -1,7 +1,6 @@
 #ifndef __ELF64_SHARED
 #define __ELF64_SHARED
-#include "elf64_dynamic.hpp"
-#include "kernel_mm.hpp"
+#include <elf64_dynamic.hpp>
 class elf64_shared_object : public elf64_dynamic_object
 {
 	friend class shared_object_map;

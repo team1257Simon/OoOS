@@ -1,6 +1,6 @@
 #ifndef __STAT
 #define __STAT
-#include "sys/time.h"
+#include <sys/time.h>
 struct stat 
 {
 	dev_t 	st_dev;

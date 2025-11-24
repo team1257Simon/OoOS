@@ -1,8 +1,8 @@
 #ifndef __ELF_RELOCATION
 #define __ELF_RELOCATION
-#include "elf64.h"
-#include "functional"
-#include "tuple"
+#include <elf64.h>
+#include <functional>
+#include <tuple>
 struct reloc_result { addr_t target; uint64_t value; };
 typedef std::function<uint64_t(elf64_sym const&, elf64_rela const&)> reloc_sym_resolve;
 typedef std::function<addr_t(elf64_rela const&)> reloc_tar_resolve;

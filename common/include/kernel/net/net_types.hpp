@@ -1,9 +1,9 @@
 #ifndef __NET_TYPES
 #define __NET_TYPES
-#include "libk_decls.h"
-#include "sys/types.h"
-#include "array"
-#include "vector"
+#include <libk_decls.h>
+#include <sys/types.h>
+#include <array>
+#include <vector>
 typedef uint8_t net8;
 typedef __be16 net16;
 typedef __be32 net32;

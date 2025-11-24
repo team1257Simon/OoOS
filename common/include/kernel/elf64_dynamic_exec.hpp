@@ -1,7 +1,7 @@
 #ifndef __ELF64_DYN_EXEC
 #define __ELF64_DYN_EXEC
-#include "kernel/elf64_exec.hpp"
-#include "elf64_dynamic.hpp"
+#include <elf64_exec.hpp>
+#include <elf64_dynamic.hpp>
 class elf64_dynamic_executable : public elf64_executable, public elf64_dynamic_object
 {
 protected:

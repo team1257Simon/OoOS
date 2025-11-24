@@ -1,7 +1,7 @@
 #ifndef __MOD_LOADER
 #define __MOD_LOADER
-#include "elf64_kernel_object.hpp"
-#include "unordered_map"
+#include <elf64_kernel_object.hpp>
+#include <unordered_map>
 class module_loader : std::unordered_map<std::string, elf64_kernel_object>
 {
 	typedef std::unordered_map<std::string, elf64_kernel_object> __base;
