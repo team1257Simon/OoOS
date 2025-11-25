@@ -13,6 +13,7 @@
 #include "initializer_list"
 namespace std::__impl
 {
+	template<typename T> concept __can_sso = std::default_initializable<T> && std::is_trivially_copyable_v<T> && std::is_trivially_destructible_v<T>;
 	/**
 	 * This contains the pointers to the first and last elements of a buffer as well as an "end" pointer that represents either the current end of the data
 	 * or the current position of read/write operations.
@@ -151,7 +152,6 @@ namespace std::__impl
 		constexpr void __copy(__pointer where, __const_pointer src, __size_type n) { array_copy(where, src, n); }
 		constexpr void __move(__pointer where, __pointer src, __size_type n) { array_move(where, src, n); }
 		constexpr bool __grow_buffer(__size_type added);
-		constexpr void __post_modify_check_nt();
 		template<matching_input_iterator<T> IT> constexpr __pointer __append_elements(IT start_it, IT end_it);
 		template<matching_input_iterator<T> IT> constexpr __pointer __insert_elements(__const_pointer pos, IT start_ptr, IT end_ptr);
 		template<typename ... Args> requires constructible_from<T, Args...> constexpr __pointer __emplace_element(__const_pointer pos, Args&& ... args);
@@ -181,13 +181,13 @@ namespace std::__impl
 		constexpr void __setp(__pointer beg, __pointer end) noexcept { __setp(beg, beg, end); }
 		constexpr void __setn(__pointer beg, __size_type c, __size_type n) noexcept { __setp(beg, beg + c, beg + n); }
 		constexpr void __setn(__pointer beg, __size_type n) noexcept { __setp(beg, beg + n); }
-		constexpr void __setc(__pointer pos) noexcept { if(__valid_end_pos(pos)) __my_data.__setc(pos); } 
+		constexpr void __setc(__pointer pos) noexcept { if(__valid_end_pos(pos)) __my_data.__setc(pos); if constexpr(__end_zero) new(__cur()) T(); }
 		constexpr void __setc(__size_type pos) noexcept { __setc(__get_ptr(pos)); }
 		constexpr void __bumpc(int64_t off) noexcept { __setc(__cur() + off); }
 		constexpr void __rst() noexcept { __setc(__beg()); }
 		constexpr __size_type __max_capacity() const noexcept { return numeric_limits<__size_type>::max(); }
-		constexpr void __advance(__size_type n) { if(__valid_end_pos(__cur() + n)) { __my_data.__adv(n); } else { __setc(__max()); } }
-		constexpr void __backtrack(__size_type n) { if(__valid_end_pos(__cur() - n)) { __my_data.__bck(n); } else { __setc(__beg()); } }
+		constexpr void __advance(__size_type n) { if(__valid_end_pos(__cur() + n)) { __setc(__cur() + n); } else { __setc(__max()); } }
+		constexpr void __backtrack(__size_type n) { if(__valid_end_pos(__cur() - n)) { __setc(__cur() - n); } else { __setc(__beg()); } }
 		constexpr __size_type __size() const noexcept { return static_cast<__size_type>(__cur() - __beg()); }
 		constexpr __size_type __capacity() const noexcept { return static_cast<__size_type>(__max() - __beg()); }
 		constexpr __size_type __rem() const noexcept { return static_cast<__size_type>(__max() - __cur()); }
@@ -223,19 +223,19 @@ namespace std::__impl
 			{
 				__size_type n	= __my_data.__capacity();
 				__transfer(__beg(), start, end < start ? start : end);
-				__advance(n);
+				__setc(n);
 			}
 		constexpr void __trim_buffer()
 		{
 			__size_type num_elements	= __size();
 			__data_resize(num_elements, num_elements);
-			__post_modify_check_nt();
+			__setc(num_elements);
 		}
 		constexpr void __size_buffer(__size_type n)
 		{
 			__size_type num_elements	= __size();
 			__data_resize(std::min(n, num_elements), n);
-			__post_modify_check_nt();
+			__setc(num_elements);
 		}
 		constexpr void __construct_element(__pointer pos, T const& t)
 		{
@@ -249,7 +249,6 @@ namespace std::__impl
 			__set(__beg(), t, count);
 			if(count < __size()) __zero(__get_ptr(count), __size() - count);
 			__setc(count);
-			__post_modify_check_nt();
 			return __cur();
 		}
 		constexpr __pointer __assign_elements(__const_pointer start, __const_pointer end)
@@ -259,7 +258,6 @@ namespace std::__impl
 			__copy(__beg(), start, count);
 			if(count < __size()) __zero(__get_ptr(count), __size() - count);
 			__setc(count);
-			__post_modify_check_nt();
 			return __cur();
 		}
 		constexpr __pointer __replace_elements(__const_pointer start, __const_pointer end, __const_pointer from, __size_type count)
@@ -271,8 +269,8 @@ namespace std::__impl
 		constexpr __pointer __append_elements(__size_type count, T const& t)
 		{
 			if(!(__max() > __cur() + count) && __unlikely(!__grow_buffer(static_cast<__size_type>(count - __rem())))) return nullptr;
-			for(__size_type i = 0; i < count; i++, __advance(1UZ)) construct_at(__cur(), t);
-			__post_modify_check_nt();
+			for(__size_type i = 0; i < count; i++) construct_at(__cur() + i, t);
+			__advance(count);
 			return __cur();
 		}
 		constexpr __pointer __append_element(T const& t)
@@ -280,7 +278,6 @@ namespace std::__impl
 			if(!(__max() > __cur()) && __unlikely(!__grow_buffer(1UZ))) return nullptr;
 			construct_at(__cur(), t);
 			__advance(1UZ);
-			__post_modify_check_nt();
 			return __cur();
 		}
 		constexpr void __clear()
@@ -288,14 +285,12 @@ namespace std::__impl
 			__size_type cap = __capacity();
 			__destroy();
 			__allocate_storage(cap);
-			__post_modify_check_nt();
 			if constexpr(__trivial)	__zero(__beg(), __capacity());
 		}
 		constexpr __pointer __erase_at_end(__size_type how_many)
 		{
 			if(__unlikely(how_many >= __size())) __clear();
 			else { __backtrack(how_many); __zero(__cur(), how_many); }
-			__post_modify_check_nt();
 			return __cur();
 		}
 		constexpr void __destroy()
@@ -312,21 +307,19 @@ namespace std::__impl
 			__allocate_storage(that.__capacity());
 			__copy(__beg(), that.__beg(), that.__capacity());
 			__advance(that.__size());
-			__post_modify_check_nt();
 		}
 		constexpr void __swap(__dynamic_buffer& that)
 		{
 			this->__my_data.__swap_ptrs(that.__my_data);
 			if constexpr(__has_move_propagate<__allocator_type>)
 				std::swap<__allocator_type>(this->__my_data, that.__my_data);
-			this->__post_modify_check_nt();
-			that.__post_modify_check_nt();
 		}
 	};
 	template<typename T, allocator_object<T> A, bool NTS>
 	template<matching_input_iterator<T> IT>
 	constexpr void __dynamic_buffer<T, A, NTS>::__transfer(T* where, IT start, IT end)
 	{
+		if(__unlikely(!(end > start))) return;
 		if constexpr(contiguous_iterator<IT>)
 			array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end))); 
 		else for(IT i = start; i != end; i++, where++)
@@ -353,10 +346,10 @@ namespace std::__impl
 			__move(nwdat.__begin, __beg(), pos);
 			__copy(nwdat.__get_ptr(pos), from, count2);
 			__move(nwdat.__get_ptr(pos + count2), __get_ptr(pos + count), rem);
-			nwdat.__setc(__size() + diff);
+			__size_type rs_size		= __size() + diff;
 			__destroy();
 			__assign_ptrs(nwdat);
-			__post_modify_check_nt();
+			__setc(rs_size);
 		}
 		catch(...) { return nullptr; }
 		return __get_ptr(pos + count);
@@ -378,11 +371,12 @@ namespace std::__impl
 	template<matching_input_iterator<T> IT> 
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__append_elements(IT start_it, IT end_it)
 	{
+		if(__unlikely(!(end_it > start_it))) return __cur();
 		__size_type rem	= __rem();
 		__size_type num	= distance(start_it, end_it);
 		if((!__beg() || num > rem) && __unlikely(!__grow_buffer(num - rem))) return nullptr;
-		for(IT i = start_it; i < end_it; i++, __advance(1UZ)) construct_at(__cur(), *i);
-		__post_modify_check_nt();
+		__transfer(__cur(), start_it, end_it);
+		__advance(num);
 		return __cur();
 	}
 	template<typename T, allocator_object<T> A, bool NTS>
@@ -429,10 +423,9 @@ namespace std::__impl
 				else __move(nwdat.__begin, __beg(), osz);
 				__destroy();
 				__assign_ptrs(nwdat);
-				__setc(osz + range_size);
 				__transfer(__get_ptr(offs), start_ptr, end_ptr);
+				__setc(osz + range_size);
 			}
-			__post_modify_check_nt();
 			return __get_ptr(offs);
 		}
 		catch(...) { return nullptr; }
@@ -453,7 +446,6 @@ namespace std::__impl
 		if(rem) __move(result + 1, __get_ptr(start_pos), rem);
 		__destroy();
 		__assign_ptrs(nwdat);
-		__post_modify_check_nt();
 		return result;
 	}
 	template <typename T, allocator_object<T> A, bool NTS>
@@ -463,8 +455,7 @@ namespace std::__impl
 	{
 		if(__size() == __capacity() && __unlikely(!__grow_buffer(1UZ))) return nullptr;
 		__pointer p = construct_at(__cur(), forward<Args>(args)...);
-		__bumpc(1L);
-		__post_modify_check_nt();
+		__advance(1UZ);
 		return p;
 	}
 	template<typename T, allocator_object<T> A, bool NTS>
@@ -486,18 +477,7 @@ namespace std::__impl
 			__setc(start_pos + rem);
 		}
 		catch(...) { return nullptr; }
-		__post_modify_check_nt();
 		return __get_ptr(start_pos);
-	}
-	template<typename T, allocator_object<T> A, bool NTS> 
-	constexpr void __dynamic_buffer<T, A, NTS>::__post_modify_check_nt() 
-	{ 
-		if constexpr(__end_zero) 
-		{ 
-			if(!(__max() > __cur()))
-				__grow_buffer(1UZ); 
-			construct_at(__cur()); 
-		} 
 	}
 }
 #endif

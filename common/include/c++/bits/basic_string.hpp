@@ -31,6 +31,8 @@ namespace std
 			else if (d < numeric_limits<int>::min()) return numeric_limits<int>::min();
 			else return int(d);
 		}
+		template<matching_input_iterator<value_type> IT>
+		constexpr static size_type __ldist(IT start, IT end) { return end > start ? static_cast<size_type>(std::distance(start, end)) : 0UZ; }
 	public:
 		constexpr pointer data() noexcept { return this->__beg(); }
 		constexpr const_pointer data() const noexcept { return this->__beg(); }
@@ -42,22 +44,17 @@ namespace std
 		constexpr allocator_type get_allocator() const noexcept {  return this->__get_alloc(); }
 		constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base(alloc) {}
 		constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string(allocator_type()) {}
-		constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base(alloc) 
-		{
-			size_t n(count + 1UL);
-			this->__allocate_storage(n);
-			for(size_t i = 0; i < n; i++) std::construct_at(this->__get_ptr(i));
-		}
-		constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : basic_string(count, alloc) {
+		constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type{}) : __base(count, alloc) {}
+		constexpr basic_string(size_type count, value_type value, allocator_type const& alloc = allocator_type{}) : basic_string(count + 1UZ, alloc) {
 			this->__set(this->__beg(), value, count);
 			this->__setc(count);
 		}
-		template<matching_input_iterator<value_type> IT> 
-		constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : basic_string(size_type(std::distance(start, end)), alloc) {
+		template<matching_input_iterator<value_type> IT>
+		constexpr basic_string(IT start, IT end, allocator_type const& alloc = allocator_type{}) : basic_string(__ldist(start, end) + 1UZ, alloc) {
 			this->__transfer(data(), start, end);
-			this->__setc(std::distance(start, end));
+			this->__setc(__ldist(start, end));
 		}
-		constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string(count, alloc) {
+		constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string(count + 1UZ, alloc) {
 			traits_type::copy(this->__beg(), str, count);
 			this->__setc(count);
 		}
@@ -66,7 +63,7 @@ namespace std
 		constexpr basic_string(basic_string&& that, allocator_type const& alloc = allocator_type{}) : __base(forward<__base>(that)) {}
 		constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc = allocator_type{}) : basic_string(that.c_str() + pos, that.__cur(), alloc) {}
 		constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc = allocator_type{}) : basic_string(that.c_str() + pos, that.c_str() + pos + count, alloc) {}
-		constexpr basic_string(initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : __base(init, alloc) {}
+		constexpr basic_string(initializer_list<value_type> init, allocator_type const& alloc = allocator_type{}) : basic_string(init.begin(), init.end(), alloc) {}
 		constexpr basic_string& operator=(basic_string const& that) {
 			this->__copy_assign(that);
 			return *this;
