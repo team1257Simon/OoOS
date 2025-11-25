@@ -52,7 +52,8 @@ bool protocol_arp::check_presence(ipv4_addr addr)
 	abstract_packet<arpv4_packet> pkt(std::move(hdr));
 	pkt->dst_pr			= addr;
 	pkt->opcode			= arp_req;
-	if(base->ipv4_client_config->current_state == ipv4_client_state::BOUND) { pkt->src_pr = base->ipv4_client_config->leased_addr; }
+	if(base->ipv4_client_config->current_state == ipv4_client_state::BOUND)
+		pkt->src_pr		= base->ipv4_client_config->leased_addr;
 	else pkt->src_pr	= 0UBE;
 	if(base->transmit(pkt) != 0) throw std::runtime_error("[ARP] packet transmission failed");
 	hpet.delay_us(100UL);

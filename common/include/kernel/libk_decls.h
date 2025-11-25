@@ -213,6 +213,7 @@ constexpr uint16_t day_of_year(uint8_t month, uint16_t day, bool leap)
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>)
 constexpr T* array_zero(T* dest, std::size_t n) noexcept
 {
+	if consteval { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); } return dest; }
     if constexpr(std::is_default_constructible_v<T> && !std::integral<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) == 8) array_fill(dest, 0UL, n);
     else if constexpr(sizeof(T) == 4) array_fill(dest, 0U, n);
@@ -223,6 +224,7 @@ constexpr T* array_zero(T* dest, std::size_t n) noexcept
 template<trivial_copy T> requires(std::larger<T, uint64_t>)
 constexpr T* array_zero(T* dest, std::size_t n) noexcept
 {
+	if consteval { for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); } return dest; }
     if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
     else if constexpr(sizeof(T) % 8 == 0) array_fill(dest, 0UL, n * sizeof(T) / 8);
     else if constexpr(sizeof(T) % 4 == 0) array_fill(dest, 0U, n * sizeof(T) / 4);

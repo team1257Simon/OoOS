@@ -108,8 +108,9 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		if(__unlikely(!ptr)) return -EFAULT;
 		try 
-		{ 
-			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd))
+		{
+			file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd);
+			if(n)
 			{
 				if(!n->current_mode.in) return -EACCES;
 				n->read(ptr, len); 
@@ -119,7 +120,7 @@ extern "C"
 		} 
 		catch(std::logic_error&)
 		{
-			task_ctx* task = active_task_context();
+			task_ctx* task	= active_task_context();
 			force_signal(task, 13); // SIGPIPE
 			return -EPIPE;
 		}
@@ -162,9 +163,9 @@ extern "C"
 	}
 	int syscall_unlink(char* name)
 	{
-		filesystem* fsptr = get_task_vfs();
+		filesystem* fsptr	= get_task_vfs();
 		if(__unlikely(!fsptr)) return -ENOSYS;
-		name = translate_user_pointer(name);
+		name				= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
 		try { return fsptr->unlink(name) ? 0 : -ENOENT; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
@@ -192,7 +193,8 @@ extern "C"
 		if(__unlikely(!st)) return -EFAULT;
 		try
 		{
-			if(file_vnode* n = get_by_fd(fsptr, active_task_context(), fd)) __stat_init(n, fsptr, st);
+			file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd);
+			if(n) __stat_init(n, fsptr, st);
 			else return -EBADF;
 			return 0;
 		} catch(std::exception& e) { panic(e.what()); }
@@ -208,7 +210,10 @@ extern "C"
 		try
 		{
 			vnode* fn		= fsptr->find_node(name);
-			if(fn) { __stat_init(fn, fsptr, st); return 0; } 
+			if(fn) {
+				__stat_init(fn, fsptr, st);
+				return 0;
+			} 
 			return -ENOENT;
 		}
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
@@ -308,7 +313,7 @@ extern "C"
 		dirp				= translate_user_pointer(dirp);
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		if(__unlikely(!dirp)) return -EFAULT;
-		task_ctx* task = active_task_context();
+		task_ctx* task		= active_task_context();
 		task->opened_directories.erase(dirp.deref<DIR>().fd);
 		return 0;
 	}

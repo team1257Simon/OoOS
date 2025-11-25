@@ -148,8 +148,8 @@ void net_tests()
 			p_dhcp.base->ip_resolver->check_presence("10.0.2.2"IPV4);
 			p_dhcp.transition_state(ipv4_client_state::INIT);
 			hpet.delay_us(2000UL);
-			xdirect_writeln("Got IP " + stringify(p_dhcp.ipconfig.leased_addr) + ", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask) + ", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway) + ", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server) + " from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr) + ";");
-			xdirect_write("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time) + "; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time) + "; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration) + ". ");
+			xdirect_writeln(("Got IP " + stringify(p_dhcp.ipconfig.leased_addr)) + (", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask)) + (", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway)) + (", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server)) + (" from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr)) + ";");
+			xdirect_write(("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time)) + ("; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time)) + ("; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration)) + ". ");
 			direct_writeln("Initiating timer of 2 seconds to test schedule-on-delay.");
 			time_t ts				= hpet.count_usec();
 			scheduler::defer_sec(2UL, [ts]() -> void {

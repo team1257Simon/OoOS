@@ -19,12 +19,18 @@ template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_typ
 template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, udp_header&&);
 template abstract_packet<dhcp_packet>::abstract_packet(size_t, std::in_place_type_t<dhcp_packet>, udp_header const&);
 dhcp_packet::dhcp_packet() noexcept = default;
-dhcp_packet::dhcp_packet(udp_header const& that) noexcept : udp_header(that) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
-dhcp_packet::dhcp_packet(udp_header&& that) noexcept : udp_header(std::move(that)) { source_port = dhcp_client_port; destination_port = dhcp_server_port; }
 std::type_info const& protocol_dhcp::packet_type() const { return typeid(dhcp_packet); }
 protocol_dhcp::~protocol_dhcp() = default;
 protocol_dhcp::protocol_dhcp(protocol_udp* n) : abstract_protocol_handler(n), ipconfig(n->ipconfig), ipresolve(*n->base->ip_resolver), transaction_timers(32UZ) {}
 int protocol_dhcp::rebind() { return request(ipconfig.leased_addr, active_renewal_xid); }
+dhcp_packet::dhcp_packet(udp_header const& that) noexcept : udp_header(that) {
+	source_port			= dhcp_client_port;
+	destination_port	= dhcp_server_port;
+}
+dhcp_packet::dhcp_packet(udp_header&& that) noexcept : udp_header(std::move(that)) {
+	source_port			= dhcp_client_port;
+	destination_port	= dhcp_server_port;
+}
 int protocol_dhcp::receive(abstract_packet_base& p)
 {
 	dhcp_packet* pkt	= p.get_as<dhcp_packet>();
@@ -51,7 +57,7 @@ int protocol_dhcp::receive(abstract_packet_base& p)
 					return 0;   // nothing to do for any other packet types (for now)
 				}
 			}
-			else pos += param->length();
+			else pos					+= param->length();
 		}
 	}
 	return -EPROTO;

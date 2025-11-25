@@ -4,9 +4,9 @@
 #include "sys/errno.h"
 #include "stdexcept"
 #include "algorithm"
-constexpr addr_t dynamic_frame_base(0x80000000000UL);
 shared_object_map shared_object_map::__globals{};
-shared_object_map::iterator shared_object_map::__ld_so = __globals.end();
+shared_object_map::iterator shared_object_map::__ld_so	= __globals.end();
+constexpr addr_t dynamic_frame_base						= 0x80000000000LA;
 static inline uframe_tag* create_shared_frame() { return std::addressof(fm.create_frame(dynamic_frame_base, dynamic_frame_base)); }
 shared_object_map& shared_object_map::get_globals() { return __globals; }
 addr_t shared_object_map::__global_dynamic_extent() { return (__globals.shared_frame && __globals.shared_frame->dynamic_extent) ? __globals.shared_frame->dynamic_extent : dynamic_frame_base; }

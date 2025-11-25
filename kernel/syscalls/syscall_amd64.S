@@ -5,13 +5,13 @@
 //		Important note: the argument order above differs from the Linux system call ABI, which places register 10 before 8 for some ungodly reason.
 //		Registers C and 11 are destroyed by the SYSCALL instruction. The return value is stored in the A register.
 //		The kernel restores ALL registers (including scratch and argument registers) to their pre-call state before returning to the user process.
-//		As per the Linux system call ABI result between -4095 and -1 (inclusive) indicates an error. 
+//		As per the Linux system call ABI result between -4095 and -1 (inclusive) indicates an error.
 //		In these cases, the returned value is the error code's additive inverse (i.e. errno = -1 * %rax).
 //		A negative number with an absolute value GREATER than 4095 is a non-error result (for instance, a pointer to a value in a read-only system segment).
 //		Other notes:
 //		The header files which declare the functions that implement the system calls contain comments describing the C-style function declaration equivalent.
-//		System calls 24-34 are intended for use by the dynamic linker (ld-ooos.so). 
-//		They perform input validation, but will likely return an error if used directly. 
+//		System calls 24-34 are intended for use by the dynamic linker (ld-ooos.so).
+//		They perform input validation, but will likely return an error if used directly.
 //		The dynamic linker exports wrappers to calls 26-28 (dlopen, dlclose, dlsym) and 33 (dladdr) which perform some additional bookkeeping as well.
 //		Other libdl functions, such as dlinfo, are implemented in the dynamic linker using information from system call 31 (dlmap).
 //		System call 35 (sigret) is used by the signal trampoline to resume execution and will return an EINVAL error if used without such context.
@@ -196,7 +196,7 @@ syscall_vec:
 	.quad syscall_tlget				// 53; ldso-specific (exported as __tls_get_addr)
 .L_syscv_end:
 	.quad on_invalid_syscall		// handler for out-of-range syscalls
-	.size syscall_vec,				.-syscall_vec	
+	.size syscall_vec,				.-syscall_vec
 	.size .L_syscv_end,				.-.L_syscv_end
 	.align	8
 .L_held_pc:

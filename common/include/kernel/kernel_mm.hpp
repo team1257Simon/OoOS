@@ -278,10 +278,12 @@ public:
 	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
 	__nointerrupts addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
-	__nointerrupts addr_t duplicate_user_block(size_t sz, addr_t start, bool write, bool execute) noexcept;
 	__nointerrupts addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true) noexcept;
 	__nointerrupts void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false) noexcept;
 	addr_t copy_kernel_mappings(paging_table target);
+	static size_t currently_used_memory();
+	static size_t total_available_memory();
+	static size_t remaining_unused_memory();
 };
 #define kmm kernel_memory_mgr::get()
 extern "C" void* aligned_malloc(size_t size, size_t align);

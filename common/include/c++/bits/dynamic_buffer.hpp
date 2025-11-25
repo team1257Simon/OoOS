@@ -41,22 +41,30 @@ namespace std::__impl
 		constexpr void __set_ptrs(__pointer begin, __pointer end, __size_type ncap) { __begin = begin; __end = end; __cap = ncap; }
 		constexpr void __set_ptrs(__pointer begin, __pointer end, __pointer max) { __begin = begin; __end = end; __cap = static_cast<__size_type>(max - begin); }
 		constexpr void __set_ptrs(__pointer begin, __size_type ncap) { __set_ptrs(begin, begin + min(ncap, static_cast<__size_type>(__end - __begin)), ncap); }
-		constexpr __pointer __get_ptr(__size_type offs) { return __begin + offs; }
+		constexpr __pointer __get_ptr(__size_type offs) const { return __begin + offs; }
 		constexpr void __setc(__pointer where) { __end = where; }
 		constexpr void __setc(__size_type offs) { __end = __begin + offs; }
 		constexpr void __adv(__size_type n) { __end += n; }
 		constexpr void __bck(__size_type n) { __end -= n; }
 		constexpr __size_type __capacity() const { return __cap; }
+		constexpr __size_type __size() const { return static_cast<__size_type>(__end - __begin); }
+		constexpr __size_type __remaining() const noexcept { return static_cast<__size_type>(__cap - __size()); }
 		constexpr __pointer __beg() const { return __begin; }
 		constexpr __pointer __cur() const { return __end; }
 		constexpr __pointer __max() const { return __begin + __cap; }
-		constexpr void __bounds(__pointer e, __size_type c) noexcept { __end = e; __cap = c; }
 		constexpr void __swap_ptrs(__buf_ptrs& that)
 		{
 			__buf_ptrs tmp(this->__begin, this->__end, this->__cap);
 			this->__copy_ptrs(that);
 			that.__copy_ptrs(tmp);
 		}
+		constexpr void __move_ptrs(__buf_ptrs&& that)
+		{
+			this->__begin	= that.__begin;
+			this->__end		= that.__end;
+			this->__cap		= that.__cap;
+			that.__reset();
+		} 
 		template<allocator_object<T> A>
 		constexpr void __destroy(A& alloc)
 		{
@@ -87,15 +95,149 @@ namespace std::__impl
 			__end			= __begin + ncur;
 		}
 	};
+	constexpr size_t __sso_target_size	= 32UZ;
+	template<__can_sso T>
+	struct __sso_buffer
+	{
+		typedef T* __pointer;
+		typedef T const* __const_pointer;
+		typedef decltype(sizeof(T)) __size_type;
+		typedef decltype(declval<__pointer>() - declval<__pointer>()) __difference_type;
+		constexpr static __size_type __locally_storable_size = static_cast<__size_type>(__sso_target_size - (sizeof(__pointer) + sizeof(__size_type)) - 1) / sizeof(T);
+		typedef T __local_buffer[__locally_storable_size + 1];
+		__pointer __begin;
+		__size_type __length;
+		union {
+			__local_buffer __local_data_buf;
+			__size_type __allocated_size;
+		};
+		constexpr __size_type __range(__size_type c) noexcept { return this->__is_local() ? std::min(c, __locally_storable_size) : c; }
+		constexpr __pointer __local_data() noexcept { return std::addressof(*__local_data_buf); }
+		constexpr __const_pointer __local_data() const noexcept { return std::addressof(*__local_data_buf); }
+		constexpr __pointer __beg() const noexcept { return __begin; }
+		constexpr __pointer __cur() const noexcept { return __begin + __length; }
+		constexpr __pointer __max() const noexcept { return __begin + this->__capacity(); }
+		constexpr __pointer __get_ptr(__size_type n) const noexcept { return __begin + n; }
+		constexpr void __beg(__pointer p) noexcept { __begin = p; }
+		constexpr void __cur(__size_type c) noexcept { __length = __range(c); }
+		constexpr void __setc(__size_type c) noexcept { __cur(c); construct_at(__cur()); }
+		constexpr void __setc(__pointer p) noexcept { __cur(static_cast<__size_type>(construct_at(p) - __begin)); }
+		constexpr __size_type __capacity() const noexcept { return this->__is_local() ? __locally_storable_size : __allocated_size; }
+		constexpr __size_type __size() const noexcept { return __length; }
+		constexpr __size_type __remaining() const noexcept { return static_cast<__size_type>(this->__is_local() ? (__locally_storable_size - __length) : (__allocated_size - __length - 1UZ)); }
+		constexpr void __capacity(__size_type n) noexcept { __allocated_size = n; }
+		constexpr void __reset() noexcept { this->__use_local(); this->__setc(0UZ); }
+		constexpr void __adv(__size_type n) noexcept { this->__setc(__length + n); }
+		constexpr void __bck(__size_type n) noexcept { this->__setc(static_cast<__size_type>(__length < n ? 0UZ : __length - n)); }
+		constexpr __sso_buffer() noexcept : __begin(this->__local_data()), __length(0UZ) {}
+		constexpr __sso_buffer(__sso_buffer const& that) : __sso_buffer() { this->__copy_ptrs(that); }
+		constexpr __sso_buffer(__sso_buffer&& that) : __sso_buffer() { this->__move_ptrs(std::move(that)); }
+		template<allocator_object<T> A> constexpr __sso_buffer(A& a, __size_type sz) : __sso_buffer() { this->__create(a, sz); }
+		constexpr void __set_ptrs(__pointer, __pointer, __pointer) {}
+		constexpr void __move_ptrs(__sso_buffer&& that) noexcept
+		{
+			if(that.__is_local()) array_copy(this->__use_local(), that.__local_data(), that.__length);
+			else { this->__begin = that.__begin; this->__capacity(that.__capacity()); }
+			this->__setc(that.__length);
+			that.__reset();
+		}
+		constexpr void __swap_ptrs(__sso_buffer& that) noexcept
+		{
+			__sso_buffer tmp(*this);
+			this->__copy_ptrs(that);
+			that.__move_ptrs(std::move(tmp));
+		}
+		constexpr void __copy_ptrs(__sso_buffer const& that) noexcept
+		{
+			if(that.__is_local()) array_copy(this->__use_local(), that.__local_data(), that.__length);
+			else { this->__begin = that.__begin; this->__capacity(that.__capacity()); }
+			this->__setc(that.__length);
+		}
+		constexpr bool __is_local() const noexcept
+		{
+			if(__beg() == __local_data())
+			{
+				if(__length > __locally_storable_size)
+					__builtin_unreachable();
+				return true;
+			}
+			return false;
+		}
+		__always_inline constexpr __pointer __use_local() noexcept
+		{
+			if consteval {
+				for(__size_type i	= 0UZ; i <= __locally_storable_size; i++)
+					std::construct_at(std::addressof(__local_data()[i]));
+			}
+			return this->__begin	= __local_data();
+		}
+		template<allocator_object<T> A>
+		constexpr void __create(A& a, __size_type sz)
+		{
+			if(__unlikely(__beg() != nullptr)) this->__destroy(a);
+			if(sz > __locally_storable_size + 1UZ)
+			{
+				__pointer result	= a.allocate(sz);
+				this->__length		= 0UZ;
+				this->__begin		= result;
+				this->__capacity(sz);
+			}
+			else
+			{
+				sz					= std::max(sz, 1UZ);
+				array_zero(this->__use_local(), __locally_storable_size + 1UZ);
+				this->__length		= 0UZ;
+			}
+		}
+		template<allocator_object<T> A>
+		constexpr void __destroy(A& a)
+		{
+			if(!__is_local())
+				a.deallocate(__begin, __allocated_size);
+			else __reset();
+		}
+		template<allocator_object<T> A>
+		constexpr void __resize(A& alloc, __size_type ncur, __size_type ncap)
+		{
+			ncap	= std::max(ncap, ncur + 1UZ);
+			if(ncap > __locally_storable_size + 1UZ)
+			{
+				__pointer result	= alloc.allocate(ncap);
+				if(this->__length)
+				{
+					if(this->__is_local()) array_copy(result, this->__local_data(), this->__length);
+					else if(this->__begin) array_copy(result, this->__begin, this->__length);
+					else array_zero(result, this->__length);
+				}
+				this->__destroy(alloc);
+				this->__begin		= result;
+				this->__setc(ncur);
+				this->__capacity(ncap);
+			}
+			else
+			{
+				if(!__is_local())
+				{
+					__pointer old	= this->__begin;
+					__size_type c	= this->__capacity();
+					this->__beg(array_copy(this->__use_local(), old, ncur));
+					alloc.deallocate(old, c);
+				}
+				this->__setc(ncur);
+			}
+		}
+	};
 	template<typename C, typename A>
 	struct __buffer_container_impl : A, C
 	{
 		using typename C::__size_type;
-		constexpr __buffer_container_impl() noexcept(noexcept(A())) = default;
+		constexpr __buffer_container_impl() noexcept(noexcept(A())) : A(), C() {}
 		constexpr __buffer_container_impl(A const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : A(that), C() {}
 		constexpr __buffer_container_impl(A const& that, __size_type s) : A(that), C(*static_cast<A*>(this), s) {}
-		constexpr __buffer_container_impl(__buffer_container_impl&&) noexcept(std::is_nothrow_move_constructible_v<A>) = default;
-		constexpr __buffer_container_impl(__buffer_container_impl const&) noexcept(std::is_nothrow_copy_constructible_v<A>) = default;
+		constexpr __buffer_container_impl(__buffer_container_impl&& that) noexcept(std::is_nothrow_move_constructible_v<A>) : A(forward<A>(that)), C(forward<C>(that)) {}
+		constexpr __buffer_container_impl(__buffer_container_impl const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : A(that), C(that) {}
+		constexpr __buffer_container_impl(__buffer_container_impl const& that, A const& a) : A(a), C(that) {}
+		constexpr __buffer_container_impl(__buffer_container_impl&& that, A const& a) : A(a), C(std::forward<C>(that)) {}
 		constexpr void __create(__size_type cap) { C::__create(*this, cap); }
 		constexpr void __destroy() { C::__destroy(*this); }
 		constexpr void __resize(__size_type ncur, __size_type ncap) { C::__resize(*this, ncur, ncap); }
@@ -110,12 +252,14 @@ namespace std::__impl
 		constexpr __buffer_container_impl& operator=(__buffer_container_impl&& that)
 		{
 			this->__destroy();
-			this->__swap_ptrs(that);
+			this->__move_ptrs(std::forward<C>(that));
 			if constexpr(__has_move_propagate<A>)
 				*static_cast<A*>(this)	= std::move(that);
 			return *this;
 		}
 	};
+	template<typename T, bool> struct __container_select { typedef __buf_ptrs<T> type; };
+	template<__can_sso T> struct __container_select<T, true> { typedef __sso_buffer<T> type; };
 	/**
 	 * This base-type implements the functionality shared by the dynamic-container types (mainly string and vector). 
 	 * If the buffer is for a null-terminated string, use NTS = true. This parameter exists in place of using a virtual member to implement this functionality.
@@ -124,7 +268,7 @@ namespace std::__impl
 	template<typename T, allocator_object<T> A, bool NTS>
 	struct __dynamic_buffer
 	{
-		typedef __buffer_container_impl<__buf_ptrs<T>, A> __container;
+		typedef __buffer_container_impl<typename __container_select<T, NTS>::type, A> __container;
 		typedef typename __buf_ptrs<T>::__pointer __pointer;
 		typedef typename __buf_ptrs<T>::__const_pointer __const_pointer;
 		typedef typename __buf_ptrs<T>::__size_type __size_type;
@@ -133,6 +277,7 @@ namespace std::__impl
 		typedef deref_t<__const_pointer> __const_reference;
 		typedef A __allocator_type;
 		constexpr static bool __end_zero 	= NTS;
+		constexpr static bool __use_sso		= __end_zero && __can_sso<T>;
 		constexpr static bool __trivial 	= trivial_copy<T>;
 		__container __my_data;
 		constexpr static __const_pointer __pmin(__const_pointer a, __const_pointer b) { return a < b ? a : b; }
@@ -181,16 +326,16 @@ namespace std::__impl
 		constexpr void __setp(__pointer beg, __pointer end) noexcept { __setp(beg, beg, end); }
 		constexpr void __setn(__pointer beg, __size_type c, __size_type n) noexcept { __setp(beg, beg + c, beg + n); }
 		constexpr void __setn(__pointer beg, __size_type n) noexcept { __setp(beg, beg + n); }
-		constexpr void __setc(__pointer pos) noexcept { if(__valid_end_pos(pos)) __my_data.__setc(pos); if constexpr(__end_zero) new(__cur()) T(); }
+		constexpr void __setc(__pointer pos) noexcept { if(__valid_end_pos(pos)) __my_data.__setc(pos); if constexpr(NTS) new(__cur()) T(); }
 		constexpr void __setc(__size_type pos) noexcept { __setc(__get_ptr(pos)); }
 		constexpr void __bumpc(int64_t off) noexcept { __setc(__cur() + off); }
 		constexpr void __rst() noexcept { __setc(__beg()); }
 		constexpr __size_type __max_capacity() const noexcept { return numeric_limits<__size_type>::max(); }
 		constexpr void __advance(__size_type n) { if(__valid_end_pos(__cur() + n)) { __setc(__cur() + n); } else { __setc(__max()); } }
 		constexpr void __backtrack(__size_type n) { if(__valid_end_pos(__cur() - n)) { __setc(__cur() - n); } else { __setc(__beg()); } }
-		constexpr __size_type __size() const noexcept { return static_cast<__size_type>(__cur() - __beg()); }
-		constexpr __size_type __capacity() const noexcept { return static_cast<__size_type>(__max() - __beg()); }
-		constexpr __size_type __rem() const noexcept { return static_cast<__size_type>(__max() - __cur()); }
+		constexpr __size_type __size() const noexcept { return __my_data.__size(); }
+		constexpr __size_type __capacity() const noexcept { return __my_data.__capacity(); }
+		constexpr __size_type __rem() const noexcept { return __my_data.__remaining(); }
 		constexpr __size_type __ediff(__const_pointer pos) const noexcept { return static_cast<__size_type>(__cur() - pos); }
 		constexpr __allocator_type const& __get_alloc() const noexcept { return __my_data; }
 		constexpr void __allocate_storage(__size_type n) { __my_data.__create(n); }
@@ -209,7 +354,7 @@ namespace std::__impl
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), that.__cur(), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), __pmin(that.__get_ptr(start + count), that.__cur()), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer&& that) noexcept(noexcept(__container(move(that.__my_data)))) : __my_data(move(that.__my_data)) {}
-		constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) noexcept(noexcept(__container(alloc))) : __my_data(move(that.__my_data)) {}
+		constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) noexcept(noexcept(__container(alloc))) : __my_data(move(that.__my_data), alloc) {}
 		constexpr ~__dynamic_buffer() { this->__destroy(); }
 		constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { this->__copy_assign(that); return *this; }
 		constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { this->__move_assign(move(that)); return *this; }
@@ -221,7 +366,7 @@ namespace std::__impl
 		constexpr __dynamic_buffer(IT start, IT end, A const& alloc) :
 			__my_data(alloc, static_cast<__size_type>(std::distance(start, end < start ? start : end)))
 			{
-				__size_type n	= __my_data.__capacity();
+				__size_type n	= static_cast<__size_type>(std::distance(start, end < start ? start : end));
 				__transfer(__beg(), start, end < start ? start : end);
 				__setc(n);
 			}
@@ -247,8 +392,8 @@ namespace std::__impl
 		{
 			if(count > __capacity() && __unlikely(!__grow_buffer(count - __capacity()))) return nullptr;
 			__set(__beg(), t, count);
-			if(count < __size()) __zero(__get_ptr(count), __size() - count);
 			__setc(count);
+			if(count < __size()) __zero(__cur(), __size() - count);
 			return __cur();
 		}
 		constexpr __pointer __assign_elements(__const_pointer start, __const_pointer end)
@@ -256,8 +401,8 @@ namespace std::__impl
 			__size_type count	= end - start;
 			if(count > __capacity() && __unlikely(!__grow_buffer(count - __capacity()))) return nullptr;
 			__copy(__beg(), start, count);
-			if(count < __size()) __zero(__get_ptr(count), __size() - count);
 			__setc(count);
+			if(count < __size()) __zero(__cur(), __size() - count);
 			return __cur();
 		}
 		constexpr __pointer __replace_elements(__const_pointer start, __const_pointer end, __const_pointer from, __size_type count)
@@ -268,21 +413,25 @@ namespace std::__impl
 		}
 		constexpr __pointer __append_elements(__size_type count, T const& t)
 		{
+			__size_type bsz		= __size();
 			if(!(__max() > __cur() + count) && __unlikely(!__grow_buffer(static_cast<__size_type>(count - __rem())))) return nullptr;
-			for(__size_type i = 0; i < count; i++) construct_at(__cur() + i, t);
-			__advance(count);
+			__size_type tsz		= bsz + count;
+			__pointer pos		= __get_ptr(bsz);
+			for(__size_type i	= 0; i < count; i++) construct_at(pos + i, t);
+			__setc(tsz);
 			return __cur();
 		}
 		constexpr __pointer __append_element(T const& t)
 		{
+			__size_type bsz		= __size();
 			if(!(__max() > __cur()) && __unlikely(!__grow_buffer(1UZ))) return nullptr;
-			construct_at(__cur(), t);
-			__advance(1UZ);
+			construct_at(__get_ptr(bsz), t);
+			__setc(bsz + 1UZ);
 			return __cur();
 		}
 		constexpr void __clear()
 		{
-			__size_type cap = __capacity();
+			__size_type cap		= __capacity();
 			__destroy();
 			__allocate_storage(cap);
 			if constexpr(__trivial)	__zero(__beg(), __capacity());
@@ -360,11 +509,14 @@ namespace std::__impl
 		if(!added) return true; // Zero elements -> vacuously true completion
 		__size_type num_elements 	= __size();
 		__size_type cur_capacity	= __capacity();
+		if constexpr(__use_sso) {
+			num_elements += added;
+			added++;
+		}
 		__size_type target 			= min(max(cur_capacity << 1, cur_capacity + added), __max_capacity());
 		try { __data_resize(num_elements, target); }
 		catch(...) { return false; }
 		if(__unlikely(!__cur())) return false;
-		if constexpr(__end_zero && __trivial) __zero(__cur(), added);
 		return true;
 	}
 	template<typename T, allocator_object<T> A, bool NTS>
@@ -374,9 +526,11 @@ namespace std::__impl
 		if(__unlikely(!(end_it > start_it))) return __cur();
 		__size_type rem	= __rem();
 		__size_type num	= distance(start_it, end_it);
+		__size_type bsz	= __size();
+		__size_type tsz	= bsz + num;
 		if((!__beg() || num > rem) && __unlikely(!__grow_buffer(num - rem))) return nullptr;
-		__transfer(__cur(), start_it, end_it);
-		__advance(num);
+		__transfer(__get_ptr(bsz), start_it, end_it);
+		__setc(tsz);
 		return __cur();
 	}
 	template<typename T, allocator_object<T> A, bool NTS>

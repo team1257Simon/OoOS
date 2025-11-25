@@ -10,7 +10,7 @@ extern "C"
 		if(__unlikely(ctask_frame->magic != uframe_magic)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 		addr_t result			= ctask_frame->extent;
 		bool success			= ctask_frame->shift_extent(incr);
-		if(success) { return result; }
+		if(success) return result;
 		else return addr_t(static_cast<uintptr_t>(-ENOMEM));
 	}
 	addr_t syscall_mmap(addr_t addr, size_t len, int prot, int flags, int fd, ptrdiff_t offset)

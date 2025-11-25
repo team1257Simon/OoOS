@@ -28,7 +28,7 @@ extern "C"
 			vpwd_entry* data	= uam->get_vpwd_entry(uid, *task);
 			if(__unlikely(!data)) return -ENOMEM;
 			init_pwd(out, data);
-		} 
+		}
 		catch(std::invalid_argument&)	{ return -EINVAL; }
 		catch(std::out_of_range&)		{ return -ENOENT; }
 		return 0;
@@ -46,7 +46,7 @@ extern "C"
 			vpwd_entry* data = uam->get_vpwd_entry(name, *task);
 			if(__unlikely(!data)) return -ENOMEM;
 			init_pwd(out, data);
-		} 
+		}
 		catch(std::invalid_argument&)	{ return -EINVAL; }
 		catch(std::out_of_range&)		{ return -ENOENT; }
 		return 0;

@@ -31,7 +31,7 @@ int protocol_ipv4::transmit(abstract_packet_base& p)
 }
 int protocol_ipv4::receive(abstract_packet_base& p)
 {
-	ipv4_standard_header* pkt = p.get_as<ipv4_standard_header>();
+	ipv4_standard_header* pkt	= p.get_as<ipv4_standard_header>();
 	if(__unlikely(!pkt)) return -EPROTOTYPE;
 	if(__unlikely(pkt->ihl != IHL20B)) return -EPROTOTYPE;
 	if(__unlikely(!pkt->verify_ipv4_csum())) return -EPROTO;

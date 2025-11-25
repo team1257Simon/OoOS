@@ -34,17 +34,17 @@ extern "C"
 	}
 	signal_handler syscall_signal(int sig, signal_handler new_handler)
 	{
-		task_ctx* task				= active_task_context();
-		signal_handler old_handler	= task->task_sig_info.signal_handlers[sig];
-		task->task_sig_info.signal_handlers[sig] = new_handler;
+		task_ctx* task								= active_task_context();
+		signal_handler old_handler					= task->task_sig_info.signal_handlers[sig];
+		task->task_sig_info.signal_handlers[sig]	= new_handler;
 		return old_handler;
 	}
 	int syscall_kill(long pid, unsigned long sig)
 	{
 		if(__unlikely(sig > num_signals)) return -EINVAL;
-		task_ctx* task = active_task_context();
-		if(pid < 0) { return kill_all(task, static_cast<int>(sig)); }
-		task_list::iterator target = tl.find(pid);
+		task_ctx* task				= active_task_context();
+		if(pid < 0) return kill_all(task, static_cast<int>(sig));
+		task_list::iterator target	= tl.find(pid);
 		if(target == tl.end()) return -ESRCH;
 		if(__unlikely(!check_kill(task, target))) return -EPERM;
 		if(sig) kill_one(target.base(), static_cast<int>(sig));

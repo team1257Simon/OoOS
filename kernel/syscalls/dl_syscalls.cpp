@@ -27,7 +27,7 @@ static search_result global_search(const char* name)
 	return search_result(result, have_weak);
 }
 static search_result full_search(task_ctx* task, const char* name)
-{ 
+{
 	addr_t result;
 	if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(task->program_handle))
 	{
@@ -51,7 +51,7 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 {
 	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
 	bool have_weak			= false;
-	if(so && so->is_symbolic()) 
+	if(so && so->is_symbolic())
 	{
 		sym_pair result_pair = so->resolve_by_name(name);
 		if(result_pair.second) return search_result(result_pair.second, true);
@@ -61,7 +61,7 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 	if(have_weak && !res.second) res.second	= true;
 	return res;
 }
-static elf64_dynamic_object* validate_handle(addr_t handle) 
+static elf64_dynamic_object* validate_handle(addr_t handle)
 {
 	// We need to do this so the dynamic cast doesn't get optimized out; we can use it to verify that the object is indeed a handle and not some random pointer
 	volatile elf64_object* o				= static_cast<volatile elf64_object*>(handle.as<volatile elf64_dynamic_object>());
@@ -114,11 +114,11 @@ extern "C"
 		if(__unlikely(!task)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
 		if(elf64_dynamic_executable* x			= dynamic_cast<elf64_dynamic_executable*>(obj_handle))
 		{
-			task->dynamic_exit	= endfn;
+			task->dynamic_exit					= endfn;
 			size_t len							= x->get_preinit().size() + 1;
 			addr_t result						= sysres_add(len * sizeof(addr_t));
 			if(__unlikely(!result)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
-			addr_t res_real					 	= translate_user_pointer(result);		
+			addr_t res_real					 	= translate_user_pointer(result);
 			if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
 			res_real.plus((len - 1) * sizeof(addr_t)).assign(nullptr);
 			return result;
@@ -141,10 +141,10 @@ extern "C"
 		if(__unlikely(!name)) return addr_t(static_cast<uintptr_t>(-EFAULT));
 		std::string xname(name, std::strnlen(name, 256UL));
 		shared_object_map::iterator result;
-		shared_object_map::iterator cached	= global_object_search(xname, flags); 
+		shared_object_map::iterator cached	= global_object_search(xname, flags);
 		if(cached	!= shared_object_map::get_globals().end())
 			result	= cached;
-		else 
+		else
 		{
 			std::vector<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
 			paths.push_back("lib");
