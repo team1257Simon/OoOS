@@ -107,8 +107,10 @@ namespace std
 	template<typename A> concept __has_move_propagate = std::convertible_to<typename A::propagate_on_container_move_assignment, std::true_type>;
 	template<typename A, typename T> concept __has_resize = requires { { std::declval<A>().resize(std::declval<T*>(), std::declval<size_t>(), std::declval<size_t>()) } -> std::convertible_to<T*>; };
 #pragma region non-standard memory functions
-	extension template<typename T, allocator_object<T> AT = allocator<T>> [[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT alloc = AT{})
+	extension template<typename T, allocator_object<T> AT = allocator<T>>
+	[[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc = AT{})
 	{
+		if(__builtin_expect(!array, false)) return alloc.allocate(ncount);
 		if constexpr(!std::is_trivially_destructible_v<T>)
 		{
 			T* result = alloc.allocate(ncount);

@@ -501,6 +501,7 @@ namespace ooos
     [[nodiscard]]
     constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
     {
+		if(__unlikely(!array)) return alloc.allocate(ncount);
         if constexpr(!std::is_trivially_destructible_v<T>)
 		{
 			T* result 		= alloc.allocate(ncount);
