@@ -282,7 +282,7 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string c
 		return std::make_pair(elf64_sym(), nullptr);
 	}
 	elf64_sym const* sym = symbol_index[symbol];
-	return sym ? std::make_pair(*sym, sym->st_info.type == SYM_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(*sym)) : fallback_resolve(symbol);
+	return sym ? std::make_pair(*sym, sym->st_info.type == SYM_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
 bool elf64_dynamic_object::process_got()
 {
