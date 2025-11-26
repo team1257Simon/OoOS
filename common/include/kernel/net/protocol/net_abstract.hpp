@@ -49,8 +49,8 @@ struct abstract_ip_resolver
 	mac_resolve_map previously_resolved;
 	abstract_ip_resolver();
 	virtual ~abstract_ip_resolver();
-	virtual mac_t& resolve(ipv4_addr addr) = 0;
-	virtual bool check_presence(ipv4_addr addr) = 0;
+	virtual mac_t& resolve(ipv4_addr addr)		= 0;
+	virtual bool check_presence(ipv4_addr addr)	= 0;
 	mac_t const& operator[](ipv4_addr addr);
 };
 struct protocol_ethernet;

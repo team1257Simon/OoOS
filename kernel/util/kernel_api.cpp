@@ -32,9 +32,9 @@ namespace ooos
 	template<typename T> struct type_tag { constexpr explicit type_tag() = default; };
 	template<typename T> constexpr inline type_tag<T> tag{};
 	struct get_name { constexpr const char* const& operator()(std::type_info const* const& ti) const noexcept { return ti->__type_name; } };
-	class type_info_map : public std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexcial_equals<char>, std::allocator<std::type_info const*>, get_name> 
+	class type_info_map : public std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexical_equals<char>, std::allocator<std::type_info const*>, get_name>
 	{
-		typedef std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexcial_equals<char>, std::allocator<std::type_info const*>, get_name> __base;
+		typedef std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexical_equals<char>, std::allocator<std::type_info const*>, get_name> __base;
 	public:
 		type_info_map() : __base(64UZ) {}
 		__class_type_info const* operator[](const char* key) const
@@ -73,9 +73,9 @@ namespace ooos
 		virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
 		virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
 		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))), local_si, local_vmi); }
-		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override { 
+		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override {
 			try { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
-			catch(...) { owner->raise_error("out of memory"); } 
+			catch(...) { owner->raise_error("out of memory"); }
 		}
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{

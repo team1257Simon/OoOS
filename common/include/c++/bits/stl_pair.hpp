@@ -12,18 +12,18 @@ namespace std
 	template <bool, typename T1, typename T2>
 	struct __pair_constraints
 	{
-		template <typename U1, typename U2> constexpr static bool __constructible_pair() { return __and_<is_constructible<T1, const U1&>, is_constructible<T2, const U2&>>::value; }
-		template <typename U1, typename U2> constexpr static bool __implicitly_convertible_pair() { return __and_<is_convertible<const U1&, T1>, is_convertible<const U2&, T2>>::value; }
-		template <typename U1, typename U2> constexpr static bool __move_constructible_pair() { return __and_<is_constructible<T1, U1&&>, is_constructible<T2, U2&&>>::value; }
-		template <typename U1, typename U2> constexpr static bool __implicitly_move_convertible_pair() { return __and_<is_convertible<U1&&, T1>, is_convertible<U2&&, T2>>::value; }
+		template<typename U1, typename U2> constexpr static bool __constructible_pair() { return __and_<is_constructible<T1, const U1&>, is_constructible<T2, const U2&>>::value; }
+		template<typename U1, typename U2> constexpr static bool __implicitly_convertible_pair() { return __and_<is_convertible<const U1&, T1>, is_convertible<const U2&, T2>>::value; }
+		template<typename U1, typename U2> constexpr static bool __move_constructible_pair() { return __and_<is_constructible<T1, U1&&>, is_constructible<T2, U2&&>>::value; }
+		template<typename U1, typename U2> constexpr static bool __implicitly_move_convertible_pair() { return __and_<is_convertible<U1&&, T1>, is_convertible<U2&&, T2>>::value; }
 	};
 	template <typename T1, typename T2> 
 	struct __pair_constraints<false, T1, T2> 
 	{ 
-		template <typename U1, typename U2> constexpr static bool __constructible_pair() { return false; }
-		template <typename U1, typename U2> constexpr static bool __implicitly_convertible_pair() { return false; }
-		template <typename U1, typename U2> constexpr static bool __move_constructible_pair() { return false; }
-		template <typename U1, typename U2> constexpr static bool __implicitly_move_convertible_pair() { return false; }
+		template<typename U1, typename U2> constexpr static bool __constructible_pair() { return false; }
+		template<typename U1, typename U2> constexpr static bool __implicitly_convertible_pair() { return false; }
+		template<typename U1, typename U2> constexpr static bool __move_constructible_pair() { return false; }
+		template<typename U1, typename U2> constexpr static bool __implicitly_move_convertible_pair() { return false; }
 	};
 	template<typename T1, typename T2>
 	struct pair
@@ -32,8 +32,8 @@ namespace std
 		typedef T2 second_type;
 		T1 first;
 		T2 second;
-		constexpr pair() requires (__is_implicitly_default_constructible<T1>::value && __is_implicitly_default_constructible<T2>::value) : first{}, second{} {}
-		constexpr explicit pair() requires (is_default_constructible_v<T1> && is_default_constructible_v<T2> && !(__is_implicitly_default_constructible<T1>::value && __is_implicitly_default_constructible<T2>::value)) : first(), second() {}
+		constexpr pair() requires(__is_implicitly_default_constructible<T1>::value && __is_implicitly_default_constructible<T2>::value) : first(), second() {}
+		constexpr explicit pair() requires(is_default_constructible_v<T1> && is_default_constructible_v<T2> && !(__is_implicitly_default_constructible<T1>::value && __is_implicitly_default_constructible<T2>::value)) : first(), second() {}
 	private:
 		using __constraint_type = __pair_constraints<true, T1, T2>;
 		template<typename U1, typename U2> using __others_constraint_type = __pair_constraints<!is_same_v<T1, U2> || !is_same_v<T2, U2>, T1, T2>;
@@ -57,12 +57,12 @@ namespace std
 		template<typename U1, typename U2> requires(__others_constraint_type<U1, U2>::template __move_constructible_pair<U1, U2>() && __others_constraint_type<U1, U2>::template __implicitly_move_convertible_pair<U1, U2>()) constexpr pair(pair<U1, U2>&& that) : first(forward<U1>(that.first)), second(forward<U2>(that.second)) {}
 		template<typename U1, typename U2> requires(__others_constraint_type<U1, U2>::template __move_constructible_pair<U1, U2>() && !__others_constraint_type<U1, U2>::template __implicitly_move_convertible_pair<U1, U2>()) constexpr explicit pair(pair<U1, U2>&& that) : first(forward<U1>(that.first)), second(forward<U2>(that.second)) {}
 		template<typename ... Args1, typename ... Args2> requires(constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) constexpr pair(piecewise_construct_t, tuple<Args1...>, tuple<Args2...>);
-		constexpr pair(pair const&) = default;
-		constexpr pair(pair&&) = default;
-		constexpr pair& operator=(pair const& that) noexcept(__nothrow_copy_assignable()) requires (__copy_assignable()) { this->first = that.first; this->second = that.second; return *this; }
-		constexpr pair& operator=(pair&& that) noexcept(__nothrow_move_assignable()) requires (__move_assignable()) { this->first = forward<T1>(that.first); this->second = forward<T2>(that.second); return *this; }
-		template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2> const& that) requires (__other_copy_assignable<U1, U2>()) { this->first = that.first; this->second = that.second; return *this; }
-		template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2>&& that) requires (__other_move_assignable<U1, U2>()) { this->first = forward<U1>(that.first); this->second = forward<U2>(that.second); return *this; }
+		constexpr pair(pair const&)	= default;
+		constexpr pair(pair&&)		= default;
+		constexpr pair& operator=(pair const& that) noexcept(__nothrow_copy_assignable()) requires(__copy_assignable()) { this->first = that.first; this->second = that.second; return *this; }
+		constexpr pair& operator=(pair&& that) noexcept(__nothrow_move_assignable()) requires(__move_assignable()) { this->first = forward<T1>(that.first); this->second = forward<T2>(that.second); return *this; }
+		template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2> const& that) requires(__other_copy_assignable<U1, U2>()) { this->first = that.first; this->second = that.second; return *this; }
+		template<typename U1, typename U2> constexpr pair& operator=(pair<U1, U2>&& that) requires(__other_move_assignable<U1, U2>()) { this->first = forward<U1>(that.first); this->second = forward<U2>(that.second); return *this; }
 		constexpr void swap(pair& that) noexcept(__nothrow_swappable()) requires(__swappable()) { using std::swap; swap(this->first, that.first); swap(this->second, that.second); }
 	};
 	template<typename T1, typename T2> pair(T1, T2) -> pair<T1, T2>;

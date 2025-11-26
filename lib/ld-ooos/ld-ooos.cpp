@@ -193,7 +193,7 @@ static bool __load_deps(void* handle)
 	for(size_t i = 0; ini[i]; i++) { ini[i](argc, argv, env); }
 	return true;
 }
-static const char* __get_dl_error() 
+static const char* __get_dl_error()
 {
 	if(errno == ENOMEM) return "not enough memory";
 	if(errno == EINVAL) return "a pointer argument was invalid";
@@ -238,7 +238,7 @@ static const char* __get_dl_error()
 }
 extern "C"
 {
-	
+
 	__hidden int dlbegin(void* phandle, char** __argv, char** __env)
 	{
 		// The kernel will call this function to invoke the dynamic linker.

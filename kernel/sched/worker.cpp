@@ -5,7 +5,7 @@ extern "C"
 	int worker_add(ooos::worker* w) { scheduler::add_worker_task(kthread_ptr(std::addressof(w->task_struct))); return 0; }
 	int worker_entry(ooos::worker* w) { return w ? w->fn() : -1; }
 	[[noreturn]] void worker_finish(ooos::worker* w, int code)
-	{ 
+	{
 		scheduler::remove_worker_task(kthread_ptr(std::addressof(w->task_struct)));
 		worker_return(w->caller_info, code ? code : 1);
 		__builtin_unreachable();

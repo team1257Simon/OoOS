@@ -105,7 +105,7 @@ abstract_module_base* elf64_kernel_object::load_module()
 	if(__unlikely(!load())) return nullptr;
 	if((module_object = entry.invoke<abstract_module_base*(ooos::kernel_api*)>(ooos::get_api_instance())))
 	{
-		if(__unlikely(setjmp(module_object->__eh_ctx.handler_ctx))) 
+		if(__unlikely(setjmp(module_object->__eh_ctx.handler_ctx)))
 		{
 			panic(module_object->__eh_ctx.msg);
 			abort();

@@ -45,8 +45,8 @@ namespace std
 	new_handler set_new_handler(new_handler handler) { return __l_handler.exchange(handler); }
 	new_handler get_new_handler() { return __l_handler.load(); }
 	void* __detail::__aligned_reallocate(void* ptr, size_t count, size_t align)
-	{ 
-		if(!count) return nullptr; 
+	{
+		if(!count) return nullptr;
 		if(void* result = ((__module_frame_tag)->*(__frame_functions.reallocate))(ptr, count, align)) return result;
 		else if(std::new_handler h = std::get_new_handler()) h();
 		else throw std::bad_alloc{};

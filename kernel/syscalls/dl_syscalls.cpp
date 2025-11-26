@@ -329,7 +329,7 @@ extern "C"
 			info->so_name				= sysres_add(len);
 			if(__unlikely(!info->so_name)) return -ENOMEM;
 			array_copy(translate_user_pointer(info->so_name), oname.data(), len);
-			const char* sname		= so->sym_lookup(sym_addr);
+			const char* sname			= so->sym_lookup(sym_addr);
 			if(sname)
 			{
 				info->actual_addr	= so->resolve_by_name(sname).second;

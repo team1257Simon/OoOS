@@ -240,7 +240,7 @@ constexpr static int8_t test_array[]
 	100,	101,	102,	103,	108,	109,	110,	111,	116,	117,	118,	119
 	/*---------------------------------------------------------------------------------------*/
 };
-constexpr static ooos::scale_vector<4UZ> test_dimensions{ 3UZ, 5UZ, 4UZ, 2UZ }; 
+constexpr static ooos::scale_vector<4UZ> test_dimensions{ 3UZ, 5UZ, 4UZ, 2UZ };
 constexpr static ooos::multiarray<const int8_t, 4UZ> test_multi(test_array, test_dimensions);
 void str_tests()
 {

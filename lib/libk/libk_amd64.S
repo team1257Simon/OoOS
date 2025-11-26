@@ -6,16 +6,16 @@
 	.global memcmp
 	.global memcpy
 	.global memset
-	.global memchr	
+	.global memchr
 	.global __errno
 	.global __rdseed
-	.global get_flags	
+	.global get_flags
 	.global setjmp
-	.global longjmp	
+	.global longjmp
 	.type	memcmp,		@function
 	.type	memcpy,		@function
 	.type	memset,		@function
-	.type	memchr,		@function 
+	.type	memchr,		@function
 	.type	__errno,	@function
 	.type	__rdseed,	@function
 	.type	get_flags,	@function
@@ -29,7 +29,7 @@ memcmp:
 	jrcxz	1f
 	movl	$-1,		%edx
 	repz	cmpsb
-	setg	%al	
+	setg	%al
 	cmovll	%edx,		%eax
 1:
 	ret

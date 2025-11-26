@@ -4,7 +4,7 @@ simplex_pipe::simplex_pipe() : __base(4096UZ, std::allocator<char>()) { __set_st
 simplex_pipe::size_type simplex_pipe::size() const { return __qcapacity(); }
 simplex_pipe::pos_type simplex_pipe::tell(std::ios_base::openmode which) const
 {
-	if(which.in) 
+	if(which.in)
 		return __tell();
 	return __qsize();
 }

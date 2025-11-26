@@ -19,7 +19,7 @@ namespace std
 	template<std::forward_iterator FI1, std::forward_iterator FI2> constexpr inline FI2 swap_ranges(FI1 first1, FI1 last1, FI2 first2) { for(; first1 != last1; ++first1, (void)++first2) swap(*first1, *first2); return first2; }
 	template<__detail::__lt_comparable T> constexpr inline T const& min(T const& a, T const& b) { if(a < b) return a; return b; }
 	template<__detail::__lt_comparable T> constexpr inline T const& max(T const& a, T const& b) { if(a < b) return b; return a; }
-	template<typename T, __detail::__comparator<T> C> constexpr inline T const& min(T const& a, T const& b, C c) { if(c(a, b)) return a; return b; } 
+	template<typename T, __detail::__comparator<T> C> constexpr inline T const& min(T const& a, T const& b, C c) { if(c(a, b)) return a; return b; }
 	template<typename T, __detail::__comparator<T> C> constexpr inline T const& max(T const& a, T const& b, C c) { if(c(a, b)) return b; return a; }
 	template<typename T, std::matching_forward_iterator<T> IIT> constexpr void fill(IIT first, IIT last, T const& value) { for(IIT cur = first; cur != last; ++cur) *cur = value; }
 	template<typename T> constexpr void fill(T* first, T* last, T const& value) { if constexpr(trivial_copy<T>) array_fill<T>(first, value, distance(first, last)); else if constexpr(copy_constructible<T>) array_fill<T>(first, tuple<T const&>(value), distance(first, last)); }

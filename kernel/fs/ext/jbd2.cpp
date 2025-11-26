@@ -73,7 +73,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 	disk_block ch_block(txn_st_block + total++, dblk_tar, false, 1U);
 	uint64_t timestamp	= sys_time(nullptr);
 	jbd2_commit_header* ch = new(static_cast<void*>(dblk_tar)) jbd2_commit_header
-	{ 
+	{
 		.checksum_type	= 4UC,
 		.checksum_size	= 4UC,
 		.commit_seconds	= __be64(timestamp / 1000UL),
@@ -221,7 +221,7 @@ log_read_state jbd2::read_log_transaction()
 		   uint32_t checkval	= *db_csum_pos;
 		   *db_csum_pos			= 0UBE;
 		   uint32_t db_csum		= crc32c(csum_base, block_st, bs);
-		   *db_csum_pos			= checkval; 
+		   *db_csum_pos			= checkval;
 			if(db_csum != checkval) goto skip_txn;
 			while(pos < block_ed)
 			{
@@ -246,7 +246,7 @@ log_read_state jbd2::read_log_transaction()
 					uint16_t checkval		= tag->checksum;
 					if(dword(csum).lo != checkval) goto skip_txn;
 					txn_blocks.emplace_back(blocknum, __cur(), true, 1);
-					if(tag->flags & last_block) 
+					if(tag->flags & last_block)
 						pos					= block_ed;
 					else pos				+= desc_tag_size(tag->flags & same_uuid);
 				}

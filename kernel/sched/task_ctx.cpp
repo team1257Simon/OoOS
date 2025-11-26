@@ -52,8 +52,8 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 	{
 		.self				{ std::addressof(task_struct) },
 		.frame_ptr			{ desc.frame_ptr },
-		.saved_regs		
-		{ 
+		.saved_regs
+		{
 			.rbp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.rsp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.cr3			{ pml4_of(desc.frame_ptr) },
@@ -62,8 +62,8 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 			.ss				{ user_data },
 			.cs				{ user_code }
 		},
-		.quantum_val		{ quantum }, 
-		.task_ctl			
+		.quantum_val		{ quantum },
+		.task_ctl
 		{
 			{
 				.block			{ false },
@@ -71,10 +71,10 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 				.should_notify	{ false },
 				.killed			{ false },
 				.prio_base		{ prio }
-			}, 
+			},
 			{
 				.signal_info	{ std::addressof(task_sig_info) },
-				.parent_pid		{ parent_pid }, 
+				.parent_pid		{ parent_pid },
 				.task_id		{ pid }
 			}
 		},
@@ -175,8 +175,8 @@ task_ctx::task_ctx(task_ctx&& that) :
 	task_sig_info			{ std::move(that.task_sig_info) },
 	opened_directories		{ std::move(that.opened_directories) },
 	dyn_thread				{ std::move(that.dyn_thread) }
-	{ 
-		array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / sizeof(uint64_t))); 
+	{
+		array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / sizeof(uint64_t)));
 		task_struct.self					= std::addressof(task_struct);
 		task_struct.task_ctl.signal_info	= std::addressof(task_sig_info);
 		that.task_struct.frame_ptr			= nullptr;
@@ -194,7 +194,7 @@ task_ctx::~task_ctx()
 		local_so_map->shared_frame 			= nullptr;
 		sm_alloc.deallocate(local_so_map, 1);
 	}
-	if(!task_struct.frame_ptr) return; 
+	if(!task_struct.frame_ptr) return;
 	try { fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>()); }
 	catch(std::exception& e) { panic(e.what()); }
 }
@@ -220,7 +220,7 @@ void task_ctx::init_task_state()
 		rdi_val								= reinterpret_cast<register_t>(dyn);
 		task_struct.saved_regs.rbx			= static_cast<register_t>(entry.full);
 		shared_object_map::iterator ldso	= shared_object_map::get_ldso_object(ctx_filesystem);
-		addr_t ldso_entry 					= ldso->entry_point(); 
+		addr_t ldso_entry 					= ldso->entry_point();
 		if(ldso_entry)
 			task_struct.saved_regs.rip		= ldso_entry;
 		else throw std::runtime_error("[PRG/EXEC] dynamic linker object has no entry point");
@@ -330,7 +330,7 @@ void task_ctx::set_exit(int n)
 	}
 	if(exit_target) exit_target.invoke<void()>();
 	else handle_exit();
-	__builtin_unreachable();	
+	__builtin_unreachable();
 }
 void task_ctx::attach_object(elf64_object* obj, bool is_init)
 {
@@ -417,7 +417,7 @@ register_t task_ctx::end_signal()
 }
 bool task_ctx::set_fork()
 {
-	try 
+	try
 	{
 		uframe_tag* old_frame			= task_struct.frame_ptr;
 		shared_object_map* old_so_map	= local_so_map;
@@ -426,14 +426,14 @@ bool task_ctx::set_fork()
 		task_struct.saved_regs.cr3		= new_frame->pml4;
 		if(old_so_map) local_so_map		= sm_alloc.allocate(1UZ);
 		if(local_so_map)
-		{ 
+		{
 			std::construct_at(local_so_map, new_frame);
-			for(elf64_shared_object* so : attached_so_handles) 
+			for(elf64_shared_object* so : attached_so_handles)
 			{
 				kmm.enter_frame(new_frame);
 				kmm.map_to_current_frame(so->segment_blocks());
 				kmm.exit_frame();
-			} 
+			}
 			local_so_map->copy(*old_so_map);
 		}
 		program_handle					= prog_manager::get_instance().clone(program_handle);
@@ -475,7 +475,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 	{
 		.self				{ std::addressof(task_struct) },
 		.frame_ptr			{ desc.frame_ptr },
-		.saved_regs		
+		.saved_regs
 		{
 			.rbp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
 			.rsp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
@@ -485,8 +485,8 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 			.ss				{ user_data },
 			.cs				{ user_code }
 		},
-		.quantum_val		{ quantum }, 
-		.task_ctl			
+		.quantum_val		{ quantum },
+		.task_ctl
 		{
 			{
 				.block			{ false },
@@ -494,10 +494,10 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 				.should_notify	{ false },
 				.killed			{ false },
 				.prio_base		{ prio }
-			}, 
+			},
 			{
 				.signal_info	{ std::addressof(task_sig_info) },
-				.parent_pid		{ parent_pid }, 
+				.parent_pid		{ parent_pid },
 				.task_id		{ pid }
 			}
 		},

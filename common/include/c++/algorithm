@@ -33,7 +33,7 @@ namespace std
 			{
 				result += *i;
 				iterator test_adv(i);
-				if(++test_adv != vec.end() && delim) result += delim; 
+				if(++test_adv != vec.end() && delim) result += delim;
 			}
 			return result;
 		}
@@ -43,8 +43,8 @@ namespace std
 		template<typename T> concept __valid_ordering = std::is_same_v<T, std::strong_ordering> || std::is_same_v<T, std::weak_ordering> || std::is_same_v<T, std::partial_ordering>;
 		template<typename FT, typename T, typename U> concept __three_way_comparator = requires(FT ft, T t, U u) { { ft(t, u) } -> __valid_ordering; };
 	}
-	template<typename T, typename U, matching_input_iterator<T> IT, matching_input_iterator<U> JT, __detail::__three_way_comparator<T, U> CT> 
-	constexpr auto lexicographical_compare_three_way(IT first1, IT last1, JT first2, JT last2, CT comp) 
+	template<typename T, typename U, matching_input_iterator<T> IT, matching_input_iterator<U> JT, __detail::__three_way_comparator<T, U> CT>
+	constexpr auto lexicographical_compare_three_way(IT first1, IT last1, JT first2, JT last2, CT comp)
 		-> decltype(comp(*first1, *first2))
 	{
 		using ret_t = decltype(comp(*first1, *first2));
@@ -60,11 +60,11 @@ namespace std
 		typename iterator_traits<IT>::difference_type count = distance(first, last), step;
 		while(count > 0)
 		{
-			i = j;
-			step = count / 2;
+			i			= j;
+			step		= count / 2;
 			advance(i, step);
 			if(ct(*i, value)) { j = ++i; count -= step + 1; }
-			else count = step;
+			else count	= step;
 		}
 		return j;
 	}

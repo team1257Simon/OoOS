@@ -36,7 +36,7 @@ namespace std
 					// We chomp on the bytes a little bit beforehand so that the elf64 hash "sees" a string entirely composed of text characters (even if they'd make no sense when read out).
 					for(size_t i = 0; i < sizeof(__int128_t); i++) rbytes[i] = (rbytes[i] | 0x20) & 0x7E;
 					uint64_t result = elf64_hash{}(rbytes, sizeof(__int128_t));
-					construct_at(__tmp_result.__get_ptr()); // temporary result buffer is to be treated as though it doesn't exist except to provide storage space during calculations
+					construct_at(__tmp_result.__get_ptr());	// temporary result buffer is to be treated as though it doesn't exist except to provide storage space during calculations
 					return result;
 				}
 			};

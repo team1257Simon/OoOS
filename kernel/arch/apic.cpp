@@ -28,7 +28,7 @@ bool apic::init() volatile
                 ioapic_physical_base = table_ptr.plus(i).deref<io_sapic_data>().io_sapic_physical_addr;
             break;
         case IO_APIC:
-            if(table_ptr.plus(i).deref<io_apic_data>().io_apic_physical_address && !have_sapic) 
+            if(table_ptr.plus(i).deref<io_apic_data>().io_apic_physical_address && !have_sapic)
                 ioapic_physical_base = table_ptr.plus(i).deref<io_apic_data>().io_apic_physical_address;
             break;
         default:

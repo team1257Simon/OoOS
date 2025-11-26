@@ -42,52 +42,111 @@ namespace std
 		typedef std::reverse_iterator<iterator> reverse_iterator;
 		typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this->__alloc); }
-		constexpr iterator begin() noexcept { return iterator{ this->__l_begin() }; }
-		constexpr iterator end() noexcept { return iterator{ this->__end() }; }
-		constexpr const_iterator cbegin() const noexcept { return const_iterator{ this->__l_begin() }; }
-		constexpr const_iterator cend() const noexcept { return const_iterator{ this->__end() }; }
-		constexpr const_iterator begin() const noexcept { return const_iterator{ this->__l_begin()}; }
-		constexpr const_iterator end() const noexcept { return const_iterator{ this->__end() }; }
-		constexpr reverse_iterator rbegin() noexcept { return reverse_iterator{ begin() }; }
-		constexpr reverse_iterator rend() noexcept { return reverse_iterator{ end() }; }
-		constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator{ cbegin() }; }
-		constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator{ cend() }; }
-		constexpr const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator{ begin() }; }
-		constexpr const_reverse_iterator rend() const noexcept { return const_reverse_iterator{ end() }; }
+		constexpr iterator begin() noexcept { return iterator(this->__l_begin()); }
+		constexpr iterator end() noexcept { return iterator(this->__end()); }
+		constexpr const_iterator cbegin() const noexcept { return const_iterator(this->__l_begin() ); }
+		constexpr const_iterator cend() const noexcept { return const_iterator(this->__end()); }
+		constexpr const_iterator begin() const noexcept { return const_iterator(this->__l_begin() ); }
+		constexpr const_iterator end() const noexcept { return const_iterator(this->__end()); }
+		constexpr reverse_iterator rbegin() noexcept { return reverse_iterator(begin()); }
+		constexpr reverse_iterator rend() noexcept { return reverse_iterator(end()); }
+		constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cbegin()); }
+		constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cend()); }
+		constexpr const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator(begin()); }
+		constexpr const_reverse_iterator rend() const noexcept { return const_reverse_iterator(end()); }
 		constexpr explicit map() : __base{} {}
-		constexpr map(map const& that) : __base{ that } {}
-		constexpr map(map&& that) : __base{ move(that) } {}
-		template<std::matching_input_iterator<value_type> IT> constexpr map(IT first, IT last) : __base{ first, last } {}
-		constexpr map(std::initializer_list<value_type> ilist) : __base{ ilist.begin(), ilist.end() } {}
+		constexpr map(map const& that) : __base(that) {}
+		constexpr map(map&& that) : __base(move(that)) {}
+		template<std::matching_input_iterator<value_type> IT> constexpr map(IT first, IT last) : __base(first, last) {}
+		constexpr map(std::initializer_list<value_type> ilist) : __base(ilist.begin(), ilist.end()) {}
 		constexpr void clear() { this->__clear(); }
-		template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { __res_t res = this->__emplace_unique(std::forward<Args>(args)...); return pair{ iterator{ res.first }, res.second }; }
-		template<typename ... Args> requires constructible_from<value_type, Args...> iterator emplace_hint(const_iterator hint, Args&& ... args) { return iterator{ this->__hint_emplace_unique(hint.get_node(), std::forward<Args>(args)...) }; }
-		template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
-		template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
-		template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) constexpr bool contains(U const& u) const noexcept { return this->__contains(u); }
-		template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) iterator lower_bound(U const& u) { return iterator{ this->__lower_bound(this->__get_root(), this->__end(), u) }; }
-		template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) iterator upper_bound(U const& u) { return iterator{ this->__upper_bound(this->__get_root(), this->__end(), u) }; }
-		pair<iterator, bool> insert(value_type&& vt) { __res_t res = this->__insert_unique(std::forward<value_type>(vt)); return pair{ iterator{ res.first }, res.second }; }
-		pair<iterator, bool> insert(value_type const& vt) { __res_t res = this->__insert_unique(vt); return pair{ iterator{ res.first }, res.second }; }
+		template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { __res_t res = this->__emplace_unique(std::forward<Args>(args)...); return pair(iterator(res.first), res.second); }
+		template<typename ... Args> requires constructible_from<value_type, Args...> iterator emplace_hint(const_iterator hint, Args&& ... args) { return iterator(this->__hint_emplace_unique(hint.get_node(), std::forward<Args>(args)...)); }
+		template<__tree_searchable<key_type, key_compare, value_type> U> constexpr iterator find(U const& u) noexcept { return iterator{ this->__find_node(u) }; }
+		template<__tree_searchable<key_type, key_compare, value_type> U> constexpr const_iterator find(U const& u) const noexcept { return const_iterator{ this->__find_node(u) }; }
+		template<__tree_searchable<key_type, key_compare, value_type> U> constexpr bool contains(U const& u) const noexcept { return this->__contains(u); }
+		template<__tree_searchable<key_type, key_compare, value_type> U> iterator lower_bound(U const& u) { return iterator(this->__lower_bound(this->__get_root(), this->__end(), u)); }
+		template<__tree_searchable<key_type, key_compare, value_type> U> iterator upper_bound(U const& u) { return iterator(this->__upper_bound(this->__get_root(), this->__end(), u)); }
+		pair<iterator, bool> insert(value_type&& vt) { __res_t res = this->__insert_unique(std::forward<value_type>(vt)); return pair(iterator(res.first), res.second); }
+		pair<iterator, bool> insert(value_type const& vt) { __res_t res = this->__insert_unique(vt); return pair(iterator(res.first), res.second); }
 		iterator insert(const_iterator pos, value_type const& value) { return iterator{ this->__hint_insert_unique(pos.get_node(), value) }; }
 		iterator insert(const_iterator pos, value_type && value) { return iterator{ this->__hint_insert_unique(pos.get_node(), forward<value_type>(value)) }; }
 		template<std::matching_input_iterator<value_type> IT> void insert(IT first, IT last) { this->__insert_range_unique(first, last); }
 		void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
-		template<typename U> requires (__valid_comparator<key_compare, value_type, U> || is_convertible_v<U, key_type>) size_type erase(U const& what) { __link_t r = this->__find_node(what); if(r == this->__end()) { return 0; } else { this->__erase_node(r); return 1; } }
-		iterator erase(iterator pos) { return iterator{ this->__erase_node(pos.get_node()) }; }
-		iterator erase(const_iterator pos) { return iterator{ this->__erase_node(const_cast<__link_t>(pos.get_node())) }; }
+		iterator erase(iterator pos) { return iterator(this->__erase_node(pos.get_node())); }
+		iterator erase(const_iterator pos) { return iterator(this->__erase_node(const_cast<__link_t>(pos.get_node()))); }
 		iterator erase(const_iterator start, const_iterator end) { return iterator{ this->__erase_nodes(const_cast<__link_t>(start.get_node()), const_cast<__link_t>(end.get_node())) }; }
 		iterator max() noexcept { __link_t r = this->__l_rightmost(); if(r) return iterator(r); return end(); }
 		const_iterator max() const noexcept { __clink_t r = this->__l_rightmost(); if(r) return const_iterator(r); return cend(); }
 		constexpr void swap(map& that) noexcept { this->__swap(that); }
-		template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U && u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(piecewise_construct, forward_as_tuple(move(u)), tuple<>())); } return r->__get_ref().second; }
-		template<std::convertible_to<key_type> U> requires (is_default_constructible_v<mapped_type>) constexpr mapped_type& operator[](U const& u) { __link_t r = this->__lower_bound(this->__get_root(), this->__end(), u); if(r == this->__end() || this->__compare_l(u, r)) { r = this->__hint_insert_unique(r, value_type(piecewise_construct, tuple<U const&>(u), tuple<>())); } return r->__get_ref().second; }
-		template<std::not_self<value_type> PT> requires constructible_from<value_type, PT&&> pair<iterator, bool> insert(PT && pt) { return emplace(std::forward<PT>(pt)); }
-		template<std::not_self<value_type> PT> requires constructible_from<value_type, PT&&> iterator insert(const_iterator pos, PT && pt) { return emplace_hint(pos, std::forward<PT>(pt)); }
-		template<std::convertible_to<mapped_type> LT> pair<iterator, bool> insert_or_assign(KT&& kt, LT&& lt) { bool inserted = false; __link_t r = this->__lower_bound(this->__get_root(), this->__end(), kt); if(r == this->__end() || this->__compare_l(kt, r)) { r = this->__hint_insert_unique(r, value_type(piecewise_construct, forward_as_tuple(move(kt)), forward_as_tuple(move(lt)))); inserted = true; } else { r->__get_ref().second = std::forward<LT>(lt); } return std::make_pair(iterator(r), inserted); }
-		template<std::convertible_to<mapped_type> LT> pair<iterator, bool> insert_or_assign(KT const& kt, LT&& lt) { bool inserted = false; __link_t r = this->__lower_bound(this->__get_root(), this->__end(), kt); if(r == this->__end() || this->__compare_l(kt, r)) { r = this->__hint_insert_unique(r, value_type(piecewise_construct, tuple<KT const&>(kt), forward_as_tuple(move(lt)))); inserted = true; } else { r->__get_ref().second = std::forward<LT>(lt); } return std::make_pair(iterator(r), inserted); }
-		template<std::convertible_to<mapped_type> LT> iterator insert_or_assign(const_iterator pos, KT&& kt, LT&& lt) { __pos_t hint = this->__insert_unique_hint_pos(hint, kt); if(hint.second) { return emplace_hint(const_iterator(hint.second), piecewise_construct, forward_as_tuple(kt), forward_as_tuple(lt)); } iterator i{ hint.first }; (*i).second = std::forward<LT>(lt); return i; }
-		template<std::convertible_to<mapped_type> LT> iterator insert_or_assign(const_iterator pos, KT const& kt, LT&& lt) { __pos_t hint = this->__insert_unique_hint_pos(hint, kt); if(hint.second) { return emplace_hint(const_iterator(hint.second), piecewise_construct, tuple<KT const&>(kt), forward_as_tuple(lt)); } iterator i{ hint.first }; (*i).second = std::forward<LT>(lt); return i; }
+		template<not_self<value_type> PT> requires(constructible_from<value_type, PT&&>) pair<iterator, bool> insert(PT && pt) { return emplace(std::forward<PT>(pt)); }
+		template<not_self<value_type> PT> requires(constructible_from<value_type, PT&&>) iterator insert(const_iterator pos, PT && pt) { return emplace_hint(pos, std::forward<PT>(pt)); }
+		template<__tree_searchable<key_type, key_compare, value_type> U>
+		size_type erase(U const& what)
+		{
+			__link_t r	= this->__find_node(what);
+			if(r == this->__end()) return 0UZ;
+			this->__erase_node(r);
+			return 1UZ;
+		}
+		template<std::convertible_to<key_type> U> requires(is_default_constructible_v<mapped_type>)
+		constexpr mapped_type& operator[](U && u)
+		{
+			__link_t r	= this->__lower_bound(this->__get_root(), this->__end(), u);
+			if(r == this->__end() || this->__compare_l(u, r))
+				r		= this->__hint_insert_unique(r, value_type(piecewise_construct, forward_as_tuple(move(u)), tuple<>()));
+			return r->__get_ref().second;
+		}
+		template<std::convertible_to<key_type> U> requires(is_default_constructible_v<mapped_type>)
+		constexpr mapped_type& operator[](U const& u)
+		{
+			__link_t r	= this->__lower_bound(this->__get_root(), this->__end(), u);
+			if(r == this->__end() || this->__compare_l(u, r))
+				r		= this->__hint_insert_unique(r, value_type(piecewise_construct, tuple<U const&>(u), tuple<>()));
+			return r->__get_ref().second;
+		}
+		template<std::convertible_to<mapped_type> LT>
+		pair<iterator, bool> insert_or_assign(KT&& kt, LT&& lt)
+		{
+			bool inserted	= false;
+			__link_t r		= this->__lower_bound(this->__get_root(), this->__end(), kt);
+			if(r == this->__end() || this->__compare_l(kt, r)) {
+				r			= this->__hint_insert_unique(r, value_type(piecewise_construct, forward_as_tuple(move(kt)), forward_as_tuple(move(lt))));
+				inserted	= true;
+			}
+			else r->__get_ref().second	= std::forward<LT>(lt);
+			return std::make_pair(iterator(r), inserted);
+		}
+		template<std::convertible_to<mapped_type> LT>
+		pair<iterator, bool> insert_or_assign(KT const& kt, LT&& lt)
+		{
+			bool inserted	= false;
+			__link_t r		= this->__lower_bound(this->__get_root(), this->__end(), kt);
+			if(r == this->__end() || this->__compare_l(kt, r)) {
+				r			= this->__hint_insert_unique(r, value_type(piecewise_construct, tuple<KT const&>(kt), forward_as_tuple(move(lt))));
+				inserted	= true;
+			}
+			else r->__get_ref().second	= std::forward<LT>(lt);
+			return std::make_pair(iterator(r), inserted);
+		}
+		template<std::convertible_to<mapped_type> LT>
+		iterator insert_or_assign(const_iterator pos, KT&& kt, LT&& lt)
+		{
+			__pos_t hint	= this->__insert_unique_hint_pos(hint, kt);
+			if(hint.second) return emplace_hint(const_iterator(hint.second), piecewise_construct, forward_as_tuple(kt), forward_as_tuple(lt));
+			iterator i(hint.first);
+			i->second		= std::forward<LT>(lt);
+			return i;
+		}
+		template<std::convertible_to<mapped_type> LT>
+		iterator insert_or_assign(const_iterator pos, KT const& kt, LT&& lt)
+		{
+			__pos_t hint	= this->__insert_unique_hint_pos(hint, kt);
+			if(hint.second) return emplace_hint(const_iterator(hint.second), piecewise_construct, tuple<KT const&>(kt), forward_as_tuple(lt));
+			iterator i(hint.first);
+			i->second		= std::forward<LT>(lt);
+			return i;
+		}
 	};
 }
 #endif

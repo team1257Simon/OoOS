@@ -20,8 +20,8 @@ SYM_LOG := $(LOG_DIR)/test-syms.txt
 	$(CC) $(CCFLAGS) -c $< -o $@
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-$(TARGET): $(OBJECTS) 
-	$(LD) $(OBJECTS) $(LDFLAGS) -o $@ 
+$(TARGET): $(OBJECTS)
+	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
 	@mkdir -p $(LOG_DIR)
 	$(TARGET_HOSTED)-readelf $(READFLAGS) $@ > $(SYM_LOG)
 all: $(OBJECTS) $(OUTDIR) $(TARGET)

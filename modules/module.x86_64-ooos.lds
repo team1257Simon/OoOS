@@ -17,7 +17,7 @@ SECTIONS
 		*(.rela.init)
 		*(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
 		*(.rela.fini)
-		*(.rela.data.rel.ro .rela.data.rel.ro.* .rela.data.rel.ro.local.* .rela.gnu.linkonce.d.rel.ro.*) 
+		*(.rela.data.rel.ro .rela.data.rel.ro.* .rela.data.rel.ro.local.* .rela.gnu.linkonce.d.rel.ro.*)
 		*(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
 		*(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
 		*(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)

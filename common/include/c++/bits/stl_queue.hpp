@@ -44,8 +44,8 @@ namespace std
 			constexpr iterator begin() { return iterator(this->__qbeg()); }
 			constexpr const_iterator cbegin() const { return const_iterator(this->__qbeg()); }
 			constexpr const_iterator begin() const { return cbegin(); }
-			extension constexpr iterator current() { return iterator{ this->__qcur() }; }
-			extension constexpr const_iterator ccurrent() const { return const_iterator{this->__qcur() }; }
+			extension constexpr iterator current() { return iterator(this->__qcur()); }
+			extension constexpr const_iterator ccurrent() const { return const_iterator(this->__qcur()); }
 			extension constexpr const_iterator current() const { return ccurrent(); }
 			constexpr iterator end() { return iterator(this->__end()); }
 			constexpr const_iterator cend() const { return const_iterator(this->__end()); }
@@ -53,17 +53,17 @@ namespace std
 			constexpr reverse_iterator rbegin() { return reverse_iterator(begin()); }
 			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cbegin()); }
 			constexpr const_reverse_iterator rbegin() const { return crbegin(); }
-			extension constexpr reverse_iterator rcurrent() { return reverse_iterator{ current() }; }
-			extension constexpr const_reverse_iterator crcurrent() const { return const_reverse_iterator{ ccurrent() }; }
+			extension constexpr reverse_iterator rcurrent() { return reverse_iterator(ccurrent()); }
+			extension constexpr const_reverse_iterator crcurrent() const { return const_reverse_iterator(ccurrent()); }
 			extension constexpr const_reverse_iterator rcurrent() const { return crcurrent(); }
 			constexpr reverse_iterator rend() { return reverse_iterator(end()); }
 			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cend()); }
 			constexpr const_reverse_iterator rend() const { return crend(); }
 			constexpr void push(value_type const& value) { this->__push_elements(value, 1UL); }
 			constexpr void push(value_type&& value) { this->__push_elements(move(value), 1UL); }
-			constexpr void swap(resettable_queue& that) noexcept { this->__qswap(that); }            
+			constexpr void swap(resettable_queue& that) noexcept { this->__qswap(that); }
 			template<typename ... Args> requires(std::constructible_from<T, Args...>) constexpr reference emplace(Args&& ... args) { return *(this->__emplace_element(forward<Args>(args)...)); }
-			constexpr reference pop() { pointer result = this->__pop_next(); if(result) return *result; throw std::out_of_range{ "nothing to pop" }; }
+			constexpr reference pop() { pointer result = this->__pop_next(); if(result) return *result; throw std::out_of_range("[std::ext::resettable_queue] nothing to pop"); }
 			constexpr size_type erase(const_iterator start, const_iterator end) { return this->__erase_elements(start.base(), std::distance(start, end)); }
 			constexpr size_type erase(const_iterator where) { return this->__erase_elements(where.base()); }
 			constexpr iterator insert(const_iterator where, const_reference what, size_type how_many = 1UL) { pointer result = this->__insert(where.base(), what, how_many); if(result) return iterator{ result }; return end(); }

@@ -10,7 +10,7 @@ FILE_EXTENSION = so
 BASE_NAME = ld-ooos.$(FILE_EXTENSION)
 SO_NAME = $(BASE_NAME).$(VERSION_MAJOR)
 FULL_NAME = $(SO_NAME).$(VERSION_MINOR)
-CFLAGS = -O2 -fPIC 
+CFLAGS = -O2 -fPIC
 CCFLAGS = $(CFLAGS) -std=gnu23 -Wall
 CXXFLAGS = $(CFLAGS) -std=gnu++26 -Wall -fno-exceptions -nostdinc++
 LDFLAGS = $(CFLAGS) -L$(SYS_LIB) -L$(LIB_GCC) -L$(SYSROOT)/usr/x86_64-ooos/lib -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -Wl,-soname,$(SO_NAME) -shared
@@ -22,7 +22,7 @@ CPPSRC = $(wildcard *.cpp */*.cpp)
 ARCH_OBJECT_NAMES = $(SSRC:%.S=%.o)
 ARCH_OBJECTS = $(addprefix $(OBJDIR)/,$(ARCH_OBJECT_NAMES))
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) arch-ldso.o
-OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES)) 
+OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES))
 ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
 OUT_SO = $(OUTDIR)/$(FULL_NAME)
 OUT_SO_LINK = $(OUTDIR)/$(SO_NAME)
@@ -44,7 +44,7 @@ $(ASMT_DIR)/%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
 $(ASMT_DIR)/%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
-$(SYM_LOG): $(OUT_SO) $(LOG_DIR) 
+$(SYM_LOG): $(OUT_SO) $(LOG_DIR)
 	$(READ) $(READFLAGS) $< > $@
 $(OUT_SO): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@

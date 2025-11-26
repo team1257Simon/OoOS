@@ -22,10 +22,10 @@ extern "C"
 		out				= translate_user_pointer(out);
 		if(__unlikely(!task || !out)) return -EFAULT;
 		if(__unlikely(!user_accounts_manager::is_initialized())) return -ENOSYS;
-		user_accounts_manager* uam = user_accounts_manager::get_instance();
+		user_accounts_manager* uam	= user_accounts_manager::get_instance();
 		try
 		{
-			vpwd_entry* data	= uam->get_vpwd_entry(uid, *task);
+			vpwd_entry* data		= uam->get_vpwd_entry(uid, *task);
 			if(__unlikely(!data)) return -ENOMEM;
 			init_pwd(out, data);
 		}

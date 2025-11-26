@@ -5,11 +5,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
+ *		this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ *		this list of conditions and the following disclaimer in the documentation
+ *		and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
  * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -33,7 +33,7 @@ namespace std
 	exception::~exception() noexcept {}
 	exception::exception(exception const&) noexcept {}
 	exception& exception::operator=(exception const&) noexcept { return *this; }
-	const char* exception::what() const noexcept { return "std::exception"; }
+	const char*	exception::what() const noexcept { return "std::exception"; }
 	bad_alloc::bad_alloc() noexcept {}
 	bad_alloc::~bad_alloc() noexcept {}
 	bad_alloc::bad_alloc(bad_alloc const&) noexcept {}
@@ -91,4 +91,5 @@ namespace std
 	underflow_error::underflow_error(string const& __msg) : runtime_error(__msg) {}
 	underflow_error::underflow_error(const char* __msg) : runtime_error(__msg) {}
 	underflow_error::~underflow_error() noexcept {}
-}
+} // namespace std
+extension void xpanic(std::string const& str) noexcept { panic(str.c_str()); }

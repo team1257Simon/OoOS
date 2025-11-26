@@ -205,7 +205,7 @@ namespace ooos
                 __my_manager    = std::addressof(__mgr::action);
                 __my_invoke     = std::addressof(__mgr::invoke_fn);
                 __my_alloc      = alloc;
-            } 
+            }
         }
         constexpr isr_actor(isr_actor const& that) : isr_actor_base()
         {
@@ -305,7 +305,7 @@ namespace ooos
             .value		{ std::move(value) }
         };
     }
-    template<__internal::__can_be_parameter_type T, std::convertible_to<T> ... Us> 
+    template<__internal::__can_be_parameter_type T, std::convertible_to<T> ... Us>
     constexpr config_parameter<T[sizeof...(Us)]> parameter(const char* name, parameter_type_t<T[]>, Us&& ... values)
     {
         typedef T array_type[sizeof...(Us)];
@@ -374,16 +374,16 @@ namespace ooos
         template<typename T> constexpr inline bool __is_empty_and_non_final = __is_empty(T) && !__is_final(T);
         template<size_t I, __can_be_parameter_type ... Ts> struct __config_table_impl;
         template<size_t I, __can_be_parameter_type T, bool = __is_empty_and_non_final<T>> struct __config_entry_base;
-        template<size_t I, __can_be_parameter_type T> 
+        template<size_t I, __can_be_parameter_type T>
         struct __config_entry_base<I, T, false>
-        { 
+        {
             config_parameter<T> __param;
             constexpr __config_entry_base(config_parameter<T>&& p) : __param(std::move(p)) {}
             constexpr static T& __get(__config_entry_base& t) { return t.__param.value; }
             constexpr static T const& __get(__config_entry_base const& t) noexcept { return t.__param.value; }
             constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.__param.value_size; }
         };
-        template<size_t I, __can_be_parameter_type T> 
+        template<size_t I, __can_be_parameter_type T>
         struct __config_entry_base<I, T, true> : T
         {
             const char* name;
@@ -394,11 +394,11 @@ namespace ooos
             constexpr static T const& __get(__config_entry_base const& t) noexcept { return t; }
             constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.value_size; }
         };
-        template<size_t I, __can_be_parameter_type T> 
-        struct __config_table_impl<I, T> : private __config_entry_base<I, T> 
-        { 
+        template<size_t I, __can_be_parameter_type T>
+        struct __config_table_impl<I, T> : private __config_entry_base<I, T>
+        {
             typedef __config_entry_base<I, T> __base;
-            template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl; 
+            template<size_t, __internal::__can_be_parameter_type ...> friend struct config_table_impl;
             constexpr static size_t __size_value = sizeof(config_parameter<T>);
             constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
@@ -416,7 +416,7 @@ namespace ooos
             constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
             constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
             constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t) + __next::__size(t); }
-            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(std::move(tparam)), __next(std::forward<config_parameter<Us>>(uparams)...) {} 
+            constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(std::move(tparam)), __next(std::forward<config_parameter<Us>>(uparams)...) {}
         };
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T& __get(__config_table_impl<I, T, Us...>& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
         template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T const& __get(__config_table_impl<I, T, Us...> const& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
@@ -497,7 +497,7 @@ namespace ooos
         [[noreturn]] inline void pure_virt() { api->ctx_raise(*eh_ctx, pv_msg, -1); __builtin_unreachable();}
     };
     template<typename T> constexpr T* pclamp(T* p, T* __min, T* __max) noexcept { return p < __min ? __min : p > __max ? __max : p; }
-    extension template<typename T, std::allocator_object<T> AT = std::allocator<T>> 
+    extension template<typename T, std::allocator_object<T> AT = std::allocator<T>>
     [[nodiscard]]
     constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
     {

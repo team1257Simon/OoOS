@@ -13,10 +13,10 @@ TARGET=${TARGET:="x86_64-elf"}
 PREFIX=${PREFIX:="${BUILD_DIR}/cc"}
 
 BINUTIL_TAR_P=${BUILD_DIR}/cc/binutils-${BINUTIL_VER}.tar.gz
-GCC_TAR_P=${BUILD_DIR}/cc/gcc-${GCC_VER}.tar.gz 
+GCC_TAR_P=${BUILD_DIR}/cc/gcc-${GCC_VER}.tar.gz
 GDB_TAR_P=${BUILD_DIR}/cc/gdb-${GDB_VER}.tar.gz
 BINUTIL_D=${BUILD_DIR}/cc/binutils-${BINUTIL_VER}
-GCC_D=${BUILD_DIR}/cc/gcc-${GCC_VER} 
+GCC_D=${BUILD_DIR}/cc/gcc-${GCC_VER}
 GDB_D=${BUILD_DIR}/cc/gdb-${GDB_VER}
 
 function run() {
@@ -49,7 +49,7 @@ function download() {
 function extract() {
     if [ ! -e "$BINUTIL_D" ]; then
         echo "INFO: Extracting ${BINUTIL_TAR_P}"
-        tar -xzf ${BINUTIL_TAR_P} -C ${BUILD_DIR}/cc 
+        tar -xzf ${BINUTIL_TAR_P} -C ${BUILD_DIR}/cc
     fi
     if [ ! -e "$GCC_D" ]; then
         echo "INFO: Extracting ${GCC_TAR_P}"
@@ -93,7 +93,7 @@ function compile() {
 }
 
 function install() {
-    run make -C ${BINUTIL_D} install 
+    run make -C ${BINUTIL_D} install
     run make -C ${GCC_D} install-gcc install-target-libgcc
     run make -C ${GDB_D} install
 }
@@ -172,7 +172,7 @@ function main() {
         "build")
             if [[ "$3" = "-f" ]] || [[ "$2" = "-f" ]]; then
                 time cli_build force
-            else 
+            else
                 time cli_build
             fi
             ;;

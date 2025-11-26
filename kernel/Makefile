@@ -20,7 +20,7 @@ LSUBDIRS = $(addprefix $(LOG_DIR)/,$(SUBDIRS))
 SSRC = $(wildcard *.S */*.S */*/*.S)
 CSRC = $(wildcard *.c */*.c */*/*.c)
 CPPSRC = $(wildcard *.cpp */*.cpp */*/*.cpp)
-OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.S=%.o) 
+OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.S=%.o)
 REORDER_OBJ_NAMES_START = crti.o crtbegin.o
 REORDER_OBJ_NAMES_END = crtend.o crtn.o
 REORDER_OBJ_NAMES_ALL = $(REORDER_OBJ_NAMES_START) $(REORDER_OBJ_NAMES_END)
@@ -65,4 +65,4 @@ clean:
 $(OUT_ELF): $(OBJECTS) $(LDSCRIPT)
 	$(LD) -T $(LDSCRIPT) $(OBJECTS) -o $@ $(LDFLAGS)
 $(SYM_LOG): $(OUT_ELF)
-	$(READ) $(READFLAGS) $< > $@  
+	$(READ) $(READFLAGS) $< > $@

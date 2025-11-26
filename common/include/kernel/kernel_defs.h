@@ -398,7 +398,7 @@ typedef union __pack alignas(uintptr_t) __may_alias __vaddr
 typedef struct attribute(packed, aligned(8)) __vaddr
 #endif
 {
-#ifdef __cplusplus 
+#ifdef __cplusplus
 	struct attribute(packed)
 	{
 #endif
@@ -408,7 +408,7 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 		uint16_t pdp_idx    :  9;
 		uint16_t pml4_idx   :  9;
 		uint16_t ext        : 16;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 	};
 	uintptr_t full{};
 	constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
@@ -417,7 +417,7 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 		pd_idx      { idx1 },
 		pdp_idx     { idx2 },
 		pml4_idx    { idx3 },
-		ext         { sign } 
+		ext         { sign }
 					{}
 	constexpr explicit __vaddr(uint64_t i) noexcept : full(i) {}
 	constexpr __vaddr(nullptr_t) noexcept : full(0UL) {}
@@ -492,10 +492,10 @@ typedef union __may_alias __idx_addr
 extern "C"
 {
 #define CXX_INI(val) { val }
-#else 
+#else
 #define CXX_INI(val)
 #endif
-struct acpi_header 
+struct acpi_header
 {
 	char signature[4];
 	uint32_t length;
@@ -507,7 +507,7 @@ struct acpi_header
 	uint32_t creator_id;
 	uint32_t creator_revision;
 } __pack;
-struct xsdp_t 
+struct xsdp_t
 {
 	char signature[8];
 	uint8_t checksum;
@@ -605,7 +605,7 @@ struct madt_t
 	uint8_t record_data[];
 } __pack;
 enum madt_record_type
-#ifdef __cplusplus 
+#ifdef __cplusplus
 : uint8_t
 #endif
 {
@@ -649,9 +649,9 @@ typedef union
 	} __pack;
 	uint32_t align;
  } __pack apic_flags;
-typedef union 
+typedef union
 {
-	struct 
+	struct
 	{
 		uint8_t polarity        : 2;
 		uint8_t trigger_mode    : 2;
@@ -767,7 +767,7 @@ typedef struct __mmap_entry
 typedef struct __processor_info
 {
 	uint64_t processor_id;
-	struct 
+	struct
 	{
 		uint8_t is_bsp      : 1;
 		uint8_t is_enabled  : 1;
@@ -782,7 +782,7 @@ typedef struct __processor_info
 	} __pack location;
 	union
 	{
-		struct 
+		struct
 		{
 			uint32_t package;
 			uint32_t module;
@@ -804,7 +804,7 @@ typedef struct __boot_modules_list
 	size_t count;
 	boot_loaded_module descriptors[];
 } boot_modules_list;
-typedef struct __system_info 
+typedef struct __system_info
 {
 	uint32_t fb_width;
 	uint32_t fb_height;
@@ -856,7 +856,7 @@ typedef struct __byte
 	constexpr bool btc(int i) volatile noexcept { return __sync_fetch_and_xor(std::addressof(full), 1 << i); }
 } __pack byte;
 typedef struct __s_le16
-{ 
+{
 	__byte lo;
 	__byte hi;
 	constexpr __s_le16() noexcept = default;
@@ -1021,7 +1021,7 @@ typedef struct __s_be64
 } __pack __be64;
 #pragma endregion
 #pragma GCC diagnostic push
-// C++ compilers will yell at you for creating literal operators without an underscore preceding their suffix. 
+// C++ compilers will yell at you for creating literal operators without an underscore preceding their suffix.
 // This is intended to allow adding literal operators to the standard in the future.
 // Seeing as it's a huge pain to build the cross-compilers, odds are we'll be on the same standard for a while (TM).
 // As such, I opted to omit the (frankly, pretty ugly in this context) underscore and create normal-looking suffixes for my literal operators.

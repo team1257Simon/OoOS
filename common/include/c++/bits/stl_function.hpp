@@ -19,8 +19,8 @@ namespace std
 	class __undefined;
 	union __no_copy
 	{
-		void*       __object;
-		const void* __object_const;
+		void*		__object;
+		const void*	__object_const;
 		void (*__function_ptr)();
 		void (__undefined::*__memfn_ptr)();
 	};
@@ -119,12 +119,12 @@ namespace std
 		requires (is_copy_constructible<__decay_t<FT>>::value && is_constructible<__decay_t<FT>, FT>::value)
 		constexpr function(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) : __function_base{}
 		{
-			using __my_helper = __helper<FT>;
+			using __my_helper	= __helper<FT>;
 			if(__my_helper::__not_empty(ft))
 			{
 				__my_helper::__init_fn(__my_functor, forward<FT>(ft));
-				__my_invoker = &__my_helper::__invoke_fn;
-				__my_manager = &__my_helper::__manager;
+				__my_invoker	= &__my_helper::__invoke_fn;
+				__my_manager	= &__my_helper::__manager;
 			}
 		}
 		constexpr operator bool() const noexcept { return !this->__empty(); }
@@ -133,18 +133,18 @@ namespace std
 			if(that.operator bool())
 			{
 				that.__my_manager(__my_functor, that.__my_functor, __clone_functor);
-				__my_invoker = that.__my_invoker;
-				__my_manager = that.__my_manager;
+				__my_invoker	= that.__my_invoker;
+				__my_manager	= that.__my_manager;
 			}
 		}
 		constexpr function(function&& that) : __function_base{}, __my_invoker{ that.__my_invoker }
 		{
 			if(that.operator bool())
 			{
-				__my_functor        = that.__my_functor;
-				__my_manager        = that.__my_manager;
-				that.__my_manager   = nullptr;
-				that.__my_invoker   = nullptr;
+				__my_functor		= that.__my_functor;
+				__my_manager		= that.__my_manager;
+				that.__my_manager	= nullptr;
+				that.__my_invoker	= nullptr;
 			}
 		}
 		constexpr function() noexcept : __function_base{} {}
@@ -152,7 +152,7 @@ namespace std
 		{
 			if constexpr(is_object_v<FT>)
 			{
-				using __handler = __target_helper<RT(Args...), FT>;
+				using __handler	= __target_helper<RT(Args...), FT>;
 				if(__my_manager == &__handler::__manager || (__my_manager && typeid(FT) == target_type()))
 				{
 					__data_store ptr;
@@ -207,7 +207,7 @@ namespace std
 			template<getter_fn G>
 			struct bind
 			{
-				constexpr static getter_fn getter = G;
+				constexpr static getter_fn getter	= G;
 				constexpr return_type operator()(object_type o) const noexcept { return ((o).*(getter))(); }
 				constexpr return_type operator()(object_type* o) const noexcept { return ((o)->*(getter))(); }
 			};

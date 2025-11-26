@@ -8,8 +8,8 @@
 	 Using Schrage's algorithm, a*I[j] (mod m) can be rewritten as:
 		 a*(I[j] mod q) - r*{I[j]/q}      if >= 0
 		 a*(I[j] mod q) - r*{I[j]/q} + m  otherwise
-	 where: {} denotes integer division 
-					q = {m/a} = 127773 
+	 where: {} denotes integer division
+					q = {m/a} = 127773
 					r = m (mod a) = 2836
 	 note that the seed value of 0 cannot be used in the calculation as
 	 it results in 0 itself.

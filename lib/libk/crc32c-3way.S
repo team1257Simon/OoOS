@@ -16,23 +16,23 @@
  *	Tim Chen <tim.c.chen@linux.intel.com>
  *
  * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
+ * licenses. You may choose to be licensed under the terms of the GNU
  * General Public License (GPL) Version 2, available from the file
  * COPYING in the main directory of this source tree, or the
  * OpenIB.org BSD license below:
  *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
+ *	Redistribution and use in source and binary forms, with or
+ *	without modification, are permitted provided that the following
+ *	conditions are met:
  *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
+ *		- Redistributions of source code must retain the above
+ *			copyright notice, this list of conditions and the following
+ *			disclaimer.
  *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials
- *        provided with the distribution.
+ *		- Redistributions in binary form must reproduce the above
+ *			copyright notice, this list of conditions and the following
+ *			disclaimer in the documentation and/or other materials
+ *			provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -49,7 +49,7 @@
 // uint32_t crc32c_x86_3way(uint32_t crc, const uint8_t *buffer, size_t len);
 .text
 .global crc32c_x86_3way
-.type   crc32c_x86_3way, @function
+.type	crc32c_x86_3way, @function
 crc32c_x86_3way:
 	cmp	$200, %rdx
 	jb .Lsmall
@@ -68,7 +68,7 @@ crc32c_x86_3way:
 	sub	%rcx, %rdx
 .Lalign_loop:
 	crc32b	%al, %edi		// compute crc32 of 1-byte
-	shr	$8, %rax		    // get next byte
+	shr	$8, %rax			// get next byte
 	dec	%ecx
 	jne .Lalign_loop
 .Laligned:
@@ -129,12 +129,12 @@ crc32c_x86_3way:
 	// 4) Combine three results:
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	lea	(K_table-8)(%rip), %rax		// first entry is for idx 1
-	pmovzxdq (%rax,%rcx), %xmm0	    // 2 consts: K1:K2
-	lea	(%ecx,%ecx,2), %eax         // %ecx * 3
-	sub	%rax, %rdx			        // %rdx -= %ecx * 3
-	movq %rdi, %xmm1			    // CRC for block 1
+	pmovzxdq (%rax,%rcx), %xmm0		// 2 consts: K1:K2
+	lea	(%ecx,%ecx,2), %eax			// %ecx * 3
+	sub	%rax, %rdx					// %rdx -= %ecx * 3
+	movq %rdi, %xmm1				// CRC for block 1
 	pclmulqdq $0x00, %xmm0, %xmm1	// Multiply by K2
-	movq %r8, %xmm2			        // CRC for block 2
+	movq %r8, %xmm2					// CRC for block 2
 	pclmulqdq $0x10, %xmm0, %xmm2	// Multiply by K1
 	pxor %xmm2,%xmm1
 	movq %xmm1, %rax
@@ -179,7 +179,7 @@ crc32c_x86_3way:
 	crc32b (%rsi), %edi
 .Ldone:
 	mov	%edi, %eax
-    ret
+	ret
 .size crc32c_x86_3way, .-crc32c_x86_3way
 .section .rodata, "a", @progbits
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -317,4 +317,4 @@ K_table:
 	.long 0x45CDDF4E, 0xE0AC139E
 	.long 0xACFA3103, 0x6C23E841
 	.long 0xA51B6135, 0x170076FA
-    .size K_table, .-K_table
+	.size K_table, .-K_table

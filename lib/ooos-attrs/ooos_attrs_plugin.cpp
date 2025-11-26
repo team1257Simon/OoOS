@@ -51,7 +51,7 @@ struct nointerrupts_gimple_pass : public gimple_opt_pass
 					tree attrs_list = NULL_TREE;
 					tree callee 	= gimple_call_fndecl(stmt);
 					if(callee != NULL_TREE) attrs_list = DECL_ATTRIBUTES(callee);
-					else 
+					else
 					{
 						callee = gimple_call_fntype(stmt);
 						if(callee != NULL_TREE)
@@ -82,7 +82,7 @@ static plugin_info pi
 };
 int plugin_init(plugin_name_args* info, plugin_gcc_version* ver)
 {
-	
+
 	register_callback(plugin_name, PLUGIN_INFO, nullptr, std::addressof(pi));
 	register_pass_info gp
 	{

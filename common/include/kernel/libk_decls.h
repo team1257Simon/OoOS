@@ -147,10 +147,10 @@ constexpr T* array_fill(T* dest, T const& value, std::size_t n) noexcept
 }
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>)
 constexpr T* array_fill(void* dest, T value, std::size_t n) noexcept
-{ 
+{
 	if constexpr(!std::integral<T>)
 	{
-		for(size_t i = 0; i < n; i++) 
+		for(size_t i = 0; i < n; i++)
 			std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value);
 		return static_cast<T*>(dest);
 	}
@@ -233,7 +233,7 @@ constexpr T* array_zero(T* dest, std::size_t n) noexcept
 	return dest;
 }
 template<typename T>
-constexpr T* atomic_copy(T* dest, T const* src, size_t n) noexcept(noexcept(array_copy(dest, src, n))) 
+constexpr T* atomic_copy(T* dest, T const* src, size_t n) noexcept(noexcept(array_copy(dest, src, n)))
 {
     push_cli();
     array_copy(dest, src, n);

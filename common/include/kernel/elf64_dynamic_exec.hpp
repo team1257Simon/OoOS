@@ -18,7 +18,7 @@ protected:
 	virtual void process_headers() override;
 public:
 	constexpr std::vector<addr_t> const& get_preinit() const noexcept { return preinit_array; }
-	virtual addr_t resolve(uintptr_t offs) const override;    
+	virtual addr_t resolve(uintptr_t offs) const override;
 	virtual addr_t resolve(elf64_sym const& sym) const override;
 	virtual ~elf64_dynamic_executable();
 	elf64_dynamic_executable(file_vnode* n, size_t stack_sz = S04, uintptr_t base_offset = 0UL);

@@ -11,6 +11,6 @@ __fill_entropy:
 	stosq
 	loop	1b
 3:
-	movq	%rdi,               %rax
+	movq	%rdi,			%rax
 	ret
 	.size	__fill_entropy,		.-__fill_entropy

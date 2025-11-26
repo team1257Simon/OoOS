@@ -16,7 +16,7 @@
 #ifndef _OW_CRYPT_H
 #define _OW_CRYPT_H
 #ifdef __cplusplus
-extern "C" 
+extern "C"
 {
 #endif
 #ifndef __GNUC__

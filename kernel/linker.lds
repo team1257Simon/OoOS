@@ -10,7 +10,7 @@ SECTIONS
 {
 	. = KERNEL_VMA;
 	__start = .;
-	.data : AT(ADDR(.data)) 
+	.data : AT(ADDR(.data))
 	{
 		__data = .;
 		*(.data)
@@ -37,7 +37,7 @@ SECTIONS
 		QUAD(0)
 		__DTOR_END__ = .;
 	}
-	.text (READONLY) : AT(ADDR(.text)) 
+	.text (READONLY) : AT(ADDR(.text))
 	{
 		__code = .;
 		*(.text .text.*)
@@ -45,12 +45,12 @@ SECTIONS
 	} :text
 	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr))
 	{
-		*(.eh_frame_hdr) 
+		*(.eh_frame_hdr)
 		*(.eh_frame_entry .eh_frame_entry.*)
 	}
 	.eh_frame : AT(ADDR(.eh_frame))
 	{
-		. = ALIGN(4);   
+		. = ALIGN(4);
 		__ehframe = .;
 		*(.eh_frame)
 		*(.eh_frame.*)
@@ -58,12 +58,12 @@ SECTIONS
 	}
 	.sframe : AT(ADDR(.sframe))
 	{
-		*(.sframe) 
-		*(.sframe.*) 
+		*(.sframe)
+		*(.sframe.*)
 	}
 	.gcc_except_table : AT(ADDR(.gcc_except_table))
 	{
-		*(.gcc_except_table .gcc_except_table.*) 
+		*(.gcc_except_table .gcc_except_table.*)
 	}
 	.gnu_extab : AT(ADDR(.gnu_extab))
 	{

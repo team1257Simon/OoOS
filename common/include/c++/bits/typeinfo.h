@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2010-2011 PathScale, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
  * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -103,7 +103,7 @@ namespace ABI_NAMESPACE
 	 */
 	struct __fundamental_type_info : public std::type_info { virtual ~__fundamental_type_info(); };
 	/**
-	 * Type info for arrays.  
+	 * Type info for arrays.
 	 */
 	struct __array_type_info : public std::type_info { virtual ~__array_type_info(); };
 	/**
@@ -158,11 +158,11 @@ namespace ABI_NAMESPACE
 			enum __offset_flags_masks
 			{
 				/** This base class is virtual. */
-				__virtual_mask = 0x1,
+				__virtual_mask	= 0x1,
 				/** This base class is public. */
-				__public_mask = 0x2,
+				__public_mask	= 0x2,
 				/** The number of bits reserved for flags. */
-				__offset_shift = 8
+				__offset_shift	= 8
 			};
 		public:
 			/**
@@ -192,7 +192,7 @@ namespace ABI_NAMESPACE
 		unsigned int __flags;
 		/** The number of base classes. */
 		unsigned int __base_count;
-		/** 
+		/**
 		 * Array of base classes - this actually has __base_count elements, not 1.
 		 */
 		__base_class_type_info __base_info[1];
@@ -202,9 +202,9 @@ namespace ABI_NAMESPACE
 		enum __flags_masks
 		{
 			/** The class has non-diamond repeated inheritance. */
-			__non_diamond_repeat_mask = 0x1,
+			__non_diamond_repeat_mask	= 0x1,
 			/** The class is diamond shaped. */
-			__diamond_shaped_mask = 0x2
+			__diamond_shaped_mask		= 0x2
 		};
 		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const;
 		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
@@ -229,15 +229,15 @@ namespace ABI_NAMESPACE
 		enum __masks
 		{
 			/** Pointer has const qualifier. */
-			__const_mask = 0x1,
+			__const_mask			= 0x1,
 			/** Pointer has volatile qualifier. */
-			__volatile_mask = 0x2,
+			__volatile_mask			= 0x2,
 			/** Pointer has restrict qualifier. */
-			__restrict_mask = 0x4,
+			__restrict_mask			= 0x4,
 			/** Pointer points to an incomplete type. */
-			__incomplete_mask = 0x8,
+			__incomplete_mask		= 0x8,
 			/** Pointer is a pointer to a member of an incomplete class. */
-			__incomplete_class_mask = 0x10
+			__incomplete_class_mask	= 0x10
 		};
 		virtual bool __do_catch(const type_info *thrown_type, void **thrown_object, unsigned outer) const;
 	};

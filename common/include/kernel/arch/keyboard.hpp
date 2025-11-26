@@ -17,23 +17,23 @@ namespace ooos
 		uint8_t sub;
 		addr_t response_out;
 	};
-    class keyboard_scan_decoder
-    {
-        keyboard_event const* __scans;
-        keyboard_event const* __escaped_scans;
-        uint8_t const* __pause_sequence;
-        size_t __pause_sequence_length;
-        keyboard_event __decode_one(uint8_t scan, byte_queue& rem) const;
-        keyboard_event __decode_one_escaped(uint8_t scan, byte_queue& rem) const;
-        keyboard_event __decode_one_seq(uint8_t seq_bookend, byte_queue& rem) const;
-    public:
-        keyboard_vstate current_state;
+	class keyboard_scan_decoder
+	{
+		keyboard_event const* __scans;
+		keyboard_event const* __escaped_scans;
+		uint8_t const* __pause_sequence;
+		size_t __pause_sequence_length;
+		keyboard_event __decode_one(uint8_t scan, byte_queue& rem) const;
+		keyboard_event __decode_one_escaped(uint8_t scan, byte_queue& rem) const;
+		keyboard_event __decode_one_seq(uint8_t seq_bookend, byte_queue& rem) const;
+	public:
+		keyboard_vstate current_state;
 		keyboard_lstate led_state;
-        keyboard_scan_decoder(keyboard_scanset ss) noexcept;
-        keyboard_scan_decoder() noexcept;
-        void set_scanset(keyboard_scanset ss) noexcept;
-        keyboard_event decode(byte_queue& scan_bytes);
-    };
+		keyboard_scan_decoder(keyboard_scanset ss) noexcept;
+		keyboard_scan_decoder() noexcept;
+		void set_scanset(keyboard_scanset ss) noexcept;
+		keyboard_event decode(byte_queue& scan_bytes);
+	};
 	class ps2_keyboard;
 	class ps2_keyboard_controller
 	{

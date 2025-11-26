@@ -75,7 +75,7 @@ extern "C"
 	addr_t syscall_dlopen(const char* name, int flags);                             // void* dlopen(const char* name, int flags);
 	int syscall_dlclose(addr_t handle);                                             // int dlclose(void* hadle);
 	addr_t syscall_dlsym(addr_t handle, const char* name);                          // void* dlsym(void* restrict handle, const char* restrict name);
-	addr_t syscall_resolve(uint32_t sym_idx, addr_t got_offset_1);                  // void* dlresolve(int sym_idx); 
+	addr_t syscall_resolve(uint32_t sym_idx, addr_t got_offset_1);                  // void* dlresolve(int sym_idx);
 	int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent);           // int dlmap(void* restrict handle, struct link_map* restrict ent);
 	int syscall_dlpath(const char* path_str);                                       // int dlpath(const char* path_str); add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
 	int syscall_dladdr(addr_t sym_addr, dl_addr_info* info);                        // int dladdr(const void* addr, dl_info* info);

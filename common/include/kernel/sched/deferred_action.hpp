@@ -151,7 +151,7 @@ namespace ooos
 		 * Otherwise, it decrements the delay timer.
 		 * After the decrement, if the timer has reached zero, the functor is invoked if it is valid.
 		 */
-		constexpr void operator()() 
+		constexpr void operator()()
 		{
 			if(__unlikely(!__delay_ticks)) return;
 			__delay_ticks--;

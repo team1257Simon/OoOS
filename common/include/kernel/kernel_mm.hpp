@@ -6,7 +6,7 @@
 #define MAX_BLOCK_EXP 32U
 #endif
 #ifndef MIN_BLOCK_EXP
-#define MIN_BLOCK_EXP 8U // This times 2^(index) is the full size of a block at that index in a frame 
+#define MIN_BLOCK_EXP 8U // This times 2^(index) is the full size of a block at that index in a frame
 #endif
 #ifndef MAX_COMPLETE_REGIONS
 #define MAX_COMPLETE_REGIONS 5U
@@ -201,7 +201,7 @@ enum block_size : uint32_t
  *      2. Physical addresses are assigned in order low-to-high, globally, from regions of conventional memory.
  *      3. An amount of identity-mapped space directly after the kernel is reserved at startup for use with these structures. It is never released.
  *          - This amount depends on how much memory is available; 512 bytes track 1 GB of RAM. The kernel's frame-tag will also go here.
- *          - The pagefile entry for the kernel has been allocated by the bootloader and should be below the kernel in memory. 
+ *          - The pagefile entry for the kernel has been allocated by the bootloader and should be below the kernel in memory.
  *            Entries generated after startup will come from the kernel heap.
  *      4. Virtual addresses are assigned in order low-to-high per page frame. Each page frame tracks its own address-mapping watermark.
  *          - Because of the extreme size of the address space, it should not be necessary to track released virtual addresses.

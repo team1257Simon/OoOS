@@ -12,7 +12,7 @@ namespace std
 		{
 			if(__si_class_type_info const* sti = dynamic_cast<__si_class_type_info const*>(__type))
 			{
-				if(sti->__base_type == __base) 
+				if(sti->__base_type == __base)
 					return true;
 				return __is_derived_from(sti->__base_type, __base);
 			}

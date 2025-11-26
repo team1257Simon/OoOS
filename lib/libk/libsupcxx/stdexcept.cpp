@@ -5,11 +5,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
+ *		this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ *		this list of conditions and the following disclaimer in the documentation
+ *		and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
  * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -33,27 +33,27 @@ namespace std
 	exception::~exception() noexcept {}
 	exception::exception(exception const&) noexcept {}
 	exception& exception::operator=(exception const&) noexcept { return *this; }
-	const char*           exception::what() const noexcept { return "std::exception"; }
+	const char*	exception::what() const noexcept { return "std::exception"; }
 	bad_alloc::bad_alloc() noexcept {}
 	bad_alloc::~bad_alloc() noexcept {}
 	bad_alloc::bad_alloc(bad_alloc const&) noexcept {}
 	bad_alloc& bad_alloc::operator=(bad_alloc const&) noexcept { return *this; }
-	const char*           bad_alloc::what() const noexcept { return "std::bad_alloc"; }
+	const char* bad_alloc::what() const noexcept { return "std::bad_alloc"; }
 	bad_cast::bad_cast() noexcept {}
 	bad_cast::~bad_cast() noexcept {}
 	bad_cast::bad_cast(const bad_cast&) noexcept {}
 	bad_cast& bad_cast::operator=(bad_cast const&) noexcept { return *this; }
-	const char*         bad_cast::what() const noexcept { return "std::bad_cast"; }
+	const char* bad_cast::what() const noexcept { return "std::bad_cast"; }
 	bad_typeid::bad_typeid() noexcept {}
 	bad_typeid::~bad_typeid() noexcept {}
 	bad_typeid::bad_typeid(bad_typeid const&) noexcept {}
 	bad_typeid& bad_typeid::operator=(bad_typeid const&) noexcept { return *this; }
-	const char*             bad_typeid::what() const noexcept { return "std::bad_typeid"; }
+	const char* bad_typeid::what() const noexcept { return "std::bad_typeid"; }
 	bad_array_new_length::bad_array_new_length() noexcept {}
 	bad_array_new_length::~bad_array_new_length() noexcept {}
 	bad_array_new_length::bad_array_new_length(bad_array_new_length const&) noexcept {}
 	bad_array_new_length& bad_array_new_length::operator=(bad_array_new_length const&) noexcept { return *this; }
-	const char*                                 bad_array_new_length::what() const noexcept { return "std::bad_array_new_length"; }
+	const char* bad_array_new_length::what() const noexcept { return "std::bad_array_new_length"; }
 	logic_error::logic_error(string const& __msg) : exception(), __my_msg(__msg) {}
 	logic_error::logic_error(const char* __msg) : exception(), __my_msg(__msg) {}
 	logic_error::logic_error(logic_error const& that) : exception(that), __my_msg(that.__my_msg) {}

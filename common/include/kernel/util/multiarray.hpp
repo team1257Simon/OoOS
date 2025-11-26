@@ -155,7 +155,7 @@ namespace ooos
 		typedef decltype(sizeof(value_type)) size_type;
 		typedef scale_vector<rank> scale_type;
 		constexpr multiarray() noexcept		= default;
-		constexpr ~multiarray() noexcept	= default;	
+		constexpr ~multiarray() noexcept	= default;
 		constexpr multiarray(pointer a, scale_type const& d, scale_type const& s) noexcept : __my_array(a), __dimensions(d), __scales(s), __total_size(__dimensions.volume()) {}
 		constexpr multiarray(pointer a, scale_type const& d) noexcept : __my_array(a), __dimensions(d), __scales(__compute_scales(d)), __total_size(__dimensions.volume()) {}
 		template<size_t S> using sub_array	= multiarray<value_type, __sub_rank(size_constant<S>())>;

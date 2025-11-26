@@ -93,7 +93,7 @@ namespace std
 			streamsize s = this->showmanyc();
 			if(!s) return ret;
 			try { expand(s, ios_base::in); } catch(...) { return ret; }
-			const bool testeof = traits_type::eq_int_type(this->underflow(), ret); 
+			const bool testeof = traits_type::eq_int_type(this->underflow(), ret);
 			if(testeof) return ret;
 			ret = traits_type::to_int_type(*this->gptr());
 			this->gbump(1);
@@ -159,7 +159,7 @@ namespace std
 		}
 		template <char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
 		dynamic_duplex_streambuf<CT, TT, AT>::~dynamic_duplex_streambuf()
-		{ 
+		{
 			if(this->__in_region.__begin)
 				__allocator.deallocate(this->__in_region.__begin, this->__in_region.__capacity());
 			if(this->__out_region.__begin)

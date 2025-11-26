@@ -468,15 +468,15 @@ void handle_exception(int exception_vector)
 	*ptr++ = 'T';			/* notify gdb with signo, PC, FP and SP */
 	*ptr++ = hexchars[sigval >> 4];
 	*ptr++ = hexchars[sigval & 0xf];
-	*ptr++ = hexchars[ESP]; 
+	*ptr++ = hexchars[ESP];
 	*ptr++ = ':';
 	ptr = mem2hex((char*)&registers.rsp, ptr, 4, 0);	/* SP */
 	*ptr++ = ';';
-	*ptr++ = hexchars[EBP]; 
+	*ptr++ = hexchars[EBP];
 	*ptr++ = ':';
 	ptr = mem2hex((char*)&registers.rbp, ptr, 4, 0); 	/* FP */
 	*ptr++ = ';';
-	*ptr++ = hexchars[PC]; 
+	*ptr++ = hexchars[PC];
 	*ptr++ = ':';
 	ptr = mem2hex((char*)&registers.rip, ptr, 4, 0); 	/* PC */
 	*ptr++ = ';';
@@ -556,7 +556,7 @@ void handle_exception(int exception_vector)
 			*((long*)&registers.rflags) &= 0xFFFFFEFF;
 			/* set the trace bit if we're stepping */
 			if (stepping) *((long*)&registers.rflags) |= 0x100;
- #pragma GCC diagnostic pop           
+ #pragma GCC diagnostic pop
 			return_from_exception();	/* this is a jump */
 			break;
 		/* kill the program */

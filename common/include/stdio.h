@@ -5,7 +5,7 @@
 // The only purpose of this is to be able to indicate that the target is stderr by marking the text with an error indicator [!].
 // They all target the same sink (the serial driver). Sprintf instead uses an untied string buffer.
 #ifdef __cplusplus
-extern "C" 
+extern "C"
 {
 #endif
 typedef int FILE;

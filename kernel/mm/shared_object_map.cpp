@@ -26,45 +26,45 @@ shared_object_map::const_iterator shared_object_map::find(std::string const& wha
 shared_object_map::size_type shared_object_map::size() const noexcept { return __base::size(); }
 void shared_object_map::set_path(iterator obj, std::string const& path) { __obj_paths.insert(std::make_pair(obj, std::move(std::string(path)))); }
 const char* shared_object_map::get_path(iterator obj) const { if(auto i = __obj_paths.find(obj); i != __obj_paths.end()) { return i->second.c_str(); } else return nullptr; }
-shared_object_map::shared_object_map(uframe_tag* frame, size_type init_ct) : __base(init_ct), 
-    __obj_paths     { init_ct }, 
-    shared_frame    { frame ? frame : create_shared_frame() } 
+shared_object_map::shared_object_map(uframe_tag* frame, size_type init_ct) : __base(init_ct),
+    __obj_paths     { init_ct },
+    shared_frame    { frame ? frame : create_shared_frame() }
                     { if(!shared_frame->dynamic_extent) { shared_frame->dynamic_extent = __global_dynamic_extent(); } }
 bool shared_object_map::remove(iterator so_handle)
 {
     so_handle->decref();
     if(so_handle->refs() || so_handle->is_sticky()) return false;
     __obj_paths.erase(so_handle); erase(so_handle);
-    return true; 
+    return true;
 }
-shared_object_map::iterator shared_object_map::get_if_resident(file_vnode* so_file) 
+shared_object_map::iterator shared_object_map::get_if_resident(file_vnode* so_file)
 {
-    elf64_shared_object so(so_file, shared_frame); 
-    iterator result = find(so.get_soname()); 
-    if(result != end()) result->incref(); 
-    return result; 
+    elf64_shared_object so(so_file, shared_frame);
+    iterator result = find(so.get_soname());
+    if(result != end()) result->incref();
+    return result;
 }
-shared_object_map::iterator shared_object_map::add(file_vnode* so_file) 
+shared_object_map::iterator shared_object_map::add(file_vnode* so_file)
 {
     std::pair<iterator, bool> result = emplace(so_file, shared_frame);
-    if(result.second && !result.first->load()) { erase(result.first); throw std::runtime_error("[PRG/SO] load failed"); } 
+    if(result.second && !result.first->load()) { erase(result.first); throw std::runtime_error("[PRG/SO] load failed"); }
     if(!result.second) result.first->incref();
     else if(std::addressof(__globals) == this) { result.first->set_global(); }
-    return result.first; 
+    return result.first;
 }
-shared_object_map::iterator shared_object_map::transfer(shared_object_map& that, iterator handle) 
-{ 
-    const char* hpath	= get_path(handle); 
-    std::string xhpath(hpath ? hpath : ""); 
-    iterator result		= that.emplace(std::move(*handle)).first; 
-    __obj_paths.erase(handle); 
-    erase(result->get_soname()); 
-    for(block_descriptor& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); } 
-    result->frame_tag	= that.shared_frame; 
+shared_object_map::iterator shared_object_map::transfer(shared_object_map& that, iterator handle)
+{
+    const char* hpath	= get_path(handle);
+    std::string xhpath(hpath ? hpath : "");
+    iterator result		= that.emplace(std::move(*handle)).first;
+    __obj_paths.erase(handle);
+    erase(result->get_soname());
+    for(block_descriptor& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); }
+    result->frame_tag	= that.shared_frame;
     that.set_path(result, xhpath);
     if(std::addressof(that) == std::addressof(__globals)) result->set_global();
     else result->set_global(false);
-    return result; 
+    return result;
 }
 shared_object_map::iterator shared_object_map::get_ldso_object(filesystem* fs)
 {

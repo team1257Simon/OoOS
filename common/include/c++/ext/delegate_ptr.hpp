@@ -34,11 +34,11 @@ namespace std
 				delegate_callback const& __acquire_fn;
 				delegate_callback const& __release_fn;
 				constexpr __managed_object_node_base(size_t idx, __indexed_function const& dealloc_fn, delegate_callback const& acq, delegate_callback const& rel) :
-					__idx           { idx },
-					__ref_count     { 0UZ },
-					__dealloc_fn    { dealloc_fn },
-					__acquire_fn    { acq },
-					__release_fn    { rel }
+					__idx			{ idx },
+					__ref_count		{ 0UZ },
+					__dealloc_fn	{ dealloc_fn },
+					__acquire_fn	{ acq },
+					__release_fn	{ rel }
 									{}
 			};
 			template<typename T, typename I> concept __indexable				= requires(std::remove_cvref_t<T>& t) { t[std::declval<I>()]; };
@@ -94,8 +94,8 @@ namespace std
 			};
 			struct __generic_ptr_container : vector<void*> 
 			{
-				using __node_alloc_ftor = void* (*)();
-				using __node_dealloc_ftor = void (*)(void*);
+				using __node_alloc_ftor		= void* (*)();
+				using __node_dealloc_ftor	= void (*)(void*);
 				delegate_callback __acquire_fn;
 				delegate_callback __release_fn;
 				__node_alloc_ftor __alloc_node;
@@ -114,22 +114,22 @@ namespace std
 				template<typename ... Args> requires(constructible_from<T, Args...>)
 				size_t add_new(Args&& ... args)
 				{
-					size_t result = __target_idx();
-					at(result) = new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, forward<Args>(args)...);
+					size_t result	= __target_idx();
+					at(result)		= new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, forward<Args>(args)...);
 					return result;
 				}
 				size_t add(T&& t)
 				requires(move_constructible<T>)
 				{
-					size_t result = __target_idx();
-					at(result) = new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, move(t));
+					size_t result	= __target_idx();
+					at(result)		= new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, move(t));
 					return result;
 				}
 				size_t add(T const& t)
 				requires(copy_constructible<T>)
 				{
-					size_t result = __target_idx();
-					at(result) = new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, t);
+					size_t result	= __target_idx();
+					at(result)		= new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, t);
 					return result;
 				}
 				__managed_object_node<T>& operator[](size_t idx) &

@@ -13,7 +13,7 @@ struct md5_ctx
 	uint8_t digest[16]  {};
 };
 static std::allocator<uint8_t> buf_alloc{};
-static uint32_t __s[] 
+static uint32_t __s[]
 {
 	7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
 	5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20,

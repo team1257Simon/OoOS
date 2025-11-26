@@ -22,10 +22,10 @@ namespace std
 	constexpr inline memory_order memory_order_seq_cst = memory_order::seq_cst;
 	enum __memory_order_modifier
 	{
-	  __memory_order_mask          = 0x0000FFFF,
-	  __memory_order_modifier_mask = 0xFFFF0000,
-	  __memory_order_hle_acquire   = 0x00010000,
-	  __memory_order_hle_release   = 0x00020000
+	  __memory_order_mask			= 0x0000FFFF,
+	  __memory_order_modifier_mask	= 0xFFFF0000,
+	  __memory_order_hle_acquire	= 0x00010000,
+	  __memory_order_hle_release	= 0x00020000
 	};
 	constexpr memory_order operator|(memory_order __m, __memory_order_modifier __mod) { return memory_order(int(__m) | int(__mod)); }
 	constexpr memory_order operator&(memory_order __m, __memory_order_modifier __mod) { return memory_order(int(__m) & int(__mod)); }
@@ -43,8 +43,8 @@ namespace std
 	}
 	namespace __impl
 	{
-		template<typename T> using __val = std::remove_volatile_t<T>;
-		template<typename T> using __diff = std::conditional_t<std::is_pointer_v<T>, ptrdiff_t, __val<T>>;
+		template<typename T> using __val	= std::remove_volatile_t<T>;
+		template<typename T> using __diff	= std::conditional_t<std::is_pointer_v<T>, ptrdiff_t, __val<T>>;
 		template<size_t S, size_t A> constexpr inline bool __is_lock_free() noexcept { return __atomic_is_lock_free(S, reinterpret_cast<void*>(-A)); }
 		template<__detail::__can_atomic T> constexpr inline void store(T* __ptr, __val<T> __t, memory_order __m) noexcept { __atomic_store(__ptr, std::addressof(__t), static_cast<int>(__m)); }
 		template<__detail::__can_atomic T> constexpr inline __val<T> load(const T* __ptr, memory_order __m) noexcept { alignas(T) unsigned char __buf[sizeof(T)]; __val<T>* __result = reinterpret_cast<__val<T>*>(__buf); __atomic_load(__ptr, __result, static_cast<int>(__m)); return *__result; }
@@ -92,7 +92,7 @@ namespace std
 		bool test(memory_order __m = memory_order_seq_cst) const noexcept { __atomic_flag_data_type __v; __atomic_load(addressof(__my_val), addressof(__v), static_cast<int>(__m)); return __v == TRUEVAL; }
 		bool test(memory_order __m = memory_order_seq_cst) const volatile noexcept { __atomic_flag_data_type __v; __atomic_load(addressof(__my_val), addressof(__v), static_cast<int>(__m)); return __v == TRUEVAL; }
 	};
-	template<__detail::__can_atomic T> 
+	template<__detail::__can_atomic T>
 	struct atomic
 	{
 		using value_type = T;
@@ -122,13 +122,13 @@ namespace std
 		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) noexcept { return __impl::compare_exchange_strong(addressof(__my_val), __i1, __i2,  __m1, __m2); }
 		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) volatile noexcept { return __impl::compare_exchange_strong(addressof(__my_val), __i1, __i2, __m1, __m2); }
 		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
-		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); } 
+		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
 		operator T() const noexcept { return load(); }
 		operator T() const volatile noexcept { return load(); }
 		T operator=(T __i) noexcept { store(__i); return __i; }
 		T operator=(T __i) volatile noexcept { store(__i); return __i; }
 	};
-	template<> struct atomic<bool> : public atomic_flag 
+	template<> struct atomic<bool> : public atomic_flag
 	{
 		typedef bool value_type;
 		constexpr static unsigned int __alignment = alignof(bool);
@@ -153,7 +153,7 @@ namespace std
 		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) noexcept { return __impl::compare_exchange_strong(addressof(__my_val), __i1, __i2,  __m1, __m2); }
 		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) volatile noexcept { return __impl::compare_exchange_strong(addressof(__my_val), __i1, __i2, __m1, __m2); }
 		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
-		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); } 
+		bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
 		operator bool() const noexcept { return load(); }
 		operator bool() const volatile noexcept { return load(); }
 		bool operator=(bool val) noexcept { store(val); return val; }
@@ -189,7 +189,7 @@ namespace std
 		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) noexcept { return __atomic_compare_exchange_n(addressof(__my_val), &__i1, __i2, 0, static_cast<int>(__m1), static_cast<int>(__m2)); }
 		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) volatile noexcept { return __atomic_compare_exchange_n(addressof(__my_val), &__i1, __i2, 0, static_cast<int>(__m1), static_cast<int>(__m2)); }
 		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
-		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); } 
+		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
 		INL value_type fetch_add(difference_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __atomic_fetch_add(addressof(__my_val), __i, static_cast<int>(__m)); }
 		INL value_type fetch_sub(difference_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __atomic_fetch_sub(addressof(__my_val), __i, static_cast<int>(__m)); }
 		INL value_type fetch_and(value_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __atomic_fetch_and(addressof(__my_val), __i, static_cast<int>(__m)); }
@@ -254,7 +254,7 @@ namespace std
 		INL bool compare_exchange_strong(pointer_type& __i1, pointer_type __i2, memory_order __m1, memory_order __m2) noexcept { return __atomic_compare_exchange_n(&__my_ptr, &__i1, __i2, 0, static_cast<int>(__m1), static_cast<int>(__m2)); }
 		INL bool compare_exchange_strong(pointer_type& __i1, pointer_type __i2, memory_order __m1, memory_order __m2) volatile noexcept { return __atomic_compare_exchange_n(&__my_ptr, &__i1, __i2, 0, static_cast<int>(__m1), static_cast<int>(__m2)); }
 		INL bool compare_exchange_strong(pointer_type& __i1, pointer_type __i2, memory_order __m = memory_order_seq_cst) noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
-		INL bool compare_exchange_strong(pointer_type& __i1, pointer_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); } 
+		INL bool compare_exchange_strong(pointer_type& __i1, pointer_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
 		INL pointer_type fetch_add(difference_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __atomic_fetch_add(&__my_ptr, __type_size(__i), static_cast<int>(__m)); }
 		INL pointer_type fetch_sub(difference_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __atomic_fetch_sub(&__my_ptr, __type_size(__i), static_cast<int>(__m)); }
 		INL pointer_type fetch_add(difference_type __i, memory_order __m = memory_order_seq_cst) volatile noexcept { return __atomic_fetch_add(&__my_ptr, __type_size(__i), static_cast<int>(__m)); }
@@ -306,7 +306,7 @@ namespace std
 		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) noexcept { return __impl::compare_exchange_strong(addressof(__my_val), &__i1, __i2, 0, __m1, __m2); }
 		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m1, memory_order __m2) volatile noexcept { return __impl::compare_exchange_strong(addressof(__my_val), &__i1, __i2, 0, __m1, __m2); }
 		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
-		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); } 
+		INL bool compare_exchange_strong(value_type& __i1, value_type __i2, memory_order __m = memory_order_seq_cst) volatile noexcept { return compare_exchange_strong(__i1, __i2, __m, __cmpexch_failure_order(__m)); }
 		INL value_type fetch_add(difference_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __impl::__fetch_add_flt(addressof(__my_val), __i, __m); }
 		INL value_type fetch_add(difference_type __i, memory_order __m = memory_order_seq_cst) volatile noexcept { return __impl::__fetch_add_flt(addressof(__my_val), __i, __m); }
 		INL value_type fetch_sub(difference_type __i, memory_order __m = memory_order_seq_cst) noexcept { return __impl::__fetch_sub_flt(addressof(__my_val), __i, __m); }

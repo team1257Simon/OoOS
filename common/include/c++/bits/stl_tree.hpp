@@ -2,7 +2,7 @@
 #define __STL_TREE
 /*
  * The most important thing eco-activists and programmers have in common is that we both love trees.
- * — Someone, somewhere, at some time, probably 
+ * — Someone, somewhere, at some time, probably
  */
 #include "bits/move.h"
 #include "memory"
@@ -13,6 +13,7 @@
 namespace std
 {
 	template<typename CT, typename T, typename U = T> concept __valid_comparator = is_default_constructible_v<CT> && requires { { declval<CT>()(declval<T>(), declval<U>()) } -> __detail::__boolean_testable; { declval<CT>()(declval<U>(), declval<T>()) } -> __detail::__boolean_testable; };
+	template<typename U, typename KT, typename CT, typename VT> concept __tree_searchable	= __valid_comparator<CT, VT, U> || is_convertible_v<U, KT>;
 	// Couldn't not make the Les Mis reference
 	enum node_color
 	{
@@ -22,7 +23,7 @@ namespace std
 	enum node_direction
 	{
 		// sliiiide to the...
-		LEFT, 
+		LEFT,
 		// sliiiide to the...
 		RIGHT
 		// two hops this time
@@ -159,8 +160,8 @@ namespace std
 		typedef __node<T>* __node_ptr;
 		__base_ptr __my_node;
 	public:
-		constexpr __tree_iterator() noexcept : __my_node{} {}
-		constexpr explicit __tree_iterator(__base_ptr x) noexcept : __my_node{ x } {}
+		constexpr __tree_iterator() noexcept : __my_node() {}
+		constexpr explicit __tree_iterator(__base_ptr x) noexcept : __my_node(x) {}
 		extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
 		constexpr pointer base() const noexcept { return get_node()->__get_ptr(); }
 		constexpr pointer operator->() const noexcept { return base(); }
@@ -186,7 +187,7 @@ namespace std
 		typedef __node<T> const* __node_ptr;
 		__base_ptr __my_node;
 	public:
-		constexpr __tree_const_iterator() noexcept : __my_node{} {}
+		constexpr __tree_const_iterator() noexcept : __my_node() {}
 		constexpr explicit __tree_const_iterator(__base_ptr x) noexcept : __my_node(x) {}
 		constexpr __tree_const_iterator(__iterator_type const& i) noexcept : __my_node{ i.get_node() } {}
 		extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
@@ -206,7 +207,7 @@ namespace std
 	class __rb_tree : protected __tree_base
 	{
 		using __rebind_alloc = typename A::template rebind<__node<T>>;
-	protected: 
+	protected:
 		typedef __node_base* __b_ptr;
 		typedef __node_base const* __cb_ptr;
 		typedef __node<T>* __link;
@@ -245,9 +246,9 @@ namespace std
 		constexpr static __b_ptr __maxi(__b_ptr x) noexcept { return __node_base::__max(x); }
 		constexpr static __cb_ptr __mini(__cb_ptr x) noexcept { return __node_base::__min(x); }
 		constexpr static __cb_ptr __maxi(__cb_ptr x) noexcept { return __node_base::__max(x); }
-		constexpr bool __compare(__b_ptr p, __b_ptr q) { return __compare_type{}(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
-		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_r(__cb_ptr p, U const& u) const { return __compare_type{}(static_cast<__const_link>(p)->__get_ref(), u); }
-		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_l(U const& u, __cb_ptr p) const { return __compare_type{}(u, static_cast<__const_link>(p)->__get_ref()); }
+		constexpr bool __compare(__b_ptr p, __b_ptr q) { return CP()(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
+		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_r(__cb_ptr p, U const& u) const { return CP()(static_cast<__const_link>(p)->__get_ref(), u); }
+		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_l(U const& u, __cb_ptr p) const { return CP()(u, static_cast<__const_link>(p)->__get_ref()); }
 		constexpr __link __get_root() noexcept { return static_cast<__link>(this->__trunk.__my_parent); }
 		constexpr __link __end() noexcept { return static_cast<__link>(addressof(this->__trunk)); }
 		constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(this->__trunk.__my_parent); }
@@ -302,7 +303,7 @@ namespace std
 		__insert_and_rebalance(left ? LEFT : RIGHT, l, p, this->__trunk);
 		this->__count++;
 		return l;
-	} 
+	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	typename __rb_tree<T, CP, A>::__b_ptr __rb_tree<T, CP, A>::__erase_node(__b_ptr n)
 	{
@@ -322,9 +323,9 @@ namespace std
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	constexpr void __rb_tree<T, CP, A>::__destroy_node(__b_ptr n)
-	{ 
+	{
 		if(__unlikely(!n)) return;
-		__link l	= static_cast<__link>(n);
+		__link l		= static_cast<__link>(n);
 		if constexpr(!std::is_trivially_destructible_v<__value_type>)
 			l->__get_ref().~__value_type();
 		__alloc.deallocate(l, 1);
@@ -350,7 +351,7 @@ namespace std
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	template<typename U>
 	requires(__valid_comparator<CP, T, U>)
-	constexpr typename __rb_tree<T, CP, A>::__pos_pair __rb_tree<T, CP, A>::__pos_for_unique(U const& u) 
+	constexpr typename __rb_tree<T, CP, A>::__pos_pair __rb_tree<T, CP, A>::__pos_for_unique(U const& u)
 	{
 		__link x	= __get_root();
 		__link y	= __end();
@@ -385,11 +386,11 @@ namespace std
 		return __pos_pair(x, y);
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
-	template<typename U> 
+	template<typename U>
 	requires(__valid_comparator<CP, T, U>)
-	constexpr typename __rb_tree<T, CP, A>::__pos_pair __rb_tree<T, CP, A>::__insert_unique_hint_pos(__const_link hint, U const& u) 
+	constexpr typename __rb_tree<T, CP, A>::__pos_pair __rb_tree<T, CP, A>::__insert_unique_hint_pos(__const_link hint, U const& u)
 	{
-		__link pos = const_cast<__link>(hint);
+		__link pos	= const_cast<__link>(hint);
 		if(!hint || pos == __end())
 		{
 			if(this->__count > 0 && __compare_r(__rightmost(), u))
@@ -398,14 +399,14 @@ namespace std
 		}
 		else if(__compare_l(u, pos))
 		{
-			__link before	= static_cast<__link>(__decrement_node(pos)); 
+			__link before	= static_cast<__link>(__decrement_node(pos));
 			if(pos == __l_begin()) return __pos_pair(__l_begin(), __l_begin());
 			else if(__compare_r(before, u))
 			{
 				if(!before->__my_right)
 					return __pos_pair(nullptr, before);
 				else return __pos_pair(pos, pos);
-			} 
+			}
 			else return __pos_for_unique(u);
 		}
 		else if(__compare_r(pos, u))
@@ -423,7 +424,7 @@ namespace std
 		return __pos_pair(pos, nullptr);
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
-	template<typename ... Args> 
+	template<typename ... Args>
 	requires(constructible_from<T, Args...>)
 	constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__emplace_unique(Args&& ...args)
 	{
@@ -434,10 +435,10 @@ namespace std
 		return __res_pair(r.first, false);
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
-	template<typename... Args> 
+	template<typename... Args>
 	requires(constructible_from<T, Args...>)
-	constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__hint_emplace_unique(__const_link hint, Args&& ... args) 
-	{ 
+	constexpr typename __rb_tree<T, CP, A>::__res_pair __rb_tree<T, CP, A>::__hint_emplace_unique(__const_link hint, Args&& ... args)
+	{
 		__link l        = __construct_node(forward<Args>(args)...);
 		__pos_pair r    = __insert_unique_hint_pos(hint, l->__get_ref());
 		if(r.second) return __res_pair(__insert_node(r.first, r.second, l), true);
@@ -466,7 +467,7 @@ namespace std
 	template<std::convertible_to<T> U>
 	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__insert_lower_equal(U&& u)
 	{
-		__link x = __get_root(), y = __end();
+		__link x	= __get_root(), y = __end();
 		while(x) { y = x; x = !__compare_r(x, u) ? __left_of(x) : __right_of(x); }
 		return __insert_lower(y, forward<U>(u));
 	}

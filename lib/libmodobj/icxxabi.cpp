@@ -2,15 +2,15 @@
 #include "kernel/libk_decls.h"
 #include "string.h"
 #include "stdlib.h"
-namespace __cxxabiv1 
+namespace __cxxabiv1
 {
 	extension typedef spinlock_t __guard;
 	extern "C" int __cxa_guard_acquire(__guard* g)  { lock(g); return 0; }
 	extern "C" void __cxa_guard_release(__guard* g) { release(g); }
 	extern "C" void __cxa_guard_abort(__guard*) {}
 }
-extern "C" 
-{	
+extern "C"
+{
 	atexit_func_entry_t __atexit_funcs[ATEXIT_MAX_FUNCS];
 	atexit_func_entry_t __tmp_atexit_buff[ATEXIT_MAX_FUNCS];
 	uarch_t __atexit_func_count = 0;

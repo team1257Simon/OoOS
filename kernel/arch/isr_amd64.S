@@ -27,7 +27,7 @@
 	.type	kernel_isr_stack_base,	@object
 	.type	delay_flag,				@object
 	.type	debug_stop_flag,		@object
-	.type	callback_8,				@function
+	.type	callback_8,				@object
 	.data
 	.align	4096
 kernel_isr_stack_base:
@@ -170,7 +170,7 @@ no_waiting_op:
 	.size		no_waiting_op,	.-no_waiting_op
 	.data
 	.global	isr_table
-	.type		isr_table,		@object	
+	.type		isr_table,		@object
 isr_table:
 	xm256		wr_id
 	.size		isr_table,		.-isr_table

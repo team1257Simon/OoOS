@@ -41,7 +41,7 @@ bool sysfs_hash_table_base::add_entry(size_t object_hash, size_t object_index)
 	if(prev_idx)
 	{
 		sysfs_hashtable_entry* current_entries		= hdr->entries();
-		while(current_entries[prev_idx - 1].next_in_chain) 
+		while(current_entries[prev_idx - 1].next_in_chain)
 			prev_idx								= current_entries[prev_idx].next_in_chain;
 		current_entries[prev_idx - 1].next_in_chain	= entry_idx + 1;
 		commit_pos									+= sizeof(sysfs_hashtable_entry) * (prev_idx - 1);
@@ -55,7 +55,7 @@ bool sysfs_hash_table_base::add_entry(size_t object_hash, size_t object_index)
 sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_start(size_t object_hash)
 {
 	sysfs_hashtable_header* hdr	= header();
-	if(size_t entry_idx = hdr->buckets[object_hash % hdr->num_buckets]) return std::addressof(hdr->entries()[entry_idx - 1]);
+	if(size_t entry_idx			= hdr->buckets[object_hash % hdr->num_buckets]) return std::addressof(hdr->entries()[entry_idx - 1]);
 	return nullptr;
 }
 sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_next(sysfs_hashtable_entry* e)
@@ -63,7 +63,7 @@ sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_next(sysfs_hashtable_ent
 	if(!e->next_in_chain) return nullptr;
 	sysfs_hashtable_header* hdr	= header();
 	size_t next_idx				= e->next_in_chain;
-	if(next_idx > hdr->num_entries) 
+	if(next_idx > hdr->num_entries)
 		throw std::out_of_range("[FS/SYSFS/HTAB] hashtable chain points out of range; the table might be corrupted");
 	return std::addressof(hdr->entries()[next_idx - 1]);
 }

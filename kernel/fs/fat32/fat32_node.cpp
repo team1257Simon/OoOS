@@ -36,14 +36,14 @@ bool fat32_file_vnode::grow(size_t added)
 	__on_disk_size += added;
 	return fsync();
 }
-bool fat32_directory_vnode::__dir_ent_erase(std::string const& what) 
-{ 
-	if(fat32_regular_entry* e = find_dirent(what)) 
+bool fat32_directory_vnode::__dir_ent_erase(std::string const& what)
+{
+	if(fat32_regular_entry* e = find_dirent(what))
 	{
-		std::vector<fat32_directory_entry>::iterator i = __whereis(e), j = __get_longname_start(e); 
+		std::vector<fat32_directory_entry>::iterator i = __whereis(e), j = __get_longname_start(e);
 		if(i == __my_dir_data.end() || j == __my_dir_data.end()) { return false; }
-		try 
-		{ 
+		try
+		{
 			parent_fs->rm_start_cluster_ref(start_of(*e));
 			size_t sz										= __my_dir_data.capacity();
 			size_t erased									= std::distance(j, i + 1);
@@ -52,11 +52,11 @@ bool fat32_directory_vnode::__dir_ent_erase(std::string const& what)
 			__my_dir_data.reserve(sz);
 			for(tnode_dir::iterator tn = directory_tnodes.begin(); tn != directory_tnodes.end(); tn++) { if(fat32_vnode* fn = dynamic_cast<fat32_vnode*>(tn->ptr()); fn->dirent_index >= n) { fn->dirent_index -= erased; } }
 			__dirty											= true;
-			return true; 
-		} 
-		catch(std::exception& ex) { panic(ex.what()); } 
-	} 
-	return false; 
+			return true;
+		}
+		catch(std::exception& ex) { panic(ex.what()); }
+	}
+	return false;
 }
 bool fat32_directory_vnode::__read_disk_data()
 {
@@ -78,7 +78,7 @@ bool fat32_directory_vnode::__read_disk_data()
 }
 void fat32_directory_vnode::__add_parsed_entry(fat32_regular_entry const& e, size_t j)
 {
-	bool dotted		= false; 
+	bool dotted		= false;
 	size_t c_spaces	= 0;
 	std::string name{};
 	for(int i = 0; i < 8; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0; k < c_spaces; k++) { name.append(' '); } name.append(e.filename[i]); c_spaces = 0; } }
@@ -143,7 +143,7 @@ bool fat32_directory_vnode::fsync()
 	if(!__dirty) return true;
 	if(parent_dir && dirent_index) update_times(*disk_entry());
 	try
-	{ 
+	{
 		char const* pos		= reinterpret_cast<char const*>(__my_dir_data.begin().base());
 		for(size_t i = 0; i < __my_covered_clusters.size(); i++) { if(parent_fs->write_clusters(__my_covered_clusters[i], pos)) { pos += parent_fs->block_size(); } else { panic("write failed"); return false; } }
 		__dirty				= false;

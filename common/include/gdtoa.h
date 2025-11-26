@@ -6,23 +6,23 @@
 #include "errno.h"
 #include "float.h"
 #ifdef __cplusplus
-extern "C" 
+extern "C"
 {
 #endif
-struct ieee_single 
+struct ieee_single
 {
 	unsigned sng_frac	: 23;
 	unsigned sng_exp	: 8;
 	unsigned sng_sign	: 1;
 };
-struct ieee_double 
+struct ieee_double
 {
 	unsigned dbl_fracl;
 	unsigned dbl_frach	: 20;
 	unsigned dbl_exp	: 11;
 	unsigned dbl_sign	: 1;
 };
-struct ieee_ext 
+struct ieee_ext
 {
 	unsigned ext_fracl;
 	unsigned ext_frach;
@@ -31,7 +31,7 @@ struct ieee_ext
 };
 typedef unsigned int uilong;
 typedef unsigned short ushort;
-enum 
+enum
 {
 	strtog_zero		= 0x000,
 	strtog_normal	= 0x001,
@@ -49,7 +49,7 @@ enum
 	strtog_oflow	= 0x080,
 	strtog_neg		= 0x100
 };
-typedef struct fpi 
+typedef struct fpi
 {
 	int nbits;
 	int emin;
@@ -65,7 +65,7 @@ enum
 	fpi_round_down = 3
 };
 typedef union { double d; uilong u_l[2]; } udouble;
-typedef struct big_int 
+typedef struct big_int
 {
 	struct big_int *next;
 	int k, maxwds, sign, wds;

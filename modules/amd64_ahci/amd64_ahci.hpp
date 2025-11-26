@@ -10,10 +10,10 @@ constexpr uint32_t sig_pmul 					= 0x96690101U;
 constexpr uint32_t hba_reset 					= 0x00000001U;
 constexpr uint16_t hba_cmd_start 				= 0x0001US;
 constexpr uint16_t hba_command_spin_up_disk 	= 0x0002US;
-constexpr uint8_t  hba_sud_bit 					= 0x01UC;
+constexpr uint8_t	hba_sud_bit 					= 0x01UC;
 constexpr uint16_t hba_command_fre 				= 0x0010US;
-constexpr uint16_t hba_command_fr  				= 0x4000US;
-constexpr uint16_t hba_command_cr  				= 0x8000US;
+constexpr uint16_t hba_command_fr					= 0x4000US;
+constexpr uint16_t hba_command_cr					= 0x8000US;
 constexpr uint16_t hba_control_det 				= 0x0001US;
 constexpr uint32_t hba_enable_interrupts_all 	= 0xFDC000FFU;
 constexpr uint32_t hba_error 					= 0x78000000U;
@@ -39,14 +39,14 @@ constexpr uint8_t bos_bit 						= 1UC;
 constexpr uint8_t bb_bit 						= 5UC;
 enum fis_type : uint8_t
 {
-    reg_h2d 		= 0x27UC,
-    reg_d2h 		= 0x34UC,
-    dma_activate 	= 0x39UC,
-    dma_setup 		= 0x41UC,
-    data 			= 0x46UC,
-    bist 			= 0x58UC,
-    pio_setup 		= 0x5FUC,
-    device_bits 	= 0xA1UC
+	reg_h2d 		= 0x27UC,
+	reg_d2h 		= 0x34UC,
+	dma_activate 	= 0x39UC,
+	dma_setup 		= 0x41UC,
+	data 			= 0x46UC,
+	bist 			= 0x58UC,
+	pio_setup 		= 0x5FUC,
+	device_bits 	= 0xA1UC
 };
 enum ata_command : uint8_t
 {
@@ -56,16 +56,16 @@ enum ata_command : uint8_t
 	data_set_management_xl 		= 0x07UC,
 	request_sense_data_ext 		= 0x0BUC,
 	get_physical_status 		= 0x12UC,
-	read_sectors_pio 			= 0x20UC, // 8-bit
-	read_sectors_pio_ext 		= 0x24UC, // 16-bit
+	read_sectors_pio 			= 0x20UC,	// 8-bit
+	read_sectors_pio_ext 		= 0x24UC,	// 16-bit
 	read_dma_ext 				= 0x25UC,
 	read_atapi 					= 0xA8UC,
 	write_atapi 				= 0xAAUC,
 	read_stream_dma_ext 		= 0x2AUC,
 	read_stream_ext 			= 0x2BUC,
 	read_log_ext 				= 0x2FUC,
-	write_sectors_pio	 		= 0x30UC, // 8-bit
-	write_sectors_pio_ext 		= 0x34UC, // 16-bit 
+	write_sectors_pio				= 0x30UC,	// 8-bit
+	write_sectors_pio_ext 		= 0x34UC,	// 16-bit
 	write_dma_ext 				= 0x35UC,
 	cfa_write_headers_no_erase 	= 0x38UC,
 	write_stream_dma_ext 		= 0x3AUC,
@@ -103,8 +103,8 @@ enum ata_command : uint8_t
 	smart 						= 0xB0UC,
 	set_sector_config_ext 		= 0xB2UC,
 	samotoze 					= 0xB4UC,
-	read_dma 					= 0xC8UC, // 8-bit
-	write_dma 					= 0xCAUC, // 8-bit
+	read_dma 					= 0xC8UC,	// 8-bit
+	write_dma 					= 0xCAUC,	// 8-bit
 	cfa_write_multiple_no_erase = 0xCDUC,
 	standby_immediate 			= 0xE0UC,
 	idle_immediate 				= 0xE1UC,
@@ -130,11 +130,11 @@ enum ata_command : uint8_t
 #pragma endregion
 enum ahci_device : uint8_t
 {
-    none,
-    sata,
-    semb,
-    pmul,
-    atapi
+	none,
+	sata,
+	semb,
+	pmul,
+	atapi
 };
 struct __pack identify_data
 {
@@ -150,138 +150,138 @@ struct __pack identify_data
 };
 struct __pack fis_reg_h2d
 {
-    fis_type type;
-    uint8_t pmport  : 4;
-    uint8_t rsv0    : 3;
-    uint8_t ctype   : 1; 	// 1 = command, 0 = control
-    uint8_t command;
-    uint8_t feature_1o;
-    // DWORD 1
-	uint8_t  lba0;			// LBA low register, 7:0
-	uint8_t  lba1;			// LBA mid register, 15:8
-	uint8_t  lba2;			// LBA high register, 23:16
-	uint8_t  device;		// Device register
+	fis_type type;
+	uint8_t pmport	: 4;
+	uint8_t rsv0	: 3;
+	uint8_t ctype	: 1;	// 1 = command, 0 = control
+	uint8_t command;
+	uint8_t feature_1o;
+	// DWORD 1
+	uint8_t	lba0;			// LBA low register, 7:0
+	uint8_t	lba1;			// LBA mid register, 15:8
+	uint8_t	lba2;			// LBA high register, 23:16
+	uint8_t	device;		// Device register
 	// DWORD 2
-	uint8_t  lba3;			// LBA register, 31:24
-	uint8_t  lba4;			// LBA register, 39:32
-	uint8_t  lba5;			// LBA register, 47:40
-	uint8_t  feature_hi;	// Feature register, 15:8
+	uint8_t	lba3;			// LBA register, 31:24
+	uint8_t	lba4;			// LBA register, 39:32
+	uint8_t	lba5;			// LBA register, 47:40
+	uint8_t	feature_hi;	// Feature register, 15:8
 	// DWORD 3
 	uint16_t count;
-	uint8_t  icc;		    // Isochronous command completion
-	uint8_t  control;	    // Control register
+	uint8_t	icc;			// Isochronous command completion
+	uint8_t	control;		// Control register
 	// DWORD 4
-	uint8_t  rsv1[4];		// Reserved
+	uint8_t	rsv1[4];		// Reserved
 };
 struct __pack fis_reg_d2h
 {
-    fis_type type;
-    uint8_t  pmport     : 4;    // Port multiplier
-	uint8_t  rsv0       : 2;    // Reserved
-	uint8_t  interrupt  : 1;    // Interrupt bit
-	uint8_t  rsv1       : 1;    // Reserved
-	uint8_t  status;      		// Status register
-	uint8_t  error;      		// Error register
+	fis_type type;
+	uint8_t	pmport		: 4;	// Port multiplier
+	uint8_t	rsv0		: 2;	// Reserved
+	uint8_t	interrupt	: 1;	// Interrupt bit
+	uint8_t	rsv1		: 1;	// Reserved
+	uint8_t	status;			// Status register
+	uint8_t	error;				// Error register
 	// DWORD 1
-	uint8_t  lba0;        // LBA low register, 7:0
-	uint8_t  lba1;        // LBA mid register, 15:8
-	uint8_t  lba2;        // LBA high register, 23:16
-	uint8_t  device;      // Device register
+	uint8_t	lba0;			// LBA low register, 7:0
+	uint8_t	lba1;			// LBA mid register, 15:8
+	uint8_t	lba2;			// LBA high register, 23:16
+	uint8_t	device;		// Device register
 	// DWORD 2
-	uint8_t  lba3;        // LBA register, 31:24
-	uint8_t  lba4;        // LBA register, 39:32
-	uint8_t  lba5;        // LBA register, 47:40
-	uint8_t  rsv2;        // Reserved
+	uint8_t	lba3;			// LBA register, 31:24
+	uint8_t	lba4;			// LBA register, 39:32
+	uint8_t	lba5;			// LBA register, 47:40
+	uint8_t	rsv2;			// Reserved
 	// DWORD 3
-	uint8_t  countl;      // Count register, 7:0
-	uint8_t  counth;      // Count register, 15:8
-	uint8_t  rsv3[2];     // Reserved
+	uint8_t	countl;		// Count register, 7:0
+	uint8_t	counth;		// Count register, 15:8
+	uint8_t	rsv3[2];		// Reserved
 	// DWORD 4
-	uint8_t  rsv4[4];     // Reserved
+	uint8_t	rsv4[4];		// Reserved
 };
 struct __pack fis_data
 {
-    fis_type type;
-    uint8_t  pmport : 4;	// Port multiplier
-	uint8_t  rsv0   : 4;	// Reserved
-	uint8_t  rsv1[2];   	// Reserved
-    uint32_t data[];
+	fis_type type;
+	uint8_t	pmport	: 4;	// Port multiplier
+	uint8_t	rsv0	: 4;	// Reserved
+	uint8_t	rsv1[2];		// Reserved
+	uint32_t data[];
 };
 struct __pack fis_pio_setup
 {
-    fis_type type;
-    uint8_t  pmport     : 4;	// Port multiplier
-	uint8_t  rsv0       : 1;	// Reserved
-	uint8_t  direction  : 1;	// Data transfer direction, 1 - device to host
-	uint8_t  interrupt  : 1;	// Interrupt bit
-	uint8_t  rsv1       : 1;
-	uint8_t  status;	// Status register
-	uint8_t  error;		// Error register
+	fis_type type;
+	uint8_t	pmport		: 4;	// Port multiplier
+	uint8_t	rsv0		: 1;	// Reserved
+	uint8_t	direction	: 1;	// Data transfer direction, 1 - device to host
+	uint8_t	interrupt	: 1;	// Interrupt bit
+	uint8_t	rsv1		: 1;
+	uint8_t	status;		// Status register
+	uint8_t	error;		// Error register
 	// DWORD 1
-	uint8_t  lba0;		// LBA low register, 7:0
-	uint8_t  lba1;		// LBA mid register, 15:8
-	uint8_t  lba2;		// LBA high register, 23:16
-	uint8_t  device;	// Device register
+	uint8_t	lba0;		// LBA low register, 7:0
+	uint8_t	lba1;		// LBA mid register, 15:8
+	uint8_t	lba2;		// LBA high register, 23:16
+	uint8_t	device;		// Device register
 	// DWORD 2
-	uint8_t  lba3;		// LBA register, 31:24
-	uint8_t  lba4;		// LBA register, 39:32
-	uint8_t  lba5;		// LBA register, 47:40
-	uint8_t  rsv2;		// Reserved
+	uint8_t	lba3;		// LBA register, 31:24
+	uint8_t	lba4;		// LBA register, 39:32
+	uint8_t	lba5;		// LBA register, 47:40
+	uint8_t	rsv2;		// Reserved
 	// DWORD 3
-	uint8_t  countl;	// Count register, 7:0
-	uint8_t  counth;	// Count register, 15:8
-	uint8_t  rsv3;		// Reserved
-	uint8_t  e_status;	// New value of status register
+	uint8_t	countl;		// Count register, 7:0
+	uint8_t	counth;		// Count register, 15:8
+	uint8_t	rsv3;		// Reserved
+	uint8_t	e_status;	// New value of status register
 	// DWORD 4
 	uint16_t tc;		// Transfer count
-	uint8_t  rsv4[2];	// Reserved
+	uint8_t	rsv4[2];	// Reserved
 };
 struct __pack fis_dma_setup
 {
-    uint8_t  fis_type;	            // FIS_TYPE_DMA_SETUP
-	uint8_t  pmport         : 4;    // Port multiplier
-	uint8_t  rsv0           : 1;    // Reserved
-	uint8_t  direction      : 1;    // Data transfer direction, 1 - device to host
-	uint8_t  interrupt      : 1;    // Interrupt bit
-	uint8_t  auto_activate  : 1;    // Auto-activate. Specifies if DMA Activate FIS is needed
-    uint8_t  rsv1[2];   			// Reserved
+	uint8_t	fis_type;				// FIS_TYPE_DMA_SETUP
+	uint8_t	pmport			: 4;	// Port multiplier
+	uint8_t	rsv0			: 1;	// Reserved
+	uint8_t	direction		: 1;	// Data transfer direction, 1 - device to host
+	uint8_t	interrupt		: 1;	// Interrupt bit
+	uint8_t	auto_activate	: 1;	// Auto-activate. Specifies if DMA Activate FIS is needed
+	uint8_t	rsv1[2];				// Reserved
 	//DWORD 1&2
-    uint64_t dma_buffer_id;   		// DMA Buffer Identifier. Used to Identify DMA buffer in host memory.
-    // SATA Spec says host specific and not in Spec. Trying AHCI spec might work.
-    //DWORD 3
-    uint32_t rsv2;          		// More reserved
-    //DWORD 4
-    uint32_t dma_buffer_offset;  	// Byte offset into buffer. First 2 bits must be 0
-    //DWORD 5
-    uint32_t transfer_count; 		// Number of bytes to transfer. Bit 0 must be 0
-    //DWORD 6
-    uint32_t rsv3;          		// So many reserved bytes smh
+	uint64_t dma_buffer_id;			// DMA Buffer Identifier. Used to Identify DMA buffer in host memory.
+	// SATA Spec says host specific and not in Spec. Trying AHCI spec might work.
+	//DWORD 3
+	uint32_t rsv2;					// More reserved
+	//DWORD 4
+	uint32_t dma_buffer_offset;		// Byte offset into buffer. First 2 bits must be 0
+	//DWORD 5
+	uint32_t transfer_count; 		// Number of bytes to transfer. Bit 0 must be 0
+	//DWORD 6
+	uint32_t rsv3;					// So many reserved bytes smh
 };
 struct __pack fis_set_bits
 {
-    fis_type type;
-    uint8_t pmport      : 4;	// Port multiplier
-	uint8_t rsv0        : 2;	// Reserved
-    uint8_t interrupt   : 1;	// Interrupt bit
-    uint8_t notif       : 1;    // Notification bit
-    uint8_t status_lo   : 3;
-    uint8_t rsv1        : 1;
-    uint8_t status_hi   : 3;
-    uint8_t rsv2        : 1;
-    uint8_t error;
-    uint32_t protocol_specific;
+	fis_type type;
+	uint8_t pmport		: 4;	// Port multiplier
+	uint8_t rsv0		: 2;	// Reserved
+	uint8_t interrupt	: 1;	// Interrupt bit
+	uint8_t notif		: 1;	// Notification bit
+	uint8_t status_lo	: 3;
+	uint8_t rsv1		: 1;
+	uint8_t status_hi	: 3;
+	uint8_t rsv2		: 1;
+	uint8_t error;
+	uint32_t protocol_specific;
 };
 typedef volatile struct __pack tfis
 {
-    fis_dma_setup dma_setup_f;
-    uint8_t pad0[4];
-    fis_pio_setup pio_setup_f;
-    uint8_t pad1[12];
-    fis_reg_d2h dev_reg_f;
-    uint8_t pad2[4];
-    fis_set_bits set_bits_f;
-    uint8_t ufis[64];
-    uint8_t rsv[96];
+	fis_dma_setup dma_setup_f;
+	uint8_t pad0[4];
+	fis_pio_setup pio_setup_f;
+	uint8_t pad1[12];
+	fis_reg_d2h dev_reg_f;
+	uint8_t pad2[4];
+	fis_set_bits set_bits_f;
+	uint8_t ufis[64];
+	uint8_t rsv[96];
 } hba_fis;
 struct __pack hba_prdt_entry
 {
@@ -295,62 +295,62 @@ struct __pack hba_prdt_entry
 };
 struct __pack hba_cmd_table
 {
-    // 0x00
-	uint8_t  cmd_fis[64];	// Command FIS
+	// 0x00
+	uint8_t	cmd_fis[64];	// Command FIS
 	// 0x40
-	uint8_t  atapi_cmd[16];	// ATAPI command, 12 or 16 bytes
+	uint8_t	atapi_cmd[16];	// ATAPI command, 12 or 16 bytes
 	// 0x50
-	uint8_t  rsv[48];		// Reserved
-    hba_prdt_entry prdt_entries[];
+	uint8_t	rsv[48];		// Reserved
+	hba_prdt_entry prdt_entries[];
 };
 struct __pack hba_cmd_header
 {
-    // DW0
-	uint8_t  cmd_fis_len    : 5;		// Command FIS length in DWORDS, 2 ~ 16
-	bool     atapi          : 1;		// ATAPI
-	bool     w_direction    : 1;		// Write, 1: H2D, 0: D2H
-	bool     prefetch       : 1;		// Prefetchable
-	bool     reset          : 1;		// Reset
-	bool     bist           : 1;		// BIST
-	uint8_t  cl_busy        : 1;		// Clear busy upon R_OK
-	uint8_t  rsv0           : 1;    	// Reserved
-	uint8_t  pm_port        : 4;		// Port multiplier port
-	uint16_t prdt_length;		        // Physical region descriptor table length in entries
+	// DW0
+	uint8_t	cmd_fis_len			: 5;		// Command FIS length in DWORDS, 2 ~ 16
+	bool		atapi			: 1;		// ATAPI
+	bool		w_direction		: 1;		// Write, 1: H2D, 0: D2H
+	bool		prefetch		: 1;		// Prefetchable
+	bool		reset			: 1;		// Reset
+	bool		bist			: 1;		// BIST
+	uint8_t	cl_busy				: 1;		// Clear busy upon R_OK
+	uint8_t	rsv0				: 1;		// Reserved
+	uint8_t	pm_port				: 4;		// Port multiplier port
+	uint16_t prdt_length;					// Physical region descriptor table length in entries
 	// DW1
-	volatile uint32_t prd_count;		// Physical region descriptor byte count transferred
+	volatile uint32_t prd_count;			// Physical region descriptor byte count transferred
 	// DW2, 3
-	hba_cmd_table* command_table;	
+	hba_cmd_table* command_table;
 	// DW4 - 7
-	uint32_t rsv1[4];					// Reserved
+	uint32_t rsv1[4];						// Reserved
 };
 typedef volatile struct __pack tport
 {
 	hba_cmd_header* command_list;
 	hba_fis* 	fis_receive;
-	uint32_t   	i_state;	// 0x10, interrupt status
-	uint32_t   	i_enable;   // 0x14, interrupt enable
-	uint32_t   	cmd;		// 0x18, command and status
-	uint32_t   	rsv0;		// 0x1C, Reserved
-	uint32_t   	task_file;	// 0x20, task file data
-	uint32_t   	sig;		// 0x24, signature
-	uint32_t   	s_status;	// 0x28, SATA status (SCR0:SStatus)
-	uint32_t   	s_control;	// 0x2C, SATA control (SCR2:SControl)
-	uint32_t   	s_err;		// 0x30, SATA error (SCR1:SError)
-	uint32_t   	s_active;	// 0x34, SATA active (SCR3:SActive)
-	uint32_t   	cmd_issue;	// 0x38, command issue
-	uint32_t   	s_notif;	// 0x3C, SATA notification (SCR4:SNotification)
-	uint32_t   	fb_switch;  // 0x40, FIS-based switch control
-	uint32_t 	rsv1[11];	// 0x44 ~ 0x6F, Reserved
-	uint32_t 	vendor[4];	// 0x70 ~ 0x7F, vendor specific
+	uint32_t		i_state;	// 0x10, interrupt status
+	uint32_t		i_enable;	// 0x14, interrupt enable
+	uint32_t		cmd;		// 0x18, command and status
+	uint32_t		rsv0;		// 0x1C, Reserved
+	uint32_t		task_file;	// 0x20, task file data
+	uint32_t		sig;		// 0x24, signature
+	uint32_t		s_status;	// 0x28, SATA status (SCR0:SStatus)
+	uint32_t		s_control;	// 0x2C, SATA control (SCR2:SControl)
+	uint32_t		s_err;		// 0x30, SATA error (SCR1:SError)
+	uint32_t		s_active;	// 0x34, SATA active (SCR3:SActive)
+	uint32_t		cmd_issue;	// 0x38, command issue
+	uint32_t		s_notif;	// 0x3C, SATA notification (SCR4:SNotification)
+	uint32_t		fb_switch;	// 0x40, FIS-based switch control
+	uint32_t 	rsv1[11];		// 0x44 ~ 0x6F, Reserved
+	uint32_t 	vendor[4];		// 0x70 ~ 0x7F, vendor specific
 } hba_port;
 typedef volatile struct __pack tmem
 {
-    // 0x00 - 0x2B, Generic Host Control
+	// 0x00 - 0x2B, Generic Host Control
 	struct
 	{
 		bool ext_addr 		: 1;
 		bool native_q 		: 1;
-		bool s_notif  		: 1;
+		bool s_notif		: 1;
 		bool mech_pres 		: 1;
 		bool sud_supported 	: 1;
 		bool agg_link_p		: 1;
@@ -361,7 +361,7 @@ typedef volatile struct __pack tmem
 		bool ahci_only		: 1;
 		bool port_mul		: 1;
 		bool fis_switch 	: 1;
-		bool multi_drq  	: 1;
+		bool multi_drq		: 1;
 		bool slumber		: 1;
 		bool part_state 	: 1;
 		uint8_t num_c_slots : 5;
@@ -369,15 +369,15 @@ typedef volatile struct __pack tmem
 		bool ems 			: 1;
 		bool ext_sata 		: 1;
 		uint8_t ports_max 	: 5;
-	};						    // 0x00, Host capability
-	uint32_t ghc;		        // 0x04, Global host control
-	uint32_t i_status;	        // 0x08, Interrupt status
+	};							// 0x00, Host capability
+	uint32_t ghc;				// 0x04, Global host control
+	uint32_t i_status;			// 0x08, Interrupt status
 	uint32_t p_implemented;		// 0x0C, Port implemented
-	uint32_t version;   		// 0x10, Version
-	uint32_t ccc_control;       // 0x14, Command completion coalescing control
-	uint32_t ccc_ports;	        // 0x18, Command completion coalescing ports
-	uint32_t em_location;   	// 0x1C, Enclosure management location
-	uint32_t em_control;        // 0x20, Enclosure management control
+	uint32_t version;			// 0x10, Version
+	uint32_t ccc_control;		// 0x14, Command completion coalescing control
+	uint32_t ccc_ports;			// 0x18, Command completion coalescing ports
+	uint32_t em_location;		// 0x1C, Enclosure management location
+	uint32_t em_control;		// 0x20, Enclosure management control
 	struct 						// 0x24, Host capabilities extended
 	{
 		uint32_t rsv1 				: 26;
@@ -399,50 +399,50 @@ typedef volatile struct __pack tmem
 } hba_mem;
 /**
  * Config parameters:
- *      #0 ahci_region_size    	: u64 ∈ [65536, 2097152] 	— how much DMA space to allocate
- *      #1 rw_timeout          	: u64    					— how many times to check completion on reads and writes before assuming a hung port
- *      #2 start_stop_timeout  	: u64   					— how many times to check completion on starting or stopping a port before assuming a hung port
- *      #3 disable_ioc         	: bool              		— indicates that the interrupt-on-completion bit should not be set in PRDT entries
- * 		#4 prdt_entries_count	: u64 ∈ [1, (#0 / 32) - 18]	— how many PRDT entries per command table
+ *		#0 ahci_region_size		: u64 ∈ [65536, 2097152] 	— how much DMA space to allocate
+ *		#1 rw_timeout			: u64						— how many times to check completion on reads and writes before assuming a hung port
+ *		#2 start_stop_timeout	: u64						— how many times to check completion on starting or stopping a port before assuming a hung port
+ *		#3 disable_ioc			: bool						— indicates that the interrupt-on-completion bit should not be set in PRDT entries
+ *		#4 prdt_entries_count	: u64 ∈ [1, (#0 / 32) - 18]	— how many PRDT entries per command table
  * 		#5 prdt_max_bytes		: u64 ∈ [4096, 4194303]		— how many bytes to transfer per PRDT entry, as a maximum
  */
 constexpr auto ahci_config()
 {
-    return ooos::create_config
-    (
-        ooos::parameter("ahci_region_size",     ooos::parameter_type<size_t>,   524288UZ),
-        ooos::parameter("rw_timeout",           ooos::parameter_type<time_t>,   10000000L),
-        ooos::parameter("start_stop_timeout",   ooos::parameter_type<time_t>,   100000000000000L),
-        ooos::parameter("disable_ioc",          ooos::parameter_type<bool>,     false),
+	return ooos::create_config
+	(
+		ooos::parameter("ahci_region_size",		ooos::parameter_type<size_t>,	524288UZ),
+		ooos::parameter("rw_timeout",			ooos::parameter_type<time_t>,	10000000L),
+		ooos::parameter("start_stop_timeout",	ooos::parameter_type<time_t>,	100000000000000L),
+		ooos::parameter("disable_ioc",			ooos::parameter_type<bool>,		false),
 		ooos::parameter("prdt_entries_count", 	ooos::parameter_type<size_t>, 	8UZ),
 		ooos::parameter("prdt_max_bytes", 		ooos::parameter_type<size_t>, 	8192UZ)
-    );
+	);
 }
 class ahci_port : public ooos::abstract_block_device
 {
-    amd64_ahci& __module;
-    hba_port& __port;
+	amd64_ahci& __module;
+	hba_port& __port;
 	ahci_device __device_type;
 	uint32_t __idx;
 	size_t __prdt_count;
-    stticket __find_cmd_slot();
-    void __build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, addr_t buffer, ata_command action, hba_cmd_header& cmd);
-    void __cmd_issue(utticket slot);
+	stticket __find_cmd_slot();
+	void __build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, addr_t buffer, ata_command action, hba_cmd_header& cmd);
+	void __cmd_issue(utticket slot);
 public:
-    ahci_port(amd64_ahci& m, hba_port& p, uint32_t i, ahci_device dt);
-    virtual stticket read(void* dest, uintptr_t src_start, size_t sector_count) override;
-    virtual stticket write(uintptr_t dest_start, const void* src, size_t sector_count) override;
-    virtual size_t block_size() const noexcept override;
+	ahci_port(amd64_ahci& m, hba_port& p, uint32_t i, ahci_device dt);
+	virtual stticket read(void* dest, uintptr_t src_start, size_t sector_count) override;
+	virtual stticket write(uintptr_t dest_start, const void* src, size_t sector_count) override;
+	virtual size_t block_size() const noexcept override;
 	virtual size_t max_operation_blocks() const noexcept override;
-    virtual bool io_busy() const override;
-    virtual bool io_complete(utticket task_ticket) const override;
-    virtual size_t io_count(utticket task_ticket) const override;
-    virtual ooos::blockdev_type device_type() const noexcept override;
-    void start_port();
-    void stop_port();
-    bool init_port(addr_t region_base);
-    void soft_reset();
-    void hard_reset();
+	virtual bool io_busy() const override;
+	virtual bool io_complete(utticket task_ticket) const override;
+	virtual size_t io_count(utticket task_ticket) const override;
+	virtual ooos::blockdev_type device_type() const noexcept override;
+	void start_port();
+	void stop_port();
+	bool init_port(addr_t region_base);
+	void soft_reset();
+	void hard_reset();
 	void identify(identify_data* out);
 	size_t bytes_per_prdt_entry() const noexcept;
 	size_t sectors_per_prdt_entry() const noexcept;
@@ -450,29 +450,29 @@ public:
 };
 struct amd64_ahci : ooos::block_io_provider_module
 {
-    typedef decltype(ahci_config()) config_type;
+	typedef decltype(ahci_config()) config_type;
 private:
-    static config_type __cfg;
-    pci_config_space* __ahci_pci_space;
-    hba_mem* __abar;
-    ahci_port* __ports[32];
+	static config_type __cfg;
+	pci_config_space* __ahci_pci_space;
+	hba_mem* __abar;
+	ahci_port* __ports[32];
 	uidx_t __device_count;
-    ooos::empty_blockdev_slot __empty_slot;
-    addr_t __dma_block;
+	ooos::empty_blockdev_slot __empty_slot;
+	addr_t __dma_block;
 	size_t __dma_size;
-    char __port_struct_data[32][sizeof(ahci_port)];
+	char __port_struct_data[32][sizeof(ahci_port)];
 	friend class ahci_port;
 	void __handle_irq(dword s);
 	void __irq_init();
 public:
-    amd64_ahci() noexcept;
-    virtual bool initialize() override;
-    virtual void finalize() override;
-    virtual ooos::generic_config_table& get_config() override;
-    virtual uidx_t count() const noexcept override;
-    virtual sidx_t index_of(ooos::blockdev_type dev_type) const noexcept override;
+	amd64_ahci() noexcept;
+	virtual bool initialize() override;
+	virtual void finalize() override;
+	virtual ooos::generic_config_table& get_config() override;
+	virtual uidx_t count() const noexcept override;
+	virtual sidx_t index_of(ooos::blockdev_type dev_type) const noexcept override;
 	virtual ooos::blockdev_type type_at_index(uidx_t idx) const noexcept override;
-    virtual ooos::abstract_block_device& operator[](uidx_t idx) override;
+	virtual ooos::abstract_block_device& operator[](uidx_t idx) override;
 	virtual ooos::abstract_block_device const& operator[](uidx_t idx) const override;
 };
 #endif

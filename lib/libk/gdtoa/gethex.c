@@ -1,21 +1,21 @@
 #include "gdtoa.h"
 int __gethex_d2a(const char** sp, fpi* fpi, int* exp, big_int** bp, int sign)
 {
-	big_int*             b;
+	big_int*			b;
 	const unsigned char *decpt, *s0, *s, *s1;
-	int                  big, esign, havedig, irv, j, k, n, n0, nbits, up, zret;
-	uilong               u_l, lostbits, *x;
-	int                  e, e1;
+	int					big, esign, havedig, irv, j, k, n, n0, nbits, up, zret;
+	uilong				u_l, lostbits, *x;
+	int					e, e1;
 	if(!__hexdig_d2a['0']) __hexdig_init_d2a();
-	*bp     = 0;
+	*bp	= 0;
 	havedig = 0;
-	s0      = *(const unsigned char**)sp + 2;
+	s0		= *(const unsigned char**)sp + 2;
 	while(s0[havedig] == '0') havedig++;
 	s0 += havedig;
-	s     = s0;
+	s	= s0;
 	decpt = 0;
-	zret  = 0;
-	e     = 0;
+	zret	= 0;
+	e	= 0;
 	if(__hexdig_d2a[*s])
 		havedig++;
 	else
@@ -27,7 +27,7 @@ int __gethex_d2a(const char** sp, fpi* fpi, int* exp, big_int** bp, int sign)
 		while(*s == '0') s++;
 		if(__hexdig_d2a[*s]) zret = 0;
 		havedig = 1;
-		s0      = s;
+		s0		= s;
 	}
 	while(__hexdig_d2a[*s]) s++;
 	if(*s == '.' && !decpt)
@@ -37,7 +37,7 @@ int __gethex_d2a(const char** sp, fpi* fpi, int* exp, big_int** bp, int sign)
 	}
 	if(decpt) e = -(((int)(s - decpt)) << 2);
 pcheck:
-	s1  = s;
+	s1	= s;
 	big = esign = 0;
 	switch(*s)
 	{
@@ -82,7 +82,7 @@ pcheck:
 		ret_tiny:
 			b = __balloc_d2a(0);
 			if(b == NULL) return (strtog_nomemory);
-			b->wds  = 1;
+			b->wds	= 1;
 			b->x[0] = 1;
 			goto dret;
 		}
@@ -114,8 +114,8 @@ pcheck:
 	for(k = 0; n > (1 << 3) - 1; n >>= 1) k++;
 	b = __balloc_d2a(k);
 	if(b == NULL) return (strtog_nomemory);
-	x   = b->x;
-	n   = 0;
+	x	= b->x;
+	n	= 0;
 	u_l = 0;
 	while(s1 > s0)
 	{
@@ -123,25 +123,25 @@ pcheck:
 		if(n == 32)
 		{
 			*x++ = u_l;
-			u_l  = 0;
-			n    = 0;
+			u_l	= 0;
+			n	= 0;
 		}
 		u_l |= (__hexdig_d2a[*s1] & 0xF) << n;
 		n += 4;
 	}
-	*x++   = u_l;
+	*x++	= u_l;
 	b->wds = n = x - b->x;
-	n          = 32 * n - __hi0bits_d2a((uilong)(u_l));
-	nbits      = fpi->nbits;
-	lostbits   = 0;
-	x          = b->x;
+	n			= 32 * n - __hi0bits_d2a((uilong)(u_l));
+	nbits		= fpi->nbits;
+	lostbits	= 0;
+	x			= b->x;
 	if(n > nbits)
 	{
 		n -= nbits;
 		if(__any_on_d2a(b, n))
 		{
 			lostbits = 1;
-			k        = n - 1;
+			k		= n - 1;
 			if(x[k >> 5] & 1 << (k & 31))
 			{
 				lostbits = 2;
@@ -167,11 +167,11 @@ pcheck:
 		*(__errno()) = 34;
 		return strtog_infinite | strtog_oflow | strtog_inexhi;
 	}
-	irv = strtog_normal;
+	irv	= strtog_normal;
 	if(e < fpi->emin)
 	{
-		irv = strtog_denormal;
-		n   = fpi->emin - e;
+		irv	= strtog_denormal;
+		n	= fpi->emin - e;
 		if(n >= nbits)
 		{
 			switch(fpi->rounding)
@@ -188,30 +188,30 @@ pcheck:
 				one_bit:
 					x[0] = b->wds = 1;
 				dret:
-					*bp          = b;
-					*exp         = fpi->emin;
-					*(__errno()) = 34;
+					*bp				= b;
+					*exp			= fpi->emin;
+					*(__errno())	= 34;
 					return strtog_denormal | strtog_inexhi | strtog_uflow;
 				}
 			}
 			__bfree_d2a(b);
 		retz:
-			*(__errno()) = 34;
+			*(__errno())			= 34;
 			return strtog_zero | strtog_inexlo | strtog_uflow;
 		}
-		k = n - 1;
+		k	= n - 1;
 		if(lostbits)
-			lostbits = 1;
+			lostbits	= 1;
 		else if(k > 0)
-			lostbits = __any_on_d2a(b, k);
+			lostbits	= __any_on_d2a(b, k);
 		if(x[k >> 5] & 1 << (k & 31)) lostbits |= 2;
-		nbits -= n;
+		nbits			-= n;
 		__rshift_d2a(b, n);
 		e = fpi->emin;
 	}
 	if(lostbits)
 	{
-		up = 0;
+		up				= 0;
 		switch(fpi->rounding)
 		{
 		case fpi_round_zero: break;
@@ -223,10 +223,10 @@ pcheck:
 		}
 		if(up)
 		{
-			k = b->wds;
-			b = __increment_d2a(b);
+			k	= b->wds;
+			b	= __increment_d2a(b);
 			if(b == NULL) return (strtog_nomemory);
-			x = b->x;
+			x	= b->x;
 			if(irv == strtog_denormal)
 			{
 				if(nbits == fpi->nbits - 1 && x[nbits >> 5] & 1 << (nbits & 31)) irv = strtog_normal;
@@ -241,7 +241,7 @@ pcheck:
 		else
 			irv |= strtog_inexlo;
 	}
-	*bp  = b;
-	*exp = e;
+	*bp		= b;
+	*exp	= e;
 	return irv;
 }

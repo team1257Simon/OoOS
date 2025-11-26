@@ -1,7 +1,6 @@
 #include "arch/keyboard.hpp"
 #include "arch/arch_amd64.h"
 #include "isr_table.hpp"
-#include "kdebug.hpp"
 #include "array"
 namespace ooos
 {
@@ -9,7 +8,7 @@ namespace ooos
 	using enum keyboard_cmd_byte;
 	using enum keycode;
 	typedef keyboard_event const scancode_table[2][256];
-	// Helper functions to build the prototype packets for the scancode tables. 
+	// Helper functions to build the prototype packets for the scancode tables.
 	// Other than the unknown scan helpers and to_break, these should only be used in constant-evaluated context (i.e. in building the scancode tables).
 #pragma region packet prototypes
 	constexpr keyboard_event of_unicode(wchar_t unicode, bool is_break, bool is_numpad) noexcept
@@ -617,7 +616,7 @@ seq_fail:
 	void ps2_keyboard_controller::__execute_next() noexcept
 	{
 		keyboard_command cmd = __cmd_queue.pop();
-		try 
+		try
 		{
 			if(cmd.expects_response) __send_cmd_byte(KBC_SCDIS);
 			__send_cmd_byte(cmd.cmd_byte);
@@ -721,7 +720,7 @@ seq_fail:
 	}
 	void ps2_keyboard::__init()
 	{
-		if(__unlikely(!__controller)) 
+		if(__unlikely(!__controller))
 			return;
 		interrupt_table::add_irq_handler(1UC, [this]() -> void { __on_irq(); });
 	}

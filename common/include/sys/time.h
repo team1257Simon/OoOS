@@ -13,6 +13,6 @@ struct tm
     int tm_year;    // Years since 1900
     int tm_wday;    // Sunday = 0
     int tm_yday;    // 0-365 (365 used in leap years)
-    int tm_isdst;   // Daylight Savings flag 
+    int tm_isdst;   // Daylight Savings flag
 };
 #endif

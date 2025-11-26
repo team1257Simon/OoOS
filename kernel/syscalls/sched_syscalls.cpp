@@ -135,7 +135,8 @@ extern "C"
 		name					= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
 		file_vnode* n;
-		try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+		try { n					= fs_ptr->open_file(name, std::ios_base::in); }
+		catch(std::exception& e) { panic(e.what()); return -ENOENT; }
 		elf64_executable* ex	= prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;
 		std::vector<const char*> argv_v{}, env_v{};

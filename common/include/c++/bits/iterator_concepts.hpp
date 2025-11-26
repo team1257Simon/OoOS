@@ -35,7 +35,7 @@ namespace std
 				template<typename T> requires (!__adl_imove<T>) && is_lvalue_reference_v<iter_reference_t<T>> struct __result<T> { using type = remove_reference_t<iter_reference_t<T>>&&; };
 				template<typename T> static constexpr bool _is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(declval<T>())); else return noexcept(*declval<T>()); }
 			public:
-				template<std::__detail::__dereferenceable T> using __type = typename __result<T>::type; 
+				template<std::__detail::__dereferenceable T> using __type = typename __result<T>::type;
 				template<std::__detail::__dereferenceable T> constexpr __type<T> operator()(T&& __e) const noexcept(_is_noexcept<T>()) { if constexpr (__adl_imove<T>) return iter_move(static_cast<T&&>(__e)); else if constexpr (is_lvalue_reference_v<iter_reference_t<T>>) return static_cast<__type<T>>(*__e); else return *__e; }
 			};
 		}
@@ -109,36 +109,35 @@ namespace std
 		template<typename JT> struct __ptr { using type = void; };
 		template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
 	public:
-		using iterator_category = typename IT::iterator_category;
-		using value_type	    = typename IT::value_type;
-		using difference_type   = typename IT::difference_type;
-		using pointer	        = typename __ptr<IT>::type;
-		using reference	        = typename IT::reference;
+		using iterator_category	= typename IT::iterator_category;
+		using value_type		= typename IT::value_type;
+		using difference_type	= typename IT::difference_type;
+		using pointer			= typename __ptr<IT>::type;
+		using reference			= typename IT::reference;
 	};
-	template<typename IT> 
-	requires __detail::__iter_without_nested_types<IT> && __detail::__cpp17_input_iterator<IT> 
-	struct __iterator_traits<IT, void> 
+	template<typename IT>
+	requires __detail::__iter_without_nested_types<IT> && __detail::__cpp17_input_iterator<IT>
+	struct __iterator_traits<IT, void>
 	{
 	private:
 		template<typename JT> struct __cat { using type = input_iterator_tag; };
 		template<typename JT> requires requires { typename JT::iterator_category; } struct __cat<JT> { using type = typename JT::iterator_category; };
-		template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_randacc_iterator<JT> struct __cat<JT> { using type = random_access_iterator_tag; };
-		template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_bidi_iterator<JT> struct __cat<JT> { using type = bidirectional_iterator_tag; };
-		template<typename JT> requires __detail::__iter_without_category<JT> && __detail::__cpp17_fwd_iterator<JT> struct __cat<JT> { using type = forward_iterator_tag; };
+		template<typename JT> requires(__detail::__iter_without_category<JT> && __detail::__cpp17_randacc_iterator<JT>) struct __cat<JT> { using type = random_access_iterator_tag; };
+		template<typename JT> requires(__detail::__iter_without_category<JT> && __detail::__cpp17_bidi_iterator<JT>) struct __cat<JT> { using type = bidirectional_iterator_tag; };
+		template<typename JT> requires(__detail::__iter_without_category<JT> && __detail::__cpp17_fwd_iterator<JT>) struct __cat<JT> { using type = forward_iterator_tag; };
 		template<typename JT> struct __ptr { using type = void; };
 		template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
 		template<typename JT> requires (!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(declval<JT&>().operator->()); };
 		template<typename JT> struct __ref { using type = iter_reference_t<JT>; };
 		template<typename JT> requires requires { typename JT::reference; } struct __ref<JT> { using type = typename JT::reference; };
 	public:
-		using iterator_category = typename __cat<IT>::type;
-		using value_type = typename indirectly_readable_traits<IT>::value_type;
-		using difference_type = typename incrementable_traits<IT>::difference_type;
-		using pointer	      = typename __ptr<IT>::type;
-		using reference	      = typename __ref<IT>::type;
+		using iterator_category	= typename __cat<IT>::type;
+		using value_type		= typename indirectly_readable_traits<IT>::value_type;
+		using difference_type	= typename incrementable_traits<IT>::difference_type;
+		using pointer			= typename __ptr<IT>::type;
+		using reference			= typename __ref<IT>::type;
 	};
-	template<typename IT> 
-	requires __detail::__iter_without_nested_types<IT> && __detail::__cpp17_iterator<IT> 
+	template<typename IT> requires(__detail::__iter_without_nested_types<IT> && __detail::__cpp17_iterator<IT>)
 	struct __iterator_traits<IT, void>
 	{
 	private:
@@ -204,10 +203,10 @@ namespace std
 	{
 		{ __i += __n } -> same_as<IT&>;
 		{ __j +  __n } -> same_as<IT>;
-		{ __n +  __j } -> same_as<IT>; 
+		{ __n +  __j } -> same_as<IT>;
 		{ __i -= __n } -> same_as<IT&>;
 		{ __j -  __n } -> same_as<IT>;
-		{  __j[__n]  } -> same_as<iter_reference_t<IT>>; 
+		{  __j[__n]  } -> same_as<iter_reference_t<IT>>;
 	};
 	template<typename IT> concept contiguous_iterator = random_access_iterator<IT> && derived_from<__detail::__iter_concept<IT>, contiguous_iterator_tag> && is_lvalue_reference_v<iter_reference_t<IT>> && same_as<iter_value_t<IT>, remove_cvref_t<iter_reference_t<IT>>> && requires(const IT& __i) { { to_address(__i) } -> same_as<add_pointer_t<iter_reference_t<IT>>>; };
 	template<typename FT, typename IT> concept indirectly_unary_invocable = indirectly_readable<IT> && copy_constructible<FT> && invocable<FT&, iter_value_t<IT>&> && invocable<FT&, iter_reference_t<IT>> && invocable<FT&, iter_common_reference_t<IT>> && common_reference_with<invoke_result_t<FT&, iter_value_t<IT>&>, invoke_result_t<FT&, iter_reference_t<IT>>>;
@@ -264,12 +263,11 @@ namespace std
 		void begin(auto&) = delete;
 		void begin(const auto&) = delete;
 		template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
-		template<typename T> requires is_array_v<T> || __member_begin<T&> || __adl_begin<T&> auto __begin(T& __t) { if constexpr (is_array_v<T>) return __t + 0; else if constexpr (__member_begin<T&>) return __t.begin(); else return begin(__t); }
+		template<typename T> requires(is_array_v<T> || __member_begin<T&> || __adl_begin<T&>) auto __begin(T& __t) { if constexpr (is_array_v<T>) return __t + 0; else if constexpr (__member_begin<T&>) return __t.begin(); else return begin(__t); }
 	}
 	namespace __detail
 	{
 		template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(declval<T&>()));
-		
 	}
 #pragma region nonstandard useful concepts and typedefs
 	extension template<typename IT, typename T2> concept matching_input_iterator = input_iterator<IT> && __detail::__points_to<IT, T2>;

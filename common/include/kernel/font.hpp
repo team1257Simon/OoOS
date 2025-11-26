@@ -1,7 +1,7 @@
 #ifndef __FONT_H
 #define __FONT_H
 #include <kernel_defs.h>
-extern "C" 
+extern "C"
 {
 	extern const struct __pack psf2_t
 	{

@@ -126,7 +126,7 @@ enum elf_dyn_tag : uint64_t
 	DT_INIT_ARRAY       = 25,   //      d_ptr       opt         opt
 	DT_FINI_ARRAY       = 26,   //      d_ptr       opt         opt
 	DT_INIT_ARRAYSZ     = 27,   //      d_val       opt         opt
-	DT_FINI_ARRAYSZ     = 28,   //      d_val       opt         opt 
+	DT_FINI_ARRAYSZ     = 28,   //      d_val       opt         opt
 	DT_RUNPATH          = 29,   //      d_val       opt         opt
 	DT_FLAGS            = 30,   //      d_val       opt         opt
 	DT_ENCODING         = 31,   //          ?         ?           ?
@@ -135,7 +135,7 @@ enum elf_dyn_tag : uint64_t
 	// OS-specific 0x6000000D~0x6ffff000    ?         ?           ?
 	// PC-specific 0x7000000D~0x7ffff000    ?         ?           ?
 	DT_GNU_HASH         = 0x6FFFFEF5,   // semantically matches DT_HASH entry
-	DT_FLAGS_1          = 0x6FFFFFFB,   // semantically matches DT_FLAGS entry   
+	DT_FLAGS_1          = 0x6FFFFFFB,   // semantically matches DT_FLAGS entry
 };
 enum elf_dyn_flags : uint64_t
 {
@@ -377,7 +377,7 @@ struct elf64_string_table
 	constexpr const char* operator[](size_t n) const { return data.plus(n); }
 	constexpr elf64_string_table() = default;
 	constexpr elf64_string_table(size_t size, addr_t data_ptr) : total_size(size), data(data_ptr) {}
-	constexpr elf64_string_table(elf64_string_table&& that) : total_size(that.total_size), data(std::move(that.data)) { that.data = nullptr; that.total_size = 0; } 
+	constexpr elf64_string_table(elf64_string_table&& that) : total_size(that.total_size), data(std::move(that.data)) { that.data = nullptr; that.total_size = 0; }
 };
 struct elf64_sym_table
 {

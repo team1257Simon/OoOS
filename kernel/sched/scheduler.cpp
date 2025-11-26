@@ -2,7 +2,7 @@
 #include <sched/scheduler.hpp>
 #include <isr_table.hpp>
 using enum priority_val;
-extern "C" 
+extern "C"
 {
 	extern std::atomic<bool> task_change_flag;
 	extern std::atomic<bool> task_lock_flag;
@@ -47,7 +47,7 @@ void set_blocking(kthread_ptr const& t, bool interrupt)
 	}
 }
 void clear_blocking(kthread_ptr const& t)
-{ 
+{
 	t->task_ctl.block								= false;
 	if(t->task_ctl.can_interrupt)
 		t->task_ctl.wait_ticks_delta				= 0U;
@@ -64,7 +64,7 @@ bool scheduler::__set_untimed_wait(kthread_ptr& task)
 {
 	try
 	{
-		__non_timed_sleepers.push_back(task); 
+		__non_timed_sleepers.push_back(task);
 		set_blocking(task, true);
 		return true;
 	}
@@ -76,7 +76,7 @@ bool scheduler::interrupt_wait(kthread_ptr& waiting)
 	waiterator i	= __sleepers.find(waiting);
 	if(i			!= __sleepers.end()) return __sleepers.interrupt_wait(i);
 	ntwaiterator j 	= __non_timed_sleepers.find(waiting);
-	if(j			!= __non_timed_sleepers.end()) 
+	if(j			!= __non_timed_sleepers.end())
 	{
 		clear_blocking(*j);
 		__non_timed_sleepers.erase(j);
@@ -149,12 +149,12 @@ bool scheduler::unregister_task(task_t* task)
 	if(__total_tasks && result <= __total_tasks) __total_tasks -= result;
 	return result != 0UZ;
 }
-bool scheduler::unregister_task(kthread_ptr const& task) 
+bool scheduler::unregister_task(kthread_ptr const& task)
 {
 	bool result				= false;
 	for(priority_val pv		= task->task_ctl.prio_base; pv <= PVSYS ; ++pv)
 	{
-		task_citerator i	= __queues[pv].find(task, true); 
+		task_citerator i	= __queues[pv].find(task, true);
 		if(i != __queues[pv].end()) {
 			result			= __queues[pv].erase(i) != 0;
 			break;
@@ -185,17 +185,17 @@ kthread_ptr scheduler::select_next()
 			if(is_blocking(result)) continue;
 			result->task_ctl.skips	= 0UC;
 			if(result->task_ctl.prio_base != pv && pv != PVSYS)
-			{ 
+			{
 				__queues[pv].unpop();
 				__queues[pv].transfer_next(__queues[pv - 1SC]);
 				fence();
 			}
 			target					= result;
-			for(priority_val qv		= pv - 1SC; qv >= PVLOW; --qv) 
-			{ 
-				queue.on_skipped(); 
-				if(queue.skip_flag()) 
-				{ 
+			for(priority_val qv		= pv - 1SC; qv >= PVLOW; --qv)
+			{
+				queue.on_skipped();
+				if(queue.skip_flag())
+				{
 					priority_val rv		= qv + 1SC;
 					queue.transfer_next(__queues[rv]);
 					kthread_ptr& b		= __queues[rv].back();
@@ -233,14 +233,14 @@ void scheduler::on_tick()
 	if(task_lock_flag) return;
 	__sleepers.tick_wait();
 	if(!__sleepers.at_end())
-	{ 
+	{
 		kthread_ptr front_sleeper	= __sleepers.next();
 		while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta	== 0)
 		{
 			kthread_ptr wakee		= __sleepers.pop();
 			wakee->task_ctl.block	= false;
 			front_sleeper			= __sleepers.next();
-		} 
+		}
 	}
 	task_t* cptr				= get_task_base();
 	kthread_ptr cur(cptr, cptr->thread_ptr);

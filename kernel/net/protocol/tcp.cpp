@@ -65,7 +65,7 @@ void tcp_header::compute_tcp_checksum()
 	intermediate_csum			+= tcp_length;
 	net16 const* words			= std::addressof(source_port);
 	size_t num_words			= tcp_length / sizeof(net16);
-	if((tcp_length % 2) != 0) 
+	if((tcp_length % 2) != 0)
 		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
 	dword dw_csum				= intermediate_csum;
@@ -86,7 +86,7 @@ bool tcp_header::verify_tcp_checksum() const
 	intermediate_csum			+= tcp_length;
 	net16 const* words			= std::addressof(source_port);
 	size_t num_words			= tcp_length / sizeof(net16);
-	if((tcp_length % 2) != 0) 
+	if((tcp_length % 2) != 0)
 		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
 	dword dw_csum				= intermediate_csum;
@@ -96,7 +96,7 @@ bool tcp_header::verify_tcp_checksum() const
 	dw_csum						= intermediate_csum;
 	return static_cast<uint16_t>(~(dw_csum.lo)) == 0US;
 }
-constexpr static time_t abs_diff(time_t a, time_t b) 
+constexpr static time_t abs_diff(time_t a, time_t b)
 {
 	if(a > b)
 		return a - b;
@@ -131,7 +131,7 @@ tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, tcp_application& app, uint
 	local_port                  { port },
 	connection_state            { tcp_connection_state::CLOSED }
 								{}
-void tcp_port_handler::close() 
+void tcp_port_handler::close()
 {
 	connection_state = tcp_connection_state::CLOSED;
 	new(std::addressof(connection_info)) tcp_connection_info{};
@@ -279,7 +279,7 @@ int tcp_port_handler::tx_send_next()
 {
 	if(!send_packets.contains(connection_info.current_send_sequence))
 		return -ENOTCONN;
-	if(!timer.stopwatch) 
+	if(!timer.stopwatch)
 		timer.stopwatch.start();
 	connection_info.last_send_sequence = connection_info.current_send_sequence;
 	return local_host.next->transmit(send_packets[connection_info.current_send_sequence]);

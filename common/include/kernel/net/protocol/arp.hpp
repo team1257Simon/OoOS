@@ -1,15 +1,15 @@
 #ifndef __ARP
 #define __ARP
 #include <net/protocol/net_abstract.hpp>
-constexpr net16 ethertype_arp   = 0x0806USBE;
-constexpr net16 arp_req         = 0x0001USBE;
-constexpr net16 arp_res         = 0x0002USBE;
+constexpr net16 ethertype_arp	= 0x0806USBE;
+constexpr net16 arp_req			= 0x0001USBE;
+constexpr net16 arp_res			= 0x0002USBE;
 struct __pack arpv4_packet : ethernet_header
 {
-	net16 htype = htype_ethernet;
-	net16 ptype = ethertype_ipv4;
-	net8 hlen   = 0x06UC;
-	net8 plen   = 0x04UC;
+	net16 htype	= htype_ethernet;
+	net16 ptype	= ethertype_ipv4;
+	net8 hlen	= 0x06UC;
+	net8 plen	= 0x04UC;
 	net16 opcode;
 	mac_t src_hw;
 	net32 src_pr;

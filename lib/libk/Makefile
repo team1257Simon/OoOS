@@ -4,7 +4,7 @@ AR := $(TARGET_HOSTED)-ar
 CC := $(TARGET_HOSTED)-gcc
 LD := $(TARGET_HOSTED)-gcc
 INCLUDES += $(PROJECT_DIR)/common/include/kernel
-CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32 -D__LIBK__ 
+CFLAGS := -ffreestanding -O2 -Wall -mno-red-zone $(addprefix -I,$(INCLUDES)) -Wno-packed-bitfield-compat -mcrc32 -D__LIBK__
 CXXFLAGS := -DLIBCXXRT_WEAK_LOCKS $(CFLAGS) $(addprefix -I,$(INCLUDES_CXX)) -std=gnu++26 -nostdinc++ -fplugin=$(ATTR_PLUGIN)
 CCFLAGS := $(CFLAGS) -std=gnu23 -fplugin=$(ATTR_PLUGIN)
 LDFLAGS := -r -flinker-output=rel -nostdlib

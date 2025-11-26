@@ -3,18 +3,18 @@
 #include "string.h"
 #include "stdlib.h"
 extern "C" const char* __assert_fail_text(const char* text, const char* fname, const char* filename, int line);
-namespace __cxxabiv1 
+namespace __cxxabiv1
 {
 	extension typedef spinlock_t __guard;
-	extern "C" int __cxa_guard_acquire(__guard* g)  { lock(g); return 0; }
-	extern "C" void __cxa_guard_release(__guard* g) { release(g); }
+	extern "C" int __cxa_guard_acquire(__guard* g)	{ lock(g); return 0; }
+	extern "C" void __cxa_guard_release(__guard* g)	{ release(g); }
 	extern "C" void __cxa_guard_abort(__guard*) {}
 }
-extern "C" 
-{	
+extern "C"
+{
 	atexit_func_entry_t __atexit_funcs[ATEXIT_MAX_FUNCS];
 	atexit_func_entry_t __tmp_atexit_buff[ATEXIT_MAX_FUNCS];
-	uarch_t __atexit_func_count = 0;
+	uarch_t __atexit_func_count	= 0;
 	extern "C" void *__dso_handle;
 	extern "C" __cxxabiv1::__guard __atexit_guard;
 	extern "C" void _fini();
@@ -24,9 +24,9 @@ extern "C"
 	{
 		__cxxabiv1::__cxa_guard_acquire(std::addressof(__atexit_guard));
 		if (__atexit_func_count >= ATEXIT_MAX_FUNCS) return -1;
-		__atexit_funcs[__atexit_func_count].destructor_func = f;
-		__atexit_funcs[__atexit_func_count].obj_ptr 		= objptr;
-		__atexit_funcs[__atexit_func_count].dso_handle 		= dso;
+		__atexit_funcs[__atexit_func_count].destructor_func	= f;
+		__atexit_funcs[__atexit_func_count].obj_ptr			= objptr;
+		__atexit_funcs[__atexit_func_count].dso_handle		= dso;
 		__atexit_func_count++;
 		__cxxabiv1::__cxa_guard_release(std::addressof(__atexit_guard));
 		return 0;

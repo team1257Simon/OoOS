@@ -12,17 +12,17 @@ static void __l_shift(uilong* x, uilong* x1, int i)
 }
 int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
 {
-	uilong      c, h, *x, *x1, *xe;
+	uilong		c, h, *x, *x1, *xe;
 	const char* s;
-	int         havedig, hd0, i, nbits;
+	int			havedig, hd0, i, nbits;
 	if(!__hexdig_d2a['0']) __hexdig_init_d2a();
 	nbits = fpi->nbits;
-	x     = x0 + (nbits >> 5);
+	x	= x0 + (nbits >> 5);
 	if(nbits & 31) x++;
 	*--x = 0;
-	x1 = xe = x;
-	havedig = hd0 = i = 0;
-	s                 = *sp;
+	x1				= xe	= x;
+	havedig			= hd0	= i	= 0;
+	s				= *sp;
 	while((c = *(const unsigned char*)(s + 1)) && c <= ' ') ++s;
 	if(s[1] == '0' && (s[2] == 'x' || s[2] == 'X') && *(const unsigned char*)(s + 3) > ' ') s += 2;
 	while((c = *(const unsigned char*)++s))
@@ -39,10 +39,10 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
 						i = 8;
 						continue;
 					}
-					hd0  = havedig;
-					*--x = 0;
-					x1   = x;
-					i    = 0;
+					hd0		= havedig;
+					*--x	= 0;
+					x1		= x;
+					i		= 0;
 				}
 				while(*(const unsigned char*)(s + 1) <= ' ') ++s;
 				if(s[1] == '0' && (s[2] == 'x' || s[2] == 'X') && *(const unsigned char*)(s + 3) > ' ') s += 2;
@@ -66,8 +66,8 @@ int __hexnan_d2a(const char** sp, fpi* fpi, uilong* x0)
 		if(++i > 8)
 		{
 			if(x <= x0) continue;
-			i    = 1;
-			*--x = 0;
+			i		= 1;
+			*--x	= 0;
 		}
 		*x = (*x << 4) | (h & 0xF);
 	}

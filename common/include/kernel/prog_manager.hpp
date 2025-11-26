@@ -4,8 +4,8 @@
 #include <list>
 class prog_manager : std::list<elf64_executable>, std::list<elf64_dynamic_executable>
 {
-	using __static_base = std::list<elf64_executable>;
-	using __dynamic_base = std::list<elf64_dynamic_executable>;
+	using __static_base		= std::list<elf64_executable>;
+	using __dynamic_base	= std::list<elf64_dynamic_executable>;
 #pragma GCC diagnostic push
 //  GCC will yell at us for using offsetof on a non-standard-layout type, except the part of the node we're sizing is standard-layout in effect.
 //  The purpose of this is really just to allow for theoretical future changes to that data structure without breaking this code.

@@ -24,23 +24,23 @@ namespace std
 	{
 		constexpr __head_base(__head_base const&) = default;
 		constexpr __head_base(__head_base&&) = default;
-		constexpr __head_base(HT const& h) : HT{ h } {}
-		constexpr __head_base() : HT{} {}
-		template<typename GT> constexpr __head_base(GT&& h) : HT{ std::forward<GT>(h) } {}
-		constexpr static HT& __head(__head_base & _h) noexcept { return _h; }
-		constexpr static HT const& __head(__head_base const& _h) noexcept { return _h; }
+		constexpr __head_base(HT const& h) : HT(h) {}
+		constexpr __head_base() : HT() {}
+		template<typename GT> constexpr __head_base(GT&& h) : HT(std::forward<GT>(h)) {}
+		constexpr static HT& __head(__head_base & h) noexcept { return h; }
+		constexpr static HT const& __head(__head_base const& h) noexcept { return h; }
 	};
 	template<size_t I, typename HT>
 	struct __head_base<I, HT, false>
 	{
 		HT __my_head;
-		constexpr __head_base() : __my_head{} {}
-		constexpr __head_base(HT const& h) : __my_head{ h } {}
-		template<typename GT> constexpr __head_base(GT&& h) : __my_head{ forward<GT>(h) } {}
+		constexpr __head_base() : __my_head() {}
+		constexpr __head_base(HT const& h) : __my_head(h) {}
+		template<typename GT> constexpr __head_base(GT&& h) : __my_head(std::forward<GT>(h)) {}
 		constexpr __head_base(__head_base const&) = default;
 		constexpr __head_base(__head_base&&) = default;
-		constexpr static HT& __head(__head_base & _h) noexcept { return _h.__my_head; }
-		constexpr static HT const& __head(__head_base const& _h) noexcept { return _h.__my_head; }
+		constexpr static HT& __head(__head_base & h) noexcept { return h.__my_head; }
+		constexpr static HT const& __head(__head_base const& h) noexcept { return h.__my_head; }
 	};
 	template<size_t I, typename ...ETs> struct __tuple_impl;
 	template<size_t I, typename HT, typename ...ETs>
@@ -55,7 +55,7 @@ namespace std
 		static constexpr __next const& __tail(__tuple_impl const& t) noexcept { return t; }
 		constexpr __tuple_impl() : __base{}, __next{} {}
 		template<typename UHead, typename ...UTails> requires(sizeof...(ETs) == sizeof...(UTails))
-		constexpr explicit __tuple_impl(UHead && h, UTails &&... t) : __next{ forward<UTails>(t)... }, __base{ forward<UHead>(h) }  {}
+		constexpr explicit __tuple_impl(UHead && h, UTails &&... t) : __next(forward<UTails>(t)...), __base(forward<UHead>(h))  {}
 		template<typename ...FTs> constexpr void __assign(__tuple_impl<I, FTs...> const& that) { __head(*this) = __tuple_impl<I, FTs...>::__head(that); __tail(*this).__assign(__tuple_impl<I, FTs...>::__tail(that)); }
 		template<typename UHead, typename ...UTails> constexpr void __assign(__tuple_impl<I, UHead, UTails...>&& that) { __head(*this) = __tuple_impl<I, UHead, UTails...>::__head(that); __tail(*this).__assign(std::move(__tuple_impl<I, UHead, UTails...>::__tail(that))); }
 	protected:
@@ -67,8 +67,8 @@ namespace std
 		template<size_t, typename...> friend struct __tuple_impl;
 		using __base = __head_base<I, HT>;
 		constexpr __tuple_impl() : __base() {}
-		constexpr __tuple_impl(HT const& h) : __base{ h } {}
-		template<typename GT> constexpr explicit __tuple_impl(GT&& h) : __base{ std::forward<GT>(h) } {}
+		constexpr __tuple_impl(HT const& h) : __base(h) {}
+		template<typename GT> constexpr explicit __tuple_impl(GT&& h) : __base(std::forward<GT>(h)) {}
 		constexpr __tuple_impl(__tuple_impl const&) = default;
 		constexpr __tuple_impl(__tuple_impl&&) = default;
 		static constexpr HT& __head(__tuple_impl& t) noexcept { return __base::__head(t);}
@@ -77,15 +77,15 @@ namespace std
 	template<typename ... Ts>
 	struct __tuple_constraints
 	{
-		template<typename... Us> using __constructible = __and_<is_constructible<Ts, Us>...>;
-		template<typename... Us> using __convertible = __and_<is_convertible<Us, Ts>...>;
+		template<typename... Us> using __constructible	= __and_<is_constructible<Ts, Us>...>;
+		template<typename... Us> using __convertible	= __and_<is_convertible<Us, Ts>...>;
 		template<typename... Us> constexpr static bool __is_implicitly_constructible() { return __and_<__constructible<Us...>, __convertible<Us...>>::value; }
-		template<typename... Us> constexpr static bool __is_explicitly_constructible() { return __and_<__constructible<Us...>, __not_<__convertible<Us...>> >::value; }
+		template<typename... Us> constexpr static bool __is_explicitly_constructible() { return __and_<__constructible<Us...>, __not_<__convertible<Us...>>>::value; }
 		constexpr static bool __is_implicitly_default_constructible() { return __and_<std::__is_implicitly_default_constructible<Ts>...>::value; }
 		constexpr static bool __is_explicitly_default_constructible() { return __and_<is_default_constructible<Ts>..., __not_<__and_<std::__is_implicitly_default_constructible<Ts>...>>>::value; }
 	};
 	template<typename ...ETs>
-	class tuple : public __tuple_impl<0, ETs...> 
+	class tuple : public __tuple_impl<0, ETs...>
 	{
 		typedef __tuple_impl<0, ETs...> __base;
 		typedef __tuple_constraints<ETs...> __constraints;
@@ -98,11 +98,11 @@ namespace std
 		template<__detail::__boolean_testable DB> constexpr static bool __explicit_default_ctor() { if constexpr(DB{}) return __constraints::__is_explicitly_default_constructible(); else return false; }
 		template<__detail::__boolean_testable DB, typename ... Args> constexpr static bool __implicit_ctor() { if constexpr(DB{}) return __constraints::template __is_implicitly_constructible<Args...>(); else return false; }
 		template<__detail::__boolean_testable DB, typename ... Args> constexpr static bool __explicit_ctor() { if constexpr(DB{}) return __constraints::template __is_explicitly_constructible<Args...>(); else return false; }
-		struct __not_empty : bool_constant<sizeof...(ETs) >= 1> {};
+		struct __not_empty : bool_constant<(sizeof...(ETs) >= 1)> {};
 		template<typename ... TTs> struct __valid : bool_constant<__valid_args<TTs...>()> {};
 	public:
-		template<typename DT = void> requires (__implicit_default_ctor<is_void<DT>>()) constexpr tuple() noexcept(__and_v<is_nothrow_default_constructible<ETs>...>) : __base{} {}
-		template<typename DT = void> requires (__explicit_default_ctor<is_void<DT>>()) constexpr explicit tuple() noexcept(__and_v<is_nothrow_default_constructible<ETs>...>) : __base{} {}
+		template<typename DT = void> requires(__implicit_default_ctor<is_void<DT>>()) constexpr tuple() noexcept(__and_v<is_nothrow_default_constructible<ETs>...>) : __base{} {}
+		template<typename DT = void> requires(__explicit_default_ctor<is_void<DT>>()) constexpr explicit tuple() noexcept(__and_v<is_nothrow_default_constructible<ETs>...>) : __base{} {}
 		constexpr tuple(ETs const& ... elements) noexcept(__nothrow_constructible<ETs const&...>()) requires(__implicit_ctor<__not_empty, ETs const&...>()) : __base{ elements... } {}
 		constexpr explicit tuple(ETs const& ... elements) noexcept(__nothrow_constructible<ETs const&...>()) requires(__explicit_ctor<__not_empty, ETs const&...>()) : __base{ elements... } {}
 		template<typename ... FTs> requires (__implicit_ctor<__valid<FTs...>, FTs...>()) constexpr tuple(FTs&& ... elements) : __base{ forward<FTs>(elements)... } {}
@@ -122,8 +122,8 @@ namespace std
 	template<template<typename...> class TRT, typename T, typename... U> inline constexpr bool __unpack_std_tuple<TRT, T, tuple<U...>> = TRT<T, U...>::value;
 	template<template<typename...> class TRT, typename T, typename... U> inline constexpr bool __unpack_std_tuple<TRT, T, tuple<U...>&> = TRT<T, U&...>::value;
 	template<template<typename...> class TRT, typename T, typename... U> inline constexpr bool __unpack_std_tuple<TRT, T, const tuple<U...>> = TRT<T, const U...>::value;
-	template<template<typename...> class TRT, typename T, typename... U> inline constexpr bool __unpack_std_tuple<TRT, T, const tuple<U...>&> = TRT<T, const U&...>::value; 
-	template<size_t I, class T> struct tuple_element; 
+	template<template<typename...> class TRT, typename T, typename... U> inline constexpr bool __unpack_std_tuple<TRT, T, const tuple<U...>&> = TRT<T, const U&...>::value;
+	template<size_t I, class T> struct tuple_element;
 	template<size_t I, class T> struct tuple_element<I, const T> { using type = typename add_const<typename tuple_element<I, T>::type>::type; };
 	template<class T> struct tuple_size;
 	template<class T> struct tuple_size<const T> : integral_constant<size_t, tuple_size<T>::value> {};
@@ -140,11 +140,11 @@ namespace std
 	template<typename... ETs> constexpr tuple<ETs&&...> forward_as_tuple(ETs&&... __args) noexcept { return tuple<ETs&&...>(std::forward<ETs>(__args)...); }
 	template<typename T1, typename T2>
 	template<typename... Args1, typename... Args2, size_t... Indx1, size_t... Indx2>
-	requires (constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) 
+	requires(constructible_from<T1, Args1...> && constructible_from<T2, Args2...>)
 	constexpr pair<T1, T2>::pair(tuple<Args1...>& t1, tuple<Args2...>& t2, __index_tuple<Indx1...>, __index_tuple<Indx2...>) : first(std::forward<Args1>(std::get<Indx1>(t1))...), second(std::forward<Args2>(std::get<Indx2>(t2))...) {}
 	template<typename T1, typename T2>
-	template<typename ... Args1, typename ... Args2> 
-	requires (constructible_from<T1, Args1...> && constructible_from<T2, Args2...>) 
+	template<typename ... Args1, typename ... Args2>
+	requires(constructible_from<T1, Args1...> && constructible_from<T2, Args2...>)
 	constexpr pair<T1, T2>::pair(piecewise_construct_t, tuple<Args1...> t1, tuple<Args2...> t2) : pair(t1, t2, typename __build_index_tuple<sizeof...(Args1)>::__type(), typename __build_index_tuple<sizeof...(Args2)>::__type()) {}
 }
 #endif

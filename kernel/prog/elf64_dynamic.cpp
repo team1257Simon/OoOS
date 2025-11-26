@@ -28,7 +28,7 @@ size_t elf64_dynamic_object::to_image_offset(size_t offs)
 	for(size_t i = 0; i < ehdr().e_phnum; i++)
 		if(phdr(i).p_vaddr <= offs && phdr(i).p_vaddr + phdr(i).p_memsz > offs)
 			return offs - (phdr(i).p_vaddr - phdr(i).p_offset);
-	return offs; 
+	return offs;
 }
 constexpr static bool is_tls_rela(elf64_rela const& r)
 {
@@ -154,7 +154,7 @@ bool elf64_dynamic_object::post_load_init()
 		if(__unlikely(!load_preinit())) return false;
 		if(init_fn) { init_array.push_back(resolve(init_fn)); }
 		if(fini_fn) { fini_reverse_array.push_back(resolve(fini_fn)); }
-		if(init_array_size && init_array_ptr) 
+		if(init_array_size && init_array_ptr)
 		{
 			addr_t init_ptrs_vaddr	= resolve(init_array_ptr);
 			uintptr_t* init_ptrs	= translate_in_frame(init_ptrs_vaddr);
@@ -166,7 +166,7 @@ bool elf64_dynamic_object::post_load_init()
 			addr_t fini_ptrs_vaddr	= resolve(fini_array_ptr);
 			uintptr_t* fini_ptrs	= translate_in_frame(fini_ptrs_vaddr);
 			if(__unlikely(!fini_ptrs)) { panic("[PRG] finalization array pointer is non-null but is invalid"); return false; }
-			for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); } 
+			for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); }
 		}
 		if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
 		return true;
@@ -248,17 +248,17 @@ void elf64_dynamic_object::process_dynamic()
 			array_copy(buckets, og_buckets, h->nbucket);
 			array_copy(hval_array, og_hvals, n_hvals);
 			new(std::addressof(symbol_index.htbl)) elf64_gnu_htbl
-			{ 
+			{
 					.header
-					{ 
-						.nbucket	{ h->nbucket }, 
-						.symndx		{ h->symndx }, 
-						.maskwords	{ h->maskwords }, 
-						.shift2		{ h->shift2 } 
-					}, 
-					.bloom_filter_words	{ bloom_filter }, 
-					.buckets			{ buckets }, 
-					.hash_value_array	{ hval_array } 
+					{
+						.nbucket	{ h->nbucket },
+						.symndx		{ h->symndx },
+						.maskwords	{ h->maskwords },
+						.shift2		{ h->shift2 }
+					},
+					.bloom_filter_words	{ bloom_filter },
+					.buckets			{ buckets },
+					.hash_value_array	{ hval_array }
 			};
 		}
 		else process_dyn_entry(i);
@@ -294,7 +294,7 @@ bool elf64_dynamic_object::process_got()
 		else if(dyn_entries[i].d_tag == DT_PLTRELSZ)	rela_sz		= dyn_entries[i].d_val;
 		if(got_offs && rela_offs && rela_sz) break;
 	}
-	if(got_offs && rela_offs && rela_sz) 
+	if(got_offs && rela_offs && rela_sz)
 	{
 		got_vaddr			= got_offs;
 		num_plt_relas		= rela_sz / sizeof(elf64_rela);
@@ -311,7 +311,7 @@ bool elf64_dynamic_object::process_got()
 			const char* name	= shstrtab[shdr(i).sh_name];
 			if(std::strncmp(name, ".got.plt", 8) != 0) continue;
 			got_vaddr			= shdr(i).sh_addr;
-			return true; 
+			return true;
 		}
 	}
 	got_vaddr = 0UL;
@@ -326,7 +326,7 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
 		got_table.plus(sizeof(addr_t) * 2Z).assign(ptr);
 	}
 }
-elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) : 
+elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
 	elf64_object	{ that },
 	num_dyn_entries	{ that.num_dyn_entries },
 	dyn_entries		{ dynseg_alloc.allocate(num_dyn_entries) },
@@ -358,7 +358,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
 	array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
 	if(that.plt_relas) array_copy(this->plt_relas, that.plt_relas, num_plt_relas);
 }
-elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) : 
+elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
 	elf64_object	{ std::move(that) },
 	num_dyn_entries	{ that.num_dyn_entries },
 	dyn_entries		{ that.dyn_entries },

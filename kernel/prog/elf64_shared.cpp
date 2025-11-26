@@ -66,7 +66,7 @@ const char* elf64_shared_object::sym_lookup(addr_t addr) const
 {
 	if(__unlikely(!could_contain(addr))) return nullptr;
 	size_t nsym = symtab.entries();
-	for(size_t i = 0; i < nsym; i++) 
+	for(size_t i = 0; i < nsym; i++)
 	{
 		elf64_sym const& sym	= symtab[i];
 		addr_t sym_base			= resolve(sym);
@@ -132,13 +132,13 @@ bool elf64_shared_object::load_segments()
 				if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
 			}
 			new(std::addressof(segments[i++])) program_segment_descriptor
-			{ 
-				.absolute_addr	= idmap, 
-				.virtual_addr	= addr, 
+			{
+				.absolute_addr	= idmap,
+				.virtual_addr	= addr,
 				.obj_offset		= static_cast<off_t>(h.p_offset),
-				.size			= h.p_memsz, 
-				.seg_align		= h.p_align, 
-				.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0)) 
+				.size			= h.p_memsz,
+				.seg_align		= h.p_align,
+				.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0))
 			};
 			frame_tag->dynamic_extent	= std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
 			total_segment_size			+= actual_size;

@@ -34,7 +34,7 @@ namespace std
 	template<typename T, __detail::__ptr_accept_ftor<T> DT = default_delete<T>>
 	class unique_ptr
 	{
-		using __traits = __detail::__unique_ptr_traits<T, DT>;
+		using __traits	= __detail::__unique_ptr_traits<T, DT>;
 		typedef typename __traits::copy_deleter_type __del_t;
 		tuple<T*, DT> __ptr_impl;
 	public:

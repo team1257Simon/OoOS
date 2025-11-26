@@ -10,7 +10,7 @@ namespace ooos
 	 * Iterators have a partial validity guarantee across extractions.
 	 * In particular, if an iterator X is valid and not the end() iterator, then X++ will yield a valid iterator after a single extraction.
 	 * Similarly, X + N will yield a valid iterator after up to N extractions if it was valid in the first place (i.e. not past the end() iterator).
-	 * 
+	 *
 	 */
 	template<typename T, std::allocator_object<T> A = std::allocator<T>>
 	struct circular_queue
@@ -186,14 +186,14 @@ namespace ooos
 				pointer __pos;
 				constexpr pointer __next() const noexcept
 				{
-					if(__buff.__capacity() && __pos != __buff.__last) 
+					if(__buff.__capacity() && __pos != __buff.__last)
 						return (__pos + 1 < __buff.__bmax) ? __pos + 1 : __buff.__base;
 					else return __buff.__last;
 				}
 				constexpr pointer __adjust(size_type n) const noexcept
 				{
 					if(n == 1UZ) return __next();
-					else if(__buff.__capacity() && __pos != __buff.__last) 
+					else if(__buff.__capacity() && __pos != __buff.__last)
 						return pclamp(__buff.__base + (((__pos + n) - __buff.__base) % __buff.__capacity()), __buff.__base, __buff.__bmax);
 					else return __buff.__last;
 				}
@@ -212,14 +212,14 @@ namespace ooos
 				const_pointer __pos;
 				constexpr const_pointer __next() const noexcept
 				{
-					if(__buff.__capacity() && __buff.__curr != __buff.__last) 
+					if(__buff.__capacity() && __buff.__curr != __buff.__last)
 						return (__pos + 1 < __buff.__bmax) ? __pos + 1 : __buff.__base;
 					else return __buff.__last;
 				}
 				constexpr const_pointer __adjust(size_type n) const noexcept
 				{
 					if(n == 1UZ) return __next();
-					else if(__buff.__capacity() && __pos != __buff.__last) 
+					else if(__buff.__capacity() && __pos != __buff.__last)
 						return pclamp(__buff.__base + (((__pos + n) - __buff.__base) % __buff.__capacity()), __buff.__base, __buff.__bmax);
 					else return __buff.__last;
 				}

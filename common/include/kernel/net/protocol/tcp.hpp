@@ -19,16 +19,16 @@ union __pack tcp_fields_word
 	net16 full_word{};
 	struct __pack
 	{
-		net8 data_offset    : 4;    // offset of the payload in 32-bit dwords
-		bool                : 4;
-		bool cwr_flag       : 1;    // congestion window reduced
-		bool ece_flag       : 1;    // explicit congestion notification enable
-		bool urgent_flag    : 1;
-		bool ack_flag       : 1;
-		bool push_flag      : 1;
-		bool reset_flag     : 1;
-		bool syn_flag       : 1;
-		bool finish_flag    : 1;
+		net8 data_offset	: 4;	// offset of the payload in 32-bit dwords
+		bool				: 4;
+		bool cwr_flag		: 1;	// congestion window reduced
+		bool ece_flag		: 1;	// explicit congestion notification enable
+		bool urgent_flag	: 1;
+		bool ack_flag		: 1;
+		bool push_flag		: 1;
+		bool reset_flag		: 1;
+		bool syn_flag		: 1;
+		bool finish_flag	: 1;
 	};
 };
 struct tcp_connection_info;
@@ -81,7 +81,7 @@ enum class tcp_connection_state : char
 	LAST_ACK,
 	TIME_WAIT,
 	CLOSED,
-	MAX = CLOSED
+	MAX			= CLOSED
 };
 enum class tcp_connection_type : bool { PASSIVE, ACTIVE };
 struct protocol_tcp;

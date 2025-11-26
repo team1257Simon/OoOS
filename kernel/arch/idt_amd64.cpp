@@ -70,11 +70,11 @@ namespace interrupt_table
 		}
 	}
 }
-inline void pic_eoi(byte irq) 
+inline void pic_eoi(byte irq)
 {
     if(bsp_lapic.valid()) { bsp_lapic.eoi(); return; }
-    if(irq > 7) outb(command_pic2, sig_pic_eoi); 
-    outb(command_pic1, sig_pic_eoi); 
+    if(irq > 7) outb(command_pic2, sig_pic_eoi);
+    outb(command_pic1, sig_pic_eoi);
 }
 extern "C"
 {
@@ -106,8 +106,8 @@ extern "C"
     void isr_dispatch(uint8_t idx)
     {
         bool is_err			= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
-        if(idx > 0x19UC && idx < 0x30UC) 
-        { 
+        if(idx > 0x19UC && idx < 0x30UC)
+        {
             byte irq		= static_cast<uint8_t>(idx - 0x20UC);
             kernel_memory_mgr::suspend_user_frame();
             kfx_save();
@@ -119,15 +119,15 @@ extern "C"
 			}
             for(std::pair<void* const, ooos::isr_actor>& p : __managed_handlers[irq]) p.second();
             for(irq_callback const& h : __handler_tables[irq]) h();
-            pic_eoi(irq);    
+            pic_eoi(irq);
             kfx_load();
             kernel_memory_mgr::resume_user_frame();
         }
-        else 
-        { 
+        else
+        {
             kernel_memory_mgr::suspend_user_frame();
             kfx_save();
-            for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }    
+            for(interrupt_callback const& c : __registered_callbacks) { if(c) c(idx, is_err ? ecode : 0); }
             kfx_load();
             kernel_memory_mgr::resume_user_frame();
         }

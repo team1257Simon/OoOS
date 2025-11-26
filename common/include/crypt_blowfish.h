@@ -13,7 +13,6 @@
  *
  * See crypt_blowfish.c for more information.
  */
-
 #ifndef _CRYPT_BLOWFISH_H
 #define _CRYPT_BLOWFISH_H
 #ifdef __cplusplus

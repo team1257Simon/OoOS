@@ -1,5 +1,5 @@
 #include "gdtoa.h"
-static int  roundup(char* s0, int ndigits)
+static int	roundup(char* s0, int ndigits)
 {
 	char* s;
 	for(s = s0 + ndigits - 1; *s == 0xF; s--)
@@ -22,10 +22,10 @@ static void dorounding(char* s0, int ndigits, int sign, int* decpt)
 }
 char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, char** rve)
 {
-	static const int    sigfigs = 14;
-	struct ieee_double* p       = (struct ieee_double*)&d;
-	char *              s, *s0;
-	int                 bufsize;
+	static const int	sigfigs = 14;
+	struct ieee_double* p		= (struct ieee_double*)&d;
+	char *				s, *s0;
+	int					bufsize;
 	*sign = p->dbl_sign;
 	switch(__builtin_fpclassify(0x02, 0x01, 0x04, 0x08, 0x10, d))
 	{
@@ -41,7 +41,7 @@ char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, c
 	}
 	if(ndigits == 0) ndigits = 1;
 	bufsize = (sigfigs > ndigits) ? sigfigs : ndigits;
-	s0      = __rv_alloc_d2a(bufsize);
+	s0		= __rv_alloc_d2a(bufsize);
 	if(s0 == (NULL)) return ((NULL));
 	for(s = s0 + bufsize - 1; s > s0 + sigfigs - 1; s--) *s = 0;
 	for(; s > s0 + sigfigs - 7 && s > s0; s--)
@@ -69,12 +69,12 @@ char* __hdtoa(double d, const char* xdigs, int ndigits, int* decpt, int* sign, c
 }
 char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* sign, char** rve)
 {
-	static const int sigfigs = (64 + 3) / 4;
-	struct ieee_ext* p       = (struct ieee_ext*)&e;
-	char *           s, *s0;
-	int              bufsize;
-	int              fbits = 0;
-	*sign                  = p->ext_sign;
+	static const int sigfigs	= (64 + 3) / 4;
+	struct ieee_ext* p			= (struct ieee_ext*)&e;
+	char*			s, *s0;
+	int				bufsize;
+	int				fbits	= 0;
+	*sign					= p->ext_sign;
 	switch(__builtin_fpclassify(0x02, 0x01, 0x04, 0x08, 0x10, e))
 	{
 	case 0x04: *decpt = p->ext_exp - 16385; break;
@@ -89,7 +89,7 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
 	}
 	if(ndigits == 0) ndigits = 1;
 	bufsize = (sigfigs > ndigits) ? sigfigs : ndigits;
-	s0      = __rv_alloc_d2a(bufsize);
+	s0		= __rv_alloc_d2a(bufsize);
 	if(s0 == NULL) return (NULL);
 	for(s = s0 + bufsize - 1; s > s0 + sigfigs - 1; s--) *s = 0;
 	for(fbits = 32 / 4; fbits > 0 && s > s0; s--, fbits--)
@@ -102,12 +102,12 @@ char* __hldtoa(long double e, const char* xdigs, int ndigits, int* decpt, int* s
 		*s = p->ext_frach & 0xF;
 		p->ext_frach >>= 4;
 	}
-	*s = (p->ext_frach | 0x8) & 0xF;
+	*s		= (p->ext_frach | 0x8) & 0xF;
 	if(ndigits < 0) { for(ndigits = sigfigs; s0[ndigits - 1] == 0; ndigits--); }
 	if(sigfigs > ndigits && s0[ndigits] != 0) dorounding(s0, ndigits, p->ext_sign, decpt);
-	s = s0 + ndigits;
+	s		= s0 + ndigits;
 	if(rve != NULL) *rve = s;
-	*s-- = '\0';
+	*s--	= '\0';
 	for(; s >= s0; s--) *s = xdigs[(unsigned int)*s];
 	return (s0);
 }

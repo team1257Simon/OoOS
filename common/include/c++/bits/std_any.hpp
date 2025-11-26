@@ -2,7 +2,7 @@
 #define __STD_ANY
 #include "typeindex"
 #include "bits/aligned_buffer.hpp"
-#include "ext/delegate_ptr.hpp" // ext::__impl:__alloc_mgr
+#include "ext/delegate_ptr.hpp"	// ext::__impl:__alloc_mgr
 #include "bits/in_place_t.hpp"
 namespace std
 {
@@ -26,7 +26,7 @@ namespace std
 			ext::type_erasure e = ext::get_erasure<T>();
 			return static_cast<T const*>(e.cast_from(__ptr, __object_type));
 		}
-		template<__non_void T> T* __cast_to_type() 
+		template<__non_void T> T* __cast_to_type()
 		{
 			if(!__ptr) return nullptr;
 			ext::type_erasure e = ext::get_erasure<T>();
@@ -36,7 +36,7 @@ namespace std
 		constexpr any() noexcept = default;
 		constexpr ~any() { __destroy_if_present(); }
 		constexpr bool has_value() const { return __ptr != nullptr; }
-		constexpr void swap(any& that) 
+		constexpr void swap(any& that)
 		{
 			void* tptr					= this->__ptr;
 			void (*tdealloc)(void*)		= this->__dealloc_fn;
@@ -49,38 +49,38 @@ namespace std
 			that.__dealloc_fn			= tdealloc;
 			that.__ptr					= tptr;
 		}
-		constexpr void reset() 
+		constexpr void reset()
 		{
 			__ptr			= nullptr;
 			__copy_fn		= nullptr;
 			__dealloc_fn	= nullptr;
 			__object_type	= ext::get_erasure<void>();
 		}
-		template<__decay_copy_constructible T> any(T&& t) : 
-			__ptr           { __alloc<T>::__create(move(t)) },
-			__copy_fn       { __alloc<T>::__copy_construct },
-			__dealloc_fn    { __alloc<T>::__deallocate }, 
-			__object_type   { typeid(T) } 
+		template<__decay_copy_constructible T> any(T&& t) :
+			__ptr			{ __alloc<T>::__create(move(t)) },
+			__copy_fn		{ __alloc<T>::__copy_construct },
+			__dealloc_fn	{ __alloc<T>::__deallocate },
+			__object_type	{ typeid(T) }
 							{}
-		template<__decay_copy_constructible T, typename ... Args> requires constructible_from<T, Args...> any(in_place_type_t<T>, Args&& ... args) : 
-			__ptr           { __alloc<T>::__create(forward<Args>(args)...) },
-			__copy_fn       { __alloc<T>::__copy_construct },
-			__dealloc_fn    { __alloc<T>::__deallocate }, 
-			__object_type   { typeid(T) } 
+		template<__decay_copy_constructible T, typename ... Args> requires constructible_from<T, Args...> any(in_place_type_t<T>, Args&& ... args) :
+			__ptr			{ __alloc<T>::__create(forward<Args>(args)...) },
+			__copy_fn		{ __alloc<T>::__copy_construct },
+			__dealloc_fn	{ __alloc<T>::__deallocate },
+			__object_type	{ typeid(T) }
 							{}
 		constexpr any(any const& that) :
-			__ptr           { that.__copy_fn && that.__ptr ? (*that.__copy_fn)(that.__ptr) : nullptr },
-			__copy_fn       { that.__copy_fn },
-			__dealloc_fn    { that.__dealloc_fn },
-			__object_type   { that.__object_type }
+			__ptr			{ that.__copy_fn && that.__ptr ? (*that.__copy_fn)(that.__ptr) : nullptr },
+			__copy_fn		{ that.__copy_fn },
+			__dealloc_fn	{ that.__dealloc_fn },
+			__object_type	{ that.__object_type }
 							{}
 		constexpr any(any&& that) :
-			__ptr           { that.__ptr },
-			__copy_fn       { that.__copy_fn },
-			__dealloc_fn    { that.__dealloc_fn },
-			__object_type   { move(that.__object_type) }
+			__ptr			{ that.__ptr },
+			__copy_fn		{ that.__copy_fn },
+			__dealloc_fn	{ that.__dealloc_fn },
+			__object_type	{ move(that.__object_type) }
 							{ that.reset(); }
-		constexpr any& operator=(any const& that) 
+		constexpr any& operator=(any const& that)
 		{
 			__destroy_if_present();
 			this->__ptr			= that.__copy_fn && that.__ptr ? (*that.__copy_fn)(that.__ptr) : nullptr;

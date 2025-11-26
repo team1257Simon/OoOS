@@ -9,9 +9,9 @@ constexpr static elf64_phdr const& phdr(elf64_ehdr const& ehdr, size_t i) {
 	return addr_t(std::addressof(ehdr)).plus(ph_off).deref<elf64_phdr>();
 }
 static size_t find_dyn(elf64_ehdr const& ehdr)
-{ 
-	for(size_t i = 0; i < ehdr.e_phnum; i++) 
-		if(phdr(ehdr, i).p_type == PT_DYNAMIC) 
+{
+	for(size_t i = 0; i < ehdr.e_phnum; i++)
+		if(phdr(ehdr, i).p_type == PT_DYNAMIC)
 			return i;
 	return 0UZ;
 }
@@ -52,9 +52,9 @@ elf64_executable* prog_manager::add(file_vnode* exec_file, size_t stack_sz)
 	size_t size		= static_cast<size_t>(exec_file->size() - exec_file->tell());
 	addr_t start	= elf_alloc.allocate(size);
 	if(__unlikely(!exec_file->read(start, size)))
-	{ 
-		elf_alloc.deallocate(start, size); 
-		panic("[PRG] read failed"); 
+	{
+		elf_alloc.deallocate(start, size);
+		panic("[PRG] read failed");
 		return nullptr;
 	}
 	elf64_executable* result = __add(start, size, stack_sz);

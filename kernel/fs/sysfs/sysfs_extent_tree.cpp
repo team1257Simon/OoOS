@@ -25,7 +25,7 @@ static size_t total_extents(sysfs& s, uint32_t ino)
 }
 sysfs_extent_entry const& sysfs_extent_tree::__find_from(sysfs_extent_branch const& b, size_t idx, size_t pos, size_t incr) const
 {
-	if(!incr) 
+	if(!incr)
 		return b.depth ? __find_from(__managed_vnode.parent_fs.get_extent_branch(b[pos].start), idx) : b[pos];
 	else if(b[pos].ordinal > idx || !b[pos].start)
 		return __find_from(b, idx, pos - incr, incr / 2);
@@ -38,8 +38,8 @@ void sysfs_extent_tree::__overflow_root()
 	if(__unlikely(!next)) throw std::bad_alloc();
 	sysfs_extent_entry& r	= __root_first();
 	sysfs_extent_branch* br	= new(std::addressof(__managed_vnode.parent_fs.get_extent_branch(next))) sysfs_extent_branch
-	{ 
-		.depth		{ __managed_vnode.inode().root_depth }, 
+	{
+		.depth		{ __managed_vnode.inode().root_depth },
 		.entries	{ r },
 		.checksum	{ 0U }
 	};
@@ -55,7 +55,7 @@ sysfs_extent_branch& sysfs_extent_tree::__next_leaf_branch()
 	if(avail.first)
 	{
 		sysfs_extent_branch& b						= *avail.first;
-		if(b.depth) 
+		if(b.depth)
 			return __managed_vnode.parent_fs.extend_to_leaf(b[avail.second].start, static_cast<uint32_t>(__total_extent));
 		__stored_leaf_index							= avail.second;
 		return b;
@@ -87,7 +87,7 @@ void sysfs_extent_tree::push(uint16_t n_blocks)
 	uint32_t added_start	= __managed_vnode.parent_fs.add_blocks(n_blocks);
 	if(__unlikely(!added_start)) throw std::runtime_error("[FS/SYSFS/EXTENT] failed to expand data file");
 	sysfs_inode& node		= __managed_vnode.inode();
-	if(!node.root_depth) 
+	if(!node.root_depth)
 	{
 		__overflow_root();
 		sysfs_extent_branch& root	= __root();

@@ -77,7 +77,7 @@ namespace ooos
 				this->__my_invoke	= std::addressof(__mgr::__invoke);
 			}
 		}
-		template<typename DT, __internal::__callable<DT> FT> requires(__internal::__explicitly_convertible<ET, DT>) 
+		template<typename DT, __internal::__callable<DT> FT> requires(__internal::__explicitly_convertible<ET, DT>)
 		constexpr event_listener(parameter_type_t<DT>, FT&& f) : __internal::__listener_base<ET>()
 		{
 			typedef __internal::__conversion_bind<ET, DT, std::decay_t<FT>> __cvt;

@@ -1,15 +1,15 @@
 #include "gdtoa.h"
-char*       __ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sign, char** rve)
+char*				__ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sign, char** rve)
 {
-	fpi              fpi = { 64, -16445, 16320, 1, 0 };
-	int              be, kind;
-	char*            ret;
-	struct ieee_ext* p = (struct ieee_ext*)ld;
-	uint32_t         bits[3];
-	void*            vbits = bits;
-	*sign                  = p->ext_sign;
+	fpi				fpi	= { 64, -16445, 16320, 1, 0 };
+	int				be, kind;
+	char*			ret;
+	struct ieee_ext* p	= (struct ieee_ext*)ld;
+	uint32_t		bits[3];
+	void*			vbits	= bits;
+	*sign					= p->ext_sign;
 	fpi.rounding ^= (fpi.rounding >> 1) & p->ext_sign;
-	be        = p->ext_exp - 16446;
+	be		= p->ext_exp - 16446;
 	(bits)[0] = (uint32_t)(p)->ext_fracl;
 	(bits)[1] = (uint32_t)(p)->ext_frach;
 	(bits)[2] = (uint32_t)(p)->ext_exp;

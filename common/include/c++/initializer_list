@@ -6,12 +6,12 @@ namespace std
   class initializer_list
   {
   public:
-	typedef ET 		      value_type;
-	typedef const ET& 	reference;
-	typedef const ET& 	const_reference;
-	typedef size_t 	    size_type;
-	typedef const ET* 	iterator;
-	typedef const ET* 	const_iterator;
+	typedef ET			value_type;
+	typedef const ET&	reference;
+	typedef const ET&	const_reference;
+	typedef size_t		size_type;
+	typedef const ET*	iterator;
+	typedef const ET*	const_iterator;
   private:
 	iterator			__my_array;
 	size_type			__len;

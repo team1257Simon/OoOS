@@ -8,7 +8,7 @@ namespace std
 		using type = signed char;
 		enum class __ord : type { equivalent = 0, less = -1, greater = 1 };
 		enum class __n_cmp : type { __unordered = 2 };
-		struct __unspec { constexpr __unspec(__unspec*) noexcept { } };
+		struct __unspec { constexpr __unspec(__unspec*) noexcept {} };
 	}
 	class partial_ordering
 	{
@@ -111,7 +111,7 @@ namespace std
 			constexpr unsigned __cats = (__cmp_cat_id<Ts> | ...);
 			if constexpr (__cats & 1) return;
 			else if constexpr (bool(__cats & __cmp_cat_id<partial_ordering>)) return partial_ordering::equivalent;
-			else if constexpr (bool(__cats & __cmp_cat_id<weak_ordering>)) return weak_ordering::equivalent; 
+			else if constexpr (bool(__cats & __cmp_cat_id<weak_ordering>)) return weak_ordering::equivalent;
 			else return strong_ordering::equivalent;
 		}
 	}
@@ -127,7 +127,7 @@ namespace std
 	template<typename T, typename U, typename CT = partial_ordering> concept three_way_comparable_with = three_way_comparable<T, CT> && three_way_comparable<U, CT> && common_reference_with<const remove_reference_t<T>&, const remove_reference_t<U>&> && three_way_comparable<common_reference_t<const remove_reference_t<T>&, const remove_reference_t<U>&>, CT> && __detail::__weakly_eq_cmp_with<T, U> && __detail::__partially_ordered_with<T, U> && requires(const remove_reference_t<T>& __t, const remove_reference_t<U>& __u)  { { __t <=> __u } -> __detail::__compares_as<CT>; { __u <=> __t } -> __detail::__compares_as<CT>; };
 	namespace __detail
 	{
-		template<typename T, typename U> using __cmp3way_res_t = decltype(std::declval<T>() <=> std::declval<U>()); 
+		template<typename T, typename U> using __cmp3way_res_t = decltype(std::declval<T>() <=> std::declval<U>());
 		template<typename T, typename U> struct __cmp3way_res_impl { };
 		template<typename T, typename U> requires requires { typename __cmp3way_res_t<__cref<T>, __cref<U>>; } struct __cmp3way_res_impl<T, U> { using type = __cmp3way_res_t<__cref<T>, __cref<U>>; };
 		template<typename T, typename U> concept __3way_builtin_ptr_cmp = requires(T&& __t, U&& __u) { static_cast<T&&>(__t) <=> static_cast<U&&>(__u); } && convertible_to<T, const volatile void*> && convertible_to<U, const volatile void*> && ! requires(T&& __t, U&& __u) { operator<=>(static_cast<T&&>(__t), static_cast<U&&>(__u)); } && ! requires(T&& __t, U&& __u)  { static_cast<T&&>(__t).operator<=>(static_cast<U&&>(__u)); };
@@ -137,7 +137,7 @@ namespace std
 	struct compare_three_way
 	{
 		template<typename T, typename U>
-		requires three_way_comparable_with<T, U> 
+		requires three_way_comparable_with<T, U>
 		constexpr auto operator()(T&& __t, U&& __u) const noexcept(noexcept(std::declval<T>() <=> std::declval<U>()))
 		{
 			if constexpr (__detail::__3way_builtin_ptr_cmp<T, U>)
@@ -158,7 +158,7 @@ namespace std
 		template<floating_point T>
 		constexpr weak_ordering __fp_weak_ordering(T __e, T __f)
 		{
-			auto __cat = [](T __fp) -> int 
+			auto __cat = [](T __fp) -> int
 			{
 				const int __sign = __builtin_signbit(__fp) ? -1 : 1;
 				if (__builtin_isnormal(__fp)) return (__fp == 0 ? 1 : 3) * __sign;
@@ -316,5 +316,5 @@ namespace std
 		} __synth3way = {};
 		template<typename T, typename U = T> using __synth3way_t = decltype(__detail::__synth3way(std::declval<T&>(),  std::declval<U&>()));
 	}
-} 
+}
 #endif

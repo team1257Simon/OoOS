@@ -19,7 +19,7 @@ typedef unsigned long sigset_t;
 #endif
 #ifdef __cplusplus
 constexpr int num_signals = 64;
-extern "C" 
+extern "C"
 {
 #else
 #define num_signals 64
@@ -109,8 +109,8 @@ struct __pack tctl_t
 		enum priority_val prio_base		: 4;		// the base priority of the thread/process
 	};
 	struct attribute(packed, aligned(1))
-	{	
-		uint8_t						skips;				// the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.	
+	{
+		uint8_t						skips;				// the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
 		struct task_signal_info_t*	signal_info;		// points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
 		uint32_t					wait_ticks_delta;	// for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
 		spid_t						parent_pid;			// a negative number indicates no parent; a zero here means the task is actually a kernel thread

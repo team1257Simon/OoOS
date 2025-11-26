@@ -30,7 +30,7 @@ memcmp:
 	jrcxz	1f
 	movl	$-1,		%edx
 	repz	cmpsb
-	setg	%al	
+	setg	%al
 	cmovll	%edx,		%eax
 1:
 	ret

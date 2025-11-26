@@ -7,7 +7,7 @@ int netstack_buffer::tx_flush()
 {
 	if(tx_poll) if(int err = tx_poll(*this); __unlikely(err != 0)) return err;
 	fence();
-	array_zero(__out_region.__begin, __out_region.__capacity()); 
+	array_zero(__out_region.__begin, __out_region.__capacity());
 	__out_region.__setc(0UZ);
 	return 0;
 }
@@ -60,7 +60,7 @@ netstack_buffer::netstack_buffer(size_type initial_rx_cap, size_type initial_tx_
 	tx_poll		{ std::move(txp) },
 	rx_limit	{ rxl },
 	tx_limit	{ txl }
-{ 
+{
 	__in_region.__begin		= __allocator.allocate(initial_rx_cap);
 	__in_region.__end		= __in_region.__begin;
 	__in_region.__cap		= initial_rx_cap;
@@ -68,7 +68,7 @@ netstack_buffer::netstack_buffer(size_type initial_rx_cap, size_type initial_tx_
 	__out_region.__end		= __out_region.__begin;
 	__out_region.__cap		= initial_tx_cap;
 	array_zero(__in_region.__begin, initial_rx_cap);
-	array_zero(__out_region.__begin, initial_tx_cap); 
+	array_zero(__out_region.__begin, initial_tx_cap);
 }
 void netstack_buffer::rx_accumulate(netstack_buffer& that)
 {

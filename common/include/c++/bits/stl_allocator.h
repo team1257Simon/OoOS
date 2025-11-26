@@ -96,25 +96,25 @@ namespace std
 		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
 		template<typename U> struct rebind { typedef alignval_allocator<U, A> other; };
 	private:
-		constexpr static size_type __size_val       = sizeof(T);
-		constexpr static std::align_val_t __align   = A;
+		constexpr static size_type __size_val		= sizeof(T);
+		constexpr static std::align_val_t __align	= A;
 	public:
-		constexpr alignval_allocator() noexcept = default;
-		constexpr ~alignval_allocator() noexcept = default;
+		constexpr alignval_allocator() noexcept		= default;
+		constexpr ~alignval_allocator() noexcept	= default;
 		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new(total, __align), 0, total)); }
 		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
 	};
-	template<typename A> concept __has_move_propagate = std::convertible_to<typename A::propagate_on_container_move_assignment, std::true_type>;
-	template<typename A, typename T> concept __has_resize = requires { { std::declval<A>().resize(std::declval<T*>(), std::declval<size_t>(), std::declval<size_t>()) } -> std::convertible_to<T*>; };
+	template<typename A> concept __has_move_propagate		= std::convertible_to<typename A::propagate_on_container_move_assignment, std::true_type>;
+	template<typename A, typename T> concept __has_resize	= requires { { std::declval<A>().resize(std::declval<T*>(), std::declval<size_t>(), std::declval<size_t>()) } -> std::convertible_to<T*>; };
 #pragma region non-standard memory functions
-	extension template<typename T, allocator_object<T> AT = allocator<T>>
+	extension template<typename T, allocator_object<T> AT	= allocator<T>>
 	[[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc = AT{})
 	{
 		if(__builtin_expect(!array, false)) return alloc.allocate(ncount);
 		if constexpr(!std::is_trivially_destructible_v<T>)
 		{
-			T* result = alloc.allocate(ncount);
-			size_t ccount = ncount < ocount ? ncount : ocount;
+			T* result		= alloc.allocate(ncount);
+			size_t ccount	= ncount < ocount ? ncount : ocount;
 			for(size_t i = 0; i < ccount; i++) { new(addressof(result[i])) T(std::move(array[i])); }
 			alloc.deallocate(array, ocount);
 			return result;

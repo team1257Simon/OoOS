@@ -95,7 +95,7 @@ bool sysfs_vnode::expand_to_size(size_t target)
 		return true;
 	return on_overflow(static_cast<std::streamsize>(target - __capacity())) != 0UZ;
 }
-sysfs_vnode::sysfs_vnode(sysfs& sysfs_parent, uint32_t inode_num) : 
+sysfs_vnode::sysfs_vnode(sysfs& sysfs_parent, uint32_t inode_num) :
 	parent_fs		{ sysfs_parent },
 	ino				{ inode_num },
 	extent_tree		{ *this },

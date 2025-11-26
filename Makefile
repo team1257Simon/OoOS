@@ -44,10 +44,10 @@ EMUFLAGS := -rtc base=utc -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_C
 	-netdev user,id=net0 -device e1000e,netdev=net0 -object filter-dump,id=f1,netdev=net0,file=dump.bin\
 	-monitor vc -serial stdio
 .PHONY: all $(SUBDIRS) asmtest clean distclean
-all: $(LOG_DIR) $(OUT_IMG) 
+all: $(LOG_DIR) $(OUT_IMG)
 run: $(LOG_DIR) $(OUT_IMG)
 	$(EMULATE) $(EMUFLAGS) -drive file=$(OUT_IMG),if=ide,format=raw
-$(BUILD_DIR): 
+$(BUILD_DIR):
 	@mkdir -p $@
 $(LOG_DIR):
 	@mkdir -p $@

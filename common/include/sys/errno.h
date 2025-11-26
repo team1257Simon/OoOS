@@ -1,7 +1,7 @@
 #ifndef __ERRNO
 #define __ERRNO
 #ifdef __cplusplus
-extern "C" 
+extern "C"
 {
 #endif
 int* __errno();

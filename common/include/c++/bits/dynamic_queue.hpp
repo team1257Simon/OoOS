@@ -16,10 +16,10 @@ namespace std::__impl
 		typedef T const* __const_pointer;
 		typedef decltype(sizeof(T)) __size_type;
 		typedef decltype(declval<__pointer>() - declval<__pointer>()) __difference_type;
-		__pointer __begin{};   // Points to the start of allocated storage. Extracted elements remain between here and __next until the buffer is trimmed for stale elements.
-		__pointer __next{};    // Points to one past the last element EXTRACTED FROM the queue.
-		__pointer __end{};     // Points to one past the last element INSERTED INTO the queue.
-		__pointer __qmax{};    // Points to the end of allocated storage.
+		__pointer __begin{};	// Points to the start of allocated storage. Extracted elements remain between here and __next until the buffer is trimmed for stale elements.
+		__pointer __next{};		// Points to one past the last element EXTRACTED FROM the queue.
+		__pointer __end{};		// Points to one past the last element INSERTED INTO the queue.
+		__pointer __qmax{};		// Points to the end of allocated storage.
 		void __reset() noexcept { __begin = __next = __end = __qmax = __pointer(); }
 		constexpr __queue_ptrs() noexcept = default;
 		constexpr __queue_ptrs(__pointer beg, __pointer mx) noexcept : __begin(beg), __next(beg), __end(beg), __qmax(mx) {}
@@ -79,7 +79,7 @@ namespace std::__impl
 		 * Called whenever elements are pushed to or popped from the queue.
 		 * As with dynamic_buffer, the setn/sete/bumpn/bumpe functions do not call this function.
 		 * Inheritors can override to add functionality that needs to be invoked whenever the set's elements are modified, such as trimming stale elements.
-		 * The default implementation does nothing. 
+		 * The default implementation does nothing.
 		 */
 		extension virtual void on_modify_queue() {}
 		constexpr void __qassign(__pointer where, __value_type&& val, __size_type n) { for(__size_type i = 0; i < n; i++, ++where) { __qassign(where, move(val)); } }
@@ -120,10 +120,10 @@ namespace std::__impl
 		constexpr void __q_move_assign(__dynamic_queue&& that) noexcept { __my_queue_data.__move(move(that.__my_queue_data)); __q_state_assign(move(that)); }
 		constexpr void __q_copy_assign(__dynamic_queue const& that) noexcept { __my_queue_data.__set_ptrs(__qallocator.allocate(that.__qcapacity()), that.__qcapacity()); __qcopy(__qbeg(), that.__qbeg(), that.__qcapacity()); __q_state_assign(that); }
 		constexpr __size_type __erase_before_next();
-		constexpr void __set_stale_op_threshold(unsigned int value) noexcept { __qallocator.__stale_op_thresh		= value; }
+		constexpr void __set_stale_op_threshold(unsigned int value) noexcept { __qallocator.__stale_op_thresh			= value; }
 		constexpr void __set_stale_size_threshold(__difference_type value) noexcept { __qallocator.__stale_size_thresh	= value; }
-		constexpr void __q_state_assign(__dynamic_queue const& that) noexcept { this->__qallocator					= that.__qallocator; }
-		constexpr void __q_state_assign(__dynamic_queue&& that) noexcept { this->__qallocator						= move(that.__qallocator); }
+		constexpr void __q_state_assign(__dynamic_queue const& that) noexcept { this->__qallocator						= that.__qallocator; }
+		constexpr void __q_state_assign(__dynamic_queue&& that) noexcept { this->__qallocator							= move(that.__qallocator); }
 		constexpr bool __is_stale() const noexcept { return __qallocator.__op_cnt > __qallocator.__stale_op_thresh && (__my_queue_data.__next - __my_queue_data.__begin) > __qallocator.__stale_size_thresh; }
 		constexpr void __qdestroy()
 		{
@@ -138,8 +138,8 @@ namespace std::__impl
 		/**
 		 * If there have been a number of push operations exceeding the configured operation threshold since the most recent pop or trim,
 		 * and the number of elements between the base and current pointers exceeds the configured size threshold (defaults are 3 and 16 respectively),
-		 * reallocates the buffer with the same capacity but with the element at the current pointer moved to be at the start, 
-		 * sets the position of that pointer to the new start, and returns the number of elements removed. 
+		 * reallocates the buffer with the same capacity but with the element at the current pointer moved to be at the start,
+		 * sets the position of that pointer to the new start, and returns the number of elements removed.
 		 * Otherwise, does nothing and returns zero.
 		 */
 		constexpr __size_type __trim_stale() { return __is_stale() ? __erase_before_next() : __size_type(0UL); }
@@ -263,16 +263,16 @@ namespace std::__impl
 	{
 		if(__unlikely(__q_out_of_range(start))) return 0UL;
 		if(start + n > __qmax()) { n = static_cast<__size_type>(__qmax() - start); }
-		try 
+		try
 		{
-			if(start == __qbeg() && start + n >= __end()) 
+			if(start == __qbeg() && start + n >= __end())
 			{
-				size_t r = __qsize();
+				size_t r	= __qsize();
 				__qdestroy();
 				__my_queue_data.__reset();
 				return r;
 			}
-			__ptr_container tmp(__qallocator.allocate(__qcapacity() - n), __qcapacity() - n); 
+			__ptr_container tmp(__qallocator.allocate(__qcapacity() - n), __qcapacity() - n);
 			if(__end() > start + n) tmp.__bumpn(__qsize() - n);
 			else if(__end() > start) tmp.__bumpn(start - __qbeg());
 			else tmp.__bumpn(__qsize());

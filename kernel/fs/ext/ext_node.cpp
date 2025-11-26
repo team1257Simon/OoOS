@@ -74,7 +74,7 @@ static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* 
 	if(uint32_t checkval	= dword(inode->checksum_lo, inode->checksum_hi))
 	{
 		uint32_t calculated	= compute_inode_csum(csum, parent, inode);
-		if(calculated != checkval) 
+		if(calculated != checkval)
 			throw std::runtime_error("[FS/EXT4] inode checksum " + std::to_string(checkval, std::ext::hex) + " does not match calculated " + std::to_string(calculated, std::ext::hex));
 	}
 	return csum;
@@ -90,7 +90,7 @@ bool ext_vnode_base::update_inode()
 	{
 		fn->modif_time 				= timestamp;
 		if(static_cast<uint16_t>(on_disk_node->mode) != static_cast<uint16_t>(fn->mode))
-			on_disk_node->mode		= fn->mode; 
+			on_disk_node->mode		= fn->mode;
 	}
 	dword csval						= compute_inode_csum(checksum_seed, parent_fs, on_disk_node);
 	on_disk_node->checksum_lo		= csval.lo;
@@ -162,7 +162,7 @@ bool ext_file_vnode::grow(size_t added)
 	}
 	return on_overflow(added) != 0;
 }
-bool ext_file_vnode::fsync() 
+bool ext_file_vnode::fsync()
 {
 	// Nothing to do if we have no data yet
 	if(!__initialized) return true;
@@ -173,25 +173,25 @@ bool ext_file_vnode::fsync()
 		on_disk_node->size_lo	= fsz.lo;
 		on_disk_node->size_hi	= fsz.hi;
 	}
-	return update_inode() && parent_fs->persist(this); 
+	return update_inode() && parent_fs->persist(this);
 }
 std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
 {
 	size_t bs		= parent_fs->block_size();
 	size_t needed	= div_round_up(n, bs);
 	size_t ccap		= __capacity();
-	if(disk_block* blk = parent_fs->claim_blocks(this, needed); __builtin_expect(blk != nullptr, true)) 
-	{ 
+	if(disk_block* blk = parent_fs->claim_blocks(this, needed); __builtin_expect(blk != nullptr, true))
+	{
 		if(__builtin_expect(!expand_buffer(bs * blk->chain_len, n), false)) return 0;
 		array_zero(__get_ptr(ccap), bs * blk->chain_len);
-		return bs * blk->chain_len; 
+		return bs * blk->chain_len;
 	}
 	panic("[FS/EXT4] no blocks");
 	return 0;
 }
 bool ext_file_vnode::on_open()
 {
-	if(__initialized) 
+	if(__initialized)
 	{
 		__initialized			= false;
 		if(__beg()) __rst();
@@ -199,8 +199,8 @@ bool ext_file_vnode::on_open()
 		{
 			if(!__grow_buffer(extents.total_extent * parent_fs->block_size())) return false;
 			if(extents.total_extent)
-			{ 
-				update_block_ptrs(); 
+			{
+				update_block_ptrs();
 				for(disk_block& db : block_data)
 					if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; }
 			}
@@ -233,7 +233,7 @@ bool ext_directory_vnode::on_open()
 tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<vnode*>& checked_elements)
 {
 	std::string separator = parent_fs->get_path_separator();
-	if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic) 
+	if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic)
 	{
 		if(!vn->on_open()) throw std::runtime_error("[FS/EXT4] symlink inode read failed");
 		size_t n		= vn->count();
@@ -256,7 +256,7 @@ tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<vnode*>& ch
 		return result;
 	throw std::runtime_error("[FS/EXT4] bad symlink");
 }
-tnode* ext_directory_vnode::find(std::string const& name) 
+tnode* ext_directory_vnode::find(std::string const& name)
 {
 	if(!on_open()) return nullptr;
 	std::set<vnode*> checked_elements{};
@@ -330,7 +330,7 @@ void ext_directory_vnode::__write_dir_entry(ext_vnode_base* evnode, ext_dirent_t
 bool ext_directory_vnode::add_dir_entry(ext_vnode_base* evnode, ext_dirent_type type, const char* nm, size_t name_len)
 {
 	size_t needed_len = up_to_nearest(name_len + 8, 4);
-	if(!__seek_available_entry(needed_len)) 
+	if(!__seek_available_entry(needed_len))
 	{
 		if(__cur() < __max())
 		{
@@ -427,7 +427,7 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
 {
 	size_t bs			= parent_fs->block_size();
 	extents.has_init	= true;
-	disk_block* db		= parent_fs->claim_blocks(this); 
+	disk_block* db		= parent_fs->claim_blocks(this);
 	if(__builtin_expect(db != nullptr, true))
 	{
 		if(!expand_buffer(bs * db->chain_len)) return false;

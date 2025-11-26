@@ -65,7 +65,7 @@ int protocol_dhcp::receive(abstract_packet_base& p)
 abstract_packet<dhcp_packet> protocol_dhcp::create_packet(mac_t const& dest_mac, ipv4_addr dest_ip, size_t total_size, uint32_t xid)
 {
 	abstract_packet<dhcp_packet> result(total_size, std::in_place_type<dhcp_packet>, std::forward<ipv4_standard_header>(base->create_packet(dest_mac)));
-	if(transaction_timers.contains(xid)) 
+	if(transaction_timers.contains(xid))
 		result->seconds			= static_cast<uint16_t>(sys_time(nullptr) - transaction_timers[xid]);
 	result->transaction_id		= xid;
 	result->destination_addr	= dest_ip;
@@ -81,7 +81,7 @@ void protocol_dhcp::discover(std::vector<net8> const& param_requests)
 {
 	size_t num_requests							= param_requests.size();
 	size_t total_param_size						= (num_requests + 2UZ) + 4UZ; // 2 bytes for the request list type and size, 3 bytes for the message type, 1 byte for the EOT mark
-	size_t target_size							= total_dhcp_size(total_param_size); 
+	size_t target_size							= total_dhcp_size(total_param_size);
 	size_t actual_size							= up_to_nearest(target_size, 2UZ);
 	uint32_t xid								= static_cast<uint32_t>(rand());
 	while(transaction_timers.contains(xid)) xid	= static_cast<uint32_t>(rand());
@@ -157,7 +157,7 @@ net8 protocol_dhcp::process_packet_parameter(dhcp_parameter const& param)
 		ipconfig.subnet_mask				= param.start().deref<net32>();
 		break;
 	case SERVER_IDENTIFIER:
-		if(!ipconfig.dhcp_server_addr) 
+		if(!ipconfig.dhcp_server_addr)
 			ipconfig.dhcp_server_addr		= param.start().deref<net32>();
 		break;
 	case ROUTER:
@@ -176,15 +176,15 @@ net8 protocol_dhcp::process_packet_parameter(dhcp_parameter const& param)
 		ipconfig.time_to_live_default		= param.start().deref<net8>();
 		break;
 	case RENEWAL_TIME_VALUE:
-		if(ipconfig.current_state != ipv4_client_state::BOUND) 
+		if(ipconfig.current_state != ipv4_client_state::BOUND)
 			ipconfig.lease_renew_time		= param.start().deref<net32>();
 		break;
 	case REBINDING_TIME_VALUE:
-		if(ipconfig.current_state != ipv4_client_state::BOUND) 
+		if(ipconfig.current_state != ipv4_client_state::BOUND)
 			ipconfig.lease_rebind_time		= param.start().deref<net32>();
 		break;
 	case IP_LEASE_TIME:
-		if(ipconfig.current_state != ipv4_client_state::BOUND) 
+		if(ipconfig.current_state != ipv4_client_state::BOUND)
 			ipconfig.lease_duration			= param.start().deref<net32>();
 		break;
 	default:
@@ -255,7 +255,7 @@ int protocol_dhcp::renew()
 {
 	if(__unlikely(!ipconfig.leased_addr)) return -EINVAL;
 	constexpr size_t total_param_size 		= 4UZ;
-	constexpr size_t actual_size			= total_dhcp_size(total_param_size); 
+	constexpr size_t actual_size			= total_dhcp_size(total_param_size);
 	mac_t server_mac						= ipresolve[ipconfig.dhcp_server_addr];
 	abstract_packet<dhcp_packet> renew_pkt	= create_packet(server_mac, ipconfig.dhcp_server_addr, actual_size, active_renewal_xid);
 	addr_t pos								= renew_pkt->parameters;

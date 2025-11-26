@@ -5,7 +5,7 @@
 #ifndef restrict
 #define restrict
 #endif
-extern "C" 
+extern "C"
 {
 #endif
 void* memcpy(void* restrict dest, const void* restrict src, size_t n);

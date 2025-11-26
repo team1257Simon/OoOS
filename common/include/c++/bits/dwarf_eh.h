@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2010-2011 PathScale, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
  * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -47,7 +47,7 @@
 typedef unsigned char *dw_eh_ptr_t;
 // Flag indicating a signed quantity
 #define DW_EH_PE_signed 0x08
-/// DWARF data encoding types.  
+/// DWARF data encoding types.
 enum dwarf_data_encoding
 {
 	/// Absolute pointer value
@@ -115,7 +115,7 @@ static inline int dwarf_size_of_fixed_size_field(unsigned char type)
 	switch (get_encoding(type))
 	{
 		default: abort();
-		case DW_EH_PE_sdata2: 
+		case DW_EH_PE_sdata2:
 		case DW_EH_PE_udata2: return 2;
 		case DW_EH_PE_sdata4:
 		case DW_EH_PE_udata4: return 4;
@@ -124,7 +124,7 @@ static inline int dwarf_size_of_fixed_size_field(unsigned char type)
 		case DW_EH_PE_absptr: return sizeof(void*);
 	}
 }
-/** 
+/**
  * Read an unsigned, little-endian, base-128, DWARF value.  Updates *data to
  * point to the end of the value.  Stores the number of bits read in the value
  * pointed to by b, allowing you to determine the value of the highest bit, and
@@ -145,7 +145,7 @@ static uint64_t read_leb128(dw_eh_ptr_t *data, int *b)
 		// This check is a bit too strict - we should also check the highest
 		// bit of the digit.
 		assert(bit < sizeof(uint64_t) * 8);
-		// Get the base 128 digit 
+		// Get the base 128 digit
 		digit = (**data) & 0x7F;
 		// Add it to the current value
 		uleb += digit << bit;
@@ -253,7 +253,7 @@ static uint64_t resolve_indirect_value(_Unwind_Context *c, unsigned char encodin
 
 
 /**
- * Reads an encoding and a value, updating *data to point to the next byte.  
+ * Reads an encoding and a value, updating *data to point to the next byte.
  */
 static inline void read_value_with_encoding(_Unwind_Context *context, dw_eh_ptr_t *data, uint64_t *out)
 {
@@ -267,7 +267,7 @@ static inline void read_value_with_encoding(_Unwind_Context *context, dw_eh_ptr_
 /**
  * Structure storing a decoded language-specific data area.  Use parse_lsda()
  * to generate an instance of this structure from the address returned by the
- * generic unwind library.  
+ * generic unwind library.
  *
  * You should not need to inspect the fields of this structure directly if you
  * are just using this header.  The structure stores the locations of the
@@ -299,34 +299,34 @@ struct dwarf_eh_lsda
 static inline struct dwarf_eh_lsda parse_lsda(_Unwind_Context *context, unsigned char *data)
 {
 	struct dwarf_eh_lsda lsda;
-	lsda.region_start = reinterpret_cast<dw_eh_ptr_t>(_Unwind_GetRegionStart(context));
+	lsda.region_start	= reinterpret_cast<dw_eh_ptr_t>(_Unwind_GetRegionStart(context));
 	// If the landing pads are relative to anything other than the start of
 	// this region, find out where.  This is @LPStart in the spec, although the
 	// encoding that GCC uses does not quite match the spec.
-	uint64_t v = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(lsda.region_start));
+	uint64_t v			= static_cast<uint64_t>(reinterpret_cast<uintptr_t>(lsda.region_start));
 	read_value_with_encoding(context, &data, &v);
-	lsda.landing_pads = reinterpret_cast<dw_eh_ptr_t>(static_cast<uintptr_t>(v));
+	lsda.landing_pads	= reinterpret_cast<dw_eh_ptr_t>(static_cast<uintptr_t>(v));
 	// If there is a type table, find out where it is.  This is @TTBase in the
 	// spec.  Note: we find whether there is a type table pointer by checking
 	// whether the leading byte is DW_EH_PE_omit (0xff), which is not what the
 	// spec says, but does seem to be how G++ indicates this.
 	lsda.type_table = 0;
-	lsda.type_table_encoding = *data++;
-	if (lsda.type_table_encoding != DW_EH_PE_omit)
+	lsda.type_table_encoding	= *data++;
+	if(lsda.type_table_encoding	!= DW_EH_PE_omit)
 	{
-		v = read_uleb128(&data);
-		dw_eh_ptr_t type_table = data;
-		type_table += v;
-		lsda.type_table = type_table;
+		v						= read_uleb128(&data);
+		dw_eh_ptr_t type_table	= data;
+		type_table				+= v;
+		lsda.type_table			= type_table;
 		//lsda.type_table = (uintptr_t*)(data + v);
 	}
-	lsda.callsite_encoding = static_cast<enum dwarf_data_encoding>(*(data++));
+	lsda.callsite_encoding	= static_cast<enum dwarf_data_encoding>(*(data++));
 	// Action table is immediately after the call site table
-	lsda.action_table = data;
-	uintptr_t callsite_size = static_cast<uintptr_t>(read_uleb128(&data));
-	lsda.action_table = data + callsite_size;
+	lsda.action_table		= data;
+	uintptr_t callsite_size	= static_cast<uintptr_t>(read_uleb128(&data));
+	lsda.action_table		= data + callsite_size;
 	// Call site table is immediately after the header
-	lsda.call_site_table = static_cast<dw_eh_ptr_t>(data);
+	lsda.call_site_table	= static_cast<dw_eh_ptr_t>(data);
 	return lsda;
 }
 /**
@@ -336,7 +336,7 @@ static inline struct dwarf_eh_lsda parse_lsda(_Unwind_Context *context, unsigned
  */
 struct dwarf_eh_action
 {
-	/** 
+	/**
 	 * The address that this action directs should be the new program counter
 	 * value after unwinding.
 	 */
@@ -349,26 +349,26 @@ struct dwarf_eh_action
  * Returns true if record exists.  The context is provided by the generic
  * unwind library and the lsda should be the result of a call to parse_lsda().
  *
- * The action record is returned via the result parameter.  
+ * The action record is returned via the result parameter.
  */
 static bool dwarf_eh_find_callsite(struct _Unwind_Context *context, struct dwarf_eh_lsda *lsda, struct dwarf_eh_action *result)
 {
-	result->action_record = 0;
-	result->landing_pad = 0;
+	result->action_record			= 0;
+	result->landing_pad				= 0;
 	// The current instruction pointer offset within the region
-	uint64_t ip = _Unwind_GetIP(context) - _Unwind_GetRegionStart(context);
-	unsigned char *callsite_table = static_cast<unsigned char*>(lsda->call_site_table);
-	while (callsite_table <= lsda->action_table)
+	uint64_t ip						= _Unwind_GetIP(context) - _Unwind_GetRegionStart(context);
+	unsigned char *callsite_table	= static_cast<unsigned char*>(lsda->call_site_table);
+	while(callsite_table <= lsda->action_table)
 	{
 		// Once again, the layout deviates from the spec.
 		uint64_t call_site_start, call_site_size, landing_pad, action;
-		call_site_start = read_value(lsda->callsite_encoding, &callsite_table);
-		call_site_size = read_value(lsda->callsite_encoding, &callsite_table);
+		call_site_start	= read_value(lsda->callsite_encoding, &callsite_table);
+		call_site_size	= read_value(lsda->callsite_encoding, &callsite_table);
 		// Call site entries are sorted, so if we find a call site that's after
 		// the current instruction pointer then there is no action associated
 		// with this call and we should unwind straight through this frame
 		// without doing anything.
-		if (call_site_start > ip) { break; }
+		if(call_site_start > ip) { break; }
 		// Read the address of the landing pad and the action from the call
 		// site table.
 		landing_pad = read_value(lsda->callsite_encoding, &callsite_table);
@@ -381,16 +381,16 @@ static bool dwarf_eh_find_callsite(struct _Unwind_Context *context, struct dwarf
 		//
 		// The call stack contains address2 and not address1, address1 can be
 		// at the end of another EH region.
-		if (call_site_start < ip && ip <= call_site_start + call_site_size)
+		if(call_site_start < ip && ip <= call_site_start + call_site_size)
 		{
-			if (action)
+			if(action)
 			{
 				// Action records are 1-biased so both no-record and zeroth
 				// record can be stored.
 				result->action_record = lsda->action_table + action - 1;
 			}
 			// No landing pad means keep unwinding.
-			if (landing_pad)
+			if(landing_pad)
 			{
 				// Landing pad is the offset from the value in the header
 				result->landing_pad = lsda->landing_pads + landing_pad;
@@ -401,18 +401,18 @@ static bool dwarf_eh_find_callsite(struct _Unwind_Context *context, struct dwarf
 	return false;
 }
 /// Defines an exception class from 8 bytes (endian independent)
-#define EXCEPTION_CLASS(a,b,c,d,e,f,g,h) \
-	((static_cast<uint64_t>(a) << 56) +\
-	 (static_cast<uint64_t>(b) << 48) +\
-	 (static_cast<uint64_t>(c) << 40) +\
-	 (static_cast<uint64_t>(d) << 32) +\
-	 (static_cast<uint64_t>(e) << 24) +\
-	 (static_cast<uint64_t>(f) << 16) +\
-	 (static_cast<uint64_t>(g) << 8) +\
-	 (static_cast<uint64_t>(h)))
-#define GENERIC_EXCEPTION_CLASS(e,f,g,h) \
-	 (static_cast<uint32_t>(e) << 24) +\
-	 (static_cast<uint32_t>(f) << 16) +\
-	 (static_cast<uint32_t>(g) << 8) +\
-	 (static_cast<uint32_t>(h))
+#define EXCEPTION_CLASS(a,b,c,d,e,f,g,h)	\
+	((static_cast<uint64_t>(a) << 56)	+	\
+	(static_cast<uint64_t>(b) << 48)	+	\
+	(static_cast<uint64_t>(c) << 40)	+	\
+	(static_cast<uint64_t>(d) << 32)	+	\
+	(static_cast<uint64_t>(e) << 24)	+	\
+	(static_cast<uint64_t>(f) << 16)	+	\
+	(static_cast<uint64_t>(g) << 8)		+	\
+	(static_cast<uint64_t>(h)))
+#define GENERIC_EXCEPTION_CLASS(e,f,g,h)	\
+	(static_cast<uint32_t>(e) << 24)	+	\
+	(static_cast<uint32_t>(f) << 16) 	+	\
+	(static_cast<uint32_t>(g) << 8) 	+	\
+	(static_cast<uint32_t>(h))
 #endif

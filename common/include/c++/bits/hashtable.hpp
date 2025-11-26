@@ -3,9 +3,9 @@
 #include "bits/aligned_buffer.hpp"
 #include "bits/stl_iterator.hpp"
 #include "bits/stl_algobase.hpp"
-#include "bits/functional_compare.hpp"  // equal_to
-#include "memory"                       // construct_at
-#include "tuple"                        // piecewise_construct, pair
+#include "bits/functional_compare.hpp"	// equal_to
+#include "memory"						// construct_at
+#include "tuple"						// piecewise_construct, pair
 #include "initializer_list"
 namespace std
 {
@@ -21,8 +21,8 @@ namespace std
 	{
 		struct __hash_node_base
 		{
-			__hash_node_base* __next = nullptr; // next node in the chain (i.e. same bucket)
-			constexpr __hash_node_base() noexcept = default;
+			__hash_node_base* __next				= nullptr;	// next node in the chain (i.e. same bucket)
+			constexpr __hash_node_base() noexcept	= default;
 			constexpr __hash_node_base(__hash_node_base* n) noexcept : __next(n) {}
 		};
 		struct __hashtable_base
@@ -33,12 +33,12 @@ namespace std
 			typedef __bucket* __buckets_ptr;
 			typedef decltype(sizeof(__hash_node_base)) size_type;
 			__hash_node_base __root{};
-			__bucket __singularity      = nullptr;
-			size_type __element_count   = 0UL;
-			size_type __bucket_count    = 1UL;
-			size_type __after_root_idx  = 0UL;
-			__buckets_ptr __my_buckets  = addressof(__singularity);            
-			float __max_load            = 1.0F;
+			__bucket __singularity		= nullptr;
+			size_type __element_count	= 0UL;
+			size_type __bucket_count	= 1UL;
+			size_type __after_root_idx	= 0UL;
+			__buckets_ptr __my_buckets	= addressof(__singularity);
+			float __max_load			= 1.0F;
 			constexpr __hashtable_base() = default;
 			constexpr bool __is_singularity() const noexcept { return __my_buckets == addressof(__singularity); }
 			constexpr float __load(size_type added) const noexcept { return (__element_count + added) / double(__bucket_count); }
@@ -61,25 +61,26 @@ namespace std
 			constexpr __hashtable_base(__hashtable_base&& that) noexcept : __root(that.__root), __element_count(that.__element_count), __bucket_count(that.__bucket_count), __after_root_idx(that.__after_root_idx), __my_buckets(that.__my_buckets) { that.__reset(); that.__init_buckets(2UL); }
 		};
 		constexpr void __hashtable_base::__insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n)
-		{ 
+		{
 			if(buckets[idx]) { n->__next = buckets[idx]->__next; buckets[idx]->__next = n; }
 			else
 			{
-				n->__next = __root.__next;
-				__root.__next = n;
+				n->__next			= __root.__next;
+				__root.__next		= n;
 				if(n->__next) { buckets[__after_root_idx] = n; }
-				__after_root_idx = idx;
-				buckets[idx] = std::addressof(__root);
+				__after_root_idx	= idx;
+				buckets[idx]		= std::addressof(__root);
 			}
 		}
 		constexpr void __hashtable_base::__remove_first_at(__buckets_ptr buckets, size_type idx, __base_ptr n_next, size_type next_bucket)
 		{
-			if(!n_next) { buckets[idx] = nullptr; }
-			else if(idx != next_bucket) 
-			{ 
-				buckets[next_bucket] = buckets[idx]; 
-				buckets[idx] = nullptr; 
-				if(idx == __after_root_idx) __after_root_idx = next_bucket;
+			if(!n_next) { buckets[idx]	= nullptr; }
+			else if(idx != next_bucket)
+			{
+				buckets[next_bucket]	= buckets[idx];
+				buckets[idx]			= nullptr;
+				if(idx == __after_root_idx)
+					__after_root_idx	= next_bucket;
 			}
 		}
 		template<typename VT>
@@ -105,7 +106,7 @@ namespace std
 			typedef ptrdiff_t difference_type;
 			typedef forward_iterator_tag iterator_concept;
 			typedef input_iterator_tag iterator_category;
-		private:    
+		private:
 			typedef __hashtable_iterator<T> __iterator_type;
 			typedef __hash_node_base* __base_ptr;
 			typedef __hash_node<T>* __node_ptr;
@@ -131,7 +132,7 @@ namespace std
 			typedef ptrdiff_t difference_type;
 			typedef forward_iterator_tag iterator_concept;
 			typedef input_iterator_tag iterator_category;
-		private:            
+		private:
 			typedef __hashtable_iterator<T> __iterator_type;
 			typedef __hashtable_const_iterator<T> __const_iterator_type;
 			typedef __hash_node_base const* __base_ptr;
@@ -261,12 +262,12 @@ namespace std
 			// TODO (if needed): iterator __insert_node_multi(__node_ptr n, size_type added);
 		};
 		template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
-		constexpr void __hashtable<KT, VT, HT, XT, ET, AT>::__run_rehash(size_type target_count) 
+		constexpr void __hashtable<KT, VT, HT, XT, ET, AT>::__run_rehash(size_type target_count)
 		{
 			if(__unlikely(target_count < 2UL)) target_count = 2UL;
-			__buckets_ptr nbkts		= this->__allocate_buckets(target_count); 
+			__buckets_ptr nbkts		= this->__allocate_buckets(target_count);
 			__node_ptr orig			= __begin();
-			this->__after_root_idx	= 0; 
+			this->__after_root_idx	= 0;
 			this->__root.__next		= nullptr;
 			for(__node_ptr p = orig; p; p = p->__get_next()) this->__insert_at(nbkts, this->__range(__hash_code(p), target_count), p);
 			this->__deallocate_buckets();
@@ -277,13 +278,18 @@ namespace std
 		constexpr typename __hashtable<KT, VT, HT, XT, ET, AT>::iterator __hashtable<KT, VT, HT, XT, ET, AT>::__erase_node(size_type idx, __base_ptr prev, __node_ptr n)
 		{
 			if(__unlikely(!n)) return iterator(nullptr);
-			if(prev == this->__my_buckets[idx]) { this->__remove_first_at(idx, n->__next, n->__next ? __index(n->__get_next()) : 0UL); } 
-			else if(n->__next) { size_t subs_idx = __index(n->__get_next()); if(idx != subs_idx) this->__my_buckets[subs_idx] = prev; } 
-			prev->__next = n->__next; 
-			iterator result(n->__next); 
+			if(prev == this->__my_buckets[idx]) { this->__remove_first_at(idx, n->__next, n->__next ? __index(n->__get_next()) : 0UL); }
+			else if(n->__next)
+			{
+				size_t subs_idx						= __index(n->__get_next());
+				if(idx != subs_idx)
+					this->__my_buckets[subs_idx]	= prev;
+			}
+			prev->__next							= n->__next;
+			iterator result(n->__next);
 			__destroy_node(n);
 			this->__element_count--;
-			return result; 
+			return result;
 		}
 	}
 }

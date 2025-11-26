@@ -114,7 +114,7 @@ namespace std
 	{
 		template<typename TT> concept __has_comparison_category = requires { typename TT::comparison_category; };
 		template<typename TT> constexpr auto __char_traits_cmp_cat(int __cmp) noexcept
-		{ 
+		{
 			if constexpr(__has_comparison_category<TT>)
 			{
 				using CT = typename TT::comparison_category;
@@ -127,7 +127,7 @@ namespace std
 	extension namespace ext
 	{
 		template<char_type CT, char_traits_type<CT> TT = char_traits<CT>>
-		struct lexcial_equals
+		struct lexical_equals
 		{
 			typedef TT traits_type;
 			constexpr bool operator()(const CT* const& a, const CT* const& b) const noexcept

@@ -72,12 +72,12 @@ int abstract_packet_base::write_to(netstack_buffer& buff) const
 }
 mac_t const& abstract_ip_resolver::operator[](ipv4_addr addr)
 {
-	if(previously_resolved.contains(addr)) 
+	if(previously_resolved.contains(addr))
 		return previously_resolved[addr];
 	return resolve(addr);
 }
-int protocol_ethernet::receive(abstract_packet_base& p) 
-{ 
+int protocol_ethernet::receive(abstract_packet_base& p)
+{
 	ethernet_header* hdr	= static_cast<ethernet_header*>(p.packet_data);
 	if(handlers.contains(hdr->protocol_type))
 	{

@@ -9,31 +9,31 @@ namespace std
 	{
 		friend class device_vnode;
 	public:
-		typedef CT                      char_type;
-		typedef TT                      traits_type;
-		typedef typename TT::int_type   int_type;
-		typedef typename TT::pos_type   pos_type;
-		typedef typename TT::off_type   off_type;
+		typedef CT						char_type;
+		typedef TT						traits_type;
+		typedef typename TT::int_type	int_type;
+		typedef typename TT::pos_type	pos_type;
+		typedef typename TT::off_type	off_type;
 		typedef basic_streambuf<char_type, traits_type> __sb_type;
 	protected:
 		using __ptr_container = typename std::__impl::__buf_ptrs<CT>;
 		__ptr_container __in_region;
 		__ptr_container __out_region;
-		basic_streambuf() : __in_region{}, __out_region{} {}
+		basic_streambuf() : __in_region(), __out_region() {}
 		basic_streambuf(basic_streambuf const&) = default;
 		basic_streambuf& operator=(basic_streambuf const&) = default;
-		char_type* eback() const { return __in_region.__begin;  }
-		char_type* gptr()  const { return __in_region.__end;    }
-		char_type* egptr() const { return __in_region.__max(); }
-		void gbump(int n)        { __in_region.__end += n;      }
-		char_type* pbase() const { return __out_region.__begin; }
-		char_type* pptr()  const { return __out_region.__end;   }
-		char_type* epptr() const {  return __out_region.__max(); }
-		void pbump(int n)        { __out_region.__end += n;     }
-		void setp(char_type* pbeg, char_type* pend)                         { __out_region.__set_ptrs(pbeg, pbeg, pend); }
-		void setp(char_type* pbeg, char_type* pcur, char_type* pend)        { __out_region.__set_ptrs(pbeg, pcur, pend); }
-		void setg(char_type* gbeg, char_type* gend)                         { __in_region.__set_ptrs(gbeg, gbeg, gend);  }
-		void setg(char_type* gbeg, char_type* gnext, char_type* gend)       { __in_region.__set_ptrs(gbeg, gnext, gend); }
+		char_type* eback() const	{ return __in_region.__begin;		}
+		char_type* gptr()	const	{ return __in_region.__end;			}
+		char_type* egptr() const	{ return __in_region.__max(); 		}
+		void gbump(int n)			{ __in_region.__end += n;			}
+		char_type* pbase() const	{ return __out_region.__begin;		}
+		char_type* pptr()	const	{ return __out_region.__end;		}
+		char_type* epptr() const	{	return __out_region.__max();	}
+		void pbump(int n)			{ __out_region.__end += n; }
+		void setp(char_type* pbeg, char_type* pend)						{ __out_region.__set_ptrs(pbeg, pbeg, pend); }
+		void setp(char_type* pbeg, char_type* pcur, char_type* pend)	{ __out_region.__set_ptrs(pbeg, pcur, pend); }
+		void setg(char_type* gbeg, char_type* gend)						{ __in_region.__set_ptrs(gbeg, gbeg, gend);	}
+		void setg(char_type* gbeg, char_type* gnext, char_type* gend)	{ __in_region.__set_ptrs(gbeg, gnext, gend); }
 		virtual basic_streambuf<char_type, traits_type>* setbuf(char_type*, streamsize) { return this; }
 		virtual pos_type seekoff(off_type, ios_base::seekdir, ios_base::openmode = ios_base::in | ios_base::out) { return pos_type(off_type(-1)); }
 		virtual pos_type seekpos(pos_type, ios_base::openmode = ios_base::in | ios_base::out) { return pos_type(off_type(-1)); }
@@ -73,11 +73,11 @@ namespace std
 			const streamsize buf_len = egptr() - gptr();
 			if(buf_len)
 			{
-				const streamsize rem = n - i;
-				const streamsize len = std::min(buf_len, rem);
+				const streamsize rem	= n - i;
+				const streamsize len	= std::min(buf_len, rem);
 				traits_type::copy(s, gptr(), len);
-				i += len;
-				s += len;
+				i						+= len;
+				s						+= len;
 				__in_region.__adv(len);
 			}
 			if(i >= n) break;
@@ -96,11 +96,11 @@ namespace std
 			const streamsize buf_len = epptr() - pptr();
 			if(buf_len)
 			{
-				const streamsize rem = n - i;
-				const streamsize len = std::min(buf_len, rem);
+				const streamsize rem	= n - i;
+				const streamsize len	= std::min(buf_len, rem);
 				traits_type::copy(pptr(), s, len);
-				i += len;
-				s += len;
+				i						+= len;
+				s						+= len;
 				__out_region.__adv(len);
 			}
 			if(i >= n) break;

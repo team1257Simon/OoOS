@@ -47,8 +47,8 @@ fat32_directory_vnode* fat32::put_directory_node(std::string const& name, fat32_
 bool fat32::init()
 {
 	if(__unlikely(!__the_table.get_from_disk())) return false;
-	__root_directory = __directory_nodes.emplace(this, "", nullptr, __root_cl_num, 0UL).first.base(); 
-	__root_directory->parse_dir_data(); 
+	__root_directory = __directory_nodes.emplace(this, "", nullptr, __root_cl_num, 0UL).first.base();
+	__root_directory->parse_dir_data();
 	return __root_directory->valid();
 }
 void fat32::dlfilenode(file_vnode* fd)
@@ -60,7 +60,7 @@ void fat32::dlfilenode(file_vnode* fd)
 	syncdirs();
 }
 void fat32::dldirnode(directory_vnode* dd)
-{    
+{
 	if(!dd->is_empty()) { throw std::logic_error(std::string("cannot delete directory ") + dd->name() + " because it is not empty"); }
 	dd->prune_refs();
 	std::map<uint64_t, size_t>::iterator i = __st_cluster_ref_counts.find(dd->cid());

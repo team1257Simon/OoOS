@@ -77,7 +77,7 @@ user_entry:
 	movw		%ax,					%gs:T_OFFS(ss)
 	movw		%cs,					%ax
 	movw		%ax,					%gs:T_OFFS(cs)
-	swapgs	
+	swapgs
 	movw		T_OFFS(ds)(%rdi),		%ax
 	movw		%ax,					%ds
 	movw		%ax,					%es

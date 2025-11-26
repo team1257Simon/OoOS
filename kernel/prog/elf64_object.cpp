@@ -52,7 +52,7 @@ bool elf64_object::validate() noexcept
 	if(__unlikely(!__image_size)) return false;
 	if(__unlikely(__builtin_memcmp(ehdr().e_ident, "\177ELF", 4) != 0)) { panic("[PRG] missing identifier; invalid object"); return false; }
 	try { return (__validated = xvalidate()); }
-	catch(std::exception& e) { panic(e.what()); return false; } 
+	catch(std::exception& e) { panic(e.what()); return false; }
 }
 bool elf64_object::load() noexcept
 {
@@ -123,8 +123,8 @@ bool elf64_object::xload()
 std::vector<block_descriptor> elf64_object::segment_blocks() const
 {
 	std::vector<block_descriptor> result(num_seg_descriptors);
-	for(size_t i = 0; i < num_seg_descriptors; i++) 
-	{ 
+	for(size_t i = 0; i < num_seg_descriptors; i++)
+	{
 		if(segments[i].size)
 		{
 			size_t align		= segments[i].seg_align;
@@ -138,9 +138,9 @@ std::vector<block_descriptor> elf64_object::segment_blocks() const
 elf64_object::elf64_object(elf64_object const& that) :
 	__validated			{ that.__validated },
 	__loaded			{ that.__loaded },
-	__image_start		{ that.__image_start }, 
+	__image_start		{ that.__image_start },
 	__image_size		{ that.__image_size },
-	num_seg_descriptors { that.num_seg_descriptors }, 
+	num_seg_descriptors { that.num_seg_descriptors },
 	segments			{ sd_alloc.allocate(num_seg_descriptors) },
 	symtab				{ that.symtab.total_size, that.symtab.entry_size, ch_alloc.allocate(that.symtab.total_size) },
 	symstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.symstrtab.total_size) },
@@ -161,8 +161,8 @@ elf64_object::elf64_object(elf64_object const& that) :
 elf64_object::elf64_object(elf64_object&& that) :
 	__validated			{ that.__validated },
 	__loaded			{ that.__loaded },
-	__image_start		{ that.__image_start }, 
-	__image_size		{ that.__image_size }, 
+	__image_start		{ that.__image_start },
+	__image_size		{ that.__image_size },
 	num_seg_descriptors { that.num_seg_descriptors },
 	segments			{ that.segments },
 	symtab				{ std::move(that.symtab) },

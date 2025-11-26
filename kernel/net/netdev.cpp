@@ -16,7 +16,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 	try
 	{
 		abstract_packet<ethernet_header> p(b);
-		if(p->protocol_type == ethertype_arp) 
+		if(p->protocol_type == ethertype_arp)
 		{
 			p.packet_type	= arp_handler.packet_type();
 			if(int err		= arp_handler.receive(p); __unlikely(err != 0)) return err;

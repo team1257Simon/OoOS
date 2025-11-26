@@ -2,7 +2,7 @@
 #define __PWD_H
 #include "sys/types.h"
 #ifdef __cplusplus
-extern "C" 
+extern "C"
 {
 #endif
 #ifdef __KERNEL__
@@ -10,7 +10,7 @@ typedef
 #else
 #include <sys/types.h>
 #endif
-struct passwd 
+struct passwd
 {
 	char*   pw_name;		/* user name */
 	char*   pw_passwd;		/* encrypted password */
@@ -23,7 +23,7 @@ struct passwd
 }
 #ifdef __KERNEL__
 unix_pwd;
-#else 
+#else
 ;
 struct passwd*  getpwent(void);
 void		 setpwent(void);

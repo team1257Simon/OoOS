@@ -373,34 +373,34 @@ static unsigned char bf_atoi64[0x60] = {
 	43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 64, 64, 64, 64, 64
 };
 
-#define bf_safe_atoi64(dst, src) \
-{ \
-	tmp = (unsigned char)(src); \
-	if ((unsigned int)(tmp -= 0x20) >= 0x60) return -1; \
-	tmp = bf_atoi64[tmp]; \
-	if (tmp > 63) return -1; \
-	(dst) = tmp; \
+#define bf_safe_atoi64(dst, src)							\
+{															\
+	tmp		= (unsigned char)(src);							\
+	if ((unsigned int)(tmp -= 0x20) >= 0x60) return -1;		\
+	tmp		= bf_atoi64[tmp];								\
+	if (tmp > 63) return -1;								\
+	(dst)	= tmp;											\
 }
 
 static int bf_decode(bf_word *dst, const char *src, int size)
 {
-	unsigned char *dptr = (unsigned char *)dst;
-	unsigned char *end = dptr + size;
-	const unsigned char *sptr = (const unsigned char *)src;
+	unsigned char *dptr			= (unsigned char *)dst;
+	unsigned char *end			= dptr + size;
+	const unsigned char *sptr	= (const unsigned char *)src;
 	unsigned int tmp, c1, c2, c3, c4;
 
 	do {
 		bf_safe_atoi64(c1, *sptr++);
 		bf_safe_atoi64(c2, *sptr++);
-		*dptr++ = (c1 << 2) | ((c2 & 0x30) >> 4);
+		*dptr++					= (c1 << 2) | ((c2 & 0x30) >> 4);
 		if (dptr >= end) break;
 
 		bf_safe_atoi64(c3, *sptr++);
-		*dptr++ = ((c2 & 0x0F) << 4) | ((c3 & 0x3C) >> 2);
+		*dptr++					= ((c2 & 0x0F) << 4) | ((c3 & 0x3C) >> 2);
 		if (dptr >= end) break;
 
 		bf_safe_atoi64(c4, *sptr++);
-		*dptr++ = ((c3 & 0x03) << 6) | c4;
+		*dptr++					= ((c3 & 0x03) << 6) | c4;
 	} while (dptr < end);
 
 	return 0;
@@ -408,140 +408,139 @@ static int bf_decode(bf_word *dst, const char *src, int size)
 
 static void bf_encode(char *dst, const bf_word *src, int size)
 {
-	const unsigned char *sptr = (const unsigned char *)src;
-	const unsigned char *end = sptr + size;
-	unsigned char *dptr = (unsigned char *)dst;
+	const unsigned char *sptr	= (const unsigned char *)src;
+	const unsigned char *end	= sptr + size;
+	unsigned char *dptr			= (unsigned char *)dst;
 	unsigned int c1, c2;
 
 	do {
-		c1 = *sptr++;
-		*dptr++ = bf_itoa64[c1 >> 2];
-		c1 = (c1 & 0x03) << 4;
+		c1		= *sptr++;
+		*dptr++	= bf_itoa64[c1 >> 2];
+		c1		= (c1 & 0x03) << 4;
 		if (sptr >= end) {
-			*dptr++ = bf_itoa64[c1];
+			*dptr++	= bf_itoa64[c1];
 			break;
 		}
 
-		c2 = *sptr++;
-		c1 |= c2 >> 4;
-		*dptr++ = bf_itoa64[c1];
-		c1 = (c2 & 0x0f) << 2;
+		c2		= *sptr++;
+		c1		|= c2 >> 4;
+		*dptr++	= bf_itoa64[c1];
+		c1		= (c2 & 0x0f) << 2;
 		if (sptr >= end) {
-			*dptr++ = bf_itoa64[c1];
+			*dptr++	= bf_itoa64[c1];
 			break;
 		}
 
-		c2 = *sptr++;
-		c1 |= c2 >> 6;
-		*dptr++ = bf_itoa64[c1];
-		*dptr++ = bf_itoa64[c2 & 0x3f];
+		c2	= *sptr++;
+		c1	|= c2 >> 6;
+		*dptr++	= bf_itoa64[c1];
+		*dptr++	= bf_itoa64[c2 & 0x3f];
 	} while (sptr < end);
 }
 
 static void bf_swap(bf_word *x, int count)
 {
-	static int endianness_check = 1;
-	char *is_little_endian = (char *)&endianness_check;
+	static int endianness_check	= 1;
+	char *is_little_endian		= (char*)&endianness_check;
 	bf_word tmp;
 
 	if (*is_little_endian)
 	do {
-		tmp = *x;
-		tmp = (tmp << 16) | (tmp >> 16);
-		*x++ = ((tmp & 0x00FF00FF) << 8) | ((tmp >> 8) & 0x00FF00FF);
+		tmp		= *x;
+		tmp		= (tmp << 16) | (tmp >> 16);
+		*x++	= ((tmp & 0x00FF00FF) << 8) | ((tmp >> 8) & 0x00FF00FF);
 	} while (--count);
 }
 
 #if BF_SCALE
 /* Architectures which can shift addresses left by 2 bits with no extra cost */
-#define BF_ROUND(L, R, N) \
-	tmp1 = L & 0xFF; \
-	tmp2 = L >> 8; \
-	tmp2 &= 0xFF; \
-	tmp3 = L >> 16; \
-	tmp3 &= 0xFF; \
-	tmp4 = L >> 24; \
-	tmp1 = data.ctx.S[3][tmp1]; \
-	tmp2 = data.ctx.S[2][tmp2]; \
-	tmp3 = data.ctx.S[1][tmp3]; \
-	tmp3 += data.ctx.S[0][tmp4]; \
-	tmp3 ^= tmp2; \
-	R ^= data.ctx.P[N + 1]; \
-	tmp3 += tmp1; \
+#define BF_ROUND(L, R, N)			\
+	tmp1 = L & 0xFF;				\
+	tmp2 = L >> 8;					\
+	tmp2 &= 0xFF;					\
+	tmp3 = L >> 16;					\
+	tmp3 &= 0xFF;					\
+	tmp4 = L >> 24;					\
+	tmp1 = data.ctx.S[3][tmp1];		\
+	tmp2 = data.ctx.S[2][tmp2];		\
+	tmp3 = data.ctx.S[1][tmp3];		\
+	tmp3 += data.ctx.S[0][tmp4];	\
+	tmp3 ^= tmp2;					\
+	R ^= data.ctx.P[N + 1];			\
+	tmp3 += tmp1;					\
 	R ^= tmp3;
 #else
 /* Architectures with no complicated addressing modes supported */
-#define BF_INDEX(S, i) \
+#define BF_INDEX(S, i)						\
 	(*((bf_word *)(((unsigned char *)S) + (i))))
-#define BF_ROUND(L, R, N) \
-	tmp1 = L & 0xFF; \
-	tmp1 <<= 2; \
-	tmp2 = L >> 6; \
-	tmp2 &= 0x3FC; \
-	tmp3 = L >> 14; \
-	tmp3 &= 0x3FC; \
-	tmp4 = L >> 22; \
-	tmp4 &= 0x3FC; \
-	tmp1 = BF_INDEX(data.ctx.S[3], tmp1); \
-	tmp2 = BF_INDEX(data.ctx.S[2], tmp2); \
-	tmp3 = BF_INDEX(data.ctx.S[1], tmp3); \
-	tmp3 += BF_INDEX(data.ctx.S[0], tmp4); \
-	tmp3 ^= tmp2; \
-	R ^= data.ctx.P[N + 1]; \
-	tmp3 += tmp1; \
+#define BF_ROUND(L, R, N)					\
+	tmp1 = L & 0xFF;						\
+	tmp1 <<= 2;								\
+	tmp2 = L >> 6;							\
+	tmp2 &= 0x3FC;							\
+	tmp3 = L >> 14;							\
+	tmp3 &= 0x3FC;							\
+	tmp4 = L >> 22;							\
+	tmp4 &= 0x3FC;							\
+	tmp1 = BF_INDEX(data.ctx.S[3], tmp1);	\
+	tmp2 = BF_INDEX(data.ctx.S[2], tmp2);	\
+	tmp3 = BF_INDEX(data.ctx.S[1], tmp3);	\
+	tmp3 += BF_INDEX(data.ctx.S[0], tmp4);	\
+	tmp3 ^= tmp2;							\
+	R ^= data.ctx.P[N + 1];					\
+	tmp3 += tmp1;							\
 	R ^= tmp3;
 #endif
 
 /*
  * Encrypt one block, BF_N is hardcoded here.
  */
-#define BF_ENCRYPT \
-	L ^= data.ctx.P[0]; \
-	BF_ROUND(L, R, 0); \
-	BF_ROUND(R, L, 1); \
-	BF_ROUND(L, R, 2); \
-	BF_ROUND(R, L, 3); \
-	BF_ROUND(L, R, 4); \
-	BF_ROUND(R, L, 5); \
-	BF_ROUND(L, R, 6); \
-	BF_ROUND(R, L, 7); \
-	BF_ROUND(L, R, 8); \
-	BF_ROUND(R, L, 9); \
-	BF_ROUND(L, R, 10); \
-	BF_ROUND(R, L, 11); \
-	BF_ROUND(L, R, 12); \
-	BF_ROUND(R, L, 13); \
-	BF_ROUND(L, R, 14); \
-	BF_ROUND(R, L, 15); \
-	tmp4 = R; \
-	R = L; \
+#define BF_ENCRYPT		\
+	L ^= data.ctx.P[0];	\
+	BF_ROUND(L, R, 0);	\
+	BF_ROUND(R, L, 1);	\
+	BF_ROUND(L, R, 2);	\
+	BF_ROUND(R, L, 3);	\
+	BF_ROUND(L, R, 4);	\
+	BF_ROUND(R, L, 5);	\
+	BF_ROUND(L, R, 6);	\
+	BF_ROUND(R, L, 7);	\
+	BF_ROUND(L, R, 8);	\
+	BF_ROUND(R, L, 9);	\
+	BF_ROUND(L, R, 10);	\
+	BF_ROUND(R, L, 11);	\
+	BF_ROUND(L, R, 12);	\
+	BF_ROUND(R, L, 13);	\
+	BF_ROUND(L, R, 14);	\
+	BF_ROUND(R, L, 15);	\
+	tmp4 = R;			\
+	R = L;				\
 	L = tmp4 ^ data.ctx.P[BF_N + 1];
 
 #if BF_ASM
 #define BF_body() \
 	_BF_body_r(&data.ctx);
 #else
-#define BF_body() \
-	L = R = 0; \
-	ptr = data.ctx.P; \
-	do { \
-		ptr += 2; \
-		BF_ENCRYPT; \
-		*(ptr - 2) = L; \
-		*(ptr - 1) = R; \
-	} while (ptr < &data.ctx.P[BF_N + 2]); \
-\
-	ptr = data.ctx.S[0]; \
-	do { \
-		ptr += 2; \
-		BF_ENCRYPT; \
-		*(ptr - 2) = L; \
-		*(ptr - 1) = R; \
+#define BF_body()							\
+	L = R = 0;								\
+	ptr = data.ctx.P;						\
+	do {									\
+		ptr += 2;							\
+		BF_ENCRYPT;							\
+		*(ptr - 2) = L;						\
+		*(ptr - 1) = R;						\
+	} while (ptr < &data.ctx.P[BF_N + 2]);	\
+											\
+	ptr = data.ctx.S[0];					\
+	do {									\
+		ptr += 2;							\
+		BF_ENCRYPT;							\
+		*(ptr - 2) = L;						\
+		*(ptr - 1) = R;						\
 	} while (ptr < &data.ctx.S[3][0xFF]);
 #endif
 
-static void bf_set_key(const char *key, bf_key expanded, bf_key initial,
-    unsigned char flags)
+static void bf_set_key(const char *key, bf_key expanded, bf_key initial, unsigned char flags)
 {
 	const char *ptr = key;
 	unsigned int bug, i, j;
@@ -582,10 +581,10 @@ static void bf_set_key(const char *key, bf_key expanded, bf_key initial,
  * Prefix "$2x$": bug = 1, safety = 0
  * Prefix "$2y$": bug = 0, safety = 0
  */
-	bug = (unsigned int)flags & 1;
-	safety = ((bf_word)flags & 2) << 15;
+	bug		= (unsigned int)flags & 1;
+	safety	= ((bf_word)flags & 2) << 15;
 
-	sign = diff = 0;
+	sign	= diff = 0;
 
 	for (i = 0; i < BF_N + 2; i++) {
 		tmp[0] = tmp[1] = 0;

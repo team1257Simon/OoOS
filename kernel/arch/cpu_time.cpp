@@ -25,9 +25,9 @@ void cpu_timer_stopwatch::start()
 }
 time_t cpu_timer_stopwatch::split()
 {
-	time_t old	= __split;
+	time_t old		= __split;
 	read_tsc(std::addressof(__split));
-	__split		-= old;
+	__split			-= old;
 	return __split;
 }
 static time_t diff_tsc(time_t from)

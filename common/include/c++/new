@@ -2,10 +2,10 @@
 #define __NEW
 #include "bits/stl_allocator.h"
 #define __visible __attribute__((__externally_visible__))
-namespace std 
+namespace std
 {
 	struct nothrow_t{ explicit nothrow_t() = default; };
-	extern const std::nothrow_t nothrow; 
+	extern const std::nothrow_t nothrow;
 	typedef void (*new_handler)();
 	new_handler set_new_handler(new_handler handler);
 	new_handler get_new_handler();

@@ -6,7 +6,7 @@ frame_manager::frame_manager() : __global_shared_blocks(128), __local_shared_blo
 frame_manager& frame_manager::get() { return __instance; }
 void frame_manager::__release_block(block_descriptor& blk)
 {
-	if(std::unordered_map<addr_t, int>::iterator i = __local_shared_blocks.find(blk.physical_start); i != __local_shared_blocks.end()) 
+	if(std::unordered_map<addr_t, int>::iterator i = __local_shared_blocks.find(blk.physical_start); i != __local_shared_blocks.end())
 	{
 		i->second--;
 		if(i->second != 0) return;
@@ -58,7 +58,7 @@ uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)
 		kmm.enter_frame(std::addressof(result));
 		kmm.map_to_current_frame(*bd);
 		kmm.exit_frame();
-		result.shared_blocks.push_back(bd); 
+		result.shared_blocks.push_back(bd);
 		__global_shared_blocks[bd->virtual_start].num_refs++;
 	}
 	result.mapped_max = old_frame->mapped_max;
@@ -67,7 +67,7 @@ uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)
 block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size, addr_t start, size_t align, bool execute)
 {
 	std::unordered_map<addr_t, shared_block>::iterator result_it = __global_shared_blocks.find(start);
-	if(result_it == __global_shared_blocks.end()) 
+	if(result_it == __global_shared_blocks.end())
 	{
 		kmm.enter_frame(tag);
 		addr_t allocated		= kmm.allocate_user_block(size, start, align, false, execute);
@@ -88,7 +88,7 @@ block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size,
 }
 int frame_manager::count_references(addr_t block_vaddr)
 {
-	std::unordered_map<addr_t, shared_block>::iterator i = __global_shared_blocks.find(block_vaddr); 
+	std::unordered_map<addr_t, shared_block>::iterator i = __global_shared_blocks.find(block_vaddr);
 	if(i != __global_shared_blocks.end()) return i->second.num_refs;
 	return 0;
 }

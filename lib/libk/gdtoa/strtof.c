@@ -1,17 +1,17 @@
 #include "gdtoa.h"
 float strtof(const char* s, char** sp)
 {
-	static fpi fpi0 = { 24, -149, 104, 1, 0 };
-	uilong     bits[1];
-	int        exp;
-	int        k;
+	static fpi	fpi0 = { 24, -149, 104, 1, 0 };
+	uilong		bits[1];
+	int			exp;
+	int			k;
 	union
 	{
-		uilong u_l[1];
-		float  f;
-	} u;
-	u.u_l[0] = 0;
-	k        = __strtodg(s, sp, &fpi0, &exp, bits);
+		uilong	u_l[1];
+		float	f;
+	}	u;
+	u.u_l[0]	= 0;
+	k			= __strtodg(s, sp, &fpi0, &exp, bits);
 	switch(k & strtog_retmask)
 	{
 	case strtog_no_num:

@@ -15,7 +15,7 @@ void direct_text_render::__scur(int i)
 {
 	size_t target 	= (__cursor[0] + i + __cols) % __cols;
 	if(target < __cursor[0]) __cursor[1] = (__cursor[1] + 1) % __rows;
-	__cursor[0] 	= target;	
+	__cursor[0] 	= target;
 }
 direct_text_render::direct_text_render(sysinfo_t const* si) noexcept :
 	__font		{ std::addressof(__startup_font_data) },
@@ -71,7 +71,7 @@ void direct_text_render::putc(wchar_t c)
 	// more as needed
 	default:
 		__fb.draw(__cursor, std::bind_front(&direct_text_render::__glyph_px, this, __bounds_check_idx(c)));
-		break;	
+		break;
 	}
 	__scur(1);
 }

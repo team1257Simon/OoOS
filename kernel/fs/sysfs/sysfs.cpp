@@ -156,7 +156,7 @@ sysfs_extent_branch& sysfs::extend_to_leaf(size_t from_idx, uint32_t ordinal)
 }
 std::pair<sysfs_extent_branch*, size_t> sysfs::next_available_extent_entry(size_t from_idx)
 {
-	sysfs_extent_branch& br = get_extent_branch(from_idx); 
+	sysfs_extent_branch& br = get_extent_branch(from_idx);
 	if(!br.depth)
 	{
 		for(size_t i = 0; i < sysfs_extent_branch::num_entries; i++)

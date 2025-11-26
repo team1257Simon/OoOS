@@ -47,7 +47,7 @@ void elf64_dynamic_executable::process_headers()
 }
 bool elf64_dynamic_executable::load_segments()
 {
-	if(elf64_executable::load_segments()) 
+	if(elf64_executable::load_segments())
 	{
 		program_descriptor.ld_path_count	= ld_paths.size();
 		program_descriptor.ld_path			= strptr_alloc.allocate(program_descriptor.ld_path_count);

@@ -54,31 +54,31 @@ namespace std
 		constexpr float load_factor() const noexcept { return this->__current_load(); }
 		constexpr void rehash(size_type target) { this->__rehash_to_size(target); }
 		constexpr void reserve(size_type target) { this->__reserve(target); }
-		template<typename ... Args> requires constructible_from<value_type, Args...> pair<iterator, bool> emplace(Args&& ... args) { return this->__emplace(forward<Args>(args)...); }
-		template<std::convertible_to<value_type> WT> requires copy_constructible<value_type> constexpr pair<iterator, bool> insert(WT const& wt) { return this->__insert(wt); }
-		template<std::convertible_to<value_type> WT> requires move_constructible<value_type> constexpr pair<iterator, bool> insert(WT&& wt) { return this->__insert(move(wt)); }
+		template<typename ... Args> requires(constructible_from<value_type, Args...>) pair<iterator, bool> emplace(Args&& ... args) { return this->__emplace(forward<Args>(args)...); }
+		template<std::convertible_to<value_type> WT> requires(copy_constructible<value_type>) constexpr pair<iterator, bool> insert(WT const& wt) { return this->__insert(wt); }
+		template<std::convertible_to<value_type> WT> requires(move_constructible<value_type>) constexpr pair<iterator, bool> insert(WT&& wt) { return this->__insert(move(wt)); }
 		template<std::convertible_to<key_type> JT> constexpr size_type erase(JT const& what) { return this->__erase(what); }
 		template<std::convertible_to<key_type> JT> constexpr bool contains(JT const& what) const { return this->__contains(what); }
-		template<std::input_iterator IT> requires constructible_from<value_type, deref_t<IT>> constexpr void insert(IT start, IT end) { this->__insert(start, end); }
-		constexpr value_type& operator[](key_type const&) requires __alt_construct<value_type, key_type const&>;
-		constexpr value_type& operator[](key_type&&) requires __alt_construct<value_type, key_type&&>;
+		template<std::input_iterator IT> requires(constructible_from<value_type, deref_t<IT>>) constexpr void insert(IT start, IT end) { this->__insert(start, end); }
+		constexpr value_type& operator[](key_type const&) requires(__alt_construct<value_type, key_type const&>);
+		constexpr value_type& operator[](key_type&&) requires(__alt_construct<value_type, key_type&&>);
 		constexpr iterator erase(const_iterator what) { return this->__erase(what); }
 		constexpr void clear() { this->__clear(); }
 	};
 	template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<T> AT, __detail::__key_extract<KT, T> XT>
-	constexpr typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type& hash_set<T, KT, HT, ET, AT, XT>::operator[](key_type const& kt) 
-	requires __alt_construct<typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type const&>
+	constexpr typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type& hash_set<T, KT, HT, ET, AT, XT>::operator[](key_type const& kt)
+	requires(__alt_construct<typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type const&>)
 	{
-		iterator i = find(kt);
-		if(i != end()) return *i; 
+		iterator i	= find(kt);
+		if(i != end()) return *i;
 		return *(emplace(kt).first);
 	}
 	template<typename T, typename KT, __detail::__hash_ftor<KT> HT, __detail::__predicate<KT> ET, allocator_object<T> AT, __detail::__key_extract<KT, T> XT>
-	constexpr typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type& hash_set<T, KT, HT, ET, AT, XT>::operator[](key_type&& kt) 
-	requires __alt_construct<typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type&&>
+	constexpr typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type& hash_set<T, KT, HT, ET, AT, XT>::operator[](key_type&& kt)
+	requires(__alt_construct<typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::value_type, typename __impl::__hashtable<KT, T, HT, XT, ET, AT>::key_type&&>)
 	{
-		iterator i = find(kt);
-		if(i != end()) return *i; 
+		iterator i	= find(kt);
+		if(i		!= end()) return *i;
 		return *(emplace(move(kt)).first);
 	}
 }
