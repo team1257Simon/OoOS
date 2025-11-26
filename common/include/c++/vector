@@ -10,7 +10,7 @@ namespace std
 	{
 		typedef __impl::__dynamic_buffer<T, A, false> __base;
 	public:
-		typedef T value_type;
+		typedef typename __base::__value_type value_type;
 		typedef typename __base::__allocator_type allocator_type;
 		typedef typename __base::__size_type size_type;
 		typedef typename __base::__difference_type difference_type;

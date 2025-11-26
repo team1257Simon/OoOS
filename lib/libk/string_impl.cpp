@@ -225,7 +225,7 @@ namespace std
 			constexpr static IT __abs(IT i) noexcept { if constexpr(std::is_signed_v<IT>) return (i < 0) ? -i : i; else return i; }
 			constexpr static std::basic_string<CT> __to_string(IT i)
 			{
-				if(!i) return basic_string(1UZ, __digi_type::digits[0]);
+				if(!i) return basic_string<CT>(1UZ, __digi_type::digits[0]);
 				std::basic_string<CT> str(static_cast<size_t>(__max_dec + 1));
 				IT j		= __abs(i);
 				for(size_t n = 0; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
@@ -235,7 +235,7 @@ namespace std
 			}
 			constexpr static std::basic_string<CT> __to_hex_string(IT i)
 			{
-				if(!i) return basic_string(1UZ, __digi_type::digits[0]);
+				if(!i) return basic_string<CT>(1UZ, __digi_type::digits[0]);
 				size_t nd	= __xdigits(i);
 				std::basic_string<CT> hstr(static_cast<size_t>(nd + 3));
 				IT j		= __abs(i);
@@ -247,7 +247,7 @@ namespace std
 			}
 			constexpr static std::basic_string<CT> __to_bare_hex_string(IT i)
 			{
-				if(!i) return basic_string(1UZ, __digi_type::digits[0]);
+				if(!i) return basic_string<CT>(1UZ, __digi_type::digits[0]);
 				size_t nd	= __xdigits(i);
 				std::basic_string<CT> hstr(static_cast<size_t>(nd + 1));
 				IT j		= __abs(i);
