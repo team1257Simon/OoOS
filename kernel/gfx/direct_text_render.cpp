@@ -7,15 +7,15 @@ size_t direct_text_render::__bounds_check_idx(wchar_t c) {
 }
 uint32_t direct_text_render::__glyph_px(size_t glyph_idx, ooos::vec2 pt)
 {
-	if(__unlikely(pt[0] >= __font->width || pt[1] >= __font->height || glyph_idx >= __font->numglyph * __font->bpg)) return background;
-	uint8_t glyph_byte = __font->glyph_data[glyph_idx + (pt[0] / 8) + pt[1]];
+	if(__unlikely(pt[0]	>= __font->width || pt[1] >= __font->height || glyph_idx >= __font->numglyph * __font->bpg)) return background;
+	uint8_t glyph_byte	= __font->glyph_data[glyph_idx + (pt[0] / 8) + pt[1]];
 	return (glyph_byte & (0x80UC >> (pt[0] % 8))) ? foreground : background;
 }
 void direct_text_render::__scur(int i)
 {
-	size_t target 	= (__cursor[0] + i + __cols) % __cols;
+	size_t target	= (__cursor[0] + i + __cols) % __cols;
 	if(target < __cursor[0]) __cursor[1] = (__cursor[1] + 1) % __rows;
-	__cursor[0] 	= target;
+	__cursor[0]		= target;
 }
 direct_text_render::direct_text_render(sysinfo_t const* si) noexcept :
 	__font		{ std::addressof(__startup_font_data) },
@@ -27,8 +27,8 @@ direct_text_render::direct_text_render(sysinfo_t const* si) noexcept :
 				{}
 void direct_text_render::cls()
 {
-	for(ooos::vec2 pos 	= ooos::vec(0UZ, 0UZ); pos[1] < __rows; ++pos[1])
-		for(pos[0] 		= 0UZ; pos[0] < __cols; ++pos[0])
+	for(ooos::vec2 pos	= ooos::vec(0UZ, 0UZ); pos[1] < __rows; ++pos[1])
+		for(pos[0]		= 0UZ; pos[0] < __cols; ++pos[0])
 			__fb.fill(pos, background);
 }
 void direct_text_render::endl()
@@ -57,11 +57,11 @@ void direct_text_render::putc(wchar_t c)
 		return;
 	case L'\r':
 		__ident		= 0UZ;
-		__cursor[0] = 0UZ;
+		__cursor[0]	= 0UZ;
 		return;
 	case L'\t':
 		if(!__cursor[0] && __ident < __cols)
-			__ident += 4UZ;
+			__ident	+= 4UZ;
 		__scur(4);
 		return;
 	case L'\b':

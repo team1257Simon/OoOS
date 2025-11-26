@@ -11,12 +11,12 @@ sysfs_extent_branch const& sysfs::get_extent_branch(size_t idx) const { return s
 sysfs_inode const& sysfs::get_inode(size_t ino) const { return static_cast<sysfs_inode const&>(const_cast<sysfs*>(this)->get_inode(ino)); }
 sysfs_dir_entry const& sysfs::get_dir_entry(size_t num) const { return static_cast<sysfs_dir_entry const&>(const_cast<sysfs*>(this)->get_dir_entry(num)); }
 sysfs::sysfs(sysfs_file_ptrs const& files) :
-	__data_file         { *files.data_file },
-	__index_file        { *files.index_file },
-	__extents_file      { *files.extents_file },
-	__directory_file    { *files.directory_file },
-	__directory_map     { 64UZ },
-	__opened_nodes      { 64UZ }
+	__data_file			{ *files.data_file },
+	__index_file		{ *files.index_file },
+	__extents_file		{ *files.extents_file },
+	__directory_file	{ *files.directory_file },
+	__directory_map		{ 64UZ },
+	__opened_nodes		{ 64UZ }
 						{}
 void sysfs::write_data(size_t st_block, const char* data, size_t n)
 {
@@ -106,7 +106,7 @@ uint32_t sysfs::add_blocks(uint16_t how_many)
 }
 uint32_t sysfs::add_inode()
 {
-	uint32_t n = static_cast<uint32_t>(__index().total_inodes) + 1;
+	uint32_t n	= static_cast<uint32_t>(__index().total_inodes) + 1;
 	if(__index_file.grow(sizeof(sysfs_inode)))
 	{
 		sysfs_index_file& idx	= __index();
@@ -120,7 +120,7 @@ uint32_t sysfs::add_inode()
 }
 uint32_t sysfs::add_directory_entry()
 {
-	uint32_t n = static_cast<uint32_t>(__dir().total_entries) + 1;
+	uint32_t n	= static_cast<uint32_t>(__dir().total_entries) + 1;
 	if(__directory_file.grow(sizeof(sysfs_dir_entry)))
 	{
 		sysfs_directory_file& dir	= __dir();

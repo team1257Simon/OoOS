@@ -27,10 +27,10 @@ bool filesystem::write_blockdev(uint64_t lba_dest, const void* src, size_t secto
 bool filesystem::read_blockdev(void* dest, uint64_t lba_src, size_t sectors) { return blockdev->read(dest, lba_src, sectors); }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents)
 {
-	target_pair ogparent = get_parent(ogpath, false);
-	target_pair tgparent = get_parent(tgpath, create_parents);
+	target_pair ogparent		= get_parent(ogpath, false);
+	target_pair tgparent		= get_parent(tgpath, create_parents);
 	if(ogparent.first->is_mount() || tgparent.first->is_mount())
-		if(mount_vnode* mount = dynamic_cast<mount_vnode*>(ogparent.first); mount && mount == dynamic_cast<mount_vnode*>(tgparent.first))
+		if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(ogparent.first); mount && mount == dynamic_cast<mount_vnode*>(tgparent.first))
 			return mount->mounted->link(ogparent.second, tgparent.second, create_parents);
 	return xlink(ogparent, tgparent);
 }
@@ -42,7 +42,7 @@ file_vnode* filesystem::get_file_or_null(std::string const& path)
 		if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->get_file_or_null(parent.second);
 		if(tnode* node			= parent.first->find(parent.second))
 		{
-			file_vnode* file = on_open(node);
+			file_vnode* file	= on_open(node);
 			if(file) register_fd(file);
 			return file;
 		}
@@ -52,7 +52,7 @@ file_vnode* filesystem::get_file_or_null(std::string const& path)
 }
 vnode* fd_map::find_fd(int i) noexcept
 {
-	iterator result = find(i);
+	iterator result	= find(i);
 	if(result != end()) return *result;
 	return nullptr;
 }
@@ -86,7 +86,7 @@ void filesystem::dldevnode(device_vnode* n)
 }
 void filesystem::dlpipenode(vnode* fn)
 {
-	if(pipe_vnode* n = dynamic_cast<pipe_vnode*>(fn))
+	if(pipe_vnode* n		= dynamic_cast<pipe_vnode*>(fn))
 	{
 		n->prune_refs();
 		current_open_files.erase(n->vid());
@@ -168,7 +168,7 @@ pipe_pair filesystem::mkpipe(directory_vnode*, std::string const& name)
 }
 bool filesystem::xunlink(directory_vnode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {
-	tnode* node = parent->find(what);
+	tnode* node				= parent->find(what);
 	if(!node) { if(!ignore_nonexistent) throw std::logic_error("[FS] cannot unlink " + what + " because it does not exist"); else return false; }
 	if(node->is_directory() && (*node)->num_refs() <= 1)
 	{
@@ -305,10 +305,10 @@ void filesystem::create_node(directory_vnode* from, std::string const& path, mod
 		if(parent.first->find(parent.second)) { throw std::domain_error("[FS] target " + path + " already exists"); }
 		file_mode m(mode);
 		vnode* result;
-		if(m.is_directory())	{ result            = mkdirnode(parent.first, parent.second); result->mode = mode; }
-		else if(m.is_chardev())	{ result            = mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
-		else if(m.is_fifo())	{ pipe_pair pipes   = mkpipe(parent.first, parent.second); pipes.in->mode = mode; pipes.out->mode = mode; return; }
-		else					{ result            = mkfilenode(parent.first, parent.second); result->mode = mode; }
+		if(m.is_directory())	{ result			= mkdirnode(parent.first, parent.second); result->mode = mode; }
+		else if(m.is_chardev())	{ result			= mkdevnode(parent.first, parent.second, dev, next_fd++); result->mode = mode; }
+		else if(m.is_fifo())	{ pipe_pair pipes	= mkpipe(parent.first, parent.second); pipes.in->mode = mode; pipes.out->mode = mode; return; }
+		else					{ result			= mkfilenode(parent.first, parent.second); result->mode = mode; }
 		if(!result)				{ throw std::runtime_error("[FS] failed to create node at " + path); }
 		result->fsync();
 		syncdirs();
@@ -318,8 +318,8 @@ void filesystem::create_pipe(int fds[2])
 {
 	pipe_pair result	= mkpipe();
 	if(result.in && result.out) {
-		fds[0]	= result.in->vid();
-		fds[1]	= result.out->vid();
+		fds[0]			= result.in->vid();
+		fds[1]			= result.out->vid();
 	}
 	else throw std::runtime_error("[FS] failed to create pipe");
 }

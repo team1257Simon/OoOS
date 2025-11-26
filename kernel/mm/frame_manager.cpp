@@ -61,7 +61,7 @@ uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)
 		result.shared_blocks.push_back(bd);
 		__global_shared_blocks[bd->virtual_start].num_refs++;
 	}
-	result.mapped_max = old_frame->mapped_max;
+	result.mapped_max				= old_frame->mapped_max;
 	return result;
 }
 block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size, addr_t start, size_t align, bool execute)

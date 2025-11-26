@@ -1,16 +1,16 @@
 #include "fs/ext.hpp"
 constexpr static std::allocator<char> ch_alloc{};
 static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* inode);
-ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_num, ext_inode* inode) : inode_number{ inode_num }, parent_fs{ parent }, on_disk_node{ inode }, checksum_seed{ compute_csum_seed(parent, inode_num, inode) } {}
+ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_num, ext_inode* inode) : inode_number(inode_num), parent_fs(parent), on_disk_node(inode), checksum_seed(compute_csum_seed(parent, inode_num, inode)) {}
 ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_number) : ext_vnode_base(parent, inode_number, parent->get_inode(inode_number)) {}
-ext_vnode_base::ext_vnode_base() = default;
-ext_vnode_base::~ext_vnode_base() = default;
+ext_vnode_base::ext_vnode_base()	= default;
+ext_vnode_base::~ext_vnode_base()	= default;
 ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode) : ext_vnode_base(parent, inode_number, inode), base_buffer(), extents(this) {}
 ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number) : ext_vnode(parent, inode_number, parent->get_inode(inode_number)) {}
 bool ext_vnode::on_open() { return init_extents(); }
 void ext_vnode::mark_write(void* pos) { addr_t addr(pos); if(!__out_of_range(addr)) { block_data[block_of_data_ptr(static_cast<size_t>(addr - addr_t(__beg())))].dirty = true; } }
-ext_vnode::ext_vnode() = default;
-ext_vnode::~ext_vnode() = default;
+ext_vnode::ext_vnode()	= default;
+ext_vnode::~ext_vnode()	= default;
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
 uint64_t ext_vnode::next_block() { return block_data[last_checked_block_idx + 1].block_number; }
 void ext_vnode::on_modify() { base_buffer::on_modify(); if(vnode* fn = dynamic_cast<vnode*>(this)) { fn->fsync(); } }
@@ -68,9 +68,9 @@ static uint32_t compute_inode_csum(uint32_t checksum_seed, extfs* parent_fs, ext
 }
 static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* inode)
 {
-	dword gen		= inode->version_lo;
-	dword ino		= inode_num;
-	uint32_t csum	= crc32c(crc32c(parent->get_uuid_csum(), ino), gen);
+	dword gen				= inode->version_lo;
+	dword ino				= inode_num;
+	uint32_t csum			= crc32c(crc32c(parent->get_uuid_csum(), ino), gen);
 	if(uint32_t checkval	= dword(inode->checksum_lo, inode->checksum_hi))
 	{
 		uint32_t calculated	= compute_inode_csum(csum, parent, inode);

@@ -36,19 +36,19 @@ vnode* extfs::dirent_to_vnode(ext_dir_entry* de) { return inode_to_vnode(de->ino
 size_t extfs::inode_size() { return sb->inode_size; }
 uint32_t extfs::__sb_checksum() const { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(sb), offsetof(ext_superblock, checksum)); }
 extfs::extfs(uint64_t volume_start_lba) :
-	filesystem          {},
-	file_nodes          {},
-	dir_nodes           {},
-	dev_nodes           {},
-	block_groups        {},
-	dev_linked_nodes    {},
-	named_pipes         { 256UZ },
-	sb                  { sb_alloc.allocate(1UL) },
-	blk_group_descs     {},
-	root_dir            {},
-	num_blk_groups      { 0UL },
-	superblock_lba      { volume_start_lba + sb_off },
-	fs_journal          {}
+	filesystem			{},
+	file_nodes			{},
+	dir_nodes			{},
+	dev_nodes			{},
+	block_groups		{},
+	dev_linked_nodes	{},
+	named_pipes			{ 256UZ },
+	sb					{ sb_alloc.allocate(1UL) },
+	blk_group_descs		{},
+	root_dir			{},
+	num_blk_groups		{ 0UL },
+	superblock_lba		{ volume_start_lba + sb_off },
+	fs_journal			{}
 						{}
 extfs::~extfs()
 {
@@ -57,18 +57,18 @@ extfs::~extfs()
 	if(blk_group_descs) { bg_alloc.deallocate(blk_group_descs, num_blk_groups); }
 }
 ext_block_group::ext_block_group(extfs* parent, block_group_descriptor* desc) :
-	parent_fs       { parent },
-	descr           { desc },
-	inode_usage_bmp { qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi), nullptr },
-	blk_usage_bmp   { qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi), nullptr },
-	inode_block     { qword(desc->inode_table_start_block, desc->inode_table_start_block_hi), nullptr }
+	parent_fs		{ parent },
+	descr			{ desc },
+	inode_usage_bmp	{ qword(desc->inode_usage_bitmap_block_idx, desc->inode_usage_bitmap_block_idx_hi), nullptr },
+	blk_usage_bmp	{ qword(desc->block_usage_bitmap_block_idx, desc->block_usage_bitmap_block_idx_hi), nullptr },
+	inode_block		{ qword(desc->inode_table_start_block, desc->inode_table_start_block_hi), nullptr }
 					{}
 ext_block_group::ext_block_group(ext_block_group&& that) :
-	parent_fs       { that.parent_fs },
-	descr           { that.descr },
-	inode_usage_bmp { that.inode_usage_bmp },
-	blk_usage_bmp   { that.blk_usage_bmp },
-	inode_block     { that.inode_block }
+	parent_fs		{ that.parent_fs },
+	descr			{ that.descr },
+	inode_usage_bmp	{ that.inode_usage_bmp },
+	blk_usage_bmp	{ that.blk_usage_bmp },
+	inode_block		{ that.inode_block }
 					{ that.inode_usage_bmp.data_buffer = that.inode_block.data_buffer = that.blk_usage_bmp.data_buffer = nullptr; }
 ext_block_group::~ext_block_group()
 {
@@ -78,9 +78,9 @@ ext_block_group::~ext_block_group()
 }
 ext_pipe_pair& extfs::__init_pipes(uint32_t inode_num, std::string const& name)
 {
-	int first_fd = next_fd;
+	int first_fd	= next_fd;
 	while(current_open_files.contains(first_fd)) first_fd++;
-	int second_fd = first_fd + 1;
+	int second_fd	= first_fd + 1;
 	while(current_open_files.contains(second_fd)) second_fd++;
 	std::pair<named_pipe_map::iterator, bool> result = named_pipes.emplace(this, inode_num, name, first_fd, second_fd);
 	if(result.second) { register_fd(addressof(result.first->in)); register_fd(addressof(result.first->out)); }
@@ -90,46 +90,46 @@ bool ext_block_group::decrement_inode_ct()
 {
 	dword inode_ct(descr->free_inodes, descr->free_inodes_hi);
 	inode_ct--;
-	descr->free_inodes = inode_ct.lo;
-	descr->free_inodes_hi = inode_ct.hi;
+	descr->free_inodes		= inode_ct.lo;
+	descr->free_inodes_hi	= inode_ct.hi;
 	return parent_fs->update_free_inode_count(-1);
 }
 bool ext_block_group::increment_inode_ct()
 {
 	dword inode_ct(descr->free_inodes, descr->free_inodes_hi);
 	inode_ct++;
-	descr->free_inodes = inode_ct.lo;
-	descr->free_inodes_hi = inode_ct.hi;
+	descr->free_inodes		= inode_ct.lo;
+	descr->free_inodes_hi	= inode_ct.hi;
 	return parent_fs->update_free_inode_count(+1);
 }
 bool ext_block_group::alter_available_blocks(int diff)
 {
-	uint32_t num_blocks = dword(descr->free_blocks_lo, descr->free_blocks_hi);
-	num_blocks += diff;
+	uint32_t num_blocks		= dword(descr->free_blocks_lo, descr->free_blocks_hi);
+	num_blocks				+= diff;
 	dword dw_num_blocks(num_blocks);
-	descr->free_blocks_lo = dw_num_blocks.lo;
-	descr->free_blocks_hi = dw_num_blocks.hi;
+	descr->free_blocks_lo	= dw_num_blocks.lo;
+	descr->free_blocks_hi	= dw_num_blocks.hi;
 	return parent_fs->update_free_block_count(diff);
 }
 void ext_block_group::compute_checksums(size_t group_num)
 {
 	const dword gn(static_cast<uint32_t>(group_num));
-	size_t bs = parent_fs->block_size();
+	size_t bs	= parent_fs->block_size();
 	if(parent_fs->sb->read_only_optional_features & metadata_csum)
 	{
-		const uint32_t cs_seed      = crc32c(parent_fs->uuid_csum, gn);
-		dword bbmp_cs               = crc32c_blk(cs_seed, blk_usage_bmp, bs);
-		dword ibmp_cs               = crc32c_blk(cs_seed, inode_usage_bmp, bs);
+		const uint32_t cs_seed		= crc32c(parent_fs->uuid_csum, gn);
+		dword bbmp_cs				= crc32c_blk(cs_seed, blk_usage_bmp, bs);
+		dword ibmp_cs				= crc32c_blk(cs_seed, inode_usage_bmp, bs);
 		barrier();
-		descr->block_usage_bmp_checkum      = bbmp_cs.lo;
-		descr->block_usage_bmp_checkum_hi   = bbmp_cs.hi;
-		descr->inode_usage_bmp_checksum     = ibmp_cs.lo;
-		descr->inode_usage_bmp_checksum_hi  = ibmp_cs.hi;
-		descr->group_checksum               = 0;
+		descr->block_usage_bmp_checkum		= bbmp_cs.lo;
+		descr->block_usage_bmp_checkum_hi	= bbmp_cs.hi;
+		descr->inode_usage_bmp_checksum		= ibmp_cs.lo;
+		descr->inode_usage_bmp_checksum_hi	= ibmp_cs.hi;
+		descr->group_checksum				= 0;
 		barrier();
-		dword cs_full                       = crc32c(cs_seed, *descr);
+		dword cs_full						= crc32c(cs_seed, *descr);
 		barrier();
-		descr->group_checksum               = cs_full.lo;
+		descr->group_checksum				= cs_full.lo;
 	}
 	else if(parent_fs->sb->read_only_optional_features & gdt_csum)
 	{
@@ -146,60 +146,60 @@ void extfs::initialize()
 	if(sb->checksum != checkval)
 		throw std::logic_error("[FS/EXT4] superblock checksum of " + std::to_string(sb->checksum, std::ext::hex) + " does not match calculated value of " + std::to_string(checkval, std::ext::hex));
 	uuid_csum = crc32c(~0U, sb->fs_uuid);
-	uint64_t block_cnt              = qword(sb->block_count, sb->block_count_hi);
-	uint64_t group_count_by_blocks  = div_round_up(block_cnt, sb->blocks_per_group);
-	uint64_t group_count_by_inodes  = div_round_up(sb->inode_count, sb->inodes_per_group);
+	uint64_t block_cnt				= qword(sb->block_count, sb->block_count_hi);
+	uint64_t group_count_by_blocks	= div_round_up(block_cnt, sb->blocks_per_group);
+	uint64_t group_count_by_inodes	= div_round_up(sb->inode_count, sb->inodes_per_group);
 	if(group_count_by_blocks != group_count_by_inodes) { throw std::logic_error("[FS/EXT4] inode block group count of " + std::to_string(group_count_by_inodes) + " does not match block group count of " + std::to_string(group_count_by_blocks)); }
-	num_blk_groups                  = group_count_by_blocks;
-	blk_group_descs                 = bg_alloc.allocate(num_blk_groups);
-	size_t bgsz                     = up_to_nearest(num_blk_groups * sizeof(block_group_descriptor), block_size());
-	char* bg_buffer                 = buff_alloc.allocate(bgsz);
-	size_t inode_blocks_per_group   = div_round_up(sb->inodes_per_group, inodes_per_block());
-	bg_table_block.data_buffer      = bg_buffer;
-	bg_table_block.chain_len        = div_round_up(bgsz, block_size());
+	num_blk_groups					= group_count_by_blocks;
+	blk_group_descs					= bg_alloc.allocate(num_blk_groups);
+	size_t bgsz						= up_to_nearest(num_blk_groups * sizeof(block_group_descriptor), block_size());
+	char* bg_buffer					= buff_alloc.allocate(bgsz);
+	size_t inode_blocks_per_group	= div_round_up(sb->inodes_per_group, inodes_per_block());
+	bg_table_block.data_buffer		= bg_buffer;
+	bg_table_block.chain_len		= div_round_up(bgsz, block_size());
 	if(!(num_blk_groups && blk_group_descs && read_block(bg_table_block))) throw std::runtime_error("[FS/EXT4] failed to read block group table");
 	blk_group_descs = reinterpret_cast<block_group_descriptor*>(bg_buffer);
 	for(size_t i = 0; i < num_blk_groups; i++)
 	{
-		ext_block_group& bg             = block_groups.emplace_back(this, blk_group_descs + i);
-		bg.inode_usage_bmp.chain_len    = div_round_up(sb->blocks_per_group, block_size() * CHAR_BIT);
-		bg.blk_usage_bmp.chain_len      = div_round_up(sb->inodes_per_group, block_size() * CHAR_BIT);
-		bg.inode_block.chain_len        = inode_blocks_per_group;
+		ext_block_group& bg				= block_groups.emplace_back(this, blk_group_descs + i);
+		bg.inode_usage_bmp.chain_len	= div_round_up(sb->blocks_per_group, block_size() * CHAR_BIT);
+		bg.blk_usage_bmp.chain_len		= div_round_up(sb->inodes_per_group, block_size() * CHAR_BIT);
+		bg.inode_block.chain_len		= inode_blocks_per_group;
 		allocate_block_buffer(bg.inode_usage_bmp);
 		allocate_block_buffer(bg.blk_usage_bmp);
 		allocate_block_buffer(bg.inode_block);
 		if(!read_block(bg.inode_usage_bmp) || !read_block(bg.blk_usage_bmp)) throw std::runtime_error("[FS/EXT4] failed to read block group");
 		if(!read_block(bg.inode_block)) { throw std::runtime_error("[FS/EXT4] failed to read inode table"); }
-		uint16_t cs                         = blk_group_descs[i].group_checksum;
-		blk_group_descs[i].group_checksum   = 0;
-		uint32_t cs0                        = crc32c(uuid_csum, dword(i));
-		dword dw_cs                         = crc32c(cs0, blk_group_descs[i]);
+		uint16_t cs							= blk_group_descs[i].group_checksum;
+		blk_group_descs[i].group_checksum	= 0;
+		uint32_t cs0						= crc32c(uuid_csum, dword(i));
+		dword dw_cs							= crc32c(cs0, blk_group_descs[i]);
 		if(dw_cs.lo != cs) throw std::runtime_error("[FS/EXT4] checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex));
-		blk_group_descs[i].group_checksum   = cs;
+		blk_group_descs[i].group_checksum	= cs;
 	}
 	std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
 	if(!fs_journal.on_open()) throw std::runtime_error("[FS/EXT4] journal init failed");
 	ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U, next_fd++).first.base();
 	if(!rdnode->on_open()) throw std::runtime_error("[FS/EXT4] root dir init failed");
-	root_dir                = rdnode;
-	qword tstamp            = sys_time(nullptr);
-	sb->last_mount_time     = tstamp.lo;
-	sb->last_mount_time_hi  = tstamp.hi.lo.lo;
+	root_dir				= rdnode;
+	qword tstamp			= sys_time(nullptr);
+	sb->last_mount_time		= tstamp.lo;
+	sb->last_mount_time_hi	= tstamp.hi.lo.lo;
 	if(!persist_sb()) throw std::runtime_error("[FS/EXT4] superblock write failed");
 	initialized = true;
 }
 bool extfs::persist_sb()
 {
-	qword tstamp            = sys_time(nullptr);
-	sb->last_write_time     = tstamp.lo;
-	sb->last_write_time_hi  = tstamp.hi.lo.lo;
-	sb->checksum            = __sb_checksum();
+	qword tstamp			= sys_time(nullptr);
+	sb->last_write_time		= tstamp.lo;
+	sb->last_write_time_hi	= tstamp.hi.lo.lo;
+	sb->checksum			= __sb_checksum();
 	return filesystem::write_blockdev(superblock_lba, sb, sb_sectors);
 }
 bool extfs::update_free_block_count(int diff)
 {
 	uint64_t num_blocks = qword(sb->unallocated_blocks_lo, sb->unallocated_blocks_hi);
-	num_blocks          += diff;
+	num_blocks			+= diff;
 	qword qwblocks(num_blocks);
 	sb->unallocated_blocks_lo = qwblocks.lo;
 	sb->unallocated_blocks_hi = qwblocks.hi;
@@ -211,9 +211,9 @@ uint32_t extfs::claim_inode(bool dir)
 	{
 		if(block_groups[i].has_available_inode())
 		{
-			unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
-			off_t avail         = bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
-			uint32_t result     = static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
+			unsigned long* bmp	= reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
+			off_t avail			= bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].inode_usage_bmp.chain_len) / sizeof(unsigned long));
+			uint32_t result		= static_cast<uint32_t>(avail + (sb->inodes_per_group * i) + 1U);
 			bitmap_set_bit(bmp, avail);
 			if(dir) block_groups[i].increment_dir_ct();
 			if(!(block_groups[i].decrement_inode_ct())) return 0U;
@@ -226,9 +226,9 @@ uint32_t extfs::claim_inode(bool dir)
 bool extfs::release_inode(uint32_t num, bool dir)
 {
 	if(!num) return false;
-	size_t i            = num / sb->inodes_per_group;
-	off_t bit_off       = static_cast<off_t>(num % sb->inodes_per_group);
-	unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
+	size_t i			= num / sb->inodes_per_group;
+	off_t bit_off		= static_cast<off_t>(num % sb->inodes_per_group);
+	unsigned long* bmp	= reinterpret_cast<unsigned long*>(block_groups[i].inode_usage_bmp.data_buffer);
 	bitmap_clear_bit(bmp, bit_off);
 	if(dir) block_groups[i].decrement_dir_ct();
 	if(!block_groups[i].increment_inode_ct()) return false;
@@ -236,9 +236,9 @@ bool extfs::release_inode(uint32_t num, bool dir)
 }
 void extfs::release_blocks(uint64_t start, size_t num)
 {
-	size_t i            = start / sb->blocks_per_group;
-	off_t off           = static_cast<off_t>(start % sb->blocks_per_group);
-	unsigned long* bmp  = reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
+	size_t i			= start / sb->blocks_per_group;
+	off_t off			= static_cast<off_t>(start % sb->blocks_per_group);
+	unsigned long* bmp	= reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
 	bitmap_clear_chain_bits(bmp, off, num);
 	block_groups[i].alter_available_blocks(static_cast<int>(+num));
 	persist_group_metadata(i);

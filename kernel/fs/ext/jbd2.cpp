@@ -3,7 +3,7 @@
 #include "unordered_set"
 typedef std::hash_set<qword, uint64_t, std::hash<uint64_t>, std::equal_to<void>, std::allocator<qword>, decltype([](qword const& qw) -> uint64_t const& { return *reinterpret_cast<uint64_t const*>(&qw); })> blocknum_set;
 jbd2::jbd2() = default;
-jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode{ parent, inode } {}
+jbd2::jbd2(extfs* parent, uint32_t inode) : ext_vnode(parent, inode) {}
 jbd2::~jbd2() {}
 bool jbd2_transaction::execute_and_complete(extfs* fs_ptr) { for(disk_block& db : data_blocks) { if(!db.block_number || !db.data_buffer) continue; if(!fs_ptr->write_block(db)) { panic("write failed"); return false; } } return true; }
 bool jbd2::need_escape(disk_block const& bl) { return (((reinterpret_cast<__be32 const*>(bl.data_buffer)[0])) == jbd2_magic); }

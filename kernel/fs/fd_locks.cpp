@@ -16,7 +16,7 @@ bool fd_locks_container::test(file_lock const& l)
 }
 bool fd_locks_container::test(short type, ptrdiff_t start, std::ios_base::seekdir whence, size_t len)
 {
-	size_t actual_start = compute_start(start, whence);
+	size_t actual_start	= compute_start(start, whence);
 	file_lock test_file_lock(file_lock_span(actual_start, len));
 	if(type == file_lock::read) return !read_locks.contains(test_file_lock);
 	else return !write_locks.contains(test_file_lock);   
