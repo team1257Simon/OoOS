@@ -1014,7 +1014,6 @@ extern "C" void __cxa_call_unexpected(void* exception)
  */
 extern "C" void __cxa_call_terminate(void* exception) noexcept
 {
-	panic("unhandled exception");
 	std::terminate();
 	__builtin_unreachable();
 }
