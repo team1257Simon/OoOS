@@ -88,51 +88,76 @@ namespace std
 		}
 		return x;
 	}
+	template<typename A>
 	struct __tree_base
 	{
 		// This node's parent is the root node; its left is the min node; its right is the max node
-		__node_base __trunk;
+
+		struct __trunk_node : __node_base, A
+		{
+			constexpr void __on_assign() noexcept { if(this->__my_parent) this->__my_parent->__my_parent = this; }
+			constexpr __trunk_node() noexcept(noexcept(A())) : __node_base(RED, nullptr, this, this), A() {}
+			constexpr __trunk_node(__trunk_node const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : __node_base(that), A(that) { __on_assign(); }
+			constexpr __trunk_node(__trunk_node&& that) noexcept(std::is_nothrow_move_constructible_v<A>) : __node_base(move(that)), A(move(that)) { __on_assign(); that.__reset(); }
+			constexpr __trunk_node& operator=(__trunk_node const& that) noexcept(std::is_nothrow_copy_assignable_v<A> || !__has_move_propagate<A>)
+			{
+				this->__my_color			= that.__my_color;
+				this->__my_parent			= that.__my_parent;
+				this->__my_left				= that.__my_left;
+				this->__my_right			= that.__my_right;
+				if constexpr(__has_move_propagate<A>)
+					*static_cast<A*>(this)	= that;
+				this->__on_assign();
+				return *this;
+			}
+			constexpr __trunk_node& operator=(__trunk_node&& that) noexcept(std::is_nothrow_move_assignable_v<A> || !__has_move_propagate<A>)
+			{
+				this->__my_color			= that.__my_color;
+				this->__my_parent			= that.__my_parent;
+				this->__my_left				= that.__my_left;
+				this->__my_right			= that.__my_right;
+				if constexpr(__has_move_propagate<A>)
+					*static_cast<A*>(this)	= std::move(that);
+				this->__on_assign();
+				that.__reset();
+				return *this;
+			}
+			constexpr void __reset() noexcept
+			{
+				__my_color	= RED;
+				__my_parent	= nullptr;
+				__my_left	= this;
+				__my_right	= this;
+			}
+		} __trunk;
 		size_t __count;
-		constexpr void __reset() noexcept
-		{
-			__trunk.__my_color  = RED;
-			__trunk.__my_parent = nullptr;
-			__trunk.__my_left   = addressof(__trunk);
-			__trunk.__my_right  = addressof(__trunk);
-			__count             = 0;
+		constexpr void __reset() noexcept {
+			__trunk.__reset();
+			__count	= 0;
 		}
-		constexpr __tree_base() noexcept :  __trunk{ RED, nullptr, addressof(__trunk), addressof(__trunk) }, __count{ 0 } {}
+		constexpr __tree_base() noexcept(noexcept(A())) :  __trunk(), __count(0) {}
 		constexpr ~__tree_base() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
-		constexpr void __copy(__tree_base const& that) noexcept
-		{
-			__trunk.__my_color  = that.__trunk.__my_color;
-			__trunk.__my_parent = that.__trunk.__my_parent;
-			__trunk.__my_left   = that.__trunk.__my_left;
-			__trunk.__my_right  = that.__trunk.__my_right;
-			if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = addressof(__trunk);
-			__count = that.__count;
+		constexpr void __copy(__tree_base const& that) noexcept {
+			__trunk				= that.__trunk;
+			__count				= that.__count;
 		}
 		constexpr void __move(__tree_base&& that) noexcept
 		{
-			__trunk.__my_color  = that.__trunk.__my_color;
-			__trunk.__my_parent = that.__trunk.__my_parent;
-			__trunk.__my_left   = that.__trunk.__my_left;
-			__trunk.__my_right  = that.__trunk.__my_right;
-			if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = &__trunk;
-			__count = that.__count;
-			that.__reset();
+			__trunk				= std::move(that.__trunk);
+			__count				= that.__count;
+			that.__count		= 0UZ;
 		}
 		constexpr void __swap(__tree_base& that) noexcept
 		{
-			__tree_base tmp{ *this };
+			__tree_base tmp(*this);
 			this->__copy(that);
 			that.__copy(tmp);
 			tmp.__reset();
 		}
-		constexpr __tree_base(__tree_base&& that) noexcept : __tree_base{} { if(that.__trunk.__my_parent) __move(forward<__tree_base>(that)); }
-		constexpr __tree_base(__tree_base const& that) noexcept : __tree_base{} { if(that.__trunk.__my_parent) __copy(that); }
-		constexpr __tree_base& operator=(__tree_base const& that) noexcept { if(that.__trunk.__my_parent) __copy(that); return *this; }
-		constexpr __tree_base& operator=(__tree_base&& that) noexcept { if(that.__trunk.__my_parent) __move(forward<__tree_base>(that)); return *this; }
+		constexpr __tree_base(__tree_base&& that) noexcept : __trunk(std::move(that.__trunk)), __count(that.__count) { that.__count = 0UZ; }
+		constexpr __tree_base(__tree_base const& that) noexcept : __trunk(that.__trunk), __count(that.__count) {}
+		constexpr __tree_base& operator=(__tree_base const& that) noexcept { __copy(that); return *this; }
+		constexpr __tree_base& operator=(__tree_base&& that) noexcept { __move(std::move(that)); return *this; }
 	};
 	template<typename T>
 	struct __node : public __node_base
@@ -204,7 +229,7 @@ namespace std
 	[[gnu::nonnull]] void __insert_and_rebalance(const node_direction dir, __node_base* x, __node_base* p, __node_base& trunk);
 	[[gnu::nonnull, gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk);
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
-	class __rb_tree : protected __tree_base
+	class __rb_tree : protected __tree_base<typename A::template rebind<__node<T>>::other>
 	{
 		using __rebind_alloc = typename A::template rebind<__node<T>>;
 	protected:
@@ -219,8 +244,8 @@ namespace std
 		typedef T __value_type;
 		typedef typename __rebind_alloc::other __allocator_type;
 		typedef CP __compare_type;
-		typedef __tree_base __trunk_type;
-		__allocator_type __alloc{};
+		typedef __tree_base<typename A::template rebind<__node<T>>::other> __base;
+		constexpr __allocator_type const& __get_alloc() const noexcept { return this->__trunk; }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __pos_for_unique(U const& u);
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __pos_for_equal(U && u);
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr __pos_pair __insert_unique_hint_pos(__const_link hint, U const& u);
@@ -250,9 +275,9 @@ namespace std
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_r(__cb_ptr p, U const& u) const { return CP()(static_cast<__const_link>(p)->__get_ref(), u); }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_l(U const& u, __cb_ptr p) const { return CP()(u, static_cast<__const_link>(p)->__get_ref()); }
 		constexpr __link __get_root() noexcept { return static_cast<__link>(this->__trunk.__my_parent); }
-		constexpr __link __end() noexcept { return static_cast<__link>(addressof(this->__trunk)); }
+		constexpr __link __end() noexcept { return addr_t(addressof(this->__trunk)); }
 		constexpr __const_link __get_root() const noexcept { return static_cast<__const_link>(this->__trunk.__my_parent); }
-		constexpr __const_link __end() const noexcept { return static_cast<__const_link>(addressof(this->__trunk)); }
+		constexpr __const_link __end() const noexcept { return addr_t(addressof(this->__trunk)); }
 		constexpr __b_ptr& __leftmost() noexcept { return this->__trunk.__my_left; }
 		constexpr __b_ptr& __rightmost() noexcept { return this->__trunk.__my_right; }
 		constexpr __link __l_begin() noexcept {  return static_cast<__link>(this->__trunk.__my_left); }
@@ -279,10 +304,10 @@ namespace std
 		constexpr size_t size() const noexcept { return this->__count; }
 		constexpr bool empty() const noexcept { return !this->size(); }
 		constexpr ~__rb_tree() { __recursive_destroy(__get_root()); }
-		constexpr __rb_tree() : __tree_base(), __alloc() {}
+		constexpr __rb_tree() : __base() {}
 		template<matching_input_iterator<T> IT> constexpr __rb_tree(IT st, IT ed) : __rb_tree() { this->__insert_range_unique(st, ed); }
 		constexpr __rb_tree(__rb_tree const& that) : __rb_tree(__const_iterator(that.__l_begin()), __const_iterator(that.__end())) {}
-		constexpr __rb_tree(__rb_tree&& that) : __tree_base(forward<__tree_base>(that)), __alloc() {}
+		constexpr __rb_tree(__rb_tree&& that) : __base(forward<__base>(that)) {}
 		constexpr __rb_tree& operator=(__rb_tree const& that) { return __copy_assign(that); }
 		constexpr __rb_tree& operator=(__rb_tree&& that) { return __move_assign(move(that)); }
 	};
@@ -291,7 +316,7 @@ namespace std
 	requires(constructible_from<T, Args...>)
 	constexpr typename __rb_tree<T, CP, A>::__link __rb_tree<T, CP, A>::__construct_node(Args&& ... args)
 	{
-		__link l		= construct_at(__alloc.allocate(1UL));
+		__link l		= construct_at(this->__trunk.allocate(1UL));
 		construct_at(l->__get_ptr(), forward<Args>(args)...);
 		l->__my_color	= RED;
 		return l;
@@ -328,7 +353,7 @@ namespace std
 		__link l		= static_cast<__link>(n);
 		if constexpr(!std::is_trivially_destructible_v<__value_type>)
 			l->__get_ref().~__value_type();
-		__alloc.deallocate(l, 1);
+		this->__trunk.deallocate(l, 1);
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	template<typename U>
@@ -559,16 +584,13 @@ namespace std
 	{
 		__clear();
 		this->__trunk		= move(that.__trunk);
-		this->__count		= that.__count;
-		if constexpr(__has_move_propagate<__allocator_type>)
-			this->__alloc	= move(that.__alloc);
 		return *this;
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	constexpr void __rb_tree<T, CP, A>::__clear()
 	{
 		__recursive_destroy(__get_root());
-		__count	= 0;
+		this->__count	= 0;
 		this->__reset();
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>

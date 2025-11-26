@@ -34,31 +34,31 @@ namespace std
 			typedef decltype(sizeof(__hash_node_base)) size_type;
 			__hash_node_base __root{};
 			__bucket __singularity		= nullptr;
-			size_type __element_count	= 0UL;
-			size_type __bucket_count	= 1UL;
-			size_type __after_root_idx	= 0UL;
+			size_type __element_count	= 0UZ;
+			size_type __bucket_count	= 1UZ;
+			size_type __after_root_idx	= 0UZ;
 			__buckets_ptr __my_buckets	= addressof(__singularity);
 			float __max_load			= 1.0F;
 			constexpr __hashtable_base() = default;
 			constexpr bool __is_singularity() const noexcept { return __my_buckets == addressof(__singularity); }
 			constexpr float __load(size_type added) const noexcept { return (__element_count + added) / double(__bucket_count); }
 			constexpr float __current_load() const noexcept { return __load(0); }
-			constexpr bool __need_rehash(size_type added) const noexcept { return __bucket_count < 2UL || __load(added) >= __max_load; }
-			constexpr size_type __next_bucket_ct(size_type added) const noexcept { return max(5UL, __bucket_count) * (1UL + static_cast<unsigned int>(__builtin_ceilf(__load(added) / __max_load))); }
+			constexpr bool __need_rehash(size_type added) const noexcept { return __bucket_count < 2UZ || __load(added) >= __max_load; }
+			constexpr size_type __next_bucket_ct(size_type added) const noexcept { return max(5UZ, __bucket_count) * (1UZ + static_cast<unsigned int>(__builtin_ceilf(__load(added) / __max_load))); }
 			constexpr __buckets_ptr __allocate_buckets(size_type n) { __buckets_ptr result = allocator<__bucket>().allocate(n); array_zero(result, n); return result; }
 			constexpr size_type __size() const noexcept { return __element_count; }
 			constexpr size_type __range(size_type idx) const noexcept { return idx % __bucket_count; }
-			constexpr size_type __range(size_type idx, size_type max) const noexcept { if(__unlikely(!max)) return 0UL; return idx % max; }
-			constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UL; __element_count = 0UL; __bucket_count = 2UL; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
+			constexpr size_type __range(size_type idx, size_type max) const noexcept { if(__unlikely(!max)) return 0UZ; return idx % max; }
+			constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UZ; __element_count = 0UZ; __bucket_count = 2UZ; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
 			constexpr void __deallocate_buckets() { if(!__unlikely(__is_singularity())) { allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
-			constexpr void __init_buckets(size_type n) { if(__builtin_expect(n < 2UL, false)) { __my_buckets = addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
+			constexpr void __init_buckets(size_type n) { if(__builtin_expect(n < 2UZ, false)) { __my_buckets = addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
 			constexpr void __insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n);
 			constexpr void __remove_first_at(__buckets_ptr buckets, size_type idx, __base_ptr n_next, size_type next_bucket);
 			constexpr void __insert_at(size_type idx, __base_ptr n) { __insert_at(__my_buckets, idx, n); }
 			constexpr void __remove_first_at(size_type idx, __base_ptr n_next, size_type next_bucket) { __remove_first_at(__my_buckets, idx, n_next, next_bucket); }
-			constexpr void __move_assign(__hashtable_base&& that) noexcept { this->__root.__next = that.__root.__next; this->__element_count = that.__element_count;  this->__bucket_count = that.__bucket_count;  this->__after_root_idx = that.__after_root_idx; this->__my_buckets = that.__my_buckets; that.__reset(); that.__init_buckets(2UL); }
+			constexpr void __move_assign(__hashtable_base&& that) noexcept { this->__root.__next = that.__root.__next; this->__element_count = that.__element_count;  this->__bucket_count = that.__bucket_count;  this->__after_root_idx = that.__after_root_idx; this->__my_buckets = that.__my_buckets; that.__reset(); that.__init_buckets(2UZ); }
 			constexpr __hashtable_base(size_type ct) : __bucket_count(ct) { __init_buckets(ct); }
-			constexpr __hashtable_base(__hashtable_base&& that) noexcept : __root(that.__root), __element_count(that.__element_count), __bucket_count(that.__bucket_count), __after_root_idx(that.__after_root_idx), __my_buckets(that.__my_buckets) { that.__reset(); that.__init_buckets(2UL); }
+			constexpr __hashtable_base(__hashtable_base&& that) noexcept : __root(that.__root), __element_count(that.__element_count), __bucket_count(that.__bucket_count), __after_root_idx(that.__after_root_idx), __my_buckets(that.__my_buckets) { that.__reset(); that.__init_buckets(2UZ); }
 		};
 		constexpr void __hashtable_base::__insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n)
 		{
@@ -151,9 +151,11 @@ namespace std
 			friend constexpr bool operator==(__hashtable_const_iterator<T> const& __this, __hashtable_const_iterator<T> const& __that) noexcept { return __this.__my_node == __that.__my_node; }
 			constexpr operator bool() const noexcept { return __my_node != nullptr; }
 		};
+		template<typename VT, allocator_object<VT> AT> using __hash_node_allocator = typename AT::template rebind<__hash_node<VT>>::other;
 		template<typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
-		struct __hashtable : __hashtable_base
+		struct __hashtable : __hashtable_base, __hash_node_allocator<VT, AT>
 		{
+			typedef __hashtable_base __base;
 			typedef KT key_type;
 			typedef VT value_type;
 			typedef AT allocator_type;
@@ -166,18 +168,16 @@ namespace std
 			typedef typename iterator::pointer pointer;
 			typedef typename const_iterator::pointer const_pointer;
 			typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
-			using typename __hashtable_base::size_type;
-			using typename __hashtable_base::__bucket;
-			using typename __hashtable_base::__base_ptr;
-			using typename __hashtable_base::__const_base_ptr;
-			using typename __hashtable_base::__buckets_ptr;
-			using __alloc_rebind = typename allocator_type::template rebind<__hash_node<VT>>;
+			using typename __base::size_type;
+			using typename __base::__bucket;
+			using typename __base::__base_ptr;
+			using typename __base::__const_base_ptr;
+			using typename __base::__buckets_ptr;
 			typedef __hash_node<value_type> __node_type;
 			typedef __node_type* __node_ptr;
 			typedef __node_type const* __const_node_ptr;
 			typedef XT __key_extract;
-			typedef typename __alloc_rebind::other __node_alloc;
-			__node_alloc __alloc{};
+			typedef __hash_node_allocator<VT, AT> __node_alloc;
 			constexpr static key_type const& __key_of(__const_node_ptr n) { return __key_extract()(n->__ref()); }
 			constexpr static bool __is_equal(key_type const& k1, key_type const& k2) { return key_equal()(k1, k2); }
 			constexpr size_type __hash_code(__const_node_ptr n) const { return hasher()(__key_extract()(n->__ref())); }
@@ -186,9 +186,9 @@ namespace std
 			constexpr size_type __index(__const_node_ptr n) const { return this->__range(__hash_code(n)); }
 			constexpr size_type __index(key_type const& k) const { return this->__range(__hash_code(k)); }
 			constexpr size_type __index(value_type const& v) const { return this->__range(__hash_code(v)); }
-			constexpr __node_ptr __allocate_node() { __node_ptr n = __alloc.allocate(1UL); if consteval { construct_at(n); } return n; }
-			template<typename ... Args> requires constructible_from<value_type, Args...> constexpr __node_ptr __create_node(Args&& ... args) { __node_ptr n = __allocate_node(); construct_at(n->__ptr(), forward<Args>(args)...); return n; }
-			constexpr void __destroy_node(__node_ptr n) { if constexpr(!std::is_trivially_destructible_v<value_type>) n->__ref().~value_type() ; __alloc.deallocate(n, 1UL); }
+			constexpr __node_ptr __allocate_node() { __node_ptr n = this->allocate(1UZ); if consteval { construct_at(n); } return n; }
+			template<typename ... Args> requires(constructible_from<value_type, Args...>) constexpr __node_ptr __create_node(Args&& ... args) { __node_ptr n = __allocate_node(); construct_at(n->__ptr(), forward<Args>(args)...); return n; }
+			constexpr void __destroy_node(__node_ptr n) { if constexpr(!std::is_trivially_destructible_v<value_type>) n->__ref().~value_type() ; this->deallocate(n, 1UZ); }
 			constexpr __node_ptr __begin() noexcept { return static_cast<__node_ptr>(this->__root.__next); }
 			constexpr __const_node_ptr __begin() const noexcept { return static_cast<__const_node_ptr>(this->__root.__next); }
 			constexpr __node_ptr __advance_chain(__base_ptr chain) noexcept { return chain ? static_cast<__node_ptr>(chain->__next) : nullptr; }
@@ -209,27 +209,27 @@ namespace std
 			constexpr void __run_rehash(size_type target_count);
 			constexpr iterator __insert_node(size_type hash, __base_ptr n, size_type added) { if(this->__need_rehash(added)) { __run_rehash(this->__next_bucket_ct(added)); } this->__insert_at(this->__range(hash), n); this->__element_count++; return iterator(n); }
 			constexpr iterator __erase_node(size_type idx, __base_ptr prev, __node_ptr n);
-			constexpr pair<iterator, bool> __insert_node(__node_ptr n, size_type added = 1UL) { if(__node_ptr p = __find(__key_of(n))) { __destroy_node(n); return make_pair(iterator(p), false); } return make_pair(__insert_node(__hash_code(n), n, added), true); }
-			constexpr iterator __insert(__node_ptr n, size_type added = 1UL) { return __insert_node(__hash_code(n), n, added); }
+			constexpr pair<iterator, bool> __insert_node(__node_ptr n, size_type added = 1UZ) { if(__node_ptr p = __find(__key_of(n))) { __destroy_node(n); return make_pair(iterator(p), false); } return make_pair(__insert_node(__hash_code(n), n, added), true); }
+			constexpr iterator __insert(__node_ptr n, size_type added = 1UZ) { return __insert_node(__hash_code(n), n, added); }
 			constexpr pair<iterator, bool> __insert(value_type const& val) requires(copy_constructible<value_type>) { return __insert_node(__create_node(val)); }
 			constexpr pair<iterator, bool> __insert(value_type&& val) requires(move_constructible<value_type>) { return __insert_node(__create_node(move(val))); }
 			template<input_iterator IT> requires(constructible_from<value_type, decltype(*declval<IT>())>) constexpr void __insert(IT first, IT last) { size_type n = static_cast<size_type>(distance(first, last)); for(size_type i = 0; i < n; i++, ++first) { __insert_node(__create_node(*first), static_cast<size_type>(n - i)); } }
 			constexpr void __insert(initializer_list<value_type> ini) requires(copy_constructible<value_type>) { __insert(ini.begin(), ini.end()); }
 			template<typename ... Args> requires(constructible_from<value_type, Args...>) constexpr pair<iterator, bool> __emplace(Args&& ... args) { return __insert_node(__create_node(forward<Args>(args)...)); }
 			constexpr iterator __erase(const_iterator what) { __base_ptr prev = __get_before(__index(what.get_node()), what.get_node()); __node_ptr n = __advance_chain(prev); return __erase_node(__index(n), prev, n); }
-			constexpr size_type __erase(key_type const& what) { __base_ptr prev = __find_before(what); if(__node_ptr n = __advance_chain(prev)) { __erase_node(__index(n), prev, n); return 1UL; } return 0UL; }
+			constexpr size_type __erase(key_type const& what) { __base_ptr prev = __find_before(what); if(__node_ptr n = __advance_chain(prev)) { __erase_node(__index(n), prev, n); return 1UZ; } return 0UZ; }
 			constexpr iterator __before(iterator what) { if(__base_ptr p = __get_before(what.get_node()); p != std::addressof(this->__root)) return iterator(p); else return iterator(nullptr); }
 			constexpr const_iterator __before(const_iterator what) const { if(__const_base_ptr p = __get_before(what.get_node()); p != std::addressof(this->__root)) return const_iterator(p); else return const_iterator(nullptr); }
 			constexpr float __get_max_load() const noexcept { return this->__max_load; }
 			constexpr void __set_max_load(float val) noexcept { this->__max_load = val; }
 			constexpr size_type __target_count_at_least(size_type cnt) const noexcept { return max(cnt, static_cast<size_type>(__builtin_ceilf(this->__element_count / this->__max_load))); }
 			constexpr void __deallocate_nodes() { __node_ptr n = __begin(); for(__node_ptr s = __advance_chain(n); n; n = s, s = __advance_chain(s)) __destroy_node(n); }
-			constexpr __hashtable(size_type ct) : __hashtable_base(ct) {}
-			constexpr __hashtable() : __hashtable(2UL) {}
+			constexpr __hashtable(size_type ct) : __base(ct), __node_alloc() {}
+			constexpr __hashtable() : __base(2UZ), __node_alloc() {}
 			constexpr __hashtable(initializer_list<value_type> ini) requires(copy_constructible<value_type>) : __hashtable(ini.size()) { __insert(ini); }
 			template<input_iterator IT> requires(constructible_from<value_type, decltype(*declval<IT>())>) constexpr __hashtable(IT first, IT last) : __hashtable(static_cast<size_type>(distance(first, last))) { __insert(first, last); }
-			constexpr __hashtable(__hashtable&& that) : __hashtable_base(std::move(that)), __alloc(std::move(that.__alloc)) {}
-			constexpr __hashtable(__hashtable const& that) : __hashtable(const_iterator(that.__begin()), const_iterator(nullptr)) { this->__alloc = that.__alloc; }
+			constexpr __hashtable(__hashtable&& that) : __base(std::move(that)), __node_alloc(std::forward<__node_alloc>(that)) {}
+			constexpr __hashtable(__hashtable const& that) : __base(that.__size()), __node_alloc(that) { this->__insert(that.__begin(), that.__end()); }
 			constexpr ~__hashtable() { __deallocate_nodes(); __deallocate_buckets(); }
 			constexpr size_type __size() const noexcept { return this->__element_count; }
 			constexpr void __rehash_to_size(size_type target) { __run_rehash(__target_count_at_least(target)); }
@@ -238,24 +238,26 @@ namespace std
 			{
 				__deallocate_nodes();
 				this->__root.__next		= nullptr;
-				this->__after_root_idx	= 0UL;
-				this->__element_count	= 0UL;
+				this->__after_root_idx	= 0UZ;
+				this->__element_count	= 0UZ;
 				array_zero(__my_buckets, __bucket_count);
 			}
 			constexpr __hashtable& operator=(__hashtable const& that)
 			{
 				__clear();
 				__insert(const_iterator(that.__begin()), const_iterator(nullptr));
-				if constexpr(__has_move_propagate<AT>) this->__alloc = that.__alloc;
+				if constexpr(__has_move_propagate<AT>)
+					*static_cast<__node_alloc>(this)	= that;
 				return *this;
 			}
 			constexpr __hashtable& operator=(__hashtable&& that)
 			{
 				__clear();
 				this->__move_assign(move(that));
-				if constexpr(__has_move_propagate<AT>) this->__alloc = std::move(that.__alloc);
+				if constexpr(__has_move_propagate<AT>)
+					*static_cast<__node_alloc>(this)	= std::forward<__node_alloc>(that);
 				that.__reset();
-				that.__init_buckets(2UL);
+				that.__init_buckets(2UZ);
 				return *this;
 			}
 			// TODO (if needed): void __run_rehash_multi(size_type target_count);
@@ -264,10 +266,10 @@ namespace std
 		template <typename KT, typename VT, __detail::__hash_ftor<KT> HT, __detail::__key_extract<KT, VT> XT, __detail::__predicate<KT> ET, allocator_object<VT> AT>
 		constexpr void __hashtable<KT, VT, HT, XT, ET, AT>::__run_rehash(size_type target_count)
 		{
-			if(__unlikely(target_count < 2UL)) target_count = 2UL;
+			if(__unlikely(target_count < 2UZ)) target_count = 2UZ;
 			__buckets_ptr nbkts		= this->__allocate_buckets(target_count);
 			__node_ptr orig			= __begin();
-			this->__after_root_idx	= 0;
+			this->__after_root_idx	= 0UZ;
 			this->__root.__next		= nullptr;
 			for(__node_ptr p = orig; p; p = p->__get_next()) this->__insert_at(nbkts, this->__range(__hash_code(p), target_count), p);
 			this->__deallocate_buckets();
@@ -278,7 +280,7 @@ namespace std
 		constexpr typename __hashtable<KT, VT, HT, XT, ET, AT>::iterator __hashtable<KT, VT, HT, XT, ET, AT>::__erase_node(size_type idx, __base_ptr prev, __node_ptr n)
 		{
 			if(__unlikely(!n)) return iterator(nullptr);
-			if(prev == this->__my_buckets[idx]) { this->__remove_first_at(idx, n->__next, n->__next ? __index(n->__get_next()) : 0UL); }
+			if(prev == this->__my_buckets[idx]) { this->__remove_first_at(idx, n->__next, n->__next ? __index(n->__get_next()) : 0UZ); }
 			else if(n->__next)
 			{
 				size_t subs_idx						= __index(n->__get_next());

@@ -36,7 +36,8 @@ namespace std
 			constexpr __list_node_base(__list_node_base&& that) noexcept : __prev(that.__prev), __next(that.__next) { that.__prev = that.__next = nullptr; }
 			constexpr __list_node_base& operator=(__list_node_base&& that) noexcept { __prev = that.__prev; __next = that.__next; that.__prev = that.__next = nullptr; return *this; }
 		};
-		struct __list_base
+		template<typename A>
+		struct __list_base : A
 		{
 			typedef add_pointer_t<__list_node_base> __node_base_ptr;
 			typedef add_pointer_t<add_const_t<__list_node_base>> __const_node_base_ptr;
@@ -51,17 +52,19 @@ namespace std
 			constexpr __const_node_base_ptr __end() const noexcept { return addressof(__tail); }
 			constexpr void __reset() noexcept { __head.__next = addressof(__tail); __tail.__prev = addressof(__head); __count = 0; }
 			constexpr ~__list_base() noexcept = default;
-			constexpr __list_base() noexcept : __head(), __tail(std::addressof(__head)), __count() {}
-			constexpr __list_base(__list_base&& that) noexcept :
+			constexpr __list_base() noexcept(noexcept(A())) : A(), __head(), __tail(std::addressof(__head)), __count() {}
+			constexpr __list_base(__list_base&& that) noexcept(std::is_nothrow_move_constructible_v<A>) : A(std::forward<A>(that)),
 				__head	{ move(that.__head) },
 				__tail	{ move(that.__tail) },
 				__count	{ that.__count }
 						{ that.__reset(); }
-			constexpr void __move_assign(__list_base&& that) noexcept
+			constexpr void __move_assign(__list_base&& that) noexcept(std::is_nothrow_move_assignable_v<A> || !__has_move_propagate<A>)
 			{
-				this->__head	= move(that.__head);
-				this->__tail	= move(that.__tail);
-				this->__count	= that.__count;
+				this->__head				= move(that.__head);
+				this->__tail				= move(that.__tail);
+				this->__count				= that.__count;
+				if constexpr(__has_move_propagate<A>)
+					*static_cast<A*>(this)	= forward<A>(that);
 				that.__reset();
 			}
 		};
@@ -139,9 +142,9 @@ namespace std
 			friend constexpr bool operator==(__const_iterator_type const& __this, __const_iterator_type const& __that) noexcept { return __this.__my_node == __that.__my_node; }
 		};
 		template<typename T, allocator_object<T> AT>
-		class __dynamic_list : protected __list_base
+		class __dynamic_list : protected __list_base<typename AT::template rebind<__list_node<T>>::other>
 		{
-			using __base			= __list_base;
+			using __base			= __list_base<typename AT::template rebind<__list_node<T>>::other>;
 		protected:
 			using __node_type		= __list_node<T>;
 			using __rebind_alloc	= typename AT::template rebind<__node_type>;
@@ -167,7 +170,7 @@ namespace std
 			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __node_ptr __create_after(__const_node_base_ptr prev, Args&& ... args);
 			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr __node_ptr __create_before(__const_node_base_ptr next, Args&& ... args);
 			constexpr __node_base_ptr __erase(__node_ptr what);
-			constexpr void __destroy() { __node_ptr p = static_cast<__node_ptr>(this->__head.__next); for(__node_ptr n = static_cast<__node_ptr>(p->__next); n != addressof(this->__tail); p = n, n = static_cast<__node_ptr>(n->__next)) { __alloc.deallocate(p, 1); } }
+			constexpr void __destroy() { __node_ptr p = static_cast<__node_ptr>(this->__head.__next); for(__node_ptr n = static_cast<__node_ptr>(p->__next); n != addressof(this->__tail); p = n, n = static_cast<__node_ptr>(n->__next)) { this->deallocate(p, 1); } }
 			constexpr __node_ptr __put_front(value_type const& v) requires(copy_constructible<value_type>) { return this->__create_after(addressof(this->__head), v); }
 			constexpr __node_ptr __put_front(value_type&& v) requires(move_constructible<value_type>) { return this->__create_after(addressof(this->__head), move(v)); }
 			constexpr __node_ptr __put_back(value_type const& v) requires(copy_constructible<value_type>) { return this->__create_before(addressof(this->__tail), v); }
@@ -186,7 +189,7 @@ namespace std
 			constexpr reverse_iterator rend() { return reverse_iterator(end()); }
 			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cend()); }
 			constexpr const_reverse_iterator rend() const { return crend(); }
-			constexpr AT get_allocator() const noexcept { return AT(__alloc); }
+			constexpr AT get_allocator() const noexcept { return AT(*this); }
 			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace_front(Args&& ... args) { return iterator(this->__create_after(addressof(this->__head), forward<Args>(args)...)); }
 			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace_back(Args&& ... args) { return iterator(this->__create_before(addressof(this->__tail), forward<Args>(args)...)); }
 			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator(this->__create_after(pos.get_node(), forward<Args>(args)...)); }
@@ -207,15 +210,21 @@ namespace std
 			constexpr __dynamic_list(initializer_list<value_type> ilist) : __dynamic_list(ilist.begin(), ilist.end()) {}
 			constexpr __dynamic_list(__dynamic_list const& that) : __dynamic_list(that.begin(), that.end()) {}
 			constexpr __dynamic_list(__dynamic_list&& that) : __base(move(that)) {}
-			constexpr __dynamic_list& operator=(__dynamic_list&& that) { clear(); this->__move_assign(move(that)); if constexpr(__has_move_propagate<__allocator>) { this->__alloc = std::move(that.__alloc); } return *this; }
-			constexpr __dynamic_list& operator=(__dynamic_list const& that) requires(copy_constructible<value_type>) { clear(); for(const_iterator i = that.begin(); i != that.end(); i++) { this->__put_back(*i); } return *this; }
+			constexpr __dynamic_list& operator=(__dynamic_list&& that) { clear(); this->__move_assign(move(that)); return *this; }
+			constexpr __dynamic_list& operator=(__dynamic_list const& that) requires(copy_constructible<value_type>)
+			{
+				clear();
+				for(const_iterator i = that.begin(); i != that.end(); i++) this->__put_back(*i);
+				if constexpr(__has_move_propagate<__allocator>) *static_cast<__allocator*>(this) = that;
+				return *this;
+			}
 		};
 		template<typename T, allocator_object<T> AT>
 		template<typename... Args>
 		requires(constructible_from<T, Args...>)
 		constexpr typename __dynamic_list<T, AT>::__node_ptr __dynamic_list<T, AT>::__create_after(__const_node_base_ptr prev, Args&& ...args)
 		{
-			__node_ptr n = construct_at(__alloc.allocate(1UZ), const_cast<__node_base_ptr>(prev));
+			__node_ptr n = construct_at(this->allocate(1UZ), const_cast<__node_base_ptr>(prev));
 			construct_at(n->__ptr(), forward<Args>(args)...);
 			this->__count++;
 			return n;
@@ -225,7 +234,7 @@ namespace std
 		requires(constructible_from<T, Args...>)
 		constexpr typename __dynamic_list<T, AT>::__node_ptr __dynamic_list<T, AT>::__create_before(__const_node_base_ptr next, Args&& ...args)
 		{
-			__node_ptr n = construct_at(__alloc.allocate(1UZ), 0, const_cast<__node_base_ptr>(next));
+			__node_ptr n = construct_at(this->allocate(1UZ), 0, const_cast<__node_base_ptr>(next));
 			construct_at(n->__ptr(), forward<Args>(args)...);
 			this->__count++;
 			return n;
@@ -238,7 +247,7 @@ namespace std
 			prev->__relink_next(next);
 			next->__relink_prev(prev);
 			if constexpr(!std::is_trivially_destructible_v<T>) what->__ref().~T();
-			__alloc.deallocate(what, 1);
+			this->deallocate(what, 1);
 			this->__count--;
 			return next;
 		}

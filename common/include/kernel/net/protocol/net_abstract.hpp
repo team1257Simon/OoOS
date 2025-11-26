@@ -33,8 +33,8 @@ class abstract_packet : public abstract_packet_base
 	constexpr static std::allocator<T> __alloc{};
 	static void __deallocate(void* pkt, size_t) { __alloc.deallocate(static_cast<T*>(pkt), 1); }
 public:
-	template<typename ... Args> requires std::constructible_from<T, Args...> abstract_packet(Args&& ... args) : abstract_packet_base(std::construct_at(__alloc.allocate(1UZ), std::forward<Args>(args)...), typeid(T), sizeof(T), __deallocate) {}
-	template<typename ... Args> requires std::constructible_from<T, Args...> abstract_packet(size_t sz, std::in_place_type_t<T>, Args&& ... args) : abstract_packet_base(std::construct_at(static_cast<T*>(__builtin_memset(::operator new(sz), 0, sz)), std::forward<Args>(args)...), typeid(T), sz) {}
+	template<typename ... Args> requires(std::constructible_from<T, Args...>) abstract_packet(Args&& ... args) : abstract_packet_base(std::construct_at(__alloc.allocate(1UZ), std::forward<Args>(args)...), typeid(T), sizeof(T), __deallocate) {}
+	template<typename ... Args> requires(std::constructible_from<T, Args...>) abstract_packet(size_t sz, std::in_place_type_t<T>, Args&& ... args) : abstract_packet_base(std::construct_at(static_cast<T*>(__builtin_memset(::operator new(sz), 0, sz)), std::forward<Args>(args)...), typeid(T), sz) {}
 	abstract_packet(netstack_buffer& buff) : abstract_packet_base(buff, typeid(T)) {}
 	abstract_packet(abstract_packet const& that) : abstract_packet_base(that) {}
 	abstract_packet(abstract_packet&& that) : abstract_packet_base(std::move(that)) {}

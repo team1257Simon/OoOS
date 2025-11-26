@@ -30,7 +30,7 @@ namespace std
 		typedef __tree_const_iterator<value_type> const_iterator;
 		typedef std::reverse_iterator<iterator> reverse_iterator;
 		typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this->__alloc); }
+		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this->__get_alloc()); }
 		constexpr iterator begin() noexcept { return iterator(this->__l_begin()); }
 		constexpr iterator end() noexcept { return iterator(this->__end()); }
 		constexpr const_iterator cbegin() const noexcept { return const_iterator(this->__l_begin() ); }

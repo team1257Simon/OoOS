@@ -29,7 +29,7 @@ namespace std
 		constexpr hash_set(hash_set&&) = default;
 		constexpr hash_set& operator=(hash_set const&) = default;
 		constexpr hash_set& operator=(hash_set&&) = default;
-		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this->__alloc); }
+		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this); }
 		constexpr size_type bucket(key_type const& k) const noexcept { return this->__index(k); }
 		constexpr size_type size() const noexcept { return this->__size(); }
 		constexpr iterator find(key_type const& k) { return iterator(this->__find(k)); }

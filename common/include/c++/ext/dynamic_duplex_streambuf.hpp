@@ -13,8 +13,7 @@ namespace std
 			typedef basic_streambuf<CT, TT> __base;
 			typedef std::__impl::__buf_ptrs<CT> __ptr_container;
 			typedef AT __allocator_type;
-			__allocator_type __allocator;
-			bool __readonly_input = false;
+			struct __alloc_hider : __allocator_type { bool __readonly_input = false; } __allocator;
 		public:
 			typedef typename __base::char_type char_type;
 			typedef typename __base::int_type int_type;
@@ -106,7 +105,7 @@ namespace std
 			{
 				if(!traits_type::eq_int_type(traits_type::to_int_type(*p), c))
 				{
-					if(__readonly_input)
+					if(__allocator.__readonly_input)
 						return traits_type::eof();
 					*p = traits_type::to_char_type(c);
 				}
