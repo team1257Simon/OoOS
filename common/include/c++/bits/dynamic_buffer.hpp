@@ -16,7 +16,7 @@
 #endif
 namespace std::__impl
 {
-	template<typename T> concept __can_sso = std::default_initializable<T> && std::is_trivially_copyable_v<T> && std::is_trivially_destructible_v<T>;
+	template<typename T> concept __can_sso = std::default_initializable<T> && std::is_trivially_copyable_v<T> && (std::is_move_assignable_v<T> || std::move_constructible<T>) && std::is_trivially_destructible_v<T>;
 	template<typename C, typename A> concept __container_type = requires(C const& cclref, C& clref, C&& crref, A& aref)
 	{
 		typename C::__value_type;
@@ -304,8 +304,10 @@ namespace std::__impl
 	template<__can_sso T> struct __container_select<T, true> { typedef __sso_buffer<T> type; };
 	/**
 	 * This base-type implements the functionality shared by the dynamic-container types (mainly string and vector).
-	 * If the buffer is for a null-terminated string, use NTS = true. This parameter exists in place of using a virtual member to implement this functionality.
-	 * Apparently, using a virtual member in something like std::string can cause problems...who knew.
+	 * If the buffer is for a null-terminated string, use NTS = true.
+	 * The container will select the SSO-string buffer implementation if possible when NTS is set to true.
+	 * When NTS is false, it will select the tri-pointer buffer used with std::vector instead.
+	 * It will also do so if the type T cannot be used with SSO (e.g. a type that is not default-initializable).
 	 */
 	template<typename T, allocator_object<T> A, bool NTS>
 	struct __dynamic_buffer
