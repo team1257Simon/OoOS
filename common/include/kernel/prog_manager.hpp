@@ -11,8 +11,8 @@ class prog_manager : std::list<elf64_executable>, std::list<elf64_dynamic_execut
 //  The purpose of this is really just to allow for theoretical future changes to that data structure without breaking this code.
 //  These offsets are just used to compute the location of the containing node given an executable's object handle.
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
-	constexpr static off_t __static_node_offset = offsetof(typename __static_base::__node_type, __data);
-	constexpr static off_t __dynamic_node_offset = offsetof(typename __dynamic_base::__node_type, __data);
+	constexpr static off_t __static_node_offset		= offsetof(typename __static_base::__node_type, __data);
+	constexpr static off_t __dynamic_node_offset	= offsetof(typename __dynamic_base::__node_type, __data);
 #pragma GCC diagnostic pop
 	static prog_manager __instance;
 	elf64_executable* __add(addr_t img_start, size_t img_size, size_t stack_sz);

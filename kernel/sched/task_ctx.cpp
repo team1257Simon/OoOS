@@ -389,8 +389,8 @@ void task_ctx::set_signal(int sig, bool save_state)
 	else
 	{
 		if(save_state) {
-			task_sig_info.sigret_frame	= task_struct.saved_regs;
-			task_sig_info.sigret_fxsave	= task_struct.fxsv;
+			task_sig_info.sigret_frame		= task_struct.saved_regs;
+			task_sig_info.sigret_fxsave		= task_struct.fxsv;
 		}
 		task_sig_info.active_signal			= sig;
 		task_struct.saved_regs.rdi			= sig;

@@ -681,13 +681,13 @@ seq_fail:
 		switch(value)
 		{
 		case SC_SET1:
-			cmd.sub = 1UC;
+			cmd.sub	= 1UC;
 			break;
 		case SC_SET2:
-			cmd.sub = 2UC;
+			cmd.sub	= 2UC;
 			break;
 		case SC_SET3:
-			cmd.sub = 3UC;
+			cmd.sub	= 3UC;
 			break;
 		default:
 			return false;

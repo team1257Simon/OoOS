@@ -62,15 +62,17 @@ namespace std
 {
 	namespace __impl
 	{
-		template<std::integral IT> struct __pow_10	{ constexpr static IT		values[] = {}; };
-		template<> struct __pow_10<uint8_t>		{ constexpr static uint8_t	values[] = { 1U, uint8_t(1E1), uint8_t(1E2) }; };
-		template<> struct __pow_10<uint16_t>		{ constexpr static uint16_t values[] = { 1U, uint16_t(1E1), uint16_t(1E2), uint16_t(1E3), uint16_t(1E4) }; };
-		template<> struct __pow_10<uint32_t>		{ constexpr static uint32_t values[] = { 1U, uint32_t(1E1), uint32_t(1E2), uint32_t(1E3), uint32_t(1E4), uint32_t(1E5), uint32_t(1E6), uint32_t(1E7), uint32_t(1E8),	uint32_t(1E9) }; };
-		template<> struct __pow_10<uint64_t>		{ constexpr static uint64_t values[] = { 1, uint64_t(1E1), uint64_t(1E2), uint64_t(1E3), uint64_t(1E4), uint64_t(1E5), uint64_t(1E6), uint64_t(1E7), uint64_t(1E8), uint64_t(1E9), uint64_t(1E10), uint64_t(1E11), uint64_t(1E12), uint64_t(1E13), uint64_t(1E14), uint64_t(1E15), uint64_t(1E16), uint64_t(1E17), uint64_t(1E18), uint64_t(1E19) }; };
-		template<> struct __pow_10<int8_t>			{ constexpr static int8_t	values[] = { 1, int8_t(1E1), int8_t(1E2) }; };
-		template<> struct __pow_10<int16_t>		{ constexpr static int16_t	values[] = { 1, int16_t(1E1), int16_t(1E2), int16_t(1E3), int16_t(1E4) }; };
-		template<> struct __pow_10<int32_t>		{ constexpr static int32_t	values[] = { 1, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4), int32_t(1E5),	int32_t(1E6),	int32_t(1E7),	int32_t(1E8),	int32_t(1E9) }; };
-		template<> struct __pow_10<int64_t>		{ constexpr static int64_t	values[] = { 1, int64_t(1E1), int64_t(1E2), int64_t(1E3), int64_t(1E4), int64_t(1E5), int64_t(1E6), int64_t(1E7), int64_t(1E8), int64_t(1E9), int64_t(1E10), int64_t(1E11), int64_t(1E12), int64_t(1E13), int64_t(1E14), int64_t(1E15), int64_t(1E16), int64_t(1E17), int64_t(1E18) }; };
+		template<std::integral IT> struct __pow_10;
+		template<> struct __pow_10<uint8_t>									{ constexpr static uint8_t	values[] = { 1U, uint8_t(1E1), uint8_t(1E2) }; };
+		template<> struct __pow_10<uint16_t>								{ constexpr static uint16_t values[] = { 1U, uint16_t(1E1), uint16_t(1E2), uint16_t(1E3), uint16_t(1E4) }; };
+		template<> struct __pow_10<uint32_t>								{ constexpr static uint32_t values[] = { 1U, uint32_t(1E1), uint32_t(1E2), uint32_t(1E3), uint32_t(1E4), uint32_t(1E5), uint32_t(1E6), uint32_t(1E7), uint32_t(1E8), uint32_t(1E9) }; };
+		template<> struct __pow_10<uint64_t>								{ constexpr static uint64_t values[] = { 1, uint64_t(1E1), uint64_t(1E2), uint64_t(1E3), uint64_t(1E4), uint64_t(1E5), uint64_t(1E6), uint64_t(1E7), uint64_t(1E8), uint64_t(1E9), uint64_t(1E10), uint64_t(1E11), uint64_t(1E12), uint64_t(1E13), uint64_t(1E14), uint64_t(1E15), uint64_t(1E16), uint64_t(1E17), uint64_t(1E18), uint64_t(1E19) }; };
+		template<> struct __pow_10<int8_t>									{ constexpr static int8_t	values[] = { 1, int8_t(1E1), int8_t(1E2) }; };
+		template<> struct __pow_10<int16_t>									{ constexpr static int16_t	values[] = { 1, int16_t(1E1), int16_t(1E2), int16_t(1E3), int16_t(1E4) }; };
+		template<> struct __pow_10<int32_t>									{ constexpr static int32_t	values[] = { 1, int32_t(1E1), int32_t(1E2), int32_t(1E3), int32_t(1E4), int32_t(1E5), int32_t(1E6),	int32_t(1E7), int32_t(1E8),	int32_t(1E9) }; };
+		template<> struct __pow_10<int64_t>									{ constexpr static int64_t	values[] = { 1, int64_t(1E1), int64_t(1E2), int64_t(1E3), int64_t(1E4), int64_t(1E5), int64_t(1E6), int64_t(1E7), int64_t(1E8), int64_t(1E9), int64_t(1E10), int64_t(1E11), int64_t(1E12), int64_t(1E13), int64_t(1E14), int64_t(1E15), int64_t(1E16), int64_t(1E17), int64_t(1E18) }; };
+		template<> struct __pow_10<long long> : __pow_10<int64_t>			{};
+		template<> struct __pow_10<unsigned long long> : __pow_10<uint64_t>	{};
 		template<std::integral IT> constexpr static size_t __max_dec_digits() noexcept { return sizeof(__pow_10<IT>::values) / sizeof(IT); }
 		bool __isalnum(char c)	{ return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
 		bool __isalpha(char c)	{ return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
@@ -85,23 +87,11 @@ namespace std
 		bool __isxdigit(char c) { return __isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
 		char __tolower(char c)	{ return __isupper(c) ? (c + ('a' - 'A')) : c; }
 		char __toupper(char c)	{ return __islower(c) ? (c - ('a' - 'A')) : c; }
-		template <std::char_type CT> struct __char_encode
-		{
-			constexpr static CT minus			= static_cast<CT>(0);
-			constexpr static const CT digits[]	= {};
-			constexpr static const CT hexpref[] = {};
-			constexpr static int casediff		= 32;
-			constexpr static CT dot			= static_cast<CT>(0);
-			template <std::char_type DT> constexpr static DT __to_other(CT ct) { return static_cast<DT>(ct); }
-			constexpr static bool __is_upper(CT c) { return false; }
-			constexpr static bool __is_lower(CT c) { return false; }
-			constexpr static CT __to_upper(CT c) { return c - casediff; }
-			constexpr static CT __to_lower(CT c) { return c + casediff; }
-		};
+		template<std::char_type CT> struct __char_encode;
 		template<>
 		struct __char_encode<char>
 		{
-			constexpr static char minus			= '-';
+			constexpr static char minus				= '-';
 			constexpr static const char digits[]	= { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 			constexpr static const char hexpref[]	= "x0";
 			constexpr static int casediff			= 'a' - 'A';
@@ -111,7 +101,8 @@ namespace std
 			constexpr static bool __is_lower(char c) { return c >= 'a' && c <= 'z';	}
 			constexpr static char __to_upper(char c) { return __is_lower(c) ? c - casediff : c; }
 			constexpr static char __to_lower(char c) { return __is_upper(c) ? c + casediff : c; }
-			template <std::char_type DT> requires (!is_same_v<DT, char>) constexpr static DT __to_other(char c)
+			template <std::char_type DT> requires (!is_same_v<DT, char>)
+			constexpr static DT __to_other(char c)
 			{
 				if(c <= '9' && c >= '0') return __char_encode<DT>::digits[c - '0'];
 				else if(c >= 'A' && c <= 'F') return __char_encode<DT>::digits[10 + c - 'A'];
@@ -123,7 +114,7 @@ namespace std
 		struct __char_encode<wchar_t>
 		{
 			constexpr static wchar_t minus				= L'-';
-			constexpr static const wchar_t digits[]	= { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' };
+			constexpr static const wchar_t digits[]		= { L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F' };
 			constexpr static const wchar_t hexpref[]	= L"x0";
 			constexpr static int casediff				= L'a' - L'A';
 			constexpr static wchar_t dot				= L'.';
@@ -132,7 +123,8 @@ namespace std
 			constexpr static bool __is_lower(wchar_t c) { return c >= L'a' && c <= L'z';	}
 			constexpr static wchar_t __to_upper(wchar_t c) { return __is_lower(c) ? c - casediff : c; }
 			constexpr static wchar_t __to_lower(wchar_t c) { return __is_upper(c) ? c + casediff : c; }
-			template <std::char_type DT> requires(!is_same_v<DT, wchar_t>) constexpr static DT __to_other(wchar_t c)
+			template <std::char_type DT> requires(!is_same_v<DT, wchar_t>)
+			constexpr static DT __to_other(wchar_t c)
 			{
 				if(c <= L'9' && c >= L'0') return __char_encode<DT>::digits[c - L'0'];
 				else if(c >= L'A' && c <= L'F') return __char_encode<DT>::digits[10 + c - L'A'];
@@ -144,7 +136,7 @@ namespace std
 		struct	__char_encode<char8_t>
 		{
 			constexpr static char8_t minus				= u8'-';
-			constexpr static const char8_t digits[]	= { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' };
+			constexpr static const char8_t digits[]		= { u8'0', u8'1', u8'2', u8'3', u8'4', u8'5', u8'6', u8'7', u8'8', u8'9', u8'A', u8'B', u8'C', u8'D', u8'E', u8'F' };
 			constexpr static const char8_t hexpref[]	= u8"x0";
 			constexpr static int casediff				= u8'a' - u8'A';
 			constexpr static char8_t dot				= u8'.';
@@ -153,7 +145,8 @@ namespace std
 			constexpr static bool __is_lower(char8_t c) { return c >= u8'a' && c <= u8'z';	}
 			constexpr static char8_t __to_upper(char8_t c) { return __is_lower(c) ? c - casediff : c; }
 			constexpr static char8_t __to_lower(char8_t c) { return __is_upper(c) ? c + casediff : c; }
-			template <std::char_type DT> requires(!is_same_v<DT, char8_t>) constexpr static DT __to_other(char8_t c)
+			template <std::char_type DT> requires(!is_same_v<DT, char8_t>)
+			constexpr static DT __to_other(char8_t c)
 			{
 				if(c <= u8'9' && c >= u8'0') return __char_encode<DT>::digits[c - u8'0'];
 				else if(c >= u8'A' && c <= u8'F') return __char_encode<DT>::digits[10 + c - u8'A'];
@@ -164,7 +157,7 @@ namespace std
 		template<>
 		struct __char_encode<char16_t>
 		{
-			constexpr static char16_t minus			= u'-';
+			constexpr static char16_t minus				= u'-';
 			constexpr static const char16_t digits[]	= { u'0', u'1', u'2', u'3', u'4', u'5', u'6', u'7', u'8', u'9', u'A', u'B', u'C', u'D', u'E', u'F' };
 			constexpr static const char16_t hexpref[]	= u"x0";
 			constexpr static int casediff				= u'a' - u'A';
@@ -174,7 +167,8 @@ namespace std
 			constexpr static bool __is_lower(char16_t c) { return c >= u'a' && c <= u'z';	}
 			constexpr static char16_t __to_upper(char16_t c) { return __is_lower(c) ? c - casediff : c; }
 			constexpr static char16_t __to_lower(char16_t c) { return __is_upper(c) ? c + casediff : c; }
-			template <std::char_type DT> requires(!is_same_v<DT, char16_t>) constexpr static DT __to_other(char16_t c)
+			template <std::char_type DT> requires(!is_same_v<DT, char16_t>)
+			constexpr static DT __to_other(char16_t c)
 			{
 				if(c <= u'9' && c >= u'0') return __char_encode<DT>::digits[c - u'0'];
 				else if(c >= u'A' && c <= u'F') return __char_encode<DT>::digits[10 + c - u'A'];
@@ -185,7 +179,7 @@ namespace std
 		template <>
 		struct __char_encode<char32_t>
 		{
-			constexpr static char32_t minus			= U'-';
+			constexpr static char32_t minus				= U'-';
 			constexpr static const char32_t digits[]	= { U'0', U'1', U'2', U'3', U'4', U'5', U'6', U'7', U'8', U'9', U'A', U'B', U'C', U'D', U'E', U'F' };
 			constexpr static const char32_t hexpref[]	= U"x0";
 			constexpr static int casediff				= U'a' - U'A';
@@ -195,7 +189,8 @@ namespace std
 			constexpr static bool __is_lower(char32_t c) { return c >= U'a' && c <= U'z';	}
 			constexpr static char32_t __to_upper(char32_t c) { return __is_lower(c) ? c - casediff : c; }
 			constexpr static char32_t __to_lower(char32_t c) { return __is_upper(c) ? c + casediff : c; }
-			template <std::char_type DT> requires(!is_same_v<DT, char32_t>) constexpr static DT __to_other(char32_t c)
+			template <std::char_type DT> requires(!is_same_v<DT, char32_t>)
+			constexpr static DT __to_other(char32_t c)
 			{
 				if(c <= U'9' && c >= U'0') return __char_encode<DT>::digits[c - U'0'];
 				else if(c >= U'A' && c <= U'F') return __char_encode<DT>::digits[10 + c - U'A'];
@@ -209,7 +204,8 @@ namespace std
 			if constexpr(sizeof(UIT) > sizeof(uint32_t)) return __builtin_clzll(static_cast<uint64_t>(i));
 			else return __builtin_clz(i);
 		}
-		template<std::integral IT, std::char_type CT> struct __ntos_conv
+		template<std::integral IT, std::char_type CT>
+		struct __ntos_conv
 		{
 			using __digi_type					= __char_encode<CT>;
 			using __trait_type					= std::char_traits<CT>;
@@ -323,7 +319,8 @@ namespace std
 			if(dp != INT_MAX) str.insert(str.cbegin() + dp, '.');
 			return str;
 		}
-		template<std::char_type DT> requires(!is_same_v<DT, char>) constexpr std::basic_string<DT> __cvt_digits(std::basic_string<char> const& in_str)
+		template<std::char_type DT> requires(!is_same_v<DT, char>)
+		constexpr std::basic_string<DT> __cvt_digits(std::basic_string<char> const& in_str)
 		{
 			size_t n	= in_str.size();
 			std::basic_string<DT> str{};
@@ -488,26 +485,26 @@ namespace std
 }
 extern "C"
 {
-	int isalnum(int c)	{ return std::__impl::__isalnum(static_cast<char>(c)) ? 1 : 0; }
-	int isalpha(int c)	{ return std::__impl::__isalpha(static_cast<char>(c)) ? 1 : 0; }
-	int iscntrl(int c)	{ return std::__impl::__iscntrl(static_cast<char>(c)) ? 1 : 0; }
-	int isdigit(int c)	{ return std::__impl::__isdigit(static_cast<char>(c)) ? 1 : 0; }
-	int isgraph(int c)	{ return std::__impl::__isgraph(static_cast<char>(c)) ? 1 : 0; }
-	int islower(int c)	{ return std::__impl::__islower(static_cast<char>(c)) ? 1 : 0; }
-	int isprint(int c)	{ return std::__impl::__isprint(static_cast<char>(c)) ? 1 : 0; }
-	int ispunct(int c)	{ return std::__impl::__ispunct(static_cast<char>(c)) ? 1 : 0; }
-	int isspace(int c)	{ return std::__impl::__isspace(static_cast<char>(c)) ? 1 : 0; }
-	int isupper(int c)	{ return std::__impl::__isupper(static_cast<char>(c)) ? 1 : 0; }
-	int isxdigit(int c)	{ return std::__impl::__isxdigit(static_cast<char>(c)) ? 1 : 0; }
-	int tolower(int c)	{ return static_cast<int>(std::__impl::__tolower(static_cast<char>(c))); }
-	int toupper(int c)	{ return static_cast<int>(std::__impl::__toupper(static_cast<char>(c))); }
-	int atoi(const char* str)		{ char* tmp = nullptr; return std::__impl::ston<int>(str, tmp); }
-	double atof(const char* str)	{ char* tmp = nullptr; return strtod(str, std::addressof(tmp)); }
-	long atol(const char* str)		{ char* tmp = nullptr; return std::__impl::ston<long>(str, tmp); }
-	long strtol(const char* str, char** endptr, int base) { return std::__impl::ston<long>(str, *endptr, base); }
-	long long strtoll(const char* str, char** endptr, int base) { return std::__impl::ston<long long>(str, *endptr, base); }
-	unsigned long strtoul(const char* str, char** endptr, int base) { return std::__impl::ston<unsigned long>(str, *endptr, base); }
-	unsigned long long strtoull(const char* str, char** endptr, int base) { return std::__impl::ston<unsigned long long>(str, *endptr, base); }
+	int isalnum(int c)														{ return std::__impl::__isalnum(static_cast<char>(c)) ? 1 : 0; }
+	int isalpha(int c)														{ return std::__impl::__isalpha(static_cast<char>(c)) ? 1 : 0; }
+	int iscntrl(int c)														{ return std::__impl::__iscntrl(static_cast<char>(c)) ? 1 : 0; }
+	int isdigit(int c)														{ return std::__impl::__isdigit(static_cast<char>(c)) ? 1 : 0; }
+	int isgraph(int c)														{ return std::__impl::__isgraph(static_cast<char>(c)) ? 1 : 0; }
+	int islower(int c)														{ return std::__impl::__islower(static_cast<char>(c)) ? 1 : 0; }
+	int isprint(int c)														{ return std::__impl::__isprint(static_cast<char>(c)) ? 1 : 0; }
+	int ispunct(int c)														{ return std::__impl::__ispunct(static_cast<char>(c)) ? 1 : 0; }
+	int isspace(int c)														{ return std::__impl::__isspace(static_cast<char>(c)) ? 1 : 0; }
+	int isupper(int c)														{ return std::__impl::__isupper(static_cast<char>(c)) ? 1 : 0; }
+	int isxdigit(int c)														{ return std::__impl::__isxdigit(static_cast<char>(c)) ? 1 : 0; }
+	int tolower(int c)														{ return static_cast<int>(std::__impl::__tolower(static_cast<char>(c))); }
+	int toupper(int c)														{ return static_cast<int>(std::__impl::__toupper(static_cast<char>(c))); }
+	int atoi(const char* str)												{ char* tmp = nullptr; return std::__impl::ston<int>(str, tmp); }
+	double atof(const char* str)											{ char* tmp = nullptr; return strtod(str, std::addressof(tmp)); }
+	long atol(const char* str)												{ char* tmp = nullptr; return std::__impl::ston<long>(str, tmp); }
+	long strtol(const char* str, char** endptr, int base)					{ return std::__impl::ston<long>(str, *endptr, base); }
+	long long strtoll(const char* str, char** endptr, int base)				{ return std::__impl::ston<long long>(str, *endptr, base); }
+	unsigned long strtoul(const char* str, char** endptr, int base)			{ return std::__impl::ston<unsigned long>(str, *endptr, base); }
+	unsigned long long strtoull(const char* str, char** endptr, int base)	{ return std::__impl::ston<unsigned long long>(str, *endptr, base); }
 	size_t __strcat_basic(char* buffer, size_t max, const char* str1, const char* str2)
 	{
 		std::string cat(str1);

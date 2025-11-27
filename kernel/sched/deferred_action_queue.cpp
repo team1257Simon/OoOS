@@ -1,8 +1,8 @@
 #include <sched/deferred_action.hpp>
 namespace ooos
 {
-	deferred_action_queue::deferred_action_queue() noexcept = default;
-	deferred_action_queue::~deferred_action_queue() noexcept = default;
+	deferred_action_queue::deferred_action_queue() noexcept		= default;
+	deferred_action_queue::~deferred_action_queue() noexcept	= default;
 	void deferred_action_queue::tick()
 	{
 		bool pass		= false;

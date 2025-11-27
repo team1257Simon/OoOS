@@ -4,13 +4,13 @@
 #include <unordered_map>
 #include <elf64_shared.hpp>
 /* The MODE argument to 'dlopen' contains one of the following: */
-#define RTLD_LAZY       0x0001
-#define RTLD_NOW        0x0002
-#define RTLD_NOLOAD	    0x0004
-#define RTLD_DEEPBIND   0x0008
-#define RTLD_PREINIT    0x0010
-#define RTLD_GLOBAL	    0x0100
-#define RTLD_NODELETE   0x1000
+#define RTLD_LAZY		0x0001
+#define RTLD_NOW		0x0002
+#define RTLD_NOLOAD		0x0004
+#define RTLD_DEEPBIND	0x0008
+#define RTLD_PREINIT	0x0010
+#define RTLD_GLOBAL		0x0100
+#define RTLD_NODELETE	0x1000
 class shared_object_map : protected std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<elf64_shared_object>, decltype([](elf64_shared_object const& o) -> std::string const& { return o.get_soname(); })>
 {
 	using __base = std::hash_set<elf64_shared_object, std::string, std::hash<std::string>, std::equal_to<void>, std::allocator<elf64_shared_object>, __key_extract>;
@@ -65,19 +65,19 @@ public:
 };
 struct dl_addr_info
 {
-	const char* so_name;
-	void*       so_vbase;
-	const char* symbol_name;
-	void*       actual_addr;
+	const char*	so_name;
+	void*		so_vbase;
+	const char*	symbol_name;
+	void*		actual_addr;
 };
 extern "C"
 {
-	addr_t syscall_dlopen(const char* name, int flags);                             // void* dlopen(const char* name, int flags);
-	int syscall_dlclose(addr_t handle);                                             // int dlclose(void* hadle);
-	addr_t syscall_dlsym(addr_t handle, const char* name);                          // void* dlsym(void* restrict handle, const char* restrict name);
-	addr_t syscall_resolve(uint32_t sym_idx, addr_t got_offset_1);                  // void* dlresolve(int sym_idx);
-	int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent);           // int dlmap(void* restrict handle, struct link_map* restrict ent);
-	int syscall_dlpath(const char* path_str);                                       // int dlpath(const char* path_str); add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
-	int syscall_dladdr(addr_t sym_addr, dl_addr_info* info);                        // int dladdr(const void* addr, dl_info* info);
+	addr_t syscall_dlopen(const char* name, int flags);								// void* dlopen(const char* name, int flags);
+	int syscall_dlclose(addr_t handle);												// int dlclose(void* hadle);
+	addr_t syscall_dlsym(addr_t handle, const char* name);							// void* dlsym(void* restrict handle, const char* restrict name);
+	addr_t syscall_resolve(uint32_t sym_idx, addr_t got_offset_1);					// void* dlresolve(int sym_idx);
+	int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent);			// int dlmap(void* restrict handle, struct link_map* restrict ent);
+	int syscall_dlpath(const char* path_str);										// int dlpath(const char* path_str); add a colon-separated list of strings, possibly terminated with a semicolon, to the list of search paths for shared objects
+	int syscall_dladdr(addr_t sym_addr, dl_addr_info* info);						// int dladdr(const void* addr, dl_info* info);
 }
 #endif
