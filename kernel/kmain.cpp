@@ -242,6 +242,7 @@ constexpr static int8_t test_array[]
 };
 constexpr static ooos::scale_vector<4UZ> test_dimensions{ 3UZ, 5UZ, 4UZ, 2UZ };
 constexpr static ooos::multiarray<const int8_t, 4UZ> test_multi(test_array, test_dimensions);
+constexpr static std::string test_constexpr_str("constexpr!");
 void str_tests()
 {
 	srand(sys_time(nullptr));
@@ -256,7 +257,8 @@ void str_tests()
 	std::string test_str("I/like/to/eat/apples/and/bananas");
 	for(std::string s : std::ext::split(test_str, "/")) xdirect_write(s + " ");
 	std::vector<std::string> v{ "Dewey", "Cheatem", "and Howe" };
-	xdirect_writeln(std::ext::join(v, ", "));
+	xdirect_write(std::ext::join(v, ", ") + " ");
+	xdirect_writeln(test_constexpr_str);
 	xdirect_write("crc32c test: ");
 	debug_print_num(crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(test_str.c_str()), test_str.size()), 8);
 	dwendl();

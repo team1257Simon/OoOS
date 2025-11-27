@@ -184,13 +184,21 @@ enum class execution_state : uint8_t
  * That (exposure-only) object nominally encodes a process and, optionally, a thread within that process.
  * Certain scheduler functionality does not depend on the thread pointer at all.
  * Some other scheduler routines use information from the thread pointer if present or the corresponding process information otherwise.
- * Currently, extracting that info is handled by some global functions, but eventually I plan to shift some or all of it to member functions.
+ * In any case, it uses iterator-like logic for qualifiers, i.e. anything that involves dereferencing one of the pointers is const-qualified.
  */
 struct kthread_ptr
 {
 	task_t* task_ptr;
 	thread_t* thread_ptr;
-	void activate();
+	void activate() const noexcept;
+	void set_blocking(bool can_interrupt) const noexcept;
+	void clear_blocking() const noexcept;
+	void set_wait_delta(uint32_t ticks) const noexcept;
+	void add_wait_ticks(uint32_t ticks) const noexcept;
+	bool is_blocking() const noexcept;
+	bool is_interruptible() const noexcept;
+	unsigned int get_wait_delta() const noexcept;
+	void wait_tick() const noexcept;
 	constexpr task_t* operator->() const noexcept { return task_ptr; }
 	constexpr task_t& operator*() const noexcept { return *task_ptr; }
 	constexpr operator bool() const noexcept { return static_cast<bool>(task_ptr); }
@@ -198,6 +206,8 @@ struct kthread_ptr
 	friend constexpr bool operator==(task_t* const& __this, kthread_ptr const& __that) noexcept { return __this == __that.task_ptr; }
 	friend constexpr bool operator==(kthread_ptr const& __this, task_t* const& __that) noexcept { return __this.task_ptr == __that; }
 	constexpr std::strong_ordering operator<=>(kthread_ptr const& that) const noexcept { return this->task_ptr == that.task_ptr ? this->thread_ptr <=> that.thread_ptr : this->task_ptr <=> that.task_ptr; }
+	friend constexpr std::strong_ordering operator<=>(task_t* const& __this, kthread_ptr const& __that) noexcept { return __this <=> __that.task_ptr; }
+	friend constexpr std::strong_ordering operator<=>(kthread_ptr const& __this, task_t* const& __that) noexcept { return __this.task_ptr <=> __that; }
 };
 #endif
 #endif

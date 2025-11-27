@@ -16,7 +16,7 @@ namespace std
 	extension template<typename CT> concept basic_char_type = __detail::__basic_char_type<CT>::value;
 	template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return const_cast<CT*>(ptr); }
 	extension template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
-	extension template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, SIZE_MAX / 2); }
+	extension template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, SIZE_MAX); }
 	extension template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { fill_n<IT>(static_cast<IT*>(ptr), n, val); return ptr; }
 	extension template<std::char_type CT> constexpr CT* memset(CT* ptr, CT c, size_t n) { fill_n(ptr, n, c); return ptr; }
 	extension template<std::char_type CT> constexpr void assign(CT& c1, CT const& c2) { c1 = c2; }
@@ -79,7 +79,7 @@ namespace std
 		constexpr static char_type const* find(const char_type* ptr, const char_type* what) noexcept { return std::find(ptr, what); }
 		constexpr static int_type to_int_type(char_type c) noexcept { return static_cast<int>(c); }
 		constexpr static char_type to_char_type(int_type i) noexcept { return static_cast<char_type>(i);}
-		constexpr static char_type* copy(char_type* dest, const char_type* src, size_t n) { return std::strncpy(dest, src, n); }
+		constexpr static char_type* copy(char_type* dest, const char_type* src, size_t n) { return array_init(dest, src, n); }
 		constexpr static size_t length(const char_type* str) noexcept { return std::strlen(str); }
 		constexpr static int_type compare(const char_type* lhs, const char_type* rhs, size_t n) noexcept { return std::strncmp(lhs, rhs, n); }
 		constexpr static int_type eof() noexcept { return -1; }

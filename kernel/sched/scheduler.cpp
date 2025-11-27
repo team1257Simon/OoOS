@@ -17,7 +17,6 @@ typedef task_pl_queue::iterator task_iterator;
 scheduler scheduler::__instance;
 bool scheduler::__has_init;
 scheduler::scheduler() = default;
-static inline bool is_blocking(kthread_ptr const& t) { return t->task_ctl.block || (t.thread_ptr && t.thread_ptr->ctl_info.park); }
 void write_task_base(task_t const& next) { asm volatile("swapgs; wrgsbase %0; swapgs" :: "r"(std::addressof(next)) : "memory"); }
 bool scheduler::has_init() noexcept { return __has_init; }
 bool scheduler::init_instance() noexcept { return has_init() || (__has_init	= __instance.init()); }
@@ -27,45 +26,12 @@ void scheduler::register_task(kthread_ptr const& task) {
 	__queues[task->task_ctl.prio_base].push(task);
 	__total_tasks++;
 }
-static inline void set_delta(kthread_ptr& t, uint32_t delta)
-{
-	if(t.thread_ptr) {
-		t.thread_ptr->ctl_info.wait_time_delta	= delta;
-		t.thread_ptr->ctl_info.non_timed_park	= false;
-	}
-	else t->task_ctl.wait_ticks_delta = delta;
-}
-void set_blocking(kthread_ptr const& t, bool interrupt)
-{
-	if(t.thread_ptr) {
-		t.thread_ptr->ctl_info.park				= true;
-		t.thread_ptr->ctl_info.non_timed_park	= interrupt;
-	}
-	else {
-		t->task_ctl.block						= true;
-		t->task_ctl.can_interrupt				= interrupt;
-	}
-}
-void clear_blocking(kthread_ptr const& t)
-{
-	t->task_ctl.block								= false;
-	if(t->task_ctl.can_interrupt)
-		t->task_ctl.wait_ticks_delta				= 0U;
-	t->task_ctl.can_interrupt						= false;
-	if(t.thread_ptr)
-	{
-		t.thread_ptr->ctl_info.park					= false;
-		if(!t.thread_ptr->ctl_info.non_timed_park)
-			t.thread_ptr->ctl_info.wait_time_delta	= 0UL;
-		t.thread_ptr->ctl_info.non_timed_park		= false;
-	}
-}
 bool scheduler::__set_untimed_wait(kthread_ptr& task)
 {
 	try
 	{
 		__non_timed_sleepers.push_back(task);
-		set_blocking(task, true);
+		task.set_blocking(true);
 		return true;
 	}
 	catch(std::exception& e) { panic(e.what()); }
@@ -78,7 +44,7 @@ bool scheduler::interrupt_wait(kthread_ptr& waiting)
 	ntwaiterator j 	= __non_timed_sleepers.find(waiting);
 	if(j			!= __non_timed_sleepers.end())
 	{
-		clear_blocking(*j);
+		j->clear_blocking();
 		__non_timed_sleepers.erase(j);
 		return true;
 	}
@@ -96,7 +62,7 @@ bool scheduler::interrupt_wait(task_t* task)
 	for(ntwaiterator i	= __non_timed_sleepers.begin(); i != __non_timed_sleepers.end(); i++)
 	{
 		if(i->task_ptr	!= task) continue;
-		clear_blocking(*i);
+		i->clear_blocking();
 		__non_timed_sleepers.erase(i);
 		result			= true;
 	}
@@ -104,24 +70,24 @@ bool scheduler::interrupt_wait(task_t* task)
 }
 bool scheduler::__set_wait_time(kthread_ptr& task, unsigned int time, bool can_interrupt)
 {
-	set_blocking(task, can_interrupt);
+	task.set_blocking(can_interrupt);
 	unsigned int total			= __sleepers.cumulative_remaining_ticks();
 	if(time < total)
 	{
 		unsigned int cumulative	= 0;
 		for(waiterator i		= __sleepers.current(); i != __sleepers.end(); i++)
 		{
-			unsigned int cwait 	= i->task_ptr->task_ctl.wait_ticks_delta;
+			unsigned int cwait 	= i->get_wait_delta();
 			if(cwait + cumulative > time)
 			{
-				set_delta(task, static_cast<uint32_t>(time - cumulative));
+				task.set_wait_delta(static_cast<uint32_t>(time - cumulative));
 				waiterator res	= __sleepers.insert(i, task);
 				return res		!= __sleepers.end();
 			}
 			cumulative 			+= cwait;
 		}
 	}
-	set_delta(task, static_cast<uint32_t>(time - total));
+	task.set_wait_delta(static_cast<uint32_t>(time - total));
 	__sleepers.push(task);
 	return true;
 }
@@ -181,8 +147,8 @@ kthread_ptr scheduler::select_next()
 				result			= queue.pop();
 				fence();
 				j				= queue.current();
-			} while(is_blocking(result) && i != j);
-			if(is_blocking(result)) continue;
+			} while(result.is_blocking() && i != j);
+			if(result.is_blocking()) continue;
 			result->task_ctl.skips	= 0UC;
 			if(result->task_ctl.prio_base != pv && pv != PVSYS)
 			{
@@ -209,13 +175,13 @@ kthread_ptr scheduler::select_next()
 }
 bool scheduler::set_wait_untimed(kthread_ptr& task)
 {
-	if(!is_blocking(task))
+	if(!task.is_blocking())
 		return __set_untimed_wait(task);
 	return false;
 }
 bool scheduler::set_wait_timed(kthread_ptr& task, unsigned int time, bool can_interrupt)
 {
-	if(!is_blocking(task))
+	if(!task.is_blocking())
 		return __set_wait_time(task, static_cast<uint32_t>(__deferred_actions.compute_ticks(time)), can_interrupt);
 	return false;
 }
@@ -234,18 +200,18 @@ void scheduler::on_tick()
 	__sleepers.tick_wait();
 	if(!__sleepers.at_end())
 	{
-		kthread_ptr front_sleeper	= __sleepers.next();
+		kthread_ptr& front_sleeper	= __sleepers.next();
 		while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta	== 0)
 		{
 			kthread_ptr wakee		= __sleepers.pop();
-			wakee->task_ctl.block	= false;
+			wakee.clear_blocking();
 			front_sleeper			= __sleepers.next();
 		}
 	}
 	task_t* cptr				= get_task_base();
 	kthread_ptr cur(cptr, cptr->thread_ptr);
 	if(cur->quantum_rem) cur->quantum_rem--;
-	if(cur->quantum_rem	== 0 || is_blocking(cur))
+	if(cur->quantum_rem	== 0 || cur.is_blocking())
 	{
 		if(kthread_ptr next		= select_next())
 			__do_task_change(cur, next);
@@ -316,10 +282,10 @@ void scheduler::remove_worker_task(kthread_ptr const& w)
 {
 	task_t* cptr			= get_task_base();
 	kthread_ptr cur(cptr, cptr->thread_ptr);
-	if(cptr == w.task_ptr)
+	if(cptr == w)
 	{
 		kthread_ptr next	= __instance.fallthrough_yield();
-		if(next.task_ptr && next.task_ptr != cptr)
+		if(next && next != cptr)
 			__instance.__do_task_change(cur, next);
 	}
 	__instance.unregister_task(w.task_ptr);

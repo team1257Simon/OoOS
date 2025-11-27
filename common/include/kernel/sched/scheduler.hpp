@@ -52,8 +52,6 @@ public:
 	template<ooos::__internal::__extended_runnable FT> static inline void defer_millis(time_t delay_ms, FT&& action) { __instance.__deferred_actions.add(delay_ms, std::forward<FT>(action)); }
 	template<ooos::__internal::__extended_runnable FT> static inline void defer_sec(time_t delay_sec, FT&& action) { defer_millis(delay_sec * 1000UL, std::forward<FT>(action)); }
 };
-void clear_blocking(kthread_ptr const& t);
-void set_blocking(kthread_ptr const& t, bool interrupt);
 void write_task_base(task_t const& next);
 #define sch scheduler::get()
 #endif

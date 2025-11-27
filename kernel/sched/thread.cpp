@@ -33,20 +33,3 @@ namespace ooos
 		unlock_thread_mutex(thread);
 	}
 }
-void kthread_ptr::activate()
-{
-	if(thread_ptr != task_ptr->thread_ptr && task_ptr->frame_ptr.deref<uint64_t>() == uframe_magic)
-	{
-		uframe_tag& frame		= task_ptr->frame_ptr.deref<uframe_tag>();
-		thread_t* current		= frame.translate(task_ptr->thread_ptr);
-		thread_t* next			= frame.translate(thread_ptr);
-		if(current && next)
-		{
-			ooos::update_thread_state(*current, *task_ptr);
-			task_ptr->saved_regs	= next->saved_regs;
-			task_ptr->fxsv			= next->fxsv;
-			task_ptr->thread_ptr	= next->self;
-		}
-		else klog("[EXEC/THREAD] W: virtual address fault; no thread change occurred");
-	}
-}

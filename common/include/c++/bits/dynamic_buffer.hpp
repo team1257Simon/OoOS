@@ -154,15 +154,15 @@ namespace std::__impl
 		constexpr __pointer __get_ptr(__size_type n) const noexcept { return __begin + n; }
 		constexpr void __beg(__pointer p) noexcept { __begin = p; }
 		constexpr void __cur(__size_type c) noexcept { __length = __range(c); }
-		constexpr void __setc(__size_type c) noexcept { __cur(c); construct_at(__cur()); }
-		constexpr void __setc(__pointer p) noexcept { __cur(static_cast<__size_type>(construct_at(p) - __begin)); }
+		constexpr void __setc(__size_type c) noexcept { __cur(c); __begin[__length] = __value_type(); }
+		constexpr void __setc(__pointer p) noexcept { __cur(static_cast<__size_type>(std::addressof((p[0] = __value_type())) - __begin)); }
 		constexpr __size_type __capacity() const noexcept { return this->__is_local() ? __local_length : __allocated_size; }
 		constexpr __size_type __size() const noexcept { return __length; }
 		constexpr void __capacity(__size_type n) noexcept { __allocated_size = n; }
 		constexpr void __reset() noexcept { this->__use_local(); this->__setc(0UZ); }
 		constexpr void __adv(__size_type n) noexcept { this->__setc(__length + n); }
 		constexpr void __bck(__size_type n) noexcept { this->__setc(static_cast<__size_type>(__length < n ? 0UZ : __length - n)); }
-		constexpr __sso_buffer() noexcept : __begin(this->__local_data()), __length(0UZ) {}
+		constexpr __sso_buffer() noexcept : __begin(this->__local_data()), __length(0UZ), __local_data_buf() {}
 		constexpr __sso_buffer(__sso_buffer const& that) noexcept : __sso_buffer() { this->__copy_ptrs(that); }
 		constexpr __sso_buffer(__sso_buffer&& that) noexcept : __sso_buffer() { this->__move_ptrs(std::move(that)); }
 		template<allocator_object<T> A> constexpr __sso_buffer(A& a, __size_type sz) : __sso_buffer() { this->__create(a, sz); }
@@ -174,7 +174,7 @@ namespace std::__impl
 		}
 		constexpr void __move_ptrs(__sso_buffer&& that) noexcept
 		{
-			if(that.__is_local()) array_copy(this->__use_local(), that.__local_data(), that.__length);
+			if(that.__is_local()) array_init(this->__use_local(), that.__local_data(), that.__length);
 			else { this->__begin = that.__begin; this->__capacity(that.__capacity()); }
 			this->__setc(that.__length);
 			that.__reset();
@@ -187,7 +187,7 @@ namespace std::__impl
 		}
 		constexpr void __copy_ptrs(__sso_buffer const& that) noexcept
 		{
-			if(that.__is_local()) array_copy(this->__use_local(), that.__local_data(), that.__length);
+			if(that.__is_local()) array_init(this->__use_local(), that.__local_data(), that.__length);
 			else { this->__begin = that.__begin; this->__capacity(that.__capacity()); }
 			this->__setc(that.__length);
 		}
@@ -204,10 +204,10 @@ namespace std::__impl
 		__always_inline constexpr __pointer __use_local() noexcept
 		{
 			if consteval {
-				for(__size_type i	= 0UZ; i < __local_capacity; i++)
-					std::construct_at(std::addressof(__local_data()[i]));
+				for(__size_type i		= 0UZ; i < __local_capacity; i++)
+					__local_data()[i]	= __value_type();
 			}
-			return this->__begin	= __local_data();
+			return this->__begin		= __local_data();
 		}
 		template<allocator_object<__value_type> A>
 		constexpr void __create(A& a, __size_type sz)
@@ -274,8 +274,9 @@ namespace std::__impl
 		using typename C::__size_type;
 		using typename C::__difference_type;
 		constexpr __buffer_container() noexcept(noexcept(A())) : A(), C() {}
+		constexpr __buffer_container(__size_type s) : A(), C(*this, s) {}
 		constexpr __buffer_container(A const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : A(that), C() {}
-		constexpr __buffer_container(A const& that, __size_type s) : A(that), C(*static_cast<A*>(this), s) {}
+		constexpr __buffer_container(A const& that, __size_type s) : A(that), C(*this, s) {}
 		constexpr __buffer_container(__buffer_container&& that) noexcept(std::is_nothrow_move_constructible_v<A>) : A(forward<A>(that)), C(forward<C>(that)) {}
 		constexpr __buffer_container(__buffer_container const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : A(that), C(that) {}
 		constexpr __buffer_container(__buffer_container const& that, A const& a) : A(a), C(that) {}
@@ -389,7 +390,7 @@ namespace std::__impl
 		constexpr __container __temp_container(__size_type cap) { return __container(__my_data, cap); }
 		constexpr explicit __dynamic_buffer(A const& alloc) noexcept(noexcept(A(alloc))) : __my_data(alloc) {}
 		constexpr __dynamic_buffer() noexcept(noexcept(A())) : __my_data() {}
-		constexpr __dynamic_buffer(__size_type sz) : __my_data(A(), sz) {}
+		constexpr __dynamic_buffer(__size_type sz) : __my_data(sz) {}
 		constexpr __dynamic_buffer(__size_type sz, A const& alloc) : __my_data(alloc, sz) {}
 		constexpr __dynamic_buffer(__size_type sz, __const_reference val, A const& alloc) : __my_data(alloc, sz) { if(sz) { __set(__beg(), val, sz); __advance(sz); } }
 		constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __dynamic_buffer(__ils.begin(), __ils.end(), alloc) {}
@@ -512,10 +513,14 @@ namespace std::__impl
 	constexpr void __dynamic_buffer<T, A, NTS>::__transfer(__pointer where, IT start, IT end)
 	{
 		if(__unlikely(!(end > start))) return;
-		if constexpr(contiguous_iterator<IT>)
-			array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end)));
-		else for(IT i = start; i != end; i++, where++)
-			*where = *i;
+		if consteval { array_init(where, start, end); }
+		else
+		{
+			if constexpr(contiguous_iterator<IT>)
+				array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end)));
+			else for(IT i = start; i != end; i++, where++)
+				*where = *i;
+		}
 	}
 	template<typename T, allocator_object<T> A, bool NTS>
 	constexpr void __dynamic_buffer<T, A, NTS>::__zero(__pointer where, __size_type n)
