@@ -31,8 +31,8 @@ namespace std
 			{
 			private:
 				template<typename T> struct __result { using type = iter_reference_t<T>; };
-				template<typename T> requires __adl_imove<T> struct __result<T> { using type = decltype(iter_move(declval<T>())); };
-				template<typename T> requires (!__adl_imove<T>) && is_lvalue_reference_v<iter_reference_t<T>> struct __result<T> { using type = remove_reference_t<iter_reference_t<T>>&&; };
+				template<typename T> requires(__adl_imove<T>) struct __result<T> { using type = decltype(iter_move(declval<T>())); };
+				template<typename T> requires(!__adl_imove<T> && is_lvalue_reference_v<iter_reference_t<T>>) struct __result<T> { using type = remove_reference_t<iter_reference_t<T>>&&; };
 				template<typename T> static constexpr bool _is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(declval<T>())); else return noexcept(*declval<T>()); }
 			public:
 				template<std::__detail::__dereferenceable T> using __type = typename __result<T>::type;
@@ -41,12 +41,12 @@ namespace std
 		}
 		inline namespace __cust { inline constexpr __cust_imove::__imove iter_move{}; }
 	}
-	template<__detail::__dereferenceable T> requires __detail::__can_reference<ranges::__cust_imove::__imove::__type<T&>> using iter_rvalue_reference_t = ranges::__cust_imove::__imove::__type<T&>;
+	template<__detail::__dereferenceable T> requires(__detail::__can_reference<ranges::__cust_imove::__imove::__type<T&>>) using iter_rvalue_reference_t = ranges::__cust_imove::__imove::__type<T&>;
 	template<typename> struct incrementable_traits {};
-	template<typename T> requires is_object_v<T> struct incrementable_traits<T*> { using difference_type = ptrdiff_t; };
+	template<typename T> requires(is_object_v<T>) struct incrementable_traits<T*> { using difference_type = ptrdiff_t; };
 	template<typename IT> struct incrementable_traits<const IT> : incrementable_traits<IT> {};
 	template<typename T> requires requires { typename T::difference_type; } struct incrementable_traits<T> { using difference_type = typename T::difference_type; };
-	template<typename T> requires (!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; }) struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(declval<T>() - declval<T>())>::type; };
+	template<typename T> requires(!requires { typename T::difference_type; } && requires(const T& __a, const T& __b) { { __a - __b } -> integral; }) struct incrementable_traits<T> { using difference_type = typename make_signed<decltype(declval<T>() - declval<T>())>::type; };
 	#if defined __STRICT_ANSI__ && defined __SIZEOF_INT128__
 	template<> struct incrementable_traits<__int128> { using difference_type = __int128; };
 	template<> struct incrementable_traits<unsigned __int128> { using difference_type = __int128; };
@@ -55,7 +55,7 @@ namespace std
 	{
 		template<typename IT> concept __primary_traits_iter = __is_base_of(__iterator_traits<IT, void>, iterator_traits<IT>);
 		template<typename IT, typename T> struct __iter_traits_impl { using type = iterator_traits<IT>; };
-		template<typename IT, typename T> requires __primary_traits_iter<IT> struct __iter_traits_impl<IT, T> { using type = T; };
+		template<typename IT, typename T> requires(__primary_traits_iter<IT>) struct __iter_traits_impl<IT, T> { using type = T; };
 		template<typename IT, typename T = IT> using __iter_traits = typename __iter_traits_impl<IT, T>::type;
 		template<typename T> using __iter_diff_t = typename __iter_traits<T, incrementable_traits<T>>::difference_type;
 	}
@@ -63,18 +63,18 @@ namespace std
 	namespace __detail
 	{
 		template<typename> struct __cond_value_type {};
-		template<typename T> requires is_object_v<T> struct __cond_value_type<T> { using value_type = remove_cv_t<T>; };
+		template<typename T> requires(is_object_v<T>) struct __cond_value_type<T> { using value_type = remove_cv_t<T>; };
 		template<typename T> concept __has_member_value_type = requires { typename T::value_type; };
 		template<typename T> concept __has_member_element_type = requires { typename T::element_type; };
 	}
 	template<typename> struct indirectly_readable_traits {};
 	template<typename T> struct indirectly_readable_traits<T*> : __detail::__cond_value_type<T> {};
-	template<typename IT> requires is_array_v<IT> struct indirectly_readable_traits<IT> { using value_type = remove_cv_t<remove_extent_t<IT>>; };
+	template<typename IT> requires(is_array_v<IT>) struct indirectly_readable_traits<IT> { using value_type = remove_cv_t<remove_extent_t<IT>>; };
 	template<typename IT> struct indirectly_readable_traits<const IT> : indirectly_readable_traits<IT> {};
 	template<__detail::__has_member_value_type T> struct indirectly_readable_traits<T> : __detail::__cond_value_type<typename T::value_type> {};
 	template<__detail::__has_member_element_type T> struct indirectly_readable_traits<T> : __detail::__cond_value_type<typename T::element_type> {};
-	template<__detail::__has_member_value_type T> requires __detail::__has_member_element_type<T> && same_as<remove_cv_t<typename T::element_type>, remove_cv_t<typename T::value_type>> struct indirectly_readable_traits<T> : __detail::__cond_value_type<typename T::value_type> {};
-	template<__detail::__has_member_value_type T> requires __detail::__has_member_element_type<T> struct indirectly_readable_traits<T> {};
+	template<__detail::__has_member_value_type T> requires(__detail::__has_member_element_type<T> && same_as<remove_cv_t<typename T::element_type>, remove_cv_t<typename T::value_type>>) struct indirectly_readable_traits<T> : __detail::__cond_value_type<typename T::value_type> {};
+	template<__detail::__has_member_value_type T> requires(__detail::__has_member_element_type<T>) struct indirectly_readable_traits<T> {};
 	namespace __detail
 	{
 		template<typename T> using __iter_value_t = typename __iter_traits<T, indirectly_readable_traits<T>>::value_type;
@@ -85,7 +85,7 @@ namespace std
 			typename indirectly_readable_traits<IT>::value_type;
 			typename common_reference_t<iter_reference_t<IT>&&, typename indirectly_readable_traits<IT>::value_type&>;
 			typename common_reference_t<decltype(*__it++)&&, typename indirectly_readable_traits<IT>::value_type&>;
-			requires signed_integral<typename incrementable_traits<IT>::difference_type>;
+			requires(signed_integral<typename incrementable_traits<IT>::difference_type>);
 		};
 		template<typename IT> concept __cpp17_fwd_iterator = __cpp17_input_iterator<IT> && constructible_from<IT> && is_lvalue_reference_v<iter_reference_t<IT>> && same_as<remove_cvref_t<iter_reference_t<IT>>, typename indirectly_readable_traits<IT>::value_type> && requires(IT __it) { {  __it++ } -> convertible_to<const IT&>; { *__it++ } -> same_as<iter_reference_t<IT>>; };
 		template<typename IT> concept __cpp17_bidi_iterator = __cpp17_fwd_iterator<IT> && requires(IT __it) { {  --__it } -> same_as<IT&>; {  __it-- } -> convertible_to<const IT&>;{ *__it-- } -> same_as<iter_reference_t<IT>>; };
@@ -104,7 +104,7 @@ namespace std
 		template<typename IT> concept __iter_without_category = !requires { typename IT::iterator_category; };
 	}
 	template<typename T> using iter_value_t = __detail::__iter_value_t<remove_cvref_t<T>>;
-	template<typename IT> requires __detail::__iter_with_nested_types<IT> struct __iterator_traits<IT, void> {
+	template<typename IT> requires(__detail::__iter_with_nested_types<IT>) struct __iterator_traits<IT, void> {
 	private:
 		template<typename JT> struct __ptr { using type = void; };
 		template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
@@ -116,7 +116,7 @@ namespace std
 		using reference			= typename IT::reference;
 	};
 	template<typename IT>
-	requires __detail::__iter_without_nested_types<IT> && __detail::__cpp17_input_iterator<IT>
+	requires(__detail::__iter_without_nested_types<IT> && __detail::__cpp17_input_iterator<IT>)
 	struct __iterator_traits<IT, void>
 	{
 	private:
@@ -127,7 +127,7 @@ namespace std
 		template<typename JT> requires(__detail::__iter_without_category<JT> && __detail::__cpp17_fwd_iterator<JT>) struct __cat<JT> { using type = forward_iterator_tag; };
 		template<typename JT> struct __ptr { using type = void; };
 		template<typename JT> requires requires { typename JT::pointer; } struct __ptr<JT> { using type = typename JT::pointer; };
-		template<typename JT> requires (!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(declval<JT&>().operator->()); };
+		template<typename JT> requires(!requires { typename JT::pointer; } && requires(JT& __it) { __it.operator->(); }) struct __ptr<JT> { using type = decltype(declval<JT&>().operator->()); };
 		template<typename JT> struct __ref { using type = iter_reference_t<JT>; };
 		template<typename JT> requires requires { typename JT::reference; } struct __ref<JT> { using type = typename JT::reference; };
 	public:
@@ -154,8 +154,8 @@ namespace std
 	{
 		template<typename IT> struct __iter_concept_impl;
 		template<typename IT> requires requires { typename __iter_traits<IT>::iterator_concept; } struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_concept; };
-		template<typename IT> requires (!requires { typename __iter_traits<IT>::iterator_concept; } && requires { typename __iter_traits<IT>::iterator_category; }) struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_category; };
-		template<typename IT> requires (!requires { typename __iter_traits<IT>::iterator_concept; } && !requires { typename __iter_traits<IT>::iterator_category; } && __primary_traits_iter<IT>) struct __iter_concept_impl<IT> { using type = random_access_iterator_tag; };
+		template<typename IT> requires(!requires { typename __iter_traits<IT>::iterator_concept; } && requires { typename __iter_traits<IT>::iterator_category; }) struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_category; };
+		template<typename IT> requires(!requires { typename __iter_traits<IT>::iterator_concept; } && !requires { typename __iter_traits<IT>::iterator_category; } && __primary_traits_iter<IT>) struct __iter_concept_impl<IT> { using type = random_access_iterator_tag; };
 		template<typename IT> struct __iter_concept_impl {};
 		template<typename IT> using __iter_concept = typename __iter_concept_impl<IT>::type;
 		template<typename I> concept __indirectly_readable_impl = requires
@@ -163,8 +163,8 @@ namespace std
 			typename iter_value_t<I>;
 			typename iter_reference_t<I>;
 			typename iter_rvalue_reference_t<I>;
-			requires same_as<iter_reference_t<const I>, iter_reference_t<I>>;
-			requires same_as<iter_rvalue_reference_t<const I>, iter_rvalue_reference_t<I>>;
+			requires(same_as<iter_reference_t<const I>, iter_reference_t<I>>);
+			requires(same_as<iter_rvalue_reference_t<const I>, iter_rvalue_reference_t<I>>);
 		} && common_reference_with<iter_reference_t<I>&&, iter_value_t<I>&> && common_reference_with<iter_reference_t<I>&&, iter_rvalue_reference_t<I>&&> && common_reference_with<iter_rvalue_reference_t<I>&&, const iter_value_t<I>&>;
 	}
 	template<typename I> concept indirectly_readable = __detail::__indirectly_readable_impl<remove_cvref_t<I>>;

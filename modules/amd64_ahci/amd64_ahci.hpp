@@ -410,12 +410,12 @@ constexpr auto ahci_config()
 {
 	return ooos::create_config
 	(
-		ooos::parameter("ahci_region_size",		ooos::parameter_type<size_t>,	524288UZ),
-		ooos::parameter("rw_timeout",			ooos::parameter_type<time_t>,	10000000L),
-		ooos::parameter("start_stop_timeout",	ooos::parameter_type<time_t>,	100000000000000L),
-		ooos::parameter("disable_ioc",			ooos::parameter_type<bool>,		false),
-		ooos::parameter("prdt_entries_count", 	ooos::parameter_type<size_t>, 	8UZ),
-		ooos::parameter("prdt_max_bytes", 		ooos::parameter_type<size_t>, 	8192UZ)
+		ooos::parameter("ahci_region_size",		524288UZ),
+		ooos::parameter("rw_timeout",			10000000UL),
+		ooos::parameter("start_stop_timeout",	100000000000000UL),
+		ooos::parameter("disable_ioc",			false),
+		ooos::parameter("prdt_entries_count", 	8UZ),
+		ooos::parameter("prdt_max_bytes", 		8192UZ)
 	);
 }
 class ahci_port : public ooos::abstract_block_device
