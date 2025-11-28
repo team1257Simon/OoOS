@@ -607,11 +607,10 @@ extern "C"
 	}
 	void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
 	{
-		// Most of the current kmain is tests...because ya know.
+		// The bootloader gives us the machine with all memory identity-mapped, interrupts off, and an unspecified but valid GDT.
+		// First thing we need to do is set up the kernel stack.
 		asm volatile("movq %0, %%rsp" :: "r"(std::addressof(kernel_stack_top))  : "memory");
 		asm volatile("movq %0, %%rbp" :: "r"(std::addressof(kernel_stack_base)) : "memory");
-		// Don't want to get interrupted during early initialization...
-		cli();
 		// The GDT is only used to set up the IDT (as well as enabling switching rings), but it's still a requirement because Intel wants back-compatibility.
 		gdt_setup();
 		// The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
@@ -651,7 +650,7 @@ extern "C"
 		set_gs_base(std::addressof(kproc));
 		asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
 		array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-		for(int i = 0; i < 8; i++) kproc.fxsv.stmm[i] = 0.L;
+		array_zero(kproc.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
 		fx_enable 				= true;
 		scheduler::init_instance();
 		hpet_amd64::init_instance();
@@ -667,6 +666,7 @@ extern "C"
 					test_delegate.initialize(*hda);
 					direct_writeln("Initialized delegate HDA");
 					test_extfs.tie_block_device(std::addressof(test_delegate));
+					// Most of the current kmain is tests...because ya know.
 					run_tests();
 				}
 			}

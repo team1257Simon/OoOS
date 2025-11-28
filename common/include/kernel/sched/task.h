@@ -177,7 +177,7 @@ enum class execution_state : uint8_t
 	STOPPED		= 0UC,	// not running (yet)
 	RUNNING		= 1UC,	// running or runnable but not active (due to scheduling)
 	TERMINATED	= 2UC,	// finished execution, normally or otherwise
-	IN_DYN_EXIT = 3UC	// for processes or threads with destructors to execute before fully exiting, this state indicates such code is running
+	IN_DYN_EXIT = 3UC	// for processes with destructors to execute before fully exiting, this state indicates such code is running
 };
 /**
  * Pointer-like struct that is meant to behave abstractly like a pointer to a fake "kthread" structure.

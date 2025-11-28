@@ -12,6 +12,44 @@ extern "C"
 {
 	extern task_t* kproc;
 	extern std::atomic<bool> task_lock_flag;
+	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context()) { new(out) tms(task->get_times()); return sys_time(nullptr); } else return -ENOSYS; }
+	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
+	spid_t syscall_getpid() { if(task_ctx* task = active_task_context()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
+	void syscall_exit(int n) {
+		if(task_ctx* task = active_task_context())
+			task->set_exit(n);
+	}
+	[[noreturn]] void syscall_threadexit(register_t retval)
+	{
+		task_t* task		= current_active_task();
+		if(__unlikely(!task->thread_ptr)) handle_exit();
+		else handle_thread_exit(task->thread_ptr, retval);
+		__builtin_unreachable();
+	}
+	[[noreturn]] void handle_thread_exit(thread_t* thread_ptr, register_t retval)
+	{
+		pid_t thread_id		= thread_ptr->ctl_info.thread_id;
+		task_ctx* task		= active_task_context();
+		cli();
+		try { task->thread_exit(thread_id, retval); }
+		catch(std::out_of_range& e)	{ panic(e.what()); force_signal(task, 11UC); }
+		catch(std::exception& e)	{ panic(e.what()); force_signal(task, 12UC); }
+		task_lock_flag		= false;
+		kthread_ptr next	= sch.fallthrough_yield();
+		if(__unlikely(!next))
+		{
+			task->terminate();
+			tl.destroy_task(task->get_pid());
+			kernel_reentry();
+		}
+		else
+		{
+			if(next.thread_ptr)
+				next.activate();
+			fallthrough_reentry(next.task_ptr);
+		}
+		__builtin_unreachable();
+	}
 	[[noreturn]] void handle_exit()
 	{
 		cli();
@@ -29,10 +67,6 @@ extern "C"
 		else kernel_reentry();
 		__builtin_unreachable();
 	}
-	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context()) { new(out) tms(task->get_times()); return sys_time(nullptr); } else return -ENOSYS; }
-	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
-	spid_t syscall_getpid() { if(task_ctx* task = active_task_context()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
-	void syscall_exit(int n) { if(task_ctx* task = active_task_context()) { task->set_exit(n); } }
 	int syscall_sleep(unsigned long seconds)
 	{
 		task_ctx* task		= active_task_context();
@@ -157,5 +191,51 @@ extern "C"
 			catch(std::bad_alloc&)			{ panic("[EXEC/spawn] no memory for argument vectors"); return -ENOMEM; }			
 		}
 		return -EAGAIN;
+	}
+	spid_t syscall_tfork()
+	{
+		task_ctx* task		= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
+		try { return static_cast<spid_t>(task->thread_fork()); }
+		catch(std::out_of_range& e) 	{ panic(e.what()); return -EFAULT; }
+		catch(std::overflow_error& e)	{ panic(e.what()); return -EAGAIN; }
+		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
+		return -ENOMEM; 
+	}
+	spid_t syscall_tvfork(addr_t entry_point, addr_t arg, addr_t exit_point)
+	{
+		task_ctx* task		= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
+		try { return static_cast<spid_t>(task->thread_vfork(entry_point, arg, exit_point)); }
+		catch(std::out_of_range& e) 	{ panic(e.what()); return -EFAULT; }
+		catch(std::overflow_error& e)	{ panic(e.what()); return -EAGAIN; }
+		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
+		return -ENOMEM; 
+	}
+	spid_t syscall_getthreadid()
+	{
+		task_ctx* task		= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
+		thread_t* thread	= translate_user_pointer(task->task_struct.thread_ptr);
+		if(__unlikely(!thread)) return -EFAULT;
+		return static_cast<spid_t>(thread->ctl_info.thread_id);
+	}
+	register_t syscall_threadjoin(pid_t thread)
+	{
+		task_ctx* task		= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
+		join_result result	= task->thread_join(thread);
+		if(__unlikely(result == join_result::NXTHREAD)) return -ESRCH;
+		else if(__unlikely(result == join_result::IMMEDIATE)) return task->task_struct.saved_regs.rax;
+		kthread_ptr kth(task->header(), task->task_struct.thread_ptr);
+		if(__unlikely(!sch.set_wait_untimed(kth))) return -ENOMEM;
+		kthread_ptr next	= sch.yield();
+		return next->saved_regs.rax;
+	}
+	int syscall_threaddetach(pid_t thread)
+	{
+		task_ctx* task		= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
+		return task->thread_detach(thread);
 	}
 }

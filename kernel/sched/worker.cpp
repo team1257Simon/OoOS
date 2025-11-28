@@ -17,9 +17,9 @@ namespace ooos
 	{
 		fx_save(std::addressof(task_struct));
 		array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-		for(int i = 0; i < 8; i++) task_struct.fxsv.stmm[i] = 0.L;
+		array_zero(task_struct.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
 		array_zero(reinterpret_cast<void**>(worker_sig_info.signal_handlers), num_signals);
-		task_struct.saved_regs.rsp -= 8Z;
+		task_struct.saved_regs.rsp	-= 8Z;
 		task_struct.saved_regs.rsp.assign(addr_t(worker_exit));
 	}
 }

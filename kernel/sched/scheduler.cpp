@@ -201,7 +201,7 @@ void scheduler::on_tick()
 	if(!__sleepers.at_end())
 	{
 		kthread_ptr& front_sleeper	= __sleepers.next();
-		while(front_sleeper && front_sleeper->task_ctl.wait_ticks_delta	== 0)
+		while(front_sleeper && !front_sleeper.get_wait_delta())
 		{
 			kthread_ptr wakee		= __sleepers.pop();
 			wakee.clear_blocking();

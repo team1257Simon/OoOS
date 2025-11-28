@@ -19,12 +19,12 @@ constexpr uint16_t user_code	= 0x23US;
 constexpr uint16_t user_data	= 0x1BUS;
 struct task_ctx
 {
-	task_t task_struct;                                             //  The c-style struct from task.h; the GS base will point here when the task is active
-	std::vector<task_ctx*> child_tasks						{};     //  The array in task_struct will point to this vector's data() member
-	std::vector<const char*> arg_vec;                               //  Argv will be taken from this vector's data() member; argc is its size()
-	std::vector<const char*> env_vec						{};     //  Environment variables will go here
-	std::vector<std::string> dl_search_paths				{};     //  Cache of the dynamic linker search paths for this task's program image, if any
-	std::vector<elf64_shared_object*> attached_so_handles	{};     //  Cache of the SO handles attached to this task, if any
+	task_t task_struct;												//  The c-style struct from task.h; the GS base will point here when the task is active
+	std::vector<task_ctx*> child_tasks						{};		//  The array in task_struct will point to this vector's data() member
+	std::vector<const char*> arg_vec;								//  Argv will be taken from this vector's data() member; argc is its size()
+	std::vector<const char*> env_vec						{};		//  Environment variables will go here
+	std::vector<std::string> dl_search_paths				{};		//  Cache of the dynamic linker search paths for this task's program image, if any
+	std::vector<elf64_shared_object*> attached_so_handles	{};		//  Cache of the SO handles attached to this task, if any
 	std::vector<elf64_dynamic_object*> tls_modules			{};
 	addr_t entry;
 	addr_t allocated_stack;
@@ -44,11 +44,13 @@ struct task_ctx
 	task_signal_info_t task_sig_info						{};
 	std::map<int, posix_directory> opened_directories		{};
 	ooos::task_dtv dyn_thread								{};
-	std::map<uint32_t, thread_t*> thread_ptr_by_id			{};
-	uint32_t next_assigned_thread_id						{};
+	std::map<pid_t, thread_t*> thread_ptr_by_id				{};
+	std::map<pid_t, std::vector<thread_t*>> notify_threads	{};
+	pid_t next_assigned_thread_id							{};
 	std::vector<thread_t*> inactive_threads					{};
 	constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
 	constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
+	constexpr uframe_tag& get_frame() const noexcept { return task_struct.frame_ptr.deref<uframe_tag>(); }
 	constexpr void change_pid(pid_t pid, spid_t parent_pid) noexcept { task_struct.task_ctl.parent_pid = parent_pid; task_struct.task_ctl.task_id = pid; }
 	friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.get_pid() <=> __that.get_pid(); }
 	friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, pid_t __that) noexcept { return __this.get_pid() <=> __that; }
@@ -56,7 +58,7 @@ struct task_ctx
 	friend constexpr bool operator==(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
 	constexpr task_t* header() { return std::addressof(task_struct); }
 	task_ctx(elf64_program_descriptor const& desc, std::vector<const char*>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum);
-	task_ctx(task_ctx const& that);         // implements vfork()
+	task_ctx(task_ctx const& that);					// implements vfork()
 	task_ctx(task_ctx&& that);
 	~task_ctx();
 	elf64_dynamic_object* assert_dynamic();
@@ -69,7 +71,7 @@ struct task_ctx
 	void start_task();
 	void restart_task(addr_t exit_fn);
 	void restart_task();
-	void set_exit(int n);                       // implements exit()
+	void set_exit(int n);							// implements exit()
 	void terminate();
 	void attach_object(elf64_object* obj, bool is_init);
 	tms get_times() const noexcept;
@@ -77,16 +79,20 @@ struct task_ctx
 	void set_arg_registers(register_t rdi, register_t rsi, register_t rdx);
 	void stack_push(register_t val);
 	register_t stack_pop();
-	void set_signal(int sig, bool save_state);  // implements raise()
+	void set_signal(int sig, bool save_state);		// implements raise()
 	register_t end_signal();
-	bool set_fork();                            // implements fork()
-	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);    // implements execve()
+	bool set_fork();								// implements fork()
+	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);	// implements execve()
 	void tls_assemble();
 	addr_t tls_get(size_t mod_idx, size_t offs);	// implements __tls_get_addr()
 	void init_thread_0();
-	void thread_switch(uint32_t to_thread);
-	uint32_t thread_fork();
-	void thread_exit(uint32_t thread_id);
+	void thread_switch(pid_t to_thread);
+	join_result thread_join(pid_t with_thread);
+	int thread_detach(pid_t thread_id);
+	pid_t thread_fork();
+	pid_t thread_vfork(addr_t entry_point, addr_t arg, addr_t exit_point);
+	void thread_exit(pid_t thread_id, register_t result_val);
+	thread_t* thread_create(thread_t const& current_thread, bool copy_all_regs);
 } __align(16);
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 // Task struct base when in ISRs. In syscalls, use current_active_task instead
@@ -101,25 +107,26 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 extern "C"
 {
 	[[noreturn]] void handle_exit();
+	[[noreturn]] void handle_thread_exit(thread_t* thread_ptr, register_t retval);
 	[[noreturn]] void fallthrough_reentry(task_t*);
 	void signal_exit(int code);
 	void sigtramp_enter(int sig, signal_handler handler);
 	void sigtramp_return();
-	clock_t syscall_times(struct tms* out);                                                                     // clock_t times(struct tms* out);
-	spid_t syscall_getpid();                                                                                    // pid_t getpid();
-	spid_t syscall_fork();                                                                                      // pid_t fork();
-	spid_t syscall_vfork();                                                                                     // pid_t vfork();
-	void syscall_exit(int n);                                                                                   // void exit(int code) __attribute__((noreturn));
-	int syscall_kill(long pid, unsigned long sig);                                                              // int kill(pid_t pid, int sig);
-	pid_t syscall_wait(int* sc_out);                                                                            // pid_t wait(int* sc_out);
-	int syscall_sleep(unsigned long seconds);                                                                   // int sleep(time_t seconds);
-	int syscall_execve(char* restrict name, char** restrict argv, char** restrict env);                         // int execve(char* restrict name, char** restrict argv, char* restrict* restrict env);
-	spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env);                       // pid_t spawn(char* restrict name, char** restrict argv, char* restrict* restrict env);
-	signal_handler syscall_signal(int sig, signal_handler new_handler);                                         // int (*signal(int sig, void(*new_handler)(int)))(int);
-	int syscall_raise(int sig);                                                                                 // int raise(int sig);
-	int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset);     // int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
-	long syscall_sigret();                                                                                      // (only called from the signal trampoline)
-	void force_signal(task_ctx* task, int8_t sig);                                                              // (only called by the system on invalid syscalls or hardware exceptions)
+	clock_t syscall_times(struct tms* out);																		// clock_t times(struct tms* out);
+	spid_t syscall_getpid();																					// pid_t getpid();
+	spid_t syscall_fork();																						// pid_t fork();
+	spid_t syscall_vfork();																						// pid_t vfork();
+	void syscall_exit(int n);																					// void exit(int code) __attribute__((noreturn));
+	int syscall_kill(long pid, unsigned long sig);																// int kill(pid_t pid, int sig);
+	pid_t syscall_wait(int* sc_out);																			// pid_t wait(int* sc_out);
+	int syscall_sleep(unsigned long seconds);																	// int sleep(time_t seconds);
+	int syscall_execve(char* restrict name, char** restrict argv, char** restrict env);							// int execve(char* restrict name, char** restrict argv, char* restrict* restrict env);
+	spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env);						// pid_t spawn(char* restrict name, char** restrict argv, char* restrict* restrict env);
+	signal_handler syscall_signal(int sig, signal_handler new_handler);											// int (*signal(int sig, void(*new_handler)(int)))(int);
+	int syscall_raise(int sig);																					// int raise(int sig);
+	int syscall_sigprocmask(sigprocmask_action how, sigset_t const* restrict set, sigset_t* restrict oset);		// int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
+	long syscall_sigret();																						// (only called from the signal trampoline)
+	void force_signal(task_ctx* task, int8_t sig);																// (only called by the system on invalid syscalls or hardware exceptions)
 	int syscall_tlinit();																						// int tlinit(); used to initialize TLS for dynamic objects
 	addr_t syscall_tlget(tls_index* idx);																		// void* tlget(tls_index* idx); implements __tls_get_addr via LD-SO
 }

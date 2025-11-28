@@ -6,8 +6,8 @@ namespace ooos
 	bool worker_list::destroy_worker(pid_t pid) { return contains(pid) ? destroy(find(pid).base()) : false; }
 	pid_t worker_list::__upid() const noexcept
 	{
-		pid_t pid;
-		do pid = static_cast<pid_t>(rand()); while(pid == 0 || contains(pid));
+		pid_t pid{};
+		do pid = static_cast<pid_t>(rand()); while(!pid || contains(pid));
 		return pid;
 	}
 	bool worker_list::destroy(worker* w)

@@ -77,9 +77,6 @@ int main()
 	DEFLR(cs);
 	DEFLR(cr3);
 	DEFL(fxsv);
-	DEFLC(state);
-	DEFLC(park);
-	DEFLC(non_timed_park);
 	DEFLC(thread_lock);
 	DEFLC(thread_id);
 	DEFLC(wait_time_delta);

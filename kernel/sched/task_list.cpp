@@ -7,8 +7,8 @@ extern "C" kframe_tag* __kernel_frame_tag;
 task_list task_list::instance{};
 pid_t task_list::__upid() const noexcept
 {
-	pid_t pid;
-	do pid = static_cast<pid_t>(rand()); while(pid == 0 || contains(pid));
+	pid_t pid{};
+	do pid = static_cast<pid_t>(rand()); while(!pid || contains(pid));
 	return pid;
 }
 task_ctx* task_list::create_user_task(prog_desc_t const& program_desc, cstr_vec&& args, spid_t parent_pid, priority_val pv, uint16_t qv, pid_t pid)

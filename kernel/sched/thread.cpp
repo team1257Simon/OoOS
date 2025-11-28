@@ -8,7 +8,7 @@ namespace ooos
 	void task_dtv::instantiate(thread_t& thread)
 	{
 		lock_thread_mutex(thread);
-		std::tuple<uint32_t> id_tuple		= std::tuple<uint32_t>(thread.ctl_info.thread_id);
+		std::tuple<pid_t> id_tuple			= std::tuple<pid_t>(thread.ctl_info.thread_id);
 		size_t target_size					= base_offsets.size() + 1UZ;
 		dtv_by_thread_id::iterator result	= __dtv_map.emplace(std::piecewise_construct, id_tuple, std::forward_as_tuple(target_size, nullptr, __dtv_alloc)).first;
 		dynamic_thread_vector& vec			= result->second;

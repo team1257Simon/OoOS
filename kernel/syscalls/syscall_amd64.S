@@ -74,6 +74,12 @@
 	.extern							syscall_getvpwnam
 	.extern							syscall_tlinit
 	.extern							syscall_tlget
+	.extern							syscall_threadexit
+	.extern							syscall_tfork
+	.extern							syscall_tvfork
+	.extern							syscall_getthreadid
+	.extern							syscall_threadjoin
+	.extern							syscall_threaddetach
 	.extern							on_invalid_syscall
 	.global							syscall_vec
 	.global							task_lock_flag
@@ -134,6 +140,12 @@
 	.type	syscall_getvpwnam,		@function
 	.type	syscall_tlinit,			@function
 	.type	syscall_tlget,			@function
+	.type	syscall_threadexit,		@function
+	.type	syscall_tfork,			@function
+	.type	syscall_tvfork,			@function
+	.type	syscall_getthreadid,	@function
+	.type	syscall_threadjoin,		@function
+	.type	syscall_threaddetach,	@function
 	.type	on_invalid_syscall,		@function
 	.type	kernel_cr3,				@object
 	.type	task_lock_flag,			@object
@@ -194,6 +206,12 @@ syscall_vec:
 	.quad syscall_getvpwnam			// 51
 	.quad syscall_tlinit			// 52; ldso-specific
 	.quad syscall_tlget				// 53; ldso-specific (exported as __tls_get_addr)
+	.quad syscall_threadexit		// 54
+	.quad syscall_tfork				// 55
+	.quad syscall_tvfork			// 56
+	.quad syscall_getthreadid		// 57
+	.quad syscall_threadjoin		// 58
+	.quad syscall_threaddetach		// 59
 .L_syscv_end:
 	.quad on_invalid_syscall		// handler for out-of-range syscalls
 	.size syscall_vec,				.-syscall_vec

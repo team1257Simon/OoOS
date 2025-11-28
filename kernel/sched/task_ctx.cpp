@@ -17,12 +17,12 @@ void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(st
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
-elf64_dynamic_object* task_ctx::assert_dynamic() { elf64_dynamic_executable& dyn = dynamic_cast<elf64_dynamic_executable&>(*program_handle); return std::addressof(dyn); }
+elf64_dynamic_object* task_ctx::assert_dynamic() { return std::addressof(dynamic_cast<elf64_dynamic_executable&>(*program_handle)); }
 static inline void init_fx(fx_state& fx)
 {
 	asm volatile("fxsave %0" : "=m"(fx) :: "memory");
 	array_zero(fx.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-	for(int i = 0; i < 8; i++) fx.stmm[i] = 0.L;
+	array_zero(fx.stmm, sizeof(fx_state::stmm) / sizeof(long double));
 }
 static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
 {
@@ -129,7 +129,7 @@ task_ctx::task_ctx(task_ctx const& that) :
 	env_vec					{ that.env_vec },
 	dl_search_paths			{ that.dl_search_paths },
 	attached_so_handles		{ that.attached_so_handles },
-	tls_modules		{ that.tls_modules },
+	tls_modules				{ that.tls_modules },
 	entry					{ that.entry },
 	allocated_stack			{ that.allocated_stack },
 	stack_allocated_size	{ that.stack_allocated_size },
@@ -234,22 +234,22 @@ void task_ctx::init_task_state()
 	}
 	init_fx(task_struct.fxsv);
 	array_zero(reinterpret_cast<void**>(task_sig_info.signal_handlers), num_signals);
-	uframe_tag* tag		= task_struct.frame_ptr;
-	addr_t old_ext		= tag->extent;
+	uframe_tag& frame	= get_frame();
+	addr_t old_ext		= frame.extent;
 	size_t total_len	= (arg_vec.size() + env_vec.size() + 2UL) * sizeof(char*);
 	for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
 	for(const char* str : arg_vec) { if(str) total_len += std::strlen(str); }
-	if(!tag->shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
+	if(!frame.shift_extent(static_cast<ptrdiff_t>(total_len))) throw std::bad_alloc{};
 	rt_argv_ptr			= old_ext;
-	char** argv_real	= tag->translate(rt_argv_ptr);
+	char** argv_real	= frame.translate(rt_argv_ptr);
 	rt_env_ptr			= old_ext.plus((arg_vec.size() + 1) * sizeof(char*));
 	old_ext				= rt_env_ptr;
-	char** env_real		= tag->translate(rt_env_ptr);
+	char** env_real		= frame.translate(rt_env_ptr);
 	old_ext				+= (env_vec.size() + 1) * sizeof(char*);
 	for(const char* str : arg_vec)
 	{
 		addr_t target_ptr	= old_ext;
-		char* target_real	= tag->translate(target_ptr);
+		char* target_real	= frame.translate(target_ptr);
 		size_t len			= std::strlen(str);
 		array_copy(target_real, str, len);
 		target_real[len]	= 0;
@@ -261,7 +261,7 @@ void task_ctx::init_task_state()
 	for(const char* str : env_vec)
 	{
 		addr_t target_ptr	= old_ext;
-		char* target_real	= tag->translate(target_ptr);
+		char* target_real	= frame.translate(target_ptr);
 		size_t len			= std::strlen(str);
 		array_copy(target_real, str, len);
 		target_real[len]	= 0;
@@ -294,7 +294,7 @@ void task_ctx::restart_task(addr_t exit_fn)
 		task_struct.saved_regs.rip	= entry;
 		task_struct.saved_regs.rbp	= task_struct.saved_regs.rsp = allocated_stack.plus(stack_allocated_size);
 		array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-		for(int i = 0; i < 8; i++) { task_struct.fxsv.stmm[i] = 0.L; }
+		array_zero(task_struct.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
 		exit_code					= 0;
 		current_state				= execution_state::RUNNING;
 	}
@@ -373,12 +373,12 @@ void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& a
 void task_ctx::stack_push(register_t val)
 {
 	task_struct.saved_regs.rsp	-= sizeof(register_t);
-	addr_t stack				= task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp);
+	addr_t stack				= get_frame().translate(task_struct.saved_regs.rsp);
 	stack.assign(val);
 }
 register_t task_ctx::stack_pop()
 {
-	addr_t stack				= task_struct.frame_ptr.deref<uframe_tag>().translate(task_struct.saved_regs.rsp);
+	addr_t stack				= get_frame().translate(task_struct.saved_regs.rsp);
 	register_t result			= stack.deref<register_t>();
 	task_struct.saved_regs.rsp	+= sizeof(register_t);
 	return result;
@@ -457,7 +457,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 		if(parent_pid < 0)
 		{
 			local_so_map->shared_frame	= nullptr;
-			fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>());
+			fm.destroy_frame(get_frame());
 			sm_alloc.deallocate(local_so_map, 1UZ);
 		}
 		local_so_map		= sm_alloc.allocate(1UZ);
@@ -516,7 +516,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const c
 void task_ctx::tls_assemble()
 {
 	if(!dyn_thread.base_offsets.empty()) throw std::invalid_argument("[EXEC/THREAD] attempting to assemble TLS more than once; misplaced syscall?");
-	uframe_tag& frame				= task_struct.frame_ptr.deref<uframe_tag>();
+	uframe_tag& frame				= get_frame();
 	elf64_dynamic_object* dyn_prg	= assert_dynamic();
 	struct tls_sub_block
 	{
@@ -600,7 +600,7 @@ void task_ctx::tls_assemble()
 }
 void task_ctx::init_thread_0()
 {
-	uframe_tag& frame			= task_struct.frame_ptr.deref<uframe_tag>();
+	uframe_tag& frame			= get_frame();
 	addr_t tls_block_start		= task_struct.tls_master ? frame.extent.alignup(task_struct.tls_align) : nullptr;
 	addr_t tls_block_end		= (task_struct.tls_master ? tls_block_start.plus(task_struct.tls_size) : frame.extent).alignup(alignof(thread_t));
 	if(!frame.shift_extent(tls_block_end.plus(sizeof(thread_t)) - frame.extent)) throw std::bad_alloc();
@@ -619,12 +619,19 @@ void task_ctx::init_thread_0()
 		.saved_regs				= task_struct.saved_regs,
 		.ctl_info
 		{
-			.state				= execution_state::STOPPED,
-			.park				= false,
-			.non_timed_park		= false,
-			.thread_lock		= spinlock_t(),
-			.thread_id			= 0U,
-			.wait_time_delta	= 0UZ
+			{
+				.state				= thread_state::STOPPED,
+				.park				= false,
+				.non_timed_park		= false,
+				.detached			= false,
+				.cancel_disable		= false,
+				.cancel_async		= false
+			},
+			{
+				.thread_lock		= spinlock_t(),
+				.thread_id			= 0U,
+				.wait_time_delta	= 0UZ
+			}
 		},
 		.stack_base				= allocated_stack,
 		.stack_size				= stack_allocated_size,
@@ -636,12 +643,12 @@ void task_ctx::init_thread_0()
 	next_assigned_thread_id 	= 1U;
 	task_struct.thread_ptr		= tls_block_end;
 	sch.retrothread(header(), task_struct.thread_ptr);
-	thread_0->ctl_info.state	= execution_state::RUNNING;
+	thread_0->ctl_info.state	= thread_state::RUNNING;
 }
-void task_ctx::thread_switch(uint32_t to_thread)
+void task_ctx::thread_switch(pid_t to_thread)
 {
 	if(!thread_ptr_by_id.contains(to_thread)) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(to_thread));
-	uframe_tag& frame			= task_struct.frame_ptr.deref<uframe_tag>();
+	uframe_tag& frame			= get_frame();
 	thread_t* next_thread		= thread_ptr_by_id[to_thread];
 	thread_t* current_thread	= frame.translate(task_struct.thread_ptr);
 	if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;
@@ -655,7 +662,7 @@ void task_ctx::thread_switch(uint32_t to_thread)
 addr_t task_ctx::tls_get(size_t mod_idx, size_t offs)
 {
 	if(__unlikely(!(mod_idx < tls_modules.size() && mod_idx))) throw std::invalid_argument("[EXEC/THREAD] module ID is out of range");
-	uframe_tag& frame					= task_struct.frame_ptr.deref<uframe_tag>();
+	uframe_tag& frame					= get_frame();
 	thread_t* thread					= frame.translate(task_struct.thread_ptr);
 	if(!thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::dynamic_thread_vector* dtvp	= thread->dtv_ptr;
@@ -681,24 +688,95 @@ addr_t task_ctx::tls_get(size_t mod_idx, size_t offs)
 	}
 	return dtv[mod_idx].plus(offs);
 }
-uint32_t task_ctx::thread_fork()
+pid_t task_ctx::thread_fork()
 {
-	uframe_tag& frame			= task_struct.frame_ptr.deref<uframe_tag>();
+	uframe_tag& frame			= get_frame();
 	thread_t* current_thread	= frame.translate(task_struct.thread_ptr);
 	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	// TODO: check/enforce thread limit
 	ooos::update_thread_state(*current_thread, task_struct);
+	thread_t* new_thread		= thread_create(*current_thread, true);
+	dyn_thread.instantiate(*new_thread);
+	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread->self));
+	kthread_ptr kth(header(), new_thread->self);
+	sch.register_task(kth);
+	new_thread->ctl_info.state	= thread_state::RUNNING;
+	return new_thread->ctl_info.thread_id;
+}
+pid_t task_ctx::thread_vfork(addr_t entry_point, addr_t arg, addr_t exit_point)
+{
+	uframe_tag& frame			= get_frame();
+	thread_t* current_thread	= frame.translate(task_struct.thread_ptr);
+	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	ooos::update_thread_state(*current_thread, task_struct);
+	thread_t* new_thread		= thread_create(*current_thread, false);
+	addr_t real_stack			= frame.translate(new_thread->saved_regs.rsp.minus(sizeof(register_t)));
+	if(!real_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	real_stack.assign(exit_point);
+	new_thread->saved_regs.rsp	-= sizeof(register_t);
+	new_thread->saved_regs.rbp	-= sizeof(register_t);
+	new_thread->saved_regs.rip	= entry_point;
+	new_thread->saved_regs.rdi	= arg.full;
+	dyn_thread.instantiate(*new_thread);
+	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread->self));
+	kthread_ptr kth(header(), new_thread->self);
+	sch.register_task(kth);
+	new_thread->ctl_info.state	= thread_state::RUNNING;
+	return new_thread->ctl_info.thread_id;
+}
+void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
+{
+	using iterator			= std::map<pid_t, thread_t*>::iterator;
+	iterator i				= thread_ptr_by_id.find(thread_id);
+	if(i == thread_ptr_by_id.end()) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(thread_id));
+	uframe_tag& frame		= get_frame();
+	thread_t* thread		= i->second;
+	kthread_ptr kth(header(), thread);
+	thread_t* real			= frame.translate(thread);
+	if(!real) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	ooos::update_thread_state(*real, task_struct);
+	bool detached			= real->ctl_info.detached;
+	real->ctl_info.state	= thread_state::TERMINATED;
+	sch.unregister_task(kth);
+	if(notify_threads.contains(thread_id))
+	{
+		std::vector<thread_t*>& notif	= notify_threads[thread_id];
+		for(thread_t* tptr : notif)
+		{
+			kthread_ptr tkth(header(), tptr);
+			thread_t* treal			= frame.translate(tptr);
+			if(!treal) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+			// Pass the thread's return value to the waiting thread
+			treal->saved_regs.rax	= result_val;
+			sch.interrupt_wait(tkth);
+		}
+		detached					= true;
+	}
+	if(detached)
+	{
+		notify_threads.erase(thread_id);
+		dyn_thread.takedown(*real);
+		thread_ptr_by_id.erase(i);
+		// The memory remains a part of the process; both the thread ID and the memory used for the TLS and thread struct can be reused later if needed
+		inactive_threads.push_back(thread);
+		next_assigned_thread_id		= thread_id;
+	}
+	else real->saved_regs.rax		= result_val;
+}
+thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all_regs)
+{
+	uframe_tag& frame			= get_frame();
 	addr_t block_start;
 	addr_t block_end;
 	addr_t stack_begin;
 	addr_t stack_end;
+	// TODO: check/enforce thread limit
 	if(inactive_threads.empty())
 	{
-		block_start					= task_struct.tls_master ? frame.extent.alignup(task_struct.tls_align) : nullptr;
-		block_end					= (task_struct.tls_master ? block_start.plus(task_struct.tls_size) : frame.extent).alignup(alignof(thread_t));
+		block_start				= task_struct.tls_master ? frame.extent.alignup(task_struct.tls_align) : nullptr;
+		block_end				= (task_struct.tls_master ? block_start.plus(task_struct.tls_size) : frame.extent).alignup(alignof(thread_t));
 		if(!frame.shift_extent(block_end.plus(sizeof(thread_t)) - frame.extent)) throw std::bad_alloc();
-		stack_begin					= frame.extent.next_page_aligned();
-		stack_end					= stack_begin.plus(current_thread->stack_size);
+		stack_begin				= frame.extent.next_page_aligned();
+		stack_end				= stack_begin.plus(template_thread.stack_size);
 		if(!frame.shift_extent(stack_end - frame.extent)) throw std::bad_alloc();
 	}
 	else
@@ -713,60 +791,85 @@ uint32_t task_ctx::thread_fork()
 	}
 	if(task_struct.tls_master)
 	{
-		addr_t src					= frame.translate(task_struct.tls_master);
-		addr_t dest					= frame.translate(block_start);
+		addr_t src				= frame.translate(task_struct.tls_master);
+		addr_t dest				= frame.translate(block_start);
 		if(!src || !dest) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 		array_copy<uint8_t>(dest, src, task_struct.tls_size);
 	}
 	addr_t real_thread			= frame.translate(block_end);
-	addr_t real_stack			= frame.translate(stack_begin);
-	addr_t real_old_stack		= frame.translate(current_thread->stack_base);
-	if(!real_thread || !real_stack || !real_old_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	array_copy<uint8_t>(real_stack, real_old_stack, current_thread->stack_size);
+	if(!real_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	uint32_t id 				= next_assigned_thread_id;
 	next_assigned_thread_id++;
 	thread_t* new_thread		= new(real_thread) thread_t
 	{
 		.self					= block_end,
-		.saved_regs				= current_thread->saved_regs,
-		.fxsv					= current_thread->fxsv,
+		.saved_regs				= copy_all_regs ? template_thread.saved_regs : regstate_t
+		{
+			.cr3				= template_thread.saved_regs.cr3,
+			.rflags				= ini_flags,
+			.ds					= template_thread.saved_regs.ds,
+			.ss					= template_thread.saved_regs.ss,
+			.cs					= template_thread.saved_regs.cs
+		},
+		.fxsv					= template_thread.fxsv,
 		.ctl_info
 		{
-			.state				= execution_state::STOPPED,
-			.park				= false,
-			.non_timed_park		= false,
-			.thread_lock		= spinlock_t(),
-			.thread_id			= id,
-			.wait_time_delta	= 0UZ
+			{
+				.state				= thread_state::STOPPED,
+				.park				= false,
+				.non_timed_park		= false,
+				.detached			= false,
+				.cancel_disable		= false,
+				.cancel_async		= false
+			},
+			{
+				.thread_lock		= spinlock_t(),
+				.thread_id			= id,
+				.wait_time_delta	= 0UZ
+			}
 		},
 		.stack_base				= stack_begin,
 		.stack_size				= static_cast<size_t>(stack_end - stack_begin),
 		.tls_start				= block_start
 	};
-	new_thread->saved_regs.rsp	= stack_begin.plus(current_thread->saved_regs.rsp - current_thread->stack_base);
-	new_thread->saved_regs.rbp	= stack_begin.plus(current_thread->saved_regs.rbp - current_thread->stack_base);
-	dyn_thread.instantiate(*new_thread);
-	thread_ptr_by_id.insert(std::make_pair(id, block_end));
-	new_thread->ctl_info.state	= execution_state::RUNNING;
-	kthread_ptr kth(header(), new_thread->self);
-	sch.register_task(kth);
-	return id;
+	new_thread->saved_regs.rsp	= stack_begin.plus(template_thread.saved_regs.rsp - template_thread.stack_base);
+	new_thread->saved_regs.rbp	= stack_begin.plus(template_thread.saved_regs.rbp - template_thread.stack_base);
+	addr_t real_stack			= frame.translate(new_thread->stack_base);
+	addr_t real_old_stack		= frame.translate(template_thread.stack_base);
+	if(!real_stack || !real_old_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	array_copy<uint8_t>(real_stack, real_old_stack, template_thread.stack_size);
+	return new_thread;
 }
-void task_ctx::thread_exit(uint32_t thread_id)
+join_result task_ctx::thread_join(pid_t with_thread)
 {
-	using iterator			= std::map<uint32_t, thread_t*>::iterator;
-	iterator i				= thread_ptr_by_id.find(thread_id);
-	if(i == thread_ptr_by_id.end()) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(thread_id));
-	uframe_tag& frame		= task_struct.frame_ptr.deref<uframe_tag>();
-	thread_t* thread		= i->second;
-	kthread_ptr kth(header(), thread);
-	thread_t* real			= frame.translate(thread);
-	if(!real) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	dyn_thread.takedown(*real);
-	thread_ptr_by_id.erase(i);
-	sch.unregister_task(kth);
-	real->ctl_info.state	= execution_state::TERMINATED;
-	// The memory remains a part of the process; both the thread ID and the memory used for the TLS and thread struct can be reused later if needed
-	inactive_threads.push_back(thread);
-	next_assigned_thread_id	= thread_id;
+	using iterator				= std::map<pid_t, thread_t*>::iterator;
+	iterator i 					= thread_ptr_by_id.find(with_thread);
+	if(__unlikely(i == thread_ptr_by_id.end())) return join_result::NXTHREAD;
+	uframe_tag& frame			= get_frame();
+	thread_t* thread			= i->second;
+	thread_t* real				= frame.translate(thread);
+	thread_t* current			= task_struct.thread_ptr;
+	if(!current) throw std::logic_error("[EXEC/THREAD] cannot join to a nonexistent thread");
+	current						= frame.translate(current);
+	if(!real || !current) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	if(real->ctl_info.state == thread_state::TERMINATED)
+	{
+		current->saved_regs.rax	= task_struct.saved_regs.rax	= real->saved_regs.rax;
+		dyn_thread.takedown(*real);
+		next_assigned_thread_id	= i->first;
+		thread_ptr_by_id.erase(i);
+		inactive_threads.push_back(thread);
+		return join_result::IMMEDIATE;
+	}
+	notify_threads[with_thread].push_back(current->self);
+	return join_result::DEFER;
+}
+int task_ctx::thread_detach(pid_t thread_id)
+{
+	if(__unlikely(!thread_ptr_by_id.contains(thread_id))) return -ESRCH;
+	thread_t* ptr			= get_frame().translate(thread_ptr_by_id[thread_id]);
+	if(__unlikely(!ptr)) return -EFAULT;
+	if(__unlikely(ptr->ctl_info.state != thread_state::RUNNING)) return -EINVAL;
+	ptr->ctl_info.detached	= true;
+	return 0;
 }

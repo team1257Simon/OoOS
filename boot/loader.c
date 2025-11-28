@@ -504,8 +504,11 @@ int main(int argc, char** argv)
 	kernel_entry_fn fn	= (kernel_entry_fn)entry;
 	// free resources
 	free(buff);
-	// execute the kernel
 	exit_bs();
+	// clear the interrupt flag before executing kmain, since IRQ handlers rely on global constructors.
+	// there is a small chance of getting an interrupt before the prologue of kmain finishes if we don't do this.
+	asm volatile("cli" ::: "memory");
+	// execute the kernel
 	(*fn)(sysinfo, map);
 	while(1);
 	return OK;
