@@ -15,6 +15,7 @@ protected:
 	virtual addr_t segment_vaddr(size_t n) const override;
 	virtual bool load_segments() override;
 	virtual bool load_syms() override;
+	virtual bool process_got() override;
 	virtual void process_headers() override;
 public:
 	constexpr std::vector<addr_t> const& get_preinit() const noexcept { return preinit_array; }

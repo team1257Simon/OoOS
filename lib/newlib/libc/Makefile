@@ -14,7 +14,7 @@ FULL_NAME = $(SO_NAME).$(NEWLIB_VERSION_MINOR)
 CFLAGS = -O2 -fPIC -I$(SYSROOT)/usr/include
 CCFLAGS = $(CFLAGS) -std=gnu23 -w
 CXXFLAGS = $(CFLAGS) -std=c++20 -w
-LDFLAGS = $(CFLAGS) -nostartfiles -nodefaultlibs -Wl,-Bsymbolic -Wl,-soname,$(SO_NAME) -shared -lgcc
+LDFLAGS = $(CFLAGS) -nostartfiles -nodefaultlibs -Wl,-soname,$(SO_NAME) -shared -lgcc
 OUTDIR = $(IMAGE_FILE_DIR)/lib
 OBJDIR := $(OBJ_BASE_DIR)/libc
 SYS_MACHINE_DIR = sys/ooos/machine/x86_64

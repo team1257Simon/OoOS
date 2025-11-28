@@ -6,10 +6,9 @@ export OBJ_BASE_DIR
 export TARGET_BARE
 export TARGET_HOSTED
 export ASMT_DIR
-SUBDIRS = libk libmodobj ld-ooos newlib/libm newlib/libc
+SUBDIRS = libk libmodobj ld-ooos newlib
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
-newlib/libc: newlib/libm
 $(SUBDIRS):
 	$(MAKE) -C $@
 clean:

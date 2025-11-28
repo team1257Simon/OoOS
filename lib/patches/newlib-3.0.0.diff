@@ -12,7 +12,7 @@ index a35b24ba7..516291a46 100755
  		;;
  	qnx*)
 diff --git a/libtool.m4 b/libtool.m4
-index 24d13f344..63907664b 100644
+index 24d13f344..f1884d1f0 100644
 --- a/libtool.m4
 +++ b/libtool.m4
 @@ -2531,6 +2531,18 @@ newsos6)
@@ -20,7 +20,7 @@ index 24d13f344..63907664b 100644
    ;;
  
 +ooos*)
-+  version_type=none
++  version_type=linux
 +  need_lib_prefix=no
 +  need_version=no
 +  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major $libname${shared_ext}'

@@ -117,7 +117,8 @@ namespace std
 			if(this->__out_of_range(this->__get_ptr(pos))) return npos;
 			const_pointer result = traits_type::find(data() + pos, str);
 			if(result) return static_cast<size_type>(result - data());
-			return npos;}
+			return npos;
+		}
 		constexpr size_type find(value_type value, size_type pos = 0) const noexcept
 		{
 			if(this->__out_of_range(this->__get_ptr(pos))) return npos;

@@ -318,7 +318,7 @@ void task_ctx::set_exit(int n)
 		}
 		if(elf64_dynamic_object* dyn = dynamic_cast<elf64_dynamic_object*>(program_handle); dyn && dynamic_exit)
 		{
-			if(n != 0) { xklog("[SCHED/EXEC] D: process " + std::to_string(get_pid()) + " exited with code " + std::to_string(n)); }
+			if(n != 0) xklog("[SCHED/EXEC] D: process " + std::to_string(get_pid()) + " exited with code " + std::to_string(n));
 			else
 			{
 				task_struct.saved_regs.rdi	= reinterpret_cast<register_t>(dyn);

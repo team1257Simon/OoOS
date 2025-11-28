@@ -1,8 +1,7 @@
 #include "elf64_shared.hpp"
 #include "frame_manager.hpp"
 #include "stdexcept"
-constexpr size_t mw_bits = sizeof(uint64_t) * CHAR_BIT;
-const char* empty_name = "";
+const char* empty_name		= "";
 static const char* find_so_name(addr_t, file_vnode*);
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
 addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
@@ -29,6 +28,7 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : elf64_obj
 	entry					{ that.entry }
 							{ that.frame_tag = nullptr; }
 elf64_shared_object::elf64_shared_object(elf64_shared_object const& that) : elf64_object(that), elf64_dynamic_object(that),
+	soname					{ that.soname },
 	virtual_load_base		{ that.virtual_load_base },
 	total_segment_size		{ that.total_segment_size },
 	frame_tag				{ that.frame_tag },
@@ -146,4 +146,17 @@ bool elf64_shared_object::load_segments()
 		}
 	}
 	return have_loads;
+}
+bool elf64_shared_object::process_got()
+{
+	if(__unlikely(!elf64_dynamic_object::process_got())) return false;
+	for(size_t i = 0UZ; i < num_plt_relas; i++)
+	{
+		elf64_rela const& r	= plt_relas[i];
+		addr_t target		= frame_tag->translate(virtual_load_base.plus(r.r_offset));
+		if(__unlikely(!target)) { panic("[PRG/SO] fault in PLT rela offset"); return false; }
+		addr_t adjusted		= virtual_load_base.plus(target.deref<uintptr_t>());
+		target.assign(adjusted);
+	}
+	return true;
 }

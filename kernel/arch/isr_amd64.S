@@ -13,6 +13,7 @@
 	.extern	isr_dispatch
 	.extern	set_task_signal
 	.global callback_8
+	.global	interrupted_state
 	.global	no_waiting_op
 	.type	test_fault,				@function
 	.type	isr_dispatch,			@function
@@ -28,6 +29,7 @@
 	.type	delay_flag,				@object
 	.type	debug_stop_flag,		@object
 	.type	callback_8,				@object
+	.type	interrupted_state,		@object
 	.data
 	.align	4096
 kernel_isr_stack_base:
@@ -56,6 +58,9 @@ debug_stop_flag:
 delay_flag:
 	.byte		0
 	.size		delay_flag,			.-delay_flag
+interrupted_state:
+	.quad		0
+	.size		interrupted_state,	.-interrupted_state
 	.text
 	.macro xm_1 macro at
 		\macro \at
@@ -119,6 +124,7 @@ delay_flag:
 			pushq	%r13
 			pushq	%r14
 			pushq	%r15
+			movq	%rsp,			interrupted_state
 			movq	$\i,			%rdi
 			call	isr_dispatch
 			popq	%r15

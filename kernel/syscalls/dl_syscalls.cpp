@@ -51,13 +51,14 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 {
 	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
 	bool have_weak			= false;
-	if(so && so->is_symbolic())
+	if(so)
 	{
 		sym_pair result_pair = so->resolve_by_name(name);
 		if(result_pair.second) return search_result(result_pair.second, true);
 		else if(result_pair.first.st_info.bind == SB_WEAK) have_weak = true;
 	}
 	search_result res						= full_search(task, name);
+	// TODO: check symbol versioning
 	if(have_weak && !res.second) res.second	= true;
 	return res;
 }
@@ -82,8 +83,9 @@ extern "C"
 		{
 			addr_t target		= translate_user_pointer(obj_handle->resolve_rela_target(r));
 			if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
-			search_result sr	= full_search(obj_handle, task, obj_handle->symbol_name(obj_handle->get_sym(r.r_info.sym_index)));
-			if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
+			elf64_sym const& s	= obj_handle->get_sym(r.r_info.sym_index);
+			search_result sr	= full_search(obj_handle, task, obj_handle->symbol_name(s));
+			if(!sr.second && s.st_info.bind != SB_WEAK) return addr_t(static_cast<uintptr_t>(-ENOENT));
 			target.assign(sr.first);
 		}
 		size_t len		= obj_handle->get_init().size() + 1;
@@ -190,7 +192,7 @@ extern "C"
 		}
 		if(flags & RTLD_NODELETE) result->set_sticky();
 		elf64_dynamic_object* handle	= result.base();
-		if(result->is_global()) task->attach_object(handle, !(flags & RTLD_PREINIT));
+		if(result->is_global()) task->attach_object(handle, (flags & RTLD_PREINIT) != 0U);
 		return handle;
 	}
 	int syscall_dlclose(addr_t handle)

@@ -166,29 +166,29 @@ static bool __so_close(void* handle)
 	rtld_map.erase(handle);
 	return true;
 }
-static bool __load_deps(void* handle)
+static bool __load_deps(void* handle, int flags)
 {
-	char** deps = depends(handle);
+	char** deps			= depends(handle);
 	if(!deps) { last_error_action = DLA_GETDEP; return false; }
 	for(size_t i = 0; deps[i]; i++)
 	{
-		void* so = __so_open(deps[i], RTLD_LAZY | RTLD_PREINIT);
+		void* so				= __so_open(deps[i], flags);
 		if(!so) return false;
-		res_pair result = rtld_map.add(so);
+		res_pair result			= rtld_map.add(so);
 		if(!result.second) continue;
 		if(__builtin_expect(dlmap(handle, result.first) < 0, false)) { last_error_action = DLA_LMAP; }
-		const char* name_str = result.first->l_name;
+		const char* name_str	= result.first->l_name;
 		if(name_str)
 		{
-			size_t len = __strlen(name_str);
-			result.first->l_name = static_cast<char*>(allocate(len + 1, 8));
+			size_t len					= __strlen(name_str);
+			result.first->l_name		= static_cast<char*>(allocate(len + 1, 8));
 			if(!result.first->l_name) { errno = ENOMEM; return false; }
 			__copy(result.first->l_name, name_str, len);
-			result.first->l_name[len] = 0;
+			result.first->l_name[len]	= 0;
 		}
-		if(__builtin_expect(!__load_deps(so), false)) return false;
+		if(__builtin_expect(!__load_deps(so, flags), false)) return false;
 	}
-	init_fn* ini = dlinit(handle);
+	init_fn* ini	= dlinit(handle);
 	if(__builtin_expect(!ini, false)) { last_error_action = DLA_INIT; return false; }
 	for(size_t i = 0; ini[i]; i++) { ini[i](argc, argv, env); }
 	return true;
@@ -264,7 +264,7 @@ extern "C"
 		if(__builtin_expect(!preinit, false)) { last_error_action = DLA_PREINIT; return errno; }
 		for(size_t i = 0; preinit[i]; i++) preinit[i](argc, argv, env);
 		if(__builtin_expect(!rtld_map.initialize(256), false)) return -1;
-		if(__builtin_expect(__load_deps(phandle) && (tlinit() == 0), true)) return 0;
+		if(__builtin_expect(__load_deps(phandle, RTLD_LAZY | RTLD_PREINIT) && (tlinit() == 0), true)) return 0;
 		else return errno;
 	}
 	__hidden [[noreturn]] void dlend(void* phandle)
@@ -279,8 +279,9 @@ extern "C"
 	}
 	void* dlopen(char* name, int flags)
 	{
+		flags &= ~(RTLD_PREINIT);
 		void* result = __so_open(name, flags & ~(RTLD_PREINIT));
-		if(__builtin_expect(result && __load_deps(result), true)) return result;
+		if(__builtin_expect(result && __load_deps(result, flags), true)) return result;
 		else return nullptr;
 	}
 	void* dlsym(void* handle, const char* symbol)

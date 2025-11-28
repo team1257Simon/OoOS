@@ -77,3 +77,17 @@ bool elf64_dynamic_executable::load_preinit()
 	}
 	return true;
 }
+bool elf64_dynamic_executable::process_got()
+{
+	if(__unlikely(!elf64_dynamic_object::process_got())) return false;
+	else if(!virtual_load_base) return true;
+	for(size_t i = 0UZ; i < num_plt_relas; i++)
+	{
+		elf64_rela const& r	= plt_relas[i];
+		addr_t target		= frame_tag->translate(virtual_load_base.plus(r.r_offset));
+		if(__unlikely(!target)) { panic("[PRG/DYNEXEC] fault in PLT rela offset"); return false; }
+		addr_t adjusted		= virtual_load_base.plus(target.deref<uintptr_t>());
+		target.assign(adjusted);
+	}
+	return true;
+}
