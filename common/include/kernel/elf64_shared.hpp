@@ -20,6 +20,7 @@ protected:
 	virtual bool xvalidate() override;
 	virtual void xrelease() override;
 	virtual void frame_enter() override;
+	virtual void process_flags(elf_dyn_flags flags) override;
 	virtual void process_dyn_entry(size_t i) override;
 	virtual void set_frame(uframe_tag* ft) override;
 	virtual uframe_tag* get_frame() const override;

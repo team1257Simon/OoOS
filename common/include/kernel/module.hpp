@@ -67,6 +67,19 @@ class elf64_kernel_object;
 namespace ooos
 {
 	struct block_io_provider_module;
+	/**
+	 * Base class for all module objects.
+	 * This is an abstract class which hooks in various parts of the kernel that module code might need to use.
+	 * The two pure virtual methods, initialize and finalize, are invoked by the kernel when the module is loaded and unloaded, respectively.
+	 * The former will be called after the constructor for the module's class returns, and the latter will be called before any destructors in the module file.
+	 * If a module encounters an error that needs to be handled by the kernel (e.g. by unloading the module), the raise_error method should be used.
+	 * This can pass an error code and an error message to the kernel handlers.
+	 * Uncaught exceptions in module code will use this method as well, but such unexpected errors will lead to a kernel abort.
+	 * Module objects are singletons and should be designed as such.
+	 * If the module class constructor takes arguments, those should be passed to the EXPORT_MODULE macro above.
+	 * Global constructors will be invoked before the module's constructor, but by necessity the typeinfo fix-ups will not have occurred by then.
+	 * Certain abstract subclasses within the kernel extend this base, allowing specific types of modules to more easily export functionality to the kernel.
+	 */
 	class abstract_module_base
 	{
 		kernel_api* __api_hooks;

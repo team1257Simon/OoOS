@@ -51,7 +51,7 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 {
 	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
 	bool have_weak			= false;
-	if(so)
+	if(so && so->is_symbolic())
 	{
 		sym_pair result_pair = so->resolve_by_name(name);
 		if(result_pair.second) return search_result(result_pair.second, true);
@@ -81,11 +81,11 @@ extern "C"
 		// References to objects in the GOT must be resolved now
 		for(elf64_rela const& r : obj_handle->get_object_relas())
 		{
-			addr_t target		= translate_user_pointer(obj_handle->resolve_rela_target(r));
+			addr_t target			= translate_user_pointer(obj_handle->resolve_rela_target(r));
 			if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
-			elf64_sym const& s	= obj_handle->get_sym(r.r_info.sym_index);
-			search_result sr	= full_search(obj_handle, task, obj_handle->symbol_name(s));
-			if(!sr.second && s.st_info.bind != SB_WEAK) return addr_t(static_cast<uintptr_t>(-ENOENT));
+			elf64_sym const& sym	= obj_handle->get_sym(r.r_info.sym_index);
+			search_result sr		= full_search(obj_handle, task, obj_handle->symbol_name(sym));
+			if(!sr.first && !sr.second && sym.st_info.bind != SB_WEAK) return addr_t(static_cast<uintptr_t>(-ELIBACC));
 			target.assign(sr.first);
 		}
 		size_t len		= obj_handle->get_init().size() + 1;
@@ -165,7 +165,7 @@ extern "C"
 					}
 				}
 			}
-			if(!n) return addr_t(static_cast<uintptr_t>(-ENOENT));
+			if(!n) return addr_t(static_cast<uintptr_t>(-ELIBACC));
 			struct __guard
 			{
 				file_vnode* __my_file;
@@ -210,25 +210,27 @@ extern "C"
 	}
 	addr_t syscall_dlsym(addr_t handle, const char* name)
 	{
-		task_ctx* task			= active_task_context();
+		task_ctx* task				= active_task_context();
 		if(__unlikely(!task || !task->local_so_map)) return addr_t(static_cast<uintptr_t>(-ENOSYS));
-		name					= translate_user_pointer(name);
+		name						= translate_user_pointer(name);
 		if(__unlikely(!name)) return addr_t(static_cast<uintptr_t>(-EFAULT));
 		if(!handle)
 		{
-			search_result sr	= global_search(name);
+			search_result sr		= global_search(name);
 			if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
 			return sr.first;
 		}
-		if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->program_handle)
+		elf64_dynamic_object* dyn	= validate_handle(handle);
+		if(!dyn) return addr_t(static_cast<uintptr_t>(-EINVAL));
+		if(static_cast<elf64_object*>(dyn) == task->program_handle)
 		{
-			search_result sr	= full_search(task, name);
+			search_result sr		= full_search(task, name);
 			if(!sr.second) return addr_t(static_cast<uintptr_t>(-ENOENT));
 			return sr.first;
 		}
-		elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
+		elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(dyn);
 		if(__unlikely(!so)) return addr_t(static_cast<uintptr_t>(-EBADF));
-		sym_pair result_pair	= so->resolve_by_name(name);
+		sym_pair result_pair		= so->resolve_by_name(name);
 		if(!result_pair.second && result_pair.first.st_info.bind == SB_WEAK) return nullptr;
 		else if(__unlikely(!result_pair.second)) return addr_t(static_cast<uintptr_t>(-ENOENT));
 		return result_pair.second;
@@ -245,7 +247,7 @@ extern "C"
 			addr_t target_pos			= translate_user_pointer(obj->resolve_rela_target(rela));
 			elf64_sym const& sym		= obj->get_sym(rela.r_info.sym_index);
 			search_result result		= full_search(obj, task, obj->symbol_name(sym));
-			if(!result.second || !result.first) return addr_t(static_cast<uintptr_t>(-ELIBACC));
+			if((!result.second && !result.first) && sym.st_info.bind != SB_WEAK) return addr_t(static_cast<uintptr_t>(-ELIBACC));
 			return target_pos.assign(result.first);
 		}
 		else return addr_t(static_cast<uintptr_t>(-EINVAL));

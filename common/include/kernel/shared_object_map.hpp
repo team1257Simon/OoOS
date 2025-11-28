@@ -38,7 +38,7 @@ public:
 	using typename __base::const_pointer;
 	using typename __base::size_type;
 	using typename __base::difference_type;
-	shared_object_map(uframe_tag* frame = nullptr, size_type init_ct = 128UL);
+	shared_object_map(uframe_tag* frame = nullptr, size_type init_ct = 128UZ);
 	~shared_object_map();
 	elf64_shared_object& operator[](std::string const& name);
 	elf64_shared_object const& operator[](std::string const& name) const;

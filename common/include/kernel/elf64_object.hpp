@@ -53,9 +53,9 @@ public:
 	virtual addr_t resolve(uint64_t offs) const;
 	virtual addr_t resolve(elf64_sym const& sym) const;
 	virtual ~elf64_object();
+	std::vector<block_descriptor> segment_blocks() const;
 	bool validate() noexcept;
 	bool load() noexcept;
 	void on_copy(uframe_tag* new_frame);
-	std::vector<block_descriptor> segment_blocks() const;
 };
 #endif

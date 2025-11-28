@@ -533,7 +533,7 @@ namespace ooos
 		const char* abort_msg;
 		const char* pv_msg;
 		[[noreturn]] inline void terminate() { api->ctx_raise(*eh_ctx, abort_msg, -1); __builtin_unreachable(); }
-		[[noreturn]] inline void pure_virt() { api->ctx_raise(*eh_ctx, pv_msg, -1); __builtin_unreachable();}
+		[[noreturn]] inline void pure_virt() { api->ctx_raise(*eh_ctx, pv_msg, -1); __builtin_unreachable(); }
 	};
 	template<typename T> constexpr T* pclamp(T* p, T* __min, T* __max) noexcept { return p < __min ? __min : p > __max ? __max : p; }
 	extension template<typename T, std::allocator_object<T> AT = std::allocator<T>>

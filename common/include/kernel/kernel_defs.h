@@ -322,6 +322,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define __pack attribute(packed)
 #define __align(n) attribute(aligned(n))
 #define __nointerrupts attribute(nointerrupts)
+#define __noinline attribute(noinline)
 #define __unlikely(x) __builtin_expect((x), false)
 #ifndef __cplusplus
 #ifdef NEED_STDBOOL

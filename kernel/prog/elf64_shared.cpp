@@ -8,8 +8,6 @@ addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 void elf64_shared_object::set_frame(uframe_tag* ft) { frame_tag = ft; }
 uframe_tag* elf64_shared_object::get_frame() const { return frame_tag; }
-void elf64_shared_object::xrelease() { if(frame_tag) { for(block_descriptor& blk : segment_blocks()) { frame_tag->drop_block(blk); } } }
-void elf64_shared_object::process_dyn_entry(size_t i) { if(dyn_entries[i].d_tag == DT_SYMBOLIC || (dyn_entries[i].d_tag == DT_FLAGS && (dyn_entries[i].d_val & 0x02UL))) { symbolic = true; } elf64_dynamic_object::process_dyn_entry(i); }
 elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_vnode* n, uframe_tag* frame) : elf64_object(n), elf64_dynamic_object(n),
 	soname					{ find_so_name(img_ptr(), n) },
@@ -62,6 +60,18 @@ static const char* find_so_name(addr_t image_start, file_vnode* so_file)
 	}
 	return empty_name;
 }
+void elf64_shared_object::process_dyn_entry(size_t i)
+{
+	if(dyn_entries[i].d_tag == DT_SYMBOLIC)
+		symbolic	= true;
+	elf64_dynamic_object::process_dyn_entry(i);
+}
+void elf64_shared_object::process_flags(elf_dyn_flags flags)
+{
+	if((flags & DF_SYMBOLIC) != 0)
+		symbolic	= true;
+	elf64_dynamic_object::process_flags(flags);
+}
 const char* elf64_shared_object::sym_lookup(addr_t addr) const
 {
 	if(__unlikely(!could_contain(addr))) return nullptr;
@@ -73,6 +83,12 @@ const char* elf64_shared_object::sym_lookup(addr_t addr) const
 		if(addr >= sym_base && sym_base.plus(sym.st_size) > addr) return symstrtab[sym.st_name];
 	}
 	return nullptr;
+}
+void elf64_shared_object::xrelease()
+{
+	if(frame_tag)
+		for(block_descriptor const& blk : segment_blocks()) 
+			frame_tag->drop_block(blk);
 }
 program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_vaddr) const
 {
@@ -95,18 +111,20 @@ void elf64_shared_object::process_headers()
 }
 bool elf64_shared_object::xvalidate()
 {
-	if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) { panic("[PRG/EXEC] not an object for the correct machine"); return false; }
-	if(ehdr().e_ident[elf_ident_class_idx] != EC_64 ) { panic("[PRG/EXEC] 32-bit object files are not supported"); return false; }
-	if(ehdr().e_type != ET_DYN) { panic("[PRG/EXEC] not a shared object"); return false; }
-	if(!ehdr().e_phnum) { panic("[PRG/EXEC] no program headers present"); return false; }
-	return true;
+	if(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB) panic("[PRG/EXEC] not an object for the correct machine");
+	else if(ehdr().e_ident[elf_ident_class_idx] != EC_64) panic("[PRG/EXEC] 32-bit object files are not supported");
+	else if(ehdr().e_type != ET_DYN) panic("[PRG/EXEC] not a shared object");
+	else if(!ehdr().e_phnum) panic("[PRG/EXEC] no program headers present");
+	else return true;
+	return false;
 }
 bool elf64_shared_object::load_segments()
 {
-	bool have_loads = false;
-	if(ehdr().e_entry) { entry = virtual_load_base.plus(ehdr().e_entry); }
-	size_t i = 0;
-	for(size_t n = 0; n < ehdr().e_phnum; n++)
+	bool have_loads	= false;
+	if(ehdr().e_entry)
+		entry		= virtual_load_base.plus(ehdr().e_entry);
+	size_t i		= 0UZ;
+	for(size_t n	= 0UZ; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h			= phdr(n);
 		if(!h.p_memsz) continue;
@@ -129,7 +147,7 @@ bool elf64_shared_object::load_segments()
 			{
 				addr_t img_dat		= segment_ptr(n);
 				array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
-				if(h.p_memsz > h.p_filesz) { array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz)); }
+				if(h.p_memsz > h.p_filesz) array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz));
 			}
 			new(std::addressof(segments[i++])) program_segment_descriptor
 			{

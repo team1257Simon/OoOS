@@ -38,7 +38,6 @@ constexpr addr_t mmap_min_addr		= 0x500000LA;
 constexpr size_t block_index_range	= max_exponent - min_exponent;
 constexpr size_t max_block_index	= block_index_range - 1;
 constexpr addr_t sysres_base		= 0xFFFF800000000000LA;
-constexpr addr_t thread_info_base	= 0x0000400000000000LA;
 struct block_tag
 {
 	uint64_t magic			= block_magic;
@@ -86,18 +85,18 @@ private:
 	spinlock_t __my_mutex;
 public:
 	constexpr kframe_tag()	= default;
-	void __nointerrupts insert_block(block_tag* blk, int idx) noexcept;
-	void __nointerrupts remove_block(block_tag* blk) noexcept;
-	addr_t attribute(noinline, nointerrupts) allocate(size_t size, size_t align = 0UL) noexcept;
-	void attribute(noinline, nointerrupts) deallocate(addr_t ptr, size_t align = 0UL) noexcept;
+	void insert_block(block_tag* blk, int idx) noexcept;
+	void remove_block(block_tag* blk) noexcept;
+	addr_t allocate(size_t size, size_t align = 0UL) noexcept;
+	void deallocate(addr_t ptr, size_t align = 0UL) noexcept;
 	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL) noexcept;
 	addr_t array_allocate(size_t num, size_t size) noexcept;
-	block_tag* __nointerrupts create_tag(size_t size, size_t align) noexcept;
-	block_tag* __nointerrupts melt_left(block_tag* tag) noexcept;
-	block_tag* __nointerrupts melt_right(block_tag* tag) noexcept;
-	block_tag* __nointerrupts find_tag(addr_t ptr, size_t align) noexcept;
-	block_tag* __nointerrupts get_for_allocation(size_t size, size_t align) noexcept;
-	void __nointerrupts release_block(block_tag* tag) noexcept;
+	block_tag* create_tag(size_t size, size_t align) noexcept;
+	block_tag* melt_left(block_tag* tag) noexcept;
+	block_tag* melt_right(block_tag* tag) noexcept;
+	block_tag* find_tag(addr_t ptr, size_t align) noexcept;
+	block_tag* get_for_allocation(size_t size, size_t align) noexcept __nointerrupts;
+	void release_block(block_tag* tag) noexcept __nointerrupts;
 private:
 	void __lock();
 	void __unlock();
@@ -274,13 +273,12 @@ public:
 	void map_to_current_frame(block_descriptor const& block);
 	__nointerrupts paging_table allocate_pt() noexcept;
 	uintptr_t frame_translate(addr_t addr);
-	__nointerrupts addr_t allocate_kernel_block(size_t sz) noexcept;
+	__nointerrupts __noinline addr_t allocate_kernel_block(size_t sz) noexcept;
 	__nointerrupts addr_t allocate_dma(size_t sz, bool prefetchable) noexcept;
 	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
-	__nointerrupts addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
-	__nointerrupts addr_t identity_map_to_user(addr_t what, size_t sz, bool write = true, bool execute = true) noexcept;
-	__nointerrupts void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false) noexcept;
+	__nointerrupts __noinline addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
+	__nointerrupts __noinline void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false) noexcept;
 	addr_t copy_kernel_mappings(paging_table target);
 	static size_t currently_used_memory();
 	static size_t total_available_memory();

@@ -514,14 +514,6 @@ uintptr_t kernel_memory_mgr::frame_translate(addr_t addr)
 	if(pt && pt[addr.page_idx].present && pt[addr.page_idx].physical_address) return (pt[addr.page_idx].physical_address << 12) | addr.offset;
 	return 0;
 }
-addr_t kernel_memory_mgr::identity_map_to_user(addr_t what, size_t sz, bool write, bool execute) noexcept
-{
-	if(!__active_frame) return nullptr;
-	__lock();
-	addr_t result	= __map_user_pages(what, what, div_round_up(sz, page_size), __active_frame->pml4, write, execute);
-	__unlock();
-	return result;
-}
 void kernel_memory_mgr::map_to_current_frame(block_descriptor const& blk)
 {
 	addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
