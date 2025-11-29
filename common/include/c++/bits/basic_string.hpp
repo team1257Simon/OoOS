@@ -4,6 +4,17 @@
 #include "bits/char_traits.hpp"
 namespace std
 {
+	namespace __detail
+	{
+		template<typename T, typename CT>
+		concept __string_view_like = requires(T const& t)
+		{
+			requires(char_type<CT>);
+			{ std::declval<T>().size() } -> std::unsigned_integral;
+			{ t.begin() } -> matching_input_iterator<CT>;
+			{ t.end() } -> matching_input_iterator<CT>;
+		};
+	}
 	template<char_type CT, char_traits_type<CT> TT = std::char_traits<CT>, allocator_object<CT> AT = std::allocator<CT>>
 	class basic_string : protected __impl::__dynamic_buffer<CT, AT, true>
 	{
@@ -42,6 +53,8 @@ namespace std
 		constexpr basic_string(size_type count, const_reference value) : basic_string(count, value, allocator_type()) {}
 		template<matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end, allocator_type const& alloc);
 		template<matching_input_iterator<value_type> IT> constexpr basic_string(IT start, IT end) : basic_string(start, end, allocator_type()) {}
+		template<__detail::__string_view_like<value_type> ST> constexpr basic_string(ST const& str_view, allocator_type const& alloc) : basic_string(str_view.begin(), str_view.end(), alloc) {}
+		template<__detail::__string_view_like<value_type> ST> constexpr basic_string(ST const& str_view) : basic_string(str_view.begin(), str_view.end()) {}
 		constexpr basic_string(const_pointer str, size_type count, allocator_type const& alloc);
 		constexpr basic_string(const_pointer str, size_type count) : basic_string(str, count, allocator_type()) {}
 		constexpr basic_string(const_pointer str, allocator_type const& alloc) : basic_string(str, traits_type::length(str), alloc) {}

@@ -1,11 +1,11 @@
 #ifndef __ALLOCATOR_BASE
 #define __ALLOCATOR_BASE
 #ifndef _GCC_STDINT_H
-#include "stdint.h"
+#include <stdint.h>
 #endif
-#include "stddef.h"
-#include "bits/ptr_traits.hpp"
-#include "new"
+#include <stddef.h>
+#include <bits/ptr_traits.hpp>
+#include <new>
 namespace std
 {
 	using size_t = decltype(sizeof(int));
@@ -108,9 +108,10 @@ namespace std
 	template<typename A, typename T> concept __has_resize	= requires { { std::declval<A>().resize(std::declval<T*>(), std::declval<size_t>(), std::declval<size_t>()) } -> std::convertible_to<T*>; };
 #pragma region non-standard memory functions
 	extension template<typename T, allocator_object<T> AT	= allocator<T>>
-	[[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc = AT{})
+	[[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc = AT())
 	{
 		if(__builtin_expect(!array, false)) return alloc.allocate(ncount);
+		if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
 		if constexpr(!std::is_trivially_destructible_v<T>)
 		{
 			T* result		= alloc.allocate(ncount);

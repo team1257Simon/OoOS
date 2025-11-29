@@ -6,9 +6,9 @@
 // Credit goes to the GNU project for these implementations
 // GCC / glibcxx is under the GPL
 #ifndef _GCC_STDINT_H
-#include "stdint.h"
+#include <stdint.h>
 #endif
-#include "stddef.h"
+#include <stddef.h>
 namespace std
 {
 	template<typename T> class reference_wrapper;
@@ -595,7 +595,7 @@ namespace std
 	template<typename X, typename Y> struct __common_ref_impl<X&&, Y&&, __require_all<is_convertible<X&&, __common_ref_C<X, Y>>, is_convertible<Y&&, __common_ref_C<X, Y>>>> { using type = __common_ref_C<X, Y>; };
 	template<typename X, typename Y> using __common_ref_D = __common_ref<X const&, Y&>;
 	template<typename X, typename Y> struct __common_ref_impl<X&&, Y&, __require_all<is_convertible<X&&, __common_ref_D<X, Y>>>> { using type = __common_ref_D<X, Y>; };
-	template<typename X, typename Y> struct __common_ref_impl<X&, Y&&>: __common_ref_impl<Y&&, X&> {};
+	template<typename X, typename Y> struct __common_ref_impl<X&, Y&&> : __common_ref_impl<Y&&, X&> {};
 	template<typename T, typename U, template<typename> class QT, template<typename> class UQT> struct basic_common_reference {};
 	template<typename T> struct __xref { template<typename U> using __type = __copy_cv<T, U>; };
 	template<typename T> struct __xref<T&> { template<typename U> using __type = __copy_cv<T, U>&; };

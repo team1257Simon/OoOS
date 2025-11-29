@@ -269,19 +269,19 @@ extern "C"
 	}
 	int syscall_dlmap(elf64_dynamic_object* obj, elf64_dlmap_entry* ent)
 	{
-		task_ctx* task			= active_task_context();
+		task_ctx* task				= active_task_context();
 		if(__unlikely(!task || !task->local_so_map)) return -ENOSYS;
-		elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
+		elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(obj);
 		if(__unlikely(!so)) return -EBADF;
 		ent = translate_user_pointer(ent);
 		if(__unlikely(!ent)) return -EFAULT;
 		ent->dynamic_section		= so->dyn_segment_ptr();
 		ent->dynamic_section_length	= so->dyn_segment_len();
 		shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
-		const char* fp			= task->local_so_map->contains(so->get_soname()) ? task->local_so_map->get_path(it) : shared_object_map::get_globals().get_path(it);
-		if(!fp) fp				= so->get_soname().data();
-		size_t len				= std::strlen(fp) + 1;
-		ent->absolute_pathname	= sysres_add(len);
+		const char* fp				= task->local_so_map->contains(so->get_soname()) ? task->local_so_map->get_path(it) : shared_object_map::get_globals().get_path(it);
+		if(!fp) fp					= so->get_soname().data();
+		size_t len					= std::strlen(fp) + 1;
+		ent->absolute_pathname		= sysres_add(len);
 		if(__unlikely(!ent->absolute_pathname)) return -ENOMEM;
 		char* target_real = translate_user_pointer(ent->absolute_pathname);
 		array_copy(target_real, fp, len - 1);

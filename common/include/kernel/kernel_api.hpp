@@ -541,6 +541,7 @@ namespace ooos
 	constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
 	{
 		if(__unlikely(!array)) return alloc.allocate(ncount);
+		if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
 		if constexpr(!std::is_trivially_destructible_v<T>)
 		{
 			T* result 		= alloc.allocate(ncount);
@@ -558,5 +559,37 @@ namespace ooos
 		for(i = start; i != end; i++) *i = fn(*i);
 		return i;
 	}
+	template<__internal::__basic_char_type CT, size_t N>
+	struct basic_string_initializer
+	{
+		typedef CT char_type;
+		typedef CT* iterator;
+		typedef CT const* const_iterator;
+	private:
+		constexpr static size_t __length = static_cast<size_t>(N - 1Z);
+		char_type __str[N];
+	public:
+		constexpr basic_string_initializer() noexcept	= default;
+		constexpr ~basic_string_initializer() noexcept	= default;
+		constexpr basic_string_initializer(char_type (&&str)[N]) noexcept : __str() { array_init(__str, str, N); }
+		constexpr basic_string_initializer(char_type const (&str)[N]) noexcept : __str() { array_init(__str, str, N); }
+		constexpr size_t size() const noexcept { return __length; }
+		constexpr CT* data() noexcept { return __str; }
+		constexpr CT const* data() const noexcept { return __str; }
+		constexpr iterator begin() noexcept { return __str; }
+		constexpr const_iterator begin() const noexcept { return __str; }
+		constexpr const_iterator cbegin() const noexcept { return __str; }
+		constexpr iterator end() noexcept { return __str + N; }
+		constexpr const_iterator end() const noexcept { return __str + N; }
+		constexpr const_iterator cend() const noexcept { return __str + N; }
+	};
+	template<__internal::__basic_char_type CT, size_t M, size_t N>
+	constexpr basic_string_initializer<CT, M + N - 1Z> operator+(basic_string_initializer<CT, M> const& __this, basic_string_initializer<CT, N> const& __that) noexcept
+	{
+		basic_string_initializer<CT, M + N - 1Z> result{};
+		array_init(result.data(), __this.data(), M);
+		array_init(result.data() + __this.size(), __that.data(), N);
+		return result;
+	}	
 }
 #endif

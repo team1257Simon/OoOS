@@ -27,7 +27,7 @@ public:
 	protocol_handler& add_protocol(net16 id, protocol_handler&& ph);
 	constexpr protocol_ethernet* get_ethernet_handler() { return std::addressof(base_handler); }
 	constexpr mac_t const& get_mac_addr() const { return mac_addr; }
-	template<std::derived_from<abstract_protocol_handler> PT> requires std::constructible_from<PT, protocol_ethernet*> PT& add_protocol_handler(net16 id) { return add_protocol(id, std::move(create_handler<PT>(std::addressof(base_handler)))).template cast<PT>(); }
+	template<std::derived_from<abstract_protocol_handler> PT> requires(std::constructible_from<PT, protocol_ethernet*>) PT& add_protocol_handler(net16 id) { return add_protocol(id, std::move(create_handler<PT>(std::addressof(base_handler)))).template cast<PT>(); }
 	// ...
 };
 #endif
