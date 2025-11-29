@@ -65,8 +65,8 @@ make && make install
 cd $BUILD_DIR
 git clone https://gcc.gnu.org/git/gcc.git
 cd gcc
-git checkout releases/gcc-14.2.0
-git apply $OOOS_DIR/lib/patches/gcc-14.2.diff
+git checkout releases/gcc-15.2.0
+git apply $OOOS_DIR/lib/patches/gcc-15.2.diff
 cp -lRf $OOOS_DIR/lib/gcc $BUILD_DIR/gcc
 cd libstdc++-v3
 $GCC_AC
