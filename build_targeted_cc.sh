@@ -51,9 +51,8 @@ $GCC_AM
 cd $BUILD_DIR/build-binutils
 ../binutils-gdb/configure --target=x86_64-ooos --with-sysroot=$SYSROOT --prefix=$PREFIX --disable-nls --disable-werror --enable-shared
 make && make install
-git clone https://github.com/reswitched/newlib.git
+git clone https://github.com/team1257Simon/newlib.git
 cd newlib
-git apply $OOOS_DIR/lib/patches/newlib-3.0.0.diff
 cp -lRf $OOOS_DIR/lib/newlib/libc/sys/ooos $BUILD_DIR/newlib/newlib/libc/sys
 cd $BUILD_DIR/newlib/newlib
 $NL_RC || true # autoheader will fail, but the configure still works so we don't want that to kill the script. TODO: figure out something less hacky
