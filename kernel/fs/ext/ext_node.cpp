@@ -44,7 +44,7 @@ bool ext_device_vnode::fsync() { return update_inode() && device_vnode::fsync();
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd, size_t pipe_id) : file_vnode(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_vnode(fd, pipe_id) { mode = on_disk_node->mode; }
 ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd) : file_vnode(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_vnode(fd) { mode = on_disk_node->mode; }
 ext_pipe_vnode::~ext_pipe_vnode() = default;
-ext_pipe_pair::ext_pipe_pair(extfs *parent, uint32_t inode_number, std::string const& name, int fd0, int fd1) : vnode(name, fd0, inode_number), in(parent, inode_number, fd0), out(parent, inode_number, fd1, in.pipe_id()) {}
+ext_pipe_pair::ext_pipe_pair(extfs *parent, uint32_t inode_number, std::string const& name) : vnode(name, -1, inode_number), in(parent, inode_number, -1), out(parent, inode_number, -1, in.pipe_id()) {}
 ext_pipe_pair::~ext_pipe_pair() = default;
 uint64_t ext_pipe_pair::size() const noexcept { return in.size(); }
 bool ext_pipe_pair::fsync() { return in.update_inode(); }

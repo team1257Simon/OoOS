@@ -88,8 +88,8 @@ bool user_accounts_manager::init_instance(sysfs& config_src)
 				.credentials	{ .user_login_name		{ "root" } },
 				.capabilities	{ .system_permissions	{ static_cast<permission_flag>(-1) } }
 			};
+			__instance->set_pw(root_info, "toor");
 			user_handle root_handle		= __instance->__table.add(root_info).first;
-			root_handle->compute_csum();
 			global_accounts_info& inf	= *__instance->__global_info;
 			inf.next_gid				= 1000U;
 			inf.next_uid				= 1000U;
@@ -115,11 +115,11 @@ int user_accounts_manager::__create_credentials(user_info& out, std::string cons
 }
 void user_accounts_manager::set_pw(user_info& out, std::string const& pw)
 {
-	std::string setting = create_hash_setting_string();
-	std::string pw_hash = create_crypto_string(pw, setting);
+	std::string setting		= create_hash_setting_string();
+	std::string pw_hash		= create_crypto_string(pw, setting);
 	std::strncpy(out.credentials.crypto_setting_str, setting.c_str(), crypto_setting_len);
 	std::strncpy(out.credentials.password_hash_str, pw_hash.c_str(), crypto_hash_len);
-	out.last_pw_change_time = sys_time(nullptr);
+	out.last_pw_change_time	= sys_time(nullptr);
 	out.compute_csum();
 }
 int user_accounts_manager::__create_vpwd_records(user_info& user, const char* home, const char* gecos, const char* shell)

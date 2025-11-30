@@ -2,8 +2,9 @@
 #include "rtc.h"
 #include "stdexcept"
 constexpr size_t dirent_size = sizeof(fat32_directory_entry);
-static void update_times(fat32_regular_entry& e) { rtc_time t = rtc::get_instance().get_time(); new (std::addressof(e.modified_date)) fat_filedate{ t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base) }; new (std::addressof(e.modified_time)) fat_filetime{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr }; new (std::addressof(e.accessed_date)) fat_filedate{ e.modified_date }; }
-fat32_vnode::fat32_vnode(fat32* pfs, fat32_directory_vnode* pdir, size_t didx) noexcept : parent_fs{ pfs }, parent_dir{ pdir }, dirent_index{ didx } {}
+static void update_times(fat32_regular_entry& e) { rtc_time t = rtc::get_instance().get_time(); new(std::addressof(e.modified_date)) fat_filedate(t.day, t.month, static_cast<uint8_t>(t.year - fat_year_base)); new(std::addressof(e.modified_time)) fat_filetime{ static_cast<uint8_t>(t.sec >> 1), t.min, t.hr }; new(std::addressof(e.accessed_date)) fat_filedate(e.modified_date); }
+fat32_vnode::fat32_vnode(fat32* pfs, fat32_directory_vnode* pdir, size_t didx) noexcept : parent_fs(pfs), parent_dir(pdir), dirent_index(didx) {}
+fat32_vnode::~fat32_vnode() = default;
 fat32_regular_entry* fat32_vnode::disk_entry() noexcept { return std::addressof((parent_dir->__my_dir_data.begin() + dirent_index)->regular_entry); }
 fat32_regular_entry const* fat32_vnode::disk_entry() const noexcept { return std::addressof((parent_dir->__my_dir_data.begin() + dirent_index)->regular_entry); }
 uint32_t fat32_vnode::start_cluster() const noexcept { return start_of(*disk_entry()); }
@@ -11,6 +12,7 @@ uint32_t fat32_file_vnode::claim_next(uint32_t cl) { return claim_cluster(parent
 uint64_t fat32_file_vnode::cl_to_s(uint32_t cl) { return parent_fs->cluster_to_sector(cl); }
 bool fat32_file_vnode::on_open() { if(__on_disk_size) { return __my_filebuf.read_dev(__on_disk_size) != 0UZ; } else return __my_filebuf.__grow_buffer(parent_fs->block_size()); }
 fat32_file_vnode::fat32_file_vnode(fat32* pfs, std::string const& real_name, fat32_directory_vnode* pdir, uint32_t cl_st, size_t dirent_idx) : file_vnode(real_name, pfs->next_fd++, uint64_t(cl_st)), fat32_vnode(pfs, pdir, dirent_idx), __my_filebuf(std::vector<uint32_t>{}, this), __on_disk_size(disk_entry()->size_bytes) { fat32_regular_entry* e = disk_entry(); create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; uint32_t cl = cl_st & fat32_cluster_mask; do { __my_filebuf.__my_clusters.push_back(cl); cl = parent_fs->__the_table[cl] & fat32_cluster_mask; } while(cl < fat32_cluster_eof); }
+fat32_file_vnode::~fat32_file_vnode() = default;
 uint64_t fat32_file_vnode::size() const noexcept { return __on_disk_size; }
 bool fat32_file_vnode::fsync() { if(__my_filebuf.sync() == 0) { update_times(*disk_entry()); disk_entry()->size_bytes = size(); return true; } else { panic("fsync failed"); return false; } }
 fat32_file_vnode::pos_type fat32_file_vnode::tell() const { return pos_type(__my_filebuf.tell()); }
@@ -22,6 +24,7 @@ fat32_file_vnode::size_type fat32_file_vnode::read(pointer dest, size_type n) { 
 fat32_file_vnode::size_type fat32_file_vnode::write(const_pointer src, size_type n) { size_t result = __my_filebuf.xsputn(src, n); this->__my_filebuf.__cur()[0] = std::char_traits<char>::eof(); this->__my_filebuf.is_dirty = true; this->__on_disk_size = size_t(this->tell()); sys_time(std::addressof(this->modif_time)); parent_dir->mark_dirty(); return result; }
 fat32_regular_entry* fat32_directory_vnode::find_dirent(std::string const& name) { if(tnode_dir::iterator i = directory_tnodes.find(name); i != directory_tnodes.end()) { if(fat32_vnode* n = dynamic_cast<fat32_vnode*>(i->ptr()); n && n->parent_dir) return n->disk_entry(); } return nullptr; }
 fat32_directory_vnode::fat32_directory_vnode(fat32* pfs, std::string const& real_name, fat32_directory_vnode* pdir, uint32_t cl_st, size_t dirent_idx) : directory_vnode(real_name, pfs->next_fd++, cl_st), fat32_vnode(pfs, pdir, dirent_idx), __my_dir_data{}, __my_covered_clusters{} { if(pdir) { fat32_regular_entry* e = disk_entry(); create_time = e->created_date + e->created_time; modif_time = e->modified_date + e->modified_time; } uint32_t cl = cl_st; do { __my_covered_clusters.push_back(cl); cl = parent_fs->__the_table[cl] & fat32_cluster_mask; } while(cl < fat32_cluster_eof); }
+fat32_directory_vnode::~fat32_directory_vnode() = default;
 std::vector<fat32_directory_entry>::iterator fat32_directory_vnode::__whereis(fat32_regular_entry* e) { std::vector<fat32_directory_entry>::iterator i{ reinterpret_cast<fat32_directory_entry*>(e) }; if(i < __my_dir_data.end() && i >= __my_dir_data.begin()) return i; else return __my_dir_data.end(); }
 void fat32_directory_vnode::__expand_dir() { size_t n = parent_fs->block_size() / dirent_size; if(uint32_t i = claim_cluster(parent_fs->__the_table, __my_covered_clusters.back())) { __my_covered_clusters.push_back(i); __my_dir_data.reserve(__my_dir_data.size() + n); } else throw std::runtime_error{ "out of space" }; }
 std::vector<fat32_directory_entry>::iterator fat32_directory_vnode::first_unused_entry() { __dirty = true; for(std::vector<fat32_directory_entry>::iterator i = __my_dir_data.begin(); i != __my_dir_data.end(); i++) { if(i->regular_entry.filename[0] == 0xE5 || i->regular_entry.filename[0] == 0) return i; } this->__expand_dir(); return first_unused_entry(); }

@@ -195,6 +195,7 @@ struct fat32_vnode
 	fat32_directory_vnode* parent_dir;
 	size_t dirent_index;
 	fat32_vnode(fat32* pfs, fat32_directory_vnode* pdir, size_t didx) noexcept;
+	virtual ~fat32_vnode();
 	uint32_t start_cluster() const noexcept;
 	fat32_regular_entry* disk_entry() noexcept;
 	fat32_regular_entry const* disk_entry() const noexcept;
@@ -228,6 +229,7 @@ public:
 	uint32_t claim_next(uint32_t cl);
 	uint64_t cl_to_s(uint32_t cl);
 	fat32_file_vnode(fat32* pfs, std::string const& real_name, fat32_directory_vnode* pdir, uint32_t cl_st, size_t dirent_idx);
+	virtual ~fat32_file_vnode();
 	friend constexpr std::strong_ordering operator<=>(fat32_file_vnode const& __this, fat32_file_vnode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(std::char_traits<char>::compare(__this.concrete_name.c_str(), __that.concrete_name.c_str(), std::max(__this.concrete_name.size(), __that.concrete_name.size()))); }
 };
 class fat32_directory_vnode final : public directory_vnode, public fat32_vnode
@@ -257,9 +259,10 @@ public:
 	constexpr bool valid() const { return __has_init; }
 	constexpr void mark_dirty() { __dirty = true; }
 	fat32_directory_vnode(fat32* pfs, std::string const& real_name, fat32_directory_vnode* pdir, uint32_t cl_st, size_t dirent_idx);
+	virtual ~fat32_directory_vnode();
 	friend constexpr std::strong_ordering operator<=>(fat32_directory_vnode const& __this, fat32_directory_vnode const& __that) noexcept { return std::__detail::__char_traits_cmp_cat<std::char_traits<char>>(std::char_traits<char>::compare(__this.concrete_name.c_str(), __that.concrete_name.c_str(), std::max(__this.concrete_name.size(), __that.concrete_name.size()))); }
 };
-class fat32 final : public filesystem
+class fat32 final : public default_device_impl_fs
 {
 	uint32_t __root_cl_num;
 	uint8_t __sectors_per_cluster;
@@ -293,7 +296,7 @@ protected:
 	fat32_directory_vnode* put_directory_node(std::string const& name, fat32_directory_vnode* parent, uint32_t cl0, size_t dirent_idx);
 	fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial);
 	bool init();
-	~fat32();
+	virtual ~fat32();
 	bool write_clusters(uint32_t cl_st, const char* data, size_t num = 1UL);
 	bool read_clusters(char* buffer, uint32_t cl_st, size_t num = 1UL);
 public:

@@ -36,7 +36,7 @@ public:
 	virtual bool grow(size_t added) override;
 	virtual bool truncate() override;
 };
-class ramfs final : public filesystem
+class ramfs final : public default_device_impl_fs
 {
 	ramfs_directory_vnode __root_dir;
 	std::set<ramfs_file_vnode> __file_nodes;
@@ -51,5 +51,6 @@ protected:
 	virtual dev_t xgdevid() const noexcept override;
 public:
 	ramfs();
+	virtual ~ramfs();
 };
 #endif

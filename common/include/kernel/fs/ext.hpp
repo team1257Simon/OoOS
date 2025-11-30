@@ -662,7 +662,7 @@ public:
 	virtual bool fsync() override;
 	virtual bool truncate() override;
 	virtual bool is_pipe() const noexcept final override;
-	ext_pipe_pair(extfs* parent, uint32_t inode_number, std::string const& name, int fd0, int fd1);
+	ext_pipe_pair(extfs* parent, uint32_t inode_number, std::string const& name);
 	virtual ~ext_pipe_pair();
 };
 typedef std::hash_set<ext_pipe_pair, std::string, std::hash<std::string>, equals_t, std::allocator<ext_pipe_pair>, access_t<vnode, std::string, &vnode::concrete_name>> named_pipe_map;
@@ -764,7 +764,7 @@ public:
 	constexpr uint32_t get_uuid_csum() const { return uuid_csum; }
 	tnode* resolve_symlink(ext_directory_vnode* from, std::string const& link, std::set<vnode*>& checked);
 	extfs(uint64_t volume_start_lba);
-	~extfs();
+	virtual ~extfs();
 };
 inline uint32_t crc32c_blk(uint32_t st, disk_block const& db, size_t bs) { return crc32c_x86_3way(st, reinterpret_cast<uint8_t const*>(db.data_buffer), db.chain_len * bs); }
 #endif

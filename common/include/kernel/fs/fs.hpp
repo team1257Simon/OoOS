@@ -5,19 +5,20 @@
  * There is a special node type for devices (such as serial ports) that should work with any sort of filesystem.
  * Similarly, the abstract filesystem class is essentially the vfs interface; any concrete implementor is the actual file system.
 */
-#include "string"
-#include "functional"
-#include "bits/ios_base.hpp"
-#include "bits/hash_set.hpp"
-#include "vector"
-#include "set"
-#include "fs/simplex_pipe.hpp"
-#include "fs/block_device.hpp"
-#include "device_registry.hpp"
-#include "ext/dynamic_streambuf.hpp"
-#include "ext/delegate_ptr.hpp"
-#include "sys/stat.h"
-#include "sys/fcntl.h"
+#include <string>
+#include <functional>
+#include <bits/ios_base.hpp>
+#include <bits/hash_set.hpp>
+#include <vector>
+#include <set>
+#include <fs/simplex_pipe.hpp>
+#include <fs/block_device.hpp>
+#include <device_registry.hpp>
+#include <ext/dynamic_streambuf.hpp>
+#include <ext/delegate_ptr.hpp>
+#include <ext/dynamic_ptr.hpp>
+#include <sys/stat.h>
+#include <sys/fcntl.h>
 typedef std::ext::delegate_ptr<simplex_pipe> pipe_handle;
 struct file_mode
 {
@@ -163,6 +164,7 @@ public:
 	virtual bool on_open();
 	file_vnode(std::string const& name, int vfd, uint64_t cid);
 	file_vnode(int vfd, uint64_t cid);
+	virtual ~file_vnode();
 };
 class directory_vnode;
 class device_vnode;
@@ -231,6 +233,7 @@ struct directory_vnode : public vnode
 	virtual bool relink(std::string const& oldn, std::string const& newn);
 	directory_vnode(std::string const& name, int vfd, uint64_t cid);
 	directory_vnode(int vfd, uint64_t cid);
+	virtual ~directory_vnode();
 };
 class device_vnode : public file_vnode
 {
@@ -257,6 +260,7 @@ public:
 	virtual bool grow(size_t) override;
 	device_vnode(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
 	device_vnode(int fd, device_stream* dev_buffer, dev_t id);
+	virtual ~device_vnode();
 	constexpr dev_t get_device_id() const noexcept { return __dev_id; }
 };
 class pipe_vnode : public virtual file_vnode
@@ -288,6 +292,7 @@ public:
 	pipe_vnode(std::string const& name, int vid);
 	pipe_vnode(int vid, size_t cid);
 	pipe_vnode(int vid);
+	virtual ~pipe_vnode();
 };
 typedef std::hash_set<pipe_vnode, int, cast_t<int, uint64_t>, equals_t, std::allocator<pipe_vnode>, access_t<vnode, int, &vnode::fd>> pipe_map;
 struct pipe_pair { pipe_vnode* in; pipe_vnode* out; };
@@ -296,30 +301,29 @@ class filesystem
 protected:
 	typedef std::pair<directory_vnode*, std::string> target_pair;
 	pipe_map pipes;
-	std::set<device_vnode> device_nodes{};
-	fd_map current_open_files{};
+	fd_map current_open_files;
 	int next_fd;
 	block_device* blockdev;
-	virtual void dlfilenode(file_vnode*)										= 0;
-	virtual void dldirnode(directory_vnode*)									= 0;
-	virtual file_vnode* mkfilenode(directory_vnode*, std::string const&)		= 0;
-	virtual directory_vnode* mkdirnode(directory_vnode*, std::string const&)	= 0;
-	virtual device_vnode* mkdevnode(directory_vnode* parent, std::string const& name, dev_t id, int fd);
+public:
+	virtual void dlfilenode(file_vnode*)																= 0;
+	virtual void dldevnode(device_vnode*)																= 0;
+	virtual void dldirnode(directory_vnode*)															= 0;
+	virtual file_vnode* mkfilenode(directory_vnode*, std::string const&)								= 0;
+	virtual directory_vnode* mkdirnode(directory_vnode*, std::string const&)							= 0;
+	virtual device_vnode* mkdevnode(directory_vnode* parent, std::string const& name, dev_t id, int fd)	= 0;
+	virtual void syncdirs()																				= 0;
+	virtual dev_t xgdevid() const noexcept																= 0;
+	virtual directory_vnode* get_root_directory()														= 0;
 	virtual pipe_pair mkpipe(directory_vnode* parent, std::string const& name);
 	virtual pipe_pair mkpipe();
-	virtual void syncdirs()														= 0;
-	virtual dev_t xgdevid() const noexcept										= 0;
 	virtual void on_close(file_vnode*);
 	virtual bool xunlink(directory_vnode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse);
 	virtual tnode* xlink(target_pair ogpath, target_pair tgpath);
 	virtual target_pair get_parent(directory_vnode* node, std::string const& path, bool create);
-	virtual void dldevnode(device_vnode*);
 	virtual void dlpipenode(vnode*);
 	void register_fd(vnode* node);
 	target_pair get_parent(std::string const& path, bool create);
-public:
 	virtual const char* path_separator() const noexcept;
-	virtual directory_vnode* get_root_directory()								= 0;
 	virtual device_vnode* lndev(std::string const& where, int fd, dev_t id, bool create_parents = true);
 	virtual file_vnode* on_open(tnode*);
 	virtual file_vnode* on_open(tnode*, std::ios_base::openmode);
@@ -327,13 +331,13 @@ public:
 	virtual size_t block_size();
 	virtual directory_vnode* open_directory(std::string const& path, bool create = true);
 	filesystem();
-	~filesystem();
+	virtual ~filesystem();
 	bool write_blockdev(uint64_t lba_dest, const void* src, size_t sectors);
 	bool read_blockdev(void* dest, uint64_t lba_src, size_t sectors);
-	bool link_stdio(dev_t device_id);
 	void tie_block_device(block_device* dev);
 	vnode* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
 	void create_node(directory_vnode* parent, std::string const& path, mode_t mode, dev_t dev = 0U);
+	pipe_pair create_named_pipe(directory_vnode* parent, std::string const& name);
 	void create_pipe(int fds[2]);
 	vnode* get_fd_node(int fd);
 	file_vnode* get_file(int fd);
@@ -349,11 +353,23 @@ public:
 	bool unlink(std::string const& what, bool ignore_nonexistent = true, bool dir_recurse = false);
 	void pubsyncdirs();
 };
-struct mount_vnode : public virtual directory_vnode
+class default_device_impl_fs : public filesystem
 {
-	filesystem* mounted;
-	mount_vnode(filesystem* fs, int vfd, uint64_t cid);
+protected:
+	std::set<device_vnode> device_nodes{};
+	virtual device_vnode* mkdevnode(directory_vnode* parent, std::string const& name, dev_t id, int fd);
+	virtual void dldevnode(device_vnode*);
+public:
+	default_device_impl_fs();
+	virtual ~default_device_impl_fs();
+};
+struct mount_vnode : public directory_vnode
+{
+	std::ext::dynamic_ptr<filesystem> mounted;
+	mount_vnode(int vfd, std::ext::dynamic_ptr<filesystem>&& fs);
 	virtual bool is_mount() const noexcept final override;
+	virtual bool fsync() override;
+	virtual ~mount_vnode();
 };
 filesystem* create_task_vfs();
 filesystem* get_task_vfs();

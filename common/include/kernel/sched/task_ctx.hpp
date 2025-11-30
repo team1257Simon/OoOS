@@ -44,9 +44,10 @@ struct task_ctx
 	task_signal_info_t task_sig_info						{};
 	std::map<int, posix_directory> opened_directories		{};
 	ooos::task_dtv dyn_thread								{};
+	pid_t next_assigned_thread_id							{};
+	thread_t* signal_interrupted_thread						{};
 	std::map<pid_t, thread_t*> thread_ptr_by_id				{};
 	std::map<pid_t, std::vector<thread_t*>> notify_threads	{};
-	pid_t next_assigned_thread_id							{};
 	std::vector<thread_t*> inactive_threads					{};
 	constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_id; }
 	constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
@@ -80,7 +81,7 @@ struct task_ctx
 	void stack_push(register_t val);
 	register_t stack_pop();
 	void set_signal(int sig, bool save_state);		// implements raise()
-	register_t end_signal();
+	void end_signal();
 	bool set_fork();								// implements fork()
 	bool subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env);	// implements execve()
 	void tls_assemble();

@@ -27,10 +27,17 @@ extern "C"
 	long syscall_sigret()
 	{
 		task_ctx* task	= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
 		if(!task->task_sig_info.pending_signals.btr(task->task_sig_info.active_signal)) return -EINVAL;
-		register_t rax	= task->end_signal();
+		task->end_signal();
 		if(task->task_sig_info.pending_signals) task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals), false); // state is already saved
-		return rax;
+		else
+		{
+			kthread_ptr t(task->header(), task->signal_interrupted_thread);
+			t.activate();
+			task->signal_interrupted_thread = nullptr;
+		}
+		return task->task_struct.saved_regs.rax;
 	}
 	signal_handler syscall_signal(int sig, signal_handler new_handler)
 	{

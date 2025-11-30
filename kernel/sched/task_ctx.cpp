@@ -388,9 +388,12 @@ void task_ctx::set_signal(int sig, bool save_state)
 	if((ignored_mask & BIT(sig)) && !(task_sig_info.signal_handlers[sig])) task_sig_info.pending_signals.btr(sig);
 	else
 	{
-		if(save_state) {
+		if(save_state)
+		{
+			signal_interrupted_thread		= task_struct.thread_ptr;
 			task_sig_info.sigret_frame		= task_struct.saved_regs;
 			task_sig_info.sigret_fxsave		= task_struct.fxsv;
+			thread_switch(0U);
 		}
 		task_sig_info.active_signal			= sig;
 		task_struct.saved_regs.rdi			= sig;
@@ -402,7 +405,7 @@ void task_ctx::set_signal(int sig, bool save_state)
 		stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.full));
 	}
 }
-register_t task_ctx::end_signal()
+void task_ctx::end_signal()
 {
 	addr_t end_rsp				= task_struct.saved_regs.rsp;
 	addr_t end_rip				= task_struct.saved_regs.rip;
@@ -413,7 +416,6 @@ register_t task_ctx::end_signal()
 	task_sig_info.active_signal	= 0;
 	stack_push(task_sig_info.sigret_frame.r11);
 	stack_push(task_sig_info.sigret_frame.rcx);
-	return task_sig_info.sigret_frame.rax;
 }
 bool task_ctx::set_fork()
 {
@@ -651,7 +653,7 @@ void task_ctx::thread_switch(pid_t to_thread)
 	uframe_tag& frame			= get_frame();
 	thread_t* next_thread		= thread_ptr_by_id[to_thread];
 	thread_t* current_thread	= frame.translate(task_struct.thread_ptr);
-	if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;
+	if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;	// if the thread is already active there's nothing to do
 	thread_t* next_thread_real	= frame.translate(next_thread);
 	if(!current_thread || !next_thread_real) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::update_thread_state(*current_thread, task_struct);

@@ -6,8 +6,10 @@
 #include "kdebug.hpp"
 fd_map::fd_map() : __base(256) {}
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
-filesystem::filesystem() : pipes(256UZ), device_nodes(), current_open_files(), next_fd(3), blockdev(nullptr) {}
+filesystem::filesystem() : pipes(256UZ), current_open_files(), next_fd(3), blockdev(nullptr) {}
 filesystem::~filesystem() = default;
+default_device_impl_fs::default_device_impl_fs() : filesystem(), device_nodes() {}
+default_device_impl_fs::~default_device_impl_fs() = default;
 void filesystem::tie_block_device(block_device* dev) { blockdev = dev; }
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 vnode* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
@@ -77,13 +79,6 @@ void filesystem::on_close(file_vnode* fd)
 	next_fd		= vid;
 	fd->on_close();
 }
-void filesystem::dldevnode(device_vnode* n)
-{
-	n->prune_refs();
-	current_open_files.erase(n->vid());
-	device_nodes.erase(*n);
-	syncdirs();
-}
 void filesystem::dlpipenode(vnode* fn)
 {
 	if(pipe_vnode* n		= dynamic_cast<pipe_vnode*>(fn))
@@ -102,14 +97,6 @@ device_vnode* filesystem::lndev(std::string const& where, int fd, dev_t id, bool
 	device_vnode* result	= mkdevnode(parent.first, parent.second, id, fd);
 	register_fd(result);
 	return result;
-}
-bool filesystem::link_stdio(dev_t dev_id)
-{
-	if(!dreg[dev_id]) return false;
-	current_open_files.add_fd(lndev("/dev/stdin", dev_id, 0));
-	current_open_files.add_fd(lndev("/dev/stdout", dev_id, 1));
-	current_open_files.add_fd(lndev("/dev/stderr", dev_id, 2));
-	return true;
 }
 bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {
@@ -130,15 +117,6 @@ bool filesystem::unlink(std::string const& what, bool ignore_nonexistent, bool d
 	}
 	if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(pdir)) return mount->mounted->unlink(fname, ignore_nonexistent, dir_recurse);
 	return xunlink(pdir, fname, ignore_nonexistent, dir_recurse);
-}
-device_vnode* filesystem::mkdevnode(directory_vnode* parent, std::string const& name, dev_t id, int fd)
-{
-	device_stream* dev		= dreg[id];
-	if(!dev) { throw std::invalid_argument("[FS] no device found with that id"); }
-	device_vnode* result	= device_nodes.emplace(name, fd, dev, id).first.base();
-	parent->add(result);
-	register_fd(result);
-	return result;
 }
 pipe_pair filesystem::mkpipe()
 {
@@ -205,7 +183,7 @@ tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
 }
 filesystem::target_pair filesystem::get_parent(directory_vnode* start, std::string const& path, bool create)
 {
-	std::vector<std::string> pathspec = std::ext::split(path, path_separator());
+	std::vector<std::string> pathspec		= std::ext::split(path, path_separator());
 	for(size_t i = 0; i < pathspec.size() - 1; i++)
 	{
 		if(pathspec[i].empty()) continue;
@@ -222,7 +200,7 @@ filesystem::target_pair filesystem::get_parent(directory_vnode* start, std::stri
 		}
 		else if(cur->is_mount())
 		{
-			mount_vnode* mount = cur->as_mount();
+			mount_vnode* mount				= cur->as_mount();
 			std::vector<std::string> rem(pathspec.begin() + i, pathspec.end());
 			return target_pair(std::piecewise_construct, std::forward_as_tuple(mount), std::forward_as_tuple(std::ext::join(rem, mount->mounted->path_separator())));
 		}
@@ -247,28 +225,41 @@ vnode* filesystem::find_node(std::string const& path, bool ignore_links, std::io
 }
 file_vnode* filesystem::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {
-	target_pair parent		= get_parent(path, false);
-	if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->open_file(parent.second, mode, create);
+	target_pair parent			= get_parent(path, create);
+	filesystem* delegate		= this;
+	while(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first))
+	{
+		delegate			= std::addressof(*mount->mounted);
+		parent				= delegate->get_parent(parent.second, create);
+		mount				= dynamic_cast<mount_vnode*>(parent.first);
+	}
 	tnode* node				= parent.first->find(parent.second);
 	if(node && node->is_directory()) throw std::logic_error("[FS] path " + path + " exists and is a directory");
 	if(!node)
 	{
 		if(!create) throw std::out_of_range("[FS] file not found: " + path);
-		file_vnode* created	= mkfilenode(parent.first, parent.second);
+		file_vnode* created	= delegate->mkfilenode(parent.first, parent.second);
 		if(created) node	= parent.first->add(created);
 		else throw std::runtime_error("[FS] failed to create file: " + path);
 	}
-	file_vnode* result		= on_open(node, mode);
-	register_fd(result);
+	file_vnode* result		= delegate->on_open(node, mode);
 	result->current_mode	= mode;
+	register_fd(result);
 	return result;
 }
 file_vnode* filesystem::get_file(std::string const& path)
 {
-	target_pair parent		= get_parent(path, false);
+	target_pair parent			= get_parent(path, false);
+	filesystem* delegate		= this;
+	while(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first))
+	{
+		delegate			= std::addressof(*mount->mounted);
+		parent				= delegate->get_parent(parent.second, false);
+		mount				= dynamic_cast<mount_vnode*>(parent.first);
+	}
 	if(tnode* node			= parent.first->find(parent.second))
 	{
-		file_vnode* file	= on_open(node);
+		file_vnode* file	= delegate->on_open(node);
 		if(file) register_fd(file);
 		return file;
 	}
@@ -276,15 +267,21 @@ file_vnode* filesystem::get_file(std::string const& path)
 }
 directory_vnode* filesystem::open_directory(std::string const& path, bool create)
 {
-	if(path.empty()) return get_root_directory(); // empty path or "/" refers to root directory
+	if(path.empty() || path == get_path_separator()) return get_root_directory(); // empty path or "/" refers to root directory
 	target_pair parent			= get_parent(path, create);
-	if(mount_vnode* mount		= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->open_directory(parent.second, create);
-	tnode* node					= parent.first->find(parent.second);
+	filesystem* delegate		= this;
+	while(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first))
+	{
+		delegate			= std::addressof(*mount->mounted);
+		parent				= delegate->get_parent(parent.second, create);
+		mount				= dynamic_cast<mount_vnode*>(parent.first);
+	}
+	tnode* node				= parent.first->find(parent.second);
 	if(!node)
 	{
 		if(create)
 		{
-			directory_vnode* cn	= mkdirnode(parent.first, parent.second);
+			directory_vnode* cn	= delegate->mkdirnode(parent.first, parent.second);
 			if(!cn) throw std::runtime_error("[FS] failed to create " + path);
 			node				= parent.first->add(cn);
 			register_fd(cn);
@@ -322,4 +319,20 @@ void filesystem::create_pipe(int fds[2])
 		fds[1]			= result.out->vid();
 	}
 	else throw std::runtime_error("[FS] failed to create pipe");
+}
+device_vnode* default_device_impl_fs::mkdevnode(directory_vnode* parent, std::string const& name, dev_t id, int fd)
+{
+	device_stream* dev		= dreg[id];
+	if(!dev) { throw std::invalid_argument("[FS] no device found with that id"); }
+	device_vnode* result	= device_nodes.emplace(name, fd, dev, id).first.base();
+	parent->add(result);
+	register_fd(result);
+	return result;
+}
+void default_device_impl_fs::dldevnode(device_vnode* n)
+{
+	n->prune_refs();
+	current_open_files.erase(n->vid());
+	device_nodes.erase(*n);
+	syncdirs();
 }

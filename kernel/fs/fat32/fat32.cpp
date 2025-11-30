@@ -23,8 +23,7 @@ bool fat32::write_clusters(uint32_t cl_st, const char* data, size_t num) { retur
 bool fat32::read_clusters(char* buffer, uint32_t cl_st, size_t num) { return read_blockdev(buffer, cluster_to_sector(cl_st), num * __sectors_per_cluster); }
 bool fat32::has_init() { return __has_init; }
 fat32* fat32::get_instance() { return __instance; }
-fat32::fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial) :
-	filesystem				{},
+fat32::fat32(uint32_t root_cl, uint8_t sectors_per_cl, uint16_t bps, uint64_t first_sect, uint64_t fat_sectors, dev_t drive_serial) : default_device_impl_fs(),
 	__root_cl_num			{ root_cl },
 	__sectors_per_cluster	{ sectors_per_cl },
 	__sector_base			{ first_sect + fat_sectors },

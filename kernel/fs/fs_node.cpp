@@ -22,12 +22,14 @@ size_t vnode::num_refs() const noexcept { return refs.size(); }
 vnode::~vnode() { prune_refs(); }
 file_vnode::file_vnode(std::string const& name, int vfd, uint64_t cid) : vnode(name, vfd, cid) {}
 file_vnode::file_vnode(int vfd, uint64_t cid) : vnode(vfd, cid) {}
+file_vnode::~file_vnode() = default;
 bool file_vnode::is_file() const noexcept { return true; }
 bool file_vnode::on_open() { return true; /* any action, like allocating a buffer, that needs to occur when a file is opened should be implemented via overriding this method */ }
 void file_vnode::on_close() { /* any action, like freeing a buffer, that needs to occur when a file is closed should be implemented via overriding this method */ }
 void file_vnode::force_write() { /* if applicable, treat all data in the file as dirty; does nothing in the default implementation */ }
 directory_vnode::directory_vnode(std::string const& name, int vfd, uint64_t cid) : vnode(name, vfd, cid) {}
 directory_vnode::directory_vnode(int vfd, uint64_t cid) : vnode(vfd, cid) {}
+directory_vnode::~directory_vnode() = default;
 tnode* directory_vnode::find(std::string const& name) { tnode_dir::iterator i = directory_tnodes.find(name); if(i != directory_tnodes.end()) { return i.base(); } return nullptr; }
 tnode* directory_vnode::find_l(std::string const& what) { return find(what); }
 tnode* directory_vnode::find_r(std::string const& what, std::set<vnode*>&) { return find(what); /* default implementation for FS without symlinks */ }
@@ -39,8 +41,9 @@ uint64_t directory_vnode::size() const noexcept { return directory_tnodes.size()
 bool directory_vnode::is_directory() const noexcept { return true; }
 bool directory_vnode::is_empty() const noexcept { return size() == 0; }
 bool directory_vnode::relink(std::string const& oldn, std::string const& newn) { if(tnode* ptr = find(oldn)) { return unlink(oldn) && link(ptr, newn); } else return false; }
-device_vnode::device_vnode(int fd, device_stream* dev_buffer, dev_t id) : file_vnode(fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
-device_vnode::device_vnode(std::string const& name, int fd, device_stream* dev_buffer, dev_t id) : file_vnode(name, fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer{ dev_buffer }, __dev_id{ id } { mode = 027666; }
+device_vnode::device_vnode(int fd, device_stream* dev_buffer, dev_t id) : file_vnode(fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer(dev_buffer), __dev_id(id) { mode = 027666; }
+device_vnode::device_vnode(std::string const& name, int fd, device_stream* dev_buffer, dev_t id) : file_vnode(name, fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer(dev_buffer), __dev_id(id) { mode = 027666; }
+device_vnode::~device_vnode() = default;
 bool device_vnode::fsync() { return __dev_buffer->sync() == 0; }
 bool device_vnode::is_device() const noexcept { return true; }
 uint64_t device_vnode::size() const noexcept { return __dev_buffer->avail(); }
@@ -87,6 +90,7 @@ pipe_vnode::pipe_vnode(std::string const& name, int vid, size_t id) : file_vnode
 pipe_vnode::pipe_vnode(std::string const& name, int vid) : file_vnode(name, vid, 0), __pipe() { current_mode = std::ios_base::in; mode.t_regular = false; mode.t_fifo = true; }
 pipe_vnode::pipe_vnode(int vid, size_t id) : pipe_vnode("", vid, id) {}
 pipe_vnode::pipe_vnode(int vid) : pipe_vnode("", vid) {}
+pipe_vnode::~pipe_vnode() = default;
 bool pipe_vnode::fsync() { return true; }
 uint64_t pipe_vnode::size() const noexcept { return __pipe->size(); }
 bool pipe_vnode::truncate() { return __pipe->truncate(); }
@@ -101,5 +105,7 @@ pipe_vnode::size_type pipe_vnode::read(pointer dest, size_type n) { if(__pipe->w
 pipe_vnode::pos_type pipe_vnode::seek(off_type off, std::ios_base::seekdir way) { return __pipe->pubseekoff(off, way, current_mode); }
 pipe_vnode::pos_type pipe_vnode::seek(pos_type pos) { return __pipe->pubseekpos(pos, current_mode); }
 bool pipe_vnode::is_pipe() const noexcept { return true; }
-mount_vnode::mount_vnode(filesystem* fs, int vfd, uint64_t cid) : directory_vnode(vfd, cid), mounted(fs) {}
+mount_vnode::mount_vnode(int vfd, std::ext::dynamic_ptr<filesystem>&& fs) : directory_vnode(vfd, fs->get_dev_id()), mounted(std::move(fs)) {}
+mount_vnode::~mount_vnode() = default;
 bool mount_vnode::is_mount() const noexcept { return true; }
+bool mount_vnode::fsync() try { mounted->pubsyncdirs(); return true; } catch(std::exception& e) { panic(e.what()); return false; }
