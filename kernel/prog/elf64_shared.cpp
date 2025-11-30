@@ -4,10 +4,11 @@
 const char* empty_name		= "";
 static const char* find_so_name(addr_t, file_vnode*);
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }
-addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return virtual_load_base.plus(sym.st_value); }
+addr_t elf64_shared_object::resolve(elf64_sym const& sym) const { return sym.st_shndx != SHN_UNDEF ? resolve(sym.st_value) : nullptr; }
 void elf64_shared_object::frame_enter() { kmm.enter_frame(frame_tag); }
 void elf64_shared_object::set_frame(uframe_tag* ft) { frame_tag = ft; }
 uframe_tag* elf64_shared_object::get_frame() const { return frame_tag; }
+bool elf64_shared_object::is_position_relocated() const noexcept { return true; }
 elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_vnode* n, uframe_tag* frame) : elf64_object(n), elf64_dynamic_object(n),
 	soname					{ find_so_name(img_ptr(), n) },
@@ -164,17 +165,4 @@ bool elf64_shared_object::load_segments()
 		}
 	}
 	return have_loads;
-}
-bool elf64_shared_object::process_got()
-{
-	if(__unlikely(!elf64_dynamic_object::process_got())) return false;
-	for(size_t i = 0UZ; i < num_plt_relas; i++)
-	{
-		elf64_rela const& r	= plt_relas[i];
-		addr_t target		= frame_tag->translate(virtual_load_base.plus(r.r_offset));
-		if(__unlikely(!target)) { panic("[PRG/SO] fault in PLT rela offset"); return false; }
-		addr_t adjusted		= virtual_load_base.plus(target.deref<uintptr_t>());
-		target.assign(adjusted);
-	}
-	return true;
 }

@@ -18,6 +18,7 @@ protected:
 	virtual bool load_syms() override;
 	virtual bool xvalidate() override;
 	virtual void on_load_failed() override;
+	virtual bool is_position_relocated() const noexcept override;
 public:
 	constexpr ooos::abstract_module_base* get_module() noexcept { return module_object; }
 	elf64_kernel_object(file_vnode* file);

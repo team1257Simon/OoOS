@@ -84,9 +84,14 @@ extern "C"
 			addr_t target			= translate_user_pointer(obj_handle->resolve_rela_target(r));
 			if(!target) return addr_t(static_cast<uintptr_t>(-ELIBBAD));
 			elf64_sym const& sym	= obj_handle->get_sym(r.r_info.sym_index);
-			search_result sr		= full_search(obj_handle, task, obj_handle->symbol_name(sym));
-			if(!sr.first && !sr.second && sym.st_info.bind != SB_WEAK) return addr_t(static_cast<uintptr_t>(-ELIBACC));
-			target.assign(sr.first);
+			if(sym.st_shndx != SHN_UNDEF && sym.st_info.bind != SB_WEAK) target.assign(obj_handle->resolve(sym));
+			else
+			{
+				search_result sr		= full_search(obj_handle, task, obj_handle->symbol_name(sym));
+				if(!sr.first && !sr.second && sym.st_info.bind != SB_WEAK) return addr_t(static_cast<uintptr_t>(-ELIBACC));
+				else if(!sr.first) target.assign(obj_handle->resolve(sym));
+				else target.assign(sr.first);
+			}
 		}
 		size_t len		= obj_handle->get_init().size() + 1;
 		addr_t result	= sysres_add(len * sizeof(addr_t));

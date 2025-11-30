@@ -7,6 +7,7 @@ addr_t elf64_dynamic_executable::resolve(uintptr_t offs) const { return virtual_
 addr_t elf64_dynamic_executable::resolve(elf64_sym const& sym) const { return virtual_load_base ? virtual_load_base.plus(sym.st_value) : addr_t(sym.st_value); }
 bool elf64_dynamic_executable::xload() { return elf64_dynamic_object::xload(); }
 bool elf64_dynamic_executable::load_syms() { return elf64_dynamic_object::load_syms(); }
+bool elf64_dynamic_executable::is_position_relocated() const noexcept { return static_cast<bool>(virtual_load_base); }
 elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, uintptr_t base_offset) :
 	elf64_object(start, size),
 	elf64_executable(start, size, stack_size),
@@ -74,20 +75,6 @@ bool elf64_dynamic_executable::load_preinit()
 			return false;
 		}
 		for(size_t i = 0; i < preinit_array_size; i++) preinit_array.push_back(addr_t(preinit_ptrs[i]));
-	}
-	return true;
-}
-bool elf64_dynamic_executable::process_got()
-{
-	if(__unlikely(!elf64_dynamic_object::process_got())) return false;
-	else if(!virtual_load_base) return true;
-	for(size_t i = 0UZ; i < num_plt_relas; i++)
-	{
-		elf64_rela const& r	= plt_relas[i];
-		addr_t target		= frame_tag->translate(virtual_load_base.plus(r.r_offset));
-		if(__unlikely(!target)) { panic("[PRG/DYNEXEC] fault in PLT rela offset"); return false; }
-		addr_t adjusted		= virtual_load_base.plus(target.deref<uintptr_t>());
-		target.assign(adjusted);
 	}
 	return true;
 }

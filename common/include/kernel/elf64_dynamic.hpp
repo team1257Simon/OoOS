@@ -10,8 +10,9 @@ protected:
 	size_t num_dyn_entries{};
 	elf64_dyn* dyn_entries{};
 	size_t num_plt_relas{};
-	elf64_rela* plt_relas{};
+	std::vector<elf64_rela> plt_relas{};
 	size_t got_vaddr{};
+	size_t plt_rela_offs{};
 	size_t dyn_segment_idx{};
 	std::vector<elf64_relocation> relocations{};
 	std::vector<elf64_rela> object_relas{};
@@ -26,21 +27,22 @@ protected:
 	uintptr_t fini_array_ptr{};
 	size_t init_array_size{};
 	size_t fini_array_size{};
+	bool bind_now{};
 	bool static_tls{};
 	elf64_dynsym_index symbol_index;
 	virtual bool xload() override;
 	virtual bool load_syms() override;
-	virtual bool process_got();
 	virtual bool load_preinit();
 	virtual void process_dyn_entry(size_t i);
 	virtual addr_t translate_in_frame(addr_t addr);
 	virtual void process_flags(elf_dyn_flags flags);
+	virtual void process_flags(elf_dyn_flags_1 flags1);
+	bool process_plt_got();
 	void process_relas(elf64_rela* rela, size_t n);
 	void process_dynamic();
 	void find_and_process_relas();
 	bool post_load_init();
 	uint64_t resolve_rela_sym(elf64_sym const& s, elf64_rela const& r) const;
-	size_t to_image_offset(size_t offs);
 	std::pair<elf64_sym, addr_t> fallback_resolve(std::string const& symbol) const;
 public:
 	constexpr size_t dyn_segment_len() const noexcept { return num_dyn_entries; }
@@ -48,12 +50,14 @@ public:
 	constexpr std::vector<addr_t> const& get_fini() const noexcept { return fini_array; }
 	constexpr std::vector<std::string> const& get_dependencies() const noexcept { return dependencies; }
 	constexpr std::vector<std::string> const& get_ld_paths() const noexcept { return ld_paths; }
-	constexpr bool has_plt_relas() const noexcept { return plt_relas != nullptr; }
+	constexpr bool has_plt_relas() const noexcept { return num_plt_relas > 0UZ; }
 	constexpr bool is_static_tls() const noexcept { return static_tls; }
 	constexpr elf64_rela const& get_plt_rela(unsigned idx) const noexcept { return plt_relas[idx]; }
 	constexpr const char* symbol_name(elf64_sym const& sym) const noexcept { return symstrtab[sym.st_name]; }
 	constexpr std::vector<elf64_rela> const& get_object_relas() const noexcept { return object_relas; }
 	constexpr std::vector<elf64_rela> const& get_tls_relas() const noexcept { return tls_relas; }
+	constexpr bool has_verneed() const noexcept { return symbol_index.verneed; }
+	constexpr bool has_verdef() const noexcept { return symbol_index.verdef; }
 	int64_t resolve_tls_rela(elf64_sym const& s, elf64_rela const& r, std::vector<ptrdiff_t> const& mod_offsets);
 	addr_t resolve_rela_target(elf64_rela const& r) const;
 	elf64_dynamic_object(file_vnode* n);

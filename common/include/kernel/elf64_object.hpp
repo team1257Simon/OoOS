@@ -1,7 +1,7 @@
 #ifndef __ELF64_OBJ
 #define __ELF64_OBJ
 #include <kernel_mm.hpp>
-#include <elf64.h>
+#include <elf64_index.hpp>
 #include <fs/fs.hpp>
 class elf64_object
 {
@@ -35,6 +35,7 @@ protected:
 	virtual void frame_enter()				= 0;
 	virtual void set_frame(uframe_tag*)		= 0;
 	virtual uframe_tag* get_frame() const	= 0;
+	virtual bool is_position_relocated() const noexcept;
 	void release_segments();
 	off_t segment_index(size_t offset) const;
 	off_t segment_index(elf64_sym const* sym) const;

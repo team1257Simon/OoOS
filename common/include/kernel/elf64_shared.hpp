@@ -14,7 +14,6 @@ protected:
 	bool symbolic{};
 	bool global{};
 	addr_t entry{};
-	virtual bool process_got() override;
 	virtual void process_headers() override;
 	virtual bool load_segments() override;
 	virtual bool xvalidate() override;
@@ -24,6 +23,7 @@ protected:
 	virtual void process_dyn_entry(size_t i) override;
 	virtual void set_frame(uframe_tag* ft) override;
 	virtual uframe_tag* get_frame() const override;
+	virtual bool is_position_relocated() const noexcept override;
 public:
 	constexpr std::string const& get_soname() const { return soname; }
 	constexpr void incref() noexcept { ref_count++; }

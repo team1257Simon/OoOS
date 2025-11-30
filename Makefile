@@ -52,6 +52,7 @@ $(BUILD_DIR):
 $(LOG_DIR):
 	@mkdir -p $@
 test: lib
+	$(MAKE) -C $@
 $(SUBDIRS):
 	$(MAKE) -C $@
 $(ATTR_PLUGIN):

@@ -883,10 +883,10 @@ typedef struct __s_le16
 	constexpr __s_le16 operator++(int) noexcept { __s_le16 that(*this); ++(*this); return that; }
 	constexpr __s_le16& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
 	constexpr __s_le16 operator--(int) noexcept { __s_le16 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return (i >= 8 ? hi : lo)[i % 8]; }
-	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
-	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
-	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
+	constexpr bool operator[](uint8_t i) const noexcept { return (static_cast<uint16_t>(*this) & (1 << (i % 16))); }
+	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i % 8); }
+	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i % 8); }
+	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i % 8); }
 } __pack __le16;
 typedef struct __s_le32
 {
@@ -915,10 +915,10 @@ typedef struct __s_le32
 	constexpr __s_le32 operator++(int) noexcept { __s_le32 that(*this); ++(*this); return that; }
 	constexpr __s_le32& operator--() noexcept { uint32_t that = *this; --that; return (*this = that); }
 	constexpr __s_le32 operator--(int) noexcept { __s_le32 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return (i >= 16 ? hi : lo)[i % 16]; }
-	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
-	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
-	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
+	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<uint32_t>(*this) & (1 << (i % 32)); }
+	constexpr bool bts(int i) volatile noexcept { return (i >= 16 ? hi : lo).bts(i % 16); }
+	constexpr bool btr(int i) volatile noexcept { return (i >= 16 ? hi : lo).btr(i % 16); }
+	constexpr bool btc(int i) volatile noexcept { return (i >= 16 ? hi : lo).btc(i % 16); }
 }__pack __le32;
 typedef struct __s_le64
 {
@@ -947,10 +947,10 @@ typedef struct __s_le64
 	constexpr __s_le64 operator++(int) noexcept { __s_le64 that(*this); ++(*this); return that; }
 	constexpr __s_le64& operator--() noexcept { uint64_t that = *this; --that; return (*this = that); }
 	constexpr __s_le64 operator--(int) noexcept { __s_le64 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return (i >= 32 ? hi : lo)[i % 32]; }
-	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i); }
-	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i); }
-	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i); }
+	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<uint64_t>(*this) & (1 << (i % 64)); }
+	constexpr bool bts(int i) volatile noexcept { return (i >= 32 ? hi : lo).bts(i % 32); }
+	constexpr bool btr(int i) volatile noexcept { return (i >= 32 ? hi : lo).btr(i % 32); }
+	constexpr bool btc(int i) volatile noexcept { return (i >= 32 ? hi : lo).btc(i % 32); }
 } __pack __le64;
 typedef __le16 word;
 typedef __le32 dword;

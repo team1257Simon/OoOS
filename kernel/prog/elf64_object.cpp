@@ -12,7 +12,8 @@ void elf64_object::release_segments() { xrelease(); }
 void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
 void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
 off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
-addr_t elf64_object::resolve(elf64_sym const& sym) const { return addr_t(sym.st_value); }
+addr_t elf64_object::resolve(elf64_sym const& sym) const { return sym.st_shndx != SHN_UNDEF ? addr_t(sym.st_value) : nullptr; }
+bool elf64_object::is_position_relocated() const noexcept { return false; }
 static inline addr_t clone_image(addr_t start, size_t size)
 {
 	if(__unlikely(!size)) return nullptr;
@@ -96,7 +97,7 @@ bool elf64_object::load_syms()
 	for(size_t i = 0; i < ehdr().e_shnum; i++)
 	{
 		elf64_shdr const& h = shdr(i);
-		if(h.sh_type == ST_DYNSYM || h.sh_type == ST_SYMTAB)
+		if(h.sh_type == SHT_DYNSYM || h.sh_type == SHT_SYMTAB)
 		{
 			elf64_shdr const& strtab_shdr	= shdr(h.sh_link);
 			symstrtab.total_size			= strtab_shdr.sh_size;
@@ -175,10 +176,10 @@ elf64_object::elf64_object(elf64_object&& that) :
 {
 	that.__validated			= false;
 	that.__loaded				= false;
-	that.__image_size			= 0;
+	that.__image_size			= 0UZ;
 	that.__image_start			= nullptr;
 	that.segments				= nullptr;
-	that.num_seg_descriptors	= 0;
+	that.num_seg_descriptors	= 0UZ;
 	that.tls_base				= nullptr;
 	that.tls_size				= 0UZ;
 	that.tls_align				= 0UZ;

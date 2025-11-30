@@ -1,7 +1,7 @@
-#include "elf64_dynamic.hpp"
-#include "kernel_mm.hpp"
-#include "stdlib.h"
-#include "algorithm"
+#include <elf64_dynamic.hpp>
+#include <kernel_mm.hpp>
+#include <stdlib.h>
+#include <algorithm>
 constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
 constexpr static std::allocator<uint32_t> w_alloc{};
 constexpr static std::allocator<uint64_t> q_alloc{};
@@ -13,22 +13,79 @@ addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { re
 addr_t elf64_dynamic_object::global_offset_table() const { return got_vaddr ? resolve(got_vaddr) : nullptr; }
 addr_t elf64_dynamic_object::dyn_segment_ptr() const { return dyn_segment_idx ? resolve(phdr(dyn_segment_idx).p_vaddr) : nullptr; }
 addr_t elf64_dynamic_object::translate_in_frame(addr_t addr) { return get_frame()->translate(addr); }
+void elf64_dynamic_object::process_flags(elf_dyn_flags flags) { if(flags & DF_STATIC_TLS) static_tls = true; }
+void elf64_dynamic_object::process_flags(elf_dyn_flags_1 flags1) { if(flags1 & DF_1_NOW) bind_now = true; }
 elf64_dynamic_object::elf64_dynamic_object(addr_t start, size_t size) :	elf64_object(start, size), symbol_index(symstrtab, symtab) {}
 elf64_dynamic_object::elf64_dynamic_object(file_vnode* n) : elf64_object(n), symbol_index(symstrtab, symtab) {}
-void elf64_dynamic_object::process_flags(elf_dyn_flags flags) { if(flags & DF_STATIC_TLS) static_tls = true; }
+elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
+	elf64_object	{ that },
+	num_dyn_entries	{ that.num_dyn_entries },
+	dyn_entries		{ dynseg_alloc.allocate(num_dyn_entries) },
+	num_plt_relas	{ that.num_plt_relas },
+	plt_relas		{ that.plt_relas },
+	got_vaddr		{ that.got_vaddr },
+	dyn_segment_idx	{ that.dyn_segment_idx },
+	relocations		{ that.relocations },
+	object_relas	{ that.object_relas },
+	tls_relas		{ that.tls_relas },
+	dependencies	{ that.dependencies },
+	ld_paths		{ that.ld_paths },
+	init_array		{ that.init_array },
+	fini_array		{ that.fini_array },
+	init_fn			{ that.init_fn },
+	fini_fn			{ that.fini_fn },
+	init_array_ptr	{ that.init_array_ptr },
+	fini_array_ptr	{ that.fini_array_ptr },
+	init_array_size	{ that.init_array_size },
+	fini_array_size	{ that.fini_array_size },
+	symbol_index
+	{
+		.strtab		{ symstrtab },
+		.symtab		{ symtab },
+		.htbl		{ that.symbol_index.htbl },
+		.versym		{ that.symbol_index.versym },
+		.verdef		{ that.symbol_index.verdef },
+		.verneed	{ that.symbol_index.verneed }
+	}
+	{}
+elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
+	elf64_object	{ std::move(that) },
+	num_dyn_entries	{ that.num_dyn_entries },
+	dyn_entries		{ that.dyn_entries },
+	num_plt_relas	{ that.num_plt_relas },
+	plt_relas		{ std::move(that.plt_relas) },
+	got_vaddr		{ that.got_vaddr },
+	dyn_segment_idx	{ that.dyn_segment_idx },
+	relocations		{ std::move(that.relocations) },
+	object_relas	{ std::move(that.object_relas) },
+	tls_relas		{ std::move(that.tls_relas) },
+	dependencies	{ std::move(that.dependencies) },
+	ld_paths		{ std::move(that.ld_paths) },
+	init_array		{ std::move(that.init_array) },
+	fini_array		{ std::move(that.fini_array) },
+	init_fn			{ that.init_fn },
+	fini_fn			{ that.fini_fn },
+	init_array_ptr	{ that.init_array_ptr },
+	fini_array_ptr	{ that.fini_array_ptr },
+	init_array_size	{ that.init_array_size },
+	fini_array_size	{ that.fini_array_size },
+	symbol_index
+	{
+		.strtab		{ symstrtab },
+		.symtab		{ symtab },
+		.htbl		{ std::move(that.symbol_index.htbl) },
+		.versym		{ std::move(that.symbol_index.versym) },
+		.verdef		{ std::move(that.symbol_index.verdef) },
+		.verneed	{ std::move(that.symbol_index.verneed) }
+	}
+	{}
 elf64_dynamic_object::~elf64_dynamic_object()
 {
-	symbol_index.destroy_if_present();
-	if(segments && num_seg_descriptors) { release_segments(); sd_alloc.deallocate(segments, num_seg_descriptors); }
-	if(dyn_entries) dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
-	if(plt_relas) free(plt_relas);
-}
-size_t elf64_dynamic_object::to_image_offset(size_t offs)
-{
-	for(size_t i = 0; i < ehdr().e_phnum; i++)
-		if(phdr(i).p_vaddr <= offs && phdr(i).p_vaddr + phdr(i).p_memsz > offs)
-			return offs - (phdr(i).p_vaddr - phdr(i).p_offset);
-	return offs;
+	release_segments();
+	if(segments && num_seg_descriptors)
+		sd_alloc.deallocate(segments, num_seg_descriptors);
+	if(dyn_entries)
+		dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
 }
 constexpr static bool is_tls_rela(elf64_rela const& r)
 {
@@ -135,7 +192,7 @@ void elf64_dynamic_object::find_and_process_relas()
 	for(size_t i = 0; i < n_sections; i++)
 	{
 		elf64_shdr const& section = shdr(i);
-		if(section.sh_type == ST_RELA)
+		if(section.sh_type == SHT_RELA)
 			process_relas(img_ptr(section.sh_offset), section.sh_size / section.sh_entsize);
 	}
 }
@@ -204,6 +261,24 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 	case DT_FLAGS:
 		process_flags(static_cast<elf_dyn_flags>(dyn_entries[i].d_val));
 		break;
+	case DT_FLAGS_1:
+		process_flags(static_cast<elf_dyn_flags_1>(dyn_entries[i].d_val));
+		break;
+	case DT_JMPREL:
+		plt_rela_offs						= dyn_entries[i].d_ptr;
+		break;
+	case DT_PLTRELSZ:
+		num_plt_relas						= dyn_entries[i].d_val  / sizeof(elf64_rela);
+		break;
+	case DT_PLTGOT:
+		got_vaddr							= dyn_entries[i].d_ptr;
+		break;
+	case DT_VERDEFNUM:
+		symbol_index.verdef.verdef_num		= dyn_entries[i].d_val;
+		break;
+	case DT_VERNEEDNUM:
+		symbol_index.verneed.verneed_num	= dyn_entries[i].d_val;
+		break;
 	default:
 		break;
 	}
@@ -212,7 +287,8 @@ bool elf64_dynamic_object::load_syms()
 {
 	if(__unlikely(!elf64_object::load_syms())) { panic("[PRG/DYN] no symbol table present"); return false; }
 	bool have_dyn		= false;
-	for(size_t n = 0; n < ehdr().e_phnum && !have_dyn; n++)
+	elf64_ehdr const& e	= ehdr();
+	for(size_t n = 0; n < e.e_phnum && !have_dyn; n++)
 	{
 		elf64_phdr const& ph	= phdr(n);
 		if(is_dynamic(ph))
@@ -227,7 +303,30 @@ bool elf64_dynamic_object::load_syms()
 	find_and_process_relas();
 	if(have_dyn) process_dynamic();
 	if(__unlikely((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size))) { panic("[PRG/DYN] mismatched init and/or fini array entries"); return false; }
-	return process_got();
+	if(__unlikely(!(symbol_index.verdef || symbol_index.verneed))) return process_plt_got();
+	for(size_t n = 0UZ; n < e.e_shnum; n++)
+	{
+		elf64_shdr const& sh	= shdr(n);
+		elf64_shdr const& sl	= shdr(sh.sh_link);
+		addr_t begin			= img_ptr(sh.sh_offset);
+		switch(sh.sh_type)
+		{
+		case SHT_VERSYM:
+			symbol_index.versym	= std::move(std::vector<uint16_t>(begin.as<uint16_t>(), begin.plus(sh.sh_size).as<uint16_t>()));
+			continue;
+		case SHT_VERDEF:
+			if(__unlikely(!symbol_index.verdef)) { panic("[PRG/DYN] mismatched verdef entries"); return false; }
+			symbol_index.verdef.build(begin, elf64_string_table(sl.sh_size, img_ptr(sl.sh_offset)));
+			continue;
+		case SHT_VERNEED:
+			if(__unlikely(!symbol_index.verneed)) { panic("[PRG/DYN] mismatched verneed entries"); return false; }
+			symbol_index.verneed.build(begin, elf64_string_table(sl.sh_size, img_ptr(sl.sh_offset)));
+			continue;
+		default:
+			continue;
+		}
+	}
+	return process_plt_got();
 }
 void elf64_dynamic_object::process_dynamic()
 {
@@ -235,18 +334,13 @@ void elf64_dynamic_object::process_dynamic()
 	{
 		if(dyn_entries[i].d_tag == DT_GNU_HASH)
 		{
-			addr_t ht_addr			= img_ptr(to_image_offset(dyn_entries[i].d_ptr));
+			uframe_tag* frame		= get_frame();
+			addr_t ht_addr			= frame ? frame->translate(resolve(dyn_entries[i].d_ptr)) : resolve(dyn_entries[i].d_ptr);
 			elf64_gnu_htbl::hdr* h	= ht_addr;
-			uint64_t* bloom_filter	= q_alloc.allocate(h->maskwords);
-			uint64_t* og_filter		= ht_addr.plus(sizeof(elf64_gnu_htbl::hdr));
-			uint32_t* buckets		= w_alloc.allocate(h->nbucket);
-			uint32_t* og_buckets	= addr_t(og_filter).plus(h->maskwords * sizeof(uint64_t));
 			size_t n_hvals			= static_cast<size_t>((symtab.total_size / symtab.entry_size) - h->symndx);
-			uint32_t* hval_array	= w_alloc.allocate(n_hvals);
+			uint64_t* og_filter		= ht_addr.plus(sizeof(elf64_gnu_htbl::hdr));
+			uint32_t* og_buckets	= addr_t(og_filter).plus(h->maskwords * sizeof(uint64_t));
 			uint32_t* og_hvals		= addr_t(og_buckets).plus(h->nbucket * sizeof(uint32_t));
-			array_copy(bloom_filter, og_filter, h->maskwords);
-			array_copy(buckets, og_buckets, h->nbucket);
-			array_copy(hval_array, og_hvals, n_hvals);
 			new(std::addressof(symbol_index.htbl)) elf64_gnu_htbl
 			{
 					.header
@@ -256,9 +350,9 @@ void elf64_dynamic_object::process_dynamic()
 						.maskwords	{ h->maskwords },
 						.shift2		{ h->shift2 }
 					},
-					.bloom_filter_words	{ bloom_filter },
-					.buckets			{ buckets },
-					.hash_value_array	{ hval_array }
+					.bloom_filter_words	{ og_filter, og_filter + h->maskwords },
+					.buckets			{ og_buckets, og_buckets + h->nbucket },
+					.hash_value_array	{ og_hvals, og_hvals + n_hvals }
 			};
 		}
 		else process_dyn_entry(i);
@@ -271,7 +365,7 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::fallback_resolve(std::string 
 	{
 		read_name = symstrtab[sym.st_name];
 		if(read_name == symbol)
-			return std::make_pair(sym, sym.st_info.type == SYM_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(sym));
+			return std::make_pair(sym, sym.st_info.type == ST_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(sym));
 	}
 	return std::make_pair(elf64_sym(), nullptr);
 }
@@ -282,39 +376,28 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string c
 		return std::make_pair(elf64_sym(), nullptr);
 	}
 	elf64_sym const* sym = symbol_index[symbol];
-	return sym ? std::make_pair(*sym, sym->st_info.type == SYM_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
+	return sym ? std::make_pair(*sym, sym->st_info.type == ST_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
-bool elf64_dynamic_object::process_got()
+bool elf64_dynamic_object::process_plt_got()
 {
-	size_t got_offs	= 0, rela_offs = 0, rela_sz = 0;
-	for(size_t i = 0; i < num_dyn_entries; i++)
+	if(plt_rela_offs && num_plt_relas)
 	{
-		if(dyn_entries[i].d_tag == DT_JMPREL)			rela_offs	= dyn_entries[i].d_ptr;
-		else if(dyn_entries[i].d_tag == DT_PLTGOT)		got_offs	= dyn_entries[i].d_ptr;
-		else if(dyn_entries[i].d_tag == DT_PLTRELSZ)	rela_sz		= dyn_entries[i].d_val;
-		if(got_offs && rela_offs && rela_sz) break;
-	}
-	if(got_offs && rela_offs && rela_sz)
-	{
-		got_vaddr			= got_offs;
-		num_plt_relas		= rela_sz / sizeof(elf64_rela);
-		plt_relas			= r_alloc.allocate(num_plt_relas);
-		if(__unlikely(!plt_relas)) { panic("[PRG/DYN] failed to allocate rela array"); return false; }
-		elf64_rela* rela	= img_ptr(to_image_offset(rela_offs));
-		array_copy(plt_relas, rela, num_plt_relas);
-		return true;
-	}
-	else
-	{
-		for(size_t i = 0; i < ehdr().e_shnum; i++)
+		uframe_tag* frame		= get_frame();
+		elf64_rela* rela		= frame ? frame->translate(resolve(plt_rela_offs)) : resolve(plt_rela_offs);
+		plt_relas				= std::move(std::vector<elf64_rela>(rela, rela + num_plt_relas));
+		bool need_got_fixup		= is_position_relocated() && got_vaddr;
+		if(bind_now || need_got_fixup)
 		{
-			const char* name	= shstrtab[shdr(i).sh_name];
-			if(std::strncmp(name, ".got.plt", 8) != 0) continue;
-			got_vaddr			= shdr(i).sh_addr;
-			return true;
+			for(elf64_rela const& r : plt_relas)
+			{
+				addr_t target		= frame ? frame->translate(resolve_rela_target(r)) : resolve_rela_target(r);
+				if(__unlikely(!target)) { panic("[PRG/DYN] virtual address fault"); return false; }
+				addr_t sym_addr		= bind_now ? resolve(symtab[r.r_info.sym_index]) : nullptr;
+				if(sym_addr) target.assign(sym_addr);
+				else if(need_got_fixup) target.assign(resolve(target.deref<uintptr_t>()));
+			}
 		}
 	}
-	got_vaddr = 0UL;
 	return true;
 }
 void elf64_dynamic_object::set_resolver(addr_t ptr)
@@ -325,64 +408,4 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
 		if(!got_table) return;
 		got_table.plus(sizeof(addr_t) * 2Z).assign(ptr);
 	}
-}
-elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
-	elf64_object	{ that },
-	num_dyn_entries	{ that.num_dyn_entries },
-	dyn_entries		{ dynseg_alloc.allocate(num_dyn_entries) },
-	num_plt_relas	{ that.num_plt_relas },
-	plt_relas		{ that.plt_relas ? r_alloc.allocate(that.num_plt_relas) : nullptr },
-	got_vaddr		{ that.got_vaddr },
-	dyn_segment_idx	{ that.dyn_segment_idx },
-	relocations		{ that.relocations },
-	object_relas	{ that.object_relas },
-	tls_relas		{ that.tls_relas },
-	dependencies	{ that.dependencies },
-	ld_paths		{ that.ld_paths },
-	init_array		{ that.init_array },
-	fini_array		{ that.fini_array },
-	init_fn			{ that.init_fn },
-	fini_fn			{ that.fini_fn },
-	init_array_ptr	{ that.init_array_ptr },
-	fini_array_ptr	{ that.fini_array_ptr },
-	init_array_size	{ that.init_array_size },
-	fini_array_size	{ that.fini_array_size },
-	symbol_index	{ symstrtab, symtab, elf64_gnu_htbl(that.symbol_index.htbl.header) }
-{
-	symbol_index.htbl.bloom_filter_words	= q_alloc.allocate(symbol_index.htbl.header.maskwords);
-	symbol_index.htbl.buckets				= w_alloc.allocate(symbol_index.htbl.header.nbucket);
-	size_t nhash							= static_cast<size_t>((symtab.total_size / symtab.entry_size) - symbol_index.htbl.header.symndx);
-	symbol_index.htbl.hash_value_array		= w_alloc.allocate(nhash);
-	array_copy(symbol_index.htbl.bloom_filter_words, that.symbol_index.htbl.bloom_filter_words, symbol_index.htbl.header.maskwords);
-	array_copy(symbol_index.htbl.buckets, that.symbol_index.htbl.buckets, symbol_index.htbl.header.nbucket);
-	array_copy(symbol_index.htbl.hash_value_array, that.symbol_index.htbl.hash_value_array, nhash);
-	if(that.plt_relas) array_copy(this->plt_relas, that.plt_relas, num_plt_relas);
-}
-elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
-	elf64_object	{ std::move(that) },
-	num_dyn_entries	{ that.num_dyn_entries },
-	dyn_entries		{ that.dyn_entries },
-	num_plt_relas	{ that.num_plt_relas },
-	plt_relas		{ that.plt_relas },
-	got_vaddr		{ that.got_vaddr },
-	dyn_segment_idx	{ that.dyn_segment_idx },
-	relocations		{ std::move(that.relocations) },
-	object_relas	{ std::move(that.object_relas) },
-	tls_relas		{ std::move(that.tls_relas) },
-	dependencies	{ std::move(that.dependencies) },
-	ld_paths		{ std::move(that.ld_paths) },
-	init_array		{ std::move(that.init_array) },
-	fini_array		{ std::move(that.fini_array) },
-	init_fn			{ that.init_fn },
-	fini_fn			{ that.fini_fn },
-	init_array_ptr	{ that.init_array_ptr },
-	fini_array_ptr	{ that.fini_array_ptr },
-	init_array_size	{ that.init_array_size },
-	fini_array_size	{ that.fini_array_size },
-	symbol_index	{ symstrtab, symtab, elf64_gnu_htbl(std::move(that.symbol_index.htbl)) }
-{
-	that.symbol_index.htbl.bloom_filter_words	= nullptr;
-	that.symbol_index.htbl.buckets				= nullptr;
-	that.symbol_index.htbl.hash_value_array		= nullptr;
-	that.plt_relas								= nullptr;
 }

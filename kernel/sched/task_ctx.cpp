@@ -11,7 +11,7 @@ typedef std::pair<elf64_sym, addr_t> sym_pair;
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
 constexpr static addr_t pml4_of(addr_t frame) noexcept { return frame.deref<uframe_tag>().pml4; }
-static bool is_tls_sym(elf64_sym const& s) { return s.st_info.type == SYM_TLS; }
+static bool is_tls_sym(elf64_sym const& s) { return s.st_info.type == ST_TLS; }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }

@@ -229,7 +229,7 @@ namespace std
 			constexpr __hashtable(initializer_list<value_type> ini) requires(copy_constructible<value_type>) : __hashtable(ini.size()) { __insert(ini); }
 			template<input_iterator IT> requires(constructible_from<value_type, decltype(*declval<IT>())>) constexpr __hashtable(IT first, IT last) : __hashtable(static_cast<size_type>(distance(first, last))) { __insert(first, last); }
 			constexpr __hashtable(__hashtable&& that) : __base(std::move(that)), __node_alloc(std::forward<__node_alloc>(that)) {}
-			constexpr __hashtable(__hashtable const& that) : __base(that.__size()), __node_alloc(that) { this->__insert(that.__begin(), that.__end()); }
+			constexpr __hashtable(__hashtable const& that) : __base(that.__size()), __node_alloc(that) { this->__insert(const_iterator(that.__begin()), const_iterator(nullptr)); }
 			constexpr ~__hashtable() { __deallocate_nodes(); __deallocate_buckets(); }
 			constexpr size_type __size() const noexcept { return this->__element_count; }
 			constexpr void __rehash_to_size(size_type target) { __run_rehash(__target_count_at_least(target)); }
