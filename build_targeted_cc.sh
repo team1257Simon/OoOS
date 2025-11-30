@@ -55,10 +55,8 @@ git clone https://github.com/reswitched/newlib.git
 cd newlib
 git apply $OOOS_DIR/lib/patches/newlib-3.0.0.diff
 cp -lRf $OOOS_DIR/lib/newlib/libc/sys/ooos $BUILD_DIR/newlib/newlib/libc/sys
-cd $BUILD_DIR/newlib/newlib/libc/sys
-$NL_RC -I../../ -I../
-cd $BUILD_DIR/newlib/newlib/libc/machine/x86_64
-$NL_RC -I../../../ -I../../ -I../ || true # autoheader will fail, but the configure still works so we don't want that to kill the script. TODO: figure out something less hacky
+cd $BUILD_DIR/newlib/newlib
+$NL_RC || true # autoheader will fail, but the configure still works so we don't want that to kill the script. TODO: figure out something less hacky
 cd $BUILD_DIR/build-newlib
 ../newlib/configure --target=x86_64-ooos --prefix=$PREFIX --with-sysroot=$SYSROOT --enable-shared --enable-host-shared
 make && make install
