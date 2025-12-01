@@ -463,6 +463,10 @@ protected:
 	virtual bool configure_rx(dev_status& st);
 	virtual bool configure_tx(dev_status& st);
 	virtual bool configure_mac_phy(dev_status& st);
+	virtual bool init_dev() override;
+	virtual size_t rx_limit() const noexcept;
+	virtual size_t tx_limit() const noexcept;
+	virtual size_t buffer_count() const noexcept;
 	bool configure_interrupts(dev_status& st);
 	bool dev_reset();
 	void read_status(dev_status& st);
@@ -478,15 +482,11 @@ protected:
 public:
 	e1000e(pci_config_space* device, size_t descriptor_count_factor = 32UZ);
 	virtual ~e1000e();
-	virtual bool initialize() override;
 	virtual void enable_transmit() override;
 	virtual void enable_receive() override;
 	virtual void disable_transmit() override;
 	virtual void disable_receive() override;
 	virtual int poll_tx(netstack_buffer& buff) override;
 	virtual int poll_rx() override;
-protected:
-	typedef decltype(std::bind(&e1000e::poll_tx, std::declval<e1000e*>(), std::placeholders::_1)) tx_bind;
-	typedef decltype(std::bind(&e1000e::rx_transfer, std::declval<e1000e*>(), std::placeholders::_1)) rx_bind;
 };
 #endif

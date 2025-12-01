@@ -31,3 +31,13 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 	catch(std::bad_cast&)		{ return -EPROTO; }
 	catch(std::exception& e)	{ panic(e.what()); return -EINVAL; }
 }
+bool net_device::initialize()
+{	
+	tx_bind tx_poll = std::bind(&net_device::poll_tx, this, std::placeholders::_1);
+	rx_bind rx_poll = std::bind(&net_device::rx_transfer, this, std::placeholders::_1);
+	size_t rx_size	= rx_limit();
+	size_t tx_size	= tx_limit();
+	size_t count	= buffer_count();
+	for(size_t i = 0; i < count; i++) transfer_buffers.emplace(rx_size, tx_size, rx_poll, tx_poll, rx_size, tx_size);
+	return init_dev();
+}

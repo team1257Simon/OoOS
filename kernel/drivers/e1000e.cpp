@@ -18,6 +18,9 @@ constexpr int txt			= e1000_tdt(0);
 constexpr int txdctl		= e1000_txdctl(0);
 constexpr std::alignas_allocator<char, int128_t> __buffer_alloc;
 void e1000e::read_status(dev_status& status) { read_dma(e1000_status, status); }
+size_t e1000e::rx_limit() const noexcept { return max_single_rx_buffer; }
+size_t e1000e::tx_limit() const noexcept { return max_single_tx_buffer; }
+size_t e1000e::buffer_count() const noexcept { return rx_ring.count(); }
 e1000e::~e1000e() = default;
 void e1000e::on_interrupt() 
 {
@@ -204,7 +207,7 @@ e1000e::e1000e(pci_config_space* device, size_t descriptor_count_factor) :
 	rx_ring                     { descriptor_count_factor },
 	tx_ring                     { descriptor_count_factor }
 								{}
-bool e1000e::initialize()
+bool e1000e::init_dev()
 {
 	if(__has_init) return true;
 	dev_status status;
@@ -215,9 +218,6 @@ bool e1000e::initialize()
 	if(__unlikely(!configure_mac_phy(status))) return false; 
 	for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i); read_status(status); }
 	for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, 0U); read_status(status); }
-	tx_bind tx_poll = std::bind(&e1000e::poll_tx, this, std::placeholders::_1);
-	rx_bind rx_poll = std::bind(&e1000e::rx_transfer, this, std::placeholders::_1);
-	for(size_t i = 0; i < rx_ring.count(); i++) transfer_buffers.emplace(max_single_rx_buffer, max_single_tx_buffer, rx_poll, tx_poll, max_single_rx_buffer, max_single_tx_buffer);
 	if(__unlikely(!configure_rx(status))) return false;
 	if(__unlikely(!configure_tx(status))) return false;
 	if(__unlikely(!configure_interrupts(status))) return false;

@@ -70,6 +70,7 @@ extern "C"
 	int get_debug_char() { if(com && com->read(dbg_serial_io, 1UZ)) { return dbg_serial_io[0]; } return -1; }
 	void put_debug_char(int ch) { dbg_serial_io[1] = static_cast<char>(ch); if(com) com->write(1UZ, dbg_serial_io + 1); }
 }
+void task_exec(elf64_program_descriptor const& prg, cstrvec&& args, cstrvec&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn = nullptr, int64_t parent_pid = -1L, priority_val pv = priority_val::PVNORM, uint16_t quantum = 3);
 filesystem* get_task_vfs() { if(!active_task_context()) return nullptr; return active_task_context()->get_vfs_ptr(); }
 filesystem* create_task_vfs() { return std::addressof(test_extfs); /* TODO */ }
 void kfx_save() { if(fx_enable) asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory"); }
@@ -90,6 +91,26 @@ static void descr_pt(partition_table const& pt)
 		direct_write(" to ");
 		xdirect_writeln(std::to_string(i->end_lba));
 	}
+}
+void task_exec(elf64_program_descriptor const& prg, cstrvec&& args, cstrvec&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
+{
+	task_descriptor task
+	{
+		.program	= prg,
+		.argv		= std::move(args),
+		.parent_pid	= static_cast<spid_t>(parent_pid),
+		.uid		= 0U,
+		.gid		= 0U,
+		.quantum	= quantum,
+		.priority	= pv
+	};
+	task_ctx* ctx	= tl.create_user_task(std::move(task));
+	ctx->env_vec	= std::move(env);
+	ctx->init_task_state();
+	ctx->set_stdio_ptrs(std::move(stdio_ptrs));
+	if(exit_fn) ctx->start_task(exit_fn);
+	else ctx->start_task();
+	user_entry(std::addressof(ctx->task_struct));
 }
 module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
 {

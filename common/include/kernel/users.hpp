@@ -23,6 +23,8 @@ constexpr permission_flag install_remove_module		= 0x200U;
 constexpr permission_flag start_stop_daemon			= 0x400U;
 constexpr permission_flag change_setting_defaults	= 0x800U;
 constexpr permission_flag is_service_account		= 0x1000U;
+constexpr permission_flag impersonate_any_uid		= 0x2000U;
+constexpr permission_flag impersonate_any_gid		= 0x4000U;
 struct __pack user_credentials
 {
 	char	user_login_name[username_max_len];
@@ -124,9 +126,15 @@ public:
 	bool persist();
 };
 extern "C"
-{
-	int syscall_getvpwuid(uid_t uid, unix_pwd* out);			// int getvpwuid(uid_t uid, struct passwd* out);
-	int syscall_getvpwnam(const char* name, unix_pwd* out);		// int getvpwnam(const char* restrict name, struct passwd* restrict out);
-	int syscall_getvpwent(unix_pwd* ent);						// int getvpwent(struct passwd* out);
+{																	// typedef struct { uid_t uid; gid_t gid; } login_result;
+	int syscall_getvpwuid(uid_t uid, unix_pwd* out);				// int getvpwuid(uid_t uid, struct passwd* out);
+	int syscall_getvpwnam(const char* name, unix_pwd* out);			// int getvpwnam(const char* restrict name, struct passwd* restrict out);
+	int syscall_getvpwent(unix_pwd* ent);							// int getvpwent(struct passwd* out);
+	uid_t syscall_getuid();											// uid_t getuid();
+	gid_t syscall_getgid();											// gid_t getgid();
+	uid_t syscall_login(const char* name, const char* pass);		// login_result login(const char* name, const char* pass);
+	uid_t syscall_impersonate(const char* name, const char* pass);	// login_result impersonate(const char* name, const char* pass);
+	int syscall_setuid(uid_t id);									// int setuid(uid_t id);
+	int syscall_setgid(gid_t id);									// int setgid(gid_t id);
 }
 #endif

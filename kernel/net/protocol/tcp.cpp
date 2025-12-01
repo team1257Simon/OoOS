@@ -29,7 +29,7 @@ std::streamsize tcp_session_buffer::xsputn(const char* s, size_type n)
 	size_type send_cur        = static_cast<size_type>(__out_region.__end - __out_region.__begin);
 	if(send_cur + n > send_capacity)
 	{
-		size_type target = std::max(send_capacity << 1, send_cur + n);
+		size_type target		= std::max(send_capacity << 1, send_cur + n);
 		try { size(target, std::ios_base::out); }
 		catch(...) { return 0UZ; }
 	}
@@ -47,11 +47,25 @@ std::streamsize tcp_session_buffer::xsgetn(char* s, size_type n)
 }
 std::streamsize tcp_session_buffer::rx_push(const void* payload_start, const void* payload_end)
 {
-	std::streamsize result = static_cast<std::streamsize>(addr_t(payload_end) - addr_t(payload_start));
-	size_type receive_cur = __in_region.__capacity();
+	std::streamsize result	= static_cast<std::streamsize>(addr_t(payload_end) - addr_t(payload_start));
+	size_type receive_cur	= __in_region.__capacity();
 	expand(result, std::ios_base::in);
 	array_copy(__in_region.__get_ptr(receive_cur), static_cast<char const*>(payload_start), result);
 	return result;
+}
+std::streamsize tcp_session_buffer::tx_count() const noexcept
+{
+	if(__tx_pos)
+		return static_cast<std::streamsize>(__out_region.__cur() - __tx_pos);
+	return 0UZ;
+}
+std::streamsize tcp_session_buffer::tx_pop(void* payload_start, size_type n)
+{
+	n			= std::min(n, tx_count());
+	if(__unlikely(!n)) return 0UZ;
+	array_copy(static_cast<pointer>(payload_start), __tx_pos, n);
+	__tx_pos	+= n;
+	return n;
 }
 void tcp_header::compute_tcp_checksum()
 {
@@ -124,10 +138,9 @@ uint32_t isn_gen::operator()(ipv4_addr localip, uint16_t localport, ipv4_addr re
 	suseconds_t four_usec_ticks = (tsci.tsc_to_us(selector_clock.get())) >> 2;
 	return static_cast<uint32_t>((four_usec_ticks + std::elf64_gnu_hash()(hashstr.data())) & 0xFFFFFFFFU);
 }
-tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, tcp_application& app, uint16_t port) :
+tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, uint16_t port) :
 	abstract_protocol_handler   { std::addressof(tcp) },
 	local_host                  { tcp },
-	application                 { app },
 	local_port                  { port },
 	connection_state            { tcp_connection_state::CLOSED }
 								{}
@@ -356,15 +369,17 @@ int tcp_port_handler::rx_accept_payload(tcp_packet& p)
 			if(i->second->fields.push_flag) rx_commit();
 		}
 		if(int err = tx_ack(); __unlikely(err != 0)) return err;
+		return 0;
 	}
 	catch(std::bad_alloc&) { return -ENOMEM; }
-	else connection_info.last_send_sequence = compute_following_sequence(connection_info.last_send_sequence);
+	connection_info.last_send_sequence	= compute_following_sequence(connection_info.last_send_sequence);
+	if(data.tx_count()) return tx_send_data();
 	return 0;
 }
 uint32_t tcp_port_handler::compute_following_sequence(uint32_t from) const
 {
-	sequence_map::const_iterator i = send_packets.find(from);
-	if(__unlikely(i == send_packets.end())) throw std::invalid_argument("[tcp] no packet with that sequence");
+	sequence_map::const_iterator i	= send_packets.find(from);
+	if(__unlikely(i == send_packets.end())) throw std::invalid_argument("[TCP] no packet with that sequence");
 	return i->first + static_cast<uint32_t>(i->second->segment_len());
 }
 int tcp_port_handler::rx_begin_close(tcp_packet& p)
@@ -416,7 +431,20 @@ int tcp_port_handler::tx_simultaneous_close()
 }
 int tcp_port_handler::set_await_close()
 {
-	connection_state = tcp_connection_state::TIME_WAIT;
+	connection_state	= tcp_connection_state::TIME_WAIT;
 	scheduler::defer_sec(2UL, std::bind(&tcp_port_handler::close, this));
+	return 0;
+}
+int tcp_port_handler::tx_send_data()
+{
+	size_t count			= data.tx_count();
+	if(__unlikely(!count)) return 0;	// nothing to do
+	size_t to_send			= std::min(count, connection_info.peer_window_size);
+	tcp_packet& pkt			= create_packet(to_send);
+	data.tx_pop(pkt->payload_start(), to_send);
+	pkt->fields.ack_flag	= true;
+	pkt->fields.push_flag	= true;
+	pkt->compute_tcp_checksum();
+	if(int err = tx_send_next(); __unlikely(err != 0)) return err;
 	return 0;
 }

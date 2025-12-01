@@ -4,9 +4,13 @@
 //		The caller places arguments in registers DI, SI, D, 8, 9, and 10, and the system call number in register A.
 //		Important note: the argument order above differs from the Linux system call ABI, which places register 10 before 8 for some ungodly reason.
 //		Registers C and 11 are destroyed by the SYSCALL instruction. The return value is stored in the A register.
-//		The kernel restores ALL registers (including scratch and argument registers) to their pre-call state before returning to the user process.
-//		As per the Linux system call ABI result between -4095 and -1 (inclusive) indicates an error.
-//		In these cases, the returned value is the error code's additive inverse (i.e. errno = -1 * %rax).
+//		If the return value is larger than 64 bits, the high-order bits will be stored in the D register.
+//		When returning two values no larger than 64 bits each, register A will contain the first value, while register D will contain the second.
+//		The kernel restores ALL other registers (including scratch and argument registers) to their pre-call state before returning to the user process.
+//		If more than two values need to be returned, or the return is a structure larger than 16 bytes in size, it will be returned via an out-pointer parameter.
+//		Such system calls will still return an integer value; normally, the result should be 0 if the call is successful.
+//		As per the Linux system call ABI, a result between -4095 and -1 (inclusive) indicates an error.
+//		In these cases, the returned value is the error code's additive inverse (i.e. errno = -1 * retval).
 //		A negative number with an absolute value GREATER than 4095 is a non-error result (for instance, a pointer to a value in a read-only system segment).
 //		Other notes:
 //		The header files which declare the functions that implement the system calls contain comments describing the C-style function declaration equivalent.
@@ -16,6 +20,7 @@
 //		Other libdl functions, such as dlinfo, are implemented in the dynamic linker using information from system call 31 (dlmap).
 //		System call 35 (sigret) is used by the signal trampoline to resume execution and will return an EINVAL error if used without such context.
 //		Syscalls 49, 50, and 51 access the user data in sysfs and return them in a format consistent with the unix /etc/pwd file entries.
+//		Certain syscalls implement nonstandard functions; fexecve and fspawn, for instance, use file descriptor numbers instead of file paths to find programs.
 	.code64
 	.data
 	.global							do_syscall
@@ -80,6 +85,14 @@
 	.extern							syscall_getthreadid
 	.extern							syscall_threadjoin
 	.extern							syscall_threaddetach
+	.extern							syscall_fexecve
+	.extern							syscall_fspawn
+	.extern							syscall_getuid
+	.extern							syscall_getgid
+	.extern							syscall_login
+	.extern							syscall_impersonate
+	.extern							syscall_setuid
+	.extern							syscall_setgid
 	.extern							on_invalid_syscall
 	.global							syscall_vec
 	.global							task_lock_flag
@@ -146,6 +159,14 @@
 	.type	syscall_getthreadid,	@function
 	.type	syscall_threadjoin,		@function
 	.type	syscall_threaddetach,	@function
+	.type	syscall_fexecve,		@function
+	.type	syscall_fspawn,			@function
+	.type	syscall_getuid,			@function
+	.type	syscall_getgid,			@function
+	.type	syscall_login,			@function
+	.type	syscall_impersonate,	@function
+	.type	syscall_setuid,			@function
+	.type	syscall_setgid,			@function
 	.type	on_invalid_syscall,		@function
 	.type	kernel_cr3,				@object
 	.type	task_lock_flag,			@object
@@ -212,6 +233,14 @@ syscall_vec:
 	.quad syscall_getthreadid		// 57
 	.quad syscall_threadjoin		// 58
 	.quad syscall_threaddetach		// 59
+	.quad syscall_fexecve			// 60
+	.quad syscall_fspawn			// 61
+	.quad syscall_getuid			// 62
+	.quad syscall_getgid			// 63
+	.quad syscall_login				// 64
+	.quad syscall_impersonate		// 65
+	.quad syscall_setuid			// 66
+	.quad syscall_setgid			// 67
 .L_syscv_end:
 	.quad on_invalid_syscall		// handler for out-of-range syscalls
 	.size syscall_vec,				.-syscall_vec

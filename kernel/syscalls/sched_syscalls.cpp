@@ -12,6 +12,49 @@ extern "C"
 {
 	extern task_t* kproc;
 	extern std::atomic<bool> task_lock_flag;
+	static char* empty_env	= nullptr;
+	struct exec_fail_guard
+	{
+		task_ctx* task;
+		constexpr exec_fail_guard(task_ctx* c) noexcept : task(c) {}
+		constexpr void release() noexcept { task = nullptr; }
+		constexpr ~exec_fail_guard() { if(task) tl.destroy_task(task->get_pid()); }
+	};
+	int prg_execve(file_vnode* restrict n, task_ctx* restrict task, char** restrict argv, char** restrict env, bool noparent)
+	{
+		elf64_executable* ex = prog_manager::get_instance().add(n);
+		if(__unlikely(!ex)) return -ENOEXEC;
+		cstrvec argv_v{}, env_v{};
+		for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
+		for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
+		try
+		{
+			if(!noparent)
+				if(task_list::iterator parent = tl.find(task->get_parent_pid()); parent != tl.end())
+					sch.interrupt_wait(std::addressof(parent->task_struct));
+			if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
+				return 0;
+			else return -ENOMEM;
+		}
+		catch(std::invalid_argument& e)	{ panic(e.what()); return -ECANCELED; }
+		catch(std::out_of_range& e)	 	{ panic(e.what()); return -EFAULT; }
+		catch(std::bad_alloc&)			{ panic("[PRG/EXEC] no memory for argument vectors"); }
+		return -ENOMEM;
+	}
+	spid_t prg_spawn(file_vnode* restrict n, task_ctx* restrict task, char** restrict argv, char** restrict renv)
+	{
+		if(task_ctx* clone	= tl.task_vfork(task))
+		{
+			exec_fail_guard guard(clone);
+			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
+			task->add_child(clone);
+			int ecode		= prg_execve(n, clone, argv, renv, true);
+			if(__unlikely(ecode)) return ecode;
+			guard.release();
+			return clone->get_pid();
+		}
+		else return -EAGAIN; 
+	}
 	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context()) { new(out) tms(task->get_times()); return sys_time(nullptr); } else return -ENOSYS; }
 	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
 	spid_t syscall_getpid() { if(task_ctx* task = active_task_context()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
@@ -140,26 +183,47 @@ extern "C"
 		filesystem* fs_ptr	= get_task_vfs();
 		if(__unlikely(!fs_ptr)) return -ENOSYS;
 		name				= translate_user_pointer(name);
-		if(__unlikely(!name)) return -EFAULT;
-		file_vnode* n;
-		try { n = fs_ptr->open_file(name, std::ios_base::in); } catch(std::exception& e) { panic(e.what()); return -ENOENT; }
-		elf64_executable* ex = prog_manager::get_instance().add(n);
-		if(__unlikely(!ex)) return -ENOEXEC;
-		std::vector<const char*> argv_v{}, env_v{};
-		for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
-		for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
+		argv				= translate_user_pointer(argv);
+		char** renv			= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
+		if(__unlikely(!name || !argv || !renv)) return -EFAULT;
 		try
 		{
-			if(task_list::iterator parent = tl.find(task->get_parent_pid()); parent != tl.end())
-				sch.interrupt_wait(std::addressof(parent->task_struct));
-			if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
-				return task->task_struct.saved_regs.rax;
-			else return -ENOMEM;
+			file_vnode* n	= fs_ptr->open_file(name, std::ios_base::in);
+			int ecode		= prg_execve(n, task, argv, renv, false);
+			fs_ptr->close_file(n);
+			if(__unlikely(ecode)) return ecode;
+			return task->task_struct.saved_regs.rax;
 		}
-		catch(std::invalid_argument& e)	{ panic(e.what()); return -ECANCELED; }
-		catch(std::out_of_range& e)	 	{ panic(e.what()); return -EFAULT; }
-		catch(std::bad_alloc&)			{ panic("no memory for argument vectors"); return -ENOMEM; }
-		__builtin_unreachable();
+		catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+	}
+	int syscall_fexecve(int fd, char** restrict argv, char** restrict env)
+	{
+		task_ctx* task		= active_task_context();
+		filesystem* fs_ptr	= get_task_vfs();
+		if(__unlikely(!fs_ptr)) return -ENOSYS;
+		argv				= translate_user_pointer(argv);
+		char** renv			= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
+		if(__unlikely(!argv || !renv)) return -EFAULT;
+		try
+		{
+			file_vnode* n	= get_by_fd(fs_ptr, task, fd);
+			if(n)
+			{
+				if(!n->current_mode.in) return -EACCES;
+				int ecode	= prg_execve(n, task, argv, env, false);
+				if(__unlikely(ecode)) return ecode;
+				return task->task_struct.saved_regs.rax;
+			}
+			else return -EBADF;
+		}
+		catch(std::logic_error& e)
+		{
+			panic(e.what());
+			force_signal(task, 13);	// SIGPIPE
+			return -EPIPE;
+		}
+		catch(std::exception& e) { panic(e.what()); }
+		return -ENOMEM;
 	}
 	spid_t syscall_spawn(char* restrict name, char** restrict argv, char** restrict env)
 	{
@@ -167,30 +231,46 @@ extern "C"
 		filesystem* fs_ptr		= get_task_vfs();
 		if(__unlikely(!fs_ptr)) return -ENOSYS;
 		name					= translate_user_pointer(name);
-		if(__unlikely(!name)) return -EFAULT;
-		file_vnode* n;
-		try { n					= fs_ptr->open_file(name, std::ios_base::in); }
-		catch(std::exception& e) { panic(e.what()); return -ENOENT; }
-		elf64_executable* ex	= prog_manager::get_instance().add(n);
-		if(__unlikely(!ex)) return -ENOEXEC;
-		std::vector<const char*> argv_v{}, env_v{};
-		for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
-		for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
-		if(task_ctx* clone = tl.task_vfork(task))
+		argv					= translate_user_pointer(argv);
+		char** renv				= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
+		if(__unlikely(!name || !argv || !renv)) return -EFAULT;
+		try
 		{
-			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
-			task->add_child(clone);
-			try
-			{
-				if(clone->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
-					return clone->get_pid();
-				else return -ENOMEM;
-			}
-			catch(std::invalid_argument& e) { panic(e.what()); return -ECANCELED; }
-			catch(std::out_of_range& e)	 	{ panic(e.what()); return -EFAULT; }
-			catch(std::bad_alloc&)			{ panic("[EXEC/spawn] no memory for argument vectors"); return -ENOMEM; }			
+			file_vnode* n		= fs_ptr->open_file(name, std::ios_base::in);
+			spid_t result		= prg_spawn(n, task, argv, renv);
+			fs_ptr->close_file(n);
+			return result;
 		}
-		return -EAGAIN;
+		catch(std::exception& e) { panic(e.what()); }
+		return -ENOENT;
+	}
+	spid_t syscall_fspawn(int fd, char** restrict argv, char** restrict env)
+	{
+		task_ctx* task		= active_task_context();
+		filesystem* fs_ptr	= get_task_vfs();
+		if(__unlikely(!fs_ptr)) return -ENOSYS;
+		argv				= translate_user_pointer(argv);
+		char** renv			= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
+		if(__unlikely(!argv || !renv)) return -EFAULT;
+		try
+		{
+			file_vnode* n	= get_by_fd(fs_ptr, task, fd);
+			if(n)
+			{
+				if(!n->current_mode.in)
+					return -EACCES;
+				else return prg_spawn(n, task, argv, renv);
+			}
+			else return -EBADF;
+		}
+		catch(std::logic_error& e)
+		{
+			panic(e.what());
+			force_signal(task, 13);	// SIGPIPE
+			return -EPIPE;
+		}
+		catch(std::exception& e) { panic(e.what()); }
+		return -ENOMEM;
 	}
 	spid_t syscall_tfork()
 	{

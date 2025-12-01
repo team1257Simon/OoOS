@@ -1,5 +1,6 @@
 #include <sched/scheduler.hpp>
 #include <sched/task_list.hpp>
+#include <algorithm>
 #include <errno.h>
 #include <elf64_dynamic_exec.hpp>
 #include <frame_manager.hpp>
@@ -47,22 +48,22 @@ static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, const char
 	}
 	return sym_pair();
 }
-task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char *>&& args, pid_t pid, spid_t parent_pid, priority_val prio, uint16_t quantum) :
+task_ctx::task_ctx(task_descriptor&& desc, pid_t pid) :
 	task_struct
 	{
 		.self				{ std::addressof(task_struct) },
-		.frame_ptr			{ desc.frame_ptr },
+		.frame_ptr			{ desc.program.frame_ptr },
 		.saved_regs
 		{
-			.rbp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
-			.rsp			{ addr_t(desc.prg_stack).plus(desc.stack_size) },
-			.cr3			{ pml4_of(desc.frame_ptr) },
+			.rbp			{ addr_t(desc.program.prg_stack).plus(desc.program.stack_size) },
+			.rsp			{ addr_t(desc.program.prg_stack).plus(desc.program.stack_size) },
+			.cr3			{ pml4_of(desc.program.frame_ptr) },
 			.rflags			{ ini_flags },
 			.ds				{ user_data },
 			.ss				{ user_data },
 			.cs				{ user_code }
 		},
-		.quantum_val		{ quantum },
+		.quantum_val		{ desc.quantum },
 		.task_ctl
 		{
 			{
@@ -70,32 +71,34 @@ task_ctx::task_ctx(elf64_program_descriptor const& desc, std::vector<const char 
 				.can_interrupt	{ false },
 				.should_notify	{ false },
 				.killed			{ false },
-				.prio_base		{ prio }
+				.prio_base		{ desc.priority }
 			},
 			{
 				.signal_info	{ std::addressof(task_sig_info) },
-				.parent_pid		{ parent_pid },
-				.task_id		{ pid }
-			}
+				.parent_pid		{ desc.parent_pid },
+				.task_id		{ pid },
+				.task_uid		{ desc.uid },
+				.task_gid		{ desc.gid }
+			},
 		},
-		.tls_master			{ desc.prg_tls },
-		.tls_size			{ desc.tls_size },
-		.tls_align			{ desc.tls_align }
+		.tls_master				{ desc.program.prg_tls },
+		.tls_size				{ desc.program.tls_size },
+		.tls_align				{ desc.program.tls_align }
 	},
-	arg_vec					{ std::move(args) },
-	dl_search_paths			( desc.ld_path_count ),
-	entry					{ desc.entry },
-	allocated_stack			{ desc.prg_stack },
-	stack_allocated_size	{ desc.stack_size },
-	ctx_filesystem			{ create_task_vfs() },
-	current_state			{ execution_state::STOPPED },
-	program_handle			{ static_cast<elf64_executable*>(desc.object_handle) },
-	local_so_map			{ sm_alloc.allocate(1) }
-							{
-								std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.frame_ptr));
-								if(desc.ld_path && desc.ld_path_count)
-									dl_search_paths.push_back(desc.ld_path, desc.ld_path + desc.ld_path_count);
-							}
+	arg_vec						{ std::move(desc.argv) },
+	dl_search_paths				{ desc.program.ld_path_count },
+	entry						{ desc.program.entry },
+	allocated_stack				{ desc.program.prg_stack },
+	stack_allocated_size		{ desc.program.stack_size },
+	ctx_filesystem				{ create_task_vfs() },
+	current_state				{ execution_state::STOPPED },
+	program_handle				{ static_cast<elf64_executable*>(desc.program.object_handle) },
+	local_so_map				{ sm_alloc.allocate(1) }
+	{
+		std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.program.frame_ptr));
+		if(desc.program.ld_path && desc.program.ld_path_count)
+			dl_search_paths.push_back(desc.program.ld_path, desc.program.ld_path + desc.program.ld_path_count);
+	}
 task_ctx::task_ctx(task_ctx const& that) :
 	task_struct
 	{
@@ -116,7 +119,9 @@ task_ctx::task_ctx(task_ctx const& that) :
 			{
 				.signal_info	{ std::addressof(task_sig_info) },
 				.parent_pid		{ static_cast<spid_t>(that.get_pid()) },
-				.task_id		{ tl.__upid() }
+				.task_id		{ tl.__upid() },
+				.task_uid		{ that.task_struct.task_ctl.task_uid },
+				.task_gid		{ that.task_struct.task_ctl.task_gid }
 			}
 		},
 		.fxsv				{ that.task_struct.fxsv },
@@ -360,16 +365,6 @@ tms task_ctx::get_times() const noexcept
 	for(task_ctx* child : child_tasks) result += child->get_times();
 	return result;
 }
-void task_exec(elf64_program_descriptor const& prg, std::vector<const char*>&& args, std::vector<const char*>&& env, std::array<file_vnode*, 3>&& stdio_ptrs, addr_t exit_fn, int64_t parent_pid, priority_val pv, uint16_t quantum)
-{
-	task_ctx* ctx	= tl.create_user_task(prg, std::move(args), parent_pid, pv, quantum);
-	ctx->env_vec	= std::move(env);
-	ctx->init_task_state();
-	ctx->set_stdio_ptrs(std::move(stdio_ptrs));
-	if(exit_fn) ctx->start_task(exit_fn);
-	else ctx->start_task();
-	user_entry(std::addressof(ctx->task_struct));
-}
 void task_ctx::stack_push(register_t val)
 {
 	task_struct.saved_regs.rsp	-= sizeof(register_t);
@@ -451,7 +446,7 @@ bool task_ctx::set_fork()
 	catch(std::exception& e) { panic(e.what()); }
 	return false;
 }
-bool task_ctx::subsume(elf64_program_descriptor const& desc, std::vector<const char*>&& args, std::vector<const char*>&& env)
+bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cstrvec&& env)
 {
 	spid_t parent_pid					= task_struct.task_ctl.parent_pid;
 	if(local_so_map)

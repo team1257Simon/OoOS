@@ -7,12 +7,15 @@
 class tcp_session_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
 	typedef std::ext::dynamic_duplex_streambuf<char> __base;
+	pointer __tx_pos;
 protected:
 	virtual std::streamsize xsputn(const char* s, size_type n) override;
 	virtual std::streamsize xsgetn(char* s, size_type n) override;
 public:
 	tcp_session_buffer();
 	std::streamsize rx_push(const void* payload_start, const void* payload_end);
+	std::streamsize tx_pop(void* payload_start, size_type n);
+	std::streamsize tx_count() const noexcept;
 };
 union __pack tcp_fields_word
 {
@@ -86,10 +89,6 @@ enum class tcp_connection_state : char
 enum class tcp_connection_type : bool { PASSIVE, ACTIVE };
 struct protocol_tcp;
 typedef std::map<uint32_t, tcp_packet> sequence_map;
-struct tcp_application
-{
-	// TODO
-};
 struct tcp_connection_info
 {
 	ipv4_addr remote_host;
@@ -109,7 +108,6 @@ struct tcp_connection_info
 struct tcp_port_handler : abstract_protocol_handler
 {
 	protocol_tcp& local_host;
-	tcp_application& application;
 	uint16_t local_port;
 	tcp_connection_state connection_state;
 	tcp_connection_info connection_info;
@@ -117,7 +115,7 @@ struct tcp_port_handler : abstract_protocol_handler
 	sequence_map receive_packets;
 	tcp_transmission_timer timer;
 	tcp_session_buffer data;
-	tcp_port_handler(protocol_tcp& tcp, tcp_application& app, uint16_t port);
+	tcp_port_handler(protocol_tcp& tcp, uint16_t port);
 	virtual std::type_info const& packet_type() const override;
 	virtual int receive(abstract_packet_base& p) override;
 	tcp_packet& create_packet(size_t payload_size, size_t option_size = 0UZ, uint16_t window_size = 16384US);
@@ -135,6 +133,7 @@ struct tcp_port_handler : abstract_protocol_handler
 	void rx_reset();
 	int tx_ack();
 	int tx_reset(uint32_t use_seq);
+	int tx_send_data();
 	int tx_send_next();
 	int tx_begin_close();
 	int tx_simultaneous_close();

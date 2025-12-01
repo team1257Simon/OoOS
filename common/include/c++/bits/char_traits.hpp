@@ -14,7 +14,7 @@ namespace std
 	}
 	extension template<typename CT> concept char_type = __detail::__is_char_type<CT>::value;
 	extension template<typename CT> concept basic_char_type = __detail::__basic_char_type<CT>::value;
-	template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return const_cast<CT*>(ptr); }
+	template<std::char_type CT> constexpr CT* find(const CT* ptr, size_t n, CT c) { for(size_t i = 0; i < n && *ptr != c; i++, ++ptr); return *ptr == c ? const_cast<CT*>(ptr) : nullptr; }
 	extension template<std::char_type CT> constexpr size_t strnlen(const CT* str, size_t max) { return (str && *str) ? size_t(std::find(str, max, CT(0)) - str) : 0; }
 	extension template<std::char_type CT> constexpr size_t strlen(const CT* str) { return std::strnlen(str, SIZE_MAX); }
 	extension template<std::integral  IT> constexpr void* memset(void* ptr, IT val, size_t n) { fill_n<IT>(static_cast<IT*>(ptr), n, val); return ptr; }

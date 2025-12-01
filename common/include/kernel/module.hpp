@@ -50,6 +50,12 @@ namespace ABI_NAMESPACE
 #define EXPORT_MODULE(module_class, ...)																																\
 	static char __instance[sizeof(module_class)];																														\
 	static ooos::cxxabi_abort __abort_handler;																															\
+	namespace ooos																																						\
+	{																																									\
+		kernel_api* api_global;																																			\
+		static module_class* __local_inst_##module_class##__ptr;																										\
+		template<> constexpr module_class*& local_instance_ptr<module_class>() { return __local_inst_##module_class##__ptr; }											\
+	}																																									\
 	extern "C"																																							\
 	{																																									\
 		ooos::abstract_module_base* module_init(ooos::kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)())				\
@@ -57,6 +63,7 @@ namespace ABI_NAMESPACE
 			__abort_handler.abort_msg 	= "abort() called in module " # module_class;																					\
 			__abort_handler.abort_msg 	= "pure virtual call in module " # module_class;																				\
 			__abort_handler.api 		= api;																															\
+			ooos::api_global			= api;																															\
 			return ooos::setup_instance<module_class>(std::addressof(__instance), api, frame_tag, kframe_fns, init, fini, __abort_handler __VA_OPT__(, __VA_ARGS__));	\
 		}																																								\
 		[[noreturn]] void abort() { __abort_handler.terminate(); }																										\
@@ -67,6 +74,7 @@ class elf64_kernel_object;
 namespace ooos
 {
 	struct block_io_provider_module;
+	extern kernel_api* api_global;
 	/**
 	 * Base class for all module objects.
 	 * This is an abstract class which hooks in various parts of the kernel that module code might need to use.
@@ -119,6 +127,8 @@ namespace ooos
 		inline size_t logf(const char* fmt, ...);
 		inline block_io_provider_module* as_blockdev();
 	};
+	template<std::derived_from<abstract_module_base> MT> constexpr MT*& local_instance_ptr();
+	template<std::derived_from<abstract_module_base> MT> constexpr MT& instance() { return *local_instance_ptr<MT>(); }
 	struct block_io_provider_module : abstract_module_base, abstract_block_device::provider{};
 	inline block_io_provider_module* abstract_module_base::as_blockdev() { return dynamic_cast<block_io_provider_module*>(this); }
 	inline size_t abstract_module_base::asprintf(const char** strp, const char* fmt, ...)
@@ -135,14 +145,15 @@ namespace ooos
 	{
 		if(addr && api && frame_tag && kframe_fns && fini)
 		{
-			if(kmod_mm* mm 	= api->create_mm())
+			if(kmod_mm* mm 				= api->create_mm())
 			{
-				*frame_tag 	= mm->get_frame();
+				*frame_tag				= mm->get_frame();
 				api->init_memory_fns(kframe_fns);
 				(*init)();
-				T* result 	= new(addr) T(std::forward<Args>(args)...);
+				T* result 				= new(addr) T(std::forward<Args>(args)...);
 				result->setup(api, mm, fini);
 				result->put_ctx(abort_handler);
+				local_instance_ptr<T>()	= result;
 				return result;
 			}
 		}

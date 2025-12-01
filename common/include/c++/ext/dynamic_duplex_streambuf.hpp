@@ -141,17 +141,17 @@ namespace std
 			off_type result = 0L;
 			if(mode.in)
 			{
-				pointer inptr = this->eback() + pos;
+				pointer inptr	= this->eback() + pos;
 				if(__unlikely(inptr > this->egptr())) return pos_type(off_type(-1));
 				this->__in_region.__setc(inptr);
-				result = this->__in_region.__end - this->__in_region.__begin;
+				result			= this->__in_region.__end - this->__in_region.__begin;
 			}
 			if(mode.out)
 			{
-				pointer outptr = this->pbase() + pos;
+				pointer outptr	= this->pbase() + pos;
 				if(__unlikely(outptr > this->epptr())) return pos_type(off_type(-1));
 				this->__out_region.__setc(outptr);
-				result = this->__out_region.__end - this->__out_region.__begin;
+				result			= this->__out_region.__end - this->__out_region.__begin;
 			}
 			if(__unlikely(mode.in && mode.out)) return pos_type(off_type(0));
 			return pos_type(result);

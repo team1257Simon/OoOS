@@ -151,7 +151,9 @@ namespace ooos
 				{
 					.signal_info	{ std::addressof(worker_sig_info) },
 					.parent_pid		{ 0 },
-					.task_id		{ tid }
+					.task_id		{ tid },
+					.task_uid		{ 0U },
+					.task_gid		{ 0U }
 				}
 			},
 			.tls_master				{ nullptr },
