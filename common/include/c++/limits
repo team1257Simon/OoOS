@@ -1,9 +1,9 @@
 #ifndef __LIMITS
 #define __LIMITS
-#include "kernel/libk_decls.h"
-#include "concepts"
-#include "limits.h"
-#include "float.h"
+#include <libk_decls.h>
+#include <concepts>
+#include <limits.h>
+#include <float.h>
 namespace std
 {
 	namespace __detail { template<typename T> concept __numeric = std::integral<T> || std::floating_point<T> || std::same_as<T, char8_t>; }

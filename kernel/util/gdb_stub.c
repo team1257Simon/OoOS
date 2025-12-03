@@ -76,7 +76,7 @@
 ****************************************************************************/
 #include <stdio.h>
 #include <string.h>
-#include "sched/task.h"
+#include <sched/task.h>
 extern void put_debug_char(int);	        /* write a single character      */
 extern int get_debug_char();	            /* read and return a single char */
 extern void exception_handler(int, void*);	/* assign an exception handler   */

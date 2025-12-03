@@ -1,6 +1,6 @@
-#include "elf64_shared.hpp"
-#include "frame_manager.hpp"
-#include "stdexcept"
+#include <elf64_shared.hpp>
+#include <frame_manager.hpp>
+#include <stdexcept>
 const char* empty_name		= "";
 static const char* find_so_name(addr_t, file_vnode*);
 addr_t elf64_shared_object::resolve(uint64_t offs) const { return virtual_load_base.plus(offs); }

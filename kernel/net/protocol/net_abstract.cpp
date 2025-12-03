@@ -1,6 +1,6 @@
-#include "net/protocol/net_abstract.hpp"
-#include "sys/errno.h"
-#include "stdexcept"
+#include <net/protocol/net_abstract.hpp>
+#include <sys/errno.h>
+#include <stdexcept>
 constexpr static inline std::string digits_out(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC] }; }
 constexpr static inline std::string digits_in(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC], ':' };  }
 std::string stringify(ipv4_addr ip) { return std::to_string(ip.hi.hi) + "." + std::to_string(ip.hi.lo) + "." + std::to_string(ip.lo.hi) + "." + std::to_string(ip.lo.lo); }

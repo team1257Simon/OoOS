@@ -1,9 +1,9 @@
 #ifndef NEED_STDBOOL
 #define NEED_STDBOOL
 #endif // VSCode doesn't seem able to process the fact that we define this in the makefile, so placate it here
-#include "kernel/kernel_defs.h"
-#include "kernel/elf64.h"
-#include "uefi/uefi.h"
+#include <kernel/kernel_defs.h>
+#include <kernel/elf64.h>
+#include <uefi.h>
 #define OK			0
 #define EMALLOC		1
 #define ENOMMAP		2
@@ -54,8 +54,8 @@ paging_table* pg_addrs;
 inline static bool validate_elf(elf64_ehdr* elf)
 {
 	return (memcmp(elf->e_ident, "\177ELF",	SELFMAG) == 0	/* magic match? */
-		&& elf->e_ident[EI_CLASS] == ELFCLASS64			/* 64 bit? */
-		&& elf->e_ident[EI_DATA] == ELFDATA2LSB			/* LSB? */
+		&& elf->e_ident[EI_CLASS] == ELFCLASS64				/* 64 bit? */
+		&& elf->e_ident[EI_DATA] == ELFDATA2LSB				/* LSB? */
 		&& elf->e_type == ET_EXEC							/* executable object? */
 		&& elf->e_machine == EM_MACH						/* architecture match? */
 		&& elf->e_phnum > 0)								/* has program headers? */

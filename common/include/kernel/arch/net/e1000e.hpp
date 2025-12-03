@@ -1,10 +1,10 @@
 #ifndef __PCIE_GIGABIT_ETHERNET
 #define __PCIE_GIGABIT_ETHERNET
-#include "arch/pci.hpp"
-#include "arch/simple_io_port.hpp"
-#include "kernel_mm.hpp"
-#include "net/netdev.hpp"
-#include "arch/net/e1000e_constants.hpp"
+#include <arch/pci.hpp>
+#include <arch/simple_io_port.hpp>
+#include <kernel_mm.hpp>
+#include <net/netdev.hpp>
+#include <arch/net/e1000e_constants.hpp>
 struct attribute(packed, aligned(4)) e1000e_device_control_register
 {
 	bool full_duplex					: 1;

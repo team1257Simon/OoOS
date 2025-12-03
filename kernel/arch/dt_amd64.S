@@ -1,15 +1,13 @@
 	.code64
 	.data
-	.global	gdt_setup
-	.global	idt_register
-	.extern	idt_set_entry
-	.global	kernel_stack_base
-	.global	kernel_stack_top
-	.global	gdt_table
-	.global	gdt_descriptor
-	.global	system_tss
-	.global	idt_table
-	.extern	idt_descriptor
+	.global		gdt_setup
+	.global		idt_register
+	.extern		idt_set_entry
+	.global		gdt_table
+	.global		gdt_descriptor
+	.global		system_tss
+	.global		idt_table
+	.extern		idt_descriptor
 	.type		gdt_setup,			@function
 	.type		idt_register,		@function
 	.type		idt_set_entry,		@function
@@ -21,12 +19,6 @@
 	.type		local_tss_descr,	@object
 	.type		idt_table,			@object
 	.type		idt_descriptor,		@object
-	.align		4096
-kernel_stack_base:
-	.zero		65536
-kernel_stack_top:
-	.size		kernel_stack_base,	.-kernel_stack_base
-	.size		kernel_stack_top,	.-kernel_stack_top
 	.align		4
 system_tss:
 	.zero		102

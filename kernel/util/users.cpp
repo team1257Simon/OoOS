@@ -83,8 +83,8 @@ bool user_accounts_manager::init_instance(sysfs& config_src)
 			__instance		= new(account_manager_space) user_accounts_manager(config_src);
 			user_info root_info
 			{
-				.uid			{ 0U },
-				.gid			{ 0U },
+				.uid			{ root_uid },
+				.gid			{ root_gid },
 				.credentials	{ .user_login_name		{ "root" } },
 				.capabilities	{ .system_permissions	{ static_cast<permission_flag>(-1) } }
 			};

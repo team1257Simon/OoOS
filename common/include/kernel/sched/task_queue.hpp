@@ -57,8 +57,8 @@ public:
 	constexpr task_wait_queue() noexcept : __base() { this->set_trim_stale(true); }
 	constexpr task_wait_queue(size_type start_cap) : __base(start_cap) { this->set_trim_stale(true); }
 	void tick_wait() noexcept;
-	unsigned int next_remaining_wait_ticks() const noexcept;
-	unsigned int cumulative_remaining_ticks() const noexcept;
+	clock_t next_remaining_wait_ticks() const noexcept;
+	clock_t cumulative_remaining_ticks() const noexcept;
 	bool interrupt_wait(const_iterator where);
 };
 class prio_level_task_queues : public std::array<task_pl_queue, 5UZ>

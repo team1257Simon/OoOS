@@ -1,8 +1,8 @@
 #ifndef __RAMFS
 #define __RAMFS
 // Note that by definition the vnodes for ramfs are also technically inodes.
-#include "kernel/fs/fs.hpp"
-#include "ext/dynamic_queue_streambuf.hpp"
+#include <kernel/fs/fs.hpp>
+#include <ext/dynamic_queue_streambuf.hpp>
 constexpr dev_t ramfs_magic	= 0x0000C001U;
 class ramfs_directory_vnode : public directory_vnode
 {

@@ -1,11 +1,11 @@
-#include "module.hpp"
-#include "kernel_mm.hpp"
-#include "stdlib.h"
-#include "arch/pci_device_list.hpp"
-#include "device_registry.hpp"
-#include "isr_table.hpp"
-#include "bits/hash_set.hpp"
-#include "stdexcept"
+#include <module.hpp>
+#include <kernel_mm.hpp>
+#include <arch/pci_device_list.hpp>
+#include <device_registry.hpp>
+#include <isr_table.hpp>
+#include <bits/hash_set.hpp>
+#include <stdexcept>
+#include <stdlib.h>
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
 using namespace ABI_NAMESPACE;
 struct vtable_header

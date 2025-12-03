@@ -1,6 +1,6 @@
 #ifndef __PTR_GUARD
 #define __PTR_GUARD
-#include "memory"
+#include <memory>
 namespace std
 {
 	namespace ext

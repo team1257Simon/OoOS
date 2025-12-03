@@ -1,4 +1,4 @@
-#include "device_registry.hpp"
+#include <device_registry.hpp>
 device_registry device_registry::__instance{};
 device_registry::device_registry() : __base(256) {}
 device_registry::~device_registry() = default;

@@ -1,7 +1,7 @@
-#include "syscalls.h"
-#include "./sys/dirent.h"
 #include <string.h>
 #include <stdlib.h>
+#include "syscalls.h"
+#include "./sys/dirent.h"
 typedef int cmp_t(const void* restrict, const void* restrict);
 extern void qsort(void* a, size_t n, size_t es, cmp_t* cmp);
 void rewinddir(DIR* dirp) { if(dirp != NULL) dirp->buf_pos = dirp->buf_start; }

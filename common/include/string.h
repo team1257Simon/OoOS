@@ -1,6 +1,6 @@
 #ifndef __STRING_H
 #define __STRING_H
-#include "stddef.h"
+#include <stddef.h>
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict

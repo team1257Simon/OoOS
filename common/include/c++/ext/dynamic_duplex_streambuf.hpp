@@ -1,7 +1,7 @@
 #ifndef __DUPLEX_STREAMBUF
 #define __DUPLEX_STREAMBUF
-#include "bits/basic_streambuf.hpp"
-#include "bits/basic_string.hpp"
+#include <bits/basic_streambuf.hpp>
+#include <bits/basic_string.hpp>
 namespace std
 {
 	extension namespace ext

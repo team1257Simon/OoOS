@@ -32,7 +32,7 @@ constexpr byte sig_keybd_nack	=	0xFEUC;
 extern "C"
 {
 #endif
-typedef struct attribute(packed, aligned(4)) __tss_bits
+typedef struct attribute(packed, aligned(4))
 {
 	uint32_t : 32;
 	addr_t rsp[3];
@@ -51,7 +51,7 @@ typedef struct attribute(packed, aligned(4)) __tss_bits
 		uint32_t		: 32;
 	} __pack;
 } tss;
-typedef struct __pack __tss_descriptor
+typedef struct
 {
 	uint16_t limit_lo;
 	uint32_t base_lo	: 24;
@@ -60,8 +60,8 @@ typedef struct __pack __tss_descriptor
 	uint8_t flags		: 4;
 	uint8_t base_mid	: 8;
 	uint64_t base_hi;
-} tss_descriptor;
-typedef struct __cpuid_leaf
+} __pack tss_descriptor;
+typedef struct
 {
 	uint32_t eax;
 	uint32_t ebx;
@@ -70,6 +70,7 @@ typedef struct __cpuid_leaf
 } cpuid_leaf;
 inline void cli() noexcept { asm volatile("cli" ::: "memory"); }
 inline void sti() noexcept { asm volatile("sti" ::: "memory"); }
+void tss_init(addr_t k_rsp);
 inline cpuid_leaf cpuid(uint32_t a, uint32_t c) { cpuid_leaf l; asm volatile("cpuid" : "=a"(l.eax), "=b"(l.ebx), "=c"(l.ecx), "=d"(l.edx) : "0"(a), "2"(c) : "memory"); return l; }
 #ifdef __cplusplus
 }

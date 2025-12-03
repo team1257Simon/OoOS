@@ -1,6 +1,6 @@
-#include "ext/dynamic_streambuf.hpp"
-#include "string"
-#include "stdarg.h"
+#include <ext/dynamic_streambuf.hpp>
+#include <string>
+#include <stdarg.h>
 constexpr const char errstr[] = "[SPECIFIER ERROR]";
 static int stderr_fd_placeholder = 1;
 static int stdout_stdin_placeholder = 0;

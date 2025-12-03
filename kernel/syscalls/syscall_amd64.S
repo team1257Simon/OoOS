@@ -91,11 +91,15 @@
 	.extern							syscall_getgid
 	.extern							syscall_login
 	.extern							syscall_impersonate
+	.extern							syscall_escalate
+	.extern							syscall_urevert
 	.extern							syscall_setuid
 	.extern							syscall_setgid
 	.extern							on_invalid_syscall
+	.global							pr_syscall_data
 	.global							syscall_vec
-	.global							task_lock_flag
+	.global							pr_syscall_data_end
+	.extern							task_lock_flag
 	.extern							kernel_cr3
 	.type	do_syscall,				@function
 	.type	syscall_exit,			@function
@@ -165,130 +169,129 @@
 	.type	syscall_getgid,			@function
 	.type	syscall_login,			@function
 	.type	syscall_impersonate,	@function
+	.type	syscall_escalate,		@function
+	.type	syscall_urevert,		@function
 	.type	syscall_setuid,			@function
 	.type	syscall_setgid,			@function
 	.type	on_invalid_syscall,		@function
+	.type	pr_syscall_data,		@object
 	.type	kernel_cr3,				@object
 	.type	task_lock_flag,			@object
 	.type	syscall_vec,			@object
-	.align	16
+	.type	pr_syscall_data_end,	@object
+	.align	4096
+	//		If we ever get around to using SMP, this will allow us to have separate versions of the local storage here for each processor.
+	//		There isn't all that much of it, but it needs to be page-aligned at start and end, so may as well include the syscall pointer vector as well.
+pr_syscall_data:
 syscall_vec:
-	.quad syscall_exit				// 0
-	.quad syscall_sleep				// 1
-	.quad syscall_wait				// 2
-	.quad syscall_fork				// 3
-	.quad syscall_times				// 4
-	.quad syscall_gettimeofday		// 5
-	.quad syscall_sbrk				// 6
-	.quad syscall_open				// 7
-	.quad syscall_close				// 8
-	.quad syscall_read				// 9
-	.quad syscall_write				// 10
-	.quad syscall_link				// 11
-	.quad syscall_lseek				// 12
-	.quad syscall_unlink			// 13
-	.quad syscall_getpid			// 14
-	.quad syscall_fstat				// 15
-	.quad syscall_stat				// 16
-	.quad syscall_fchmod			// 17
-	.quad syscall_chmod				// 18
-	.quad syscall_isatty			// 19
-	.quad syscall_execve			// 20
-	.quad syscall_kill				// 21
-	.quad syscall_mmap				// 22
-	.quad syscall_munmap			// 23
-	.quad syscall_dlpreinit			// 24; ldso-specific
-	.quad syscall_dlinit			// 25; ldso-specific
-	.quad syscall_dlopen			// 26; ldso-specific (exported)
-	.quad syscall_dlclose			// 27; ldso-specific (exported)
-	.quad syscall_dlsym				// 28; ldso-specific (exported)
-	.quad syscall_resolve			// 29; ldso-specific
-	.quad syscall_dlpath			// 30; ldso-specific
-	.quad syscall_dlmap				// 31; ldso-specific
-	.quad syscall_depends			// 32; ldso-specific
-	.quad syscall_dladdr			// 33; ldso-specific (exported)
-	.quad syscall_dlfini			// 34; ldso-specific
-	.quad syscall_sigret			// 35
-	.quad syscall_signal			// 36
-	.quad syscall_raise				// 37
-	.quad syscall_sigprocmask		// 38
-	.quad syscall_mkdir				// 39
-	.quad syscall_opendir			// 40
-	.quad syscall_fdopendir			// 41
-	.quad syscall_closedir			// 42
-	.quad syscall_lstat				// 43
-	.quad syscall_mknod				// 44
-	.quad syscall_mknodat			// 45
-	.quad syscall_vfork				// 46
-	.quad syscall_spawn				// 47
-	.quad syscall_pipe				// 48
-	.quad syscall_getvpwent			// 49
-	.quad syscall_getvpwuid			// 50
-	.quad syscall_getvpwnam			// 51
-	.quad syscall_tlinit			// 52; ldso-specific
-	.quad syscall_tlget				// 53; ldso-specific (exported as __tls_get_addr)
-	.quad syscall_threadexit		// 54
-	.quad syscall_tfork				// 55
-	.quad syscall_tvfork			// 56
-	.quad syscall_getthreadid		// 57
-	.quad syscall_threadjoin		// 58
-	.quad syscall_threaddetach		// 59
-	.quad syscall_fexecve			// 60
-	.quad syscall_fspawn			// 61
-	.quad syscall_getuid			// 62
-	.quad syscall_getgid			// 63
-	.quad syscall_login				// 64
-	.quad syscall_impersonate		// 65
-	.quad syscall_setuid			// 66
-	.quad syscall_setgid			// 67
+	.quad	syscall_exit			// 0
+	.quad	syscall_sleep			// 1
+	.quad	syscall_wait			// 2
+	.quad	syscall_fork			// 3
+	.quad	syscall_times			// 4
+	.quad	syscall_gettimeofday	// 5
+	.quad	syscall_sbrk			// 6
+	.quad	syscall_open			// 7
+	.quad	syscall_close			// 8
+	.quad	syscall_read			// 9
+	.quad	syscall_write			// 10
+	.quad	syscall_link			// 11
+	.quad	syscall_lseek			// 12
+	.quad	syscall_unlink			// 13
+	.quad	syscall_getpid			// 14
+	.quad	syscall_fstat			// 15
+	.quad	syscall_stat			// 16
+	.quad	syscall_fchmod			// 17
+	.quad	syscall_chmod			// 18
+	.quad	syscall_isatty			// 19
+	.quad	syscall_execve			// 20
+	.quad	syscall_kill			// 21
+	.quad	syscall_mmap			// 22
+	.quad	syscall_munmap			// 23
+	.quad	syscall_dlpreinit		// 24; ldso-specific
+	.quad	syscall_dlinit			// 25; ldso-specific
+	.quad	syscall_dlopen			// 26; ldso-specific (exported)
+	.quad	syscall_dlclose			// 27; ldso-specific (exported)
+	.quad	syscall_dlsym			// 28; ldso-specific (exported)
+	.quad	syscall_resolve			// 29; ldso-specific
+	.quad	syscall_dlpath			// 30; ldso-specific
+	.quad	syscall_dlmap			// 31; ldso-specific
+	.quad	syscall_depends			// 32; ldso-specific
+	.quad	syscall_dladdr			// 33; ldso-specific (exported)
+	.quad	syscall_dlfini			// 34; ldso-specific
+	.quad	syscall_sigret			// 35
+	.quad	syscall_signal			// 36
+	.quad	syscall_raise			// 37
+	.quad	syscall_sigprocmask		// 38
+	.quad	syscall_mkdir			// 39
+	.quad	syscall_opendir			// 40
+	.quad	syscall_fdopendir		// 41
+	.quad	syscall_closedir		// 42
+	.quad	syscall_lstat			// 43
+	.quad	syscall_mknod			// 44
+	.quad	syscall_mknodat			// 45
+	.quad	syscall_vfork			// 46
+	.quad	syscall_spawn			// 47
+	.quad	syscall_pipe			// 48
+	.quad	syscall_getvpwent		// 49
+	.quad	syscall_getvpwuid		// 50
+	.quad	syscall_getvpwnam		// 51
+	.quad	syscall_tlinit			// 52; ldso-specific
+	.quad	syscall_tlget			// 53; ldso-specific (exported as __tls_get_addr)
+	.quad	syscall_threadexit		// 54
+	.quad	syscall_tfork			// 55
+	.quad	syscall_tvfork			// 56
+	.quad	syscall_getthreadid		// 57
+	.quad	syscall_threadjoin		// 58
+	.quad	syscall_threaddetach	// 59
+	.quad	syscall_fexecve			// 60
+	.quad	syscall_fspawn			// 61
+	.quad	syscall_getuid			// 62
+	.quad	syscall_getgid			// 63
+	.quad	syscall_login			// 64
+	.quad	syscall_impersonate		// 65
+	.quad	syscall_escalate		// 66
+	.quad	syscall_urevert			// 67
+	.quad	syscall_setuid			// 68
+	.quad	syscall_setgid			// 69
 .L_syscv_end:
-	.quad on_invalid_syscall		// handler for out-of-range syscalls
+	.quad	on_invalid_syscall		// handler for out-of-range syscalls
 	.size syscall_vec,				.-syscall_vec
-	.size .L_syscv_end,				.-.L_syscv_end
 	.align	8
-.L_held_pc:
+.Lheld_pc:
 	.quad	0
-	.size	.L_held_pc,				.-.L_held_pc
 	.align	8
-.L_held_rbx:
+.Lheld_rbx:
 	.quad	0
-	.size	.L_held_rbx,			.-.L_held_rbx
 	.align	8
-.L_held_rax:
+.Lheld_rax:
 	.quad	0
-	.size	.L_held_rax,			.-.L_held_rax
 	.align	8
-.L_held_rdx:
+.Lheld_rdx:
 	.quad	0
-	.size	.L_held_rdx,			.-.L_held_rdx
 	.align	8
-.L_pre_timestamp:
-.L_pre_timestamp_lo:
+.Lpre_timestamp:
+.Lpre_timestamp_lo:
 	.zero	4
-	.size	.L_pre_timestamp_lo,	.-.L_pre_timestamp_lo
-.L_pre_timestamp_hi:
+.Lpre_timestamp_hi:
 	.zero	4
-	.size	.L_pre_timestamp_hi,	.-.L_pre_timestamp_hi
-	.size	.L_pre_timestamp,		.-.L_pre_timestamp
 	.align	8
-.L_post_timestamp:
-.L_post_timestamp_lo:
+.Lpost_timestamp:
+.Lpost_timestamp_lo:
 	.zero	4
-	.size	.L_post_timestamp_lo,	.-.L_post_timestamp_lo
-.L_post_timestamp_hi:
+.Lpost_timestamp_hi:
 	.zero	4
-	.size	.L_post_timestamp_hi,	.-.L_post_timestamp_hi
-task_lock_flag:
-	.byte	0
-	.size	task_lock_flag,			.-task_lock_flag
+	.align	4096
+pr_syscall_data_end:
+	.size	pr_syscall_data_end,	0
+	.size	pr_syscall_data,		.-pr_syscall_data
 	.text
 do_syscall:
-	movb	$1,						task_lock_flag
-	xchgq	%rbx,					.L_held_rbx
+	lock	orb	$1,					task_lock_flag
+	xchgq	%rbx,					.Lheld_rbx
 	movq	kernel_cr3,				%rbx
 	movq	%rbx,					%cr3
-	xorq	%rbx,					%rbx
-	xchgq	%rbx,					.L_held_rbx
+	xchgq	%rbx,					.Lheld_rbx
 	syscall_state_save
 	movq	%gs:T_OFFS(self),		%rcx
 	swapgs
@@ -309,51 +312,46 @@ do_syscall:
 	jg		2f
 	movq	(%rax),					%rax
 	//		Inconveniently, we can't choose where the RDTSC instruction places its result
-	xchgq	%rax,					.L_held_rax
-	xchgq	%rdx,					.L_held_rdx
+	xchgq	%rax,					.Lheld_rax
+	xchgq	%rdx,					.Lheld_rdx
 	//		Using MFENCE -> LFENCE -> RDTSC -> LFENCE is a DWIS sequence that guarantees the ordering of RDTSC between the preceding and following operations
 	mfence
 	lfence
 	rdtsc
 	lfence
 	//		The result here will be subtracted from the value measured afterward to compute the addend for the task's timer
-	movl	%eax,					.L_pre_timestamp_lo
-	movl	%edx,					.L_pre_timestamp_hi
-	xorq	%rax,					%rax
-	xorq	%rdx,					%rdx
-	xchgq	%rax,					.L_held_rax
-	xchgq	%rdx,					.L_held_rdx
+	movl	%eax,					.Lpre_timestamp_lo
+	movl	%edx,					.Lpre_timestamp_hi
+	xchgq	%rax,					.Lheld_rax
+	xchgq	%rdx,					.Lheld_rdx
 	pushf
 	sti
 1:
 	call	*%rax
 user_reentry:
 	popf
-	xchgq	%rax,					.L_held_rax
-	xchgq	%rdx,					.L_held_rdx
+	xchgq	%rax,					.Lheld_rax
+	xchgq	%rdx,					.Lheld_rdx
 	mfence
 	lfence
 	rdtsc
 	lfence
-	movl	%eax,					.L_post_timestamp_lo
-	movl	%edx,					.L_post_timestamp_hi
-	movq	.L_pre_timestamp,		%rdx
-	movq	.L_post_timestamp,		%rax
+	movl	%eax,					.Lpost_timestamp_lo
+	movl	%edx,					.Lpost_timestamp_hi
+	movq	.Lpre_timestamp,		%rdx
+	movq	.Lpost_timestamp,		%rax
 	subq	%rdx,					%rax
 	addq	%rax,					%gs:T_OFFS(sys_time)
-	xorq	%rax,					%rax
-	xorq	%rdx,					%rdx
-	xchgq	%rax,					.L_held_rax
-	xchgq	%rdx,					.L_held_rdx
+	xchgq	%rax,					.Lheld_rax
+	xchgq	%rdx,					.Lheld_rdx
 	fxsave	%gs:T_OFFS(fxsv)
 	swapgs
 	syscall_state_restore
-	xchgq	%rcx,					.L_held_pc
+	xchgq	%rcx,					.Lheld_pc
 	movq	%gs:T_OFFS(cr3),		%rcx
 	movq	%rcx,					%cr3
-	xorq	%rcx,					%rcx
-	xchgq	%rcx,					.L_held_pc
-	movb	$0,						task_lock_flag
+	xchgq	%rcx,					.Lheld_pc
+	lock 	andb	$0,				task_lock_flag
 	sysretq
 	.size	user_reentry,			.-user_reentry
 2:

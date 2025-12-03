@@ -16,7 +16,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
 #include <errno.h>
 #ifndef __set_errno
 #define __set_errno(val) errno = val
@@ -28,10 +27,9 @@
 #if defined(__GLIBC__) && defined(_LIBC)
 #define __SKIP_GNU
 #endif
-#include "ow-crypt.h"
-
-#include "crypt_blowfish.h"
-#include "crypt_gensalt.h"
+#include <ow-crypt.h>
+#include <crypt_blowfish.h>
+#include <crypt_gensalt.h>
 
 static int _crypt_data_alloc(void **data, int *size, int need)
 {

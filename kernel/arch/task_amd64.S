@@ -3,43 +3,43 @@
 // Most of the low-level task and scheduling related code (especially state save/load for task changes) lives here.
 // The syscall dispatcher entry point is in syscall_amd64.S, under syscalls.
 	.code64
+	.global		fallthrough_reentry
+	.global		task_change
+	.global		user_entry
+	.global		kernel_reentry
+	.global		enable_fs_gs_insns
+	.global		set_task_signal
+	.global		worker_exit
+	.global		worker_return
+	.global		start_worker
+	.extern		force_signal
+	.extern		worker_add
+	.extern		worker_finish
+	.extern		task_signal_code
+	.extern		kernel_isr_stack_top
+	.extern		kernel_cr3
+	.extern		kproc
+	.type		fallthrough_reentry,	@function
+	.type		task_change,			@function
+	.type		user_entry,				@function
+	.type		kernel_reentry,			@function
+	.type		enable_fs_gs_insns,		@function
+	.type		set_task_signal,		@function
+	.type		worker_exit,			@function
+	.type		worker_return,			@function
+	.type		start_worker,			@function
+	.type		force_signal,			@function
+	.type		worker_add,				@function
+	.type		worker_finish,			@function
+	.type		task_signal_code,		@object
+	.type		kernel_isr_stack_top,	@object
+	.type		kernel_cr3,				@object
+	.type		kproc,					@object
 	.text
-	.global	fallthrough_reentry
-	.global	task_change
-	.global	user_entry
-	.global	kernel_reentry
-	.global	enable_fs_gs_insns
-	.global	set_task_signal
-	.extern	force_signal
-	.global	worker_exit
-	.global	worker_return
-	.extern worker_finish
-	.global	start_worker
-	.extern worker_add
-	.extern	task_signal_code
-	.extern	kernel_isr_stack_top
-	.extern	kernel_cr3
-	.extern kproc
-	.type	fallthrough_reentry,	@function
-	.type	task_change,			@function
-	.type	user_entry,				@function
-	.type	kernel_reentry,			@function
-	.type	enable_fs_gs_insns,		@function
-	.type	set_task_signal,		@function
-	.type	force_signal,			@function
-	.type	worker_exit,			@function
-	.type	worker_return,			@function
-	.type	start_worker,			@function
-	.type	worker_add,				@function
-	.type	worker_finish,			@function
-	.type	task_signal_code,		@object
-	.type	kernel_isr_stack_top,	@object
-	.type	kernel_cr3,				@object
-	.type	kproc,					@function
 fallthrough_reentry:
-	movq	%rdi,					%gs:T_OFFS(next)
-	movq	$kernel_isr_stack_top,	%rsp
-	jmp		1f
+	movq		%rdi,					%gs:T_OFFS(next)
+	movq		$kernel_isr_stack_top,	%rsp
+	jmp			1f
 task_change:
 	isr_stack_save
 	base_state_save

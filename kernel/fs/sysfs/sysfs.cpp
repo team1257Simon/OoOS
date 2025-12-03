@@ -1,5 +1,5 @@
-#include "fs/sysfs.hpp"
-#include "stdexcept"
+#include <fs/sysfs.hpp>
+#include <stdexcept>
 static bool verify_dirent_csum(sysfs_dir_entry const& ent) { return ent.checksum == crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(std::addressof(ent)), offsetof(sysfs_dir_entry, checksum)); }
 sysfs_index_file& sysfs::__index() { return *reinterpret_cast<sysfs_index_file*>(__index_file.data()); }
 sysfs_directory_file& sysfs::__dir() { return *reinterpret_cast<sysfs_directory_file*>(__directory_file.data()); }

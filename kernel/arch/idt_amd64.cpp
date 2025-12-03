@@ -1,12 +1,12 @@
-#include "libk_decls.h"
-#include "arch/idt_amd64.h"
-#include "arch/apic.hpp"
-#include "unordered_map"
-#include "isr_table.hpp"
-#include "kernel_mm.hpp"
-#include "array"
-#include "string"
-#include "stdlib.h"
+#include <libk_decls.h>
+#include <arch/idt_amd64.h>
+#include <arch/apic.hpp>
+#include <unordered_map>
+#include <isr_table.hpp>
+#include <kernel_mm.hpp>
+#include <array>
+#include <string>
+#include <stdlib.h>
 std::array<std::unordered_map<void*, ooos::isr_actor>, 16UZ> __managed_handlers{};
 std::array<std::vector<irq_callback>, 16UZ> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
@@ -79,7 +79,7 @@ inline void pic_eoi(byte irq)
 extern "C"
 {
     extern uint64_t ecode;
-    extern void* isr_table[256];
+    extern void* const isr_table[256];
     extern idt_entry_t idt_table[256];
     extern void no_waiting_op();
     extern void (*callback_8)();
@@ -131,7 +131,6 @@ extern "C"
             kfx_load();
             kernel_memory_mgr::resume_user_frame();
         }
-        // Other stuff as needed
     }
     void idt_init()
     {

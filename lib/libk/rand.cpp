@@ -1,5 +1,5 @@
-#include "stdlib.h"
-#include "kernel/libk_decls.h"
+#include <stdlib.h>
+#include <libk_decls.h>
 /* Pseudo-random generator based on Minimal Standard by
 	 Lewis, Goodman, and Miller in 1969.
 	 I[j+1] = a*I[j] (mod m)

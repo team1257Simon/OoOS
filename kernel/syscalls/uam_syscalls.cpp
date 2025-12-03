@@ -10,12 +10,13 @@ extern "C"
 			pass					= translate_user_pointer(pass);
 			if(__unlikely(!pass)) return static_cast<uid_t>(-EFAULT);
 			std::string pstr(pass);
-			if(!target->check_pw(pstr)) return static_cast<uid_t>(-EPERM);
+			if(!target->check_pw(pstr)) return static_cast<uid_t>(-EACCES);
 		}
-		uid_t uid 					= target->uid;
-		gid_t gid					= target->gid;
-		task->euid(uid);
-		task->egid(gid);
+		uid_t uid 							= target->uid;
+		gid_t gid							= target->gid;
+		task->impersonate					= true;
+		task->imp_uid						= uid;
+		task->imp_gid						= gid;
 		task->task_struct.saved_regs.rdx	= static_cast<register_t>(gid);
 		return uid;
 	}
@@ -100,5 +101,40 @@ extern "C"
 		}
 		catch(std::out_of_range& e) { panic(e.what()); return static_cast<uid_t>(-EINVAL); }
 		catch(std::bad_alloc&) { return static_cast<uid_t>(-ENOMEM); }
+	}
+	uid_t syscall_urevert()
+	{
+		task_ctx* task						= active_task_context();
+		if(__unlikely(!task)) return static_cast<uid_t>(-ENOSYS);
+		task->impersonate					= false;
+		task->imp_uid						= uid_undef;
+		task->imp_gid						= gid_undef;
+		task->task_struct.saved_regs.rdx	= static_cast<register_t>(task->gid());
+		return task->uid();
+	}
+	int syscall_escalate(const char* pass)
+	{
+		task_ctx* task					= active_task_context();
+		if(__unlikely(!task || !user_accounts_manager::is_initialized())) return -ENOSYS;
+		pass							= translate_user_pointer(pass);
+		if(__unlikely(!pass)) return -EFAULT;
+		try
+		{
+			std::string pstr(pass);
+			user_accounts_manager& inst	= *user_accounts_manager::get_instance();
+			user_handle current			= inst.get_user(task->uid());
+			permission_flag cperms		= current->capabilities.system_permissions;
+			if(__unlikely(!(cperms & escalate_process))) return -EPERM;
+			if(current->check_pw(pstr))
+			{
+				task->impersonate		= true;
+				task->imp_uid			= root_uid;
+				task->imp_gid			= root_gid;
+				return 0;
+			}
+			return -EACCES;
+		}
+		catch(std::out_of_range& e) { panic(e.what()); return -EINVAL; }
+		catch(std::bad_alloc&) { return -ENOMEM; }
 	}
 }

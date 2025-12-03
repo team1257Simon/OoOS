@@ -12,10 +12,10 @@
  * All checksums are calculated as crc32c(~0, object) with the computation stopping just before the checksum field.
  * Eventually, I might expand sysfs to support a sort-of registry that applications and drivers can also use.
  */
-#include "fs/fs.hpp"
-#include "sys/errno.h"
-#include "typeindex"
-#include "unordered_map"
+#include <fs/fs.hpp>
+#include <sys/errno.h>
+#include <typeindex>
+#include <unordered_map>
 // This template declaration is long enough that using a macro saves a significant amount of space.
 #define sysfs_htbl_template template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
 constexpr uint32_t sysfs_magic                  = 0xA11C0DED;

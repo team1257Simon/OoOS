@@ -1,9 +1,8 @@
-#include "arch/net/e1000e.hpp"
-#include "isr_table.hpp"
-#include "functional"
-#include "stdexcept"
-#include "errno.h"
-#include "kdebug.hpp"
+#include <arch/net/e1000e.hpp>
+#include <isr_table.hpp>
+#include <functional>
+#include <stdexcept>
+#include <errno.h>
 constexpr uint32_t all_ints	= 0x1F6DCU;
 constexpr int rxbase_hi		= e1000_rdbah(0);
 constexpr int rxbase_lo		= e1000_rdbal(0);
@@ -119,7 +118,7 @@ bool e1000e::write_io(int reg_id, uint32_t const& w_in)
 void e1000e::read_dma(int reg_id, uint32_t& r_out)
 {
 	addr_t where	= __mmio_region.plus(reg_id);
-	if(__unlikely(where.full % 4UL)) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
+	if(where.full % 4UL) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
 	r_out			= where.deref<uint32_t>();
 	fence();
 }
@@ -132,7 +131,7 @@ uint32_t e1000e::read_dma(int reg_id)
 void e1000e::write_dma(int reg_id, uint32_t const& w_in)
 {
 	addr_t where	= __mmio_region.plus(reg_id);
-	if(__unlikely(where.full % 4UL)) throw std::invalid_argument{ "[e1000e] dma access must be on dword boundary" };
+	if(where.full % 4UL) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
 	where.assign(w_in);
 	fence();
 }
@@ -142,7 +141,7 @@ bool e1000e::__mdio_await(mdic& mdic_reg)
 	{
 		io_wait();
 		read_dma(e1000_mdic, mdic_reg);
-		if(mdic_reg->error) throw std::runtime_error{ "[e1000e] MDIC read error" };
+		if(mdic_reg->error) throw std::runtime_error("[e1000e] MDIC read error");
 		return mdic_reg->ready;
 	});
 }
@@ -249,7 +248,7 @@ bool e1000e::configure_mac_phy(dev_status& st)
 	ctl->set_link_up    = true;
 	write_dma(e1000_ctrl, ctl);
 	if(await_result([&st, this]() -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
-	panic("[NET/e1000e] device hung on link-up signal");
+	panic("[e1000e] device hung on link-up signal");
 	return false;
 }
 bool e1000e::configure_tx(dev_status& st)

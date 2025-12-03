@@ -19,7 +19,6 @@
  */
 
 #include <string.h>
-
 #include <errno.h>
 #ifndef __set_errno
 #define __set_errno(val) errno = val

@@ -1,5 +1,5 @@
-#include "arch/pci_device_list.hpp"
-#include "string"
+#include <arch/pci_device_list.hpp>
+#include <string>
 pci_device_list pci_device_list::__instance{};
 constexpr static pci_config_space* check_valid(pci_config_space* ptr) { return ptr->vendor_id != 0xFFFFUS ? ptr : nullptr; }
 pci_config_table* find_pci_config() { return static_cast<pci_config_table*>(find_system_table("MCFG")); }

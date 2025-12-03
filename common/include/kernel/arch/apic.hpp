@@ -1,6 +1,6 @@
 #ifndef __APIC
 #define __APIC
-#include "arch/arch_amd64.h"
+#include <arch/arch_amd64.h>
 struct attribute(packed, aligned(16)) apic_reg
 {
 	uint32_t value;

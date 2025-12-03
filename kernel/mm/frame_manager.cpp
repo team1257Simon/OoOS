@@ -1,6 +1,6 @@
-#include "frame_manager.hpp"
-#include "stdexcept"
-#include "stdlib.h"
+#include <frame_manager.hpp>
+#include <stdexcept>
+#include <stdlib.h>
 frame_manager frame_manager::__instance{};
 frame_manager::frame_manager() : __global_shared_blocks(128), __local_shared_blocks(128) {}
 frame_manager& frame_manager::get() { return __instance; }

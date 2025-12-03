@@ -1,7 +1,7 @@
 #ifndef __STL_ITERATOR
 #define __STL_ITERATOR
-#include "bits/iterator_concepts.hpp"
-#include "compare"
+#include <bits/iterator_concepts.hpp>
+#include <compare>
 namespace std
 {
 	struct input_iterator_tag {};

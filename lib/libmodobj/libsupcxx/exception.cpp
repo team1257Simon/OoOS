@@ -24,10 +24,10 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "atomic"
-#include "bits/cxxabi.h"
-#include "bits/dwarf_eh.h"
-#include "bits/typeinfo.h"
+#include <atomic>
+#include <bits/cxxabi.h>
+#include <bits/dwarf_eh.h>
+#include <bits/typeinfo.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,10 +1,10 @@
 #ifndef __ALGORITHM
 #define __ALGORITHM
-#include "bits/stl_algobase.hpp"
-#include "bits/functional_compare.hpp"
-#include "string"
-#include "vector"
-#include "compare"
+#include <bits/stl_algobase.hpp>
+#include <bits/functional_compare.hpp>
+#include <string>
+#include <vector>
+#include <compare>
 namespace std
 {
 	namespace ext

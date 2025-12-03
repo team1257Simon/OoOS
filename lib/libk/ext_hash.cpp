@@ -1,5 +1,5 @@
-#include "kernel/libk_decls.h"
-#include "bits/functional_hash.hpp"
+#include <libk_decls.h>
+#include <bits/functional_hash.hpp>
 struct hash_buffer { uint32_t dword_buf[8]; };
 typedef void (*hash_round_fn)(hash_buffer& buf, const hash_buffer& in);
 constexpr uint32_t K1	= 0;

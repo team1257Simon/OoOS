@@ -1,4 +1,4 @@
-#include "gdtoa.h"
+#include <gdtoa.h>
 char*				__ldtoa(long double* ld, int mode, int ndigits, int* decpt, int* sign, char** rve)
 {
 	fpi				fpi	= { 64, -16445, 16320, 1, 0 };

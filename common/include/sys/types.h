@@ -4,8 +4,8 @@
 #include <kernel/kernel_defs.h>
 typedef addr_t caddr_t;
 #else
-#include "stdint.h"
-#include "stddef.h"
+#include <stdint.h>
+#include <stddef.h>
 typedef void* caddr_t;
 #endif
 typedef long ssize_t;

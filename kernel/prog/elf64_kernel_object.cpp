@@ -1,5 +1,5 @@
-#include "elf64_kernel_object.hpp"
-#include "stdlib.h"
+#include <elf64_kernel_object.hpp>
+#include <stdlib.h>	// abort()
 using ooos::abstract_module_base;
 using ooos::module_takedown;
 uframe_tag* elf64_kernel_object::get_frame() const { return nullptr; }

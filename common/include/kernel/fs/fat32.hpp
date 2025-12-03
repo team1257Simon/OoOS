@@ -1,8 +1,8 @@
 #ifndef __FS_FAT32
 #define __FS_FAT32
-#include "kernel/fs/fs.hpp"
-#include "map"
-#include "sys/time.h"
+#include <kernel/fs/fs.hpp>
+#include <map>
+#include <sys/time.h>
 constexpr uint16_t fat_year_base		= 1980U;
 constexpr uint32_t fsinfo_magic			= 0x41615252U;	// Alex was killed by magic
 constexpr uint32_t fsinfo_more_magic	= 0x61417272U;	// Steve was killed by more magic

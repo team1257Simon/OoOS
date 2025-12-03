@@ -1,8 +1,8 @@
 #ifndef __CPU_TSC
 #define __CPU_TSC
-#include "sys/types.h"
-#include "tuple"
-#include "functional"
+#include <sys/types.h>
+#include <tuple>
+#include <functional>
 struct cpu_timer_info
 {
 	time_t tsc_ratio_numerator;

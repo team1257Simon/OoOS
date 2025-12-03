@@ -1,4 +1,4 @@
-#include "fs/simplex_pipe.hpp"
+#include <fs/simplex_pipe.hpp>
 void simplex_pipe::on_modify_queue() { __trim_stale(); sync(); }
 simplex_pipe::simplex_pipe() : __base(4096UZ, std::allocator<char>()) { __set_stale_op_threshold(2U); __set_stale_size_threshold(256L); }
 simplex_pipe::size_type simplex_pipe::size() const { return __qcapacity(); }

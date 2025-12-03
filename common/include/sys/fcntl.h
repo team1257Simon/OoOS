@@ -17,9 +17,7 @@
 #define	_FNONBLOCK	0x4000	/* non blocking I/O (POSIX style) */
 #define	_FNDELAY	_FNONBLOCK	/* non blocking I/O (4.2 style) */
 #define	_FNOCTTY	0x8000	/* don't assign a ctty on this open */
-
 #define	O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
-
 /*
  * Flag values for open(2) and fcntl(2)
  * The kernel adds 1 to the open modes to turn it into some
@@ -46,7 +44,6 @@
 #define	FNBIO		_FNBIO
 #define	FNONBIO		_FNONBLOCK	/* XXX fix to be NONBLOCK everywhere */
 #define	FNDELAY		_FNDELAY
-
 /*
  * Flags that are disallowed for fcntl's (FCNTLCANT);
  * used for opens, internal state, or locking.
@@ -57,7 +54,6 @@
 #define	FDEFER		_FDEFER
 #define	FSHLOCK		_FSHLOCK
 #define	FEXLOCK		_FEXLOCK
-
 /*
  * The rest of the flags, used only for opens
  */

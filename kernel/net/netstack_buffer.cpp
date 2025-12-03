@@ -1,6 +1,6 @@
-#include "net/netstack_buffer.hpp"
-#include "net/protocol/ipv4.hpp"
-#include "stdexcept"
+#include <net/netstack_buffer.hpp>
+#include <net/protocol/ipv4.hpp>
+#include <stdexcept>
 net16 netstack_buffer::rx_packet_type() const { return reinterpret_cast<ethernet_header const*>(__in_region.__begin)->protocol_type; }
 size_t netstack_buffer::ipv4_size() const { return reinterpret_cast<ipv4_standard_header const*>(__in_region.__begin)->total_length; }
 int netstack_buffer::tx_flush()
@@ -13,7 +13,7 @@ int netstack_buffer::tx_flush()
 }
 int netstack_buffer::rx_flush()
 {
-	if(rx_poll) { if(int err = rx_poll(*this); __unlikely(err != 0)) return err; }
+	if(rx_poll) if(int err = rx_poll(*this); __unlikely(err != 0)) return err;
 	fence();
 	if(__in_region.__capacity() > rx_limit) size(rx_limit, std::ios_base::in);
 	array_zero(__in_region.__begin, __in_region.__capacity());

@@ -1,7 +1,7 @@
 #define DHCP_INST
-#include "net/protocol/dhcp.hpp"
-#include "sys/errno.h"
-#include "stdlib.h" // rand()
+#include <net/protocol/dhcp.hpp>
+#include <sys/errno.h>
+#include <stdlib.h> // rand()
 constexpr static std::allocator<net16> udp_pseudo_alloc;
 constexpr const char must_decline_msg[] = "That address is already in use by another client.";
 template<> template<> abstract_packet<dhcp_packet>::abstract_packet(udp_header&& that) : abstract_packet(static_cast<size_t>(that.total_length), std::in_place_type<dhcp_packet>, std::move(that)) {}

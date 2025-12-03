@@ -1,4 +1,4 @@
-#include "gdtoa.h"
+#include <gdtoa.h>
 static big_int* freelist[9 + 1];
 static double	private_mem[((2304 + sizeof(double) - 1) / sizeof(double))], *pmem_next = private_mem;
 big_int*		__balloc_d2a(int k)

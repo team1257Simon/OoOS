@@ -1,7 +1,7 @@
 #ifndef __FUNCTIONAL_HASH
 #define __FUNCTIONAL_HASH
-#include "bits/move.h"
-#include "string"
+#include <bits/move.h>
+#include <string>
 namespace std
 {
 	extension struct elf64_hash { constexpr uint64_t operator()(const void* data, size_t n) const noexcept { uint64_t h = 0UL; for(size_t i = 0UZ; i < n; i++) { h = (h << 4) + static_cast<uint8_t const*>(data)[i]; if (uint64_t g = (h & 0xF0000000)) { h ^= g >> 24; h &= ~g; } } return h; } };

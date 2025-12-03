@@ -1,5 +1,5 @@
-#include "stdio.h"
-#include "stdarg.h"
+#include <stdio.h>
+#include <stdarg.h>
 extern size_t kvfprintf(FILE* fd, const char* fmt, va_list args);
 extern size_t kvsprintf(char* restrict buffer, const char* restrict fmt, va_list args);
 extern size_t kvsnprintf(char* restrict buffer, size_t n, const char* restrict fmt, va_list args);

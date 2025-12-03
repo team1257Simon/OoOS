@@ -26,7 +26,7 @@
 #ifndef __TYPEINFO_H
 #define __TYPEINFO_H
 #include <stddef.h>
-#include "bits/abi_namespace.h"
+#include <bits/abi_namespace.h>
 namespace ABI_NAMESPACE { struct __class_type_info; }
 namespace std
 {

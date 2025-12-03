@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "typeinfo"
+#include <typeinfo>
 #include <stdlib.h>
 #include <string.h>
 using std::type_info;

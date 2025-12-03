@@ -1,6 +1,6 @@
 #ifndef __STL_QUEUE
 #define __STL_QUEUE
-#include "bits/dynamic_queue.hpp"
+#include <bits/dynamic_queue.hpp>
 namespace std
 {
 	extension namespace ext

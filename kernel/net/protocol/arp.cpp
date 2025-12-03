@@ -1,7 +1,7 @@
 #define ARP_INST
-#include "net/protocol/arp.hpp"
-#include "sys/errno.h"
-#include "arch/hpet_amd64.hpp"
+#include <net/protocol/arp.hpp>
+#include <sys/errno.h>
+#include <arch/hpet_amd64.hpp>
 template class abstract_packet<arpv4_packet>;
 template abstract_packet<arpv4_packet>::abstract_packet();
 template abstract_packet<arpv4_packet>::abstract_packet(ethernet_header const&);

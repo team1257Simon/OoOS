@@ -13,7 +13,7 @@ bool kthread_ptr::is_blocking() const noexcept
 		return thread_ptr->ctl_info.park;
 	else return task_ptr->task_ctl.block;
 }
-void kthread_ptr::add_wait_ticks(uint32_t ticks) const noexcept
+void kthread_ptr::add_wait_ticks(clock_t ticks) const noexcept
 {
 	if(thread_ptr)
 		thread_ptr->ctl_info.wait_time_delta	+= ticks;
@@ -25,10 +25,10 @@ void kthread_ptr::wait_tick() const noexcept
 		thread_ptr->ctl_info.wait_time_delta--;
 	else task_ptr->task_ctl.wait_ticks_delta--;
 }
-unsigned int kthread_ptr::get_wait_delta() const noexcept
+clock_t kthread_ptr::get_wait_delta() const noexcept
 {
 	if(thread_ptr)
-		return static_cast<unsigned int>(thread_ptr->ctl_info.wait_time_delta);
+		return thread_ptr->ctl_info.wait_time_delta;
 	else return task_ptr->task_ctl.wait_ticks_delta;
 }
 void kthread_ptr::activate() const noexcept
@@ -71,7 +71,7 @@ void kthread_ptr::clear_blocking() const noexcept
 		thread_ptr->ctl_info.non_timed_park		= false;
 	}
 }
-void kthread_ptr::set_wait_delta(uint32_t ticks) const noexcept
+void kthread_ptr::set_wait_delta(clock_t ticks) const noexcept
 {
 	if(thread_ptr) {
 		thread_ptr->ctl_info.wait_time_delta	= ticks;

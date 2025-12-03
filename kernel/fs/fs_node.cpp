@@ -1,5 +1,5 @@
-#include "fs/fs.hpp"
-#include "rtc.h"
+#include <fs/fs.hpp>
+#include <rtc.h>
 vnode::vnode(std::string const& name, int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name(name) {}
 vnode::vnode(int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name() {}
 int vnode::vid() const noexcept { return fd; }

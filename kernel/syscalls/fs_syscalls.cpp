@@ -1,22 +1,28 @@
-#include "fs/fs.hpp"
-#include "sched/task_ctx.hpp"
-#include "stdexcept"
-#include "errno.h"
-#include "kdebug.hpp"
+#include <fs/fs.hpp>
+#include <sched/task_ctx.hpp>
+#include <stdexcept>
+#include <errno.h>
 typedef std::map<int, posix_directory>::iterator pdir_it;
 static inline timespec timestamp_to_timespec(time_t ts) { return timespec(ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L); }
 static inline pdir_it __open_pdir(task_ctx* task, directory_vnode* dir, int fd) { return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first; }
+static inline std::pair<uid_t, gid_t> active_user()
+{
+	task_ctx* task	= active_task_context();
+	if(__unlikely(!task)) return std::pair(0U, 0U);
+	return std::pair(task->euid(), task->egid());
+}
 static inline void __stat_init(vnode* n, filesystem* fsptr, stat* st)
 {
-	size_t bs = fsptr->block_size();
+	std::pair<uid_t, gid_t> user	= active_user();
+	size_t bs						= fsptr->block_size();
 	new(st) stat
 	{
 		.st_dev		= fsptr->get_dev_id(),
 		.st_ino		= n->cid(),
 		.st_mode	= n->mode,
 		.st_nlink	= n->num_refs(),
-		.st_uid		= 0U,	// WIP
-		.st_gid		= 0U,	// WIP
+		.st_uid		= user.first,
+		.st_gid		= user.second,
 		.st_rdev	= n->is_device() ? dynamic_cast<device_vnode*>(n)->get_device_id() : 0U,
 		.st_size	= static_cast<long>(n->size()),
 		.st_atim	= timestamp_to_timespec(n->create_time),
@@ -60,7 +66,7 @@ extern "C"
 		catch(std::domain_error& e)		{ panic(e.what()); return -ENOLCK; }
 		catch(std::runtime_error& e)	{ panic(e.what()); return -ENOSPC; }
 		catch(std::exception& e)		{ panic(e.what()); return -ENOMEM; }
-		return -EINVAL;
+		return -EIO;
 	}
 	int syscall_close(int fd)
 	{
@@ -87,7 +93,7 @@ extern "C"
 			{
 				if(__unlikely(!n->current_mode.out)) return -EACCES;
 				n->write(ptr, len);
-				n->fsync();
+				if(__unlikely(!n->fsync())) return -EIO;
 				return 0;
 			}
 			else return -EBADF;
@@ -109,11 +115,12 @@ extern "C"
 		if(__unlikely(!ptr)) return -EFAULT;
 		try
 		{
-			file_vnode* n	= get_by_fd(fsptr, active_task_context(), fd);
+			file_vnode* n		= get_by_fd(fsptr, active_task_context(), fd);
 			if(n)
 			{
 				if(!n->current_mode.in) return -EACCES;
-				n->read(ptr, len);
+				size_t result	= n->read(ptr, len);
+				if(__unlikely(len && !result)) return -EIO;
 				return 0;
 			}
 			else return -EBADF;

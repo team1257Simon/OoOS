@@ -1,6 +1,6 @@
 #ifndef __TYPE_INFO
 #define __TYPE_INFO
-#include "bits/typeinfo.h"
-#include "bits/stdexcept.h"
+#include <bits/typeinfo.h>
+#include <bits/stdexcept.h>
 extension namespace std::ext { string demangle(type_info const&); }
 #endif

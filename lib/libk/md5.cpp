@@ -1,6 +1,6 @@
-#include "kernel/md5.hpp"
-#include "kernel/libk_decls.h"
-#include "bits/stl_allocator.h"
+#include <md5.hpp>
+#include <libk_decls.h>
+#include <bits/stl_allocator.h>
 __int128_t md5_hash(const void* input, size_t len);
 void md5_step(uint32_t* buffer, uint32_t* input);
 __int128_t md5::operator()(const void* input, size_t len) const noexcept { return md5_hash(input, len); }

@@ -1,6 +1,6 @@
-#include "elf64_exec.hpp"
-#include "frame_manager.hpp"
-#include "stdexcept"
+#include <elf64_exec.hpp>
+#include <frame_manager.hpp>
+#include <stdexcept>
 static std::allocator<program_segment_descriptor> sd_alloc{};
 constexpr static size_t min_blk_sz = S04;
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return program_descriptor; }
@@ -15,7 +15,7 @@ elf64_executable::elf64_executable(addr_t start, size_t size, size_t stack_sz) :
 	frame_base			{ nullptr },
 	frame_extent		{ nullptr },
 	stack_base			{ nullptr },
-	entry				( ehdr().e_entry ),
+	entry				{ ehdr().e_entry },
 	frame_tag			{ nullptr },
 	program_descriptor	{}
 						{}
@@ -24,7 +24,7 @@ elf64_executable::elf64_executable(file_vnode*n, size_t stack_sz) : elf64_object
 	frame_base			{ nullptr },
 	frame_extent		{ nullptr },
 	stack_base			{ nullptr },
-	entry				( ehdr().e_entry ),
+	entry				{ ehdr().e_entry },
 	frame_tag			{ nullptr },
 	program_descriptor	{}
 						{}

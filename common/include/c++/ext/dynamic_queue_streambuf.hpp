@@ -1,8 +1,8 @@
 #ifndef __GENERIC_BINARY_BUFFER
 #define __GENERIC_BINARY_BUFFER
-#include "bits/dynamic_queue.hpp"
-#include "bits/char_traits.hpp"
-#include "bits/basic_streambuf.hpp"
+#include <bits/dynamic_queue.hpp>
+#include <bits/char_traits.hpp>
+#include <bits/basic_streambuf.hpp>
 namespace std
 {
 	namespace ext

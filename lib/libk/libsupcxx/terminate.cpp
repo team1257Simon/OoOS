@@ -23,6 +23,6 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "kernel/libk_decls.h"
+#include <libk_decls.h>
 #include <stdlib.h>
 namespace std { attribute(weak) void terminate() { abort(); } /** Stub implementation of std::terminate. Used when the STL implementation doesn't provide one. */ } // namespace std

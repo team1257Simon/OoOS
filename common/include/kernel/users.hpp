@@ -9,6 +9,8 @@ constexpr size_t username_max_len					= 32UZ;
 constexpr size_t crypto_setting_len					= 29UZ;
 constexpr size_t crypto_hash_len					= 31UZ;
 constexpr size_t user_groups_array_len				= 23UZ;
+constexpr uid_t root_uid							= 0U;
+constexpr gid_t root_gid							= 0U;
 constexpr gid_t end_of_list							= static_cast<gid_t>(-1);
 constexpr permission_flag create_delete_group		= 0x1U;
 constexpr permission_flag create_delete_user		= 0x2U;
@@ -22,7 +24,7 @@ constexpr permission_flag change_directory_modes	= 0x100U;
 constexpr permission_flag install_remove_module		= 0x200U;
 constexpr permission_flag start_stop_daemon			= 0x400U;
 constexpr permission_flag change_setting_defaults	= 0x800U;
-constexpr permission_flag is_service_account		= 0x1000U;
+constexpr permission_flag escalate_process			= 0x1000U;
 constexpr permission_flag impersonate_any_uid		= 0x2000U;
 constexpr permission_flag impersonate_any_gid		= 0x4000U;
 struct __pack user_credentials
@@ -134,6 +136,8 @@ extern "C"
 	gid_t syscall_getgid();											// gid_t getgid();
 	uid_t syscall_login(const char* name, const char* pass);		// login_result login(const char* name, const char* pass);
 	uid_t syscall_impersonate(const char* name, const char* pass);	// login_result impersonate(const char* name, const char* pass);
+	int syscall_escalate(const char* pass);							// int escalate(const char* pass);
+	uid_t syscall_urevert();										// login_result urevert();
 	int syscall_setuid(uid_t id);									// int setuid(uid_t id);
 	int syscall_setgid(gid_t id);									// int setgid(gid_t id);
 }

@@ -2,7 +2,7 @@
 // GCC / glibcxx is under the GPL
 #ifndef __CONCEPTS
 #define __CONCEPTS
-#include "type_traits"
+#include <type_traits>
 namespace std
 {
 	template<typename OT, typename NT> concept convertible_to = is_convertible_v<OT, NT> && requires { static_cast<NT>(std::declval<OT>()); };

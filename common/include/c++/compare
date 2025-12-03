@@ -1,6 +1,6 @@
 #ifndef __COMPARE
 #define __COMPARE
-#include "concepts"
+#include <concepts>
 namespace std
 {
 	namespace __cmp_cat

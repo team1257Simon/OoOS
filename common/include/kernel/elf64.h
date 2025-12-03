@@ -1,13 +1,13 @@
 #ifndef __ELF64
 #define __ELF64
 #ifndef _GCC_STDINT_H
-#include "stdint.h"
+#include <stdint.h>
 #endif
-#include "stddef.h"
+#include <stddef.h>
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #ifdef __cplusplus
-#include "sys/types.h"
+#include <sys/types.h>
 #ifndef __may_alias
 #define __may_alias [[gnu::may_alias]]
 #endif

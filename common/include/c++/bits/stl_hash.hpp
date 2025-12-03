@@ -1,7 +1,7 @@
 #ifndef __STL_HASH
 #define __STL_HASH
-#include "bits/dragon.hpp"
-#include "bits/stl_function.hpp"
+#include <bits/dragon.hpp>
+#include <bits/stl_function.hpp>
 namespace std
 {
 	namespace __detail{ template<typename T> concept __not_char_type = !basic_char_type<T>; };

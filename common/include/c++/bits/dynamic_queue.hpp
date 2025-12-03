@@ -1,12 +1,12 @@
 #ifndef __DYN_QUEUE
 #define __DYN_QUEUE
-#include "memory"
-#include "limits"
-#include "bits/stl_iterator.hpp"
-#include "kernel/libk_decls.h"
-#include "initializer_list"
-#include "bits/stdexcept.h"
-#include "bits/stl_algobase.hpp"
+#include <memory>
+#include <limits>
+#include <bits/stl_iterator.hpp>
+#include <kernel/libk_decls.h>
+#include <initializer_list>
+#include <bits/stdexcept.h>
+#include <bits/stl_algobase.hpp>
 namespace std::__impl
 {
 	template<typename T>

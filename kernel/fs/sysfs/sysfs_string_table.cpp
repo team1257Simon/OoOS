@@ -1,4 +1,4 @@
-#include "fs/sysfs.hpp"
+#include <fs/sysfs.hpp>
 sysfs_string_table::sysfs_string_table(sysfs_vnode& vn) : node(vn) {}
 sysfs_string_table::sysfs_string_table(sysfs& parent, uint32_t ino) : sysfs_string_table(parent.open(ino)) {}
 size_t sysfs_string_table::size() const { return node.range(); }

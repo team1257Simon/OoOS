@@ -1,7 +1,7 @@
-#include "kernel/kernel_mm.hpp"
-#include "new"
-#include "stdexcept"
-#include "atomic"
+#include <kernel_mm.hpp>
+#include <new>
+#include <stdexcept>
+#include <atomic>
 extern "C"
 {
 	kframe_tag* __kernel_frame_tag{};

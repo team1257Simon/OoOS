@@ -1,7 +1,7 @@
 #ifndef __BASIC_STREAMBUF
 #define __BASIC_STREAMBUF
-#include "bits/dynamic_buffer.hpp"
-#include "bits/char_traits.hpp"
+#include <bits/dynamic_buffer.hpp>
+#include <bits/char_traits.hpp>
 namespace std
 {
 	template<std::char_type CT, std::char_traits_type<CT> TT = std::char_traits<CT>>

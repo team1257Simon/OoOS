@@ -1,8 +1,8 @@
 #ifndef __VECTOR
 #define __VECTOR
-#include "bits/stl_iterator.hpp"
-#include "bits/stl_allocator.h"
-#include "bits/dynamic_buffer.hpp"
+#include <bits/stl_iterator.hpp>
+#include <bits/stl_allocator.h>
+#include <bits/dynamic_buffer.hpp>
 namespace std
 {
 	template<typename T, std::allocator_object<T> A = std::allocator<T>>

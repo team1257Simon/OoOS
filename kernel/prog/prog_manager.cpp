@@ -1,5 +1,5 @@
-#include "prog_manager.hpp"
-#include "stdlib.h" // rand(), srand()
+#include <prog_manager.hpp>
+#include <stdlib.h> // rand(), srand()
 static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 prog_manager prog_manager::__instance{};
 prog_manager::prog_manager() : __static_base(), __dynamic_base() {}

@@ -1,8 +1,8 @@
 #ifndef __PIPES
 #define __PIPES
-#include "ext/dynamic_queue_streambuf.hpp"
-#include "unordered_map"
-#include "atomic"
+#include <ext/dynamic_queue_streambuf.hpp>
+#include <unordered_map>
+#include <atomic>
 class simplex_pipe : public std::ext::dynamic_queue_streambuf<char>
 {
 	using __base = std::ext::dynamic_queue_streambuf<char>;

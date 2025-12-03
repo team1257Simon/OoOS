@@ -1,7 +1,7 @@
 #ifndef __PCI_DEV_LIST
 #define __PCI_DEV_LIST
-#include "arch/pci.hpp"
-#include "vector"
+#include <arch/pci.hpp>
+#include <vector>
 class pci_device_list : public std::vector<pci_config_space*>
 {
 	constexpr pci_config_space* __add(pci_config_space* s) { if(s) this->push_back(s); return s; }

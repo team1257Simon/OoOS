@@ -1,7 +1,6 @@
-#include "kernel/kernel_mm.hpp"
-#include "kdebug.hpp"
-#include "sched/task_ctx.hpp"
-#include "errno.h"
+#include <kernel_mm.hpp>
+#include <sched/task_ctx.hpp>
+#include <errno.h>
 extern "C"
 {
 	addr_t syscall_sbrk(ptrdiff_t incr)

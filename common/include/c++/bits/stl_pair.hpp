@@ -1,8 +1,8 @@
 #ifndef __STL_PAIR
 #define __STL_PAIR
-#include "bits/move.h"
-#include "concepts"
-#include "compare"
+#include <bits/move.h>
+#include <concepts>
+#include <compare>
 namespace std
 {
 	template<typename ...> class tuple;

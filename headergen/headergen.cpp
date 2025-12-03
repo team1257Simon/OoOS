@@ -11,6 +11,7 @@ typedef __int128_t int128_t;
 #define DEF(n) DEFS(n, n)
 #define DEFL(n) DEFLS(n, n)
 #define DEFLC(n) DEFLS(n, ctl_info.n)
+#define DEFC(n) DEFS(n, task_ctl.n)
 #define DEFR(r) DEFS(r, saved_regs.r)
 #define DEFLR(r) DEFLS(r, saved_regs.r)
 int main()
@@ -40,6 +41,9 @@ int main()
 	DEFR(ss);
 	DEFR(cs);
 	DEFR(cr3);
+	DEFC(task_pid);
+	DEFC(task_uid);
+	DEFC(task_gid);
 	DEF(fxsv);
 	DEF(run_split);
 	DEF(run_time);

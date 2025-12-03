@@ -1,4 +1,4 @@
-#include "kernel/module.hpp"
+#include <module.hpp>
 namespace ooos
 {
 	void module_takedown(abstract_module_base* mod)

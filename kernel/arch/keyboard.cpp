@@ -1,7 +1,7 @@
-#include "arch/keyboard.hpp"
-#include "arch/arch_amd64.h"
-#include "isr_table.hpp"
-#include "array"
+#include <arch/keyboard.hpp>
+#include <arch/arch_amd64.h>
+#include <isr_table.hpp>
+#include <array>
 namespace ooos
 {
 	using enum keyboard_scanset;

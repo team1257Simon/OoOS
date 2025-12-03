@@ -1,6 +1,5 @@
-#include "arch/ps2.hpp"
-#include "stdexcept"
-#include "kdebug.hpp"
+#include <arch/ps2.hpp>
+#include <stdexcept>
 namespace ooos
 {
 	void ps2_controller::io_wait()

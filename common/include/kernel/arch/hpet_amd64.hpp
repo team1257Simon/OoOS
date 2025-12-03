@@ -1,7 +1,7 @@
 #ifndef __HIGH_PRECISION_TIMER
 #define __HIGH_PRECISION_TIMER
-#include "arch/arch_amd64.h"
-#include "atomic"
+#include <arch/arch_amd64.h>
+#include <atomic>
 struct hpet_desc_table
 {
 	acpi_header header; // "HPET"

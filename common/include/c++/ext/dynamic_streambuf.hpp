@@ -1,7 +1,7 @@
 #ifndef __DATA_BUFFER
 #define __DATA_BUFFER
-#include "bits/basic_streambuf.hpp"
-#include "bits/basic_string.hpp"
+#include <bits/basic_streambuf.hpp>
+#include <bits/basic_string.hpp>
 namespace std
 {
 	extension namespace ext

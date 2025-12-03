@@ -5,12 +5,12 @@
  */
 #ifndef __DYN_BUFFER
 #define __DYN_BUFFER
-#include "memory"
-#include "limits"
-#include "bits/stl_algobase.hpp"
-#include "bits/stl_iterator.hpp"
-#include "kernel/libk_decls.h"
-#include "initializer_list"
+#include <memory>
+#include <limits>
+#include <bits/stl_algobase.hpp>
+#include <bits/stl_iterator.hpp>
+#include <kernel/libk_decls.h>
+#include <initializer_list>
 #ifndef TARGET_SSO_SIZE
 #define TARGET_SSO_SIZE 32UZ
 #endif

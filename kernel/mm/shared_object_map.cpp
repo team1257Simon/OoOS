@@ -1,9 +1,9 @@
-#include "shared_object_map.hpp"
-#include "frame_manager.hpp"
-#include "sched/task_ctx.hpp"
-#include "sys/errno.h"
-#include "stdexcept"
-#include "algorithm"
+#include <shared_object_map.hpp>
+#include <frame_manager.hpp>
+#include <sched/task_ctx.hpp>
+#include <sys/errno.h>
+#include <stdexcept>
+#include <algorithm>
 shared_object_map shared_object_map::__globals{};
 shared_object_map::iterator shared_object_map::__ld_so	= __globals.end();
 constexpr addr_t dynamic_frame_base						= 0x80000000000LA;

@@ -1,5 +1,5 @@
-#include "fs/ramfs.hpp"
-#include "rtc.h"
+#include <fs/ramfs.hpp>
+#include <rtc.h>
 ramfs_directory_vnode::ramfs_directory_vnode(std::string const& name, int fd) : directory_vnode(name, fd, addr_t(this)) {}
 bool ramfs_directory_vnode::fsync() { /* nop */ return true; }
 bool ramfs_directory_vnode::truncate() { directory_tnodes.clear(); file_count = 0; subdir_count = 0; return true; }

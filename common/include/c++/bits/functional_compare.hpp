@@ -1,6 +1,6 @@
 #ifndef __FN_COMPARE
 #define __FN_COMPARE
-#include "bits/move.h"
+#include <bits/move.h>
 namespace std
 {
 	template<typename T = void> struct less { constexpr bool operator()(T const& __this, T const& __that) const{ return __this < __that; } };

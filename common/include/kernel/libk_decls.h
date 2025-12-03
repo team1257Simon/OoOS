@@ -1,19 +1,11 @@
 #ifndef __LIBK_DECL
 #define __LIBK_DECL
-#if defined(__KERNEL__) || defined(__LIBK__)
-#include "kernel_defs.h"
-#else
 #include <kernel_defs.h>
-#endif
-#ifdef __cplusplus
-#if defined(__KERNEL__) || defined(__LIBK__)
-#include "new"
-#include "memory"
-#include "tuple"
-#else
 #include <new>
 #include <memory>
 #include <tuple>
+#ifdef __cplusplus
+#if !(defined(__KERNEL__) || defined(__LIBK__))
 namespace std
 {
 #pragma region non-standard useful concepts

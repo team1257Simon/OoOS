@@ -1,41 +1,41 @@
-#include "arch/apic.hpp"
-#include "arch/cpu_time.hpp"
-#include "arch/hpet_amd64.hpp"
-#include "arch/idt_amd64.h"
-#include "arch/keyboard.hpp"
-#include "arch/pci_device_list.hpp"
-#include "arch/net/e1000e.hpp"
-#include "bits/icxxabi.h"
-#include "fs/ext.hpp"
-#include "fs/delegate_hda.hpp"
-#include "fs/ramfs.hpp"
-#include "fs/sysfs.hpp"
-#include "net/protocol/arp.hpp"
-#include "net/protocol/dhcp.hpp"
-#include "sched/scheduler.hpp"
-#include "sched/task_ctx.hpp"
-#include "sched/task_list.hpp"
-#include "sched/worker.hpp"
-#include "sched/worker_list.hpp"
-#include "util/circular_queue.hpp"
-#include "util/multiarray.hpp"
-#include "algorithm"
-#include "device_registry.hpp"
-#include "direct_text_render.hpp"
-#include "elf64_exec.hpp"
-#include "elf64_shared.hpp"
-#include "frame_manager.hpp"
-#include "kdebug.hpp"
-#include "kernel_mm.hpp"
-#include "kernel_api.hpp"
-#include "map"
-#include "module_loader.hpp"
-#include "typeinfo"
-#include "ow-crypt.h"
-#include "prog_manager.hpp"
-#include "rtc.h"
-#include "shared_object_map.hpp"
-#include "stdlib.h"
+#include <arch/apic.hpp>
+#include <arch/cpu_time.hpp>
+#include <arch/hpet_amd64.hpp>
+#include <arch/idt_amd64.h>
+#include <arch/keyboard.hpp>
+#include <arch/pci_device_list.hpp>
+#include <arch/net/e1000e.hpp>
+#include <bits/icxxabi.h>
+#include <fs/ext.hpp>
+#include <fs/delegate_hda.hpp>
+#include <fs/ramfs.hpp>
+#include <fs/sysfs.hpp>
+#include <net/protocol/arp.hpp>
+#include <net/protocol/dhcp.hpp>
+#include <sched/scheduler.hpp>
+#include <sched/task_ctx.hpp>
+#include <sched/task_list.hpp>
+#include <sched/worker.hpp>
+#include <sched/worker_list.hpp>
+#include <util/circular_queue.hpp>
+#include <util/multiarray.hpp>
+#include <algorithm>
+#include <device_registry.hpp>
+#include <direct_text_render.hpp>
+#include <elf64_exec.hpp>
+#include <elf64_shared.hpp>
+#include <frame_manager.hpp>
+#include <kdebug.hpp>
+#include <kernel_mm.hpp>
+#include <kernel_api.hpp>
+#include <map>
+#include <module_loader.hpp>
+#include <typeinfo>
+#include <ow-crypt.h>
+#include <prog_manager.hpp>
+#include <rtc.h>
+#include <shared_object_map.hpp>
+#include <stdlib.h>
 sysinfo_t* sysinfo;
 static direct_text_render startup_tty;
 static device_stream* com;
@@ -126,19 +126,23 @@ module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
 }
 ooos::abstract_module_base* get_boot_module(const char* filename)
 {
-	if(sysinfo->loaded_modules && sysinfo->loaded_modules->count)
+	try
 	{
-		for(size_t i = 0; i < sysinfo->loaded_modules->count; i++)
+		if(sysinfo->loaded_modules && sysinfo->loaded_modules->count)
 		{
-			if(!__builtin_strcmp(filename, sysinfo->loaded_modules->descriptors[i].filename))
+			for(size_t i = 0; i < sysinfo->loaded_modules->count; i++)
 			{
-				module_loader::iterator result = init_boot_module(sysinfo->loaded_modules->descriptors[i]);
-				if(result != module_loader::get_instance().end())
-					return result->second.get_module();
-				break;
+				if(!__builtin_strcmp(filename, sysinfo->loaded_modules->descriptors[i].filename))
+				{
+					module_loader::iterator result = init_boot_module(sysinfo->loaded_modules->descriptors[i]);
+					if(result != module_loader::get_instance().end())
+						return result->second.get_module();
+					break;
+				}
 			}
 		}
 	}
+	catch(std::exception& e) { panic(e.what()); }
 	return nullptr;
 }
 device_stream* load_com_module()
@@ -458,8 +462,8 @@ void circular_queue_tests()
 }
 void worker_tests()
 {
-	ooos::worker* volatile w1 = wl.create_worker(std::bind(test_worker_1, test_arg));
-	ooos::worker* volatile w2 = wl.create_worker(std::bind(test_worker_2, test_arg));
+	ooos::worker* volatile w1	= wl.create_worker(std::bind(test_worker_1, test_arg));
+	ooos::worker* volatile w2	= wl.create_worker(std::bind(test_worker_2, test_arg));
 	cli();
 	int i;
 	if(__unlikely(i = start_worker(w1)))
@@ -615,16 +619,18 @@ extern "C"
 	void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
 	void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
 	[[noreturn]] void abort() { __serial_write("KERNEL ABORT"); direct_writeln("abort() called in kernel"); while(1); }
+	void klog(const char* msg) noexcept {
+		direct_writeln(msg);
+		__serial_write("[KERNEL] " + std::string(msg));
+	}
 	void panic(const char* msg) noexcept
 	{
+		bool prt			= direct_print_enable;
+		direct_print_enable	= true;
 		direct_write("E: ");
 		direct_writeln(msg);
 		__serial_write("[KERNEL] E: " + std::string(msg));
-	}
-	void klog(const char* msg) noexcept
-	{
-		direct_writeln(msg);
-		__serial_write("[KERNEL] " + std::string(msg));
+		direct_print_enable	= prt;
 	}
 	void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
 	{
@@ -634,7 +640,8 @@ extern "C"
 		asm volatile("movq %0, %%rbp" :: "r"(std::addressof(kernel_stack_base)) : "memory");
 		// The GDT is only used to set up the IDT (as well as enabling switching rings), but it's still a requirement because Intel wants back-compatibility.
 		gdt_setup();
-		// The actual setup code for the IDT just fills the table with the same trampoline routine that calls the dispatcher for interrupt handlers.
+		// The IDT descriptors will essentially index a table of trampoline functions, each of which passes the interrupt vector number as an argument to isr_dispatch.
+		// If the interrupt is one that pushes an error code to the stack, the trampoline will also properly pop that before returning.
 		idt_init();
 		nmi_disable();
 		sysinfo 				= si;
@@ -643,40 +650,40 @@ extern "C"
 		kernel_memory_mgr::init_instance(mmap);
 		// Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
 		__register_frame(std::addressof(__ehframe));
-		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init.
-		_init();
-		init_tss(std::addressof(kernel_isr_stack_top));
-		enable_fs_gs_insns();
-		set_kernel_gs_base(std::addressof(kproc));
-		kproc.saved_regs.cr3	= get_cr3();
-		kproc.saved_regs.rsp	= std::addressof(kernel_stack_top);
-		kproc.saved_regs.rbp	= std::addressof(kernel_stack_base);
-		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
-		fadt_t* fadt			= nullptr;
-		// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
-		if(sysinfo->xsdt) fadt	= find_fadt();
-		if(fadt) rtc::init_instance(fadt->century_register);
-		else rtc::init_instance();
-		// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
-		new(std::addressof(startup_tty)) direct_text_render(sysinfo);
-		direct_print_enable		= true;
-		dwclear();
-		bsp_lapic.init();
-		nmi_enable();
-		sti();
-		// The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
-		// It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
-		// If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
-		set_gs_base(std::addressof(kproc));
-		asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
-		array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-		array_zero(kproc.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
-		fx_enable 				= true;
-		scheduler::init_instance();
-		hpet_amd64::init_instance();
 		try
 		{
+			// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init.
+			_init();
+			tss_init(std::addressof(kernel_isr_stack_top));
+			enable_fs_gs_insns();
+			set_kernel_gs_base(std::addressof(kproc));
+			kproc.saved_regs.cr3	= get_cr3();
+			kproc.saved_regs.rsp	= std::addressof(kernel_stack_top);
+			kproc.saved_regs.rbp	= std::addressof(kernel_stack_base);
+			// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
+			init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
+			fadt_t* fadt			= nullptr;
+			// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
+			if(sysinfo->xsdt) fadt	= find_fadt();
+			if(fadt) rtc::init_instance(fadt->century_register);
+			else rtc::init_instance();
+			// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
+			new(std::addressof(startup_tty)) direct_text_render(sysinfo);
+			direct_print_enable		= true;
+			dwclear();
+			bsp_lapic.init();
+			nmi_enable();
+			sti();
+			// The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
+			// It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
+			// If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
+			set_gs_base(std::addressof(kproc));
+			asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
+			array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
+			array_zero(kproc.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
+			fx_enable 				= true;
+			scheduler::init_instance();
+			hpet_amd64::init_instance();
 			if(pci_device_list::init_instance())
 			{
 				ooos::init_api();

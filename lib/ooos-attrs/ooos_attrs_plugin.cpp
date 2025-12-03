@@ -1,18 +1,18 @@
 
-#include "gcc-plugin.h"
-#include "config.h"
-#include "system.h"
-#include "coretypes.h"
-#include "tree.h"
-#include "intl.h"
-#include "backend.h"
-#include "gimple.h"
-#include "gimple-iterator.h"
-#include "rtl.h"
-#include "diagnostic.h"
-#include "tree-pass.h"
-#include "stringpool.h"
-#include "attribs.h"
+#include <gcc-plugin.h>
+#include <config.h>
+#include <system.h>
+#include <coretypes.h>
+#include <tree.h>
+#include <intl.h>
+#include <backend.h>
+#include <gimple.h>
+#include <gimple-iterator.h>
+#include <rtl.h>
+#include <diagnostic.h>
+#include <tree-pass.h>
+#include <stringpool.h>
+#include <attribs.h>
 int plugin_is_GPL_compatible;
 static const char* plugin_name = "ooos_attrs";
 constexpr static const char attr_name_nointerrupts[] = "nointerrupts";

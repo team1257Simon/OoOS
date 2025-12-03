@@ -1,7 +1,7 @@
 #ifndef __ALGO_BASE
 #define __ALGO_BASE
-#include "bits/stl_iterator.hpp"
-#include "kernel/libk_decls.h"
+#include <bits/stl_iterator.hpp>
+#include <kernel/libk_decls.h>
 namespace std
 {
 	namespace __detail

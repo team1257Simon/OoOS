@@ -1,10 +1,10 @@
 #ifndef __GDTOA_H
 #define __GDTOA_H
-#include "stdlib.h"
-#include "string.h"
-#include "sys/types.h"
-#include "errno.h"
-#include "float.h"
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <float.h>
 #ifdef __cplusplus
 extern "C"
 {

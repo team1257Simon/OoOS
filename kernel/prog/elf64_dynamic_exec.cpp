@@ -1,5 +1,4 @@
-#include "elf64_dynamic_exec.hpp"
-#include "stdlib.h"
+#include <elf64_dynamic_exec.hpp>
 constexpr std::allocator<const char*> strptr_alloc{};
 elf64_dynamic_executable::~elf64_dynamic_executable() { if(program_descriptor.ld_path) strptr_alloc.deallocate(program_descriptor.ld_path, program_descriptor.ld_path_count); }
 addr_t elf64_dynamic_executable::segment_vaddr(size_t n) const { return virtual_load_base.plus(phdr(n).p_vaddr); }

@@ -1,6 +1,6 @@
 #ifndef __CXX_STRING
 #define __CXX_STRING
-#include "bits/basic_string.hpp"
+#include <bits/basic_string.hpp>
 namespace std
 {
 	typedef basic_string<char> string;

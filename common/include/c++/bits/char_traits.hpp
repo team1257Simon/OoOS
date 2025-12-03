@@ -1,8 +1,8 @@
 #ifndef __CHAR_TRAITS
 #define __CHAR_TRAITS
-#include "bits/ios_base.hpp"
-#include "bits/stl_algobase.hpp"
-#include "compare"
+#include <bits/ios_base.hpp>
+#include <bits/stl_algobase.hpp>
+#include <compare>
 namespace std
 {
 	namespace __detail

@@ -1,6 +1,5 @@
-#include "fs/sysfs.hpp"
-#include "sys/errno.h"
-#include "kdebug.hpp"
+#include <fs/sysfs.hpp>
+#include <sys/errno.h>
 sysfs_inode& sysfs_vnode::inode() { return parent_fs.get_inode(ino); }
 sysfs_inode const& sysfs_vnode::inode() const { return parent_fs.get_inode(ino); }
 sysfs& sysfs_vnode::parent() { return parent_fs; }

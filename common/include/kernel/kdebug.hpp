@@ -1,8 +1,8 @@
 #ifndef __KDBG
 #define __KDBG
-#include "libk_decls.h"
-#include "atomic"
-#include "string"
+#include <libk_decls.h>
+#include <atomic>
+#include <string>
 extern std::atomic<bool> dbg_hold;
 extern "C"
 {
@@ -15,6 +15,7 @@ extern "C"
 	void direct_putch(wchar_t ch);
 	extern struct __pack interrupt_stack
 	{
+		register_t rbp;
 		register_t r15;
 		register_t r14;
 		register_t r13;

@@ -7,11 +7,12 @@
 using std::addressof;
 extern "C"
 {
-	extern unsigned char	__start;
-	extern kframe_tag		__end;
+	extern unsigned char	__start[];
+	extern unsigned char	__end[];
 	extern unsigned char	__code;
-	extern unsigned char	sigtramp_code[4096];
 	extern kframe_tag*		__kernel_frame_tag;
+	extern unsigned char	sigtramp_code[4096];
+	extern const size_t		kernel_pages;
 	paging_table			kernel_cr3;
 }
 constexpr ptrdiff_t	bt_offset		= sizeof(block_tag);
@@ -22,8 +23,6 @@ constexpr size_t	ltob_bit_diff	= CHAR_BIT * (sizeof(uint64_t) - sizeof(uint8_t))
 static uint8_t		__kmm_data[sizeof(kernel_memory_mgr)];
 static size_t		total_memory;
 static size_t		remaining_memory;
-static size_t		kernel_size		= static_cast<size_t>(addr_t(addressof(__end)) - addr_t(addressof(__start)));
-static size_t		kernel_pages	= div_round_up(kernel_size, page_size);
 kernel_memory_mgr*	kernel_memory_mgr::__instance;
 constexpr int		clzb(uint8_t b) { return __builtin_clzl(b) - ltob_bit_diff; }
 constexpr uintptr_t	ramp_shift(uintptr_t base, int i) { return i ? base * (1 << (i - 1)) : 0UL; }
@@ -58,7 +57,7 @@ void				uframe_tag::__lock() { lock(addressof(__my_mutex)); }
 void				uframe_tag::__unlock() { release(addressof(__my_mutex)); }
 addr_t				kernel_memory_mgr::copy_kernel_mappings(paging_table target)
 {
-	addr_t start		= addressof(__start);
+	addr_t start		= __start;
 	addr_t curr			= start;
 	paging_table pt		= __get_table(curr, false);
 	paging_table upt	= __get_table(curr, false, target);
@@ -102,7 +101,7 @@ static paging_table __find_table(addr_t of_page, paging_table pml4 = get_cr3())
 static void __set_kernel_page_flags(uintptr_t max)
 {
 	paging_table pt	= nullptr;
-	for(addr_t addr	= addressof(__start); addr < max; addr += page_size)
+	for(addr_t addr	= __start; addr < max; addr += page_size)
 	{
 		if(!pt || !addr.page_idx) pt		= __find_table(addr);
 		if(pt)
@@ -369,7 +368,7 @@ void kernel_memory_mgr::__release_region(size_t sz, uintptr_t start)
 void kernel_memory_mgr::init_instance(mmap_t* mmap)
 {
 	kernel_cr3						= get_cr3();
-	__kernel_frame_tag				= new(addressof(__end)) kframe_tag();
+	__kernel_frame_tag				= new(__end) kframe_tag();
 	addr_t		sb_addr				= addr_t(__kernel_frame_tag).plus(sizeof(kframe_tag));
 	size_t		num_status_bytes	= div_round_up(mmap->total_memory, gigabyte);
 	uintptr_t	heap				= sb_addr.plus(num_status_bytes * sizeof(gb_status));

@@ -305,7 +305,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define __STDC_VERSION_STDINT_H__	202311L
 #endif
 #endif /* _GCC_STDINT_H */
-#include "stddef.h"
+#include <stddef.h>
 #define attribute(...) __attribute__((__VA_ARGS__))
 #define extension __extension__
 #ifndef KERNEL_FILENAME
@@ -326,7 +326,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define __unlikely(x) __builtin_expect((x), false)
 #ifndef __cplusplus
 #ifdef NEED_STDBOOL
-#include "stdbool.h"
+#include <stdbool.h>
 #endif
 #define physical_block_size 512UL
 #define __may_alias
@@ -335,9 +335,9 @@ constexpr size_t physical_block_size = 512UL;
 #define __may_alias [[gnu::may_alias]]
 #define restrict __restrict__
 #if defined(__KERNEL__) || defined(__LIBK__)
-#include "compare"
-#include "bits/move.h"
-#include "concepts"
+#include <compare>
+#include <bits/move.h>
+#include <concepts>
 #else
 #include <type_traits>
 #include <concepts>

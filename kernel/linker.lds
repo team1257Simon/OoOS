@@ -75,4 +75,5 @@ SECTIONS
 	}
 	. = ALIGN(4096);
 	__end = .;
+	__kernel_pages = (__end - __start) / 4096;
 }

@@ -1,7 +1,7 @@
-#include "bits/icxxabi.h"
-#include "kernel/libk_decls.h"
-#include "string.h"
-#include "stdlib.h"
+#include <bits/icxxabi.h>
+#include <libk_decls.h>
+#include <string.h>
+#include <stdlib.h>
 namespace __cxxabiv1
 {
 	extension typedef spinlock_t __guard;

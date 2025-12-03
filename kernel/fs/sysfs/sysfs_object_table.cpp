@@ -1,4 +1,4 @@
-#include "fs/sysfs.hpp"
+#include <fs/sysfs.hpp>
 static sysfs_vnode& create_sysfs_hashtable(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets);
 sysfs_hash_table_base::sysfs_hash_table_base(sysfs_vnode& n) : table_node(n) {}
 sysfs_hash_table_base::sysfs_hash_table_base(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets) : table_node(create_sysfs_hashtable(parent, name, type, buckets)) {}

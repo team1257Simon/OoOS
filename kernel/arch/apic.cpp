@@ -1,5 +1,5 @@
-#include "arch/apic.hpp"
-#include "kernel_mm.hpp"
+#include <arch/apic.hpp>
+#include <kernel_mm.hpp>
 constexpr uint64_t ioapic_default_physical_base = 0xFEC00000UL;
 apic::apic(unsigned id) : __apic_mem(nullptr), __local_id(id) {}
 void apic::eoi() volatile { if(__apic_mem) __apic_mem->eoi.value = 0U; } // writing a 0 to this register signals an eoi in apic mode

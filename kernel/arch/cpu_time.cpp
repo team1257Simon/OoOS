@@ -1,5 +1,5 @@
-#include "arch/cpu_time.hpp"
-#include "arch/arch_amd64.h"
+#include <arch/cpu_time.hpp>
+#include <arch/arch_amd64.h>
 static std::pair<time_t, time_t> compute_cpu_tsc_ratio();
 static time_t diff_tsc(time_t from);
 static void read_tsc(addr_t out) { asm volatile("rdtsc" : "=a"(out.deref<uint32_t>()), "=d"(out.plus(4Z).deref<uint32_t>()) :: "memory"); }

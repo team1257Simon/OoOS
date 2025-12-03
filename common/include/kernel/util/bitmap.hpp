@@ -1,8 +1,8 @@
 #ifndef __BITMAP_UTILS
 #define __BITMAP_UTILS
-#include "kernel/libk_decls.h"
-#include "tuple"
-#include "sys/types.h"
+#include <kernel/libk_decls.h>
+#include <tuple>
+#include <sys/types.h>
 /**
  * Finds the first string of zeroes in a bitmap of size num_ulongs * sizeof(unsigned long) whose length L fulfills (L >= num_zeroes && (L < sizeof(unsigned long) || L % sizeof(unsigned long) == 0)).
  * The return value is the offset of the first bit in that string if it is present, or -1 if none is found.

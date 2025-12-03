@@ -1,5 +1,4 @@
 #include <elf64_index.hpp>
-#include <stdlib.h>
 constexpr static gnu_string_hash __gnu_hash{};
 constexpr static size_t bloom_bits	= static_cast<int>(sizeof(uint64_t) * __CHAR_BIT__);
 elf64_sym const* elf64_dynsym_index::operator[](std::string const& str) const

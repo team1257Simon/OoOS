@@ -71,14 +71,15 @@ task_ctx::task_ctx(task_descriptor&& desc, pid_t pid) :
 				.can_interrupt	{ false },
 				.should_notify	{ false },
 				.killed			{ false },
-				.prio_base		{ desc.priority }
+				.prio_base		{ desc.priority },
+				.skips			{ 0UC },
 			},
 			{
-				.signal_info	{ std::addressof(task_sig_info) },
 				.parent_pid		{ desc.parent_pid },
-				.task_id		{ pid },
+				.task_pid		{ pid },
 				.task_uid		{ desc.uid },
-				.task_gid		{ desc.gid }
+				.task_gid		{ desc.gid },
+				.signal_info	{ std::addressof(task_sig_info) },
 			},
 		},
 		.tls_master				{ desc.program.prg_tls },
@@ -93,7 +94,10 @@ task_ctx::task_ctx(task_descriptor&& desc, pid_t pid) :
 	ctx_filesystem				{ create_task_vfs() },
 	current_state				{ execution_state::STOPPED },
 	program_handle				{ static_cast<elf64_executable*>(desc.program.object_handle) },
-	local_so_map				{ sm_alloc.allocate(1) }
+	local_so_map				{ sm_alloc.allocate(1) },
+	impersonate					{ false },
+	imp_uid						{ uid_undef },
+	imp_gid						{ gid_undef }
 	{
 		std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.program.frame_ptr));
 		if(desc.program.ld_path && desc.program.ld_path_count)
@@ -114,14 +118,15 @@ task_ctx::task_ctx(task_ctx const& that) :
 				.can_interrupt	{ false },
 				.should_notify	{ false },
 				.killed			{ false },
-				.prio_base		{ that.task_struct.task_ctl.prio_base }
+				.prio_base		{ that.task_struct.task_ctl.prio_base },
+				.skips			{ that.task_struct.task_ctl.skips },
 			},
 			{
-				.signal_info	{ std::addressof(task_sig_info) },
 				.parent_pid		{ static_cast<spid_t>(that.get_pid()) },
-				.task_id		{ tl.__upid() },
-				.task_uid		{ that.task_struct.task_ctl.task_uid },
-				.task_gid		{ that.task_struct.task_ctl.task_gid }
+				.task_pid		{ tl.__upid() },
+				.task_uid		{ that.uid() },
+				.task_gid		{ that.gid() },
+				.signal_info	{ std::addressof(task_sig_info) },
 			}
 		},
 		.fxsv				{ that.task_struct.fxsv },
@@ -152,10 +157,13 @@ task_ctx::task_ctx(task_ctx const& that) :
 	rt_env_ptr				{ that.rt_env_ptr },
 	task_sig_info			{},
 	opened_directories		{ that.opened_directories },
-	dyn_thread				{ that.dyn_thread }
+	dyn_thread				{ that.dyn_thread },
+	impersonate				{ that.impersonate },
+	imp_uid					{ that.imp_uid },
+	imp_gid					{ that.imp_gid }
 							{}
 task_ctx::task_ctx(task_ctx&& that) :
-	task_struct				{ that.task_struct },
+	task_struct				{ std::move(that.task_struct) },
 	child_tasks				{ std::move(that.child_tasks) },
 	arg_vec					{ std::move(that.arg_vec) },
 	env_vec					{ std::move(that.env_vec) },
@@ -179,7 +187,15 @@ task_ctx::task_ctx(task_ctx&& that) :
 	rt_env_ptr				{ std::move(that.rt_env_ptr) },
 	task_sig_info			{ std::move(that.task_sig_info) },
 	opened_directories		{ std::move(that.opened_directories) },
-	dyn_thread				{ std::move(that.dyn_thread) }
+	dyn_thread				{ std::move(that.dyn_thread) },
+	next_assigned_thread_id	{ that.next_assigned_thread_id },
+	sigret_thread			{ that.sigret_thread },
+	thread_ptr_by_id		{ std::move(that.thread_ptr_by_id) },
+	notify_threads			{ std::move(that.notify_threads) },
+	inactive_threads		{ std::move(that.inactive_threads) },
+	impersonate				{ that.impersonate },
+	imp_uid					{ that.imp_uid },
+	imp_gid					{ that.imp_gid }
 	{
 		array_zero(reinterpret_cast<uint64_t*>(std::addressof(that)), (sizeof(task_ctx) / sizeof(uint64_t)));
 		task_struct.self					= std::addressof(task_struct);
@@ -385,7 +401,7 @@ void task_ctx::set_signal(int sig, bool save_state)
 	{
 		if(save_state)
 		{
-			signal_interrupted_thread		= task_struct.thread_ptr;
+			sigret_thread		= task_struct.thread_ptr;
 			task_sig_info.sigret_frame		= task_struct.saved_regs;
 			task_sig_info.sigret_fxsave		= task_struct.fxsv;
 			thread_switch(0U);
@@ -466,6 +482,8 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cst
 	allocated_stack			= desc.prg_stack;
 	stack_allocated_size	= desc.stack_size;
 	pid_t pid				= get_pid();
+	uid_t cur_uid			= uid();
+	uid_t cur_gid			= gid();
 	priority_val prio		= task_struct.task_ctl.prio_base;
 	uint16_t quantum		= task_struct.quantum_val;
 	new(std::addressof(task_struct)) task_t
@@ -490,12 +508,15 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cst
 				.can_interrupt	{ false },
 				.should_notify	{ false },
 				.killed			{ false },
-				.prio_base		{ prio }
+				.prio_base		{ prio },
+				.skips			{ 0UC },
 			},
 			{
-				.signal_info	{ std::addressof(task_sig_info) },
 				.parent_pid		{ parent_pid },
-				.task_id		{ pid }
+				.task_pid		{ pid },
+				.task_uid		{ cur_uid },
+				.task_gid		{ cur_gid },
+				.signal_info	{ std::addressof(task_sig_info) },
 			}
 		},
 		.tls_master			{ desc.prg_tls },
@@ -627,7 +648,7 @@ void task_ctx::init_thread_0()
 			{
 				.thread_lock		= spinlock_t(),
 				.thread_id			= 0U,
-				.wait_time_delta	= 0UZ
+				.wait_time_delta	= 0UL,
 			}
 		},
 		.stack_base				= allocated_stack,
@@ -822,7 +843,7 @@ thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all
 			{
 				.thread_lock		= spinlock_t(),
 				.thread_id			= id,
-				.wait_time_delta	= 0UZ
+				.wait_time_delta	= 0UL
 			}
 		},
 		.stack_base				= stack_begin,

@@ -1,7 +1,7 @@
 #ifndef __BASIC_STRING
 #define __BASIC_STRING
-#include "bits/dynamic_buffer.hpp"
-#include "bits/char_traits.hpp"
+#include <bits/dynamic_buffer.hpp>
+#include <bits/char_traits.hpp>
 namespace std
 {
 	namespace __detail

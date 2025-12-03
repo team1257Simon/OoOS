@@ -1,7 +1,6 @@
-#include "arch/hpet_amd64.hpp"
-#include "kernel_mm.hpp"
-#include "isr_table.hpp"
-#include "kdebug.hpp"
+#include <arch/hpet_amd64.hpp>
+#include <kernel_mm.hpp>
+#include <isr_table.hpp>
 extern "C"
 {
 	extern void no_waiting_op();

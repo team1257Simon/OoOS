@@ -1,4 +1,4 @@
-#include "gdtoa.h"
+#include <gdtoa.h>
 float strtof(const char* s, char** sp)
 {
 	static fpi	fpi0 = { 24, -149, 104, 1, 0 };

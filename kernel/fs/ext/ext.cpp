@@ -1,8 +1,8 @@
-#include "fs/ext.hpp"
-#include "sys/errno.h"
-#include "util/bitmap.hpp"
-#include "immintrin.h"
-#include "algorithm"
+#include <fs/ext.hpp>
+#include <sys/errno.h>
+#include <util/bitmap.hpp>
+#include <immintrin.h>
+#include <algorithm>
 using std::addressof;
 constexpr static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
 constexpr static std::allocator<ext_superblock> sb_alloc{};
@@ -302,7 +302,6 @@ file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mo
 	tnode* node				= parent.first->find(parent.second);
 	if(node && node->is_directory()) throw std::logic_error("[FS/EXT4] path " + path + " exists and is a directory");
 	file_vnode* result;
-	bool pipe				= false;
 	if(!node)
 	{
 		if(!create) throw std::out_of_range("[FS/EXT4] file not found: " + path);
@@ -310,9 +309,12 @@ file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mo
 		else throw std::runtime_error("[FS/EXT4] failed to create file: " + path);
 	}
 	else result				= delegate->on_open(node, mode);
-	if(ext_file_vnode* exfn	= dynamic_cast<ext_file_vnode*>(result)) { exfn->on_open(); }
-	register_fd(result);
-	if(!pipe) result->current_mode	= mode;
+	if(result)
+	{
+		if(ext_file_vnode* exfn			= dynamic_cast<ext_file_vnode*>(result)) { exfn->on_open(); }
+		register_fd(result);
+		if(!result->is_pipe()) result->current_mode	= mode;
+	}
 	return result;
 }
 directory_vnode* extfs::open_directory(std::string const& path, bool create)

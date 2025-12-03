@@ -23,7 +23,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "bits/typeinfo.h"
+#include <bits/typeinfo.h>
 using namespace ABI_NAMESPACE;
 /**
  * Vtable header.

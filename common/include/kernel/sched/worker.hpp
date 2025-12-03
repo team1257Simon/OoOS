@@ -112,7 +112,7 @@ namespace ooos
 		size_t stack_size;
 		task_signal_info_t worker_sig_info;
 		template<__internal::__worker_fn FT> inline worker(FT&& wfn, addr_t stack, size_t stacksz, pid_t tid, uint16_t qv);
-		constexpr pid_t get_id() const noexcept { return task_struct.task_ctl.task_id; }
+		constexpr pid_t get_id() const noexcept { return task_struct.task_ctl.task_pid; }
 		friend constexpr std::strong_ordering operator<=>(worker const& __this, worker const& __that) noexcept { return __this.get_id() <=> __that.get_id(); }
 		friend constexpr std::strong_ordering operator<=>(worker const& __this, pid_t const& __that) noexcept { return __this.get_id() <=> __that; }
 		friend constexpr std::strong_ordering operator<=>(pid_t const& __this, worker const& __that) noexcept { return __this <=> __that.get_id(); }
@@ -149,11 +149,11 @@ namespace ooos
 					.prio_base		{ priority_val::PVSYS }
 				},
 				{
-					.signal_info	{ std::addressof(worker_sig_info) },
 					.parent_pid		{ 0 },
-					.task_id		{ tid },
+					.task_pid		{ tid },
 					.task_uid		{ 0U },
-					.task_gid		{ 0U }
+					.task_gid		{ 0U },
+					.signal_info	{ std::addressof(worker_sig_info) },
 				}
 			},
 			.tls_master				{ nullptr },

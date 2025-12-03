@@ -1,5 +1,5 @@
-#include "sched/task_list.hpp"
-#include "errno.h"
+#include <sched/task_list.hpp>
+#include <errno.h>
 static bool check_kill(task_ctx* caller, task_list::iterator target)
 {
 	if(static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true;
@@ -33,9 +33,9 @@ extern "C"
 		if(task->task_sig_info.pending_signals) task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals), false); // state is already saved
 		else
 		{
-			kthread_ptr t(task->header(), task->signal_interrupted_thread);
+			kthread_ptr t(task->header(), task->sigret_thread);
 			t.activate();
-			task->signal_interrupted_thread = nullptr;
+			task->sigret_thread = nullptr;
 		}
 		return task->task_struct.saved_regs.rax;
 	}

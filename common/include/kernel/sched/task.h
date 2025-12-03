@@ -98,25 +98,25 @@ struct attribute(packed, aligned(16)) task_signal_info_t
 	struct spinlock_t	sigmask_lock;
 	int					active_signal;
 };
-struct __pack tctl_t
+struct tctl_t
 {
-	volatile struct attribute(packed, aligned(1))
+	volatile struct attribute(packed)
 	{
-		bool			block			: 1;		// true if the task is in a sleeping or waiting state
-		bool			can_interrupt	: 1;		// true if the wait can be interrupted
-		bool			should_notify	: 1;		// true if the wait should be interrupted on a child process termination
-		bool			killed			: 1;		// true if the process has stopped due to an abnormal termination (e.g. kill signal)
-		enum priority_val prio_base		: 4;		// the base priority of the thread/process
+		bool				block			: 1;		// true if the task is in a sleeping or waiting state
+		bool				can_interrupt	: 1;		// true if the wait can be interrupted
+		bool				should_notify	: 1;		// true if the wait should be interrupted on a child process termination
+		bool				killed			: 1;		// true if the process has stopped due to an abnormal termination (e.g. kill signal)
+		enum priority_val	prio_base		: 4;		// the base priority of the thread/process
+		uint8_t				skips;						// the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
 	};
-	struct attribute(packed, aligned(1))
+	struct
 	{
-		uint8_t						skips;				// the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
-		struct task_signal_info_t*	signal_info;		// points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
-		uint32_t					wait_ticks_delta;	// for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
-		spid_t						parent_pid;			// a negative number indicates no parent; a zero here means the task is actually a kernel thread
-		pid_t						task_id;			// PID of process; kernel itself is zero
+		spid_t						parent_pid;			// a negative number indicates no parent; a zero here means the task is actually a kernel worker
+		pid_t						task_pid;			// PID of process; kernel itself is zero
 		uid_t						task_uid;			// WIP
 		gid_t						task_gid;			// WIP
+		struct task_signal_info_t*	signal_info;		// points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
+		clock_t						wait_ticks_delta;	// for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
 	};
 };
 struct thread_t;
@@ -193,11 +193,11 @@ struct kthread_ptr
 	void activate() const noexcept;
 	void set_blocking(bool can_interrupt) const noexcept;
 	void clear_blocking() const noexcept;
-	void set_wait_delta(uint32_t ticks) const noexcept;
-	void add_wait_ticks(uint32_t ticks) const noexcept;
+	void set_wait_delta(clock_t ticks) const noexcept;
+	void add_wait_ticks(clock_t ticks) const noexcept;
 	bool is_blocking() const noexcept;
 	bool is_interruptible() const noexcept;
-	unsigned int get_wait_delta() const noexcept;
+	clock_t get_wait_delta() const noexcept;
 	void wait_tick() const noexcept;
 	constexpr task_t* operator->() const noexcept { return task_ptr; }
 	constexpr task_t& operator*() const noexcept { return *task_ptr; }

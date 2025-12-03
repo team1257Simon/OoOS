@@ -1,5 +1,5 @@
-#include "kernel/libk_decls.h"
-#include "functional"
+#include <libk_decls.h>
+#include <functional>
 namespace std
 {
 	bad_function_call::~bad_function_call() noexcept = default;

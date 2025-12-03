@@ -1,9 +1,8 @@
-#include "fs/fs.hpp"
-#include "sched/task_ctx.hpp"
-#include "algorithm"
-#include "stdexcept"
-#include "errno.h"
-#include "kdebug.hpp"
+#include <fs/fs.hpp>
+#include <sched/task_ctx.hpp>
+#include <algorithm>
+#include <stdexcept>
+#include <errno.h>
 fd_map::fd_map() : __base(256) {}
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
 filesystem::filesystem() : pipes(256UZ), current_open_files(), next_fd(3), blockdev(nullptr) {}
@@ -17,7 +16,6 @@ void filesystem::register_fd(vnode* node) { next_fd = current_open_files.add_fd(
 const char* filesystem::path_separator() const noexcept { return "/"; }
 file_vnode* filesystem::open_file(const char* path, std::ios_base::openmode mode, bool create) { return open_file(std::string(path), mode, create); }
 file_vnode* filesystem::on_open(tnode* node) { return on_open(node, std::ios_base::in | std::ios_base::out); }
-file_vnode* filesystem::on_open(tnode* node, std::ios_base::openmode) { if(file_vnode* fn = node->as_file(); fn->on_open()) { return fn; } return nullptr; }
 file_vnode* filesystem::get_file(int fd) { return dynamic_cast<file_vnode*>(current_open_files.find_fd(fd)); }
 directory_vnode* filesystem::get_directory(int fd) { return dynamic_cast<directory_vnode*>(current_open_files.find_fd(fd)); }
 dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
@@ -27,6 +25,12 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
 directory_vnode* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
 bool filesystem::write_blockdev(uint64_t lba_dest, const void* src, size_t sectors) { return blockdev->write(lba_dest, src, sectors); }
 bool filesystem::read_blockdev(void* dest, uint64_t lba_src, size_t sectors) { return blockdev->read(dest, lba_src, sectors); }
+file_vnode* filesystem::on_open(tnode* node, std::ios_base::openmode)
+{
+	file_vnode* fn = node->as_file();
+	if(fn && fn->on_open()) return fn;
+	return nullptr;
+}
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents)
 {
 	target_pair ogparent		= get_parent(ogpath, false);
@@ -242,9 +246,13 @@ file_vnode* filesystem::open_file(std::string const& path, std::ios_base::openmo
 		if(created) node	= parent.first->add(created);
 		else throw std::runtime_error("[FS] failed to create file: " + path);
 	}
-	file_vnode* result		= delegate->on_open(node, mode);
-	result->current_mode	= mode;
-	register_fd(result);
+	file_vnode* result				= delegate->on_open(node, mode);
+	if(result)
+	{
+		register_fd(result);
+		if(!result->is_pipe())
+			result->current_mode	= mode;
+	}
 	return result;
 }
 file_vnode* filesystem::get_file(std::string const& path)

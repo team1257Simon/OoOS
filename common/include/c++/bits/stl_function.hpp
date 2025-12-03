@@ -1,10 +1,10 @@
 #ifndef __STL_FUNCTION
 #define __STL_FUNCTION
-#include "concepts"
-#include "bits/move.h"
-#include "bits/invoke.hpp"
-#include "bits/typeinfo.h"
-#include "exception"
+#include <concepts>
+#include <bits/move.h>
+#include <bits/invoke.hpp>
+#include <bits/typeinfo.h>
+#include <exception>
 namespace std
 {
 	[[noreturn]] void __throw_bad_function_call();

@@ -1,9 +1,9 @@
 #ifndef __STDLIB_H
 #define __STDLIB_H
 #ifndef _GCC_STDINT_H
-#include "stdint.h"
+#include <stdint.h>
 #endif
-#include "stddef.h"
+#include <stddef.h>
 #ifndef	NULL
 #define NULL		0
 #endif

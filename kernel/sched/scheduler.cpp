@@ -68,7 +68,7 @@ bool scheduler::interrupt_wait(task_t* task)
 	}
 	return result;
 }
-bool scheduler::__set_wait_time(kthread_ptr& task, unsigned int time, bool can_interrupt)
+bool scheduler::__set_wait_time(kthread_ptr& task, clock_t time, bool can_interrupt)
 {
 	task.set_blocking(can_interrupt);
 	unsigned int total			= __sleepers.cumulative_remaining_ticks();
@@ -80,14 +80,14 @@ bool scheduler::__set_wait_time(kthread_ptr& task, unsigned int time, bool can_i
 			unsigned int cwait 	= i->get_wait_delta();
 			if(cwait + cumulative > time)
 			{
-				task.set_wait_delta(static_cast<uint32_t>(time - cumulative));
+				task.set_wait_delta(static_cast<clock_t>(time - cumulative));
 				waiterator res	= __sleepers.insert(i, task);
 				return res		!= __sleepers.end();
 			}
 			cumulative 			+= cwait;
 		}
 	}
-	task.set_wait_delta(static_cast<uint32_t>(time - total));
+	task.set_wait_delta(static_cast<clock_t>(time - total));
 	__sleepers.push(task);
 	return true;
 }
@@ -179,10 +179,10 @@ bool scheduler::set_wait_untimed(kthread_ptr& task)
 		return __set_untimed_wait(task);
 	return false;
 }
-bool scheduler::set_wait_timed(kthread_ptr& task, unsigned int time, bool can_interrupt)
+bool scheduler::set_wait_timed(kthread_ptr& task, clock_t time, bool can_interrupt)
 {
 	if(!task.is_blocking())
-		return __set_wait_time(task, static_cast<uint32_t>(__deferred_actions.compute_ticks(time)), can_interrupt);
+		return __set_wait_time(task, static_cast<clock_t>(__deferred_actions.compute_ticks(time)), can_interrupt);
 	return false;
 }
 void scheduler::retrothread(task_t* task, thread_t* thread)

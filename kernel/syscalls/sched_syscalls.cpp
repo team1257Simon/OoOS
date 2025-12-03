@@ -1,13 +1,12 @@
-#include "sched/scheduler.hpp"
-#include "sched/task_list.hpp"
-#include "frame_manager.hpp"
-#include "prog_manager.hpp"
-#include "kernel_mm.hpp"
-#include "errno.h"
-#include "elf64_exec.hpp"
-#include "arch/arch_amd64.h"
-#include "rtc.h"
-#include "kdebug.hpp"
+#include <sched/scheduler.hpp>
+#include <sched/task_list.hpp>
+#include <frame_manager.hpp>
+#include <prog_manager.hpp>
+#include <kernel_mm.hpp>
+#include <errno.h>
+#include <elf64_exec.hpp>
+#include <arch/arch_amd64.h>
+#include <rtc.h>
 extern "C"
 {
 	extern task_t* kproc;
@@ -53,7 +52,7 @@ extern "C"
 			guard.release();
 			return clone->get_pid();
 		}
-		else return -EAGAIN; 
+		return -EAGAIN; 
 	}
 	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context()) { new(out) tms(task->get_times()); return sys_time(nullptr); } else return -ENOSYS; }
 	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
@@ -181,11 +180,12 @@ extern "C"
 	{
 		task_ctx* task		= active_task_context();
 		filesystem* fs_ptr	= get_task_vfs();
-		if(__unlikely(!fs_ptr)) return -ENOSYS;
+		if(__unlikely(!fs_ptr || !task)) return -ENOSYS;
 		name				= translate_user_pointer(name);
 		argv				= translate_user_pointer(argv);
 		char** renv			= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
 		if(__unlikely(!name || !argv || !renv)) return -EFAULT;
+		// TODO: check execute permissions
 		try
 		{
 			file_vnode* n	= fs_ptr->open_file(name, std::ios_base::in);
@@ -200,10 +200,11 @@ extern "C"
 	{
 		task_ctx* task		= active_task_context();
 		filesystem* fs_ptr	= get_task_vfs();
-		if(__unlikely(!fs_ptr)) return -ENOSYS;
+		if(__unlikely(!fs_ptr || !task)) return -ENOSYS;
 		argv				= translate_user_pointer(argv);
 		char** renv			= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
 		if(__unlikely(!argv || !renv)) return -EFAULT;
+		// TODO: check execute permissions
 		try
 		{
 			file_vnode* n	= get_by_fd(fs_ptr, task, fd);
@@ -229,11 +230,12 @@ extern "C"
 	{
 		task_ctx* task			= active_task_context();
 		filesystem* fs_ptr		= get_task_vfs();
-		if(__unlikely(!fs_ptr)) return -ENOSYS;
+		if(__unlikely(!fs_ptr || !task)) return -ENOSYS;
 		name					= translate_user_pointer(name);
 		argv					= translate_user_pointer(argv);
 		char** renv				= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
 		if(__unlikely(!name || !argv || !renv)) return -EFAULT;
+		// TODO: check execute permissions
 		try
 		{
 			file_vnode* n		= fs_ptr->open_file(name, std::ios_base::in);
@@ -248,10 +250,11 @@ extern "C"
 	{
 		task_ctx* task		= active_task_context();
 		filesystem* fs_ptr	= get_task_vfs();
-		if(__unlikely(!fs_ptr)) return -ENOSYS;
+		if(__unlikely(!fs_ptr || !task)) return -ENOSYS;
 		argv				= translate_user_pointer(argv);
 		char** renv			= env ? translate_user_pointer(env).as<char*>() : std::addressof(empty_env);
 		if(__unlikely(!argv || !renv)) return -EFAULT;
+		// TODO: check execute permissions
 		try
 		{
 			file_vnode* n	= get_by_fd(fs_ptr, task, fd);

@@ -1,6 +1,6 @@
 #ifndef __ATOMIC
 #define __ATOMIC
-#include "bits/atomic_base.h"
+#include <bits/atomic_base.h>
 /*
  * <ObligatoryReference>
  * (Cid Kagenoh Voice)

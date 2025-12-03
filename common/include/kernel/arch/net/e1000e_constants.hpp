@@ -3,7 +3,7 @@
 /* NOTE: converted to C++ constant expressions but otherwise equivalent code */
 #ifndef __E1000E_DEFS
 #define __E1000E_DEFS
-#include "kernel_defs.h"
+#include <kernel_defs.h>
 constexpr int e1000_max_phy_addr	= 8;
 /* IGP01E1000 Specific Registers */
 constexpr int igp01e1000_phy_port_config	= 0x10;	/* Port Config */
