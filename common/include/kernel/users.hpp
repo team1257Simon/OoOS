@@ -27,6 +27,10 @@ constexpr permission_flag change_setting_defaults	= 0x800U;
 constexpr permission_flag escalate_process			= 0x1000U;
 constexpr permission_flag impersonate_any_uid		= 0x2000U;
 constexpr permission_flag impersonate_any_gid		= 0x4000U;
+constexpr permission_flag service_account_nxlogin	= 0x8000U;
+constexpr permission_flag file_read_override		= 0x10000U;
+constexpr permission_flag file_write_override		= 0x20000U;
+constexpr permission_flag file_execute_override		= 0x40000U;
 struct __pack user_credentials
 {
 	char	user_login_name[username_max_len];

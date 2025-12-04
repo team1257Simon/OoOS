@@ -30,7 +30,7 @@ namespace std
 			virtual std::streamsize unread_size() { return 0; } // How many unread bytes are in the file's data sequence.
 			virtual std::streamsize sector_size() const { return physical_block_size; }
 			virtual std::streamsize showmanyc() override { return unread_size(); }
-			virtual std::streamsize on_overflow(std::streamsize n) { if(this->__grow_buffer(n)) return n; return 0; }
+			virtual std::streamsize on_overflow(std::streamsize n) { if(this->__grow_buffer_exact(n)) return n; return 0; }
 			/**
 			 * Called whenever the end and/or max pointers are changed after initial construction, other than through the advance and backtrack hooks.
 			 * Inheritors can override to add functionality that needs to be invoked whenever these pointers move.

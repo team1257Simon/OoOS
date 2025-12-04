@@ -108,6 +108,8 @@ struct vnode
 	virtual uint64_t size() const noexcept = 0;			// size in bytes (for files) or concrete entries (for directories)
 	virtual bool fsync() = 0;							// sync to disc, if applicable
 	virtual bool truncate() = 0;						// clear all data and reset the size to 0
+	virtual uid_t owner_uid() const noexcept;
+	virtual gid_t owner_gid() const noexcept;
 	virtual ~vnode();
 	file_mode mode = 0774U;
 	std::set<tnode*> refs{};
@@ -337,7 +339,6 @@ public:
 	void tie_block_device(block_device* dev);
 	vnode* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
 	void create_node(directory_vnode* parent, std::string const& path, mode_t mode, dev_t dev = 0U);
-	pipe_pair create_named_pipe(directory_vnode* parent, std::string const& name);
 	void create_pipe(int fds[2]);
 	vnode* get_fd_node(int fd);
 	file_vnode* get_file(int fd);

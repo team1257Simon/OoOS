@@ -115,8 +115,7 @@ namespace std
 		__invoker_type __my_invoker = nullptr;
 	public:
 		typedef RT result_type;
-		template<__alternate_callable<RT, Args...> FT>
-		requires(is_copy_constructible<__decay_t<FT>>::value && is_constructible<__decay_t<FT>, FT>::value)
+		template<__alternate_callable<RT, Args...> FT> requires(is_copy_constructible<__decay_t<FT>>::value && is_constructible<__decay_t<FT>, FT>::value)
 		constexpr function(FT&& ft) noexcept(__helper<FT>::template __is_nothrow_init<FT>()) : __function_base()
 		{
 			using __my_helper	= __helper<FT>;

@@ -13,16 +13,20 @@ static inline std::pair<uid_t, gid_t> active_user()
 }
 static inline void __stat_init(vnode* n, filesystem* fsptr, stat* st)
 {
-	std::pair<uid_t, gid_t> user	= active_user();
-	size_t bs						= fsptr->block_size();
+	std::pair<uid_t, gid_t> user			= active_user();
+	size_t bs								= fsptr->block_size();
+	uid_t owner_uid							= n->owner_uid();
+	gid_t owner_gid							= n->owner_gid();
+	if(owner_uid == uid_undef) owner_uid	= user.first;
+	if(owner_gid == gid_undef) owner_gid	= user.second;
 	new(st) stat
 	{
 		.st_dev		= fsptr->get_dev_id(),
 		.st_ino		= n->cid(),
 		.st_mode	= n->mode,
 		.st_nlink	= n->num_refs(),
-		.st_uid		= user.first,
-		.st_gid		= user.second,
+		.st_uid		= owner_uid,
+		.st_gid		= owner_gid,
 		.st_rdev	= n->is_device() ? dynamic_cast<device_vnode*>(n)->get_device_id() : 0U,
 		.st_size	= static_cast<long>(n->size()),
 		.st_atim	= timestamp_to_timespec(n->create_time),

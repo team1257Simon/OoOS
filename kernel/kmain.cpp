@@ -36,6 +36,7 @@
 #include <rtc.h>
 #include <shared_object_map.hpp>
 #include <stdlib.h>
+#include <users.hpp>
 sysinfo_t* sysinfo;
 static direct_text_render startup_tty;
 static device_stream* com;
@@ -51,9 +52,10 @@ static char test_e1000e_drv[sizeof(e1000e)]{};
 static ooos::ps2_controller test_ps2{};
 static ooos::ps2_keyboard* test_kb{};
 static char kb_pos[sizeof(ooos::ps2_keyboard)]{};
-std::atomic<bool> dbg_hold{};
-ooos::delegate_hda test_delegate;
+static ooos::delegate_hda test_delegate;
+static std::ext::delegate_ptr<sysfs> test_sysfs(nullptr);
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', };
+std::atomic<bool> dbg_hold{};
 extern "C"
 {
 	extern uint64_t errinst;
@@ -81,6 +83,7 @@ void xklog(std::string const& str) { klog(str.c_str()); }
 static int __xdigits(uintptr_t num) { return num ? div_round_up((sizeof(uintptr_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
 constexpr static bool has_ecode(byte idx) { return (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC; }
+static void delegate_ptr_cb_sysfs(void* ptr) { static_cast<sysfs*>(ptr)->sync(); }
 static void descr_pt(partition_table const& pt)
 {
 	for(partition_table::const_iterator i = pt.begin(); i != pt.end(); i++)
@@ -383,6 +386,13 @@ constexpr static sysfs_backup_filenames test_backup_filenames
 	.extents_backup_file_name   { "blocks.bak" },
 	.directory_backup_file_name { "tags.bak" }
 };
+constexpr static sysfs_file_paths sys_files
+{
+	.data_file		= std::string("sys/objects.dat"),
+	.index_file		= std::string("sys/index.dat"),
+	.extents_file	= std::string("sys/blocks.dat"),
+	.directory_file	= std::string("sys/tags.dat")
+};
 struct test_sys_struct
 {
 	int something;
@@ -405,34 +415,23 @@ void sysfs_tests()
 {
 	if(test_extfs.has_init()) try
 	{
-		test_extfs.open_directory("sys/sysfs");
-		sysfs_file_ptrs sys_files
-		{
-			.data_file      { test_extfs.open_file("sys/sysfs/objects.dat") },
-			.index_file     { test_extfs.open_file("sys/sysfs/index.dat") },
-			.extents_file   { test_extfs.open_file("sys/sysfs/blocks.dat") },
-			.directory_file { test_extfs.open_file("sys/sysfs/tags.dat") }
-		};
-		sysfs test_sysfs(sys_files);
-		test_sysfs.init_blank(test_backup_filenames);
-		direct_writeln("Initialized in directory sys/sysfs");
-		sysfs_node_test(test_sysfs);
-		test_sysfs.sync();
-		uint32_t ino = test_sysfs.find_node("some_test_data");
+		std::ext::delegate_ptr<sysfs>::on_acquire_release(delegate_ptr_cb_sysfs, delegate_ptr_cb_sysfs);
+		test_extfs.open_directory("sys");
+		test_sysfs.emplace(std::addressof(test_extfs), sys_files);
+		test_sysfs->init_blank(test_backup_filenames);
+		direct_writeln("Initialized in directory sys");
+		sysfs_node_test(*test_sysfs);
+		uint32_t ino					= test_sysfs->find_node("some_test_data");
 		if(ino)
 		{
-			sysfs_vnode& n = test_sysfs.open(ino);
+			sysfs_vnode& n				= test_sysfs->open(ino);
 			test_map tm(n);
-			test_map::value_handle hdl = tm.find("abcdefg");
+			test_map::value_handle hdl	= tm.find("abcdefg");
 			xdirect_writeln("string abcdefg is associated with the number " + std::to_string(hdl->something));
 		}
 		else xdirect_writeln("[sysfs directory did not contain expected key]");
-		test_extfs.close_file(sys_files.data_file);
-		test_extfs.close_file(sys_files.index_file);
-		test_extfs.close_file(sys_files.extents_file);
-		test_extfs.close_file(sys_files.directory_file);
 	}
-	catch(std::exception& e) { panic(e.what()); }
+	catch(std::exception& e) { panic(e.what()); test_sysfs.release(); }
 }
 void circular_queue_tests()
 {
@@ -483,6 +482,26 @@ void worker_tests()
 	else direct_writeln("started workers");
 	sti();
 	while(w1 || w2) { pause(); }
+}
+void uam_tests()
+{
+	if(test_sysfs)
+	{
+		try
+		{
+			if(user_accounts_manager::init_instance(*test_sysfs))
+			{
+				user_accounts_manager& inst				= *user_accounts_manager::get_instance();
+				inst.create_user("test_user", "test_pass", "/bin/sh", "someone testy", "/home/test_user");
+				user_handle result						= inst.get_user("test_user");
+				result->capabilities.system_permissions	|= escalate_process;
+				if(result->check_pw("test_pass")) xdirect_writeln("created account test_user with uid " + std::to_string(result->uid) + " and gid " + std::to_string(result->gid));
+				else direct_writeln("account failed to populate correctly");
+			}
+			else direct_writeln("UAM init failed");
+		}
+		catch(std::exception& e) { panic(e.what()); }
+	}
 }
 static const char* codes[] =
 {
@@ -585,6 +604,7 @@ void run_tests()
 	{
 		direct_writeln("sysfs tests...");
 		sysfs_tests();
+		uam_tests();
 		shared_object_map::get_ldso_object(std::addressof(test_extfs));
 		direct_writeln("SO loader tests...");
 		dyn_elf_tests();

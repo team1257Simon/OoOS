@@ -156,6 +156,7 @@ struct sysfs_vnode : std::ext::dynamic_streambuf<char>
 	uint32_t inode_number() const;
 	void init();                        // performs some setup; the constructor automatically calls this.
 	pos_type commit(size_t target_pos); // marks all blocks in the object up to and including the given position as needing to be written to disk.
+	bool sync_parent();
 	bool expand_to_size(size_t target);
 	bool expand_by_size(size_t added);
 	void* raw_data();
@@ -168,18 +169,21 @@ protected:
 	uint32_t ino;
 	sysfs_extent_tree extent_tree;
 	std::vector<block_range> dirty_blocks;
+	virtual void on_modify() override;
 	virtual int write_dev() override;
 	virtual std::streamsize on_overflow(std::streamsize n) override;
 	virtual std::streamsize sector_size() const override;
 	virtual std::streamsize xsputn(char const* s, std::streamsize n) override;
 	uint32_t actual_block(size_t ordinal) const;
+	size_t block_capacity() const;
+	void calc_inode_csum();
 };
-struct sysfs_file_ptrs
+struct sysfs_file_paths
 {
-	file_vnode* data_file;
-	file_vnode* index_file;
-	file_vnode* extents_file;
-	file_vnode* directory_file;
+	std::string data_file;
+	std::string index_file;
+	std::string extents_file;
+	std::string directory_file;
 };
 struct sysfs_backup_filenames
 {
@@ -190,6 +194,7 @@ struct sysfs_backup_filenames
 };
 class sysfs
 {
+	filesystem& __backend;
 	file_vnode& __data_file;
 	file_vnode& __index_file;
 	file_vnode& __extents_file;
@@ -203,7 +208,8 @@ class sysfs
 	sysfs_data_block& __block(size_t num);
 	size_t __num_blocks() const;
 public:
-	sysfs(sysfs_file_ptrs const& files);
+	~sysfs();
+	sysfs(filesystem* backend, sysfs_file_paths const& files);
 	void init_load();
 	void init_blank(sysfs_backup_filenames const& bak);
 	void write_data(size_t start_block, const char* data, size_t n);
@@ -243,7 +249,8 @@ struct sysfs_object_handle
 	typedef T const* const_pointer;
 	typedef T& reference;
 	typedef T const& const_reference;
-	sysfs_object_handle(sysfs_vnode& n) : object_node(n) { if(!object_node.expand_to_size(sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); }
+	sysfs_object_handle(sysfs_vnode& n) : object_node(n) { if(!object_node.expand_to_size(sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); object_node.pubsync(); }
+	sysfs_object_handle(sysfs_vnode& n, T const& t) requires(std::is_trivially_copy_constructible_v<T>) : object_node(n) { if(!object_node.sputn(reinterpret_cast<const char*>(std::addressof(t)), sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); object_node.pubsync(); }
 	sysfs_object_handle(sysfs& parent, uint32_t ino) : sysfs_object_handle(parent.open(ino)) {}
 	sysfs_object_handle(sysfs_object_handle const& that) : object_node(that.object_node) {}
 	sysfs_object_handle(sysfs_object_handle&& that) : object_node(that.object_node) {}
@@ -252,7 +259,7 @@ struct sysfs_object_handle
 	pointer operator->() & { return static_cast<pointer>(object_node.raw_data()); }
 	const_pointer operator->() const& { return static_cast<const_pointer>(object_node.raw_data()); }
 	void commit_object() { object_node.commit(sizeof(T)); object_node.pubsync(); }
-	~sysfs_object_handle() { commit_object(); }
+	~sysfs_object_handle() { commit_object(); object_node.sync_parent(); }
 };
 /**
  * Tabulated data in sysfs is stored in hashtables.
@@ -292,14 +299,14 @@ sysfs_htbl_template struct sysfs_table_entry_handle
 	constexpr sysfs_table_entry_handle(sysfs_table_entry_handle&& that) : parent(that.parent), value_index(that.value_index) { that.release(); }
 	constexpr sysfs_table_entry_handle& operator++() { value_index++; return *this; }
 	void commit_object();
-	~sysfs_table_entry_handle() { if(value_index) commit_object(); }
+	~sysfs_table_entry_handle() { commit_object(); parent.table_node.sync_parent(); }
 	VT* ptr();
 	VT const* ptr() const;
 	VT* operator->();
 	VT const* operator->() const;
 	VT& operator*();
 	VT const& operator*() const;
-	template<typename ... Args> requires std::constructible_from<VT, Args...> void emplace(Args&& ... args) { std::construct_at(ptr(), std::forward<Args>(args)...); }
+	template<typename ... Args> requires(std::constructible_from<VT, Args...>) void emplace(Args&& ... args) { std::construct_at(ptr(), std::forward<Args>(args)...); }
 };
 /**
  * Implements the logic that is dependent on the stored object type.

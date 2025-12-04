@@ -40,5 +40,16 @@ namespace std
 				__destroy_node	{ bind(&__generic_ptr_container::__erase_at_index, this, placeholders::_1) }
 								{}
 		}
+		bad_delegate_deref::bad_delegate_deref() noexcept = default;
+		bad_delegate_deref::~bad_delegate_deref() noexcept = default;
+		bad_delegate_deref& bad_delegate_deref::operator=(bad_delegate_deref const&) noexcept { return *this; }
+		const char* bad_delegate_deref::what() const noexcept { return "std::ext::bad_delegate_deref"; }
+		extern "C"
+		{
+			void __throw_bad_delegate_deref() {
+				panic("[UTIL/DELEGATE] attempted to dereference a null delegate pointer");
+				throw bad_delegate_deref();
+			}
+		}
 	}
 }

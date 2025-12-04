@@ -256,7 +256,12 @@ file_vnode* extfs::on_open(tnode* fd, std::ios_base::openmode mode)
 		return addressof(p->out);
 	}
 	file_vnode* fn			= fd->as_file();
-	if(fn && fn->on_open()) return fn;
+	if(fn && fn->on_open())
+	{
+		if(mode.app || mode.ate)
+			fn->seek(fn->size());
+		return fn;
+	}
 	return nullptr;
 }
 filesystem::target_pair extfs::get_parent(directory_vnode* start, std::string const& path, bool create)
@@ -311,9 +316,10 @@ file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mo
 	else result				= delegate->on_open(node, mode);
 	if(result)
 	{
-		if(ext_file_vnode* exfn			= dynamic_cast<ext_file_vnode*>(result)) { exfn->on_open(); }
+		if(ext_file_vnode* exfn		= dynamic_cast<ext_file_vnode*>(result)) exfn->on_open();
 		register_fd(result);
-		if(!result->is_pipe()) result->current_mode	= mode;
+		if(!result->is_pipe())
+			result->current_mode	= mode;
 	}
 	return result;
 }

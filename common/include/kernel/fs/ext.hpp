@@ -511,6 +511,8 @@ struct ext_vnode_base
 	ext_vnode_base(extfs* parent, uint32_t inode_number);
 	ext_vnode_base();
 	bool update_inode();
+	uid_t owner_uid() const noexcept;
+	gid_t owner_gid() const noexcept;
 	virtual ~ext_vnode_base();
 };
 struct ext_vnode : public ext_vnode_base, public std::ext::dynamic_streambuf<char>
@@ -598,6 +600,8 @@ public:
 	virtual bool grow(size_t added) override;
 	virtual void force_write() override;
 	virtual void on_close() override;
+	virtual uid_t owner_uid() const noexcept final override;
+	virtual gid_t owner_gid() const noexcept final override;
 	virtual ~ext_file_vnode();
 	ext_file_vnode(extfs* parent, uint32_t inode_number, int fd);
 	ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
@@ -627,6 +631,8 @@ public:
 	virtual bool fsync() override;
 	virtual bool on_open() override;
 	virtual bool truncate() override;
+	virtual uid_t owner_uid() const noexcept override;
+	virtual gid_t owner_gid() const noexcept override;
 	virtual ~ext_directory_vnode();
 	ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd);
 	ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd);
@@ -642,6 +648,8 @@ public:
 	virtual bool fsync() override;
 	ext_device_vnode(extfs* parent, uint32_t inode_number, device_stream* dev, int fd);
 	ext_device_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, device_stream* dev, int fd);
+	virtual uid_t owner_uid() const noexcept final override;
+	virtual gid_t owner_gid() const noexcept final override;
 	virtual ~ext_device_vnode();
 };
 class ext_pipe_vnode : public ext_vnode_base, public pipe_vnode
@@ -651,6 +659,8 @@ public:
 	ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd);
 	ext_pipe_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode, int fd, size_t pipe_id);
 	ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd, size_t pipe_id);
+	virtual uid_t owner_uid() const noexcept final override;
+	virtual gid_t owner_gid() const noexcept final override;
 	virtual ~ext_pipe_vnode();
 };
 class ext_pipe_pair : public vnode
@@ -662,6 +672,8 @@ public:
 	virtual bool fsync() override;
 	virtual bool truncate() override;
 	virtual bool is_pipe() const noexcept final override;
+	virtual uid_t owner_uid() const noexcept final override;
+	virtual gid_t owner_gid() const noexcept final override;
 	ext_pipe_pair(extfs* parent, uint32_t inode_number, std::string const& name);
 	virtual ~ext_pipe_pair();
 };

@@ -47,6 +47,7 @@ void sysfs_extent_tree::__overflow_root()
 	br->checksum			= csum;
 	r.start					= next;
 	__managed_vnode.inode().root_depth++;
+	__managed_vnode.calc_inode_csum();
 }
 sysfs_extent_branch& sysfs_extent_tree::__next_leaf_branch()
 {

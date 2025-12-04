@@ -14,7 +14,7 @@ std::streamsize fat32_filebuf::read_dev(std::streamsize n)
 	size_t bs	= __parent->parent_fs->block_size();
 	size_t s	= div_round_up(n, bs);
 	size_t k	= 0UZ;
-	if(!__grow_buffer(s * bs)) return 0UZ;
+	if(!__grow_buffer_exact(s * bs)) return 0UZ;
 	if(!gptr()) { setg(__beg(), __cur(), __max()); }
 	for(size_t i = 0; i < s && __next_cluster_idx < __my_clusters.size(); i++, ++__next_cluster_idx) { if(__parent->parent_fs->read_clusters(__get_ptr(k), __my_clusters[i])) { k += bs; } else break; }
 	setg(__beg(), __cur(), __max());
@@ -26,7 +26,7 @@ std::streamsize fat32_filebuf::on_overflow(std::streamsize n)
 	size_t s	= div_round_up(n, bs);
 	size_t k	= 0UZ;
 	for(size_t i = 0; i < s; i++, k += bs) { if(uint32_t cl = __parent->claim_next(__my_clusters.back())) { __my_clusters.push_back(cl); } else break; }
-	if(!__grow_buffer(k)) return 0UZ;
+	if(!__grow_buffer_exact(k)) return 0UZ;
 	return k;
 }
 bool fat32_filebuf::grow_file(size_t added)

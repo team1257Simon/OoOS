@@ -20,6 +20,7 @@ static sysfs_vnode& create_sysfs_hashtable(sysfs& parent, std::string const& nam
 		.num_entries		{ 0UZ }
 	};
 	result.commit(target_size);
+	parent.sync();
 	return result;
 }
 size_t sysfs_hash_table_base::total_table_bytes() const
@@ -50,7 +51,7 @@ bool sysfs_hash_table_base::add_entry(size_t object_hash, size_t object_index)
 	hdr->num_entries++;
 	if(sysfs_vnode::pos_type result					= table_node.commit(commit_pos); __unlikely(static_cast<std::streamoff>(result) == -1Z)) return false;
 	table_node.pubsync();
-	return true;
+	return table_node.sync_parent();
 }
 sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_start(size_t object_hash)
 {

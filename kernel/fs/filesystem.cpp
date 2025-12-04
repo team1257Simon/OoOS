@@ -12,7 +12,7 @@ default_device_impl_fs::~default_device_impl_fs() = default;
 void filesystem::tie_block_device(block_device* dev) { blockdev = dev; }
 std::string filesystem::get_path_separator() const noexcept { return std::string(path_separator()); }
 vnode* filesystem::get_fd_node(int fd) { return current_open_files.find_fd(fd); }
-void filesystem::register_fd(vnode* node) { next_fd = current_open_files.add_fd(node) + 1; }
+void filesystem::register_fd(vnode* node) { if(node->fd < 0) node->fd = next_fd; next_fd = current_open_files.add_fd(node) + 1; }
 const char* filesystem::path_separator() const noexcept { return "/"; }
 file_vnode* filesystem::open_file(const char* path, std::ios_base::openmode mode, bool create) { return open_file(std::string(path), mode, create); }
 file_vnode* filesystem::on_open(tnode* node) { return on_open(node, std::ios_base::in | std::ios_base::out); }
@@ -25,10 +25,15 @@ filesystem::target_pair filesystem::get_parent(std::string const& path, bool cre
 directory_vnode* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
 bool filesystem::write_blockdev(uint64_t lba_dest, const void* src, size_t sectors) { return blockdev->write(lba_dest, src, sectors); }
 bool filesystem::read_blockdev(void* dest, uint64_t lba_src, size_t sectors) { return blockdev->read(dest, lba_src, sectors); }
-file_vnode* filesystem::on_open(tnode* node, std::ios_base::openmode)
+file_vnode* filesystem::on_open(tnode* node, std::ios_base::openmode mode)
 {
 	file_vnode* fn = node->as_file();
-	if(fn && fn->on_open()) return fn;
+	if(fn && fn->on_open())
+	{
+		if(mode.app || mode.ate)
+			fn->seek(fn->size());
+		return fn;
+	}
 	return nullptr;
 }
 tnode* filesystem::link(std::string const& ogpath, std::string const& tgpath, bool create_parents)
@@ -72,6 +77,7 @@ void filesystem::close_file(file_vnode* fd)
 {
 	if(fd && fd->is_file())
 		on_close(fd);
+	if(fd) fd->vid(-1);
 	syncdirs();
 }
 void filesystem::on_close(file_vnode* fd)

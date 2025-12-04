@@ -1,4 +1,5 @@
 #include <fs/fs.hpp>
+#include <sched/task_ctx.hpp>	// uid_undef, gid_undef
 #include <rtc.h>
 vnode::vnode(std::string const& name, int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name(name) {}
 vnode::vnode(int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name() {}
@@ -19,6 +20,8 @@ void vnode::rm_reference(tnode* ref) { if(refs.erase(ref)) { ref->invlnode(); } 
 void vnode::prune_refs() { for(tnode* ref : refs) ref->invlnode(); refs.clear(); }
 bool vnode::has_refs() const noexcept { return refs.size() != 0; }
 size_t vnode::num_refs() const noexcept { return refs.size(); }
+uid_t vnode::owner_uid() const noexcept { return uid_undef; }
+gid_t vnode::owner_gid() const noexcept { return gid_undef; }
 vnode::~vnode() { prune_refs(); }
 file_vnode::file_vnode(std::string const& name, int vfd, uint64_t cid) : vnode(name, vfd, cid) {}
 file_vnode::file_vnode(int vfd, uint64_t cid) : vnode(vfd, cid) {}

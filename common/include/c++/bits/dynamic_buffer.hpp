@@ -407,6 +407,7 @@ namespace std::__impl
 		constexpr __pointer __erase(__const_pointer pos) { return this->__erase_range(pos, pos + 1Z); }
 		constexpr void __assign_ptrs(__container const& c) noexcept { __my_data.__copy_ptrs(c); }
 		constexpr void __move_assign(__dynamic_buffer&& that) { this->__my_data	= std::move(that.__my_data); }
+		constexpr bool __grow_buffer_exact(__size_type added);
 		template<matching_input_iterator<T> IT>
 		constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __my_data(alloc, static_cast<__size_type>(std::distance(start, end < start ? start : end)))
 		{
@@ -558,6 +559,18 @@ namespace std::__impl
 		__size_type num_elements	= __size();
 		__size_type cur_capacity	= __capacity();
 		__size_type target 			= min(max(cur_capacity << 1, cur_capacity + added + (__using_sso ? 1UZ : 0UZ)), __max_capacity());
+		try { __data_resize(num_elements + (__using_sso ? added : 0UZ), target); }
+		catch(...) { return false; }
+		if(__unlikely(!__cur())) return false;
+		return true;
+	}
+	template<typename T, allocator_object<T> A, bool NTS>
+	constexpr bool __dynamic_buffer<T, A, NTS>::__grow_buffer_exact(__size_type added)
+	{
+		if(!added) return true;		// Zero elements -> vacuous success
+		__size_type num_elements	= __size();
+		__size_type cur_capacity	= __capacity();
+		__size_type target 			= cur_capacity + added + (__using_sso ? 1UZ : 0UZ);
 		try { __data_resize(num_elements + (__using_sso ? added : 0UZ), target); }
 		catch(...) { return false; }
 		if(__unlikely(!__cur())) return false;

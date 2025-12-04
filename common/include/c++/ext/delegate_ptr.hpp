@@ -23,6 +23,15 @@ namespace std
 	{
 		// Any action that must be performed on acquiring or releasing a delegate pointer, such as modifying a semaphore
 		typedef function<void(void*)> delegate_callback;
+		class bad_delegate_deref : public std::exception
+		{
+		public:
+			bad_delegate_deref() noexcept;
+			bad_delegate_deref& operator=(bad_delegate_deref const&) noexcept;
+			virtual ~bad_delegate_deref() noexcept;
+			virtual const char* what() const noexcept override;
+		};
+		extern "C" void __throw_bad_delegate_deref();
 		namespace __impl
 		{
 			typedef function<void(size_t)> __indexed_function;
@@ -177,10 +186,14 @@ namespace std
 				typedef __managed_object_node<T> __nt;
 				size_t __idx;
 				__managed_object_node<T>* __node;
+			public:
+				constexpr static size_t nxptr	= static_cast<size_t>(-1Z);
 			protected:
 				__delegate_ptr_impl(size_t node_idx) : __idx(node_idx), __node(std::addressof(__get<T>(node_idx).__acquire())) {}
 				__delegate_ptr_impl(__delegate_ptr_impl&& that) : __idx(that.__idx), __node(that.__node) { that.__node = nullptr; }
-				void __destroy() { if(__node) __node->__release(); }
+				constexpr __delegate_ptr_impl(nullptr_t) noexcept : __idx(nxptr), __node(nullptr) {}
+				void __destroy() { if(__node) __node->__release(); this->__node = nullptr; }
+				void __require_nonnull() const { if(!__node) __throw_bad_delegate_deref(); }
 				void __assign(__delegate_ptr_impl const& that)
 				{
 					this->__destroy();
@@ -195,15 +208,23 @@ namespace std
 					this->__node	= that.__node;
 					that.__node		= nullptr; 
 				}
+				template<typename ... Args> requires(constructible_from<T, Args...>)
+				void __emplace(Args&& ... args)
+				{
+					this->__destroy();
+					this->__idx		= __impl::__get_ptrs<T>().add_new(std::forward<Args>(args)...);
+					this->__node	= std::addressof(__get<T>(__idx).__acquire());
+				}
 			public:
 				~__delegate_ptr_impl() { __destroy(); }
-				size_t get_id() const { return __idx; }
-				typename __nt::reference operator*() & { return __node->__ref(); }
-				typename __nt::const_reference operator*() const& { return __node->__ref(); }
-				typename __nt::pointer operator->() & { return __node->__ptr(); }
-				typename __nt::const_pointer operator->() const& { return __node->__ptr(); }
-				template<typename I> requires(__indexable<T, I>) __index_result_t<I, T> operator[](I&& i) & { return __node->__ref()[std::forward<I>(i)]; }
-				template<typename I> requires(__const_indexable<T, I>) __const_index_result_t<I, T> operator[](I&& i) const& { return __node->__ref()[std::forward<I>(i)]; }
+				constexpr size_t get_id() const { return __idx; }
+				constexpr operator bool() const noexcept { return static_cast<bool>(this->__node); }
+				typename __nt::reference operator*() & { __require_nonnull(); return __node->__ref(); }
+				typename __nt::const_reference operator*() const& { __require_nonnull(); return __node->__ref(); }
+				typename __nt::pointer operator->() & { __require_nonnull(); return __node->__ptr(); }
+				typename __nt::const_pointer operator->() const& { __require_nonnull(); return __node->__ptr(); }
+				template<typename I> requires(__indexable<T, I>) __index_result_t<I, T> operator[](I&& i) & { __require_nonnull(); return __node->__ref()[std::forward<I>(i)]; }
+				template<typename I> requires(__const_indexable<T, I>) __const_index_result_t<I, T> operator[](I&& i) const& { __require_nonnull(); return __node->__ref()[std::forward<I>(i)]; }
 			};
 		}
 		template<typename T>
@@ -211,6 +232,8 @@ namespace std
 		{
 			using __base = __impl::__delegate_ptr_impl<T>;
 		public:
+			using __base::nxptr;
+			constexpr delegate_ptr(nullptr_t) noexcept : __base(nullptr) {}
 			delegate_ptr(size_t id) : __base(id) {}
 			delegate_ptr(T&& t) requires(move_constructible<T>) : __base(__impl::__get_ptrs<T>().add(std::move(t))) {}
 			delegate_ptr(T const& t) requires(copy_constructible<T>) : __base(__impl::__get_ptrs<T>().add(t)) {}
@@ -219,7 +242,9 @@ namespace std
 			template<typename ... Args> requires(constructible_from<T, Args...>) delegate_ptr(Args&& ... args) : __base(__impl::__get_ptrs<T>().add_new(std::forward<Args>(args)...)) {}
 			delegate_ptr& operator=(delegate_ptr const& that) { __base::__assign(that); return *this; }
 			delegate_ptr& operator=(delegate_ptr&& that) { __base::__assign(std::move(that)); return *this; }
-			void release() { __base::__destroy(); this->__node = nullptr; }
+			delegate_ptr& operator=(nullptr_t) { __base::__destroy(); return *this; }
+			template<typename ... Args> requires(constructible_from<T, Args...>) delegate_ptr& emplace(Args&& ... args) { __base::__emplace(std::forward<Args>(args)...); return *this; }
+			void release() { __base::__destroy(); }
 			// Registers any action that must be performed on a per-reference basis with regard to a given object when acquiring or releasing a delegate pointer.
 			static void on_acquire_release(delegate_callback&& acq, delegate_callback&& rel) { __impl::__register_acq_rel_fns<T>(std::move(acq), std::move(rel)); }
 			friend constexpr strong_ordering operator<=>(delegate_ptr const& __this, delegate_ptr const& __that) noexcept { return __this.__idx <=> __that.__idx; }

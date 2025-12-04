@@ -10,14 +10,22 @@ size_t sysfs::__num_blocks() const { return (__data_file.size() - sizeof(sysfs_d
 sysfs_extent_branch const& sysfs::get_extent_branch(size_t idx) const { return static_cast<sysfs_extent_branch const&>(const_cast<sysfs*>(this)->get_extent_branch(idx)); }
 sysfs_inode const& sysfs::get_inode(size_t ino) const { return static_cast<sysfs_inode const&>(const_cast<sysfs*>(this)->get_inode(ino)); }
 sysfs_dir_entry const& sysfs::get_dir_entry(size_t num) const { return static_cast<sysfs_dir_entry const&>(const_cast<sysfs*>(this)->get_dir_entry(num)); }
-sysfs::sysfs(sysfs_file_ptrs const& files) :
-	__data_file			{ *files.data_file },
-	__index_file		{ *files.index_file },
-	__extents_file		{ *files.extents_file },
-	__directory_file	{ *files.directory_file },
+sysfs::sysfs(filesystem* backend, sysfs_file_paths const& files) :
+	__backend			{ *backend },
+	__data_file			{ *__backend.open_file(files.data_file) },
+	__index_file		{ *__backend.open_file(files.index_file) },
+	__extents_file		{ *__backend.open_file(files.extents_file) },
+	__directory_file	{ *__backend.open_file(files.directory_file) },
 	__directory_map		{ 64UZ },
 	__opened_nodes		{ 64UZ }
 						{}
+sysfs::~sysfs()
+{
+	__backend.close_file(std::addressof(__data_file));
+	__backend.close_file(std::addressof(__index_file));
+	__backend.close_file(std::addressof(__extents_file));
+	__backend.close_file(std::addressof(__directory_file));
+}
 void sysfs::write_data(size_t st_block, const char* data, size_t n)
 {
 	if(__unlikely(!st_block))
@@ -43,7 +51,7 @@ bool sysfs::sync()
 	else if(__unlikely(!__index_file.fsync())) panic("[FS/SYSFS] failed to sync index file");
 	else if(__unlikely(!__extents_file.fsync())) panic("[FS/SYSFS] failed ty sync extents file");
 	else if(__unlikely(!__directory_file.fsync())) panic("[FS/SYSFS] failed to sync directory file");
-	else return true;
+	else return __backend.pubsyncdirs(), true;
 	return false;
 }
 sysfs_extent_branch& sysfs::get_extent_branch(size_t idx)

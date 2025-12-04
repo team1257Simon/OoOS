@@ -6,11 +6,11 @@ extern "C"
 		permission_flag cperms		= current->capabilities.system_permissions;
 		if(!(cperms & impersonate_any_uid))
 		{
-			if(__unlikely(!pass)) return static_cast<uid_t>(-EPERM);
+			if(__unlikely(!pass || (target->capabilities.system_permissions & service_account_nxlogin))) return static_cast<uid_t>(-EPERM);
 			pass					= translate_user_pointer(pass);
 			if(__unlikely(!pass)) return static_cast<uid_t>(-EFAULT);
-			std::string pstr(pass);
-			if(!target->check_pw(pstr)) return static_cast<uid_t>(-EACCES);
+			std::string pstring(pass);
+			if(!target->check_pw(pstring)) return static_cast<uid_t>(-EACCES);
 		}
 		uid_t uid 							= target->uid;
 		gid_t gid							= target->gid;
@@ -29,8 +29,10 @@ extern "C"
 		if(__unlikely(!name || !pass)) return static_cast<uid_t>(-EFAULT);
 		try
 		{
-			std::string ustring(name), pstring(pass);
+			std::string ustring(name);
 			user_handle user	= user_accounts_manager::get_instance()->get_user(ustring);
+			if(user->capabilities.system_permissions & service_account_nxlogin) return static_cast<uid_t>(-EPERM);
+			std::string pstring(pass);
 			if(user->check_pw(pstring))
 			{
 				uid_t uid							= user->uid;
@@ -40,7 +42,7 @@ extern "C"
 				task->task_struct.saved_regs.rdx	= static_cast<register_t>(gid);
 				return uid;
 			}
-			return static_cast<uid_t>(-EPERM);
+			return static_cast<uid_t>(-EACCES);
 		}
 		catch(std::out_of_range& e) { panic(e.what()); return static_cast<uid_t>(-EINVAL); }
 		catch(std::bad_alloc&) { return static_cast<uid_t>(-ENOMEM); }

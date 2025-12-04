@@ -99,7 +99,6 @@ bool user_accounts_manager::init_instance(sysfs& config_src)
 			inf.num_groups++;
 			inf.last_updated			= sys_time(nullptr);
 			__instance->__global_info.commit_object();
-			config_src.sync();
 		}
 	}
 	catch(std::exception& e) { panic(e.what()); return false; }
@@ -146,16 +145,19 @@ int user_accounts_manager::create_user(std::string const& name, std::string cons
 	};
 	int err 					= __create_credentials(account, name, pw);
 	if(__unlikely(err != 0)) return err;
-	user_handle result			= __table.add(account).first;
-	err				 			= __create_vpwd_records(*result, home, gecos, shell);
-	if(__unlikely(err != 0)) return err;
-	inf.next_uid++;
-	inf.next_gid++;
-	inf.num_users++;
-	inf.num_groups++;
-	inf.last_updated 			= sys_time(nullptr);
-	__global_info.commit_object();
-	return !__sysfs.sync() ? -EIO : 0;
+	else
+	{
+		user_handle result			= __table.add(account).first;
+		err				 			= __create_vpwd_records(*result, home, gecos, shell);
+		if(__unlikely(err != 0)) return err;
+		inf.next_uid++;
+		inf.next_gid++;
+		inf.num_users++;
+		inf.num_groups++;
+		inf.last_updated 			= sys_time(nullptr);
+		__global_info.commit_object();
+	}
+	return 0;
 }
 int user_accounts_manager::create_service_account(std::string const& name, std::string const& pw, const char* shell, const char* gecos, const char* home, user_capabilities* caps)
 {
@@ -166,18 +168,22 @@ int user_accounts_manager::create_service_account(std::string const& name, std::
 		.gid			{ inf.next_service_gid },
 		.capabilities	{ nonnull_or_else(caps, inf.default_permissions) }
 	};
+	account.capabilities.system_permissions	|= service_account_nxlogin;
 	int err = __create_credentials(account, name, pw);
 	if(__unlikely(err != 0)) return err;
-	user_handle result			= __table.add(account).first;
-	err				 			= __create_vpwd_records(*result, home, gecos, shell ? shell : "/sbin/nologin");
-	if(__unlikely(err != 0)) return err;
-	inf.next_service_uid++;
-	inf.next_service_gid++;
-	inf.num_users++;
-	inf.num_groups++;
-	inf.last_updated 			= sys_time(nullptr);
-	__global_info.commit_object();
-	return !__sysfs.sync() ? -EIO : 0;
+	else
+	{
+		user_handle result			= __table.add(account).first;
+		err				 			= __create_vpwd_records(*result, home, gecos, shell ? shell : "/sbin/nologin");
+		if(__unlikely(err != 0)) return err;
+		inf.next_service_uid++;
+		inf.next_service_gid++;
+		inf.num_users++;
+		inf.num_groups++;
+		inf.last_updated 			= sys_time(nullptr);
+		__global_info.commit_object();
+	}
+	return 0;
 }
 vpwd_entry* user_accounts_manager::__load_vpwd_data(user_info const& user, std::function<addr_t(size_t)> const& alloc_fn)
 {
