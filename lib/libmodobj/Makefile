@@ -15,7 +15,6 @@ CXXFLAGS := $(CFLAGS) -std=gnu++26 $(addprefix -I,$(INCLUDES)) $(addprefix -I,$(
 CCFLAGS := $(CFLAGS) $(addprefix -I,$(INCLUDES)) -std=gnu23 -fplugin=$(ATTR_PLUGIN)
 SUBDIRS = $(sort $(dir $(wildcard */*.*)))
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
-ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
 SSRC = $(wildcard lib*.S)
 CRTSRC = $(wildcard mod*.S)
 CSRC = $(wildcard *.c */*.c)
@@ -25,13 +24,13 @@ OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) $(SSRC:%.S=%.o)
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES))
 CRTOBJS = $(addprefix $(OBJDIR)/,$(CRTOBJ_NAMES))
 CRTOBJ_OUT = $(addprefix $(OUTDIR)/,$(CRTOBJ_NAMES))
-ASM_TEST = $(addprefix $(ASMT_DIR)/,$(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/,$(CSRC:%.c=%.test.asm))
+ASM_TEST = $(CPPSRC:%.cpp=%.test.asm) $(CSRC:%.c=%.test.asm)
 SYM_LOG := $(LOG_DIR)/libmodobj-syms.txt
 CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbeginS.o)
 CRTEND := $(shell $(CC) $(CCFLAGS) -print-file-name=crtendS.o)
-.PHONY: all
+.PHONY: all clean
 all: $(OBJDIR) $(OSUBDIRS) $(OUT) $(SYM_LOG) $(CRTOBJ_OUT)
-$(OBJDIR) $(OSUBDIRS) $(ASMT_DIR) $(ASUBDIRS):
+$(OBJDIR) $(OSUBDIRS):
 	@mkdir -p $@
 $(OUT): $(OBJECTS)
 	$(AR) $(ARFLAGS) $@ $(OBJECTS)
@@ -47,10 +46,12 @@ $(OUTDIR)/modcrtend.o:
 	$(COPY) -p $(CRTEND) $@
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
-$(ASMT_DIR)/%.test.asm: %.cpp
+%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
-$(ASMT_DIR)/%.test.asm: %.c
+%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 $(SYM_LOG): $(OUT)
 	$(READ) $(READFLAGS) $< > $@
-asmtest: $(ASMT_DIR) $(ASUBDIRS) $(ASM_TEST)
+asmtest: $(ASM_TEST)
+clean:
+	rm $(ASM_TEST) > /dev/null 2>/dev/null || true

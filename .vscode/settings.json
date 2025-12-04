@@ -132,5 +132,10 @@
     "C_Cpp.default.cStandard": "gnu23",
     "C_Cpp.inlayHints.autoDeclarationTypes.enabled": true,
 	"editor.insertSpaces": false,
-	"editor.detectIndentation": false
+	"editor.detectIndentation": false,
+	"disasexpl.associations": {
+		"**/*.c": "${fileDirname}/${fileBasenameNoExtension}.test.asm",
+		"**/*.cpp": "${fileDirname}/${fileBasenameNoExtension}.test.asm"
+	},
+	"disasexpl.dimUnusedSourceLines": false
 }

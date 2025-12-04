@@ -15,7 +15,6 @@ COPY := $(TARGET_HOSTED)-objcopy
 OUT_ELF := $(OUTDIR)/CORE.ELF
 SUBDIRS = $(sort $(dir $(wildcard */*.* */*/*.*)))
 OSUBDIRS = $(addprefix $(OBJDIR)/,$(SUBDIRS))
-ASUBDIRS = $(addprefix $(ASMT_DIR)/,$(SUBDIRS))
 LSUBDIRS = $(addprefix $(LOG_DIR)/,$(SUBDIRS))
 SSRC = $(wildcard *.S */*.S */*/*.S)
 CSRC = $(wildcard *.c */*.c */*/*.c)
@@ -29,16 +28,15 @@ OBJECTS = $(addprefix $(LIB_DIR)/,$(REORDER_OBJ_NAMES_START)) $(addprefix $(OBJD
 OBJ_SYMS = $(addprefix $(LOG_DIR)/,$(OBJECT_NAMES:%.o=%-syms.txt))
 CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbegin.o)
 CRTEND := $(shell $(CC) $(CCFLAGS) -print-file-name=crtend.o)
-ASMT_DIR := $(CURDIR)/asm_test
-ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
+ASM_TEST = $(CPPSRC:%.cpp=%.test.asm) $(CSRC:%.c=%.test.asm)
 SYM_LOG = $(LOG_DIR)/ooos-syms.txt
 .PHONY: all asmtest
 all: $(OUTDIR) $(OSUBDIRS) $(OBJDIR) $(LSUBDIRS) $(OUT_ELF) $(SYM_LOG) $(OBJ_SYMS)
-asmtest: $(ASMT_DIR) $(ASUBDIRS) $(ASM_TEST)
+asmtest: $(ASM_TEST)
 $(OUTDIR):
 	@mkdir -p $@
 	@mkdir -p $@/EFI/BOOT
-$(OBJDIR) $(LSUBDIRS) $(OSUBDIRS) $(ASMT_DIR) $(ASUBDIRS):
+$(OBJDIR) $(LSUBDIRS) $(OSUBDIRS):
 	@mkdir -p $@
 $(LIB_DIR)/crtbegin.o:
 	$(COPY) -p $(CRTBEGIN) $@
@@ -52,16 +50,16 @@ $(OBJDIR)/%.o: %.S
 	$(AS) $(ASFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
-$(ASMT_DIR)/%.test.asm: %.cpp
+%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
-$(ASMT_DIR)/%.test.asm: %.c
+%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 $(LOG_DIR)/%-syms.txt: $(OBJDIR)/%.o
 	$(READ) $(READFLAGS) $< > $@
 clean:
-	rm $(OUT_ELF) || true
-	rm -rf asm_test || true
-	rm -rf $(OBJDIR) || true
+	@rm $(OUT_ELF) || true
+	@rm -rf $(OBJDIR) || true
+	@rm $(ASM_TEST) > /dev/null 2>/dev/null || true
 $(OUT_ELF): $(OBJECTS) $(LDSCRIPT)
 	$(LD) -T $(LDSCRIPT) $(OBJECTS) -o $@ $(LDFLAGS)
 $(SYM_LOG): $(OUT_ELF)

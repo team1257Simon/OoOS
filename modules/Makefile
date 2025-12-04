@@ -1,5 +1,4 @@
 OBJ_BASE_DIR := $(CURDIR)/build
-ASMT_DIR := $(CURDIR)/asm_test
 AS := $(TARGET_HOSTED)-gcc
 CXX := $(TARGET_HOSTED)-g++
 CC := $(TARGET_HOSTED)-gcc
@@ -21,7 +20,6 @@ export LDSCRIPT
 export OBJ_BASE_DIR
 export TARGET_BARE
 export TARGET_HOSTED
-export ASMT_DIR
 export AS
 export CXX
 export CC

@@ -58,7 +58,7 @@ $(SUBDIRS):
 $(ATTR_PLUGIN):
 	$(MAKE) -C lib/ooos-attrs
 clean:
-	rm -rf $(OUT_IMG) *.bin common/include/asm-generated/* boot/*.o boot/uefi/*.o boot/uefi/*.a lib/asm_test $(LOG_DIR) || true
+	rm -rf $(OUT_IMG) *.bin common/include/asm-generated/* boot/*.o boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
 	cd kernel && $(MAKE) clean
 	cd headergen && $(MAKE) clean
 distclean:

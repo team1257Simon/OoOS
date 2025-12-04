@@ -24,7 +24,7 @@ ARCH_OBJECT_NAMES = $(SSRC:%.S=%.o)
 ARCH_OBJECTS = $(addprefix $(OBJDIR)/,$(ARCH_OBJECT_NAMES))
 OBJECT_NAMES = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o) arch-ldso.o
 OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES))
-ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
+ASM_TEST = $(CPPSRC:%.cpp=%.test.asm) $(CSRC:%.c=%.test.asm)
 OUT_SO = $(OUTDIR)/$(FULL_NAME)
 OUT_SO_LINK = $(OUTDIR)/$(SO_NAME)
 OUT_SO_SHORT_LINK = $(OUTDIR)/$(BASE_NAME)
@@ -32,7 +32,7 @@ OUT_SO_GENERIC_LINK = $(OUTDIR)/$(GENERIC_NAME)
 SYM_LOG := $(LOG_DIR)/ld-ooos-syms.txt
 .PHONY: all
 all: $(OBJDIR) $(OUTDIR) $(OUT_SO) $(OUT_SO_SHORT_LINK) $(OUT_SO_LINK) $(SYM_LOG) $(OUT_SO_GENERIC_LINK)
-$(OUTDIR) $(OBJDIR) $(ASMT_DIR) $(LOG_DIR):
+$(OUTDIR) $(OBJDIR) $(LOG_DIR):
 	@mkdir -p $@
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -42,9 +42,9 @@ $(OBJDIR)/%.o: %.S
 	$(AS) -fPIC -c $< -o $@
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
-$(ASMT_DIR)/%.test.asm: %.cpp
+%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
-$(ASMT_DIR)/%.test.asm: %.c
+%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 $(SYM_LOG): $(OUT_SO) $(LOG_DIR)
 	$(READ) $(READFLAGS) $< > $@
@@ -53,4 +53,6 @@ $(OUT_SO): $(OBJECTS)
 	$(ST) -s $@
 $(OUT_SO_LINK) $(OUT_SO_SHORT_LINK) $(OUT_SO_GENERIC_LINK): $(OUT_SO)
 	ln -sr $(OUT_SO) $@
-asmtest: $(ASMT_DIR) $(ASM_TEST)
+asmtest: $(ASM_TEST)
+clean:
+	rm $(ASM_TEST) || true

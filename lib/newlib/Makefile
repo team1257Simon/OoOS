@@ -26,7 +26,7 @@ IMG_LINKS_LIBC	= $(addprefix $(LIB_OUT_DIR)/,$(LINKS_LIBC))
 IMG_LINKS_LIBM	= $(addprefix $(LIB_OUT_DIR)/,$(LINKS_LIBM))
 SYM_LOG_LIBC 	:= $(LOG_DIR)/libc-syms.txt
 SYM_LOG_LIBM 	:= $(LOG_DIR)/libm_syms.txt
-.PHONY: all
+.PHONY: all clean
 all: $(LIB_OUT_DIR) $(IMG_LIBC) $(IMG_LIBM) $(IMG_LINKS) $(SYM_LOG_LIBC) $(SYM_LOG_LIBM)
 $(LIB_OUT_DIR) $(LOG_DIR):
 	@mkdir -p $@
@@ -42,3 +42,5 @@ $(SYM_LOG_LIBC): $(IMG_LIBC) $(LOG_DIR)
 	$(READ) $(READFLAGS) $< > $@
 $(SYM_LOG_LIBM): $(IMG_LIBM) $(LOG_DIR)
 	$(READ) $(READFLAGS) $< > $@
+clean:
+	true

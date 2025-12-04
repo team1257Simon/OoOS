@@ -7,10 +7,10 @@ OBJECTS = $(addprefix $(OBJDIR)/,$(OBJECT_NAMES))
 FULL_LD_INPUT = $(PRE_OBJS) $(OBJECTS) $(LIB_DIR)/libmodobj.a $(POST_OBJS)
 SYM_LOG = $(LOG_DIR)/amd64_ahci.syms.txt
 OUT_MOD = $(OUTDIR)/X64_AHCI.KO
-ASM_TEST = $(addprefix $(ASMT_DIR)/, $(CPPSRC:%.cpp=%.test.asm)) $(addprefix $(ASMT_DIR)/, $(CSRC:%.c=%.test.asm))
+ASM_TEST = $(CPPSRC:%.cpp=%.test.asm) $(CSRC:%.c=%.test.asm)
 .PHONY: all
 all: $(OUTDIR) $(OBJDIR) $(OUT_MOD) $(SYM_LOG)
-$(OBJDIR) $(OUTDIR) $(ASMT_DIR) $(ASUBDIRS):
+$(OBJDIR) $(OUTDIR):
 	@mkdir -p $@
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
@@ -23,10 +23,11 @@ $(OUT_MOD): $(OBJECTS)
 	$(ST) -s $@
 $(SYM_LOG): $(OUT_MOD)
 	$(READ) $(READFLAGS) $< > $@
-$(ASMT_DIR)/%.test.asm: %.cpp
+%.test.asm: %.cpp
 	$(CXX) $(CXXFLAGS) -S $< -o $@
-$(ASMT_DIR)/%.test.asm: %.c
+%.test.asm: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
-asmtest: $(ASMT_DIR) $(ASUBDIRS) $(ASM_TEST)
+asmtest: $(ASM_TEST)
 clean:
 	rm $(OUT_MOD) || true
+	rm $(ASM_TEST) || true
