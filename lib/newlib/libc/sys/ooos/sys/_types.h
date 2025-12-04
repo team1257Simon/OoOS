@@ -20,6 +20,9 @@ typedef long __key_t;
 typedef long _fpos_t;
 #ifndef __cplusplus
 typedef unsigned long __size_t;
+#ifndef restrict
+#define restrict __restrict__
+#endif
 #endif
 typedef signed long _ssize_t;
 struct __lock;

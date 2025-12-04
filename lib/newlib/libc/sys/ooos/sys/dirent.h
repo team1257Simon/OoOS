@@ -2,6 +2,9 @@
 #define __DIRENT
 #include <sys/types.h>
 #ifdef __cplusplus
+#ifndef restrict
+#define restrict __restrict__
+#endif
 extern "C" 
 {
 #endif
