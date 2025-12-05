@@ -36,7 +36,7 @@ constexpr size_t page_table_length	= PT_LEN;
 constexpr size_t region_size		= page_size * page_table_length;
 constexpr addr_t mmap_min_addr		= 0x500000LA;
 constexpr size_t block_index_range	= max_exponent - min_exponent;
-constexpr size_t max_block_index	= block_index_range - 1;
+constexpr size_t max_block_index	= block_index_range - 1Z;
 constexpr addr_t sysres_base		= 0xFFFF800000000000LA;
 struct block_tag
 {
@@ -87,20 +87,20 @@ public:
 	constexpr kframe_tag()	= default;
 	void insert_block(block_tag* blk, int idx) noexcept;
 	void remove_block(block_tag* blk) noexcept;
-	addr_t allocate(size_t size, size_t align = 0UL) noexcept;
-	void deallocate(addr_t ptr, size_t align = 0UL) noexcept;
-	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UL) noexcept;
+	addr_t allocate(size_t size, size_t align = 0UZ) noexcept;
+	void deallocate(addr_t ptr, size_t align = 0UZ) noexcept;
+	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UZ) noexcept;
 	addr_t array_allocate(size_t num, size_t size) noexcept;
 	block_tag* create_tag(size_t size, size_t align) noexcept;
 	block_tag* melt_left(block_tag* tag) noexcept;
 	block_tag* melt_right(block_tag* tag) noexcept;
 	block_tag* find_tag(addr_t ptr, size_t align) noexcept;
-	block_tag* get_for_allocation(size_t size, size_t align) noexcept __nointerrupts;
-	void release_block(block_tag* tag) noexcept __nointerrupts;
+	block_tag* get_for_allocation(size_t size, size_t align) noexcept;
+	void release_block(block_tag* tag) noexcept;
 private:
 	void __lock();
 	void __unlock();
-} __pack;
+};
 struct kframe_exports
 {
 	typedef addr_t (kframe_tag::*alloc_fn)(size_t, size_t);
@@ -155,7 +155,7 @@ public:
 	void accept_block(block_descriptor&& desc);
 	void transfer_block(uframe_tag& that, block_descriptor const& which);
 	void drop_block(block_descriptor const& which);
-	block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UL, bool write = true, bool execute = true, bool allow_global_shared = false);
+	block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true, bool allow_global_shared = false);
 	addr_t translate(addr_t addr);
 };
 enum block_idx : uint8_t
@@ -278,7 +278,7 @@ public:
 	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
 	__nointerrupts __noinline addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
-	__nointerrupts __noinline void deallocate_block(addr_t const& base, size_t sz, bool should_unmap = false) noexcept;
+	__nointerrupts __noinline void deallocate_block(addr_t base, size_t sz, bool should_unmap = false) noexcept;
 	addr_t copy_kernel_mappings(paging_table target);
 	static size_t currently_used_memory();
 	static size_t total_available_memory();

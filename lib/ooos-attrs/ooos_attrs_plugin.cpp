@@ -19,33 +19,33 @@ constexpr static const char attr_name_nointerrupts[] = "nointerrupts";
 extern "C" { extern gcc::context* g; }
 static pass_data gp_nointerrupts_data
 {
-	.type = GIMPLE_PASS,
-	.name = "ooos_attrs",
-	.optinfo_flags = OPTGROUP_NONE,
-	.tv_id = TV_NONE,
-	.properties_required = PROP_gimple_any,
-	.todo_flags_finish = TODO_update_ssa | TODO_cleanup_cfg
+	.type					= GIMPLE_PASS,
+	.name					= "ooos_attrs",
+	.optinfo_flags			= OPTGROUP_NONE,
+	.tv_id					= TV_NONE,
+	.properties_required	= PROP_gimple,
+	.todo_flags_finish		= TODO_cleanup_cfg | TODO_update_ssa | TODO_rebuild_cgraph_edges
 };
 static attribute_spec nointerrupts_attr
 {
 	.name = attr_name_nointerrupts,
 	.min_length = 0,
-	.max_length = 0
+	.max_length = 0,
 };
 static void register_attributes(void*, void*) { register_attribute(std::addressof(nointerrupts_attr)); }
 struct nointerrupts_gimple_pass : public gimple_opt_pass
 {
 	nointerrupts_gimple_pass(pass_data const& data, gcc::context* ctxt) : gimple_opt_pass(data, ctxt) {}
-	virtual unsigned int execute(function*) override
+	virtual unsigned int execute(function* fn) override
 	{
 		// no need to apply to calls within functions marked with the attribute
-		if(lookup_attribute(attr_name_nointerrupts, DECL_ATTRIBUTES(current_function_decl)) == NULL_TREE)
+		if(lookup_attribute(attr_name_nointerrupts, DECL_ATTRIBUTES(fn->decl)) == NULL_TREE)
 		{
-			basic_block entry 	= ENTRY_BLOCK_PTR_FOR_FN(cfun);
+			basic_block entry 	= ENTRY_BLOCK_PTR_FOR_FN(fn);
 			if(gsi_end_p(gsi_start_bb(entry))) entry = entry->next_bb;
 			for(gimple_stmt_iterator i = gsi_start_bb(entry); !gsi_end_p(i); gsi_next(std::addressof(i)))
 			{
-				gimple* stmt = gsi_stmt(i);
+				gimple* stmt	= gsi_stmt(i);
 				if(gimple_code(stmt) == GIMPLE_CALL)
 				{
 					tree attrs_list = NULL_TREE;
@@ -53,7 +53,7 @@ struct nointerrupts_gimple_pass : public gimple_opt_pass
 					if(callee != NULL_TREE) attrs_list = DECL_ATTRIBUTES(callee);
 					else
 					{
-						callee = gimple_call_fntype(stmt);
+						callee		= gimple_call_fntype(stmt);
 						if(callee != NULL_TREE)
 							attrs_list = TYPE_ATTRIBUTES(callee);
 					}
@@ -89,7 +89,7 @@ int plugin_init(plugin_name_args* info, plugin_gcc_version* ver)
 		.pass 						= std::addressof(gimple_pass),
 		.reference_pass_name 		= "ssa",
 		.ref_pass_instance_number 	= 1,
-		.pos_op 					= PASS_POS_INSERT_BEFORE
+		.pos_op 					= PASS_POS_INSERT_AFTER
 	};
 	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, nullptr, std::addressof(gp));
 	register_callback(plugin_name, PLUGIN_ATTRIBUTES, register_attributes, nullptr);

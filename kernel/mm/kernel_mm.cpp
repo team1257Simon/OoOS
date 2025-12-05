@@ -496,7 +496,7 @@ addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz) noexcept
 	__unlock();
 	return result;
 }
-void kernel_memory_mgr::deallocate_block(addr_t const& base, size_t sz, bool should_unmap) noexcept
+void kernel_memory_mgr::deallocate_block(addr_t base, size_t sz, bool should_unmap) noexcept
 {
 	uintptr_t phys	= frame_translate(base);
 	addr_t pml4		= __active_frame ? __active_frame->pml4 : nullptr;
