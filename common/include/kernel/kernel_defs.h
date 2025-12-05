@@ -8,15 +8,15 @@ the Free Software Foundation; either version 3, or (at your option)
 any later version.
 GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
 GNU General Public License for more details.
 Under Section 7 of GPL version 3, you are granted additional
 permissions described in the GCC Runtime Library Exception, version
 3.1, as published by the Free Software Foundation.
 You should have received a copy of the GNU General Public License and
 a copy of the GCC Runtime Library Exception along with this program;
-see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
-<http://www.gnu.org/licenses/>.  */
+see the files COPYING3 and COPYING.RUNTIME respectively.	If not, see
+<http://www.gnu.org/licenses/>.	*/
 #ifndef _GCC_STDINT_H
 #define _GCC_STDINT_H
 #ifdef __INT8_TYPE__
@@ -213,7 +213,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #undef UINTMAX_C
 #define UINTMAX_C(c) __UINTMAX_C(c)
 #endif
-#if (defined __STDC_WANT_IEC_60559_BFP_EXT__  || (defined (__STDC_VERSION__) && __STDC_VERSION__ > 201710L))
+#if (defined __STDC_WANT_IEC_60559_BFP_EXT__	|| (defined (__STDC_VERSION__) && __STDC_VERSION__ > 201710L))
 #ifdef __INT8_TYPE__
 #undef INT8_WIDTH
 #define INT8_WIDTH 8
@@ -314,16 +314,23 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #ifndef MOD_DIR
 #define MOD_DIR "\\SYS\\MOD"
 #endif
+#ifdef __cplusplus
+#define __unlikely(x) __builtin_expect(static_cast<bool>((x)), false)
+#define PAGESIZE 0x1000UZ
+#define PT_LEN 0x200UZ
+#define MMAP_MAX_PG 0x100000UZ
+#else
+#define __unlikely(x) __builtin_expect((x) != 0, false)
 #define PAGESIZE 0x1000UL
 #define PT_LEN 0x200UL
 #define MMAP_MAX_PG 0x100000UL
+#endif
 #define HAVE_SIZE_T 1
 #define HAVE_STDINT 1
 #define __pack attribute(packed)
 #define __align(n) attribute(aligned(n))
 #define __nointerrupts attribute(nointerrupts)
 #define __noinline attribute(noinline)
-#define __unlikely(x) __builtin_expect((x), false)
 #ifndef __cplusplus
 #ifdef NEED_STDBOOL
 #include <stdbool.h>
@@ -331,7 +338,7 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define physical_block_size 512UL
 #define __may_alias
 #else
-constexpr size_t physical_block_size = 512UL;
+constexpr size_t physical_block_size = 512UZ;
 #define __may_alias [[gnu::may_alias]]
 #define restrict __restrict__
 #if defined(__KERNEL__) || defined(__LIBK__)
@@ -344,41 +351,42 @@ constexpr size_t physical_block_size = 512UL;
 #include <compare>
 #include <utility>
 #endif
-template<class T> concept not_void_ptr = !std::same_as<std::remove_cvref_t<T>, void*>;
-template<class T> concept non_void = !std::is_void_v<T>;
+template<typename T> concept not_void_ptr					= !std::same_as<std::remove_cvref_t<T>, void*>;
+template<typename T> concept non_void						= !std::is_void_v<T>;
+template<typename T, typename U> concept convertible_other	= !std::same_as<T, U> && std::convertible_to<T, U>;
 #endif
 inline void pause() { asm volatile("pause" ::: "memory"); }
 inline void barrier() { asm volatile("" ::: "memory"); }
 inline void fence() { asm volatile("mfence" ::: "memory"); }
 #define push_cli() asm volatile("pushf" ::: "memory"); asm volatile("cli" ::: "memory")
 #define pop_flags() asm volatile("popf" ::: "memory")
-typedef enum mem_type
+typedef enum
 {
-	AVAILABLE = 1,
-	RESERVED = 2,
-	ACPI_RECLAIMABLE = 3,
-	NVS = 4,
-	BADRAM = 5,
-	MMIO = 6
+	AVAILABLE			= 1,
+	RESERVED			= 2,
+	ACPI_RECLAIMABLE	= 3,
+	NVS					= 4,
+	BADRAM				= 5,
+	MMIO				= 6
 } memtype_t;
-typedef struct attribute(packed) __pt_entry
+typedef struct __pack
 {
-	bool present                 : 1;
-	bool write                   : 1;
-	bool user_access             : 1;
-	bool write_thru              : 1;
-	bool cache_disable           : 1;
-	bool accessed                : 1;
-	bool dirty                   : 1;
-	bool page_size               : 1;
-	bool global                  : 1;
-	bool avl0                    : 1;
-	bool avl1                    : 1;
-	bool avl2                    : 1;
-	uint64_t physical_address    : 36;
-	uint16_t avl4                : 11;
-	uint8_t pk                   : 4;
-	bool execute_disable         : 1;
+	bool present				:  1;
+	bool write					:  1;
+	bool user_access			:  1;
+	bool write_thru				:  1;
+	bool cache_disable			:  1;
+	bool accessed				:  1;
+	bool dirty					:  1;
+	bool page_size				:  1;
+	bool global					:  1;
+	bool avl0					:  1;
+	bool avl1					:  1;
+	bool avl2					:  1;
+	uint64_t physical_address	: 36;
+	uint16_t avl4				: 11;
+	uint8_t pk					:  4;
+	bool execute_disable		:  1;
 } pt_entry;
 typedef pt_entry* paging_table;
 /**
@@ -394,31 +402,31 @@ typedef pt_entry* paging_table;
  * 	these will never evaluate in constant expressions because they require type punning pointers.
  */
 #ifdef __cplusplus
-typedef union __pack alignas(uintptr_t) __may_alias __vaddr
+typedef union __pack __may_alias alignas(uintptr_t) __vaddr
 #else
 typedef struct attribute(packed, aligned(8)) __vaddr
 #endif
 {
 #ifdef __cplusplus
-	struct attribute(packed)
+	struct __pack
 	{
 #endif
-		uint16_t offset     : 12;
-		uint16_t page_idx   :  9;
-		uint16_t pd_idx     :  9;
-		uint16_t pdp_idx    :  9;
-		uint16_t pml4_idx   :  9;
-		uint16_t ext        : 16;
+		uint16_t offset		: 12;
+		uint16_t page_idx	:  9;
+		uint16_t pd_idx		:  9;
+		uint16_t pdp_idx	:  9;
+		uint16_t pml4_idx	:  9;
+		uint16_t ext		: 16;
 #ifdef __cplusplus
 	};
 	uintptr_t full{};
 	constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
-		offset      { offs },
-		page_idx    { idx0 },
-		pd_idx      { idx1 },
-		pdp_idx     { idx2 },
-		pml4_idx    { idx3 },
-		ext         { sign }
+		offset		{ offs },
+		page_idx	{ idx0 },
+		pd_idx		{ idx1 },
+		pdp_idx		{ idx2 },
+		pml4_idx	{ idx3 },
+		ext			{ sign }
 					{}
 	constexpr explicit __vaddr(uint64_t i) noexcept : full(i) {}
 	constexpr __vaddr(nullptr_t) noexcept : full(0UL) {}
@@ -462,7 +470,7 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 	template<non_void T> constexpr T& assign(T const& value) const noexcept { return deref<T>() = value; }
 	template<non_void T> constexpr T& assign(T&& value) const noexcept { return deref<std::remove_reference_t<T>>() = std::move(value); }
 	template<typename T, typename ... Args> using functor_t = T(*)(Args...);
-	template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }  }
+	template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }	}
 	constexpr operator void*() const noexcept { return this->as<void>(); }
 	constexpr operator cvptr() const noexcept { return this->as<const void>(); }
 	constexpr operator vvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<volatile void>(); }
@@ -483,7 +491,7 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 #endif
 } addr_t;
 #ifndef __cplusplus
-typedef union __may_alias __idx_addr
+typedef union
 {
 	addr_t idx;
 	uintptr_t addr;
@@ -514,7 +522,7 @@ struct xsdp_t
 	uint8_t checksum;
 	char oem_id[6];
 	uint8_t revision;
-	uint32_t rsdt_address;      // deprecated since version 2.0
+	uint32_t rsdt_address;		// deprecated since version 2.0
 	uint32_t length;
 	uint64_t xsdt_address;
 	uint8_t extended_checksum;
@@ -528,11 +536,11 @@ struct xsdt_t
 void* find_system_table(const char* expected_sig);
 typedef struct __generic_address_structure
 {
-  uint8_t address_space;
-  uint8_t bit_width;
-  uint8_t bit_offset;
-  uint8_t access_size;
-  uint64_t address;
+	uint8_t address_space;
+	uint8_t bit_width;
+	uint8_t bit_offset;
+	uint8_t access_size;
+	uint64_t address;
 } __pack generic_address_structure;
 struct dsdt
 {
@@ -541,99 +549,99 @@ struct dsdt
 } __pack;
 struct fadt_t
 {
-	struct   acpi_header h; // "FACP"
-	uint32_t firmware_ctrl;
-	uint32_t dsdt_legacy;
+	struct acpi_header			h;	// "FACP"
+	uint32_t					firmware_ctrl;
+	uint32_t					dsdt_legacy;
 	// field used in ACPI 1.0; no longer in use, for compatibility only
-	uint8_t  rsv0;
-	uint8_t  preferred_power_profile;
-	uint16_t sci_interrupt;
-	uint32_t smi_command_port;
-	uint8_t  acpi_enable;
-	uint8_t  acpi_disable;
-	uint8_t  s4bios_req;
-	uint8_t  pstate_control;
-	uint32_t pm1a_event_block;
-	uint32_t pm1b_event_block;
-	uint32_t pm1a_control_block;
-	uint32_t pm1b_control_block;
-	uint32_t pm2_control_block;
-	uint32_t pm_timer_block;
-	uint32_t gpe0_block;
-	uint32_t gpe1_block;
-	uint8_t  pm1_event_length;
-	uint8_t  pm1_control_length;
-	uint8_t  pm2_control_length;
-	uint8_t  pm_timer_length;
-	uint8_t  gpe0_length;
-	uint8_t  gpe1_length;
-	uint8_t  gpe1_base;
-	uint8_t  cstate_control;
-	uint16_t worst_c2_latency;
-	uint16_t worst_c3_latency;
-	uint16_t flush_size;
-	uint16_t flush_stride;
-	uint8_t  duty_offset;
-	uint8_t  duty_width;
-	uint8_t  day_alarm;
-	uint8_t  month_alarm;
-	uint8_t  century_register;
+	uint8_t						rsv0;
+	uint8_t						preferred_power_profile;
+	uint16_t					sci_interrupt;
+	uint32_t					smi_command_port;
+	uint8_t						acpi_enable;
+	uint8_t						acpi_disable;
+	uint8_t						s4bios_req;
+	uint8_t						pstate_control;
+	uint32_t					pm1a_event_block;
+	uint32_t					pm1b_event_block;
+	uint32_t					pm1a_control_block;
+	uint32_t					pm1b_control_block;
+	uint32_t					pm2_control_block;
+	uint32_t					pm_timer_block;
+	uint32_t					gpe0_block;
+	uint32_t					gpe1_block;
+	uint8_t						pm1_event_length;
+	uint8_t						pm1_control_length;
+	uint8_t						pm2_control_length;
+	uint8_t						pm_timer_length;
+	uint8_t						gpe0_length;
+	uint8_t						gpe1_length;
+	uint8_t						gpe1_base;
+	uint8_t						cstate_control;
+	uint16_t					worst_c2_latency;
+	uint16_t					worst_c3_latency;
+	uint16_t					flush_size;
+	uint16_t					flush_stride;
+	uint8_t						duty_offset;
+	uint8_t						duty_width;
+	uint8_t						day_alarm;
+	uint8_t						month_alarm;
+	uint8_t						century_register;
 	// reserved in ACPI 1.0; used since ACPI 2.0+
-	uint16_t arch_flags;
-	uint8_t  rsv1;
-	uint32_t flags;
+	uint16_t					arch_flags;
+	uint8_t						rsv1;
+	uint32_t					flags;
 	// 12 byte structure; see below for details
-	generic_address_structure reset_register;
-	uint8_t  reset_value;
-	uint8_t  rsv3[3];
+	generic_address_structure	reset_register;
+	uint8_t						reset_value;
+	uint8_t						rsv3[3];
 	// 64bit pointers - Available on ACPI 2.0+
-	uint64_t                  ext_firmware_control;
-	struct dsdt*              ext_dsdt;
-	generic_address_structure ext_pm1a_event_block;
-	generic_address_structure ext_pm1b_event_block;
-	generic_address_structure ext_pm1a_control_block;
-	generic_address_structure ext_pm1b_control_block;
-	generic_address_structure ext_pm2_control_block;
-	generic_address_structure ext_pm_timer_block;
-	generic_address_structure ext_gpe0_block;
-	generic_address_structure ext_gpe1_block;
+	uint64_t					ext_firmware_control;
+	struct dsdt*				ext_dsdt;
+	generic_address_structure	ext_pm1a_event_block;
+	generic_address_structure	ext_pm1b_event_block;
+	generic_address_structure	ext_pm1a_control_block;
+	generic_address_structure	ext_pm1b_control_block;
+	generic_address_structure	ext_pm2_control_block;
+	generic_address_structure	ext_pm_timer_block;
+	generic_address_structure	ext_gpe0_block;
+	generic_address_structure	ext_gpe1_block;
 } __pack;
 struct madt_t
 {
-	struct acpi_header header; // "APIC"
-	uint32_t local_apic_physical_address;
-	uint32_t multiple_apic_flags;
-	uint8_t record_data[];
+	struct acpi_header	header;	// "APIC"
+	uint32_t			local_apic_physical_address;
+	uint32_t			multiple_apic_flags;
+	uint8_t				record_data[];
 } __pack;
 enum madt_record_type
 #ifdef __cplusplus
 : uint8_t
 #endif
 {
-	LOCAL_APIC                  = 0x0,
-	IO_APIC                     = 0x1,
-	INTERRUPT_SOURCE_OVERRIDE   = 0x2,
-	NMI_SOURCE_OVERRIDE         = 0x3,
-	LOCAL_APIC_NMI              = 0x4,
-	APIC_ADDRESS_OVERRIDE       = 0x5,
-	IO_SAPIC                    = 0x6,
-	LOCAL_SAPIC                 = 0x7,
-	PLATFORM_INTERRUPT_SOURCE   = 0x8,
-	LOCAL_2XAPIC                = 0x9,
-	LOCAL_2XAPIC_NMI            = 0xA,
-	GICC                        = 0xB,
-	GICD                        = 0xC,
-	GIC_MSI_FRAME               = 0xD,
-	GICR                        = 0xE,
-	GIC_ITS                     = 0xF,
-	MULTUPROCESSOR_WAKEUP       = 0x10,
-	CORE_PIC                    = 0x11,
-	LIO_PIC                     = 0x12,
-	HT_PIC                      = 0x13,
-	EIO_PIC                     = 0x14,
-	MSI_PIC                     = 0x15,
-	BIO_PIC                     = 0x16,
-	LPI_PIC                     = 0x17
+	LOCAL_APIC					= 0x0,
+	IO_APIC						= 0x1,
+	INTERRUPT_SOURCE_OVERRIDE	= 0x2,
+	NMI_SOURCE_OVERRIDE			= 0x3,
+	LOCAL_APIC_NMI				= 0x4,
+	APIC_ADDRESS_OVERRIDE		= 0x5,
+	IO_SAPIC					= 0x6,
+	LOCAL_SAPIC					= 0x7,
+	PLATFORM_INTERRUPT_SOURCE	= 0x8,
+	LOCAL_2XAPIC				= 0x9,
+	LOCAL_2XAPIC_NMI			= 0xA,
+	GICC						= 0xB,
+	GICD						= 0xC,
+	GIC_MSI_FRAME				= 0xD,
+	GICR						= 0xE,
+	GIC_ITS						= 0xF,
+	MULTUPROCESSOR_WAKEUP		= 0x10,
+	CORE_PIC					= 0x11,
+	LIO_PIC						= 0x12,
+	HT_PIC						= 0x13,
+	EIO_PIC						= 0x14,
+	MSI_PIC						= 0x15,
+	BIO_PIC						= 0x16,
+	LPI_PIC						= 0x17
 };
 struct madt_record_header
 {
@@ -644,9 +652,9 @@ typedef union
 {
 	struct
 	{
-		bool     enabled         : 1;
-		bool     online_capable  : 1;
-		uint32_t                 : 30;
+		bool	enabled			:  1;
+		bool	online_capable	:  1;
+		uint32_t				: 30;
 	} __pack;
 	uint32_t align;
  } __pack apic_flags;
@@ -654,9 +662,9 @@ typedef union
 {
 	struct
 	{
-		uint8_t polarity        : 2;
-		uint8_t trigger_mode    : 2;
-		uint16_t                : 12;
+		uint8_t polarity		:  2;
+		uint8_t trigger_mode	:  2;
+		uint16_t				: 12;
 	} __pack;
 	uint32_t align;
 } __pack nmi_flags;
@@ -761,19 +769,19 @@ typedef union __may_alias __guid
 } __pack __align(1) guid_t;
 typedef struct __mmap_entry
 {
-	uintptr_t addr;     // Physical start address
-	uint32_t len;       // Length in pages
-	memtype_t type;     // Type
+	uintptr_t addr;		// Physical start address
+	uint32_t len;		// Length in pages
+	memtype_t type;		// Type
 } __pack mmap_entry;
 typedef struct __processor_info
 {
 	uint64_t processor_id;
 	struct
 	{
-		uint8_t is_bsp      : 1;
-		uint8_t is_enabled  : 1;
-		uint8_t is_healthy  : 1;
-		uint32_t            : 29;
+		uint8_t is_bsp		:  1;
+		uint8_t is_enabled	:  1;
+		uint8_t is_healthy	:  1;
+		uint32_t			: 29;
 	} __pack status;
 	struct
 	{
@@ -831,7 +839,7 @@ typedef struct __byte
 	constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return (value ? 1 : 0) << bit; }
 	constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
 	constexpr __byte(uint8_t i) noexcept : full(i) {}
-	template<std::convertible_to<uint8_t> IT> requires (!std::is_same_v<IT, uint8_t>) constexpr __byte(IT it) noexcept : __byte(static_cast<uint8_t>(it)) {}
+	template<convertible_other<uint8_t> IT> constexpr __byte(IT it) noexcept : __byte(static_cast<uint8_t>(it)) {}
 	constexpr __byte() noexcept = default;
 	constexpr __byte(__byte const&) noexcept = default;
 	constexpr __byte(__byte&&) noexcept = default;
@@ -864,7 +872,7 @@ typedef struct __s_le16
 	constexpr __s_le16(byte l, byte h) noexcept : lo(l), hi(h) {}
 	constexpr __s_le16(const uint8_t bytes[2]) noexcept : lo(bytes[0]), hi(bytes[1]) {}
 	constexpr __s_le16(uint16_t value) noexcept { *this = __builtin_bit_cast(__s_le16, value); }
-	template<std::convertible_to<uint16_t> IT> requires (!std::is_same_v<IT, uint16_t>) constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
+	template<convertible_other<uint16_t> IT> constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
 	constexpr __s_le16(__s_le16 const&) noexcept = default;
 	constexpr __s_le16(__s_le16&&) noexcept = default;
 	constexpr __s_le16& operator=(__s_le16 const&) noexcept = default;
@@ -896,7 +904,7 @@ typedef struct __s_le32
 	constexpr __s_le32(__le16 l, __le16 h) noexcept : lo(l), hi(h) {}
 	constexpr __s_le32(uint32_t value) noexcept { *this = __builtin_bit_cast(__s_le32, value); }
 	constexpr __s_le32(const uint8_t bytes[4]) noexcept : lo(bytes[0], bytes[1]), hi(bytes[2], bytes[3]) {}
-	template<std::convertible_to<uint32_t> IT> requires (!std::is_same_v<IT, uint32_t>) constexpr __s_le32(IT it) noexcept : __s_le32(static_cast<uint32_t>(it)) {}
+	template<convertible_other<uint32_t> IT> constexpr __s_le32(IT it) noexcept : __s_le32(static_cast<uint32_t>(it)) {}
 	constexpr __s_le32(__s_le32 const&) noexcept = default;
 	constexpr __s_le32(__s_le32&&) noexcept = default;
 	constexpr __s_le32& operator=(__s_le32 const&) noexcept = default;
@@ -928,7 +936,7 @@ typedef struct __s_le64
 	constexpr __s_le64(__le32 l, __le32 h) noexcept : lo(l), hi(h) {}
 	constexpr __s_le64(uint64_t value) noexcept { *this = __builtin_bit_cast(__s_le64, value); }
 	constexpr __s_le64(const uint8_t bytes[8]) noexcept : lo(__le16(bytes[0], bytes[1]), __le16(bytes[2], bytes[3])), hi(__le16(bytes[4], bytes[5]), __le16(bytes[6], bytes[7])) {}
-	template<std::convertible_to<uint64_t> IT> requires (!std::is_same_v<IT, uint64_t>) constexpr __s_le64(IT it) noexcept : __s_le64{ static_cast<uint64_t>(it) } {}
+	template<convertible_other<uint64_t> IT> constexpr __s_le64(IT it) noexcept : __s_le64(static_cast<uint64_t>(it)) {}
 	constexpr __s_le64(__s_le64 const&) noexcept = default;
 	constexpr __s_le64(__s_le64&&) noexcept = default;
 	constexpr __s_le64& operator=(__s_le64 const&) noexcept = default;
