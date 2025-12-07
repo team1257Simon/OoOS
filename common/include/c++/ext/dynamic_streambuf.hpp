@@ -48,11 +48,11 @@ namespace std
 		public:
 			dynamic_streambuf(AT const& alloc = AT()) : __sb_type(), __dynamic_base(alloc) {};
 			dynamic_streambuf(std::size_t how_much, AT const& alloc = AT()) : __sb_type(), __dynamic_base(how_much, alloc) { this->on_modify(); }
-			dynamic_streambuf(dynamic_streambuf const&) = delete;
+			dynamic_streambuf(dynamic_streambuf const& that) : __sb_type(), __dynamic_base(that) { this->on_modify(); }
 			dynamic_streambuf(dynamic_streambuf&& that) : __sb_type(), __dynamic_base(std::move(that)) { this->on_modify(); }
 			virtual ~dynamic_streambuf() = default;
-			dynamic_streambuf& operator=(dynamic_streambuf const&) = delete;
-			dynamic_streambuf& operator=(dynamic_streambuf&& that) { this->__move_assign(std::move(that)); return *this; }
+			dynamic_streambuf& operator=(dynamic_streambuf const& that) { this->__copy_assign(that); this->on_modify(); return *this; }
+			dynamic_streambuf& operator=(dynamic_streambuf&& that) { this->__move_assign(std::move(that)); this->on_modify(); return *this; }
 			pos_type tell() const noexcept { return pos_type(this->__cur() - this->__beg()); }
 			char_type* data() noexcept { return this->__beg(); }
 			char_type const* data() const noexcept { return this->__beg(); }

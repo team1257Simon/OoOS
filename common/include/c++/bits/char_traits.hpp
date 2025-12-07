@@ -31,7 +31,8 @@ namespace std
 	extension template<std::char_type CT> constexpr CT* stpncpy(CT* dest, const CT* src, size_t max) { size_t n = std::strnlen(src, max); return array_copy<CT>(dest, src, n + 1) + n; }
 	extension template<std::char_type CT> constexpr int strncmp(const CT* s1, const CT* s2, size_t n) { for(size_t i = 0; i < n && (*s2 == *s1) && (*s1 != 0) && (*s2 != 0); ++i, ++s1, ++s2); return (*s1 < *s2) ? -1 : (*s1 > *s2 ? 1 : 0); }
 	extension template<std::char_type CT> constexpr int strcmp(const CT* s1, const CT* s2) { return std::strncmp(s1, s2, std::strlen(s1)); }
-	extension template<std::char_type CT> constexpr const CT* find(const CT* str, const CT* what) noexcept { if (!what[0]) return str; for (size_t i = 1; str[0]; str++) { if (str[0] == what[0]) { for (i = 1; what[i]; i++) { if (str[i] != what[i]) break; } if (!what[i]) return str; } } return nullptr; }
+	extension template<std::char_type CT> constexpr const CT* find(const CT* str, const CT* what, size_t n) noexcept { if(!what[0]) return str; for(size_t i = 1; str[0] && i <= n; str++) { if(str[0] == what[0]) { for(i = 1; what[i]; i++) { if(str[i] != what[i]) break; } if(!what[i]) return str; } } return nullptr; }
+	extension template<std::char_type CT> constexpr const CT* find(const CT* str, const CT* what) noexcept { if(!what[0]) return str; for(size_t i = 1; str[0]; str++) { if(str[0] == what[0]) { for(i = 1; what[i]; i++) { if(str[i] != what[i]) break; } if(!what[i]) return str; } } return nullptr; }
 	template<> constexpr bool eq<char>(char a, char b) { return static_cast<unsigned char>(a) == static_cast<unsigned char>(b); }
 	template<> constexpr bool lt<char>(char a, char b) { return static_cast<unsigned char>(a) < static_cast<unsigned char>(b); }
 	constexpr int memcmp(const void* s1, const void* s2, size_t n) { return __builtin_memcmp(s1, s2, n); }
@@ -77,6 +78,7 @@ namespace std
 		constexpr static bool lt(char_type const& a, char_type const& b) noexcept { return a < b; }
 		constexpr static char_type const* find(const char_type* ptr, size_t n, char_type const& c) noexcept { return std::find(ptr, n, c); }
 		constexpr static char_type const* find(const char_type* ptr, const char_type* what) noexcept { return std::find(ptr, what); }
+		constexpr static char_type const* find(const char_type* ptr, const char_type* what, size_t n) noexcept { return std::find(ptr, what, n); }
 		constexpr static int_type to_int_type(char_type c) noexcept { return static_cast<int>(c); }
 		constexpr static char_type to_char_type(int_type i) noexcept { return static_cast<char_type>(i);}
 		constexpr static char_type* copy(char_type* dest, const char_type* src, size_t n) { return array_init(dest, src, n); }

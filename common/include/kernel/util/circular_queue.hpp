@@ -42,10 +42,10 @@ namespace ooos
 			constexpr __circular_buffer(__circular_buffer const& that) requires(__copy_assign || __copy_construct) :
 				allocator_type(that),
 				__base(allocator_type::allocate(that.__capacity())),
-				__curr(__base),
-				__last(__base),
-				__bmax(__base + that.__capacity())
-				{ array_copy(__base, that.__base, that.__capacity()); }
+				__curr(this->__base + static_cast<size_type>(that.__curr - that.__base)),
+				__last(this->__base + static_cast<size_type>(that.__last - that.__base)),
+				__bmax(this->__base + that.__capacity())
+				{ if(that.__base) array_copy(this->__base, that.__base, that.__capacity()); }
 			constexpr __circular_buffer(__circular_buffer&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>) :
 				allocator_type(std::move(that)),
 				__base(that.__base),
@@ -55,14 +55,52 @@ namespace ooos
 				{ that.__reset(); }
 			constexpr void __reset() noexcept { __base = __curr = __last = __bmax = pointer(); }
 			constexpr void __rewind() noexcept { __curr = __last = __base; }
-			constexpr void __flush() noexcept requires(__trivial) { __rewind(); if constexpr(std::is_default_constructible_v<value_type>) new(__curr) value_type(); }
+			constexpr void __flush() noexcept requires(__trivial) { this->__rewind(); if constexpr(std::is_default_constructible_v<value_type>) new(__curr) value_type(); }
 			constexpr size_type __capacity() const noexcept { return static_cast<size_type>(__bmax - __base); }
 			constexpr void __create(size_type n) { __base = allocator_type::allocate(n); __curr = __last = __base; __bmax = __base + n; }
-			constexpr void __destroy() noexcept { allocator_type::deallocate(__base, __capacity()); }
 			constexpr reference __peek() noexcept { return *__curr; }
 			constexpr const_reference __peek() const noexcept { return *__curr; }
 			constexpr reference __peek_back() noexcept { return *pclamp(__last - 1Z, __curr, __last); }
 			constexpr const_reference __peek_back() const noexcept { return *pclamp(__last - 1Z, __curr, __last); }
+			constexpr __circular_buffer& operator=(__circular_buffer const& that) requires(__copy_assign || __copy_construct)
+			{
+				this->__destroy();
+				if constexpr(std::__has_copy_propagate<allocator_type>)
+					*static_cast<allocator_type*>(this)	= that;
+				if(__unlikely(!that.__base)) this->__reset();
+				else
+				{
+					this->__base	= allocator_type::allocate(that.__capacity());
+					this->__curr	= this->__base + static_cast<size_type>(that.__curr - that.__base);
+					this->__last	= this->__base + static_cast<size_type>(that.__last - that.__base);
+					this->__bmax	= this->__base + that.__capacity();
+				}
+				return *this;
+			}
+			constexpr __circular_buffer& operator=(__circular_buffer&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
+			{
+				this->__destroy();
+				if constexpr(std::__has_move_propagate<allocator_type>)
+					*static_cast<allocator_type*>(this)	= std::move(that);
+				if(__unlikely(!that.__base)) this->__reset();
+				else
+				{
+					this->__base	= that.__base;
+					this->__curr	= that.__curr;
+					this->__last	= that.__last;
+					this->__bmax	= that.__bmax;
+					that.__reset();
+				}
+				return *this;
+			}
+			constexpr void __destroy() noexcept
+			{
+				if(__unlikely(!__base)) return;
+				if constexpr(!__trivial)
+					for(size_type i = 0UZ; i < this->__length(); i++)
+						this->__adv_pop();
+				allocator_type::deallocate(__base, __capacity());
+			}
 			constexpr void __expand_splice()
 			{
 				size_type s         = __capacity();
@@ -240,8 +278,6 @@ namespace ooos
 		constexpr ~circular_queue() noexcept { __buffer.__destroy(); }
 		constexpr circular_queue() noexcept(noexcept(allocator_type())) = default;
 		constexpr circular_queue(size_type n) : __buffer(n) {}
-		constexpr circular_queue(circular_queue&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>) : __buffer(std::move(that.__buffer)) {}
-		constexpr circular_queue(circular_queue const& that) requires(__copy_assign || __copy_construct) : __buffer(that.__buffer) {}
 		constexpr iterator begin() noexcept { return iterator(__buffer, __buffer.__curr); }
 		constexpr const_iterator cbegin() const noexcept { return const_iterator(__buffer, __buffer.__curr); }
 		constexpr const_iterator begin() const noexcept { return cbegin(); }
@@ -270,9 +306,7 @@ namespace ooos
 		}
 		constexpr void clear() noexcept(__nothrow_zero)
 		{
-			if constexpr(!__trivial)
-				while(__buffer.__length())
-					__buffer.__pop();
+			__buffer.__destroy();
 			array_zero(__buffer.__base, __buffer.__capacity());
 			__buffer.__rewind();
 		}

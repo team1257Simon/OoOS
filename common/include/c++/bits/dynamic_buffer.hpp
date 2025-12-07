@@ -288,7 +288,7 @@ namespace std::__impl
 		{
 			this->__destroy();
 			this->__copy_ptrs(that);
-			if constexpr(__has_move_propagate<A>)
+			if constexpr(__has_copy_propagate<A>)
 				*static_cast<A*>(this)	= that;
 			return *this;
 		}
@@ -497,7 +497,8 @@ namespace std::__impl
 		{
 			__destroy();
 			if(__unlikely(!that.__beg())) return;
-			if constexpr(__has_move_propagate<__allocator_type>) this->__my_data = that.__get_alloc();
+			if constexpr(__has_copy_propagate<__allocator_type>)
+				*static_cast<__allocator_type*>(std::addressof(this->__my_data)) = that.__get_alloc();
 			__allocate_storage(that.__capacity());
 			__copy(__beg(), that.__beg(), that.__capacity());
 			__advance(that.__size());
@@ -505,7 +506,7 @@ namespace std::__impl
 		constexpr void __swap(__dynamic_buffer& that)
 		{
 			this->__my_data.__swap_ptrs(that.__my_data);
-			if constexpr(__has_move_propagate<__allocator_type>)
+			if constexpr(__has_swap_propagate<__allocator_type>)
 				std::swap<__allocator_type>(this->__my_data, that.__my_data);
 		}
 	};

@@ -246,7 +246,7 @@ namespace std
 			{
 				__clear();
 				__insert(const_iterator(that.__begin()), const_iterator(nullptr));
-				if constexpr(__has_move_propagate<AT>)
+				if constexpr(__has_copy_propagate<AT>)
 					*static_cast<__node_alloc>(this)	= that;
 				return *this;
 			}

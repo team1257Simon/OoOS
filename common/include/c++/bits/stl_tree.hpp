@@ -99,13 +99,13 @@ namespace std
 			constexpr __trunk_node() noexcept(noexcept(A())) : __node_base(RED, nullptr, this, this), A() {}
 			constexpr __trunk_node(__trunk_node const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : __node_base(that), A(that) { __on_assign(); }
 			constexpr __trunk_node(__trunk_node&& that) noexcept(std::is_nothrow_move_constructible_v<A>) : __node_base(move(that)), A(move(that)) { __on_assign(); that.__reset(); }
-			constexpr __trunk_node& operator=(__trunk_node const& that) noexcept(std::is_nothrow_copy_assignable_v<A> || !__has_move_propagate<A>)
+			constexpr __trunk_node& operator=(__trunk_node const& that) noexcept(std::is_nothrow_copy_assignable_v<A> || !__has_copy_propagate<A>)
 			{
 				this->__my_color			= that.__my_color;
 				this->__my_parent			= that.__my_parent;
 				this->__my_left				= that.__my_left;
 				this->__my_right			= that.__my_right;
-				if constexpr(__has_move_propagate<A>)
+				if constexpr(__has_copy_propagate<A>)
 					*static_cast<A*>(this)	= that;
 				this->__on_assign();
 				return *this;
@@ -149,6 +149,8 @@ namespace std
 		}
 		constexpr void __swap(__tree_base& that) noexcept
 		{
+			if constexpr(__has_swap_propagate<A>)
+				std::swap<A>(*this, that);
 			__tree_base tmp(*this);
 			this->__copy(that);
 			that.__copy(tmp);

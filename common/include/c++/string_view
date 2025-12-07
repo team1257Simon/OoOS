@@ -1,0 +1,179 @@
+#ifndef __STRING_VIEW
+#define __STRING_VIEW
+#include <concepts>
+#include <compare>
+#include <algorithm>
+#include <bits/char_traits.hpp>
+#include <bits/stl_hash.hpp>
+#include <bits/ptr_traits.hpp>
+#include <bits/stdexcept.h>
+namespace std
+{
+	template<char_type CT, char_traits_type<CT> TT = char_traits<CT>>
+	class basic_string_view
+	{
+	public:
+		typedef CT value_type;
+		typedef TT traits_type;
+		typedef add_pointer_t<value_type> pointer;
+		typedef add_pointer_t<add_const_t<value_type>> const_pointer;
+		typedef decltype(*declval<pointer>()) reference;
+		typedef decltype(*declval<const_pointer>()) const_reference;
+		typedef const_pointer const_iterator;
+		typedef const_iterator iterator;
+		typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+		typedef const_reverse_iterator reverse_iterator;
+		typedef decltype(sizeof(value_type)) size_type;
+		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
+		constexpr static size_type npos	= static_cast<size_type>(-1);
+	private:
+		const_pointer	__str;
+		size_type		__len;
+		constexpr size_type __bounds_check(size_type pos, const char* msg) const
+		{
+			if(pos > __len)
+				throw std::out_of_range(string(msg) + ": position " + to_string(pos) + " out of range for size " + to_string(__len));
+			return pos;	
+		}
+		constexpr static int __size_compare(size_type lhs, size_type rhs) noexcept
+		{
+			const difference_type d	= difference_type(lhs - rhs);
+			if(d > numeric_limits<int>::max()) return numeric_limits<int>::max();
+			else if (d < numeric_limits<int>::min()) return numeric_limits<int>::min();
+			else return static_cast<int>(d);
+		}
+	public:
+		constexpr basic_string_view() noexcept : __str(nullptr), __len(0UZ) {}
+		constexpr basic_string_view(const_pointer str, size_type len) noexcept : __str(str), __len(len) {}
+		constexpr basic_string_view(const_pointer str) noexcept : __str(str), __len(traits_type::length(str)) {}
+		template<matching_input_iterator<value_type> IT1, matching_input_iterator<value_type> IT2>
+		constexpr basic_string_view(IT1 start, IT2 end) noexcept : __str(std::to_address(start)), __len(static_cast<size_t>(end - start)) {}
+		constexpr basic_string_view(basic_string_view const&) noexcept = default;
+		constexpr basic_string_view& operator=(basic_string_view const&) noexcept = default;
+		[[nodiscard]] constexpr const_pointer data() const noexcept { return __str; }
+		[[nodiscard]] constexpr const_iterator begin() const noexcept { return __str; }
+		[[nodiscard]] constexpr const_iterator cbegin() const noexcept { return __str; }
+		[[nodiscard]] constexpr const_iterator end() const noexcept { return __str + __len; }
+		[[nodiscard]] constexpr const_iterator cend() const noexcept { return __str + __len; }
+		[[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator(this->end()); }
+		[[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(this->cend()); }
+		[[nodiscard]] constexpr const_reverse_iterator rend() const noexcept { return const_reverse_iterator(this->begin()); }
+		[[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(this->cbegin()); }
+		[[nodiscard]] constexpr size_type size() const noexcept { return this->__len; }
+		[[nodiscard]] constexpr size_type length() const noexcept { return this->__len; }
+		[[nodiscard]] constexpr size_type max_size() const noexcept { return (npos - sizeof(const_pointer) - sizeof(size_type)) / sizeof(value_type) / 4; }
+		[[nodiscard]] constexpr bool empty() const noexcept { return __len == 0; }
+		[[nodiscard]] constexpr const_reference operator[](size_type pos) const noexcept { return __str[pos]; }
+		[[nodiscard]] constexpr const_reference at(size_type pos) const { return __str[__bounds_check(pos, "[CXX/SV] at()")]; }
+		[[nodiscard]] constexpr const_reference front() const noexcept { return __str[0UZ]; }
+		[[nodiscard]] constexpr const_reference back() const noexcept { return __str[__len - 1Z]; }
+		constexpr void remove_prefix(size_type n) noexcept { size_type rn	= std::min(this->__len, n); this->__len -= n; this->__str += n; }
+		constexpr void remove_suffix(size_type n) noexcept { size_type rn	= std::min(this->__len, n); this->__len -= n; }
+		constexpr void swap(basic_string_view& that) noexcept { basic_string_view tmp(this->__str, this->__len); *this = that; that = tmp; }
+		[[nodiscard]] constexpr int compare(size_type s1, size_type s2, basic_string_view that) const { return this->substr(s1, s2).compare(that); }
+		[[nodiscard]] constexpr int compare(size_type s1, size_type s2, basic_string_view that, size_type s3, size_type s4) const { return this->substr(s1, s2).compare(that.substr(s3, s4)); }
+		[[nodiscard, __gnu__::__nonnull__]] constexpr int compare(const_pointer str) const noexcept { return this->compare(basic_string_view(str)); }
+		[[nodiscard, __gnu__::__nonnull__]] constexpr int compare(size_type s1, size_type s2, const_pointer str) const { return this->substr(s1, s2).compare(basic_string_view(str)); }
+		[[nodiscard, __gnu__::__nonnull__]] constexpr int compare(size_type s1, size_type s2, const_pointer str, size_type s3, size_type s4) const { return this->substr(s1, s2).compare(basic_string_view(str).substr(s3, s4)); }
+		[[nodiscard]] constexpr bool starts_with(basic_string_view that) const noexcept { return this->__len >= that.__len && !traits_type::compare(this->__str, that.__str, that.__len); }
+		[[nodiscard]] constexpr bool starts_with(value_type v) const noexcept { return this->__len && this->__str[0UZ] == v; }
+		[[nodiscard, __gnu__::__nonnull__]] constexpr bool starts_with(const_pointer str) const noexcept { return this->starts_with(basic_string_view(str)); }
+		[[nodiscard]] constexpr bool ends_with(basic_string_view that) const noexcept { return this->__len >= that.__len && !traits_type::compare(this->end() - that.__len, that.begin(), that.__len); }
+		[[nodiscard]] constexpr bool ends_with(value_type v) const noexcept { return this->__len && this->back() == v; }
+		[[nodiscard]] constexpr size_type find(basic_string_view that, size_type pos	= 0UZ) const noexcept { return this->find(that.__str, pos, that.__len); }
+		[[nodiscard]] constexpr size_type rfind(basic_string_view that, size_type pos	= npos) const noexcept { return this->rfind(that.__str, pos, that.__len); }
+		[[nodiscard, __gnu__::__nonnull__]] constexpr bool ends_with(const_pointer str) const noexcept { return this->ends_with(basic_string_view(str)); }
+		[[nodiscard, __gnu__::__nonnull__]] constexpr size_type copy(pointer out, size_type pos, size_type len) const
+		{
+			const_pointer start	= __str + __bounds_check(pos, "[CXX/SV] copy()");
+			size_type n			= std::min(static_cast<size_type>(__len - pos), len);
+			traits_type::copy(out, start, n);
+			return n;
+		}
+		[[nodiscard]] constexpr basic_string_view substr(size_type pos	= 0UZ, size_type len	= npos) const
+		{
+			const_pointer start	= __str + __bounds_check(pos, "[CXX/SV] copy()");
+			size_type n			= std::min(static_cast<size_type>(__len - pos), len);
+			return basic_string_view(start, n);
+		}
+		[[nodiscard]] constexpr int compare(basic_string_view that) const noexcept
+		{
+			size_type len	= std::min(that.__len, this->__len);
+			int result		= traits_type::compare(this->__str, that.__str, len);
+			if(!result)	return __size_compare(this->__len, that.__len);
+			return result;
+		}
+		[[nodiscard]] constexpr size_type find(const_pointer what, size_type pos, size_type len) const noexcept
+		{
+			if(this->__str && this->__len >= len)
+			{
+				const_pointer result	= traits_type::find(this->__str + pos, what, len);
+				if(result)
+					return static_cast<size_type>(result - this->__str);
+			}
+			return npos;
+		}
+		[[nodiscard]] constexpr size_type find(value_type what, size_type pos	= 0UZ) const noexcept
+		{
+			if(pos < this->__len)
+			{
+				size_type n				= static_cast<size_type>(this->__len - pos);
+				const_pointer result	= traits_type::find(this->__str + pos, c, n);
+				if(result)
+					return static_cast<size_type>(result - this->__str);
+			}
+			return npos;
+		}
+		[[nodiscard]] constexpr size_type rfind(const_pointer what, size_type pos, size_type len) const noexcept
+		{
+			len		= std::min(len, std::strnlen(what, len)); 
+			if(this->__str && this->__len >= len)
+			{
+				pos	= std::min(static_cast<size_type>(this->__len - len), pos);
+				do {
+					if(!traits_type::compare(this->__str + pos, what, len))
+						return pos;
+				} while(pos--);
+			}
+			return npos;
+		}
+		[[nodiscard]] constexpr size_type rfind(value_type what, size_type pos	= npos) const noexcept
+		{
+			size_type sz		= this->__len;
+			if(sz)
+			{
+				for(size_type i	= std::min(static_cast<size_type>(sz - 1Z), pos); i; i--)
+					if(traits_type::eq(what, this->__str[i]))
+						return i;
+			}
+			return npos;
+		}
+	};
+#define __sv_template__ template<char_type CT, char_traits_type<CT> TT>
+#define __sv_itype__ basic_string_view<CT, TT>
+	__sv_template__ struct hash<__sv_itype__>{ uint64_t operator()(__sv_itype__ const& str) const noexcept { return elf64_hash()(str.begin(), str.size() * sizeof(typename __sv_itype__::value_type)); } };
+	__sv_template__ constexpr bool operator==(__sv_itype__ __this, type_identity_t<__sv_itype__> __that) noexcept { return __this.size() == __that.size() && !__this.compare(__that); }
+	__sv_template__ constexpr auto operator<=>(__sv_itype__ __this, type_identity_t<__sv_itype__> __that) noexcept -> decltype(__detail::__char_traits_cmp_cat<TT>(0)) { return __detail::__char_traits_cmp_cat<TT>(__this.compare(__that)); }
+#undef __sv_itype
+#undef __sv_template__
+	typedef basic_string_view<char> string_view;
+	typedef basic_string_view<wchar_t> wstring_view;
+	typedef basic_string_view<char8_t> u8string_view;
+	typedef basic_string_view<char16_t> u16string_view;
+	typedef basic_string_view<char32_t> u32string_view;
+	inline namespace literals
+	{
+		inline namespace string_view_literals
+		{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wliteral-suffix"
+			inline constexpr basic_string_view<char> operator""sv(const char* str, size_t len) noexcept { return basic_string_view<char>(str, len); }
+			inline constexpr basic_string_view<wchar_t> operator""sv(const wchar_t* str, size_t len) noexcept { return basic_string_view<wchar_t>(str, len); }
+			inline constexpr basic_string_view<char8_t> operator""sv(const char8_t* str, size_t len) noexcept { return basic_string_view<char8_t>(str, len); }
+			inline constexpr basic_string_view<char16_t> operator""sv(const char16_t* str, size_t len) noexcept { return basic_string_view<char16_t>(str, len); }
+			inline constexpr basic_string_view<char32_t> operator""sv(const char32_t* str, size_t len) noexcept { return basic_string_view<char32_t>(str, len); }
+#pragma GCC diagnostic pop
+		}
+	}
+}
+#endif

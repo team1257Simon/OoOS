@@ -60,6 +60,8 @@ namespace ooos
 		typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
 		typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
 		typedef std::true_type propagate_on_container_move_assignment;
+		typedef std::true_type propagate_on_container_copy_assignment;
+		typedef std::true_type propagate_on_container_swap;
 		typedef decltype(sizeof(T)) size_type;
 		typedef decltype(std::declval<pointer>() - std::declval<pointer>()) difference_type;
 	private:

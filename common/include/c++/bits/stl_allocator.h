@@ -15,14 +15,14 @@ namespace std
 		template<typename T, typename U, typename = void> struct __rebind : __replace_first_arg<T, U> {};
 		template<typename T, typename U> struct __rebind<T, U, __void_t<typename T::template rebind<U>::other>> { using other = typename T::template rebind<U>::other; };
 	protected:
-		template<typename T> using __pointer = typename T::pointer;
-		template<typename T> using __c_pointer = typename T::const_pointer;
-		template<typename T> using __v_pointer = typename T::void_pointer;
-		template<typename T> using __cv_pointer = typename T::const_void_pointer;
-		template<typename T> using __pocca = typename T::propagate_on_container_copy_assignment;
-		template<typename T> using __pocma = typename T::propagate_on_container_move_assignment;
-		template<typename T> using __pocs = typename T::propagate_on_container_swap;
-		template<typename T> using __equal = typename T::is_always_equal;
+		template<typename T> using __pointer	= typename T::pointer;
+		template<typename T> using __c_pointer	= typename T::const_pointer;
+		template<typename T> using __v_pointer	= typename T::void_pointer;
+		template<typename T> using __cv_pointer	= typename T::const_void_pointer;
+		template<typename T> using __pocca		= typename T::propagate_on_container_copy_assignment;
+		template<typename T> using __pocma		= typename T::propagate_on_container_move_assignment;
+		template<typename T> using __pocs		= typename T::propagate_on_container_swap;
+		template<typename T> using __equal		= typename T::is_always_equal;
 	};
 	template<typename AT, typename U> using __alloc_rebind = typename __allocator_traits_base::template __rebind<AT, U>::other;
 	template<typename T, std::size_t A = alignof(T)>
@@ -30,9 +30,9 @@ namespace std
 	{
 		constexpr static std::size_t __align_val    = A;
 		constexpr static std::size_t __size_val     = sizeof(T);
-		constexpr __base_allocator() noexcept = default;
+		constexpr __base_allocator() noexcept		= default;
 		constexpr __base_allocator(__base_allocator const&) noexcept = default;
-		constexpr ~__base_allocator() = default;
+		constexpr ~__base_allocator()				= default;
 		template<class U> constexpr __base_allocator(__base_allocator<U, alignof(U)> const&) noexcept {}
 		[[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const { if(!n) return nullptr; std::size_t total = n * __size_val; return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total)); }
 		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
@@ -104,7 +104,37 @@ namespace std
 		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new(total, __align), 0, total)); }
 		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
 	};
-	template<typename A> concept __has_move_propagate		= std::convertible_to<typename A::propagate_on_container_move_assignment, std::true_type>;
+	template<typename A> concept __defined_move_prop		= requires { typename A::propagate_on_container_move_assignment; { A::propagate_on_container_move_assignment::value ? 1 : 0 }; };
+	template<typename A> concept __defined_copy_prop		= requires { typename A::propagate_on_container_copy_assignment; { A::propagate_on_container_copy_assignment::value ? 1 : 0 }; };
+	template<typename A> concept __defined_swap_prop		= requires { typename A::propagate_on_container_swap; { A::propagate_on_container_swap::value ? 1 : 0 }; };
+	template<typename A>
+	struct __alloc_propagates
+	{
+		constexpr static bool __check_on_move() noexcept
+		{
+			if constexpr(__defined_move_prop<A>)
+				return A::propagate_on_container_move_assignment::value;
+			else return false;
+		}
+		constexpr static bool __check_on_copy() noexcept
+		{
+			if constexpr(__defined_copy_prop<A>)
+				return A::propagate_on_container_copy_assignment::value;
+			else return false;
+		}
+		constexpr static bool __check_on_swap() noexcept
+		{
+			if constexpr(__defined_swap_prop<A>)
+				return A::propagate_on_container_swap::value;
+			else return false;
+		}
+		typedef std::bool_constant<__check_on_move()> __on_move;
+		typedef std::bool_constant<__check_on_copy()> __on_copy;
+		typedef std::bool_constant<__check_on_swap()> __on_swap;
+	};
+	template<typename A> concept __has_move_propagate		= __alloc_propagates<A>::__on_move::value;
+	template<typename A> concept __has_copy_propagate		= __alloc_propagates<A>::__on_copy::value;
+	template<typename A> concept __has_swap_propagate		= __alloc_propagates<A>::__on_swap::value;
 	template<typename A, typename T> concept __has_resize	= requires { { std::declval<A>().resize(std::declval<T*>(), std::declval<size_t>(), std::declval<size_t>()) } -> std::convertible_to<T*>; };
 #pragma region non-standard memory functions
 	extension template<typename T, allocator_object<T> AT	= allocator<T>>

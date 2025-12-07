@@ -4,13 +4,13 @@
 #include <bits/basic_string.hpp>
 namespace std
 {
-	extension namespace ext
+	namespace ext
 	{
 		template<char_type CT, char_traits_type<CT> TT = char_traits<CT>, allocator_object<CT> AT = allocator<CT>>
 		class dynamic_duplex_streambuf : public basic_streambuf<CT, TT>
 		{
 		protected:
-			typedef basic_streambuf<CT, TT> __base;
+			typedef std::basic_streambuf<CT, TT> __base;
 			typedef std::__impl::__buf_ptrs<CT> __ptr_container;
 			typedef AT __allocator_type;
 			struct __alloc_hider : __allocator_type { bool __readonly_input = false; } __allocator;

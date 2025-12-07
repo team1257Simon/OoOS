@@ -491,6 +491,7 @@ void uam_tests()
 		{
 			if(user_accounts_manager::init_instance(*test_sysfs))
 			{
+				direct_write("initialized UAM; ");
 				user_accounts_manager& inst				= *user_accounts_manager::get_instance();
 				inst.create_user("test_user", "test_pass", "/bin/sh", "someone testy", "/home/test_user");
 				user_handle result						= inst.get_user("test_user");

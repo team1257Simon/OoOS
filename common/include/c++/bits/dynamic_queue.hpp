@@ -59,9 +59,33 @@ namespace std::__impl
 			unsigned int __stale_op_thresh;
 			unsigned int __op_cnt;
 			typedef std::bool_constant<__has_move_propagate<__allocator_type>> propagate_on_container_move_assignment;
+			typedef std::bool_constant<__has_copy_propagate<__allocator_type>> propagate_on_container_copy_assignment;
+			typedef std::bool_constant<__has_swap_propagate<__allocator_type>> propagate_on_container_swap;
+			constexpr static bool __nt_copy_assign = !propagate_on_container_copy_assignment::value || std::is_nothrow_copy_assignable_v<__allocator_type>;
+			constexpr static bool __nt_move_assign = !propagate_on_container_move_assignment::value || std::is_nothrow_move_assignable_v<__allocator_type>;
+
 			constexpr __q_alloc_and_state() noexcept(noexcept(__allocator_type())) : __allocator_type(), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
 			constexpr __q_alloc_and_state(__allocator_type const& that) noexcept(std::is_nothrow_copy_constructible_v<__allocator_type>) : __allocator_type(that), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
 			constexpr __q_alloc_and_state(__allocator_type&& that) noexcept(std::is_nothrow_move_constructible_v<__allocator_type>) : __allocator_type(move(that)), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
+			constexpr __q_alloc_and_state& operator=(__q_alloc_and_state const& that) noexcept(__nt_copy_assign)
+			{
+				this->__stale_size_thresh	= that.__stale_size_thresh;
+				this->__stale_op_thresh		= that.__stale_op_thresh;
+				this->__op_cnt				= that.__op_cnt;
+				if constexpr(propagate_on_container_copy_assignment::value)
+					*static_cast<__allocator_type*>(this)	= that;
+				return *this;
+			}
+			constexpr __q_alloc_and_state& operator=(__q_alloc_and_state&& that) noexcept(__nt_move_assign)
+			{
+				this->__stale_size_thresh	= that.__stale_size_thresh;
+				this->__stale_op_thresh		= that.__stale_op_thresh;
+				this->__op_cnt				= that.__op_cnt;
+				that.__op_cnt				= 0U;
+				if constexpr(propagate_on_container_move_assignment::value)
+					*static_cast<__allocator_type*>(this)	= std::move(that);
+				return *this;
+			}
 		} __qallocator;
 		__ptr_container __my_queue_data;
 		template<matching_input_iterator<T> IT> constexpr void __qtransfer(__pointer where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, addressof(*start), static_cast<__size_type>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }

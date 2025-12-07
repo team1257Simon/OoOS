@@ -25,8 +25,8 @@ namespace std
 			template<typename T> T* cast_to(void* obj) { return static_cast<T*>(cast_to(obj, typeid(T))); }
 			template<typename T> T const* cast_to(const void* obj) { return static_cast<T const*>(cast_to(const_cast<void*>(obj), typeid(T))); }
 			template<typename T> void* cast(T& t);
-			template<object T> requires (!is_array_v<T>) void* cast(T& t) { return cast_from(addressof(t), typeid(t)); }
-			template<typename T> requires (!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
+			template<object T> requires(!is_array_v<T>) void* cast(T& t) { return cast_from(addressof(t), typeid(t)); }
+			template<typename T> requires(!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
 			template<typename T> bool matches(T const& t) { if(*info == typeid(t)) return true; return type_erasure(typeid(t)).is_derived_from(*info); }
 			friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
 		};

@@ -215,7 +215,7 @@ namespace std
 			{
 				clear();
 				for(const_iterator i = that.begin(); i != that.end(); i++) this->__put_back(*i);
-				if constexpr(__has_move_propagate<__allocator>) *static_cast<__allocator*>(this) = that;
+				if constexpr(__has_copy_propagate<__allocator>) *static_cast<__allocator*>(this) = that;
 				return *this;
 			}
 		};
