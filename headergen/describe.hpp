@@ -42,9 +42,9 @@ struct sub_object_array
 		consteval std::array<result_type, size> operator()(F f)
 		{
 			std::array<result_type, size> result{};
-			constexpr info sequence = reflect_constant_array(std::views::iota(0UZ, size));
+			constexpr info sequence	= reflect_constant_array(std::views::iota(0UZ, size));
 			template for(constexpr size_t i : [: sequence :])
-				result[i] = f(nth_member_of(^^T, i));
+				result[i]			= f(nth_member_of(^^T, i));
 			return result;
 		}
         consteval std::array<result_type, size> operator()() requires(std::is_default_constructible_v<F>) { return (*this)(F()); }
@@ -53,10 +53,10 @@ struct sub_object_array
 template<typename T> using describe_fields	= typename sub_object_array<T>::template builder<describe>;
 template<typename T> consteval std::size_t index_for_member(std::string_view name)
 {
-	constexpr info indices = reflect_constant_array(std::views::iota(0UZ, member_count<T>()));
+	constexpr info indices		= reflect_constant_array(std::views::iota(0UZ, member_count<T>()));
 	template for(constexpr std::size_t i : [: indices :])
 	{
-		constexpr info member = nth_member_of(^^T, i);
+		constexpr info member	= nth_member_of(^^T, i);
 		if(name == identifier_of(member))
 			return i;
 	}
@@ -64,8 +64,8 @@ template<typename T> consteval std::size_t index_for_member(std::string_view nam
 }
 template<typename T, std::size_t I> consteval bool nth_member_has_members()
 {
-	constexpr info member_type = type_of(nth_member_of(^^T, I));
-	using type = [: member_type :];
+	constexpr info member_type	= type_of(nth_member_of(^^T, I));
+	using type					= [: member_type :];
 	return member_count<type>() != 0UZ;
 }
 template<typename T, size_t I>
