@@ -1,5 +1,4 @@
-CCPREF		= /usr/local/bin
-CCLD		= $(CCPREF)/g++
+CCLD		= g++
 SRC			= $(wildcard *.cpp)
 OBJDIR 		:= $(CURDIR)/build
 CCLDFLAGS	:= -O2 -Wall -std=gnu++26 -freflection
