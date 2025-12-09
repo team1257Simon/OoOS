@@ -341,16 +341,9 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 constexpr size_t physical_block_size = 512UZ;
 #define __may_alias [[gnu::may_alias]]
 #define restrict __restrict__
-#if defined(__KERNEL__) || defined(__LIBK__)
 #include <compare>
 #include <bits/move.h>
 #include <concepts>
-#else
-#include <type_traits>
-#include <concepts>
-#include <compare>
-#include <utility>
-#endif
 template<typename T> concept not_void_ptr					= !std::same_as<std::remove_cvref_t<T>, void*>;
 template<typename T> concept non_void						= !std::is_void_v<T>;
 template<typename T, typename U> concept convertible_other	= !std::same_as<T, U> && std::convertible_to<T, U>;

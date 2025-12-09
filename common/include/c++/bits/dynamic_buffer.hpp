@@ -9,7 +9,7 @@
 #include <limits>
 #include <bits/stl_algobase.hpp>
 #include <bits/stl_iterator.hpp>
-#include <kernel/libk_decls.h>
+#include <libk_decls.h>
 #include <initializer_list>
 #ifndef TARGET_SSO_SIZE
 #define TARGET_SSO_SIZE 32UZ

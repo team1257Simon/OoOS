@@ -3,7 +3,7 @@
 #include <memory>
 #include <limits>
 #include <bits/stl_iterator.hpp>
-#include <kernel/libk_decls.h>
+#include <libk_decls.h>
 #include <initializer_list>
 #include <bits/stdexcept.h>
 #include <bits/stl_algobase.hpp>

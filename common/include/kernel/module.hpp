@@ -1,42 +1,6 @@
 #ifndef __KMOD
 #define __KMOD
 #include <kernel_api.hpp>
-// Some things won't be defined the same in module-land as they are in kernel-land, so we need to patch them up
-#pragma region module-land specific
-#ifndef ABI_NAMESPACE
-#define ABI_NAMESPACE __cxxabiv1
-namespace ABI_NAMESPACE
-{
-	struct __class_type_info : public std::type_info
-	{
-		virtual ~__class_type_info();
-		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
-		virtual bool __do_upcast(const __class_type_info *target, void **thrown_object) const override;
-	};
-	struct __si_class_type_info : public __class_type_info
-	{
-		virtual ~__si_class_type_info();
-		const __class_type_info *__base_type;
-		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const override;
-		virtual void *cast_to(void *obj, const struct __class_type_info *other) const override;
-	};
-	struct __base_class_type_info
-	{
-		const __class_type_info *__base_type;
-		private:
-			long __offset_flags;
-	};
-	struct __vmi_class_type_info : public __class_type_info
-	{
-		virtual ~__vmi_class_type_info();
-		unsigned int __flags;
-		unsigned int __base_count;
-		__base_class_type_info __base_info[1];
-		virtual bool __do_upcast(const ABI_NAMESPACE::__class_type_info *target, void **thrown_object) const;
-		virtual void *cast_to(void *obj, const struct __class_type_info *other) const;
-	};
-}
-#endif
 /**
  * EXPORT_MODULE(T, Args...)
  * All modules must invoke this macro exactly once in order to build properly.

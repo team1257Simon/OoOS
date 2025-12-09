@@ -1,7 +1,7 @@
 #ifndef __ATOMIC_BASE
 #define __ATOMIC_BASE
 #include <bits/move.h>
-#include <kernel/libk_decls.h>
+#include <libk_decls.h>
 #define INL __attribute__((__always_inline__))
 namespace std
 {

@@ -1,7 +1,7 @@
 #ifndef __IOS_BASE_H
 #define __IOS_BASE_H
 #define NZ(x) ((x) != 0)
-#include <kernel/libk_decls.h>
+#include <libk_decls.h>
 namespace std
 {
 	struct __openmode

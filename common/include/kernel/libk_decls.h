@@ -5,34 +5,6 @@
 #include <memory>
 #include <tuple>
 #ifdef __cplusplus
-#if !(defined(__KERNEL__) || defined(__LIBK__))
-namespace std
-{
-#pragma region non-standard useful concepts
-    extension template<typename LT, typename RT> concept not_self = !is_same_v<__remove_cvref_t<LT>, RT>;
-    extension template<typename LT, typename RT> concept same_size = sizeof(LT) == sizeof(RT);
-    extension template<typename LT, typename RT> concept smaller = sizeof(LT) < sizeof(RT);
-    extension template<typename LT, typename RT> concept larger = sizeof(LT) > sizeof(RT);
-    extension template<typename LT, typename RT> concept not_smaller = same_size<LT, RT> || larger<LT, RT>;
-    extension template<typename LT, typename RT> concept not_larger = same_size<LT, RT> || smaller<LT, RT>;
-    extension template<typename FT, typename RT, typename ST, typename ... Args> concept member_function = requires { { ((declval<ST&&>()).*(declval<FT&&>()))(declval<Args&&>()...) } -> same_as<RT>; };
-    extension template<typename FT, typename RT, typename ST, typename ... Args> concept deref_to_member_function = requires { { ((*declval<ST&&>()).*(declval<FT&&>()))(declval<Args&&>()...) } -> same_as<RT>; };
-    extension template<typename FT, typename RT, typename ... Args> concept functor = requires { { declval<FT&&>()(declval<Args&&>()...) } -> same_as<RT>; };
-    extension template<typename T> concept non_object = !is_object_v<T>;
-    extension template<typename T> concept object = is_object_v<T>;
-	extension template<class A, typename T> concept __allocator_object = is_default_constructible_v<A> && requires(std::remove_cvref_t<A>& a) { { a.allocate(declval<size_t>()) } -> same_as<T*>; a.deallocate(declval<T*>(), declval<size_t>()); };
-    struct __somesuch{};
-    extension template<class A, typename T> concept allocator_object = __allocator_object<A, T> && __allocator_object<typename A::template rebind<__somesuch>::other, __somesuch>;
-    extension template<template<typename> class PT, typename T> concept recursive_template_derived = derived_from<T, PT<T>>;
-    extension namespace ext
-    {
-        template<typename T, typename ... Args, size_t ... Is> constexpr T* __tuple_construct(T* ptr, tuple<Args...>&& args, index_sequence<Is...>) { return construct_at(ptr, get<Is>(forward<tuple<Args...>>(args))...);  }
-        template<typename T, typename ... Args> requires(constructible_from<T, Args...>) constexpr T* tuple_construct(T* ptr, tuple<Args...>&& args) { return __tuple_construct(ptr, forward<tuple<Args...>>(args), make_index_sequence<sizeof...(Args)>{}); }
-    }
-    namespace __detail { void* __aligned_reallocate(void* ptr, size_t count, size_t align); }
-    #pragma endregion
-}
-#endif
 extern "C"
 {
 #else
