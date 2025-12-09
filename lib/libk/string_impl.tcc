@@ -161,7 +161,7 @@ namespace std
 			using __digi_type					= __char_encode<CT>;
 			using __trait_type					= std::char_traits<CT>;
 			constexpr static size_t __max_dec	= __max_dec_digits<IT>();
-			constexpr static size_t __max_hex	= 2 * sizeof(IT);
+			constexpr static size_t __max_hex	= 2UZ * sizeof(IT);
 			constexpr static size_t __xdigits(IT i) noexcept { using UIT = typename std::make_unsigned<IT>::type; return div_round_up(sizeof(IT) * CHAR_BIT - __clzg(static_cast<UIT>(i)), 4); }
 			constexpr static IT __get_pow10(size_t idx) noexcept { return __pow_10<IT>::values[idx]; }
 			constexpr static IT __get_pow16(size_t idx) noexcept { return IT(1) << (idx * 4); }
@@ -272,35 +272,35 @@ namespace std
 		{
 			size_t n	= in_str.size();
 			std::basic_string<DT> str{};
-			str.reserve(n + 1);
-			for(size_t i = 0; i < n; i++) { str.append(__char_encode<char>::template __to_other<DT>(in_str[i])); }
+			str.reserve(n + 1UZ);
+			for(size_t i = 0UZ; i < n; i++) { str.append(__char_encode<char>::template __to_other<DT>(in_str[i])); }
 			return str;
 		}
 		template<std::integral IT>
 		IT ston(const char* str, char*& eptr, int base = 10)
 		{
 			if(base > 32) return 0;
-			bool neg = false;
+			bool neg	= false;
 			if(str[0] == '+') str++;
 			if(str[0] == '-') { neg = true; str++; }
 			if((base == 0 || base == 16) && (str[0] == '0' && __tolower(str[1]) == 'x')) { base = 16; str += 2; }
 			else if(base == 0) base = (str[0] == '0') ? 8 : 10;
-			for(eptr = const_cast<char*>(str); *eptr; eptr++)
+			for(eptr	= const_cast<char*>(str); *eptr; eptr++)
 			{
-				char c = __tolower(*eptr);
+				char c	= __tolower(*eptr);
 				if(__isspace(c)) continue;
 				if(!__isalnum(c) || (__isalpha(c) && (base < 11 || (base - 10) <= (c - 'a'))) || (__isdigit(c) && (c - '0') >= base)) break;
 			}
-			IT result = 0;
+			IT result	= 0;
 			for(const char* cc = str; cc < eptr; cc++)
 			{
-				result *= base;
+				result	*= base;
 				char cdc = __tolower(*cc);
 				if(__isspace(cdc)) continue;
 				if(__isalpha(cdc)) result += ((cdc - 'a') + 10);
-				else result += (cdc - '0');
+				else result	+= (cdc - '0');
 			}
-			if(neg) result = -result;
+			if(neg) result	= -result;
 			return result;
 		}
 	}

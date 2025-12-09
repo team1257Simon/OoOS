@@ -114,7 +114,7 @@ namespace std
 		}
 		return false;
 	}
-	[[gnu::nonnull]] [[gnu::returns_nonnull]] __node_base *__rebalance_for_erase(__node_base* const z, __node_base& trunk)
+	[[gnu::nonnull]] [[gnu::returns_nonnull]] __node_base* __rebalance_for_erase(__node_base* const z, __node_base& trunk)
 	{
 		__node_base*& root		= trunk.__my_parent;
 		__node_base*& leftmost	= trunk.__my_left;

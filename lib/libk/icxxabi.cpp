@@ -14,7 +14,7 @@ extern "C"
 {
 	atexit_func_entry_t __atexit_funcs[ATEXIT_MAX_FUNCS];
 	atexit_func_entry_t __tmp_atexit_buff[ATEXIT_MAX_FUNCS];
-	uarch_t __atexit_func_count		= 0;
+	uarch_t __atexit_func_count		= 0U;
 	extern "C" void *__dso_handle;
 	extern "C" __cxxabiv1::__guard __atexit_guard;
 	extern "C" void _fini();

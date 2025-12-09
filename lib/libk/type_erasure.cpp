@@ -28,16 +28,16 @@ namespace std
 		static void* __reflective_cast(type_info const& from, type_info const& to, void* obj)
 		{
 			if(from == to || (dynamic_cast<__fundamental_type_info const*>(addressof(from)) && dynamic_cast<__fundamental_type_info const*>(addressof(to)))) return obj;
-			__class_type_info const* cfrom = dynamic_cast<__class_type_info const*>(addressof(from));
-			__class_type_info const* cto = dynamic_cast<__class_type_info const*>(addressof(to));
+			__class_type_info const* cfrom	= dynamic_cast<__class_type_info const*>(addressof(from));
+			__class_type_info const* cto	= dynamic_cast<__class_type_info const*>(addressof(to));
 			if(cfrom && cto)
 			{
-				void* cobj = obj;
+				void* cobj					= obj;
 				if(cfrom->__do_upcast(cto, addressof(cobj))) return cobj;
 				return nullptr;
 			}
-			__pointer_type_info const* pfrom = dynamic_cast<__pointer_type_info const*>(addressof(from));
-			__pointer_type_info const* pto = dynamic_cast<__pointer_type_info const*>(addressof(to));
+			__pointer_type_info const* pfrom	= dynamic_cast<__pointer_type_info const*>(addressof(from));
+			__pointer_type_info const* pto		= dynamic_cast<__pointer_type_info const*>(addressof(to));
 			if(pfrom && pto) return __reflective_cast(*pfrom->__pointee, *pto->__pointee, *static_cast<void**>(obj));
 			return nullptr;
 		}
@@ -46,8 +46,8 @@ namespace std
 		void* type_erasure::cast_from(void* obj, type_erasure const& that) const { return that.cast_to(obj, *info); }
 		bool type_erasure::is_derived_from(type_info const& that)
 		{
-			__class_type_info const* cthis = dynamic_cast<__class_type_info const*>(info);
-			__class_type_info const* cthat = dynamic_cast<__class_type_info const*>(addressof(that));
+			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
+			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthis, cthat);
 			return false;
 		}
