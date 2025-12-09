@@ -1,6 +1,6 @@
 /**
  * Most C++ standard library implementations use C standard library functions for their string implementations.
- * Because I like to watch the world burn, I have done the opposite and implemented C standard library functions in terms of C++ standard library functions.
+ * Because I like to watch the world burn, I have done the opposite and implemented C standard library string code in terms of my own C++ standard library string implementations.
  * C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility.
  */
 #include <libk_decls.h>
