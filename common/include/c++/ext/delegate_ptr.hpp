@@ -149,7 +149,7 @@ namespace std
 				}
 			};
 			typedef std::unordered_map<std::type_info const*, __generic_ptr_container>::iterator __container_iterator;
-			extern std::unordered_map<std::type_info const*, __generic_ptr_container> __delegate_ptr_mgr_inst;
+			inline unordered_map<const type_info*, __generic_ptr_container> __delegate_ptr_mgr_inst(256);
 			template<typename T>
 			__object_type_managed_ptrs<T>& __get_ptrs()
 			{
