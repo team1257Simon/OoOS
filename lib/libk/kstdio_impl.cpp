@@ -1,3 +1,8 @@
+/**
+ * This file exists as further evidence of the fact that I like to watch the world burn (c.v. string_impl.cpp).
+ * Here, I have implemented the underlying v(f/s)printf functions using (my implementations of) C++ standard library functions.
+ * The printf variants in kstdio.c are just wrappers around these functions.
+ */
 #include <ext/dynamic_streambuf.hpp>
 #include <string>
 #include <stdarg.h>

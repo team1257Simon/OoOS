@@ -1,10 +1,14 @@
+/**
+ * Most C++ standard library implementations use C standard library functions for their string implementations.
+ * Because I like to watch the world burn, I have done the opposite and implemented C standard library functions in terms of C++ standard library functions.
+ * C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility.
+ */
 #include <libk_decls.h>
 #include <string>
 #include <string.h>
 #include <limits>
 #include <memory>
 #include <gdtoa.h>
-// C standard library functions are trivial in terms of the template functions in basic_string.hpp, so we can put them here for compatibility
 extern "C"
 {
 	extern char* __dtoa(double d0, int mode, int ndigits, int* decpt, int* sign, char** rve);
