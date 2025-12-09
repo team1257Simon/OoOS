@@ -92,4 +92,3 @@ namespace std
 	underflow_error::underflow_error(const char* __msg) : runtime_error(__msg) {}
 	underflow_error::~underflow_error() noexcept {}
 } // namespace std
-extension void xpanic(std::string const& str) noexcept { panic(str.c_str()); }

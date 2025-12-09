@@ -30,16 +30,6 @@ void operator delete(void* ptr, std::size_t, std::align_val_t al) noexcept { ((_
 void operator delete[](void* ptr, std::size_t, std::align_val_t al) noexcept { ((__module_frame_tag)->*(__frame_functions.deallocate))(ptr, static_cast<size_t>(al)); }
 namespace std
 {
-	exception::exception() noexcept {}
-	exception::~exception() noexcept {}
-	exception::exception(exception const&) noexcept {}
-	exception& exception::operator=(exception const&) noexcept { return *this; }
-	const char* exception::what() const noexcept { return "std::exception"; }
-	bad_alloc::bad_alloc() noexcept {}
-	bad_alloc::~bad_alloc() noexcept {}
-	bad_alloc::bad_alloc(bad_alloc const&) noexcept {}
-	bad_alloc& bad_alloc::operator=(bad_alloc const&) noexcept { return *this; }
-	const char* bad_alloc::what() const noexcept { return "std::bad_alloc"; }
 	atomic<new_handler> __l_handler;
 	new_handler set_new_handler(new_handler handler) { return __l_handler.exchange(handler); }
 	new_handler get_new_handler() { return __l_handler.load(); }
@@ -48,7 +38,7 @@ namespace std
 		if(!count) return nullptr;
 		if(void* result = ((__module_frame_tag)->*(__frame_functions.reallocate))(ptr, count, align)) return result;
 		else if(std::new_handler h = std::get_new_handler()) h();
-		else throw std::bad_alloc{};
+		else throw std::bad_alloc();
 		return ((__module_frame_tag)->*(__frame_functions.reallocate))(ptr, count, align);
 	}
 }

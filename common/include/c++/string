@@ -8,6 +8,21 @@ namespace std
 	typedef basic_string<char8_t> u8string;
 	typedef basic_string<char16_t> u16string;
 	typedef basic_string<char32_t> u32string;
+	extension namespace ext
+	{
+		struct hex_t{};
+		constexpr inline hex_t hex;
+		struct nphex_t{};
+		constexpr inline nphex_t nphex;
+		std::string fcvt(float f, int ndigits);
+		std::string fcvtd(double d, int ndigits);
+		std::string fcvtl(long double ld, int ndigits);
+		std::string fcvth(float f, int ndigits);
+		std::string fcvthd(double d, int ndigits);
+		std::string fcvthl(long double ld, int ndigits);
+		std::string to_upper(std::string const& str);
+		std::string to_lower(std::string const& str);
+	}
 	string to_string(int value);
 	string to_string(long value);
 	string to_string(long long value);
@@ -63,21 +78,6 @@ namespace std
 	u32string to_u32string(double value);
 	u32string to_u32string(long double value);
 	u32string to_u32string(bool value);
-	extension namespace ext
-	{
-		struct hex_t{};
-		constexpr inline hex_t hex;
-		struct nphex_t{};
-		constexpr inline nphex_t nphex;
-		std::string fcvt(float f, int ndigits);
-		std::string fcvtd(double d, int ndigits);
-		std::string fcvtl(long double ld, int ndigits);
-		std::string fcvth(float f, int ndigits);
-		std::string fcvthd(double d, int ndigits);
-		std::string fcvthl(long double ld, int ndigits);
-		std::string to_upper(std::string const& str);
-		std::string to_lower(std::string const& str);
-	}
 	extension string to_string(int value, ext::hex_t);
 	extension string to_string(long value, ext::hex_t);
 	extension string to_string(long long value, ext::hex_t);

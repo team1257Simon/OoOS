@@ -26,9 +26,7 @@ $(OBJDIR) $(OSUBDIRS):
 	@mkdir -p $@
 $(OUT_A): $(OBJECTS)
 	@mkdir -p $(PROJECT_DIR)/common/include/asm-generated
-	$(PROJECT_DIR)/headergen/build/headergen > $(PROJECT_DIR)/common/include/asm-generated/asm-defs.inc
-	$(LD) $(LDFLAGS) $(OBJECTS) -o $(OBJDIR)/libk_rel.o
-	$(AR) $(ARFLAGS) $@ $(OBJDIR)/libk_rel.o
+	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 $(OBJDIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(OBJDIR)/%.o: %.S

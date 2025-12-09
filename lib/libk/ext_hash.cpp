@@ -2,9 +2,9 @@
 #include <bits/functional_hash.hpp>
 struct hash_buffer { uint32_t dword_buf[8]; };
 typedef void (*hash_round_fn)(hash_buffer& buf, const hash_buffer& in);
-constexpr uint32_t K1	= 0;
-constexpr uint32_t K2	= 013240474631UL;
-constexpr uint32_t K3	= 015666365641UL;
+constexpr uint64_t K1	= 0U;
+constexpr uint64_t K2	= 013240474631UL;
+constexpr uint64_t K3	= 015666365641UL;
 constexpr hash_buffer buf_init{ { 0x67452301U, 0xEFCDAB89U, 0x98BDACFEU, 0x10325476U, 0, 0, 0, 0 } };
 template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num);
 template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len);
@@ -72,12 +72,12 @@ template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_
 }
 static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in)
 {
-	uint32_t sum	= 0;
+	uint32_t sum	= 0U;
 	uint32_t b0		= buf.dword_buf[0], b1 = buf.dword_buf[1];
 	uint32_t a		= in.dword_buf[0], b = in.dword_buf[1], c = in.dword_buf[2], d = in.dword_buf[3];
-	size_t n		= 16;
+	size_t n		= 16UZ;
 	do {
-		sum			+= 0x9E3779B9;
+		sum			+= 0x9E3779B9U;
 		b0			+= ((b1 << 4) + a) ^ (b1 + sum) ^ ((b1 >> 5) + b);
 		b1			+= ((b0 << 4) + c) ^ (b0 + sum) ^ ((b0 >> 5) + d);
 	} while(--n);
