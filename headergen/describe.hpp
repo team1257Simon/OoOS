@@ -11,7 +11,7 @@ struct member_name_and_offset
 	std::string_view name;
 	std::ptrdiff_t offset_bytes;
 	std::ptrdiff_t offset_bits;
-    bool bit_flag;
+    bool is_bit_flag;
 };
 struct describe
 {

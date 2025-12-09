@@ -1,92 +1,61 @@
+#include "describe.hpp"
 #include <iostream>
-#ifdef __KERNEL__
-#undef __KERNEL__
-#endif
 typedef long register_t;
-typedef __int128_t int128_t;
+typedef __int128 int128_t;
 #include "../common/include/kernel/sched/task.h"
 #include "../common/include/kernel/sched/thread.hpp"
-#define DEFS(m, n) std::cout << "#define __TASK_MEMBER_" #m "_OFFSET 0x" << offsetof(task_t, n) << "\n"
-#define DEFLS(m, n) std::cout << "#define __THREAD_MEMBER_" #m "_OFFSET 0x" << offsetof(thread_t, n) << "\n"
-#define DEF(n) DEFS(n, n)
-#define DEFL(n) DEFLS(n, n)
-#define DEFLC(n) DEFLS(n, ctl_info.n)
-#define DEFC(n) DEFS(n, task_ctl.n)
-#define DEFR(r) DEFS(r, saved_regs.r)
-#define DEFLR(r) DEFLS(r, saved_regs.r)
+constexpr std::size_t task_regs_idx		= index_for_member<task_t>("saved_regs");
+constexpr std::size_t thread_regs_idx	= index_for_member<thread_t>("saved_regs");
+constexpr std::size_t task_ctl_idx		= index_for_member<task_t>("task_ctl");
+constexpr std::size_t thread_ctl_idx	= index_for_member<thread_t>("ctl_info");
+using tctl_sub_0						= [: type_of(nth_member_of(^^tctl_t, 0)) :];
+using tctl_sub_1						= [: type_of(nth_member_of(^^tctl_t, 1)) :];
+using lctl_sub_0						= [: type_of(nth_member_of(^^thread_ctl, 0)) :];
+using lctl_sub_1						= [: type_of(nth_member_of(^^thread_ctl, 1)) :];
+extern "C"
+{
+	auto task_fields					= describe_fields<task_t>()();
+	auto thread_fields					= describe_fields<thread_t>()();
+	auto task_registers					= describe_member_subobjects<task_t, task_regs_idx>();
+	auto thread_registers				= describe_member_subobjects<thread_t, thread_regs_idx>();
+	auto tsub_0_fields					= describe_fields<tctl_sub_0>()(describe::for_offset(nth_member_offset<task_t>(task_ctl_idx)));
+	auto tsub_1_fields					= describe_fields<tctl_sub_1>()(describe::for_offset(nth_member_offset<tctl_t>(1), nth_member_offset<task_t>(task_ctl_idx).bytes));
+	auto lsub_0_fields					= describe_fields<lctl_sub_0>()(describe::for_offset(nth_member_offset<thread_t>(thread_ctl_idx)));
+	auto lsub_1_fields					= describe_fields<lctl_sub_1>()(describe::for_offset(nth_member_offset<thread_ctl>(1), nth_member_offset<task_t>(thread_ctl_idx).bytes));
+}
+using std::cout;
+using std::endl;
+using std::hex;
+using std::dec;
+using std::uppercase;
+void def_task_m(member_name_and_offset const& m)
+{
+	cout << "#define TASK_MEMBER_" << m.name << "_OFFSET 0x" << m.offset_bytes << "\n";
+	if(m.is_bit_flag)
+		cout << dec << "#define TASK_MEMBER_" << m.name << "_BIT " << m.offset_bits << "\n" << hex;
+}
+void def_thread_m(member_name_and_offset const& m)
+{
+	cout << "#define THREAD_MEMBER_" << m.name << "_OFFSET 0x" << m.offset_bytes << "\n";
+	if(m.is_bit_flag)
+		cout << dec << "#define THREAD_MEMBER_" << m.name << "_BIT " << m.offset_bits << "\n" << hex;
+}
 int main()
 {
-	std::cout << std::hex << std::uppercase;
-	DEF(self);
-	DEF(frame_ptr);
-	DEFR(rax);
-	DEFR(rbx);
-	DEFR(rcx);
-	DEFR(rdx);
-	DEFR(rdi);
-	DEFR(rsi);
-	DEFR(r8);
-	DEFR(r9);
-	DEFR(r10);
-	DEFR(r11);
-	DEFR(r12);
-	DEFR(r13);
-	DEFR(r14);
-	DEFR(r15);
-	DEFR(rsp);
-	DEFR(rbp);
-	DEFR(rip);
-	DEFR(rflags);
-	DEFR(ds);
-	DEFR(ss);
-	DEFR(cs);
-	DEFR(cr3);
-	DEFC(task_pid);
-	DEFC(task_uid);
-	DEFC(task_gid);
-	DEF(fxsv);
-	DEF(run_split);
-	DEF(run_time);
-	DEF(sys_time);
-	DEF(tls_master);
-	DEF(tls_size);
-	DEF(thread_ptr);
-	DEF(num_child_procs);
-	DEF(child_procs);
-	DEF(next);
-	std::cout << "#define T_OFFS(m) __TASK_MEMBER_##m##_OFFSET\n";
-	std::cout << "#define T_SIZE 0x" << sizeof(task_t) << "\n";
-	DEFL(self);
-	DEFL(dtv_ptr);
-	DEFLR(rax);
-	DEFLR(rbx);
-	DEFLR(rcx);
-	DEFLR(rdx);
-	DEFLR(rdi);
-	DEFLR(rsi);
-	DEFLR(r8);
-	DEFLR(r9);
-	DEFLR(r10);
-	DEFLR(r11);
-	DEFLR(r12);
-	DEFLR(r13);
-	DEFLR(r14);
-	DEFLR(r15);
-	DEFLR(rsp);
-	DEFLR(rbp);
-	DEFLR(rip);
-	DEFLR(rflags);
-	DEFLR(ds);
-	DEFLR(ss);
-	DEFLR(cs);
-	DEFLR(cr3);
-	DEFL(fxsv);
-	DEFLC(thread_lock);
-	DEFLC(thread_id);
-	DEFLC(wait_time_delta);
-	DEFL(stack_base);
-	DEFL(stack_size);
-	std::cout << "#define L_OFFS __THREAD_MEMBER_##m##_OFFSET\n";
-	std::cout << "#define L_SIZE 0x" << sizeof(thread_t) << std::endl;
+	cout << hex << uppercase;
+	for(member_name_and_offset const& m : task_fields) def_task_m(m);
+	for(member_name_and_offset const& m : thread_fields) def_thread_m(m);
+	for(member_name_and_offset const& m : task_registers) def_task_m(m);
+	for(member_name_and_offset const& m : thread_registers) def_thread_m(m);
+    for(member_name_and_offset const& m : tsub_0_fields) def_task_m(m);
+	for(member_name_and_offset const& m : tsub_1_fields) def_task_m(m);
+	for(member_name_and_offset const& m : lsub_0_fields) def_thread_m(m);
+	for(member_name_and_offset const& m : lsub_1_fields) def_thread_m(m);
+	cout << "#define T_OFFS(m) TASK_MEMBER_##m##_OFFSET\n";
+	cout << "#define L_OFFS(m) THREAD_MEMBER_##m##_OFFSET\n";
+	cout << "#define T_BIT(m) TASK_MEMBER_##m##_BIT\n";
+	cout << "#define L_BIT(m) THREAD_MEMBER_##m##_BIT\n";
+	cout << "#define T_SIZE 0x" << sizeof(task_t) << "\n";
+	cout << "#define L_SIZE 0x" << sizeof(thread_t) << endl;
 	return 0;
 }
