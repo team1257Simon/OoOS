@@ -10,10 +10,10 @@ namespace std
 	template<typename T> struct default_delete<T[]> { constexpr void operator()(T* ptr) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); } };
 	namespace __detail
 	{
-		template<typename FT, typename T> concept __ptr_accept_ftor = requires(FT ft) { ft(declval<T*>()); };
-		template<typename T> concept __unique_ptrable = __or_<is_unbounded_array<T>, __not_<is_array<T>>>::value;
-		template<typename DT> concept __has_typedef_pointer = requires { typename remove_reference_t<DT>::pointer; };
-		template<typename DT, typename T> concept __typedef_ptr_deleter = __ptr_accept_ftor<DT, T> && __has_typedef_pointer<DT>;
+		template<typename FT, typename T> concept __ptr_accept_ftor		= requires(FT ft) { ft(declval<T*>()); };
+		template<typename T> concept __unique_ptrable					= __or_<is_unbounded_array<T>, __not_<is_array<T>>>::value;
+		template<typename DT> concept __has_typedef_pointer				= requires { typename remove_reference_t<DT>::pointer; };
+		template<typename DT, typename T> concept __typedef_ptr_deleter	= __ptr_accept_ftor<DT, T> && __has_typedef_pointer<DT>;
 		template<__unique_ptrable T, __ptr_accept_ftor<T> DT>
 		struct __unique_ptr_traits
 		{

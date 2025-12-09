@@ -6,8 +6,8 @@ namespace std
 {
 	namespace __detail
 	{
-		template<typename T> concept __lt_comparable = requires(T a, T b) { { a < b } -> std::__detail::__boolean_testable; };
-		template<typename T, typename C> concept __comparator = requires(T a, T b, C c) { { c(a, b) } -> std::__detail::__boolean_testable; };
+		template<typename T> concept __lt_comparable			= requires(T a, T b) { { a < b } -> std::__detail::__boolean_testable; };
+		template<typename T, typename C> concept __comparator	= requires(T a, T b, C c) { { c(a, b) } -> std::__detail::__boolean_testable; };
 	}
 	namespace __impl
 	{

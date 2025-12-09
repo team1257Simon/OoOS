@@ -24,18 +24,18 @@ namespace std
 			{
 				mutable ::__impl::__aligned_buffer<__int128_t> __tmp_result;
 			public:
-				__dragon_base() : __tmp_result{} {}
-				__dragon_base(__dragon_base const&) : __tmp_result{} {}
-				__dragon_base(__dragon_base&&) : __tmp_result{} {}
+				__dragon_base() : __tmp_result() {}
+				__dragon_base(__dragon_base const&) : __tmp_result() {}
+				__dragon_base(__dragon_base&&) : __tmp_result() {}
 				__dragon_base& operator=(__dragon_base const&) { return *this; }
 				__dragon_base& operator=(__dragon_base&&) { return *this; }
 				uint64_t apply(const void* bytes, size_t len) const noexcept
 				{
-					construct_at(__tmp_result.__get_ptr(), HT{}(bytes, len));
+					construct_at(__tmp_result.__get_ptr(), HT()(bytes, len));
 					uint8_t* rbytes = static_cast<uint8_t*>(__tmp_result.__get_addr());
 					// We chomp on the bytes a little bit beforehand so that the elf64 hash "sees" a string entirely composed of text characters (even if they'd make no sense when read out).
 					for(size_t i = 0; i < sizeof(__int128_t); i++) rbytes[i] = (rbytes[i] | 0x20) & 0x7E;
-					uint64_t result = elf64_hash{}(rbytes, sizeof(__int128_t));
+					uint64_t result = elf64_hash()(rbytes, sizeof(__int128_t));
 					construct_at(__tmp_result.__get_ptr());	// temporary result buffer is to be treated as though it doesn't exist except to provide storage space during calculations
 					return result;
 				}

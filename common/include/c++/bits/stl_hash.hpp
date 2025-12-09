@@ -11,8 +11,8 @@ namespace std
 	template<integral IT> struct hash<IT> : ext::static_cast_t<IT, uint64_t> {};
 	template<> struct hash<void*> { uint64_t operator()(void* const& ptr) const noexcept { return elf64_hash()(addressof(ptr), sizeof(void*)); } };
 	template<> struct hash<const void*> { uint64_t operator()(const void* const& ptr) const noexcept { return elf64_hash()(addressof(ptr), sizeof(const void*)); } };
-	template<__detail::__not_char_type T> struct hash<T*> : hash<void*>{};
-	template<__detail::__not_char_type T> struct hash<T const*> : hash<const void*>{};
+	template<__detail::__not_char_type T> struct hash<T*> : hash<void*> {};
+	template<__detail::__not_char_type T> struct hash<T const*> : hash<const void*> {};
 	template<> struct hash<addr_t> { uint64_t operator()(addr_t const& ptr) const noexcept { return elf64_hash()(addressof(ptr), sizeof(addr_t)); } };
 }
 #endif

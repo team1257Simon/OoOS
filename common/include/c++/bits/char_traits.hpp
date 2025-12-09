@@ -41,16 +41,16 @@ namespace std
 	class fpos
 	{
 		ST __state{};
-		streamoff __offs = 0;
+		streamoff __offs{};
 	public:
 		constexpr ST state() const { return __state; }
 		constexpr void state(ST st) { __state = st; }
-		constexpr fpos() = default;
-		constexpr fpos(streamoff offs) : __state{}, __offs{ offs }{}
-		constexpr fpos(fpos const&) = default;
-		constexpr fpos(fpos&&) = default;
-		constexpr fpos& operator=(fpos const&) = default;
-		constexpr fpos& operator=(fpos&&) = default;
+		constexpr fpos(streamoff offs) : __state(), __offs(offs) {}
+		constexpr fpos()						= default;
+		constexpr fpos(fpos const&)				= default;
+		constexpr fpos(fpos&&)					= default;
+		constexpr fpos& operator=(fpos const&)	= default;
+		constexpr fpos& operator=(fpos&&)		= default;
 		constexpr operator streamoff() const { return __offs; }
 		constexpr bool operator==(fpos const& that){ return this->__state == that.__state && this->__offs == that.__offs; }
 		constexpr fpos& operator+=(streamoff off) { __offs += off; return *this; }

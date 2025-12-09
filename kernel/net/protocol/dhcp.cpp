@@ -137,9 +137,9 @@ int protocol_dhcp::process_ack_packet(dhcp_packet const& p)
 	if(ipconfig.lease_duration != 0xFFFFFFFFU)
 	{
 		if(!ipconfig.lease_renew_time)
-			ipconfig.lease_renew_time	= ipconfig.lease_duration / 2;
+			ipconfig.lease_renew_time	= ipconfig.lease_duration / 2U;
 		if(!ipconfig.lease_rebind_time)
-			ipconfig.lease_rebind_time	= (7 * ipconfig.lease_duration) / 8;
+			ipconfig.lease_rebind_time	= (7U * ipconfig.lease_duration) / 8U;
 	}
 	transition_state(ipv4_client_state::BOUND);
 	transaction_timers.erase(p.transaction_id);

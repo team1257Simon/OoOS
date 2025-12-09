@@ -224,7 +224,7 @@ namespace std
 		requires(constructible_from<T, Args...>)
 		constexpr typename __dynamic_list<T, AT>::__node_ptr __dynamic_list<T, AT>::__create_after(__const_node_base_ptr prev, Args&& ...args)
 		{
-			__node_ptr n = construct_at(this->allocate(1UZ), const_cast<__node_base_ptr>(prev));
+			__node_ptr n	= construct_at(this->allocate(1UZ), const_cast<__node_base_ptr>(prev));
 			construct_at(n->__ptr(), forward<Args>(args)...);
 			this->__count++;
 			return n;
@@ -234,7 +234,7 @@ namespace std
 		requires(constructible_from<T, Args...>)
 		constexpr typename __dynamic_list<T, AT>::__node_ptr __dynamic_list<T, AT>::__create_before(__const_node_base_ptr next, Args&& ...args)
 		{
-			__node_ptr n = construct_at(this->allocate(1UZ), 0, const_cast<__node_base_ptr>(next));
+			__node_ptr n	= construct_at(this->allocate(1UZ), 0, const_cast<__node_base_ptr>(next));
 			construct_at(n->__ptr(), forward<Args>(args)...);
 			this->__count++;
 			return n;

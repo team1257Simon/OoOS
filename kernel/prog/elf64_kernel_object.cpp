@@ -29,16 +29,16 @@ void elf64_kernel_object::unload_pre_init()
 		// This will be nonnull if the module's _init has been called.
 		if(module_object->__fini_fn) (*module_object->__fini_fn)();
 		if(module_object->__allocated_mm) module_object->__api_hooks->destroy_mm(module_object->__allocated_mm);
-		module_object = nullptr;
+		module_object	= nullptr;
 	}
 	if(load_base) ::operator delete(load_base, load_align);
-	load_base = nullptr;
+	load_base			= nullptr;
 }
 void elf64_kernel_object::process_headers()
 {
 	elf64_dynamic_object::process_headers();
-	size_t seg_base = 0UZ, extent = 0UZ, needed_align = 0UZ, tls_off = 0UZ;
-	size_t n		= ehdr().e_phnum;
+	size_t seg_base				= 0UZ, extent = 0UZ, needed_align = 0UZ, tls_off = 0UZ;
+	size_t n					= ehdr().e_phnum;
 	for(size_t i = 0; i < n; i++)
 	{
 		elf64_phdr const& ph	= phdr(i);

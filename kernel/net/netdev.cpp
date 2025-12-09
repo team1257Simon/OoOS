@@ -38,6 +38,6 @@ bool net_device::initialize()
 	size_t rx_size	= rx_limit();
 	size_t tx_size	= tx_limit();
 	size_t count	= buffer_count();
-	for(size_t i = 0; i < count; i++) transfer_buffers.emplace(rx_size, tx_size, rx_poll, tx_poll, rx_size, tx_size);
+	for(size_t i = 0UZ; i < count; i++) transfer_buffers.emplace(rx_size, tx_size, rx_poll, tx_poll, rx_size, tx_size);
 	return init_dev();
 }

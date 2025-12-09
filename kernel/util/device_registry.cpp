@@ -1,6 +1,6 @@
 #include <device_registry.hpp>
 device_registry device_registry::__instance{};
-device_registry::device_registry() : __base(256) {}
+device_registry::device_registry() : __base(256UZ) {}
 device_registry::~device_registry() = default;
 device_registry& device_registry::get_instance() { return __instance; }
 device_stream* device_registry::operator[](dword id) const

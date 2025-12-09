@@ -26,12 +26,12 @@ namespace std
 	private:
 		constexpr pair<iterator, bool> __insert_or_assign(__node_ptr n);
 	public:
-		constexpr hash_map() = default;
 		constexpr hash_map(size_type bucket_ct) : __base(bucket_ct) {}
-		constexpr hash_map(hash_map&&) = default;
-		constexpr hash_map(hash_map const&) = default;
-		constexpr hash_map& operator=(hash_map&&) = default;
-		constexpr hash_map& operator=(hash_map const&) = default;
+		constexpr hash_map()							= default;
+		constexpr hash_map(hash_map&&)					= default;
+		constexpr hash_map(hash_map const&)				= default;
+		constexpr hash_map& operator=(hash_map&&)		= default;
+		constexpr hash_map& operator=(hash_map const&)	= default;
 		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this); }
 		constexpr size_type size() const noexcept { return this->__size(); }
 		constexpr size_type bucket(key_type const& k) const noexcept { return this->__index(k); }

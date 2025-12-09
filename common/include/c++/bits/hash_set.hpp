@@ -23,12 +23,12 @@ namespace std
 		using typename __base::reference;
 		using typename __base::const_pointer;
 		using typename __base::const_reference;
-		constexpr hash_set() = default;
 		constexpr hash_set(size_type bucket_ct) : __base(bucket_ct) {}
-		constexpr hash_set(hash_set const&) = default;
-		constexpr hash_set(hash_set&&) = default;
-		constexpr hash_set& operator=(hash_set const&) = default;
-		constexpr hash_set& operator=(hash_set&&) = default;
+		constexpr hash_set()							= default;
+		constexpr hash_set(hash_set const&)				= default;
+		constexpr hash_set(hash_set&&)					= default;
+		constexpr hash_set& operator=(hash_set const&)	= default;
+		constexpr hash_set& operator=(hash_set&&)		= default;
 		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this); }
 		constexpr size_type bucket(key_type const& k) const noexcept { return this->__index(k); }
 		constexpr size_type size() const noexcept { return this->__size(); }

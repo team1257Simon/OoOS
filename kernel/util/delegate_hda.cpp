@@ -32,7 +32,7 @@ namespace ooos
 		std::ext::ptr_guard<partition_entry_t> guard(arr, actual, pt_alloc);
 		array_zero<partition_entry_t>(arr, n);
 		if(!read(arr, hdr->lba_partition_entry_array, div_round_up(n * sizeof(partition_entry_t), block_size))) throw std::runtime_error("[HDA] failed to read GPT");
-		for(size_t i = 0; i < n; i += sz_multi) __part_table.push_back(arr[i]);
+		for(size_t i = 0UZ; i < n; i += sz_multi) __part_table.push_back(arr[i]);
 		pt_alloc.deallocate(arr, actual);
 		guard.release();
 	}

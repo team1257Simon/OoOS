@@ -51,7 +51,7 @@ bool elf64_dynamic_executable::load_segments()
 	{
 		program_descriptor.ld_path_count	= ld_paths.size();
 		program_descriptor.ld_path			= strptr_alloc.allocate(program_descriptor.ld_path_count);
-		size_t i							= 0;
+		size_t i							= 0UZ;
 		for(std::string const& str : ld_paths) { program_descriptor.ld_path[i++] = str.c_str(); }
 		return true;
 	}
@@ -73,7 +73,7 @@ bool elf64_dynamic_executable::load_preinit()
 			panic("[PRG/DYN-EXEC] pre-initialization array pointer is non-null but is invalid");
 			return false;
 		}
-		for(size_t i = 0; i < preinit_array_size; i++) preinit_array.push_back(addr_t(preinit_ptrs[i]));
+		for(size_t i = 0UZ; i < preinit_array_size; i++) preinit_array.push_back(addr_t(preinit_ptrs[i]));
 	}
 	return true;
 }

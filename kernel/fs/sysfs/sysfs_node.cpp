@@ -54,7 +54,7 @@ int sysfs_vnode::write_dev()
 	{
 		for(block_range const& b : dirty_blocks)
 		{
-			for(size_t i = b.start; i < b.end; i++)
+			for(size_t i		= b.start; i < b.end; i++)
 			{
 				uint32_t actual	= actual_block(i);
 				const char* ptr	= sector_ptr(i);
@@ -71,7 +71,7 @@ void sysfs_vnode::init()
 	if(size_t ext			= extent_tree.total_extent())
 	{
 		if(!__grow_buffer_exact(block_capacity())) throw std::bad_alloc();
-		for(size_t i = 0; i < ext; i++)
+		for(size_t i		= 0; i < ext; i++)
 		{
 			uint32_t actual	= extent_tree[i].start;
 			for(size_t j	= 0; i < extent_tree[i].length; j++, actual++)

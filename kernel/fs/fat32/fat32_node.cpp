@@ -70,7 +70,7 @@ bool fat32_directory_vnode::__read_disk_data()
 	bool success	= false;
 	try
 	{
-		for(size_t i = 0; i < __my_covered_clusters.size(); i++) { if(!parent_fs->read_clusters(buffer + i * bpc, __my_covered_clusters[i])) throw std::runtime_error{ "cluster " + std::to_string(__my_covered_clusters[i]) }; }
+		for(size_t i = 0UZ; i < __my_covered_clusters.size(); i++) { if(!parent_fs->read_clusters(buffer + i * bpc, __my_covered_clusters[i])) throw std::runtime_error{ "cluster " + std::to_string(__my_covered_clusters[i]) }; }
 		char* end	= buffer + total;
 		__my_dir_data.push_back(reinterpret_cast<fat32_directory_entry*>(buffer), reinterpret_cast<fat32_directory_entry*>(end));
 		success		= true;
@@ -82,11 +82,11 @@ bool fat32_directory_vnode::__read_disk_data()
 void fat32_directory_vnode::__add_parsed_entry(fat32_regular_entry const& e, size_t j)
 {
 	bool dotted		= false;
-	size_t c_spaces	= 0;
+	size_t c_spaces	= 0UZ;
 	std::string name{};
-	for(int i = 0; i < 8; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0; k < c_spaces; k++) { name.append(' '); } name.append(e.filename[i]); c_spaces = 0; } }
-	c_spaces		= 0;
-	for(size_t i = 8; i < 11; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0; k < c_spaces; k++) { name.append(' '); } if(!dotted) { name.append('.'); dotted = true; } name.append(e.filename[i]); c_spaces = 0; } }
+	for(int i = 0; i < 8; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0UZ; k < c_spaces; k++) { name.append(' '); } name.append(e.filename[i]); c_spaces = 0UZ; } }
+	c_spaces		= 0UZ;
+	for(size_t i	= 8UZ; i < 11; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0UZ; k < c_spaces; k++) { name.append(' '); } if(!dotted) { name.append('.'); dotted = true; } name.append(e.filename[i]); c_spaces = 0UZ; } }
 	uint32_t cl		= start_of(e);
 	if(e.attributes & 0x10)
 	{
@@ -111,7 +111,7 @@ bool fat32_directory_vnode::parse_dir_data()
 	{
 		if(__read_disk_data())
 		{
-			size_t j = 0;
+			size_t j = 0UZ;
 			for(std::vector<fat32_directory_entry>::iterator i = __my_dir_data.begin(); i != __my_dir_data.end(); i++, j++) { if(!(is_unused(*i) || is_longname(*i) || i->regular_entry.filename[0] == '.' || !start_of(i->regular_entry))) __add_parsed_entry(i->regular_entry, j); }
 			return (__has_init = true);
 		}
@@ -125,15 +125,15 @@ void fat32_directory_vnode::get_short_name(std::string const& full, std::string&
 	if(upper.size() < 13UZ) { result = std::string(upper.c_str(), std::min(12UZ, upper.size())); return; }
 	bool have_dot		= upper.contains('.');
 	std::string trimmed	= upper.without_any_of(". ");
-	unsigned i			= 1;
+	unsigned i			= 1U;
 	size_t j;
 	do {
 		std::string tail	= "~" + std::to_string(i);
 		j					= std::min(static_cast<size_t>(6UL - tail.size()), trimmed.size());
-		if(trimmed.size() > 1 && have_dot) tail.append('.');
-		if(trimmed.size() >= 3) tail.append(trimmed[trimmed.size() - 3]);
-		if(trimmed.size() >= 2) tail.append(trimmed[trimmed.size() - 2]);
-		if(trimmed.size() >= 1) tail.append(trimmed.back());
+		if(trimmed.size() > 1UZ && have_dot) tail.append('.');
+		if(trimmed.size() >= 3UZ) tail.append(trimmed[trimmed.size() - 3Z]);
+		if(trimmed.size() >= 2UZ) tail.append(trimmed[trimmed.size() - 2Z]);
+		if(trimmed.size() >= 1UZ) tail.append(trimmed.back());
 		result				= std::string(trimmed.c_str(), j);
 		result.append(tail);
 		i++;
@@ -148,7 +148,7 @@ bool fat32_directory_vnode::fsync()
 	try
 	{
 		char const* pos		= reinterpret_cast<char const*>(__my_dir_data.begin().base());
-		for(size_t i = 0; i < __my_covered_clusters.size(); i++) { if(parent_fs->write_clusters(__my_covered_clusters[i], pos)) { pos += parent_fs->block_size(); } else { panic("write failed"); return false; } }
+		for(size_t i = 0UZ; i < __my_covered_clusters.size(); i++) { if(parent_fs->write_clusters(__my_covered_clusters[i], pos)) { pos += parent_fs->block_size(); } else { panic("write failed"); return false; } }
 		__dirty				= false;
 		return true;
 	}

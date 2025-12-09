@@ -404,7 +404,7 @@ file_vnode* extfs::mkfilenode(directory_vnode* parent, std::string const& name)
 	qword tstamp		= sys_time(nullptr);
 	uint8_t extrabits	= (tstamp.hi.hi >> 4) & 0x03;
 	uint32_t inode_num	= claim_inode(false);
-	if(__builtin_expect(inode_num != 0, true)) try
+	if(__builtin_expect(inode_num != 0U, true)) try
 	{
 		ext_inode* inode	= new(static_cast<void*>(get_inode(inode_num))) ext_inode
 		{
@@ -518,8 +518,8 @@ void extfs::release_all(ext_vnode& extn)
 	for(size_t i = 0; i < extn.block_data.size(); i++) { release_blocks(extn.block_data[i].block_number, extn.block_data[i].chain_len); }
 	extn.extents.base_extent_level.clear();
 	extn.extents.tracked_extents.clear();
-	if(extn.on_disk_node->flags & use_extents) { array_zero(extn.on_disk_node->block_info.ext4_extent.root_nodes, 4); }
-	else array_zero(reinterpret_cast<uint32_t*>(std::addressof(extn.on_disk_node->block_info.legacy_extent)), 15);
+	if(extn.on_disk_node->flags & use_extents) { array_zero(extn.on_disk_node->block_info.ext4_extent.root_nodes, 4UZ); }
+	else array_zero(reinterpret_cast<uint32_t*>(std::addressof(extn.on_disk_node->block_info.legacy_extent)), 15UZ);
 }
 void extfs::dldirnode(directory_vnode* dd)
 {
@@ -601,7 +601,7 @@ disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
 			unsigned long* bmp	= reinterpret_cast<unsigned long*>(block_groups[i].blk_usage_bmp.data_buffer);
 			off_t avail			= bitmap_scan_single_zero(bmp, (block_size() * block_groups[i].blk_usage_bmp.chain_len) / sizeof(unsigned long));
 			bitmap_set_chain_bits(bmp, avail, 1);
-			if(!block_groups[i].alter_available_blocks(-1)) return nullptr; // this only gets called from push extent, which in turn gets called from claim blocks which calls persist metadata
+			if(!block_groups[i].alter_available_blocks(-1)) return nullptr;	// this only gets called from push extent, which in turn gets called from claim blocks which calls persist metadata
 			uint64_t result		= i * sb->blocks_per_group + avail;
 			dword blcnt(requestor->tracked_node->on_disk_node->blocks_count_lo, requestor->tracked_node->on_disk_node->blocks_count_hi);
 			blcnt++;
@@ -624,7 +624,7 @@ bool extfs::persist(ext_vnode* n)
 	}
 	std::vector<disk_block> dirty_metadata{};
 	for(disk_block& mdb : n->cached_metadata) { if(mdb.dirty) { dirty_metadata.push_back(mdb); mdb.dirty = false; } }
-	if(dirty_metadata.empty()) return true; // vacuous truth if nothing to do
+	if(dirty_metadata.empty()) return true;	// vacuous truth if nothing to do
 	return fs_journal.create_txn(dirty_metadata) && persist_sb();
 }
 bool extfs::persist_group_metadata(size_t group_num)
@@ -716,7 +716,8 @@ tnode* extfs::resolve_symlink(ext_directory_vnode* from, std::string const& link
 	if(!from) from						= dynamic_cast<ext_directory_vnode*>(root_dir);
 	std::vector<std::string> pathspec	= std::ext::split(link, path_separator());
 	if(pathspec.empty()) throw std::logic_error("[FS/EXT4] empty path");
-	for(size_t i = 0; i < pathspec.size() - 1; i++)
+	size_t spec_size					= static_cast<size_t>(pathspec.size() - 1Z);
+	for(size_t i = 0UZ; i < spec_size; i++)
 	{
 		if(pathspec[i].empty()) continue;
 		tnode* node						= from->find_r(pathspec[i], checked);

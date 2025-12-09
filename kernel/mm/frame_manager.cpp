@@ -32,7 +32,7 @@ void frame_manager::destroy_frame(uframe_tag& ft)
 }
 uframe_tag& frame_manager::create_frame(addr_t start_base, addr_t start_extent)
 {
-	paging_table pt = kmm.allocate_pt();
+	paging_table pt	= kmm.allocate_pt();
 	if(!pt) throw std::runtime_error("[MM] failed to initialize paging tables");
 	else if(!kmm.copy_kernel_mappings(pt)) throw std::runtime_error{ "[MM] failed to initialize page mappings" };
 	return *emplace(pt, start_base, start_extent).first;

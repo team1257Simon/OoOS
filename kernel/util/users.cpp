@@ -34,7 +34,7 @@ user_accounts_manager::user_accounts_manager(sysfs& config_src, uint32_t table_i
 					{
 						size_t total_users		= __table.size();
 						user_info* table_data	= __table.data();
-						for(size_t i = 0; i < total_users; i++)
+						for(size_t i = 0UZ; i < total_users; i++)
 							__uid_index_map.insert(std::make_pair(static_cast<uid_t>(table_data[i].uid), static_cast<size_t>(i + 1)));
 					}
 static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx)
@@ -127,7 +127,7 @@ int user_accounts_manager::__create_vpwd_records(user_info& user, const char* ho
 	off_t gecos_ptr			= __vpwd.write(gecos ? std::string(gecos, std::strnlen(gecos, 1024UZ)) : uname_str);
 	off_t home_ptr			= __vpwd.write(home ? std::string(home, std::strnlen(home, 1024UZ)) : ("/home/" + uname_str));
 	off_t shell_ptr			= __vpwd.write(shell ? std::string(shell, std::strnlen(shell, 1024UZ)) : std::string("/bin/sh"));
-	if(__unlikely(gecos_ptr < 0 || home_ptr < 0 || shell_ptr < 0)) return -ENOSPC;
+	if(__unlikely(gecos_ptr < 0Z || home_ptr < 0Z || shell_ptr < 0Z)) return -ENOSPC;
 	user.vpwd_gecos			= gecos_ptr;
 	user.vpwd_home			= home_ptr;
 	user.vpwd_shell			= shell_ptr;

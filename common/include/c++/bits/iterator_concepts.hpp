@@ -157,8 +157,8 @@ namespace std
 		template<typename IT> requires(!requires { typename __iter_traits<IT>::iterator_concept; } && requires { typename __iter_traits<IT>::iterator_category; }) struct __iter_concept_impl<IT> { using type = typename __iter_traits<IT>::iterator_category; };
 		template<typename IT> requires(!requires { typename __iter_traits<IT>::iterator_concept; } && !requires { typename __iter_traits<IT>::iterator_category; } && __primary_traits_iter<IT>) struct __iter_concept_impl<IT> { using type = random_access_iterator_tag; };
 		template<typename IT> struct __iter_concept_impl {};
-		template<typename IT> using __iter_concept = typename __iter_concept_impl<IT>::type;
-		template<typename I> concept __indirectly_readable_impl = requires
+		template<typename IT> using __iter_concept				= typename __iter_concept_impl<IT>::type;
+		template<typename I> concept __indirectly_readable_impl	= requires
 		{
 			typename iter_value_t<I>;
 			typename iter_reference_t<I>;
@@ -167,33 +167,33 @@ namespace std
 			requires(same_as<iter_rvalue_reference_t<const I>, iter_rvalue_reference_t<I>>);
 		} && common_reference_with<iter_reference_t<I>&&, iter_value_t<I>&> && common_reference_with<iter_reference_t<I>&&, iter_rvalue_reference_t<I>&&> && common_reference_with<iter_rvalue_reference_t<I>&&, const iter_value_t<I>&>;
 	}
-	template<typename I> concept indirectly_readable = __detail::__indirectly_readable_impl<remove_cvref_t<I>>;
-	template<indirectly_readable T> using iter_common_reference_t = common_reference_t<iter_reference_t<T>, iter_value_t<T>&>;
-	template<typename O, typename T> concept indirectly_writable = requires(O&& __o, T&& __t)
+	template<typename I> concept indirectly_readable				= __detail::__indirectly_readable_impl<remove_cvref_t<I>>;
+	template<indirectly_readable T> using iter_common_reference_t	= common_reference_t<iter_reference_t<T>, iter_value_t<T>&>;
+	template<typename O, typename T> concept indirectly_writable	= requires(O&& __o, T&& __t)
 	{
-		*__o = forward<T>(__t);
-		*forward<O>(__o) = forward<T>(__t);
-		const_cast<const iter_reference_t<O>&&>(*__o) = forward<T>(__t);
-		const_cast<const iter_reference_t<O>&&>(*forward<O>(__o)) = forward<T>(__t);
+		*__o														= forward<T>(__t);
+		*forward<O>(__o)											= forward<T>(__t);
+		const_cast<const iter_reference_t<O>&&>(*__o)				= forward<T>(__t);
+		const_cast<const iter_reference_t<O>&&>(*forward<O>(__o))	= forward<T>(__t);
 	};
 	namespace ranges::__detail
 	{
 		class __max_diff_type;
 		class __max_size_type;
-		template<typename T> concept __is_signed_int128 = same_as<T, __int128>;
-		template<typename T> concept __is_unsigned_int128 = same_as<T, unsigned __int128>;
-		template<typename T> concept __cv_bool = same_as<const volatile T, const volatile bool>;
-		template<typename T> concept __integral_nonbool = integral<T> && !__cv_bool<T>;
-		template<typename T> concept __is_int128 = __is_signed_int128<T> || __is_unsigned_int128<T>;
-		template<typename T> concept __is_integer_like = __integral_nonbool<T> || __is_int128<T> || same_as<T, __max_diff_type> || same_as<T, __max_size_type>;
-		template<typename T> concept __is_signed_integer_like = signed_integral<T> || __is_signed_int128<T> || same_as<T, __max_diff_type>;
+		template<typename T> concept __is_signed_int128			= same_as<T, __int128>;
+		template<typename T> concept __is_unsigned_int128		= same_as<T, unsigned __int128>;
+		template<typename T> concept __cv_bool					= same_as<const volatile T, const volatile bool>;
+		template<typename T> concept __integral_nonbool			= integral<T> && !__cv_bool<T>;
+		template<typename T> concept __is_int128				= __is_signed_int128<T> || __is_unsigned_int128<T>;
+		template<typename T> concept __is_integer_like			= __integral_nonbool<T> || __is_int128<T> || same_as<T, __max_diff_type> || same_as<T, __max_size_type>;
+		template<typename T> concept __is_signed_integer_like	= signed_integral<T> || __is_signed_int128<T> || same_as<T, __max_diff_type>;
 	}
 	namespace __detail { using ranges::__detail::__is_signed_integer_like; }
 	template<typename IT> concept weakly_incrementable = movable<IT> && requires(IT __i) { typename iter_difference_t<IT>; requires __detail::__is_signed_integer_like<iter_difference_t<IT>>; { ++__i } -> same_as<IT&>; __i++; };
 	template<typename IT> concept incrementable = regular<IT> && weakly_incrementable<IT> && requires(IT __i) { { __i++ } -> same_as<IT>; };
 	template<typename IT> concept input_or_output_iterator = requires(IT __i) { { *__i } -> __detail::__can_reference; } && weakly_incrementable<IT>;
 	template<typename ST, typename IT> concept sentinel_for = semiregular<ST> && input_or_output_iterator<IT> && __detail::__weakly_eq_cmp_with<ST, IT>;
-	template<typename ST, typename IT> inline constexpr bool disable_sized_sentinel_for = false;
+	template<typename ST, typename IT> inline constexpr bool disable_sized_sentinel_for	= false;
 	template<typename ST, typename IT> concept sized_sentinel_for = sentinel_for<ST, IT> && !disable_sized_sentinel_for<remove_cv_t<ST>, remove_cv_t<IT>> && requires(const IT& __i, const ST& __s) { { __s - __i } -> same_as<iter_difference_t<IT>>; { __i - __s } -> same_as<iter_difference_t<IT>>; };
 	template<typename IT> concept input_iterator = input_or_output_iterator<IT> && indirectly_readable<IT> && requires { typename __detail::__iter_concept<IT>; } && derived_from<__detail::__iter_concept<IT>, input_iterator_tag>;
 	template<typename IT, typename T> concept output_iterator = input_or_output_iterator<IT> && indirectly_writable<IT, T> && requires(IT __i, T&& __t) { *__i++ = forward<T>(__t); };
@@ -215,7 +215,7 @@ namespace std
 	template<typename FT, typename I1, typename I2> concept indirect_binary_predicate = indirectly_readable<I1> && indirectly_readable<I2> && copy_constructible<FT> && predicate<FT&, iter_value_t<I1>&, iter_value_t<I2>&> && predicate<FT&, iter_value_t<I1>&, iter_reference_t<I2>> && predicate<FT&, iter_reference_t<I1>, iter_value_t<I2>&> && predicate<FT&, iter_reference_t<I1>, iter_reference_t<I2>> && predicate<FT&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
 	template<typename FT, typename I1, typename I2 = I1> concept indirect_equivalence_relation = indirectly_readable<I1> && indirectly_readable<I2> && copy_constructible<FT> && equivalence_relation<FT&, iter_value_t<I1>&, iter_value_t<I2>&> && equivalence_relation<FT&, iter_value_t<I1>&, iter_reference_t<I2>> && equivalence_relation<FT&, iter_reference_t<I1>, iter_value_t<I2>&> && equivalence_relation<FT&, iter_reference_t<I1>, iter_reference_t<I2>> && equivalence_relation<FT&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
 	template<typename FT, typename I1, typename I2 = I1> concept indirect_strict_weak_order = indirectly_readable<I1> && indirectly_readable<I2> && copy_constructible<FT> && strict_weak_order<FT&, iter_value_t<I1>&, iter_value_t<I2>&> && strict_weak_order<FT&, iter_value_t<I1>&, iter_reference_t<I2>> && strict_weak_order<FT&, iter_reference_t<I1>, iter_value_t<I2>&> && strict_weak_order<FT&, iter_reference_t<I1>, iter_reference_t<I2>> && strict_weak_order<FT&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
-	template<typename FT, typename... ITs> requires (indirectly_readable<ITs> && ...) && invocable<FT, iter_reference_t<ITs>...> using indirect_result_t = invoke_result_t<FT, iter_reference_t<ITs>...>;
+	template<typename FT, typename... ITs> requires(indirectly_readable<ITs> && ...) && invocable<FT, iter_reference_t<ITs>...> using indirect_result_t = invoke_result_t<FT, iter_reference_t<ITs>...>;
 	template<indirectly_readable IT, indirectly_regular_unary_invocable<IT> PT> struct projected { using value_type = remove_cvref_t<indirect_result_t<PT&, IT>>; indirect_result_t<PT&, IT> operator*() const; };
 	template<weakly_incrementable IT, typename PT> struct incrementable_traits<projected<IT, PT>> { using difference_type = iter_difference_t<IT>; };
 	template<typename I, typename O> concept indirectly_movable = indirectly_readable<I> && indirectly_writable<O, iter_rvalue_reference_t<I>>;

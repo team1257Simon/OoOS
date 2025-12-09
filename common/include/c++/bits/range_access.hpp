@@ -10,7 +10,7 @@ namespace std
 	template<typename CT> constexpr inline auto end(CT& __cont) -> decltype(__cont.end()) { return __cont.end(); }
 	template<typename CT> constexpr inline auto end(const CT& __cont) -> decltype(__cont.end()) { return __cont.end(); }
 	template<typename T, size_t N> constexpr inline T* begin(T (&__arr)[N]) noexcept { return __arr; }
-	template<typename T, size_t N> constexpr inline T* end(T (&__arr)[N]) noexcept  { return __arr + N; }
+	template<typename T, size_t N> constexpr inline T* end(T (&__arr)[N]) noexcept { return __arr + N; }
 	template<typename T> class valarray;
 	template<typename T> T* begin(valarray<T>&) noexcept;
 	template<typename T> const T* begin(const valarray<T>&) noexcept;

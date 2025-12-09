@@ -96,7 +96,7 @@ namespace std
 				static void __deallocate(void* p)
 				{
 					if(__unlikely(!p)) return;
-					__managed_object_node<T>* node = static_cast<__managed_object_node<T>*>(p);
+					__managed_object_node<T>* node	= static_cast<__managed_object_node<T>*>(p);
 					if constexpr(!std::is_trivially_destructible_v<T>) { node->__ref().~T(); }
 					__alloc.deallocate(node, 1UZ);
 				}

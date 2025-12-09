@@ -158,7 +158,7 @@ bool filesystem::xunlink(directory_vnode* parent, std::string const& what, bool 
 {
 	tnode* node				= parent->find(what);
 	if(!node) { if(!ignore_nonexistent) throw std::logic_error("[FS] cannot unlink " + what + " because it does not exist"); else return false; }
-	if(node->is_directory() && (*node)->num_refs() <= 1)
+	if(node->is_directory() && (*node)->num_refs() < 2UZ)
 	{
 		if(!node->as_directory()->is_empty() && !dir_recurse)
 			throw std::logic_error("[FS] folder " + what + " cannot be deleted because it is not empty (call with dir_recurse = true to remove it anyway)");
@@ -194,7 +194,8 @@ tnode* filesystem::xlink(target_pair ogparent, target_pair tgparent)
 filesystem::target_pair filesystem::get_parent(directory_vnode* start, std::string const& path, bool create)
 {
 	std::vector<std::string> pathspec		= std::ext::split(path, path_separator());
-	for(size_t i = 0; i < pathspec.size() - 1; i++)
+	size_t spec_sz							= static_cast<size_t>(pathspec.size() - 1Z);
+	for(size_t i							= 0UZ; i < spec_sz; i++)
 	{
 		if(pathspec[i].empty()) continue;
 		tnode* cur	= start->find(pathspec[i]);

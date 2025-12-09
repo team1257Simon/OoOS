@@ -88,13 +88,13 @@ namespace std
 		template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
 		typename dynamic_duplex_streambuf<CT, TT, AT>::int_type dynamic_duplex_streambuf<CT, TT, AT>::uflow()
 		{
-			int_type ret = traits_type::eof();
-			streamsize s = this->showmanyc();
+			int_type ret		= traits_type::eof();
+			streamsize s		= this->showmanyc();
 			if(!s) return ret;
 			try { expand(s, ios_base::in); } catch(...) { return ret; }
-			const bool testeof = traits_type::eq_int_type(this->underflow(), ret);
+			const bool testeof	= traits_type::eq_int_type(this->underflow(), ret);
 			if(testeof) return ret;
-			ret = traits_type::to_int_type(*this->gptr());
+			ret					= traits_type::to_int_type(*this->gptr());
 			this->gbump(1);
 			return ret;
 		}
@@ -117,20 +117,20 @@ namespace std
 		template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
 		typename dynamic_duplex_streambuf<CT, TT, AT>::pos_type dynamic_duplex_streambuf<CT, TT, AT>::seekoff(off_type off, ios_base::seekdir way, ios_base::openmode mode)
 		{
-			off_type result = 0L;
+			off_type result		= 0L;
 			if(mode.in)
 			{
-				pointer inptr = (way < 0 ? this->eback() : way > 0 ? this->egptr() : this->gptr()) + off;
+				pointer inptr	= (way < 0 ? this->eback() : way > 0 ? this->egptr() : this->gptr()) + off;
 				if(inptr > this->egptr()) return pos_type(off_type(-1));
 				this->__in_region.__setc(inptr);
-				result = this->__in_region.__end - this->__in_region.__begin;
+				result			= this->__in_region.__end - this->__in_region.__begin;
 			}
 			if(mode.out)
 			{
-				pointer outptr = (way < 0 ? this->pbase() : way > 0 ? this->epptr() : this->pptr()) + off;
+				pointer outptr	= (way < 0 ? this->pbase() : way > 0 ? this->epptr() : this->pptr()) + off;
 				if(outptr > this->epptr()) return pos_type(off_type(-1));
 				this->__out_region.__setc(outptr);
-				result = this->__out_region.__end - this->__out_region.__begin;
+				result			= this->__out_region.__end - this->__out_region.__begin;
 			}
 			if(mode.in && mode.out) return pos_type(off_type(0));
 			return pos_type(result);
@@ -138,7 +138,7 @@ namespace std
 		template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
 		typename dynamic_duplex_streambuf<CT, TT, AT>::pos_type dynamic_duplex_streambuf<CT, TT, AT>::seekpos(pos_type pos, ios_base::openmode mode)
 		{
-			off_type result = 0L;
+			off_type result		= 0L;
 			if(mode.in)
 			{
 				pointer inptr	= this->eback() + pos;

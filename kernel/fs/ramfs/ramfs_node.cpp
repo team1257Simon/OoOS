@@ -2,8 +2,8 @@
 #include <rtc.h>
 ramfs_directory_vnode::ramfs_directory_vnode(std::string const& name, int fd) : directory_vnode(name, fd, addr_t(this)) {}
 bool ramfs_directory_vnode::fsync() { /* nop */ return true; }
-bool ramfs_directory_vnode::truncate() { directory_tnodes.clear(); file_count = 0; subdir_count = 0; return true; }
-bool ramfs_directory_vnode::unlink(std::string const& what) { bool result = directory_tnodes.erase(what) != 0; if(result) sys_time(std::addressof(modif_time)); return result; }
+bool ramfs_directory_vnode::truncate() { directory_tnodes.clear(); file_count = 0UZ; subdir_count = 0UZ; return true; }
+bool ramfs_directory_vnode::unlink(std::string const& what) { bool result = directory_tnodes.erase(what) != 0UZ; if(result) sys_time(std::addressof(modif_time)); return result; }
 tnode* ramfs_directory_vnode::add(vnode* n) { std::pair<tnode_dir::iterator, bool> result = directory_tnodes.emplace(n, n->name()); if(result.second) sys_time(std::addressof(modif_time)); return result.first.base(); }
 bool ramfs_directory_vnode::link(tnode* original, std::string const& alias) { bool result = directory_tnodes.emplace(mklink(original, alias)).second; if(result) sys_time(std::addressof(modif_time)); return result; }
 ramfs_file_vnode::ramfs_file_vnode(std::string const& name, int fd) : file_vnode(name, fd, addr_t(this)) {}

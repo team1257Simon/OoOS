@@ -64,11 +64,11 @@ addr_t				kernel_memory_mgr::copy_kernel_mappings(paging_table target)
 	if(__unlikely(!upt || !pt)) return nullptr;
 	for(size_t i = 0; i < kernel_pages; i++, curr += page_size)
 	{
-		uint16_t p_idx = curr.page_idx;
+		uint16_t p_idx	= curr.page_idx;
 		if(i != 0 && p_idx == 0)
 		{
-			pt	= __get_table(curr, true);
-			upt	= __get_table(curr, false, target);
+			pt			= __get_table(curr, true);
+			upt			= __get_table(curr, false, target);
 			if(__unlikely(!upt || !pt)) return nullptr;
 		}
 		pt_entry& u_entry	= upt[p_idx];
@@ -93,8 +93,8 @@ void kernel_memory_mgr::exit_frame() noexcept
 static paging_table __find_table(addr_t of_page, paging_table pml4 = get_cr3())
 {
 	if(pml4[of_page.pml4_idx].present)
-		if(paging_table pdp = addr_t(pml4[of_page.pml4_idx].physical_address << 12); pdp[of_page.pdp_idx].present)
-			if(paging_table pd = addr_t(pdp[of_page.pdp_idx].physical_address << 12); pd[of_page.pd_idx].present)
+		if(paging_table pdp		= addr_t(pml4[of_page.pml4_idx].physical_address << 12); pdp[of_page.pdp_idx].present)
+			if(paging_table pd	= addr_t(pdp[of_page.pdp_idx].physical_address << 12); pd[of_page.pd_idx].present)
 				return addr_t(pd[of_page.pd_idx].physical_address << 12);
 	return nullptr;
 }
@@ -145,8 +145,8 @@ static paging_table __get_table(addr_t of_page, bool write_thru, paging_table pm
 			paging_table pd			= addr_t(entry_pdp.physical_address << 12);
 			if(pt_entry& entry_pd	= pd[pd_idx]; entry_pd.present)
 			{
-				entry_pd.write_thru	= write_thru;
-				entry_pd.user_access = true;
+				entry_pd.write_thru		= write_thru;
+				entry_pd.user_access	= true;
 				return addr_t(entry_pd.physical_address << 12);
 			}
 			else return __build_new_pt(pd, pd_idx, write_thru);
@@ -300,7 +300,7 @@ uintptr_t kernel_memory_mgr::__find_and_claim(size_t sz)
 	{
 		size_t num_regions	= div_round_up(sz, region_size);
 		uintptr_t result	= addr;
-		for(size_t n = num_regions; status_byte::gb_of(addr) < __num_status_bytes && n > 0; addr += region_size)
+		for(size_t n		= num_regions; status_byte::gb_of(addr) < __num_status_bytes && n > 0; addr += region_size)
 		{
 			if(__status(addr).all_free())
 			{
@@ -515,7 +515,7 @@ uintptr_t kernel_memory_mgr::frame_translate(addr_t addr)
 }
 void kernel_memory_mgr::map_to_current_frame(block_descriptor const& blk)
 {
-	addr_t pml4 = __active_frame ? __active_frame->pml4 : get_cr3();
+	addr_t pml4	= __active_frame ? __active_frame->pml4 : get_cr3();
 	__lock();
 	__map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute);
 	__unlock();

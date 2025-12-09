@@ -32,7 +32,7 @@ size_t sysfs_hash_table_base::total_table_bytes() const
 bool sysfs_hash_table_base::add_entry(size_t object_hash, size_t object_index)
 {
 	table_node.pubseekpos(total_table_bytes() + sizeof(sysfs_hashtable_header));
-	sysfs_hashtable_entry entry(object_index + 1, 0UZ);
+	sysfs_hashtable_entry entry(object_index + 1Z, 0UZ);
 	if(__unlikely(!table_node.sputn(reinterpret_cast<char*>(std::addressof(entry)), sizeof(sysfs_hashtable_entry)))) return false;
 	sysfs_hashtable_header* hdr	= header();
 	size_t bucket				= object_hash % hdr->num_buckets;
@@ -45,9 +45,9 @@ bool sysfs_hash_table_base::add_entry(size_t object_hash, size_t object_index)
 		while(current_entries[prev_idx - 1].next_in_chain)
 			prev_idx								= current_entries[prev_idx].next_in_chain;
 		current_entries[prev_idx - 1].next_in_chain	= entry_idx + 1;
-		commit_pos									+= sizeof(sysfs_hashtable_entry) * (prev_idx - 1);
+		commit_pos									+= sizeof(sysfs_hashtable_entry) * (prev_idx - 1Z);
 	}
-	else hdr->buckets[bucket]						= entry_idx + 1;
+	else hdr->buckets[bucket]						= entry_idx + 1Z;
 	hdr->num_entries++;
 	if(sysfs_vnode::pos_type result					= table_node.commit(commit_pos); __unlikely(static_cast<std::streamoff>(result) == -1Z)) return false;
 	table_node.pubsync();
@@ -56,7 +56,7 @@ bool sysfs_hash_table_base::add_entry(size_t object_hash, size_t object_index)
 sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_start(size_t object_hash)
 {
 	sysfs_hashtable_header* hdr	= header();
-	if(size_t entry_idx			= hdr->buckets[object_hash % hdr->num_buckets]) return std::addressof(hdr->entries()[entry_idx - 1]);
+	if(size_t entry_idx			= hdr->buckets[object_hash % hdr->num_buckets]) return std::addressof(hdr->entries()[entry_idx - 1Z]);
 	return nullptr;
 }
 sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_next(sysfs_hashtable_entry* e)

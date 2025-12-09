@@ -38,7 +38,7 @@ namespace std
 		virtual pos_type seekoff(off_type, ios_base::seekdir, ios_base::openmode = ios_base::in | ios_base::out) { return pos_type(off_type(-1)); }
 		virtual pos_type seekpos(pos_type, ios_base::openmode = ios_base::in | ios_base::out) { return pos_type(off_type(-1)); }
 		virtual int sync() { return 0; }
-		virtual streamsize showmanyc() { return 0; }
+		virtual streamsize showmanyc() { return 0UZ; }
 		virtual int_type underflow() { return traits_type::eof(); }
 		virtual int_type uflow() { int_type ret = traits_type::eof(); const bool testeof = traits_type::eq_int_type(underflow(), ret); if(!testeof) { ret = traits_type::to_int_type(*gptr()); gbump(1); } return ret; }
 		virtual int_type pbackfail(int_type c = traits_type::eof()) { return traits_type::eof(); }
@@ -67,10 +67,10 @@ namespace std
 	template<std::char_type CT, std::char_traits_type<CT> TT>
 	streamsize std::basic_streambuf<CT, TT>::xsgetn(char_type* s, streamsize n)
 	{
-		streamsize i = 0;
+		streamsize i					= 0UZ;
 		while(i < n)
 		{
-			const streamsize buf_len = egptr() - gptr();
+			const streamsize buf_len	= egptr() - gptr();
 			if(buf_len)
 			{
 				const streamsize rem	= n - i;
@@ -81,7 +81,7 @@ namespace std
 				__in_region.__adv(len);
 			}
 			if(i >= n) break;
-			const int_type c = uflow();
+			const int_type c			= uflow();
 			if(!traits_type::eq_int_type(c, traits_type::eof())) { traits_type::assign(*s++, traits_type::to_char_type(c)); i++; }
 			else break;
 		}
@@ -90,7 +90,7 @@ namespace std
 	template<std::char_type CT, std::char_traits_type<CT> TT>
 	streamsize std::basic_streambuf<CT, TT>::xsputn(char_type const* s, streamsize n)
 	{
-		streamsize i = 0;
+		streamsize i					= 0UZ;
 		while(i < n)
 		{
 			const streamsize buf_len = epptr() - pptr();

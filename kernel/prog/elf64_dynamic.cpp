@@ -174,8 +174,8 @@ bool elf64_dynamic_object::xload()
 }
 void elf64_dynamic_object::process_relas(elf64_rela* rela_array, size_t num_relas)
 {
-	size_t unrec_rela_ct	= 0;
-	for(size_t i = 0; i < num_relas; i++)
+	size_t unrec_rela_ct	= 0UZ;
+	for(size_t i = 0UZ; i < num_relas; i++)
 	{
 		if(is_object_rela(rela_array[i])) { object_relas.push_back(rela_array[i]); }
 		else if(is_tls_rela(rela_array[i])) { tls_relas.push_back(rela_array[i]); }
@@ -188,10 +188,10 @@ void elf64_dynamic_object::process_relas(elf64_rela* rela_array, size_t num_rela
 }
 void elf64_dynamic_object::find_and_process_relas()
 {
-	size_t n_sections = ehdr().e_shnum;
-	for(size_t i = 0; i < n_sections; i++)
+	size_t n_sections				= ehdr().e_shnum;
+	for(size_t i = 0UZ; i < n_sections; i++)
 	{
-		elf64_shdr const& section = shdr(i);
+		elf64_shdr const& section	= shdr(i);
 		if(section.sh_type == SHT_RELA)
 			process_relas(img_ptr(section.sh_offset), section.sh_size / section.sh_entsize);
 	}
@@ -216,14 +216,14 @@ bool elf64_dynamic_object::post_load_init()
 			addr_t init_ptrs_vaddr	= resolve(init_array_ptr);
 			uintptr_t* init_ptrs	= translate_in_frame(init_ptrs_vaddr);
 			if(__unlikely(!init_ptrs)) { panic("[PRG] initialization array pointer is non-null but is invalid"); return false; }
-			for(size_t i = 0; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
+			for(size_t i = 0UZ; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
 		}
 		if(fini_array_size && fini_array_ptr)
 		{
 			addr_t fini_ptrs_vaddr	= resolve(fini_array_ptr);
 			uintptr_t* fini_ptrs	= translate_in_frame(fini_ptrs_vaddr);
 			if(__unlikely(!fini_ptrs)) { panic("[PRG] finalization array pointer is non-null but is invalid"); return false; }
-			for(size_t i = 0; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); }
+			for(size_t i = 0UZ; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); }
 		}
 		if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
 		return true;
@@ -330,7 +330,7 @@ bool elf64_dynamic_object::load_syms()
 }
 void elf64_dynamic_object::process_dynamic()
 {
-	for(size_t i = 0; i < num_dyn_entries; i++)
+	for(size_t i = 0UZ; i < num_dyn_entries; i++)
 	{
 		if(dyn_entries[i].d_tag == DT_GNU_HASH)
 		{
@@ -404,7 +404,7 @@ void elf64_dynamic_object::set_resolver(addr_t ptr)
 {
 	if(got_vaddr)
 	{
-		addr_t got_table = translate_in_frame(global_offset_table());
+		addr_t got_table	= translate_in_frame(global_offset_table());
 		if(!got_table) return;
 		got_table.plus(sizeof(addr_t) * 2Z).assign(ptr);
 	}

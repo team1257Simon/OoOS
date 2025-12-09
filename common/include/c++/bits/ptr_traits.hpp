@@ -13,15 +13,15 @@ namespace std
 	template<template<typename, typename...> class PT, typename T, typename... Args>
 	struct __ptr_traits_elem_1<PT<T, Args...>>
 	{
-		using element_type = T;
-		using pointer = PT<T, Args...>;
+		using element_type	= T;
+		using pointer		= PT<T, Args...>;
 		static pointer pointer_to(__make_not_void<element_type>& __e) { return pointer::pointer_to(__e); }
 	};
 	template<typename PT, typename = void> struct __ptr_traits_elem : __ptr_traits_elem_1<PT> {};
 	template<typename PT>
 	struct __ptr_traits_elem<PT, __void_t<typename PT::element_type>>
 	{
-		using element_type = typename PT::element_type;
+		using element_type	= typename PT::element_type;
 		static PT pointer_to(__make_not_void<element_type>& __e) { return PT::pointer_to(__e); }
 	};
 	template<typename PT>
@@ -32,9 +32,9 @@ namespace std
 		template<typename T, typename U, typename = void> struct __rebind : __replace_first_arg<T, U> {};
 		template<typename T, typename U> struct __rebind<T, U, __void_t<typename T::template rebind<U>>> { using type = typename T::template rebind<U>; };
 	public:
-		using pointer = PT;
-		using difference_type = __detected_or_t<ptrdiff_t, __difference_type, PT>;
-		template<typename U> using rebind = typename __rebind<PT, U>::type;
+		using pointer						= PT;
+		using difference_type				= __detected_or_t<ptrdiff_t, __difference_type, PT>;
+		template<typename U> using rebind	= typename __rebind<PT, U>::type;
 	};
 	template<typename T>
 	struct pointer_traits<T*>

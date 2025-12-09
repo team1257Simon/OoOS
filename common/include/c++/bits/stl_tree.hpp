@@ -133,9 +133,9 @@ namespace std
 		size_t __count;
 		constexpr void __reset() noexcept {
 			__trunk.__reset();
-			__count	= 0;
+			__count	= 0UZ;
 		}
-		constexpr __tree_base() noexcept(noexcept(A())) :  __trunk(), __count(0) {}
+		constexpr __tree_base() noexcept(noexcept(A())) :  __trunk(), __count() {}
 		constexpr ~__tree_base() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
 		constexpr void __copy(__tree_base const& that) noexcept {
 			__trunk				= that.__trunk;
@@ -355,7 +355,7 @@ namespace std
 		__link l		= static_cast<__link>(n);
 		if constexpr(!std::is_trivially_destructible_v<__value_type>)
 			l->__get_ref().~__value_type();
-		this->__trunk.deallocate(l, 1);
+		this->__trunk.deallocate(l, 1UZ);
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>
 	template<typename U>
@@ -420,7 +420,7 @@ namespace std
 		__link pos	= const_cast<__link>(hint);
 		if(!hint || pos == __end())
 		{
-			if(this->__count > 0 && __compare_r(__rightmost(), u))
+			if(this->__count > 0UZ && __compare_r(__rightmost(), u))
 				return __pos_pair(nullptr, __l_rightmost());
 			else return __pos_for_unique(u);
 		}
@@ -592,7 +592,7 @@ namespace std
 	constexpr void __rb_tree<T, CP, A>::__clear()
 	{
 		__recursive_destroy(__get_root());
-		this->__count	= 0;
+		this->__count	= 0UZ;
 		this->__reset();
 	}
 	template<typename T, __valid_comparator<T> CP, allocator_object<T> A>

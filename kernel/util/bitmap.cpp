@@ -1,11 +1,11 @@
 #include <util/bitmap.hpp>
 #include <string>
 constexpr off_t ulsize = CHAR_BIT * sizeof(unsigned long);
-void bitmap_set_bit(unsigned long* bitmap, off_t bit_pos) { bitmap[bit_pos / ulsize] |= (1 << (bit_pos % ulsize)); }
-void bitmap_clear_bit(unsigned long* bitmap, off_t bit_pos) { bitmap[bit_pos / ulsize] &= ~(1 << (bit_pos % ulsize)); }
+void bitmap_set_bit(unsigned long* bitmap, off_t bit_pos) { bitmap[bit_pos / ulsize] |= (1UL << (bit_pos % ulsize)); }
+void bitmap_clear_bit(unsigned long* bitmap, off_t bit_pos) { bitmap[bit_pos / ulsize] &= ~(1UL << (bit_pos % ulsize)); }
 off_t bitmap_scan_single_zero(const unsigned long* bitmap, size_t num_ulongs)
 {
-	for(size_t i = 0; i < num_ulongs; i++)
+	for(size_t i = 0UZ; i < num_ulongs; i++)
 		if(unsigned long ul = ~(bitmap[i]))
 			return (ulsize * i) + __builtin_ctzl(ul);
 	return -1L;
@@ -16,19 +16,19 @@ off_t bitmap_scan_chain_zeroes(const unsigned long* bitmap, size_t num_ulongs, s
 	if(__unlikely(num_zeroes > ulsize))
 	{
 		size_t num_needed_ulongs	= div_round_up(num_zeroes, ulsize);
-		for(size_t i = 0; i < num_ulongs; barrier())
+		for(size_t i = 0UZ; i < num_ulongs; barrier())
 		{
 			size_t n				= std::strnlen<unsigned long>(bitmap + i, num_needed_ulongs);
 			if(n == num_needed_ulongs) return i * ulsize;
 			i += n;
 		}
 	}
-	else for(size_t i = 0; i < num_ulongs; i++)
+	else for(size_t i = 0UZ; i < num_ulongs; i++)
 	{
 		unsigned long cur	= bitmap[i];
 		if(num_zeroes == ulsize && !cur) return i * ulsize;
 		unsigned long mask	= ~(~0UL >> num_zeroes);
-		for(off_t j = 0; j < static_cast<off_t>(ulsize - num_zeroes); j++) if(!(cur & (mask << j))) return i * ulsize + j;
+		for(off_t j = 0Z; j < static_cast<off_t>(ulsize - num_zeroes); j++) if(!(cur & (mask << j))) return i * ulsize + j;
 	}
 	return -1;
 }
@@ -47,7 +47,7 @@ void bitmap_set_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits
 		}
 		else
 		{
-			uint64_t mask	= num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
+			uint64_t mask	= num_bits == 1UZ ? 1UL : (~0UL >> (ulsize - num_bits));
 			bitmap[ulpos]	|= (mask << bit_off);
 			if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] |= (mask >> ((num_bits + bit_off) % ulsize));
 		}
@@ -55,7 +55,7 @@ void bitmap_set_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits
 }
 void bitmap_clear_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bits)
 {
-    if(num_bits == 1) bitmap_clear_bit(bitmap, bit_pos);
+    if(num_bits == 1UZ) bitmap_clear_bit(bitmap, bit_pos);
     else
 	{
 		off_t ulpos		= bit_pos / ulsize;
@@ -68,7 +68,7 @@ void bitmap_clear_chain_bits(unsigned long* bitmap, off_t bit_pos, size_t num_bi
 		}
 		else
 		{
-			uint64_t mask	= num_bits == 1 ? 1UL : (~0UL >> (ulsize - num_bits));
+			uint64_t mask	= num_bits == 1UZ ? 1UL : (~0UL >> (ulsize - num_bits));
 			bitmap[ulpos]	&= ~(mask << bit_off);
 			if(bit_off + num_bits > ulsize) bitmap[ulpos + 1] &= ~(mask >> ((num_bits + bit_off) % ulsize));
 		}

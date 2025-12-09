@@ -65,33 +65,33 @@ bool elf64_executable::xvalidate()
 void elf64_executable::process_headers()
 {
 	if(!segments) elf64_object::process_headers();
-	stack_size			= std::max(stack_size, min_blk_sz);
-	size_t tls_seg		= 0UZ;
+	stack_size				= std::max(stack_size, min_blk_sz);
+	size_t tls_seg			= 0UZ;
 	for(size_t n = 0; n < ehdr().e_phnum; n++)
 	{
-		elf64_phdr const& h 	= phdr(n);
-		uintptr_t addr			= h.p_vaddr;
+		elf64_phdr const& h = phdr(n);
+		uintptr_t addr		= h.p_vaddr;
 		if(is_tls(h)) {
-			tls_seg				= n;
-			tls_align			= h.p_align;
+			tls_seg			= n;
+			tls_align		= h.p_align;
 			continue;
 		}
 		if(!is_load(h)) continue;
 		if(!frame_base || frame_base > addr)
-			frame_base	= addr_t(addr);
-		frame_extent	= std::max(frame_extent, addr_t(addr + h.p_memsz));
+			frame_base		= addr_t(addr);
+		frame_extent		= std::max(frame_extent, addr_t(addr + h.p_memsz));
 	}
-	frame_base			= frame_base.page_aligned();
-	stack_base			= frame_extent.next_page_aligned();
-	frame_extent		= stack_base.plus(stack_size).next_page_aligned();
+	frame_base				= frame_base.page_aligned();
+	stack_base				= frame_extent.next_page_aligned();
+	frame_extent			= stack_base.plus(stack_size).next_page_aligned();
 	if(tls_seg) {
-		tls_base		= frame_extent.alignup(tls_align);
-		frame_extent	= tls_base.plus(phdr(tls_seg).p_memsz).next_page_aligned();
+		tls_base			= frame_extent.alignup(tls_align);
+		frame_extent		= tls_base.plus(phdr(tls_seg).p_memsz).next_page_aligned();
 	}
 }
 bool elf64_executable::load_segments()
 {
-	frame_tag			= std::addressof(fm.create_frame(frame_base, frame_extent));
+	frame_tag				= std::addressof(fm.create_frame(frame_base, frame_extent));
 	if(__unlikely(!frame_tag)) { panic("[PRG/EXEC] failed to allocate frame"); return false; }
 	for(size_t n = 0, i = 0; n < ehdr().e_phnum; n++)
 	{
@@ -129,16 +129,16 @@ bool elf64_executable::load_segments()
 	frame_tag->mapped_max	= frame_extent;
 	new(std::addressof(program_descriptor)) elf64_program_descriptor
 	{
-		.frame_ptr		= frame_tag,
-		.prg_stack		= s->virtual_start,
-		.stack_size		= s->size,
-		.prg_tls		= tls_base,
-		.tls_size		= tls_size,
-		.tls_align		= tls_align,
-		.entry			= entry,
-		.ld_path		= nullptr,
-		.ld_path_count	= 0UZ,
-		.object_handle	= this
+		.frame_ptr			= frame_tag,
+		.prg_stack			= s->virtual_start,
+		.stack_size			= s->size,
+		.prg_tls			= tls_base,
+		.tls_size			= tls_size,
+		.tls_align			= tls_align,
+		.entry				= entry,
+		.ld_path			= nullptr,
+		.ld_path_count		= 0UZ,
+		.object_handle		= this
 	};
 	return true;
 }

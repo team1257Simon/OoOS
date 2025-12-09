@@ -17,7 +17,7 @@ bool elf64_object::is_position_relocated() const noexcept { return false; }
 static inline addr_t clone_image(addr_t start, size_t size)
 {
 	if(__unlikely(!size)) return nullptr;
-	addr_t result = elf_alloc.allocate(size);
+	addr_t result	= elf_alloc.allocate(size);
 	if(result) array_copy<uint8_t>(result, start, size);
 	return result;
 }
@@ -36,7 +36,7 @@ void elf64_object::cleanup()
 }
 addr_t elf64_object::resolve(uint64_t offs) const
 {
-	off_t idx = segment_index(offs);
+	off_t idx	= segment_index(offs);
 	if(__unlikely(idx < 0)) return nullptr;
 	return to_segment_ptr(offs, segments[idx]);
 }
@@ -45,7 +45,7 @@ void elf64_object::process_headers()
 	for(size_t i = 0; i < ehdr().e_phnum; i++)
 		if(is_load(phdr(i)) && phdr(i).p_memsz)
 			num_seg_descriptors++;
-	segments = sd_alloc.allocate(num_seg_descriptors);
+	segments	= sd_alloc.allocate(num_seg_descriptors);
 }
 bool elf64_object::validate() noexcept
 {
@@ -61,7 +61,7 @@ bool elf64_object::load() noexcept
 	{
 		if(__unlikely(__loaded)) return true;
 		if(__unlikely(!validate())) { panic("[PRG] invalid executable"); return false; }
-		__loaded = xload();
+		__loaded	= xload();
 		if(__unlikely(!__loaded)) on_load_failed();
 		return __loaded;
 	}
@@ -84,8 +84,8 @@ elf64_object::elf64_object(file_vnode* n) : elf64_object(n->data(), n->size())
 	if(__unlikely(!__image_start))
 	{
 		panic("[PRG] elf object file read failed");
-		__image_size = 0;
-		__image_start = nullptr;
+		__image_size	= 0;
+		__image_start	= nullptr;
 	}
 }
 bool elf64_object::load_syms()
@@ -96,7 +96,7 @@ bool elf64_object::load_syms()
 	array_copy<char>(shstrtab.data, img_ptr(shstrtab_shdr.sh_offset), shstrtab_shdr.sh_size);
 	for(size_t i = 0; i < ehdr().e_shnum; i++)
 	{
-		elf64_shdr const& h = shdr(i);
+		elf64_shdr const& h			= shdr(i);
 		if(h.sh_type == SHT_DYNSYM || h.sh_type == SHT_SYMTAB)
 		{
 			elf64_shdr const& strtab_shdr	= shdr(h.sh_link);

@@ -28,6 +28,6 @@ public:
 	virtual ~elf64_kernel_object();
 	virtual addr_t resolve(uint64_t offs) const override;
 	ooos::abstract_module_base* load_module();
-	void unload_pre_init();     // called if the module needs to be unloaded before the initialize() function is invoked on it
+	void unload_pre_init();		// called if the module needs to be unloaded before the initialize() function is invoked on it
 };
 #endif

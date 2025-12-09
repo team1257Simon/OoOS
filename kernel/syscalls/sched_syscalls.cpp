@@ -24,8 +24,8 @@ extern "C"
 		elf64_executable* ex = prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;
 		cstrvec argv_v{}, env_v{};
-		for(size_t i = 0; argv[i]; ++i) argv_v.push_back(argv[i]);
-		for(size_t i = 0; env[i]; ++i) env_v.push_back(env[i]);
+		for(size_t i	= 0UZ; argv[i]; ++i) argv_v.push_back(argv[i]);
+		for(size_t i	= 0UZ; env[i]; ++i) env_v.push_back(env[i]);
 		try
 		{
 			if(!noparent)

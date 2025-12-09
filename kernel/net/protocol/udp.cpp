@@ -47,7 +47,7 @@ bool udp_header::verify_udp_csum() const
 	intermediate_csum           += udp_length;
 	net16 const* words          = std::addressof(source_port);
 	size_t num_words            = udp_length / sizeof(net16);
-	if((static_cast<size_t>(udp_length) % 2) != 0)
+	if((static_cast<size_t>(udp_length) % 2UZ) != 0UZ)
 		intermediate_csum += addr_t(this).plus(static_cast<ptrdiff_t>(udp_length) - 1Z).deref<net8>();
 	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
 	dword dw_csum       		= intermediate_csum;

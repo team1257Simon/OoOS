@@ -121,12 +121,12 @@ void tcp_transmission_timer::update()
 	time_t r = stopwatch.split();
 	if(smoothed_round_trip_time)
 	{
-		round_trip_time_variation	*= 3;
-		round_trip_time_variation	/= 4;
-		round_trip_time_variation	+= abs_diff(smoothed_round_trip_time, r) / 4;
-		smoothed_round_trip_time	*= 7;
-		smoothed_round_trip_time	/= 8;
-		smoothed_round_trip_time	+= r / 8;
+		round_trip_time_variation	*= 3UZ;
+		round_trip_time_variation	/= 4UZ;
+		round_trip_time_variation	+= abs_diff(smoothed_round_trip_time, r) / 4UZ;
+		smoothed_round_trip_time	*= 7UZ;
+		smoothed_round_trip_time	/= 8UZ;
+		smoothed_round_trip_time	+= r / 8UZ;
 	}
 	else { smoothed_round_trip_time = r; round_trip_time_variation = r / 2; }
 	retransmission_timeout 			= smoothed_round_trip_time + std::max(1UL, round_trip_time_variation * 4);

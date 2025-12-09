@@ -7,7 +7,7 @@ namespace __impl
 	struct __aligned_buffer : std::aligned_storage<sizeof(T), alignof(T)>
 	{
 		typename std::aligned_storage<sizeof(T), alignof(T)>::type __my_storage;
-		__aligned_buffer() = default;
+		__aligned_buffer()	= default;
 		__aligned_buffer(std::nullptr_t) {}
 		constexpr void* __get_addr() noexcept { return static_cast<void*>(std::addressof(__my_storage)); }
 		constexpr const void* __get_addr() const noexcept { return static_cast<const void*>(std::addressof(__my_storage)); }

@@ -141,9 +141,9 @@ namespace std
 		constexpr static openmode ate			{ 0x10 };
 		typedef __iostate iostate;
 		constexpr static iostate goodbit		{		};
-		constexpr static iostate badbit			{ 0x01 };
-		constexpr static iostate failbit		{ 0x02 };
-		constexpr static iostate eofbit			{ 0x80 };
+		constexpr static iostate badbit			{ 0x01  };
+		constexpr static iostate failbit		{ 0x02  };
+		constexpr static iostate eofbit			{ 0x80  };
 		typedef __fmtflags fmtflags;
 		constexpr static fmtflags dec			{ 0x0001 };
 		constexpr static fmtflags oct			{ 0x0002 };

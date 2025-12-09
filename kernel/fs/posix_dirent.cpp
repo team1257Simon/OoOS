@@ -5,7 +5,7 @@ posix_directory::~posix_directory() { if(__owning_frame && __buffer_mapped_vaddr
 static addr_t map_dirent_buffer(uframe_tag* tag, size_t num_entries)
 {
 	if(!tag) throw std::invalid_argument("[COMPAT/DIRENT] frame tag must not be null");
-	addr_t result				= tag->mmap_add(nullptr, (num_entries + 1) * sizeof(dirent) + sizeof(directory_buffer), true, false);
+	addr_t result				= tag->mmap_add(nullptr, (num_entries + 1Z) * sizeof(dirent) + sizeof(directory_buffer), true, false);
 	if(!result) throw std::bad_alloc();
 	return result;
 }
@@ -43,7 +43,7 @@ static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, direct
 			.d_name		{}
 		};
 		__builtin_memcpy(ent->d_name, name, name_len);
-		ent->d_name[name_len]	= 0;
+		ent->d_name[name_len]	= '\0';
 		cur						+= sizeof(dirent);
 	}
 	array_zero(cur.as<uint64_t>(), sizeof(dirent) / sizeof(uint64_t));

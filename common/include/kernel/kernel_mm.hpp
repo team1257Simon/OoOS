@@ -209,9 +209,9 @@ enum block_size : uint32_t
  *			Kernel workers and module code will likewise see only identity-mapped memory. In order to facilitate access to userspace pointers,
  *			userspace frames will store pointers to their page tables that can be used to translate those pointers when in syscalls.
  */
-typedef struct attribute(packed, aligned(1)) mem_status_byte
+typedef struct status_byte
 {
-	uint8_t the_byte : 8;
+	uint8_t the_byte;
 private:
 	constexpr bool __has(uint8_t i) const noexcept { return (the_byte & i) == 0; }
  public:
@@ -226,7 +226,7 @@ private:
 	constexpr bool operator!() const noexcept { return all_used(); }
 	constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
 	constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
-} status_byte, gb_status[512];
+} gb_status[512];
 class kernel_memory_mgr
 {
 	spinlock_t __heap_mutex{};					// Calls to kernel allocations lock this mutex to prevent comodification
@@ -263,26 +263,26 @@ public:
 	static size_t dma_size(size_t requested);
 	static void suspend_user_frame();
 	static void resume_user_frame();
+	static size_t currently_used_memory();
+	static size_t total_available_memory();
+	static size_t remaining_unused_memory();
 	kernel_memory_mgr(kernel_memory_mgr const&) = delete;
 	kernel_memory_mgr(kernel_memory_mgr&&) = delete;
 	kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;
 	kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
 	void enter_frame(uframe_tag* ft) noexcept;
+	uintptr_t frame_translate(addr_t addr);
 	void exit_frame() noexcept;
 	void map_to_current_frame(std::vector<block_descriptor> const& blocks);
 	void map_to_current_frame(block_descriptor const& block);
-	__nointerrupts paging_table allocate_pt() noexcept;
-	uintptr_t frame_translate(addr_t addr);
-	__nointerrupts __noinline addr_t allocate_kernel_block(size_t sz) noexcept;
-	__nointerrupts addr_t allocate_dma(size_t sz, bool prefetchable) noexcept;
-	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
+	addr_t copy_kernel_mappings(paging_table target);
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
+	__nointerrupts __noinline addr_t allocate_kernel_block(size_t sz) noexcept;
 	__nointerrupts __noinline addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
 	__nointerrupts __noinline void deallocate_block(addr_t base, size_t sz, bool should_unmap = false) noexcept;
-	addr_t copy_kernel_mappings(paging_table target);
-	static size_t currently_used_memory();
-	static size_t total_available_memory();
-	static size_t remaining_unused_memory();
+	__nointerrupts paging_table allocate_pt() noexcept;
+	__nointerrupts addr_t allocate_dma(size_t sz, bool prefetchable) noexcept;
+	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
 };
 #define kmm kernel_memory_mgr::get()
 extern "C" void* aligned_malloc(size_t size, size_t align);

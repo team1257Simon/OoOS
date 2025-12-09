@@ -55,6 +55,7 @@ namespace ABI_NAMESPACE
 		kernel_api* api_global;																																			\
 		static module_class* __local_inst_##module_class##__ptr;																										\
 		template<> constexpr module_class*& local_instance_ptr<module_class>() { return __local_inst_##module_class##__ptr; }											\
+		ooos::abstract_module_base* module_instance() noexcept { return __local_inst_##module_class##__ptr; }																						\
 	}																																									\
 	extern "C"																																							\
 	{																																									\
@@ -75,6 +76,7 @@ namespace ooos
 {
 	struct block_io_provider_module;
 	extern kernel_api* api_global;
+	extern ooos::abstract_module_base* module_instance() noexcept;
 	/**
 	 * Base class for all module objects.
 	 * This is an abstract class which hooks in various parts of the kernel that module code might need to use.
@@ -135,7 +137,7 @@ namespace ooos
 	{
 		va_list args;
 		va_start(args, 0);
-		size_t result = __api_hooks->vformat(__allocated_mm, fmt, *strp, args);
+		size_t result	= __api_hooks->vformat(__allocated_mm, fmt, *strp, args);
 		va_end(args);
 		return result;
 	}

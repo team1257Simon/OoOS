@@ -73,9 +73,9 @@ public:
 };
 extern "C"
 {
-	addr_t syscall_dlinit(addr_t handle, addr_t resolve);    // void (**dlinit(void* handle))(int argc, char** argv, char** env); "resolve" will be passed by the dynamic linker
-	addr_t syscall_dlpreinit(addr_t handle, addr_t endfn);   // void (**dlpreinit(void* handle))(int argc, char** argv, char** env); "endfn" will be passed by the dynamic linker
-	addr_t syscall_dlfini(addr_t handle);                    // void (**dlfini(void* handle))();
-	addr_t syscall_depends(addr_t handle);                   // char** depends(void* handle);
+	addr_t syscall_dlinit(addr_t handle, addr_t resolve);	// void (**dlinit(void* handle))(int argc, char** argv, char** env); "resolve" will be passed by the dynamic linker
+	addr_t syscall_dlpreinit(addr_t handle, addr_t endfn);	// void (**dlpreinit(void* handle))(int argc, char** argv, char** env); "endfn" will be passed by the dynamic linker
+	addr_t syscall_dlfini(addr_t handle);					// void (**dlfini(void* handle))();
+	addr_t syscall_depends(addr_t handle);					// char** depends(void* handle);
 }
 #endif

@@ -13,22 +13,22 @@ namespace std
 			typedef std::__impl::__dynamic_queue<CT, AT> __base;
 			using typename __base::__ptr_container;
 		public:
-			typedef TT                              traits_type;
-			typedef typename __base::__value_type   value_type;
+			typedef TT									traits_type;
+			typedef typename __base::__value_type		value_type;
 			typedef typename __base::__allocator_type   allocator_type;
 			typedef typename __base::__pointer          pointer;
 			typedef typename __base::__const_pointer    const_pointer;
-			typedef typename __base::__size_type    size_type;
-			typedef typename __base::__difference_type    difference_type;
-			typedef typename traits_type::pos_type  pos_type;
-			typedef typename traits_type::off_type  off_type;
+			typedef typename __base::__size_type		size_type;
+			typedef typename __base::__difference_type	difference_type;
+			typedef typename traits_type::pos_type		pos_type;
+			typedef typename traits_type::off_type		off_type;
 			constexpr dynamic_queue_streambuf() = default;
 			dynamic_queue_streambuf(dynamic_queue_streambuf const& that) : __base(that) { this->sync(); }
 			dynamic_queue_streambuf(dynamic_queue_streambuf&& that) : __base(forward<__base>(that)) {}
 			dynamic_queue_streambuf(const_pointer start, const_pointer end, off_type n = 0L, size_type e = 0UZ) : __base(static_cast<size_type>(end - start)) { this->__qcopy(this->__qbeg(), start, static_cast<size_type>(end - start)); if(n > 0L) this->__qsetn(static_cast<size_type>(n)); if(e) this->__qsete(e); }
 			dynamic_queue_streambuf& operator=(dynamic_queue_streambuf const& that) { this->__qdestroy(); this->__q_copy_assign(that); this->sync(); return *this; }
 			dynamic_queue_streambuf& operator=(dynamic_queue_streambuf&& that) { this->__qdestroy(); this->__q_move_assign(forward<__base>(that)); this->sync(); return *this; }
-			dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type{}) : __base(sz, alloc) {}
+			dynamic_queue_streambuf(size_type sz, allocator_type alloc = allocator_type()) : __base(sz, alloc) {}
 			virtual void reset() { this->__qrst(); }
 			pointer data() { return this->__qbeg(); }
 			const_pointer data() const { return this->__qbeg(); }

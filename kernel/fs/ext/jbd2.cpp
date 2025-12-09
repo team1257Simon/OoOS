@@ -12,12 +12,12 @@ size_t jbd2::tags_per_block() { return 1 + (parent_fs->block_size() - sizeof(jbd
 off_t jbd2::desc_tag_create(disk_block const& bl, void* where, uint32_t seq, bool is_first, bool is_last)
 {
 	off_t result	= static_cast<off_t>(desc_tag_size(true));
-	uint32_t fl		= (!is_first ? same_uuid : 0) | (is_last ? last_block : 0) | (need_escape(bl) ? escape : 0);
+	uint32_t fl		= (!is_first ? same_uuid : 0U) | (is_last ? last_block : 0U) | (need_escape(bl) ? escape : 0U);
 	uint32_t csum	= crc32c(uuid_checksum, seq);
 	csum			= crc32c_blk(csum, bl, parent_fs->block_size());
-	if(sb->required_features & csum_v3) { std::construct_at<jbd2_block_tag3>(static_cast<jbd2_block_tag3*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be32(fl), __be32((bl.block_number & 0xFFFFFFFF00000000) >> 32), __be32(csum)); }
-	else { std::construct_at<jbd2_block_tag>(static_cast<jbd2_block_tag*>(where), __be32((bl.block_number) & 0xFFFFFFFF), __be16(static_cast<uint16_t>(csum & 0xFFFF)), __be16(fl), __be32(sb->required_features & x64_support ? (bl.block_number & 0xFFFFFFFF00000000) >> 32 : 0)); }
-	if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16; array_copy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
+	if(sb->required_features & csum_v3) { std::construct_at<jbd2_block_tag3>(static_cast<jbd2_block_tag3*>(where), __be32((bl.block_number) & 0xFFFFFFFFU), __be32(fl), __be32((bl.block_number & 0xFFFFFFFF00000000) >> 32), __be32(csum)); }
+	else { std::construct_at<jbd2_block_tag>(static_cast<jbd2_block_tag*>(where), __be32((bl.block_number) & 0xFFFFFFFFU), __be16(static_cast<uint16_t>(csum & 0xFFFF)), __be16(fl), __be32(sb->required_features & x64_support ? (bl.block_number & 0xFFFFFFFF00000000) >> 32 : 0)); }
+	if(is_first) { uint8_t* uuid_pos = static_cast<uint8_t*>(where) + result; result += 16UZ; array_copy(uuid_pos, sb->uuid.data_bytes, sizeof(guid_t)); }
 	return result;
 }
 bool jbd2::create_txn(ext_vnode* changed_node)
@@ -35,18 +35,18 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 	size_t bs				= parent_fs->block_size();
 	uint64_t txn_st_block	= first_open_block + sb->start_block;
 	std::vector<disk_block> actual_blocks{};
-	for(disk_block const& b : txn_blocks) { if(b.chain_len > 1) { for(size_t i = 0; i < b.chain_len; i++) { actual_blocks.emplace_back(b.block_number + i, b.data_buffer + i * bs, b.dirty, 1UL); } } else actual_blocks.push_back(b); }
+	for(disk_block const& b : txn_blocks) { if(b.chain_len > 1UZ) { for(size_t i = 0UZ; i < b.chain_len; i++) { actual_blocks.emplace_back(b.block_number + i, b.data_buffer + i * bs, b.dirty, 1UL); } } else actual_blocks.push_back(b); }
 	unsigned seq	= static_cast<unsigned>(active_transactions.size());
 	char* pos		= __cur();
 	char* dblk_tar	= pos + bs;
 	std::construct_at<jbd2_header>(reinterpret_cast<jbd2_header*>(pos), jbd2_magic, __be32(descriptor), __be32(seq));
 	pos				+= sizeof(jbd2_header);
 	mark_write(pos);
-	size_t total	= 0, k = tpb;
+	size_t total	= 0UZ, k = tpb;
 	bool first		= true;
-	for(size_t i = 0; i < actual_blocks.size(); i++, total++)
+	for(size_t i	= 0UZ; i < actual_blocks.size(); i++, total++)
 	{
-		pos								+= desc_tag_create(actual_blocks[i], pos, seq, first, k == 1 || !(i + 1 < actual_blocks.size()));
+		pos								+= desc_tag_create(actual_blocks[i], pos, seq, first, k == 1UZ || !(i + 1UZ < actual_blocks.size()));
 		first							= false;
 		array_copy(dblk_tar, actual_blocks[i].data_buffer, bs);
 		mark_write(dblk_tar);
@@ -54,7 +54,7 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 		dblk_tar						+= bs;
 		if(!(--k))
 		{
-			pos			= __cur() + (bs - 4);
+			pos			= __cur() + (bs - 4Z);
 			if(sb->required_features & (csum_v2 | csum_v3)) std::construct_at(reinterpret_cast<__be32*>(pos), crc32c(uuid_checksum, __cur(), bs));
 			__setc(dblk_tar);
 			dblk_tar	+= bs;

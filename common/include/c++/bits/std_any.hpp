@@ -6,8 +6,8 @@
 #include <bits/in_place_t.hpp>
 namespace std
 {
-	template<typename T> concept __decay_copy_constructible = copy_constructible<decay_t<T>>;
-	template<typename T> concept __non_void = !is_void_v<T>;
+	template<typename T> concept __decay_copy_constructible	= copy_constructible<decay_t<T>>;
+	template<typename T> concept __non_void					= !is_void_v<T>;
 	struct any;
 	template<typename T> T* any_cast(any* a) noexcept;
 	template<typename T> T const* any_cast(any const* a) noexcept;
@@ -23,17 +23,17 @@ namespace std
 		template<__non_void T> T const* __cast_to_type() const
 		{
 			if(!__ptr) return nullptr;
-			ext::type_erasure e = ext::get_erasure<T>();
+			ext::type_erasure e	= ext::get_erasure<T>();
 			return static_cast<T const*>(e.cast_from(__ptr, __object_type));
 		}
 		template<__non_void T> T* __cast_to_type()
 		{
 			if(!__ptr) return nullptr;
-			ext::type_erasure e = ext::get_erasure<T>();
+			ext::type_erasure e	= ext::get_erasure<T>();
 			return static_cast<T*>(e.cast_from(__ptr, __object_type));
 		}
 	public:
-		constexpr any() noexcept = default;
+		constexpr any() noexcept		= default;
 		constexpr ~any() { __destroy_if_present(); }
 		constexpr bool has_value() const { return __ptr != nullptr; }
 		constexpr void swap(any& that)

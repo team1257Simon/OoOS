@@ -61,8 +61,8 @@ namespace std::__impl
 			typedef std::bool_constant<__has_move_propagate<__allocator_type>> propagate_on_container_move_assignment;
 			typedef std::bool_constant<__has_copy_propagate<__allocator_type>> propagate_on_container_copy_assignment;
 			typedef std::bool_constant<__has_swap_propagate<__allocator_type>> propagate_on_container_swap;
-			constexpr static bool __nt_copy_assign = !propagate_on_container_copy_assignment::value || std::is_nothrow_copy_assignable_v<__allocator_type>;
-			constexpr static bool __nt_move_assign = !propagate_on_container_move_assignment::value || std::is_nothrow_move_assignable_v<__allocator_type>;
+			constexpr static bool __nt_copy_assign	= !propagate_on_container_copy_assignment::value || std::is_nothrow_copy_assignable_v<__allocator_type>;
+			constexpr static bool __nt_move_assign	= !propagate_on_container_move_assignment::value || std::is_nothrow_move_assignable_v<__allocator_type>;
 
 			constexpr __q_alloc_and_state() noexcept(noexcept(__allocator_type())) : __allocator_type(), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}
 			constexpr __q_alloc_and_state(__allocator_type const& that) noexcept(std::is_nothrow_copy_constructible_v<__allocator_type>) : __allocator_type(that), __stale_size_thresh(16L), __stale_op_thresh(3U), __op_cnt(0U) {}

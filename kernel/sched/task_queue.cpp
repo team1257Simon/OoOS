@@ -8,11 +8,11 @@ clock_t task_wait_queue::next_remaining_wait_ticks() const noexcept
 {
 	if(!empty() && !at_end())
 		return next().get_wait_delta();
-	return 0U;
+	return 0UZ;
 }
 clock_t task_wait_queue::cumulative_remaining_ticks() const noexcept
 {
-	clock_t result		= 0UL;
+	clock_t result			= 0UL;
 	for(const_iterator i	= current(); i != end(); i++) result += i->get_wait_delta();
 	return result;
 }
@@ -21,7 +21,7 @@ bool task_wait_queue::interrupt_wait(const_iterator where)
 	if(__unlikely(!(where < end() && where->is_interruptible()))) return false;
 	if(const_iterator subs		= where + 1; subs < end()) subs->add_wait_ticks(where->get_wait_delta());
 	where->clear_blocking();
-	return erase(where) != 0;
+	return erase(where) != 0UZ;
 }
 void task_wait_queue::tick_wait() noexcept
 {

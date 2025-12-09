@@ -12,9 +12,9 @@ static size_t total_extents(sysfs& s, sysfs_extent_branch const& b)
 {
 	size_t result		= 0UZ;
 	if(b.depth)
-		for(size_t i	= 0; i < sysfs_extent_branch::num_entries; i++)
+		for(size_t i	= 0UZ; i < sysfs_extent_branch::num_entries; i++)
 			result += total_extents(s, s.get_extent_branch(b[i].start));
-	else for(size_t i	= 0; i < sysfs_extent_branch::num_entries; i++) result += b[i].length;
+	else for(size_t i	= 0UZ; i < sysfs_extent_branch::num_entries; i++) result += b[i].length;
 	return result;
 }
 static size_t total_extents(sysfs& s, uint32_t ino)

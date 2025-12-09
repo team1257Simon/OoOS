@@ -110,9 +110,9 @@ namespace std
 	template<typename RT, typename ... Args>
 	class function<RT(Args...)> : __function_base
 	{
-		template<typename FT> using __helper = __function_helper<RT(Args...), __decay_t<FT>>;
-		using __invoker_type = RT (*) (__data_store const&, Args&&...);
-		__invoker_type __my_invoker = nullptr;
+		template<typename FT> using __helper	= __function_helper<RT(Args...), __decay_t<FT>>;
+		using __invoker_type					= RT(*)(__data_store const&, Args&&...);
+		__invoker_type __my_invoker				= nullptr;
 	public:
 		typedef RT result_type;
 		template<__alternate_callable<RT, Args...> FT> requires(is_copy_constructible<__decay_t<FT>>::value && is_constructible<__decay_t<FT>, FT>::value)
@@ -129,7 +129,7 @@ namespace std
 		constexpr operator bool() const noexcept { return !this->__empty(); }
 		constexpr function(function const& that) : __function_base()
 		{
-			if(that.operator bool())
+			if(that)
 			{
 				that.__my_manager(__my_functor, that.__my_functor, __clone_functor);
 				__my_invoker	= that.__my_invoker;
@@ -138,7 +138,7 @@ namespace std
 		}
 		constexpr function(function&& that) : __function_base(), __my_invoker(that.__my_invoker)
 		{
-			if(that.operator bool())
+			if(that)
 			{
 				__my_functor		= that.__my_functor;
 				__my_manager		= that.__my_manager;
