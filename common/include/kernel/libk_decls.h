@@ -72,6 +72,9 @@ struct arithmetic_result
 template<integral_structure I, integral_structure J> using alignup_type				= typename arithmetic_result<I, typename arithmetic_result<I, J>::quotient_type>::product_type;
 template<std::integral I, template<I> class S> using __integer_constant_helper		= std::bool_constant<std::is_same_v<I, typename S<I(0)>::value_type>>;
 template<std::integral I, I V> using bit_shift										= std::integral_constant<I, I(I(1) << V)>;
+template<uint8_t V> using c_u8														= std::integral_constant<uint8_t, V>;
+template<uint16_t V> using c_u16													= std::integral_constant<uint16_t, V>;
+template<uint32_t V> using c_u32													= std::integral_constant<uint32_t, V>;
 template<uint64_t V> using c_u64													= std::integral_constant<uint64_t, V>;
 template<std::integral I, template<I> class S> constexpr bool is_integer_constant	= __integer_constant_helper<I, S>::value;
 template<typename T> constexpr T& nonnull_or_else(T* __this, T& __that) noexcept { return __this ? *__this : __that; }
@@ -235,6 +238,20 @@ struct bit_or
 template<uint64_t V> using u64_shift	= bit_shift<uint64_t, V>;
 typedef bit_or<uint64_t, c_u64> u64_or;
 template<uint64_t ... Is> using bit_mask = c_u64<u64_or::template value(u64_shift<Is>()...)>;
+template<uint16_t PV, uint16_t BV = 0US, size_t NB = 8UZ>
+constexpr uint16_t crc16_table_val(uint16_t i)
+{
+	uint16_t res	= BV;
+	uint16_t c		= i;
+	for(size_t j	= 0UZ; j < NB; j++)
+	{
+		bool b		= ((res ^ c) % 2) != 0US;
+		c			>>= 1;
+		res			>>= 1;
+		if(b) res ^= PV;
+	}
+	return res ^ BV;
+}
 #if defined(__KERNEL__) || defined(__LIBK__)
 template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
 template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }

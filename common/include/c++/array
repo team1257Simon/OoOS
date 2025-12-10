@@ -107,4 +107,16 @@ public:
 	template<size_t N, size_t M> requires(N != 0 && M != 0)
 	constexpr I operator()(std::array<I, N> const& a, std::array<I, M> const& b) { return __evaluate(min_size<N, M>(), a, b); }
 };
+template<std::integral IT, typename FT, IT ... Is>
+requires(std::is_invocable_v<FT, IT> && !std::is_void_v<std::invoke_result_t<FT, IT>>)
+constexpr std::array<std::invoke_result_t<FT, IT>, sizeof...(Is)> sequence_transform(FT&& f, std::integer_sequence<IT, Is ...>) {
+	typedef std::array<std::invoke_result_t<FT, IT>, sizeof...(Is)> result_type;
+	return result_type{ f(Is) ... };
+}
+template<std::integral IT, typename FT, IT I> 
+requires(std::is_invocable_v<FT, IT> && !std::is_void_v<std::invoke_result_t<FT, IT>>)
+constexpr std::array<std::invoke_result_t<FT, IT>, static_cast<size_t>(I)> sequence_transform(FT&& f, std::integral_constant<IT, I>) {
+	typedef std::array<std::invoke_result_t<FT, IT>, static_cast<size_t>(I)> result_type;
+	return sequence_transform(std::forward<FT>(f), std::make_integer_sequence<IT, I>());
+}
 #endif
