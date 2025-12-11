@@ -421,7 +421,7 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 		pml4_idx	{ idx3 },
 		ext			{ sign }
 					{}
-	constexpr explicit __vaddr(uint64_t i) noexcept : full(i) {}
+	constexpr explicit __vaddr(uintptr_t i) noexcept : full(i) {}
 	constexpr __vaddr(nullptr_t) noexcept : full(0UL) {}
 	constexpr __vaddr(void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
 	constexpr __vaddr(const void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
@@ -884,7 +884,7 @@ typedef struct __s_le16
 	constexpr __s_le16 operator++(int) noexcept { __s_le16 that(*this); ++(*this); return that; }
 	constexpr __s_le16& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
 	constexpr __s_le16 operator--(int) noexcept { __s_le16 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return (static_cast<uint16_t>(*this) & (1 << (i % 16))); }
+	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint16_t, *this) & (1US << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i % 8); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i % 8); }
 	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i % 8); }
@@ -916,7 +916,7 @@ typedef struct __s_le32
 	constexpr __s_le32 operator++(int) noexcept { __s_le32 that(*this); ++(*this); return that; }
 	constexpr __s_le32& operator--() noexcept { uint32_t that = *this; --that; return (*this = that); }
 	constexpr __s_le32 operator--(int) noexcept { __s_le32 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<uint32_t>(*this) & (1 << (i % 32)); }
+	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint32_t, *this) & (1U << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 16 ? hi : lo).bts(i % 16); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 16 ? hi : lo).btr(i % 16); }
 	constexpr bool btc(int i) volatile noexcept { return (i >= 16 ? hi : lo).btc(i % 16); }
@@ -948,7 +948,7 @@ typedef struct __s_le64
 	constexpr __s_le64 operator++(int) noexcept { __s_le64 that(*this); ++(*this); return that; }
 	constexpr __s_le64& operator--() noexcept { uint64_t that = *this; --that; return (*this = that); }
 	constexpr __s_le64 operator--(int) noexcept { __s_le64 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<uint64_t>(*this) & (1 << (i % 64)); }
+	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint64_t, *this) & (1UL << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 32 ? hi : lo).bts(i % 32); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 32 ? hi : lo).btr(i % 32); }
 	constexpr bool btc(int i) volatile noexcept { return (i >= 32 ? hi : lo).btc(i % 32); }
@@ -1040,7 +1040,7 @@ constexpr int16_t operator""S(unsigned long long i) noexcept { return static_cas
 constexpr __be16 operator""USBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
 constexpr __be32 operator""UBE(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
 constexpr __be64 operator""ULBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }
-constexpr addr_t operator""LA(unsigned long long i) noexcept { return addr_t(i); }
+constexpr addr_t operator""LA(unsigned long long i) noexcept { return addr_t(static_cast<uintptr_t>(i)); }
 #include <sys/types.h>
 #pragma GCC diagnostic pop
 #else

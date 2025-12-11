@@ -75,6 +75,7 @@ namespace ooos
 			block_tag* at(size_t bsz) const& noexcept { if(__unlikely(!range_check(bsz))) return nullptr; return __pool[bsz]; }
 			constexpr bool operator==(__block_pool_delegate const& that) const noexcept { return this->__pool == that.__pool; }
 			constexpr std::strong_ordering operator<=>(__block_pool_delegate const& that) const noexcept { return this->__pool <=> that.__pool; }
+			constexpr void __swap(__block_pool_delegate& that) noexcept { this->__pool.swap(that.__pool); }
 		} __blocks;
 		void __destruct(pointer ptr, size_type n_objs) noexcept(std::is_nothrow_destructible_v<value_type>)
 		{
@@ -97,6 +98,7 @@ namespace ooos
 		pool_allocator& operator=(pool_allocator&& that) noexcept		= default;
 		pool_allocator& operator=(pool_allocator const& that) noexcept { if(__builtin_expect(!(this->__blocks == that.__blocks), true)) { this->__blocks = that.__blocks; } return *this; }
 		template<typename U, size_t B> requires(!std::is_same_v<T, U> || (A != B)) pool_allocator(pool_allocator<U, B> const& that) : __blocks() {}
+		constexpr void swap(pool_allocator& that) noexcept { this->__blocks.__swap(that.__blocks); }
 		void deallocate(pointer p, size_type n) noexcept(std::is_nothrow_destructible_v<value_type>)
 		{
 			__destruct(p, n);

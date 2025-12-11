@@ -215,6 +215,10 @@ namespace std
 					this->__idx		= __impl::__get_ptrs<T>().add_new(std::forward<Args>(args)...);
 					this->__node	= std::addressof(__get<T>(__idx).__acquire());
 				}
+				constexpr void __swap(__delegate_ptr_impl& that) noexcept {
+					std::swap(this->__node, that.__node);
+					std::swap(this->__idx, that.__idx);
+				}
 			public:
 				~__delegate_ptr_impl() { __destroy(); }
 				constexpr size_t get_id() const { return __idx; }
@@ -243,6 +247,7 @@ namespace std
 			delegate_ptr& operator=(delegate_ptr const& that) { __base::__assign(that); return *this; }
 			delegate_ptr& operator=(delegate_ptr&& that) { __base::__assign(std::move(that)); return *this; }
 			delegate_ptr& operator=(nullptr_t) { __base::__destroy(); return *this; }
+			constexpr void swap(delegate_ptr& that) noexcept { __base::__swap(that); }
 			template<typename ... Args> requires(constructible_from<T, Args...>) delegate_ptr& emplace(Args&& ... args) { __base::__emplace(std::forward<Args>(args)...); return *this; }
 			void release() { __base::__destroy(); }
 			// Registers any action that must be performed on a per-reference basis with regard to a given object when acquiring or releasing a delegate pointer.

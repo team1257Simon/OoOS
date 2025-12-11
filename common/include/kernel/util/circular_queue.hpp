@@ -37,16 +37,30 @@ namespace ooos
 			pointer __curr;
 			pointer __last;
 			pointer __bmax;
-			constexpr __circular_buffer() noexcept(noexcept(allocator_type())) : allocator_type(), __base(), __curr(), __last(), __bmax() {}
-			constexpr __circular_buffer(size_type n) : allocator_type(), __base(allocator_type::allocate(n)), __curr(__base), __last(__base), __bmax(__base + n) {}
-			constexpr __circular_buffer(__circular_buffer const& that) requires(__copy_assign || __copy_construct) :
+			constexpr __circular_buffer() noexcept(noexcept(allocator_type())) :
+				allocator_type(),
+				__base(),
+				__curr(),
+				__last(),
+				__bmax()
+			{}
+			constexpr __circular_buffer(size_type n) :
+				allocator_type(),
+				__base(allocator_type::allocate(n)),
+				__curr(__base),
+				__last(__base),
+				__bmax(__base + n)
+			{}
+			constexpr __circular_buffer(__circular_buffer const& that)
+			requires(__copy_assign || __copy_construct) :
 				allocator_type(that),
 				__base(allocator_type::allocate(that.__capacity())),
 				__curr(this->__base + static_cast<size_type>(that.__curr - that.__base)),
 				__last(this->__base + static_cast<size_type>(that.__last - that.__base)),
 				__bmax(this->__base + that.__capacity())
 				{ if(that.__base) array_copy(this->__base, that.__base, that.__capacity()); }
-			constexpr __circular_buffer(__circular_buffer&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>) :
+			constexpr __circular_buffer(__circular_buffer&& that)
+			noexcept(std::is_nothrow_move_constructible_v<allocator_type>) :
 				allocator_type(std::move(that)),
 				__base(that.__base),
 				__curr(that.__curr),
@@ -55,13 +69,27 @@ namespace ooos
 				{ that.__reset(); }
 			constexpr void __reset() noexcept { __base = __curr = __last = __bmax = pointer(); }
 			constexpr void __rewind() noexcept { __curr = __last = __base; }
-			constexpr void __flush() noexcept requires(__trivial) { this->__rewind(); if constexpr(std::is_default_constructible_v<value_type>) new(__curr) value_type(); }
 			constexpr size_type __capacity() const noexcept { return static_cast<size_type>(__bmax - __base); }
 			constexpr void __create(size_type n) { __base = allocator_type::allocate(n); __curr = __last = __base; __bmax = __base + n; }
 			constexpr reference __peek() noexcept { return *__curr; }
 			constexpr const_reference __peek() const noexcept { return *__curr; }
 			constexpr reference __peek_back() noexcept { return *pclamp(__last - 1Z, __curr, __last); }
 			constexpr const_reference __peek_back() const noexcept { return *pclamp(__last - 1Z, __curr, __last); }
+			constexpr void __flush() noexcept requires(__trivial)
+			{
+				this->__rewind();
+				if constexpr(std::is_default_constructible_v<value_type>)
+					new(__curr) value_type();
+			}
+			constexpr void __swap(__circular_buffer& that)
+			noexcept(std::is_nothrow_swappable_v<allocator_type> || !std::__has_swap_propagate<allocator_type>)
+			{
+				std::swap(this->__base, that.__base);
+				std::swap(this->__curr, that.__curr);
+				std::swap(this->__last, that.__last);
+				std::swap(this->__bmax, that.__bmax);
+				if constexpr(std::__has_swap_propagate<allocator_type>) std::swap<allocator_type>(*this, that);
+			}
 			constexpr __circular_buffer& operator=(__circular_buffer const& that) requires(__copy_assign || __copy_construct)
 			{
 				this->__destroy();
@@ -77,7 +105,8 @@ namespace ooos
 				}
 				return *this;
 			}
-			constexpr __circular_buffer& operator=(__circular_buffer&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
+			constexpr __circular_buffer& operator=(__circular_buffer&& that)
+			noexcept(std::is_nothrow_move_constructible_v<allocator_type>)
 			{
 				this->__destroy();
 				if constexpr(std::__has_move_propagate<allocator_type>)
@@ -299,6 +328,7 @@ namespace ooos
 		constexpr const_reference peek_back() const noexcept { return __buffer.__peek_back(); }
 		constexpr void bump(size_type n) noexcept { __buffer.__adv_pop(n); }
 		constexpr void flush() noexcept requires(__trivial) { __buffer.__flush(); }
+		constexpr void swap(circular_queue& that) noexcept(noexcept(this->__buffer.__swap(std::declval<__circular_buffer&>()))) { this->__buffer.__swap(that.__buffer); }
 		template<typename ... Args> requires(std::constructible_from<value_type, Args...>)
 		constexpr void emplace(Args&& ... args) {
 			create_if_empty(4UZ);
