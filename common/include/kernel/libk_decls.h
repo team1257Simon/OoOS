@@ -53,6 +53,10 @@ template<typename T> concept nontrivial_copy	= !trivial_copy<T> && std::is_copy_
 template<typename T> concept trivial_move		= std::is_trivially_move_constructible_v<T>;
 template<typename T> concept nontrivial_move	= !trivial_move<T> && std::is_move_constructible_v<T>;
 template<typename T> concept standard_layout	= std::is_standard_layout_v<T>;
+template<typename T> concept qword_size			= (sizeof(T) == sizeof(uint64_t));
+template<typename T> concept dword_size			= (sizeof(T) == sizeof(uint32_t));
+template<typename T> concept word_size			= (sizeof(T) == sizeof(uint16_t));
+template<typename T> concept byte_size			= (sizeof(T) == sizeof(uint8_t));
 template<typename T, typename U>
 concept equality_comparable_to = requires
 {
