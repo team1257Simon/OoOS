@@ -70,6 +70,7 @@ namespace ooos
 		inline virtual generic_config_table& get_config() { return empty_config; }
 		inline abstract_module_base* tie_api_mm(kernel_api* api, kmod_mm* mm) { if(!__api_hooks && !__allocated_mm && api && mm) { __api_hooks = api; __allocated_mm = mm; } return this; }
 		inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
+		inline void* map_dma(uintptr_t addr, size_t size, bool prefetchable) { return __api_hooks->map_dma(addr, size, prefetchable); }
 		inline void* allocate_buffer(size_t size, size_t align) { return __allocated_mm->mem_allocate(size, align); }
 		inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) { return __allocated_mm->mem_resize(orig, old_size, target_size, align); }
 		inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
