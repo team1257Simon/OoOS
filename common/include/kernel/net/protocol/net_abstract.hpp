@@ -80,6 +80,7 @@ struct protocol_ethernet : abstract_protocol_handler
 	virtual int receive(abstract_packet_base& p);
 	virtual ~protocol_ethernet();
 	protocol_ethernet(abstract_ip_resolver* ip_res, std::function<int(abstract_packet_base&)>&& tx_fn, mac_t const& mac);
+	protocol_ethernet(net_device* dev);
 };
 template<std::derived_from<abstract_protocol_handler> T, typename ... Args> requires(std::constructible_from<T, Args...>) protocol_handler create_handler(Args&& ... args) { return protocol_handler(std::move(std::ext::make_dynamic<T>(std::forward<Args>(args)...))); }
 std::string stringify(mac_t const& mac);

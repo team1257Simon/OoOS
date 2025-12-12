@@ -116,7 +116,6 @@ constexpr std::array<std::invoke_result_t<FT, IT>, sizeof...(Is)> sequence_trans
 template<std::integral IT, typename FT, IT I> 
 requires(std::is_invocable_v<FT, IT> && !std::is_void_v<std::invoke_result_t<FT, IT>>)
 constexpr std::array<std::invoke_result_t<FT, IT>, static_cast<size_t>(I)> sequence_transform(FT&& f, std::integral_constant<IT, I>) {
-	typedef std::array<std::invoke_result_t<FT, IT>, static_cast<size_t>(I)> result_type;
 	return sequence_transform(std::forward<FT>(f), std::make_integer_sequence<IT, I>());
 }
 #endif

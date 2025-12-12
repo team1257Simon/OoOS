@@ -1,5 +1,6 @@
 #include <net/netstack_buffer.hpp>
 #include <net/protocol/ipv4.hpp>
+#include <net/netdev.hpp>
 #include <stdexcept>
 net16 netstack_buffer::rx_packet_type() const { return reinterpret_cast<ethernet_header const*>(__in_region.__begin)->protocol_type; }
 size_t netstack_buffer::ipv4_size() const { return reinterpret_cast<ipv4_standard_header const*>(__in_region.__begin)->total_length; }
@@ -49,6 +50,7 @@ std::streamsize netstack_buffer::xsgetn(char* s, size_type n)
 	gbump(n);
 	return n;
 }
+netstack_buffer::netstack_buffer(net_device* dev) : netstack_buffer(dev->rx_limit(), dev->tx_limit(), std::bind(&net_device::rx_transfer, dev, std::placeholders::_1), std::bind(&net_device::poll_tx, dev, std::placeholders::_1), dev->rx_limit(), dev->tx_limit()) {}
 netstack_buffer::netstack_buffer() :
 	rx_poll		{},
 	tx_poll		{},

@@ -1,7 +1,7 @@
 #include <net/netdev.hpp>
 #include <sys/errno.h>
 net_device::~net_device() = default;
-net_device::net_device() : arp_handler(std::addressof(base_handler)), base_handler(std::addressof(arp_handler), std::move(std::bind(&net_device::transmit, this, std::placeholders::_1)), mac_addr) {}
+net_device::net_device() : arp_handler(std::addressof(base_handler)), base_handler(this) {}
 protocol_handler& net_device::add_protocol(net16 id, protocol_handler&& ph) { return base_handler.handlers.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(std::move(ph))).first->second; }
 int net_device::transmit(abstract_packet_base& p)
 {
@@ -33,11 +33,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 }
 bool net_device::initialize()
 {	
-	tx_bind tx_poll = std::bind(&net_device::poll_tx, this, std::placeholders::_1);
-	rx_bind rx_poll = std::bind(&net_device::rx_transfer, this, std::placeholders::_1);
-	size_t rx_size	= rx_limit();
-	size_t tx_size	= tx_limit();
 	size_t count	= buffer_count();
-	for(size_t i = 0UZ; i < count; i++) transfer_buffers.emplace(rx_size, tx_size, rx_poll, tx_poll, rx_size, tx_size);
+	for(size_t i = 0UZ; i < count; i++) transfer_buffers.emplace(this);
 	return init_dev();
 }

@@ -884,7 +884,7 @@ typedef struct __s_le16
 	constexpr __s_le16 operator++(int) noexcept { __s_le16 that(*this); ++(*this); return that; }
 	constexpr __s_le16& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
 	constexpr __s_le16 operator--(int) noexcept { __s_le16 that(*this); --(*this); return that; }
-	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint16_t, *this) & (1US << i)); }
+	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint16_t, *this) & (static_cast<uint16_t>(1) << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i % 8); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i % 8); }
 	constexpr bool btc(int i) volatile noexcept { return (i >= 8 ? hi : lo).btc(i % 8); }

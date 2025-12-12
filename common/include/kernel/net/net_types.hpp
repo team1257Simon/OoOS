@@ -78,4 +78,5 @@ struct ipv4_config
 	uint8_t time_to_live_tcp_default;
 	ipv4_client_state current_state;
 };
+class net_device;
 #endif

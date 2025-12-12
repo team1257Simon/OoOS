@@ -4,6 +4,7 @@
 #include <bits/stl_queue.hpp>
 class net_device
 {
+	friend class netstack_buffer;
 	friend void net_tests();
 protected:
 	mac_t mac_addr;
@@ -19,10 +20,10 @@ protected:
 	virtual size_t buffer_count() const noexcept	= 0;
 	virtual int poll_rx()							= 0;
 	virtual int poll_tx(netstack_buffer& buff)		= 0;
-	virtual int transmit(abstract_packet_base& p);
 public:
 	net_device();
 	virtual ~net_device();
+	virtual int transmit(abstract_packet_base& p);
 	virtual void enable_transmit()				= 0;
 	virtual void enable_receive()				= 0;
 	virtual void disable_transmit()				= 0;
@@ -30,12 +31,10 @@ public:
 	bool initialize();
 	protocol_handler& add_protocol(net16 id, protocol_handler&& ph);
 	constexpr protocol_ethernet* get_ethernet_handler() { return std::addressof(base_handler); }
+	constexpr abstract_ip_resolver* get_ip_resolver() { return std::addressof(arp_handler); }
 	constexpr mac_t const& get_mac_addr() const { return mac_addr; }
 	template<std::derived_from<abstract_protocol_handler> PT> requires(std::constructible_from<PT, protocol_ethernet*>)
 	inline PT& add_protocol_handler(net16 id) { return add_protocol(id, std::move(create_handler<PT>(std::addressof(base_handler)))).template cast<PT>(); }
 	// ...
-private:
-	typedef decltype(std::bind(&net_device::poll_tx, std::declval<net_device*>(), std::placeholders::_1)) tx_bind;
-	typedef decltype(std::bind(&net_device::rx_transfer, std::declval<net_device*>(), std::placeholders::_1)) rx_bind;
 };
 #endif
