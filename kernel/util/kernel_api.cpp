@@ -1,4 +1,4 @@
-#include <module.hpp>
+#include <net/netdev_module.hpp>
 #include <kernel_mm.hpp>
 #include <arch/pci_device_list.hpp>
 #include <device_registry.hpp>
@@ -6,6 +6,7 @@
 #include <bits/hash_set.hpp>
 #include <stdexcept>
 #include <stdlib.h>
+#include <errno.h>
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
 using namespace ABI_NAMESPACE;
 struct vtable_header
@@ -56,6 +57,62 @@ namespace ooos
 		virtual ~kmod_mm_impl();
 		kmod_mm_impl();
 	};
+	struct netdev_api_helper_impl : public netdev_api_helper
+	{
+		abstract_netdev_module& mod;
+		std::ext::resettable_queue<netstack_buffer> transfer_buffers;
+		virtual int rx_transfer(netstack_buffer& b) noexcept override;
+		virtual int transmit(abstract_packet_base& p) override;
+		virtual bool construct_transfer_buffers() override;
+		virtual protocol_arp& get_arp() noexcept override { return arp_handler; }
+		virtual protocol_ethernet& get_ethernet() noexcept override { return ethernet_handler; }
+		virtual std::ext::resettable_queue<netstack_buffer>& get_transfer_buffers() noexcept override { return transfer_buffers; }
+		virtual protocol_handler& add_protocol(net16 id, protocol_handler&& ph) override { return ethernet_handler.handlers.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(std::move(ph))).first->second; }
+		virtual ~netdev_api_helper_impl() = default;
+		netdev_api_helper_impl(abstract_netdev_module& dev) : netdev_api_helper(dev.get_mac_addr()), mod(dev) {}
+	};
+	bool netdev_api_helper_impl::construct_transfer_buffers()
+	{
+		try
+		{
+			size_t count	= mod.buffer_count();
+			size_t rx_sz	= mod.rx_limit();
+			size_t tx_sz	= mod.tx_limit();
+			auto rx_bind	= std::bind(&netdev_helper::rx_transfer, this, std::placeholders::_1);
+			auto tx_bind = std::bind(&abstract_netdev_module::poll_tx, std::addressof(mod), std::placeholders::_1);
+			for(size_t i	= 0UZ; i < count; i++) transfer_buffers.emplace(rx_sz, tx_sz, rx_bind, tx_bind, rx_sz, tx_sz);
+			return true;
+		}
+		catch(...) { return false; }
+	}
+	int netdev_api_helper_impl::transmit(abstract_packet_base& p)
+	{
+		if(transfer_buffers.at_end()) transfer_buffers.restart();
+		netstack_buffer& buffer	= transfer_buffers.pop();
+		int err					= p.write_to(buffer);
+		if(__unlikely(err != 0)) return err;
+		return buffer.tx_flush();
+	}
+	int netdev_api_helper_impl::rx_transfer(netstack_buffer& b) noexcept
+	{
+		try
+		{
+			abstract_packet<ethernet_header> p(b);
+			if(p->protocol_type == ethertype_arp)
+			{
+				p.packet_type	= arp_handler.packet_type();
+				if(int err		= arp_handler.receive(p); __unlikely(err != 0)) return err;
+				return 0;
+			}
+			int result			= ethernet_handler.receive(p);
+			if(!result) return 0;
+			if(result == -EPROTONOSUPPORT) { mod.logf("W: unrecognized protocol"); return 0; }
+			return result;
+		}
+		catch(std::bad_alloc&)		{ return -ENOMEM; }
+		catch(std::bad_cast&)		{ return -EPROTO; }
+		catch(std::exception& e)	{ mod.logf(e.what()); return -EINVAL; }
+	}
 	static struct : kernel_api
 	{
 		kernel_memory_mgr* mm	= std::addressof(kmm);
@@ -73,9 +130,19 @@ namespace ooos
 		virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
 		virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
 		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))), local_si, local_vmi); }
+		virtual uintptr_t vtranslate(void* addr) noexcept override { return translate_vaddr(addr); }
 		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override {
 			try { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
-			catch(...) { owner->raise_error("out of memory"); }
+			catch(...) { owner->raise_error("out of memory", -ENOMEM); }
+		}
+		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod) override
+		{
+			void* ptr	= mod.allocate_buffer(sizeof(netdev_api_helper_impl), alignof(netdev_api_helper_impl));
+			if(__unlikely(!ptr)) {
+				mod.raise_error("bad_alloc", -ENOMEM);
+				__builtin_unreachable();
+			}
+			return new(ptr) netdev_api_helper_impl(mod);
 		}
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{
@@ -142,7 +209,7 @@ namespace ooos
 	kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm), first_managed_block(nullptr) {}
 	void* kmod_mm_impl::mem_allocate(size_t size, size_t align)
 	{
-		block_tag* tag = get_for_allocation(size ? size : 1UL, align);
+		block_tag* tag						= get_for_allocation(size ? size : 1UL, align);
 		if(!tag) throw std::bad_alloc();
 		lock(std::addressof(mod_mutex));
 		if(!first_managed_block)

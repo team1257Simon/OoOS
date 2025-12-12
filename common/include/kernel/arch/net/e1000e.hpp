@@ -464,9 +464,9 @@ protected:
 	virtual bool configure_tx(dev_status& st);
 	virtual bool configure_mac_phy(dev_status& st);
 	virtual bool init_dev() override;
-	virtual size_t rx_limit() const noexcept;
-	virtual size_t tx_limit() const noexcept;
-	virtual size_t buffer_count() const noexcept;
+	virtual size_t rx_limit() const noexcept override;
+	virtual size_t tx_limit() const noexcept override;
+	virtual size_t buffer_count() const noexcept override;
 	bool configure_interrupts(dev_status& st);
 	bool dev_reset();
 	void read_status(dev_status& st);

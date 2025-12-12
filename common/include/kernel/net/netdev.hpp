@@ -1,40 +1,23 @@
 #ifndef __NETDEV
 #define __NETDEV
 #include <net/protocol/arp.hpp>
-#include <bits/stl_queue.hpp>
-class net_device
+class net_device : public netdev_helper, public abstract_netdev
 {
 	friend class netstack_buffer;
 	friend void net_tests();
 protected:
-	mac_t mac_addr;
 	std::ext::resettable_queue<netstack_buffer> transfer_buffers;
-	protocol_arp arp_handler;
-	protocol_ethernet base_handler;
-	int rx_transfer(netstack_buffer&) noexcept;
+	virtual int rx_transfer(netstack_buffer&) noexcept final;
 	constexpr void* tx_base(std::ext::resettable_queue<netstack_buffer>::iterator i) { return i->pbase(); }
 	constexpr void* rx_base(std::ext::resettable_queue<netstack_buffer>::iterator i) { return i->eback(); }
-	virtual bool init_dev()							= 0;
-	virtual size_t rx_limit() const noexcept		= 0;
-	virtual size_t tx_limit() const noexcept		= 0;
-	virtual size_t buffer_count() const noexcept	= 0;
-	virtual int poll_rx()							= 0;
-	virtual int poll_tx(netstack_buffer& buff)		= 0;
 public:
 	net_device();
+	virtual int transmit(abstract_packet_base& p) final;
 	virtual ~net_device();
-	virtual int transmit(abstract_packet_base& p);
-	virtual void enable_transmit()				= 0;
-	virtual void enable_receive()				= 0;
-	virtual void disable_transmit()				= 0;
-	virtual void disable_receive()				= 0;
 	bool initialize();
-	protocol_handler& add_protocol(net16 id, protocol_handler&& ph);
-	constexpr protocol_ethernet* get_ethernet_handler() { return std::addressof(base_handler); }
-	constexpr abstract_ip_resolver* get_ip_resolver() { return std::addressof(arp_handler); }
-	constexpr mac_t const& get_mac_addr() const { return mac_addr; }
+	virtual protocol_handler& add_protocol(net16 id, protocol_handler&& ph) final;
 	template<std::derived_from<abstract_protocol_handler> PT> requires(std::constructible_from<PT, protocol_ethernet*>)
-	inline PT& add_protocol_handler(net16 id) { return add_protocol(id, std::move(create_handler<PT>(std::addressof(base_handler)))).template cast<PT>(); }
+	inline PT& add_protocol_handler(net16 id) { return add_protocol(id, std::move(create_handler<PT>(std::addressof(ethernet_handler)))).template cast<PT>(); }
 	// ...
 };
 #endif

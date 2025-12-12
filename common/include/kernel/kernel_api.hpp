@@ -4,6 +4,8 @@
 #include <fs/dev_stream.hpp>
 #include <arch/pci.hpp>
 #include <typeinfo>
+#include <net/protocol/arp.hpp>
+#include <bits/stl_queue.hpp>
 struct kframe_tag;
 struct kframe_exports;
 #ifndef __HAVE_ALIGNED_REALLOCATE
@@ -253,6 +255,8 @@ namespace ooos
 		constexpr void operator()() { if(!__empty()) __my_invoke(__my_actor); }
 		constexpr std::type_info const& target_type() const noexcept { if(__my_manager) { functor_store tmp_store; __my_manager(tmp_store, __my_actor, __my_alloc, get_type_info); if(std::type_info const* result = tmp_store.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
 	};
+	struct netdev_api_helper;
+	class abstract_netdev_module;
 	struct kernel_api
 	{
 		friend class abstract_module_base;
@@ -260,6 +264,7 @@ namespace ooos
 		virtual void release_dma(void* ptr, size_t size) 																				= 0;
 		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) 												= 0;
 		virtual void* acpi_get_table(const char* label) 																				= 0;
+		virtual uintptr_t vtranslate(void* addr) noexcept																				= 0;
 		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) 												= 0;
 		virtual void remove_actors(abstract_module_base* owner) 																		= 0;
 		virtual kmod_mm* create_mm() 																									= 0;
@@ -269,6 +274,7 @@ namespace ooos
 		virtual bool deregister_device(dev_stream<char>* stream) 																		= 0;
 		virtual void init_memory_fns(kframe_exports* ptrs) 																				= 0;
 		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) 											= 0;
+		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod)											= 0;
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) 											= 0;
 		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) 												= 0;
 	protected:
@@ -483,6 +489,38 @@ namespace ooos
 		int status;
 		const char* msg;
 	};
+	struct cxxabi_abort
+	{
+		module_eh_ctx* eh_ctx;
+		kernel_api* api;
+		const char* abort_msg;
+		const char* pv_msg;
+		[[noreturn]] inline void terminate() { api->ctx_raise(*eh_ctx, abort_msg, -1); __builtin_unreachable(); }
+		[[noreturn]] inline void pure_virt() { api->ctx_raise(*eh_ctx, pv_msg, -1); __builtin_unreachable(); }
+	};
+	template<typename T> constexpr T* pclamp(T* p, T* __min, T* __max) noexcept { return p < __min ? __min : p > __max ? __max : p; }
+	extension template<typename T, std::allocator_object<T> AT = std::allocator<T>>
+	[[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
+	{
+		if(__unlikely(!array)) return alloc.allocate(ncount);
+		if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
+		if constexpr(!std::is_trivially_destructible_v<T>)
+		{
+			T* result 		= alloc.allocate(ncount);
+			size_t ccount 	= ncount < ocount ? ncount : ocount;
+			copy_or_move(result, array, ccount);
+			alloc.deallocate(array, ocount);
+			return result;
+		}
+		else return static_cast<T*>(std::__detail::__aligned_reallocate(array, ncount, alignof(T)));
+	}
+	template<typename IT, __internal::__transfer_fn<decltype(*std::declval<IT>())> FT>
+	constexpr IT transform(IT start, IT end, FT&& fn) noexcept(noexcept(fn(*start)))
+	{
+		IT i;
+		for(i = start; i != end; i++) *i = fn(*i);
+		return i;
+	}
 	enum class blockdev_type : uint8_t
 	{
 		BDT_NONE	= 0UC,  // Unknown or no device
@@ -526,70 +564,14 @@ namespace ooos
 		inline virtual blockdev_type device_type() const noexcept override { return BDT_NONE; }
 		inline virtual size_t max_operation_blocks() const noexcept override { return 0UZ; }
 	};
-	struct cxxabi_abort
+	struct netdev_api_helper : public netdev_helper
 	{
-		module_eh_ctx* eh_ctx;
-		kernel_api* api;
-		const char* abort_msg;
-		const char* pv_msg;
-		[[noreturn]] inline void terminate() { api->ctx_raise(*eh_ctx, abort_msg, -1); __builtin_unreachable(); }
-		[[noreturn]] inline void pure_virt() { api->ctx_raise(*eh_ctx, pv_msg, -1); __builtin_unreachable(); }
+		virtual bool construct_transfer_buffers() = 0;
+		virtual protocol_arp& get_arp() noexcept = 0;
+		virtual protocol_ethernet& get_ethernet() noexcept = 0;
+		virtual std::ext::resettable_queue<netstack_buffer>& get_transfer_buffers() noexcept = 0;
+		virtual ~netdev_api_helper() = default;
+		inline netdev_api_helper(mac_t const& mac) : netdev_helper(mac) {}
 	};
-	template<typename T> constexpr T* pclamp(T* p, T* __min, T* __max) noexcept { return p < __min ? __min : p > __max ? __max : p; }
-	extension template<typename T, std::allocator_object<T> AT = std::allocator<T>>
-	[[nodiscard]]
-	constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc)
-	{
-		if(__unlikely(!array)) return alloc.allocate(ncount);
-		if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
-		if constexpr(!std::is_trivially_destructible_v<T>)
-		{
-			T* result 		= alloc.allocate(ncount);
-			size_t ccount 	= ncount < ocount ? ncount : ocount;
-			copy_or_move(result, array, ccount);
-			alloc.deallocate(array, ocount);
-			return result;
-		}
-		else return static_cast<T*>(std::__detail::__aligned_reallocate(array, ncount, alignof(T)));
-	}
-	template<typename IT, __internal::__transfer_fn<decltype(*std::declval<IT>())> FT>
-	constexpr IT transform(IT start, IT end, FT&& fn) noexcept(noexcept(fn(*start)))
-	{
-		IT i;
-		for(i = start; i != end; i++) *i = fn(*i);
-		return i;
-	}
-	template<__internal::__basic_char_type CT, size_t N>
-	struct basic_string_initializer
-	{
-		typedef CT char_type;
-		typedef CT* iterator;
-		typedef CT const* const_iterator;
-	private:
-		constexpr static size_t __length = static_cast<size_t>(N - 1Z);
-		char_type __str[N];
-	public:
-		constexpr basic_string_initializer() noexcept	= default;
-		constexpr ~basic_string_initializer() noexcept	= default;
-		constexpr basic_string_initializer(char_type (&&str)[N]) noexcept : __str() { array_init(__str, str, N); }
-		constexpr basic_string_initializer(char_type const (&str)[N]) noexcept : __str() { array_init(__str, str, N); }
-		constexpr size_t size() const noexcept { return __length; }
-		constexpr CT* data() noexcept { return __str; }
-		constexpr CT const* data() const noexcept { return __str; }
-		constexpr iterator begin() noexcept { return __str; }
-		constexpr const_iterator begin() const noexcept { return __str; }
-		constexpr const_iterator cbegin() const noexcept { return __str; }
-		constexpr iterator end() noexcept { return __str + N; }
-		constexpr const_iterator end() const noexcept { return __str + N; }
-		constexpr const_iterator cend() const noexcept { return __str + N; }
-	};
-	template<__internal::__basic_char_type CT, size_t M, size_t N>
-	constexpr basic_string_initializer<CT, M + N - 1Z> operator+(basic_string_initializer<CT, M> const& __this, basic_string_initializer<CT, N> const& __that) noexcept
-	{
-		basic_string_initializer<CT, M + N - 1Z> result{};
-		array_init(result.data(), __this.data(), M);
-		array_init(result.data() + __this.size(), __that.data(), N);
-		return result;
-	}	
 }
 #endif

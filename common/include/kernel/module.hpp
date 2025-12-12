@@ -76,6 +76,7 @@ namespace ooos
 		inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, size); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
 		inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
+		inline uintptr_t vtranslate(void* ptr) noexcept { return __api_hooks->vtranslate(ptr); }
 		[[noreturn]] inline void raise_error(const char* msg, int code = -1) { __api_hooks->ctx_raise(__eh_ctx, msg, code); __builtin_unreachable(); }
 		inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
 		inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
@@ -133,6 +134,12 @@ namespace ooos
 		va_end(args);
 		return result;
 	}
+	struct eh_exit_guard
+	{
+		abstract_module_base* mod;
+		constexpr void release() noexcept { mod = nullptr; }
+		constexpr ~eh_exit_guard() noexcept { mod->ctx_end(); }
+	};
 	template<io_buffer_ok T>
 	struct io_module_base : public abstract_module_base, public dev_stream<T>
 	{
@@ -256,11 +263,5 @@ namespace ooos
 			in.seek(where);
 		return out.size() * (ioflags & 0x04 ? 1 : 0) + in.size() * (ioflags & 0x08 ? 1 : 0);
 	}
-	struct eh_exit_guard
-	{
-		abstract_module_base* mod;
-		constexpr void release() noexcept { mod = nullptr; }
-		constexpr ~eh_exit_guard() noexcept { mod->ctx_end(); }
-	};
 }
 #endif

@@ -255,7 +255,7 @@ bool e1000e::configure_tx(dev_status& st)
 {
 	std::ext::resettable_queue<netstack_buffer>::iterator i = transfer_buffers.begin();
 	for(e1000e_transmit_descriptor* d = tx_ring.descriptors; d < tx_ring.max_descriptor; d++, i++)
-		new(d) e1000e_transmit_descriptor{ .buffer_addr{ translate_vaddr(tx_base(i)) } };
+		new(d) e1000e_transmit_descriptor{ .buffer_addr{ translate_vaddr(i->tx_base()) } };
 	uint32_t tx_tail		= static_cast<uint32_t>(tx_ring.max_descriptor - tx_ring.descriptors);
 	qword txbase			= reinterpret_cast<uintptr_t>(tx_ring.descriptors);
 	uint32_t tx_total_len	= tx_tail * 16U;
@@ -295,7 +295,7 @@ bool e1000e::configure_rx(dev_status& st)
 {
 	std::ext::resettable_queue<netstack_buffer>::iterator i = transfer_buffers.begin();
 	for(e1000e_receive_descriptor* d = rx_ring.descriptors; d < rx_ring.max_descriptor; d++, i++) 
-		new(d) e1000e_receive_descriptor{ .read{ .buffer_addr{ translate_vaddr(rx_base(i)) } } };
+		new(d) e1000e_receive_descriptor{ .read{ .buffer_addr{ translate_vaddr(i->rx_base()) } } };
 	rx_ring.tail_descriptor	= static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.descriptors) / e1000_rxtxdesclen_base;
 	qword rxbase			= reinterpret_cast<uintptr_t>(rx_ring.descriptors);
 	uint32_t rx_total_len	= rx_ring.tail_descriptor * e1000_rxtxdesclen_base * sizeof(e1000e_receive_descriptor);

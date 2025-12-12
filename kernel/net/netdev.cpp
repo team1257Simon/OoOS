@@ -1,8 +1,8 @@
 #include <net/netdev.hpp>
 #include <sys/errno.h>
 net_device::~net_device() = default;
-net_device::net_device() : arp_handler(*this), base_handler(*this) {}
-protocol_handler& net_device::add_protocol(net16 id, protocol_handler&& ph) { return base_handler.handlers.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(std::move(ph))).first->second; }
+net_device::net_device() : netdev_helper(mac_addr), transfer_buffers() {}
+protocol_handler& net_device::add_protocol(net16 id, protocol_handler&& ph) { return ethernet_handler.handlers.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(std::move(ph))).first->second; }
 int net_device::transmit(abstract_packet_base& p)
 {
 	if(transfer_buffers.at_end()) transfer_buffers.restart();
@@ -22,7 +22,7 @@ int net_device::rx_transfer(netstack_buffer& b) noexcept
 			if(int err		= arp_handler.receive(p); __unlikely(err != 0)) return err;
 			return 0;
 		}
-		int result = base_handler.receive(p);
+		int result = ethernet_handler.receive(p);
 		if(!result) return 0;
 		if(result == -EPROTONOSUPPORT) { klog("[net_device] W: unrecognized protocol"); return 0; }
 		return result;

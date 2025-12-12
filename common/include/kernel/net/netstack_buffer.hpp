@@ -27,5 +27,7 @@ public:
 	netstack_buffer();
 	netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type tx_limit, size_type rx_limit);
 	[[gnu::__nonnull__]] netstack_buffer(net_device* dev);
+	constexpr void* tx_base() { return pbase(); }
+	constexpr void* rx_base() { return eback(); }
 };
 #endif

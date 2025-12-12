@@ -42,11 +42,21 @@ extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_p
 struct protocol_arp : abstract_protocol_handler, abstract_ip_resolver
 {
 	protocol_arp(protocol_ethernet* eth);
-	protocol_arp(net_device& dev);
 	virtual ~protocol_arp();
 	virtual int receive(abstract_packet_base& p) override;
 	virtual std::type_info const& packet_type() const override;
 	virtual mac_t& resolve(ipv4_addr addr) override;
 	virtual bool check_presence(ipv4_addr addr);
+};
+struct netdev_helper
+{
+	protocol_arp arp_handler;
+	protocol_ethernet ethernet_handler;
+	netdev_helper(mac_t const&);
+	virtual int rx_transfer(netstack_buffer&) noexcept = 0;
+	virtual int transmit(abstract_packet_base&) = 0;
+	virtual protocol_handler& add_protocol(net16 id, protocol_handler&& ph) = 0;
+	constexpr protocol_ethernet* get_ethernet_handler() { return std::addressof(ethernet_handler); }
+	constexpr abstract_ip_resolver* get_ip_resolver() { return std::addressof(arp_handler); }
 };
 #endif

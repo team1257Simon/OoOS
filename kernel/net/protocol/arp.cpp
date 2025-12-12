@@ -26,7 +26,6 @@ arpv4_packet::arpv4_packet(mac_t const &dst, mac_t const &src, net16 op, net32 d
 protocol_arp::~protocol_arp() = default;
 std::type_info const& protocol_arp::packet_type() const { return typeid(arpv4_packet); }
 protocol_arp::protocol_arp(protocol_ethernet* eth) : abstract_protocol_handler(eth, eth), abstract_ip_resolver() {}
-protocol_arp::protocol_arp(net_device& dev) : protocol_arp(dev.get_ethernet_handler()) {}
 int protocol_arp::receive(abstract_packet_base& p)
 {
 	arpv4_packet* pkt	= p.get_as<arpv4_packet>();

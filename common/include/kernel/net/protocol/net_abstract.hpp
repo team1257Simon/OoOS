@@ -5,7 +5,27 @@
 #include <bits/in_place_t.hpp>
 #include <bits/aligned_buffer.hpp>
 #include <net/netstack_buffer.hpp>
+#include <bits/stl_queue.hpp>
 #include <net/net_types.hpp>
+class netdev_helper;
+class abstract_netdev
+{
+	protected:
+		mac_t mac_addr;
+	public:
+		virtual bool init_dev()							= 0;
+		virtual size_t rx_limit() const noexcept		= 0;
+		virtual size_t tx_limit() const noexcept		= 0;
+		virtual size_t buffer_count() const noexcept	= 0;
+		virtual int poll_rx()							= 0;
+		virtual int poll_tx(netstack_buffer& buff)		= 0;
+		virtual void enable_transmit()					= 0;
+		virtual void enable_receive()					= 0;
+		virtual void disable_transmit()					= 0;
+		virtual void disable_receive()					= 0;
+		virtual ~abstract_netdev() 						= default;
+		constexpr mac_t const& get_mac_addr() const noexcept { return mac_addr; }
+};
 struct abstract_packet_base
 {
 	void* packet_data;
@@ -80,6 +100,7 @@ struct protocol_ethernet : abstract_protocol_handler
 	virtual ~protocol_ethernet();
 	protocol_ethernet(abstract_ip_resolver* ip_res, std::function<int(abstract_packet_base&)>&& tx_fn, mac_t const& mac);
 	protocol_ethernet(net_device& dev);
+	protocol_ethernet(netdev_helper& dev, mac_t const& mac);
 	constexpr ethernet_header create_packet(mac_t const& dest) { return ethernet_header(dest, mac_addr); }
 };
 template<std::derived_from<abstract_protocol_handler> T, typename ... Args> requires(std::constructible_from<T, Args...>) protocol_handler create_handler(Args&& ... args) { return protocol_handler(std::move(std::ext::make_dynamic<T>(std::forward<Args>(args)...))); }
