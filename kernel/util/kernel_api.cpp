@@ -6,7 +6,6 @@
 #include <bits/hash_set.hpp>
 #include <stdexcept>
 #include <stdlib.h>
-#include <errno.h>
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
 using namespace ABI_NAMESPACE;
 struct vtable_header
@@ -137,33 +136,40 @@ namespace ooos
 			catch(...) { owner->raise_error("out of memory", -ENOMEM); }
 		}
 		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod) override
-		{
-			void* ptr	= mod.allocate_buffer(sizeof(netdev_api_helper_impl), alignof(netdev_api_helper_impl));
-			if(__unlikely(!ptr)) {
+		{ 
+			try { return new(mod.allocate_buffer(sizeof(netdev_api_helper_impl), alignof(netdev_api_helper_impl))) netdev_api_helper_impl(mod); }
+			catch(...) {
 				mod.raise_error("bad_alloc", -ENOMEM);
 				__builtin_unreachable();
 			}
-			return new(ptr) netdev_api_helper_impl(mod);
 		}
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) override
 		{
-			char* result	= nullptr;
-			size_t count	= kvasprintf(std::addressof(result), fmt, args);
-			if(!count) return 0UZ;
-			char* str		= static_cast<char*>(mm->mem_allocate(count, alignof(char)));
-			array_copy(str, result, count);
-			free(result);
-			out			 	= str;
-			return count;
+			try
+			{
+				char* result	= nullptr;
+				size_t count	= kvasprintf(std::addressof(result), fmt, args);
+				if(!count) return 0UZ;
+				char* str		= static_cast<char*>(mm->mem_allocate(count, alignof(char)));
+				array_copy(str, result, count);
+				free(result);
+				out			 	= str;
+				return count;
+			}
+			catch(...) { panic("no memory"); return 0UZ; }
 		}
 		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args)
 		{
-			char* result	= nullptr;
-			size_t count	= kvasprintf(std::addressof(result), fmt, args);
-			if(!count) return 0UZ;
-			xklog("[" + std::ext::demangle(from) + "]: " + result);
-			free(result);
-			return count;
+			try
+			{
+				char* result	= nullptr;
+				size_t count	= kvasprintf(std::addressof(result), fmt, args);
+				if(!count) return 0UZ;
+				xklog("[" + std::ext::demangle(from) + "]: " + result);
+				free(result);
+				return count;
+			}
+			catch(...) { panic("no memory"); return 0UZ; }
 		}
 		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) override
 		{

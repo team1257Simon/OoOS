@@ -1,5 +1,4 @@
 #include "intel_e1000e.hpp"
-#include <errno.h>
 constexpr int rxbase_hi		= e1000_rdbah(0);
 constexpr int rxbase_lo		= e1000_rdbal(0);
 constexpr int rxlen			= e1000_rdlen(0);

@@ -1,6 +1,7 @@
 #ifndef __KMOD
 #define __KMOD
 #include <kernel_api.hpp>
+#include <errno.h>
 /**
  * EXPORT_MODULE(T, Args...)
  * All modules must invoke this macro exactly once in order to build properly.
@@ -17,9 +18,9 @@
 	namespace ooos																																						\
 	{																																									\
 		kernel_api* api_global;																																			\
-		static module_class* __local_inst_##module_class##_ptr;																										\
+		static module_class* __local_inst_##module_class##_ptr;																											\
 		template<> constexpr module_class*& local_instance_ptr<module_class>() { return __local_inst_##module_class##_ptr; }											\
-		ooos::abstract_module_base* module_instance() noexcept { return __local_inst_##module_class##_ptr; }																						\
+		ooos::abstract_module_base* module_instance() noexcept { return __local_inst_##module_class##_ptr; }															\
 	}																																									\
 	extern "C"																																							\
 	{																																									\
@@ -71,8 +72,8 @@ namespace ooos
 		inline abstract_module_base* tie_api_mm(kernel_api* api, kmod_mm* mm) { if(!__api_hooks && !__allocated_mm && api && mm) { __api_hooks = api; __allocated_mm = mm; } return this; }
 		inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
 		inline void* map_dma(uintptr_t addr, size_t size, bool prefetchable) { return __api_hooks->map_dma(addr, size, prefetchable); }
-		inline void* allocate_buffer(size_t size, size_t align) { return __allocated_mm->mem_allocate(size, align); }
-		inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) { return __allocated_mm->mem_resize(orig, old_size, target_size, align); }
+		inline void* allocate_buffer(size_t size, size_t align) try { return __allocated_mm->mem_allocate(size, align); } catch(...) { this->raise_error("bad_alloc", -ENOMEM); }
+		inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) try { return __allocated_mm->mem_resize(orig, old_size, target_size, align); } catch(...) { this->raise_error("bad_alloc", -ENOMEM); }
 		inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
 		inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, size); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
