@@ -268,6 +268,8 @@ namespace ooos
 		register_type(typeid(abstract_block_device));
 		register_type(typeid(abstract_block_device::provider));
 		register_type(typeid(block_io_provider_module));
+		register_type(typeid(abstract_netdev));
+		register_type(typeid(abstract_netdev_module));
 	}
 	kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
 }

@@ -1,10 +1,9 @@
-#ifndef __PCIE_GIGABIT_ETHERNET
-#define __PCIE_GIGABIT_ETHERNET
-#include <arch/pci.hpp>
+#ifndef __IE1000E
+#define __IE1000E
+#include "e1000e_constants.hpp"
+#include <net/netdev_module.hpp>
 #include <arch/simple_io_port.hpp>
-#include <kernel_mm.hpp>
-#include <net/netdev.hpp>
-#include <arch/net/e1000e_constants.hpp>
+typedef __int128 int128_t;
 struct attribute(packed, aligned(4)) e1000e_device_control_register
 {
 	bool full_duplex					: 1;
@@ -462,41 +461,116 @@ struct e1000e_offload_data_descriptor
 		} fields;
 	};
 };
-constexpr size_t max_single_tx_buffer	= 16288UZ;
-constexpr size_t max_single_rx_buffer	= 16384UZ;
+constexpr size_t max_single_tx_buffer		= 16288UZ;
+constexpr size_t max_single_rx_buffer		= 16384UZ;
+constexpr uint8_t device_class_e1000e		= 2UC;
+constexpr uint8_t device_subclass_e1000e	= 0UC;
 template<typename T>
 struct e1000e_ring
 {
-	std::allocator<T> alloc;
+	ooos::module_mm_allocator<T> alloc;
 	T* descriptors;
 	T* max_descriptor;
 	uint32_t head_descriptor;
 	uint32_t tail_descriptor;
+	constexpr e1000e_ring() noexcept = default;
+	constexpr e1000e_ring(ooos::abstract_module_base* mod) noexcept : alloc(mod), descriptors(), max_descriptor(), head_descriptor(), tail_descriptor() {}
 	constexpr T& tail() { return descriptors[tail_descriptor]; }
 	constexpr T& head() { return descriptors[head_descriptor]; }
 	constexpr size_t count() const { return static_cast<size_t>(max_descriptor - descriptors); }
-	constexpr e1000e_ring(size_t count_factor) : alloc(), descriptors(alloc.allocate(count_factor * e1000_rxtxdesclen_base)), max_descriptor(descriptors + count_factor * e1000_rxtxdesclen_base) {}
-	constexpr ~e1000e_ring() { if(descriptors && max_descriptor) alloc.deallocate(descriptors, count()); }
+	inline ~e1000e_ring() { if(descriptors && max_descriptor) alloc.deallocate(descriptors, count()); }
+	inline void create(size_t count_factor)
+	{
+		size_t n		= count_factor * e1000_rxtxdesclen_base;
+		descriptors		= alloc.allocate(n);
+		max_descriptor	= descriptors + n;
+	}
+	inline void destroy()
+	{
+		if(descriptors && max_descriptor)
+			alloc.deallocate(descriptors, count());
+		descriptors		= nullptr;
+		max_descriptor	= nullptr;
+	}
 };
-class e1000e : public net_device
+constexpr e1000e_tx_control_register tx_default
 {
-	bool __has_init;
+	.pad_short_packets			{ true },
+	.collision_threshold		{ 0x0FUC },
+	.collision_distance			{ 0x03UC },
+	.software_xoff				{ false },
+	.retransmit_late_collision	{ false },
+	.underrun_no_retransmit		{ false },
+	.tdtms						{ 0UC },
+	.multi_request_support		{ false }
+};
+constexpr e1000e_rx_control_register rx_default
+{
+	.store_bad_packets			{ true },
+	.unicast_promiscuous		{ true },
+	.multicast_promiscuous		{ true },
+	.long_packet_enable			{ true },
+	.loopback_mode				{ 0UC },
+	.rdtms						{ 0UC },
+	.desc_type					{ 0UC },
+	.multicast_offset			{ 0UC },
+	.broadcast_accept			{ true },
+	.buffer_size_shift			{ 1UC },
+	.vlan_filter_enable			{ false },
+	.canonical_form_enable		{ false },
+	.canonical_form_indicator	{ false },
+	.discard_pause_frames		{ false },
+	.pass_mac_control_frames	{ false },
+	.extended_buffer_size		{ true },
+	.strip_ethernet_crc			{ true },
+	.flex_buffer_size			{ 0UC },
+};
+constexpr e1000e_interrupt_enable_register irq_default
+{
+	.tx_desc_writeback			{ true },
+	.link_status_change			{ true },
+	.rx_seq_error				{ true },
+	.rxdt_min_thresh			{ true },
+	.rx_data_overrun			{ true },
+	.rx_timer					{ true },
+	.mdio_access_done			{ true },
+	.rx_ordered_sets			{ true },
+	.gpi0						{ true },
+	.gpi1						{ true },
+	.txdt_min_thresh			{ true },
+	.rx_small_receive			{ true },
+};
+constexpr auto e1000e_config()
+{
+	return ooos::create_config
+	(
+		ooos::parameter("descriptor_count_factor",	32UZ),
+		ooos::parameter("max_single_tx_buffer",		16288UZ),
+		ooos::parameter("max_single_rx_buffer",		16384UZ),
+		ooos::parameter("rx_config", 				rx_default),
+		ooos::parameter("tx_config", 				tx_default),
+		ooos::parameter("interrupt_config",			irq_default),
+		ooos::parameter("max_spin",					static_cast<time_t>(10000000UL))
+	);
+}
+class ie1000e : public ooos::abstract_netdev_module
+{
 	addr_t __mmio_region;
 	pci_config_space* __pcie_e1000e_controller;
 	simple_io_port<uint32_t> __io_addr_port;
 	simple_io_port<uint32_t> __io_data_port;
 	bool __mdio_await(mdic& mdic_reg);
-	friend void net_tests();
 protected:
 	e1000e_ring<e1000e_receive_descriptor> rx_ring;
 	e1000e_ring<e1000e_transmit_descriptor> tx_ring;
-	virtual bool configure_rx(dev_status& st);
-	virtual bool configure_tx(dev_status& st);
-	virtual bool configure_mac_phy(dev_status& st);
 	virtual bool init_dev() override;
+	virtual void fini_dev() override;
 	virtual size_t rx_limit() const noexcept override;
 	virtual size_t tx_limit() const noexcept override;
 	virtual size_t buffer_count() const noexcept override;
+	bool configure_rx(dev_status& st);
+	bool configure_tx(dev_status& st);
+	bool configure_mac_phy(dev_status& st);
 	bool configure_interrupts(dev_status& st);
 	bool dev_reset();
 	void read_status(dev_status& st);
@@ -510,13 +584,16 @@ protected:
 	uint16_t read_eeprom(uint16_t eep_addr);
 	void on_interrupt();
 public:
-	e1000e(pci_config_space* device, size_t descriptor_count_factor = 32UZ);
-	virtual ~e1000e();
+	typedef decltype(e1000e_config()) config_type;
+	static config_type cfg;
+	ie1000e(pci_config_space* device);
+	virtual ~ie1000e();
 	virtual void enable_transmit() override;
 	virtual void enable_receive() override;
 	virtual void disable_transmit() override;
 	virtual void disable_receive() override;
 	virtual int poll_tx(netstack_buffer& buff) override;
 	virtual int poll_rx() override;
+	virtual ooos::generic_config_table& get_config() override;
 };
 #endif

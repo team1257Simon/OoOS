@@ -43,7 +43,7 @@ EMUFLAGS := -rtc base=utc -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_C
 	-cpu max,+sse2,+sse4.1,+sse4.2,+sse4a,+ssse3 -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -smp cores=$(CORES) -device intel-iommu,intremap=on\
 	-netdev user,id=net0 -device e1000e,netdev=net0 -object filter-dump,id=f1,netdev=net0,file=dump.bin\
 	-monitor vc -serial stdio
-.PHONY: all $(SUBDIRS) asmtest clean distclean
+.PHONY: all $(SUBDIRS) asmtest asmtest_kernel clean distclean
 all: $(LOG_DIR) $(OUT_IMG)
 run: $(LOG_DIR) $(OUT_IMG)
 	$(EMULATE) $(EMUFLAGS) -drive file=$(OUT_IMG),if=ide,format=raw
@@ -76,3 +76,5 @@ asmtest: $(ATTR_PLUGIN)
 	cd kernel && $(MAKE) asmtest
 	cd modules && $(MAKE) asmtest
 	cd lib && $(MAKE) asmtest
+asmtest_kernel: $(ATTR_PLUGIN)
+	cd kernel && $(MAKE) asmtest

@@ -34,7 +34,7 @@ export PRE_OBJ_NAMES
 export POST_OBJ_NAMES
 export PRE_OBJS
 export POST_OBJS
-SUBDIRS = amd64_serial amd64_ahci
+SUBDIRS = amd64_serial amd64_ahci e1000e
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
 $(SUBDIRS):

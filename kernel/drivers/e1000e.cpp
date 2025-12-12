@@ -3,7 +3,6 @@
 #include <functional>
 #include <stdexcept>
 #include <errno.h>
-constexpr uint32_t all_ints	= 0x1F6DCU;
 constexpr int rxbase_hi		= e1000_rdbah(0);
 constexpr int rxbase_lo		= e1000_rdbal(0);
 constexpr int rxlen			= e1000_rdlen(0);
@@ -15,6 +14,24 @@ constexpr int txlen			= e1000_tdlen(0);
 constexpr int txh			= e1000_tdh(0);
 constexpr int txt			= e1000_tdt(0);
 constexpr int txdctl		= e1000_txdctl(0);
+constexpr irq_config all_ints
+{
+	.data_struct
+	{
+		.tx_desc_writeback			{ true },
+		.link_status_change			{ true },
+		.rx_seq_error				{ true },
+		.rxdt_min_thresh			{ true },
+		.rx_data_overrun			{ true },
+		.rx_timer					{ true },
+		.mdio_access_done			{ true },
+		.rx_ordered_sets			{ true },
+		.gpi0						{ true },
+		.gpi1						{ true },
+		.txdt_min_thresh			{ true },
+		.rx_small_receive			{ true },
+	}
+};
 constexpr std::alignas_allocator<char, int128_t> __buffer_alloc;
 void e1000e::read_status(dev_status& status) { read_dma(e1000_status, status); }
 size_t e1000e::rx_limit() const noexcept { return max_single_rx_buffer; }

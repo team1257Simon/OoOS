@@ -95,6 +95,56 @@ namespace ooos
 		inline size_t logf(const char* fmt, ...);
 		inline block_io_provider_module* as_blockdev();
 	};
+	template<typename T>
+	struct module_mm_allocator
+	{
+		typedef T value_type;
+		typedef T* pointer;
+		typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
+		typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
+		typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
+		typedef std::true_type propagate_on_container_move_assignment;
+		typedef std::true_type propagate_on_container_copy_assignment;
+		typedef std::true_type propagate_on_container_swap;
+		typedef decltype(sizeof(value_type)) size_type;
+		typedef decltype(alignof(value_type)) align_type;
+		typedef decltype(std::declval<pointer>() - std::declval<pointer>()) difference_type;
+		template<typename U> struct rebind { typedef module_mm_allocator<U> other; };
+	private:
+		constexpr static size_type __size_val				= sizeof(value_type);
+		constexpr static align_type __align_val				= alignof(value_type);
+		constexpr static std::align_val_t __std_align_val	= static_cast<std::align_val_t>(__align_val);
+		abstract_module_base* __opt_module;
+		[[gnu::always_inline]] inline void_pointer __allocate_n(size_type n) const
+		{
+			if(__unlikely(!n)) return nullptr;
+			if(__opt_module) return __opt_module->allocate_buffer(n * __size_val, __align_val);
+			else return operator new(__size_val, __std_align_val);
+		}
+		[[gnu::always_inline]] inline void __deallocate(pointer p, size_type n) const
+		{
+			if(__unlikely(!n || !p)) return;
+			if(__opt_module) __opt_module->release_buffer(p, n * __size_val);
+			else operator delete(p, n * __size_val, __std_align_val);
+		}
+		[[gnu::always_inline]] inline pointer __allocate(size_type n) const
+		{
+			pointer result	= static_cast<pointer>(this->__allocate_n(n));
+			if(result) array_zero(result, n);
+			return result;
+		}
+	public:
+		constexpr module_mm_allocator() noexcept = default;
+		constexpr ~module_mm_allocator() noexcept = default;
+		constexpr module_mm_allocator(abstract_module_base* mod) noexcept : __opt_module(mod) {}
+		constexpr module_mm_allocator(module_mm_allocator const&) noexcept = default;
+		constexpr module_mm_allocator(module_mm_allocator&&) noexcept = default;
+		constexpr module_mm_allocator& operator=(module_mm_allocator const&) = default;
+		constexpr module_mm_allocator& operator=(module_mm_allocator&&) = default;
+		template<typename U> constexpr module_mm_allocator(module_mm_allocator<U> const& that) noexcept : __opt_module(that.__opt_module) {}
+		[[nodiscard]] [[gnu::always_inline]] inline pointer allocate(size_type n) const { return this->__allocate(n); }
+		[[gnu::always_inline]] inline void deallocate(pointer p, size_type n) const { this->__deallocate(p, n); }
+	};
 	template<std::derived_from<abstract_module_base> MT> constexpr MT*& local_instance_ptr();
 	template<std::derived_from<abstract_module_base> MT> constexpr MT& instance() { return *local_instance_ptr<MT>(); }
 	struct block_io_provider_module : abstract_module_base, abstract_block_device::provider{};
