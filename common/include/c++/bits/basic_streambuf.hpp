@@ -21,7 +21,9 @@ namespace std
 		__ptr_container __out_region;
 		basic_streambuf() : __in_region(), __out_region() {}
 		basic_streambuf(basic_streambuf const&) = default;
+		basic_streambuf(basic_streambuf&&) = default;
 		basic_streambuf& operator=(basic_streambuf const&) = default;
+		basic_streambuf& operator=(basic_streambuf&&) = default;
 		char_type* eback() const	{ return __in_region.__begin;		}
 		char_type* gptr()	const	{ return __in_region.__end;			}
 		char_type* egptr() const	{ return __in_region.__max(); 		}

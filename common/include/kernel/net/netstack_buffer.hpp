@@ -19,13 +19,13 @@ protected:
 	virtual std::streamsize xsputn(const char* s, size_type n) override;
 	virtual std::streamsize xsgetn(char* s, size_type n) override;
 public:
-	int tx_flush();
-	int rx_flush();
-	net16 rx_packet_type() const;
-	size_t ipv4_size() const;
-	netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type tx_limit, size_type rx_limit);
+	virtual int tx_flush() final;
+	virtual int rx_flush() final;
+	virtual net16 rx_packet_type() const final;
+	virtual size_t ipv4_size() const final;
+	virtual void rx_accumulate(netstack_buffer& that) final;
 	netstack_buffer();
-	netstack_buffer(net_device* dev);
-	void rx_accumulate(netstack_buffer& that);
+	netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type tx_limit, size_type rx_limit);
+	[[gnu::__nonnull__]] netstack_buffer(net_device* dev);
 };
 #endif

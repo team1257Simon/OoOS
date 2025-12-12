@@ -42,6 +42,7 @@ extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_p
 struct protocol_arp : abstract_protocol_handler, abstract_ip_resolver
 {
 	protocol_arp(protocol_ethernet* eth);
+	protocol_arp(net_device& dev);
 	virtual ~protocol_arp();
 	virtual int receive(abstract_packet_base& p) override;
 	virtual std::type_info const& packet_type() const override;

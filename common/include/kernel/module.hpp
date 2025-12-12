@@ -17,9 +17,9 @@
 	namespace ooos																																						\
 	{																																									\
 		kernel_api* api_global;																																			\
-		static module_class* __local_inst_##module_class##__ptr;																										\
-		template<> constexpr module_class*& local_instance_ptr<module_class>() { return __local_inst_##module_class##__ptr; }											\
-		ooos::abstract_module_base* module_instance() noexcept { return __local_inst_##module_class##__ptr; }																						\
+		static module_class* __local_inst_##module_class##_ptr;																										\
+		template<> constexpr module_class*& local_instance_ptr<module_class>() { return __local_inst_##module_class##_ptr; }											\
+		ooos::abstract_module_base* module_instance() noexcept { return __local_inst_##module_class##_ptr; }																						\
 	}																																									\
 	extern "C"																																							\
 	{																																									\

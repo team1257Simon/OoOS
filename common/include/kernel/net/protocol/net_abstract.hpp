@@ -51,7 +51,7 @@ struct abstract_ip_resolver
 	virtual ~abstract_ip_resolver();
 	virtual mac_t& resolve(ipv4_addr addr)		= 0;
 	virtual bool check_presence(ipv4_addr addr)	= 0;
-	mac_t const& operator[](ipv4_addr addr);
+	virtual mac_t const& operator[](ipv4_addr addr);
 };
 struct protocol_ethernet;
 struct abstract_protocol_handler
@@ -74,13 +74,13 @@ struct protocol_ethernet : abstract_protocol_handler
 	protocol_handler_map<uint16_t> handlers;
 	mac_t const& mac_addr;
 	ipv4_config* ipv4_client_config;
-	ethernet_header create_packet(mac_t const& dest);
 	virtual std::type_info const& packet_type() const;
 	virtual int transmit(abstract_packet_base& p);
 	virtual int receive(abstract_packet_base& p);
 	virtual ~protocol_ethernet();
 	protocol_ethernet(abstract_ip_resolver* ip_res, std::function<int(abstract_packet_base&)>&& tx_fn, mac_t const& mac);
-	protocol_ethernet(net_device* dev);
+	protocol_ethernet(net_device& dev);
+	constexpr ethernet_header create_packet(mac_t const& dest) { return ethernet_header(dest, mac_addr); }
 };
 template<std::derived_from<abstract_protocol_handler> T, typename ... Args> requires(std::constructible_from<T, Args...>) protocol_handler create_handler(Args&& ... args) { return protocol_handler(std::move(std::ext::make_dynamic<T>(std::forward<Args>(args)...))); }
 std::string stringify(mac_t const& mac);
