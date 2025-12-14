@@ -5,6 +5,9 @@
 void _exit(int code) { asm volatile("syscall" :: "a"(0), "D"(code) : "memory", "%r11", "%rcx"); __builtin_unreachable(); }
 DEF_SYSCALL1(int, close, int, fd)
 DEF_SYSCALL3(int, execve, char* restrict, name, char** restrict, argv, char** restrict, env)
+DEF_SYSCALL3(pid_t, spawn, char* restrict, name, char** restrict, argv, char** restrict, env)
+DEF_SYSCALL3(int, fexecve, int, fd, char** restrict, argv, char** restrict, env)
+DEF_SYSCALL3(pid_t, fspawn, int, fd, char** restrict, argv, char** restrict, env)
 DEF_SYSCALL0(pid_t, fork)
 DEF_SYSCALL0(pid_t, vfork)
 DEF_SYSCALL2(int, fstat, int, fd, struct stat*, st)
@@ -30,3 +33,32 @@ DEF_SYSCALL2(int, mkdir, const char*, path, mode_t, mode)
 DEF_SYSCALL2(int, lstat, const char* restrict, name, struct stat* restrict, st)
 DEF_SYSCALL3(int, mknod, const char*, path, mode_t, mode, dev_t, dev)
 int pipe(int out[2]) { int ret; asm volatile("syscall" : "=a"(ret): "0"(SYSCVEC_N_pipe), "D"(&out[0]) : "memory", "%r11", "%rcx"); if(__builtin_expect(ret < 0 && ret > -4095, 0)) { *__errno() = -ret; return -1; } return ret; }
+int login(const char* restrict user, const char* restrict pass, login_result* restrict result_out)
+{
+	asm volatile("syscall" : "=a"(result_out->uid), "=d"(result_out->gid) : "0"(SYSCVEC_N_login), "D"(user), "S"(pass) : "memory", "%r11", "%rcx");
+	int ret = (int)result_out->uid;
+	if(__builtin_expect(ret < 0 && ret > -4096, 0)) {
+		errno = -ret;
+		return -1;
+	}
+	return 0;
+}
+int impersonate(const char* restrict user, const char* restrict pass, login_result* restrict result_out)
+{
+	asm volatile("syscall" : "=a"(result_out->uid), "=d"(result_out->gid) : "0"(SYSCVEC_N_impersonate), "D"(user), "S"(pass) : "memory", "%r11", "%rcx");
+	int ret = (int)result_out->uid;
+	if(__builtin_expect(ret < 0 && ret > -4096, 0)) {
+		errno = -ret;
+		return -1;
+	}
+	return 0;
+}
+DEF_SYSCALL1(int, escalate, const char*, pw)
+login_result urevert()
+{
+	login_result result;
+	asm volatile("syscall" : "=a"(result.uid), "=d"(result.gid) : "0"(SYSCVEC_N_urevert) : "memory", "%r11", "%rcx");
+	return result;
+}
+DEF_SYSCALL1(int, setuid, uid_t, id)
+DEF_SYSCALL1(int, setgid, gid_t, id)

@@ -5,45 +5,61 @@
 #include <sys/errno.h>
 typedef void (*_sig_func_ptr)(int);
 typedef unsigned long sigset_t;
-#define SYSCVEC_N_exit           0
-#define SYSCVEC_N_sleep          1
-#define SYSCVEC_N_wait           2
-#define SYSCVEC_N_fork           3
-#define SYSCVEC_N_times          4
-#define SYSCVEC_N_gettimeofday   5
-#define SYSCVEC_N_sbrk           6
-#define SYSCVEC_N_open           7
-#define SYSCVEC_N_close          8
-#define SYSCVEC_N_read           9
-#define SYSCVEC_N_write          10
-#define SYSCVEC_N_link           11
-#define SYSCVEC_N_lseek          12
-#define SYSCVEC_N_unlink         13
-#define SYSCVEC_N_getpid         14
-#define SYSCVEC_N_fstat          15
-#define SYSCVEC_N_stat           16
-#define SYSCVEC_N_fchmod         17
-#define SYSCVEC_N_chmod          18
-#define SYSCVEC_N_isatty         19
-#define SYSCVEC_N_execve         20
-#define SYSCVEC_N_kill           21
-#define SYSCVEC_N_mmap           22
-#define SYSCVEC_N_munmap         23
-#define SYSCVEC_N_signal         36
-#define SYSCVEC_N_sigprocmask    38
-#define SYSCVEC_N_mkdir          39
-#define SYSCVEC_N_opendir        40
-#define SYSCVEC_N_fdopendir      41
-#define SYSCVEC_N_closedir       42
-#define SYSCVEC_N_lstat          43
-#define SYSCVEC_N_mknod          44
-#define SYSCVEC_N_mknodat        45
-#define SYSCVEC_N_vfork          46
-#define SYSCVEC_N_spawn          47
-#define SYSCVEC_N_pipe           48
-#define SYSCVEC_N_getvpwent      49
-#define SYSCVEC_N_getvpwuid      50
-#define SYSCVEC_N_getvpwnam      51
+#define SYSCVEC_N_exit			0
+#define SYSCVEC_N_sleep			1
+#define SYSCVEC_N_wait			2
+#define SYSCVEC_N_fork			3
+#define SYSCVEC_N_times			4
+#define SYSCVEC_N_gettimeofday	5
+#define SYSCVEC_N_sbrk			6
+#define SYSCVEC_N_open			7
+#define SYSCVEC_N_close			8
+#define SYSCVEC_N_read			9
+#define SYSCVEC_N_write			10
+#define SYSCVEC_N_link			11
+#define SYSCVEC_N_lseek			12
+#define SYSCVEC_N_unlink		13
+#define SYSCVEC_N_getpid		14
+#define SYSCVEC_N_fstat			15
+#define SYSCVEC_N_stat			16
+#define SYSCVEC_N_fchmod		17
+#define SYSCVEC_N_chmod			18
+#define SYSCVEC_N_isatty		19
+#define SYSCVEC_N_execve		20
+#define SYSCVEC_N_kill			21
+#define SYSCVEC_N_mmap			22
+#define SYSCVEC_N_munmap		23
+#define SYSCVEC_N_signal		36
+#define SYSCVEC_N_sigprocmask	38
+#define SYSCVEC_N_mkdir			39
+#define SYSCVEC_N_opendir		40
+#define SYSCVEC_N_fdopendir		41
+#define SYSCVEC_N_closedir		42
+#define SYSCVEC_N_lstat			43
+#define SYSCVEC_N_mknod			44
+#define SYSCVEC_N_mknodat		45
+#define SYSCVEC_N_vfork			46
+#define SYSCVEC_N_spawn			47
+#define SYSCVEC_N_pipe			48
+#define SYSCVEC_N_getvpwent		49
+#define SYSCVEC_N_getvpwuid		50
+#define SYSCVEC_N_getvpwnam		51
+#define SYSCVEC_N_threadexit	54
+#define SYSCVEC_N_tfork			55
+#define SYSCVEC_N_tvfork		56
+#define SYSCVEC_N_getthreadid	57
+#define SYSCVEC_N_threadjoin	58
+#define SYSCVEC_N_threaddetach	59
+#define SYSCVEC_N_fexecve		60
+#define SYSCVEC_N_fspawn		61
+#define SYSCVEC_N_getuid		62
+#define SYSCVEC_N_getgid		63
+#define SYSCVEC_N_login			64
+#define SYSCVEC_N_impersonate	65
+#define SYSCVEC_N_escalate		66
+#define SYSCVEC_N_urevert		67
+#define SYSCVEC_N_setuid		68
+#define SYSCVEC_N_setgid		69
 #ifdef __cplusplus
 #ifndef restrict
 #define restrict __restrict__
@@ -54,6 +70,9 @@ extern "C"
 void _exit(int code);
 int close(int file);
 int execve(char* restrict name, char** restrict argv, char** restrict env);
+int fexecve(int fd, char** restrict argv, char** restrict env);
+pid_t spawn(char* restrict name, char** restrict argv, char** restrict env);
+pid_t fspawn(int fd, char** restrict argv, char** restrict env);
 pid_t fork();
 pid_t vfork();
 int fstat(int file, struct stat* st);
@@ -75,6 +94,18 @@ _sig_func_ptr signal(int sig, _sig_func_ptr func);
 int sigprocmask(int how, sigset_t const* restrict set, sigset_t* restrict oset);
 int mkdir(const char* path, mode_t mode);
 int pipe(int out[2]);
+uid_t getuid();
+gid_t getgid();
+typedef struct {
+	uid_t uid;
+	gid_t gid;
+} login_result;
+int login(const char* restrict user, const char* restrict pass, login_result* restrict result_out);
+int impersonate(const char* restrict user, const char* restrict pass, login_result* restrict result_out);
+int escalate(const char* pw);
+login_result urevert();
+int setuid(uid_t uid);
+int setgid(gid_t gid);
 #define SYSCVEC_ARG(name) "0"(SYSCVEC_N_##name)
 #define XSYSCALL0(name, ret) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name) : "memory", "%r11", "%rcx")
 #define XSYSCALL1(name, ret, arg0) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0) : "memory", "%r11", "%rcx")

@@ -152,6 +152,6 @@ extern "C"
 	int syscall_tlinit();																						// int tlinit(); used to initialize TLS for dynamic objects
 	addr_t syscall_tlget(tls_index* idx);																		// void* tlget(tls_index* idx); implements __tls_get_addr via LD-SO
 	int syscall_fexecve(int fd, char** restrict argv, char** restrict env);										// int fexecve(int fd, char** restrict argv, char** restrict env);
-	spid_t syscall_fspawn(int fd, char** restrict argv, char** restrict env);									// spid_t fspawn(int fd, char** restrict argv, char** restrict env);
+	spid_t syscall_fspawn(int fd, char** restrict argv, char** restrict env);									// pid_t fspawn(int fd, char** restrict argv, char** restrict env);
 }
 #endif
