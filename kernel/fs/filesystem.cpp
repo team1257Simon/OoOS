@@ -22,7 +22,7 @@ dev_t filesystem::get_dev_id() const noexcept { return xgdevid(); }
 size_t filesystem::block_size() { return blockdev ? blockdev->sector_size() : physical_block_size; }
 void filesystem::pubsyncdirs() { syncdirs(); }
 filesystem::target_pair filesystem::get_parent(std::string const& path, bool create) { return get_parent(get_root_directory(), path, create); }
-directory_vnode* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept { try { return open_directory(path, create); } catch(...) { return nullptr; } }
+directory_vnode* filesystem::get_directory_or_null(std::string const& path, bool create) noexcept try { return open_directory(path, create); } catch(...) { return nullptr; }
 bool filesystem::write_blockdev(uint64_t lba_dest, const void* src, size_t sectors) { return blockdev->write(lba_dest, src, sectors); }
 bool filesystem::read_blockdev(void* dest, uint64_t lba_src, size_t sectors) { return blockdev->read(dest, lba_src, sectors); }
 file_vnode* filesystem::on_open(tnode* node, std::ios_base::openmode mode)

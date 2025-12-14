@@ -11,8 +11,6 @@ static inline uframe_tag* create_shared_frame() { return std::addressof(fm.creat
 shared_object_map& shared_object_map::get_globals() { return __globals; }
 addr_t shared_object_map::__global_dynamic_extent() { return (__globals.shared_frame && __globals.shared_frame->dynamic_extent) ? __globals.shared_frame->dynamic_extent : dynamic_frame_base; }
 shared_object_map::~shared_object_map() { if(shared_frame) frame_manager::get().destroy_frame(*shared_frame); }
-elf64_shared_object& shared_object_map::operator[](std::string const& name) { if(__node_ptr np = __find(name)) return np->__ref(); else throw std::out_of_range("[PROG/SO] not found: " + name); }
-elf64_shared_object const& shared_object_map::operator[](std::string const& name) const { if(__const_node_ptr np = __find(name)) { return np->__ref(); } else throw std::out_of_range("[PROG/SO] not found: " + name); }
 bool shared_object_map::contains(std::string const& name) const { return __base::contains(name); }
 void shared_object_map::clear() { __base::clear(); }
 shared_object_map::iterator shared_object_map::begin() noexcept { return __base::begin(); }
@@ -25,11 +23,28 @@ shared_object_map::iterator shared_object_map::find(std::string const& what) noe
 shared_object_map::const_iterator shared_object_map::find(std::string const& what) const noexcept { return __base::find(what); }
 shared_object_map::size_type shared_object_map::size() const noexcept { return __base::size(); }
 void shared_object_map::set_path(iterator obj, std::string const& path) { __obj_paths.insert(std::make_pair(obj, path)); }
-const char* shared_object_map::get_path(iterator obj) const { if(auto i = __obj_paths.find(obj); i != __obj_paths.end()) { return i->second.c_str(); } else return nullptr; }
 shared_object_map::shared_object_map(uframe_tag* frame, size_type init_ct) : __base(init_ct),
     __obj_paths     { init_ct },
     shared_frame    { frame ? frame : create_shared_frame() }
                     { if(!shared_frame->dynamic_extent) { shared_frame->dynamic_extent = __global_dynamic_extent(); } }
+elf64_shared_object& shared_object_map::operator[](std::string const& name)
+{
+	if(__node_ptr np = __find(name))
+		return np->__ref();
+	else throw std::out_of_range("[PROG/SO] not found: " + name);
+}
+elf64_shared_object const& shared_object_map::operator[](std::string const& name) const
+{
+	if(__const_node_ptr np = __find(name))
+		return np->__ref();
+	else throw std::out_of_range("[PROG/SO] not found: " + name);
+}
+const char* shared_object_map::get_path(iterator obj) const
+{
+	std::unordered_map<iterator, std::string>::const_iterator i = __obj_paths.find(obj);
+	if(i != __obj_paths.end()) return i->second.c_str();
+	else return nullptr;
+}
 bool shared_object_map::remove(iterator so_handle)
 {
     so_handle->decref();

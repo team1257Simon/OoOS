@@ -8,8 +8,6 @@ constexpr static std::alignval_allocator<char, std::align_val_t(physical_block_s
 constexpr static std::allocator<ext_superblock> sb_alloc{};
 constexpr static std::allocator<block_group_descriptor> bg_alloc{};
 constexpr static uint16_t isize_val = sizeof(ext_inode) - offsetof(ext_inode, extra_isize);
-void ext_block_group::increment_dir_ct() { dword dir_ct(descr->num_directories, descr->num_directories_hi); dir_ct++; descr->num_directories = dir_ct.lo; descr->num_directories_hi = dir_ct.hi; }
-void ext_block_group::decrement_dir_ct() { dword dir_ct(descr->num_directories, descr->num_directories_hi); dir_ct--; descr->num_directories = dir_ct.lo; descr->num_directories_hi = dir_ct.hi; }
 bool ext_block_group::has_available_inode() { return descr->free_inodes || descr->free_inodes_hi; }
 bool ext_block_group::has_available_blocks() { return descr->free_blocks_lo || descr->free_blocks_hi; }
 bool ext_block_group::has_available_blocks(size_t n) { return dword(descr->free_blocks_lo, descr->free_blocks_hi) >= n; }
@@ -21,11 +19,7 @@ size_t extfs::sectors_per_block() { return (1024UL / physical_block_size) << sb-
 uint64_t extfs::block_to_lba(uint64_t block) { return static_cast<uint64_t>(superblock_lba - sb_off) + sectors_per_block() * static_cast<uint64_t>(block); }
 directory_vnode* extfs::get_root_directory() { return root_dir; }
 ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this from mount options */ }
-bool extfs::read_block(disk_block& bl) { if(bl.data_buffer && bl.block_number) return read_blockdev(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len); else return false; }
-bool extfs::write_block(disk_block const& bl) { if(bl.data_buffer && bl.block_number) return write_blockdev(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len); else return false; }
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
-void extfs::allocate_block_buffer(disk_block& bl) { if(bl.data_buffer) { free_block_buffer(bl); } size_t s = block_size() * bl.chain_len; bl.data_buffer = buff_alloc.allocate(s); array_zero(bl.data_buffer, s); }
-char* extfs::allocate_block_buffer() { size_t bs = block_size(); char* result = buff_alloc.allocate(bs); array_zero(result, bs); return result; }
 void extfs::free_block_buffer(disk_block& bl) { if(bl.data_buffer && bl.chain_len) buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
 off_t extfs::inode_block_offset(uint32_t inode) { return static_cast<off_t>(inode_pos_in_group(inode) * sb->inode_size); }
 uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group); }
@@ -36,6 +30,46 @@ bool extfs::update_free_inode_count(int diff) { sb->unallocated_inodes += diff; 
 vnode* extfs::dirent_to_vnode(ext_dir_entry* de) { return inode_to_vnode(de->inode_idx, static_cast<ext_dirent_type>(de->type_ind)); }
 size_t extfs::inode_size() { return sb->inode_size; }
 uint32_t extfs::__sb_checksum() const { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(sb), offsetof(ext_superblock, checksum)); }
+bool extfs::read_block(disk_block& bl)
+{
+	if(bl.data_buffer && bl.block_number)
+		return read_blockdev(bl.data_buffer, block_to_lba(bl.block_number), sectors_per_block() * bl.chain_len);
+	else return false;
+}
+bool extfs::write_block(disk_block const& bl)
+{
+	if(bl.data_buffer && bl.block_number)
+		return write_blockdev(block_to_lba(bl.block_number), bl.data_buffer, sectors_per_block() * bl.chain_len);
+	else return false;
+}
+void ext_block_group::increment_dir_ct()
+{
+	dword dir_ct(descr->num_directories, descr->num_directories_hi);
+	dir_ct++;
+	descr->num_directories		= dir_ct.lo;
+	descr->num_directories_hi	= dir_ct.hi;
+}
+void ext_block_group::decrement_dir_ct()
+{
+	dword dir_ct(descr->num_directories, descr->num_directories_hi);
+	dir_ct--;
+	descr->num_directories		= dir_ct.lo;
+	descr->num_directories_hi	= dir_ct.hi;
+}
+void extfs::allocate_block_buffer(disk_block& bl)
+{
+	if(bl.data_buffer) free_block_buffer(bl);
+	size_t s		= block_size() * bl.chain_len;
+	bl.data_buffer	= buff_alloc.allocate(s);
+	array_zero(bl.data_buffer, s);
+}
+char* extfs::allocate_block_buffer()
+{
+	size_t bs		= block_size();
+	char* result	= buff_alloc.allocate(bs);
+	array_zero(result, bs);
+	return result;
+}
 extfs::extfs(uint64_t volume_start_lba) :
 	filesystem			{},
 	file_nodes			{},

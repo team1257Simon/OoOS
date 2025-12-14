@@ -6,8 +6,13 @@ ext_node_extent_tree::~ext_node_extent_tree()	= default;
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const* n) { return n - tracked_extents.begin().base(); }
 off_t ext_node_extent_tree::cached_node_pos(cached_extent_node const& n) { return cached_node_pos(std::addressof(n)); }
 cached_extent_node* ext_node_extent_tree::get_cached(off_t which) { return (tracked_extents.begin() + which).base(); }
-cached_extent_node::cached_extent_node(disk_block* bptr, ext_vnode* node, uint16_t d) : blk_offset(bptr - (d ? node->cached_metadata.data() : node->block_data.data())), tracked_node(node), depth(d), next_level_extents() {}
 disk_block* cached_extent_node::block() { return ((depth ? tracked_node->cached_metadata.begin() : tracked_node->block_data.begin()) + blk_offset).base(); }
+cached_extent_node::cached_extent_node(disk_block* bptr, ext_vnode* node, uint16_t d) :
+	blk_offset(bptr - (d ? node->cached_metadata.data() : node->block_data.data())),
+	tracked_node(node),
+	depth(d),
+	next_level_extents()
+{}
 static void populate_leaf(ext_extent_leaf& leaf, disk_block* blk, uint64_t fn_start)
 {
 	qword blknum(blk->block_number);
@@ -264,14 +269,26 @@ bool ext_node_extent_tree::ext4_root_overflow()
 	size_t bs			= tracked_node->parent_fs->block_size();
 	base_depth++;
 	tracked_node->on_disk_node->block_info.ext4_extent.header.depth++;
-	ext_extent_header* header		= new(static_cast<void*>(nl_blk->data_buffer)) ext_extent_header{ .magic{ ext_extent_magic }, .max_entries{ static_cast<uint16_t>(((bs - sizeof(ext_extent_header)) / sizeof(ext_extent_node))) }, .depth{ base_depth } };
+	ext_extent_header* header		= new(static_cast<void*>(nl_blk->data_buffer)) ext_extent_header
+	{
+		.magic			{ ext_extent_magic },
+		.max_entries	{ static_cast<uint16_t>(((bs - sizeof(ext_extent_header)) / sizeof(ext_extent_node))) },
+		.depth			{ base_depth }
+	};
 	size_t root_entries				= std::min(4US, tracked_node->on_disk_node->block_info.ext4_extent.header.max_entries);
 	ext_extent_node* extent_nodes	= reinterpret_cast<ext_extent_node*>(nl_blk->data_buffer + sizeof(ext_extent_header));
 	array_copy(extent_nodes, tracked_node->on_disk_node->block_info.ext4_extent.root_nodes, root_entries);
 	header->entries					= root_entries;
 	qword nblk_qw(nl_blk->block_number);
 	array_zero(std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[0]), root_entries);
-	new(static_cast<void*>(std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[0]))) ext_extent_node{ .idx{ .next_level_block_lo{ nblk_qw.lo }, .next_level_block_hi{ nblk_qw.hi.lo } } };
+	new(static_cast<void*>(std::addressof(tracked_node->on_disk_node->block_info.ext4_extent.root_nodes[0]))) ext_extent_node
+	{
+		.idx
+		{
+			.next_level_block_lo	{ nblk_qw.lo },
+			.next_level_block_hi	{ nblk_qw.hi.lo }
+		}
+	};
 	nl_blk->dirty				= true;
 	cached_extent_node* base	= std::addressof(tracked_extents.emplace_back(nl_blk, tracked_node, base_depth));
 	base->next_level_extents.swap(base_extent_level);

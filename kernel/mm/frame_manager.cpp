@@ -6,17 +6,22 @@ frame_manager::frame_manager() : __global_shared_blocks(128), __local_shared_blo
 frame_manager& frame_manager::get() { return __instance; }
 void frame_manager::release_block(block_descriptor& blk)
 {
-	if(std::unordered_map<addr_t, int>::iterator i = __local_shared_blocks.find(blk.physical_start); i != __local_shared_blocks.end())
+	std::unordered_map<addr_t, int>::iterator i = __local_shared_blocks.find(blk.physical_start);
+	if(i != __local_shared_blocks.end())
 	{
 		i->second--;
 		if(i->second != 0) return;
 		__local_shared_blocks.erase(i);
 	}
-	else if(std::unordered_map<addr_t, shared_block>::iterator i = __global_shared_blocks.find(blk.virtual_start); i != __global_shared_blocks.end())
+	else
 	{
-		i->second.num_refs--;
-		if(i->second.num_refs != 0) return;
-		__global_shared_blocks.erase(i);
+		std::unordered_map<addr_t, shared_block>::iterator j = __global_shared_blocks.find(blk.virtual_start);
+		if(j != __global_shared_blocks.end())
+		{
+			j->second.num_refs--;
+			if(j->second.num_refs != 0) return;
+			__global_shared_blocks.erase(j);
+		}
 	}
 	kmm.deallocate_user_block(blk.virtual_start, blk.size, blk.align, blk.virtual_start != blk.physical_start);
 }
@@ -73,7 +78,17 @@ block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size,
 		addr_t allocated		= kmm.allocate_user_block(size, start, align, false, execute);
 		kmm.exit_frame();
 		if(__builtin_expect(!allocated, false)) return nullptr;
-		result_it				= __global_shared_blocks.insert(std::make_pair(start, shared_block{ allocated, start, size, align, false, execute, 1UL })).first;
+		block_descriptor sbd
+		{
+			.physical_start = allocated,
+			.virtual_start	= start,
+			.size			= size,
+			.align			= align,
+			.write			= false,
+			.execute		= execute
+		};
+		result_it			= __global_shared_blocks.insert(std::make_pair(start, sbd)).first;
+		result_it->second.num_refs++;
 	}
 	else
 	{

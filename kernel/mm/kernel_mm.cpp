@@ -816,13 +816,15 @@ addr_t uframe_tag::translate(addr_t addr)
 }
 block_descriptor* uframe_tag::add_block(size_t sz, addr_t start, size_t align, bool write, bool execute, bool allow_global_shared)
 {
-	if(allow_global_shared && !write) { return fm.get_global_shared(this, sz, start, align, execute); }
+	if(allow_global_shared && !write)
+		return fm.get_global_shared(this, sz, start, align, execute);
 	block_descriptor* result	= nullptr;
 	__lock();
 	kmm.enter_frame(this);
 	addr_t allocated			= kmm.allocate_user_block(sz, start, align, write, execute);
 	kmm.exit_frame();
-	if(allocated) { result		= std::addressof(usr_blocks.emplace_back(allocated, start, sz, align, write, execute)); }
+	if(allocated)
+		result					= std::addressof(usr_blocks.emplace_back(allocated, start, sz, align, write, execute));
 	__unlock();
 	return result;
 }

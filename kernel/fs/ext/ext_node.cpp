@@ -1,16 +1,11 @@
 #include <fs/ext.hpp>
 constexpr static std::allocator<char> ch_alloc{};
 static uint32_t compute_csum_seed(extfs* parent, uint32_t inode_num, ext_inode* inode);
-ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_num, ext_inode* inode) : inode_number(inode_num), parent_fs(parent), on_disk_node(inode), checksum_seed(compute_csum_seed(parent, inode_num, inode)) {}
-ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_number) : ext_vnode_base(parent, inode_number, parent->get_inode(inode_number)) {}
 ext_vnode_base::ext_vnode_base()	= default;
 ext_vnode_base::~ext_vnode_base()	= default;
 uid_t ext_vnode_base::owner_uid() const noexcept { return dword(on_disk_node->uid, on_disk_node->uid_hi); }
 gid_t ext_vnode_base::owner_gid() const noexcept { return dword(on_disk_node->gid, on_disk_node->gid_hi); }
-ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode) : ext_vnode_base(parent, inode_number, inode), base_buffer(), extents(this) {}
-ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number) : ext_vnode(parent, inode_number, parent->get_inode(inode_number)) {}
 bool ext_vnode::on_open() { return init_extents(); }
-void ext_vnode::mark_write(void* pos) { addr_t addr(pos); if(!__out_of_range(addr)) { block_data[block_of_data_ptr(static_cast<size_t>(addr - addr_t(__beg())))].dirty = true; } }
 ext_vnode::ext_vnode()	= default;
 ext_vnode::~ext_vnode()	= default;
 size_t ext_vnode::block_of_data_ptr(size_t offs) { return offs / parent_fs->block_size(); }
@@ -20,8 +15,6 @@ static inline size_t unused_dirent_space(ext_dir_entry const& de) { return stati
 ext_dir_entry* ext_directory_vnode::__current_ent() { return reinterpret_cast<ext_dir_entry*>(__cur()); }
 char* ext_directory_vnode::__current_block_start() { return __get_ptr(block_of_data_ptr(tell()) * parent_fs->block_size()); }
 bool ext_directory_vnode::fsync() { return update_inode() && parent_fs->persist(this); }
-ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), directory_vnode(fd, inode_number) { mode = on_disk_node->mode; }
-ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), directory_vnode(fd, inode_number) { mode = on_disk_node->mode; }
 ext_directory_vnode::~ext_directory_vnode() = default;
 tnode* ext_directory_vnode::add(vnode* n) { for(tnode& node : directory_tnodes) { if(node.ptr() == n) return std::addressof(node); } return nullptr; }
 bool ext_directory_vnode::truncate() { return parent_fs->truncate_node(this); }
@@ -33,26 +26,17 @@ ext_file_vnode::pos_type ext_file_vnode::seek(off_type off, std::ios_base::seekd
 ext_file_vnode::pos_type ext_file_vnode::seek(pos_type pos) { return std::ext::dynamic_streambuf<char>::seekpos(pos); }
 uint64_t ext_file_vnode::size() const noexcept { return qword(on_disk_node->size_lo, on_disk_node->size_hi); }
 ext_file_vnode::pos_type ext_file_vnode::tell() const { return std::ext::dynamic_streambuf<char>::tell(); }
-ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_vnode(parent, inode_number), file_vnode(fd, inode_number) { mode = on_disk_node->mode; }
-ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) : ext_vnode(parent, inode_number, inode_data), file_vnode(fd, inode_number) { mode = on_disk_node->mode; }
 ext_file_vnode::~ext_file_vnode() = default;
 bool ext_file_vnode::truncate() { return parent_fs->truncate_node(this); }
 char* ext_file_vnode::data() { return __beg(); }
 void ext_file_vnode::force_write() { for(disk_block& b : block_data) { b.dirty = true; } }
-ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, device_stream* dev, int fd) : ext_vnode_base(parent, inode_num, inode), device_vnode(fd, dev, inode->device_hardlink_id) { mode = on_disk_node->mode; }
-ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, device_stream* dev, int fd) : ext_device_vnode(parent, inode_num, parent->get_inode(inode_num), dev, fd) {}
-ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd) {}
-ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd, size_t pipe_id) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd, pipe_id) {}
 ext_device_vnode::~ext_device_vnode() = default;
 uid_t ext_device_vnode::owner_uid() const noexcept { return ext_vnode_base::owner_uid(); }
 gid_t ext_device_vnode::owner_gid() const noexcept { return ext_vnode_base::owner_gid(); }
 bool ext_device_vnode::fsync() { return update_inode() && device_vnode::fsync(); }
-ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd, size_t pipe_id) : file_vnode(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_vnode(fd, pipe_id) { mode = on_disk_node->mode; }
-ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd) : file_vnode(std::move(std::string(inode->block_info.link_target)), fd, inode_num), ext_vnode_base(parent, inode_num, inode), pipe_vnode(fd) { mode = on_disk_node->mode; }
 uid_t ext_pipe_vnode::owner_uid() const noexcept { return ext_vnode_base::owner_uid(); }
 gid_t ext_pipe_vnode::owner_gid() const noexcept { return ext_vnode_base::owner_gid(); }
 ext_pipe_vnode::~ext_pipe_vnode() = default;
-ext_pipe_pair::ext_pipe_pair(extfs *parent, uint32_t inode_number, std::string const& name) : vnode(name, -1, inode_number), in(parent, inode_number, -1), out(parent, inode_number, -1, in.pipe_id()) {}
 ext_pipe_pair::~ext_pipe_pair() = default;
 uint64_t ext_pipe_pair::size() const noexcept { return in.size(); }
 bool ext_pipe_pair::fsync() { return in.update_inode(); }
@@ -63,6 +47,69 @@ gid_t ext_pipe_pair::owner_gid() const noexcept { return in.owner_gid(); }
 uid_t ext_file_vnode::owner_uid() const noexcept { return ext_vnode_base::owner_uid(); }
 gid_t ext_file_vnode::owner_gid() const noexcept { return ext_vnode_base::owner_gid(); }
 void ext_file_vnode::on_close() { __destroy(); for(disk_block& db : block_data) db.data_buffer = nullptr; }
+ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_number) : ext_vnode_base(parent, inode_number, parent->get_inode(inode_number)) {}
+ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number) : ext_vnode(parent, inode_number, parent->get_inode(inode_number)) {}
+ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd) {}
+ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, device_stream* dev, int fd) : ext_device_vnode(parent, inode_num, parent->get_inode(inode_num), dev, fd) {}
+ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_number, int fd, size_t pipe_id) : ext_pipe_vnode(parent, inode_number, parent->get_inode(inode_number), fd, pipe_id) {}
+ext_vnode_base::ext_vnode_base(extfs* parent, uint32_t inode_num, ext_inode* inode) :
+	inode_number(inode_num),
+	parent_fs(parent),
+	on_disk_node(inode),
+	checksum_seed(compute_csum_seed(parent, inode_num, inode))
+{}
+ext_vnode::ext_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode) :
+	ext_vnode_base(parent, inode_number, inode),
+	base_buffer(),
+	extents(this)
+{}
+ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, int fd) :
+	ext_vnode(parent, inode_number),
+	directory_vnode(fd, inode_number) {
+		mode = on_disk_node->mode;
+	}
+ext_directory_vnode::ext_directory_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) :
+	ext_vnode(parent, inode_number, inode_data),
+	directory_vnode(fd, inode_number) {
+		mode = on_disk_node->mode;
+	}
+ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, int fd) :
+	ext_vnode(parent, inode_number),
+	file_vnode(fd, inode_number) {
+		mode = on_disk_node->mode;
+	}
+ext_file_vnode::ext_file_vnode(extfs* parent, uint32_t inode_number, ext_inode* inode_data, int fd) :
+	ext_vnode(parent, inode_number, inode_data),
+	file_vnode(fd, inode_number) {
+		mode = on_disk_node->mode;
+	}
+ext_device_vnode::ext_device_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, device_stream* dev, int fd) :
+	ext_vnode_base(parent, inode_num, inode),
+	device_vnode(fd, dev, inode->device_hardlink_id) {
+		mode = on_disk_node->mode;
+	}
+ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd, size_t pipe_id) :
+	file_vnode(std::move(std::string(inode->block_info.link_target)), fd, inode_num),
+	ext_vnode_base(parent, inode_num, inode),
+	pipe_vnode(fd, pipe_id) {
+		mode = on_disk_node->mode;
+	}
+ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* inode, int fd) :
+	file_vnode(std::move(std::string(inode->block_info.link_target)), fd, inode_num),
+	ext_vnode_base(parent, inode_num, inode), pipe_vnode(fd) {
+		mode = on_disk_node->mode;
+	}
+ext_pipe_pair::ext_pipe_pair(extfs *parent, uint32_t inode_number, std::string const& name) :
+	vnode(name, -1, inode_number),
+	in(parent, inode_number, -1),
+	out(parent, inode_number, -1, in.pipe_id())
+{}
+void ext_vnode::mark_write(void* pos)
+{
+	addr_t addr(pos);
+	if(!__out_of_range(addr))
+		block_data[block_of_data_ptr(static_cast<size_t>(addr - addr_t(__beg())))].dirty = true;
+}
 struct guarded_inode_buffer
 {
 	std::allocator<uint8_t> alloc;
