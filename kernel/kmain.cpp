@@ -4,7 +4,6 @@
 #include <arch/idt_amd64.h>
 #include <arch/keyboard.hpp>
 #include <arch/pci_device_list.hpp>
-#include <arch/net/e1000e.hpp>
 #include <bits/icxxabi.h>
 #include <fs/ext.hpp>
 #include <fs/delegate_hda.hpp>
@@ -12,6 +11,7 @@
 #include <fs/sysfs.hpp>
 #include <net/protocol/arp.hpp>
 #include <net/protocol/dhcp.hpp>
+#include <net/netdev_module.hpp>
 #include <sched/scheduler.hpp>
 #include <sched/task_ctx.hpp>
 #include <sched/task_list.hpp>
@@ -48,7 +48,6 @@ static bool fx_enable{};
 static char dbgbuf[19] = "0x";
 static char dbg_serial_io[2]{};
 static const char test_arg[] = "Hello world ";
-static char test_e1000e_drv[sizeof(e1000e)]{};
 static ooos::ps2_controller test_ps2{};
 static ooos::ps2_keyboard* test_kb{};
 static char kb_pos[sizeof(ooos::ps2_keyboard)]{};
@@ -160,33 +159,34 @@ ooos::block_io_provider_module* load_ahci_module()
 	if(mod) return mod->as_blockdev();
 	return nullptr;
 }
+ooos::abstract_netdev_module* load_e1000e_module()
+{
+	ooos::abstract_module_base* mod	= get_boot_module("IE1000E.KO");
+	if(mod) return dynamic_cast<ooos::abstract_netdev_module*>(mod);
+	return nullptr;
+}
 void net_tests()
 {
-	if(pci_config_space* net_pci = pci_device_list::get_instance()->find(2, 0))
+	if(ooos::abstract_netdev_module* test_dev = load_e1000e_module())
 	{
-		e1000e* test_dev = new(test_e1000e_drv) e1000e(net_pci);
-		if(!test_dev->initialize()) panic("init failed");
-		else
-		{
-			mac_t const& mac        = test_dev->get_mac_addr();
-			xdirect_writeln("MAC: " + stringify(mac));
-			protocol_ipv4& p_ip     = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
-			protocol_udp& p_udp     = p_ip.add_transport_handler<protocol_udp>(UDP);
-			protocol_dhcp& p_dhcp   = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
-			p_dhcp.base->ip_resolver->check_presence("10.0.2.2"IPV4);
-			p_dhcp.transition_state(ipv4_client_state::INIT);
-			hpet.delay_us(2000UL);
-			xdirect_writeln(("Got IP " + stringify(p_dhcp.ipconfig.leased_addr)) + (", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask)) + (", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway)) + (", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server)) + (" from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr)) + ";");
-			xdirect_write(("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time)) + ("; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time)) + ("; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration)) + ". ");
-			direct_writeln("Initiating timer of 2 seconds to test schedule-on-delay.");
-			time_t ts				= hpet.count_usec();
-			scheduler::defer_sec(2UL, [ts]() -> void {
-				time_t result = hpet.count_usec() - ts;
-				xdirect_writeln("[timed " + std::to_string(result) + " microseconds]");
-			});
-		}
+		mac_t const& mac        = test_dev->get_mac_addr();
+		xdirect_writeln("MAC: " + stringify(mac));
+		protocol_ipv4& p_ip     = test_dev->add_protocol_handler<protocol_ipv4>(ethertype_ipv4);
+		protocol_udp& p_udp     = p_ip.add_transport_handler<protocol_udp>(UDP);
+		protocol_dhcp& p_dhcp   = p_udp.add_port<protocol_dhcp>(dhcp_client_port);
+		p_dhcp.base->ip_resolver->check_presence("10.0.2.2"IPV4);
+		p_dhcp.transition_state(ipv4_client_state::INIT);
+		hpet.delay_us(2000UL);
+		xdirect_writeln(("Got IP " + stringify(p_dhcp.ipconfig.leased_addr)) + (", subnet mask " + stringify(p_dhcp.ipconfig.subnet_mask)) + (", default gateway " + stringify(p_dhcp.ipconfig.primary_gateway)) + (", and DNS server " + stringify(p_dhcp.ipconfig.primary_dns_server)) + (" from DHCP server " + stringify(p_dhcp.ipconfig.dhcp_server_addr)) + ";");
+		xdirect_write(("T1: " + std::to_string(p_dhcp.ipconfig.lease_renew_time)) + ("; T2: " + std::to_string(p_dhcp.ipconfig.lease_rebind_time)) + ("; total lease duration is " + std::to_string(p_dhcp.ipconfig.lease_duration)) + ". ");
+		direct_writeln("Initiating timer of 2 seconds to test schedule-on-delay.");
+		time_t ts				= hpet.count_usec();
+		scheduler::defer_sec(2UL, [ts]() -> void {
+			time_t result = hpet.count_usec() - ts;
+			xdirect_writeln("[timed " + std::to_string(result) + " microseconds]");
+		});
 	}
-	else panic("net device not found on PCI bus");
+	else panic("net device module failed to load");
 }
 void map_tests()
 {
@@ -348,6 +348,7 @@ void dyn_elf_tests()
 }
 void elf64_tests()
 {
+	std::string console("/dev/console");
 	if(test_extfs.has_init()) try
 	{
 		file_vnode* tst             = test_extfs.open_file("test.elf");
@@ -355,8 +356,8 @@ void elf64_tests()
 		test_extfs.close_file(tst);
 		if(test_exec)
 		{
-			file_vnode* c    						= test_extfs.get_file_or_null("/dev/console");
-			if(!c) c        						= test_extfs.lndev("/dev/console", 0, com->get_device_id());
+			file_vnode* c    						= test_extfs.get_file_or_null(console);
+			if(!c) c        						= test_extfs.lndev(console, 0, com->get_device_id());
 			elf64_program_descriptor const& desc 	= test_exec->describe();
 			xdirect_writeln("Entry at " + std::to_string(desc.entry));
 			task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));

@@ -1,12 +1,12 @@
 #include <elf64_exec.hpp>
 #include <frame_manager.hpp>
 #include <stdexcept>
-static std::allocator<program_segment_descriptor> sd_alloc{};
+constexpr std::allocator<const char*> strptr_alloc{};
 constexpr static size_t min_blk_sz = S04;
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return program_descriptor; }
 void elf64_executable::frame_enter() { kmm.enter_frame(frame_tag); }
 addr_t elf64_executable::segment_vaddr(size_t n) const { return addr_t(phdr(n).p_vaddr); }
-elf64_executable::~elf64_executable() = default; // the resources allocated for the executable's segments are freed and returned to the kernel when the frame is destroyed
+elf64_executable::~elf64_executable() { if(program_descriptor.ld_path) strptr_alloc.deallocate(program_descriptor.ld_path, program_descriptor.ld_path_count); }
 void elf64_executable::on_load_failed() { fm.destroy_frame(*frame_tag); frame_tag = nullptr; kmm.exit_frame(); }
 void elf64_executable::set_frame(uframe_tag* ft) { frame_tag = ft; program_descriptor.frame_ptr = ft; }
 uframe_tag* elf64_executable::get_frame() const { return frame_tag; }
@@ -44,6 +44,7 @@ elf64_executable::elf64_executable(elf64_executable&& that) : elf64_object(std::
 	that.entry							= nullptr;
 	that.frame_tag						= nullptr;
 	program_descriptor.object_handle	= this;
+	that.program_descriptor.ld_path		= nullptr;
 }
 elf64_executable::elf64_executable(elf64_executable const& that) : elf64_object(that),
 	stack_size			{ that.stack_size },
@@ -53,7 +54,15 @@ elf64_executable::elf64_executable(elf64_executable const& that) : elf64_object(
 	entry				{ that.entry },
 	frame_tag			{ that.frame_tag },
 	program_descriptor	{ that.program_descriptor }
-						{ program_descriptor.object_handle = this; }
+	{
+		program_descriptor.object_handle = this;
+		if(program_descriptor.ld_path)
+		{
+			const char** old			= program_descriptor.ld_path;
+			program_descriptor.ld_path	= strptr_alloc.allocate(program_descriptor.ld_path_count);
+			array_copy(program_descriptor.ld_path, old, program_descriptor.ld_path_count);
+		}
+	}
 bool elf64_executable::xvalidate()
 {
 	if(__unlikely(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB)) { panic("[PRG/EXEC] not an object for the correct machine"); return false; }
@@ -93,7 +102,7 @@ bool elf64_executable::load_segments()
 {
 	frame_tag				= std::addressof(fm.create_frame(frame_base, frame_extent));
 	if(__unlikely(!frame_tag)) { panic("[PRG/EXEC] failed to allocate frame"); return false; }
-	for(size_t n = 0, i = 0; n < ehdr().e_phnum; n++)
+	for(size_t n = 0; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h = phdr(n);
 		if(!is_load(h) || !h.p_memsz) continue;
@@ -113,7 +122,7 @@ bool elf64_executable::load_segments()
 		addr_t idmap		= frame_tag->translate(addr);
 		array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
 		if(h.p_memsz > h.p_filesz) array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz));
-		new(std::addressof(segments[i++])) program_segment_descriptor
+		program_segment_descriptor desc
 		{
 			.absolute_addr	= idmap,
 			.virtual_addr	= addr,
@@ -122,6 +131,7 @@ bool elf64_executable::load_segments()
 			.seg_align		= h.p_align,
 			.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0))
 		};
+		segments.push_back(desc);
 	}
 	block_descriptor* s		= frame_tag->add_block(stack_size, stack_base, page_size, true, false);
 	if(__unlikely(!s)) { panic("[PRG/EXEC] failed to allocate block for stack"); return false; }

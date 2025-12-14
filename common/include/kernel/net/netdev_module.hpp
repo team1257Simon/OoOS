@@ -14,13 +14,13 @@ namespace ooos
 		template<std::derived_from<abstract_protocol_handler> PT> requires(std::constructible_from<PT, protocol_ethernet*>)
 		inline PT& add_protocol_handler(net16 id) { return __net_api->add_protocol(id, std::move(create_handler<PT>(std::addressof(__net_api->get_ethernet())))).template cast<PT>(); }
 	};
-	inline bool ooos::abstract_netdev_module::initialize()
+	inline bool abstract_netdev_module::initialize()
 	{
 		this->__net_api	= api_global->create_net_helper(*this);
 		if(__unlikely(!this->__net_api || !this->__net_api->construct_transfer_buffers())) return false;
 		return this->init_dev();
 	}
-	inline void ooos::abstract_netdev_module::finalize()
+	inline void abstract_netdev_module::finalize()
 	{
 		this->fini_dev();
 		this->__net_api->~netdev_api_helper();

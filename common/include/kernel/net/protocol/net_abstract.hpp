@@ -99,7 +99,6 @@ struct protocol_ethernet : abstract_protocol_handler
 	virtual int receive(abstract_packet_base& p);
 	virtual ~protocol_ethernet();
 	protocol_ethernet(abstract_ip_resolver* ip_res, std::function<int(abstract_packet_base&)>&& tx_fn, mac_t const& mac);
-	protocol_ethernet(net_device& dev);
 	protocol_ethernet(netdev_helper& dev, mac_t const& mac);
 	constexpr ethernet_header create_packet(mac_t const& dest) { return ethernet_header(dest, mac_addr); }
 };

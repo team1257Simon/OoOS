@@ -95,7 +95,7 @@ program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_
 {
 	off_t seg_idx = segment_index(symbol_vaddr - virtual_load_base);
 	if(__unlikely(seg_idx < 0)) return nullptr;
-	return segments + seg_idx;
+	return std::addressof(segments[seg_idx]);
 }
 void elf64_shared_object::process_headers()
 {
@@ -124,7 +124,6 @@ bool elf64_shared_object::load_segments()
 	bool have_loads	= false;
 	if(ehdr().e_entry)
 		entry		= virtual_load_base.plus(ehdr().e_entry);
-	size_t i		= 0UZ;
 	for(size_t n	= 0UZ; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h			= phdr(n);
@@ -150,7 +149,7 @@ bool elf64_shared_object::load_segments()
 				array_copy<uint8_t>(idmap, img_dat, h.p_filesz);
 				if(h.p_memsz > h.p_filesz) array_zero<uint8_t>(idmap.plus(h.p_filesz), static_cast<size_t>(h.p_memsz - h.p_filesz));
 			}
-			new(std::addressof(segments[i++])) program_segment_descriptor
+			program_segment_descriptor desc
 			{
 				.absolute_addr	= idmap,
 				.virtual_addr	= addr,
@@ -159,6 +158,7 @@ bool elf64_shared_object::load_segments()
 				.seg_align		= h.p_align,
 				.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0))
 			};
+			segments.push_back(desc);
 			frame_tag->dynamic_extent	= std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());
 			total_segment_size			+= actual_size;
 			have_loads					= true;

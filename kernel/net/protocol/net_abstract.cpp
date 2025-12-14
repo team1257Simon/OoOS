@@ -1,5 +1,4 @@
 #include <net/protocol/arp.hpp>
-#include <net/netdev.hpp>
 #include <sys/errno.h>
 #include <stdexcept>
 constexpr static inline std::string digits_out(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC] }; }

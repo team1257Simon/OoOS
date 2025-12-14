@@ -40,7 +40,7 @@ namespace std
 			__buckets_ptr __my_buckets		= addressof(__singularity);
 			float __max_load				= 1.0F;
 			constexpr __hashtable_base()	= default;
-			constexpr bool __is_singularity() const noexcept { return __my_buckets == addressof(__singularity); }
+			constexpr bool __is_singularity() const noexcept { return __bucket_count < 2UZ || __my_buckets == addressof(__singularity); }
 			constexpr float __load(size_type added) const noexcept { return (__element_count + added) / double(__bucket_count); }
 			constexpr float __current_load() const noexcept { return __load(0UZ); }
 			constexpr bool __need_rehash(size_type added) const noexcept { return __bucket_count < 2UZ || __load(added) >= __max_load; }
@@ -49,16 +49,16 @@ namespace std
 			constexpr size_type __size() const noexcept { return __element_count; }
 			constexpr size_type __range(size_type idx) const noexcept { return idx % __bucket_count; }
 			constexpr size_type __range(size_type idx, size_type max) const noexcept { if(__unlikely(!max)) return 0UZ; return idx % max; }
-			constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UZ; __element_count = 0UZ; __bucket_count = 2UZ; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
-			constexpr void __deallocate_buckets() { if(!__unlikely(__is_singularity())) { allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
-			constexpr void __init_buckets(size_type n) { if(__builtin_expect(n < 2UZ, false)) { __my_buckets = addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
+			constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UZ; __element_count = 0UZ; __bucket_count = 1UZ; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
+			constexpr void __deallocate_buckets() { if(!__is_singularity()) { allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
+			constexpr void __init_buckets(size_type n) { if(__unlikely(n < 2UZ)) { __my_buckets = addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
 			constexpr void __insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n);
 			constexpr void __remove_first_at(__buckets_ptr buckets, size_type idx, __base_ptr n_next, size_type next_bucket);
 			constexpr void __insert_at(size_type idx, __base_ptr n) { __insert_at(__my_buckets, idx, n); }
 			constexpr void __remove_first_at(size_type idx, __base_ptr n_next, size_type next_bucket) { __remove_first_at(__my_buckets, idx, n_next, next_bucket); }
-			constexpr void __move_assign(__hashtable_base&& that) noexcept { this->__root.__next = that.__root.__next; this->__element_count = that.__element_count;  this->__bucket_count = that.__bucket_count;  this->__after_root_idx = that.__after_root_idx; this->__my_buckets = that.__my_buckets; that.__reset(); that.__init_buckets(2UZ); }
+			constexpr void __move_assign(__hashtable_base&& that) noexcept { this->__root.__next = that.__root.__next; this->__element_count = that.__element_count; this->__bucket_count = that.__bucket_count; this->__after_root_idx = that.__after_root_idx; this->__my_buckets = that.__my_buckets; that.__reset(); }
 			constexpr __hashtable_base(size_type ct) : __bucket_count(ct) { __init_buckets(ct); }
-			constexpr __hashtable_base(__hashtable_base&& that) noexcept : __root(that.__root), __element_count(that.__element_count), __bucket_count(that.__bucket_count), __after_root_idx(that.__after_root_idx), __my_buckets(that.__my_buckets) { that.__reset(); that.__init_buckets(2UZ); }
+			constexpr __hashtable_base(__hashtable_base&& that) noexcept : __root(that.__root), __element_count(that.__element_count), __bucket_count(that.__bucket_count), __after_root_idx(that.__after_root_idx), __my_buckets(that.__my_buckets) { that.__reset(); }
 		};
 		constexpr void __hashtable_base::__insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n)
 		{
@@ -225,7 +225,7 @@ namespace std
 			constexpr size_type __target_count_at_least(size_type cnt) const noexcept { return max(cnt, static_cast<size_type>(__builtin_ceilf(this->__element_count / this->__max_load))); }
 			constexpr void __deallocate_nodes() { __node_ptr n = __begin(); for(__node_ptr s = __advance_chain(n); n; n = s, s = __advance_chain(s)) __destroy_node(n); }
 			constexpr __hashtable(size_type ct) : __base(ct), __node_alloc() {}
-			constexpr __hashtable() : __base(2UZ), __node_alloc() {}
+			constexpr __hashtable() : __base(8UZ), __node_alloc() {}
 			constexpr __hashtable(initializer_list<value_type> ini) requires(copy_constructible<value_type>) : __hashtable(ini.size()) { __insert(ini); }
 			template<input_iterator IT> requires(constructible_from<value_type, decltype(*declval<IT>())>) constexpr __hashtable(IT first, IT last) : __hashtable(static_cast<size_type>(distance(first, last))) { __insert(first, last); }
 			constexpr __hashtable(__hashtable&& that) : __base(std::move(that)), __node_alloc(std::forward<__node_alloc>(that)) {}

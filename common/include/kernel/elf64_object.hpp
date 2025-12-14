@@ -11,7 +11,7 @@ class elf64_object
 	size_t __image_size;
 protected:
 	size_t num_seg_descriptors{};
-	program_segment_descriptor* segments{};
+	std::vector<program_segment_descriptor> segments{};
 	elf64_sym_table symtab{};
 	elf64_string_table symstrtab{};
 	elf64_string_table shstrtab{};

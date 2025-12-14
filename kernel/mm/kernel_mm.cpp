@@ -507,6 +507,16 @@ void kernel_memory_mgr::deallocate_block(addr_t base, size_t sz, bool should_unm
 	__watermark		= std::min(phys, __watermark);
 	__unlock();
 }
+void kernel_memory_mgr::deallocate_user_block(addr_t base, size_t sz, size_t align, bool should_unmap) noexcept
+{
+	uintptr_t phys	= frame_translate(base);
+	addr_t pml4		= __active_frame ? __active_frame->pml4 : nullptr;
+	if(__unlikely(!phys)) return;
+	__userlock();
+	__kernel_frame_tag->deallocate(addr_t(phys), align);
+	if(should_unmap && __active_frame) __unmap_pages(base, div_round_up(sz, page_size), pml4);
+	__userunlock();
+}
 uintptr_t kernel_memory_mgr::frame_translate(addr_t addr)
 {
 	paging_table pt	= __find_table(addr, __active_frame ? __active_frame->pml4 : kernel_cr3);
@@ -564,6 +574,7 @@ block_tag* kframe_tag::find_tag(addr_t ptr, size_t align) noexcept
 void kframe_tag::insert_block(block_tag* blk, int idx) noexcept
 {
 	blk->index									= idx < 0 ? (calculate_block_index(blk->block_size)) : idx;
+	if(__unlikely(blk->previous || blk->next)) return;
 	if(available_blocks[blk->index] && blk != available_blocks[blk->index]) {
 		available_blocks[blk->index]->previous	= blk;
 		blk->next								= available_blocks[blk->index];
@@ -632,6 +643,13 @@ block_tag* kframe_tag::get_for_allocation(size_t size, size_t align) noexcept
 }
 void kframe_tag::release_block(block_tag* tag) noexcept
 {
+	if(__unlikely(!tag->held_size && (tag->next || tag->previous)))
+	{
+		direct_write("[MM] DEBUG: tag at ");
+		debug_print_addr(tag);
+		direct_writeln("possible double free()");
+		return;
+	}
 	tag->held_size		= 0;
 	tag->align_bytes	= 0;
 	remaining_memory	+= tag->block_size;
@@ -782,7 +800,7 @@ void uframe_tag::drop_block(block_descriptor const& which)
 		if(which.physical_start == i->physical_start)
 		{
 			__unmap_pages(i->physical_start, i->size / page_size, pml4);
-			__kernel_frame_tag->deallocate(i->physical_start, i->align);
+			fm.release_block(*i);
 			usr_blocks.erase(i);
 			break;
 		}

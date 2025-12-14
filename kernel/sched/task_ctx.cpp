@@ -5,7 +5,6 @@
 #include <elf64_dynamic_exec.hpp>
 #include <frame_manager.hpp>
 #include <isr_table.hpp>
-#include <kdebug.hpp>
 #include <kernel_mm.hpp>
 #include <prog_manager.hpp>
 typedef std::pair<elf64_sym, addr_t> sym_pair;
@@ -19,6 +18,12 @@ void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))); }
 void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
 elf64_dynamic_object* task_ctx::assert_dynamic() { return std::addressof(dynamic_cast<elf64_dynamic_executable&>(*program_handle)); }
+static shared_object_map* create_so_map(task_descriptor& desc)
+{
+	if(dynamic_cast<elf64_dynamic_object*>(static_cast<elf64_executable*>(desc.program.object_handle)))
+		return new shared_object_map(static_cast<uframe_tag*>(desc.program.frame_ptr));
+	return nullptr;
+}
 static inline void init_fx(fx_state& fx)
 {
 	asm volatile("fxsave %0" : "=m"(fx) :: "memory");
@@ -94,14 +99,14 @@ task_ctx::task_ctx(task_descriptor&& desc, pid_t pid) :
 	ctx_filesystem				{ create_task_vfs() },
 	current_state				{ execution_state::STOPPED },
 	program_handle				{ static_cast<elf64_executable*>(desc.program.object_handle) },
-	local_so_map				{ sm_alloc.allocate(1) },
+	local_so_map				{ create_so_map(desc) },
 	impersonate					{ false },
 	imp_uid						{ uid_undef },
 	imp_gid						{ gid_undef }
 	{
-		std::construct_at(local_so_map, static_cast<uframe_tag*>(desc.program.frame_ptr));
 		if(desc.program.ld_path && desc.program.ld_path_count)
-			dl_search_paths.push_back(desc.program.ld_path, desc.program.ld_path + desc.program.ld_path_count);
+			for(size_t i = 0UZ; i < desc.program.ld_path_count; i++)
+				dl_search_paths.push_back(std::string(desc.program.ld_path[i]));
 	}
 task_ctx::task_ctx(task_ctx const& that) :
 	task_struct
@@ -201,6 +206,7 @@ task_ctx::task_ctx(task_ctx&& that) :
 		task_struct.self					= std::addressof(task_struct);
 		task_struct.task_ctl.signal_info	= std::addressof(task_sig_info);
 		that.task_struct.frame_ptr			= nullptr;
+		that.local_so_map					= nullptr;
 	}
 task_ctx::~task_ctx()
 {
@@ -213,10 +219,11 @@ task_ctx::~task_ctx()
 				stickies.push_back(i);
 		for(shared_object_map::iterator i : stickies) { local_so_map->transfer(globals, i); }
 		local_so_map->shared_frame 			= nullptr;
-		sm_alloc.deallocate(local_so_map, 1);
+		delete local_so_map;
+		local_so_map						= nullptr;
 	}
 	if(!task_struct.frame_ptr) return;
-	try { fm.destroy_frame(task_struct.frame_ptr.deref<uframe_tag>()); }
+	try { fm.destroy_frame(get_frame()); }
 	catch(std::exception& e) { panic(e.what()); }
 }
 void task_ctx::add_child(task_ctx* that)
@@ -430,28 +437,27 @@ void task_ctx::end_signal()
 }
 bool task_ctx::set_fork()
 {
+	typedef std::vector<elf64_dynamic_object*>::iterator tl_it;
 	try
 	{
 		uframe_tag* old_frame			= task_struct.frame_ptr;
-		shared_object_map* old_so_map	= local_so_map;
 		uframe_tag* new_frame			= std::addressof(fm.fork_frame(old_frame));
-		task_struct.frame_ptr			= new_frame;
-		task_struct.saved_regs.cr3		= new_frame->pml4;
-		if(old_so_map) local_so_map		= sm_alloc.allocate(1UZ);
-		if(local_so_map)
-		{
-			std::construct_at(local_so_map, new_frame);
-			for(elf64_shared_object* so : attached_so_handles)
-			{
-				kmm.enter_frame(new_frame);
-				kmm.map_to_current_frame(so->segment_blocks());
-				kmm.exit_frame();
-			}
-			local_so_map->copy(*old_so_map);
-		}
+		tl_it ph_pos					= tls_modules.find(dynamic_cast<elf64_dynamic_object*>(program_handle));
 		program_handle					= prog_manager::get_instance().clone(program_handle);
 		if(__unlikely(!program_handle)) return false;
+		if(ph_pos != tls_modules.end())
+			*ph_pos						= dynamic_cast<elf64_dynamic_object*>(program_handle);
 		program_handle->on_copy(new_frame);
+		task_struct.frame_ptr			= new_frame;
+		task_struct.saved_regs.cr3		= new_frame->pml4;
+		shared_object_map* old_so_map	= local_so_map;
+		if(old_so_map) (local_so_map	= new shared_object_map(new_frame))->copy(*old_so_map);
+		for(elf64_shared_object* so : attached_so_handles)
+		{
+			kmm.enter_frame(new_frame);
+			kmm.map_to_current_frame(so->segment_blocks());
+			kmm.exit_frame();
+		}
 		if(opened_directories.empty()) return true;
 		std::map<int, posix_directory> old_dirs(std::move(opened_directories));
 		opened_directories.clear();
@@ -465,19 +471,19 @@ bool task_ctx::set_fork()
 bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cstrvec&& env)
 {
 	spid_t parent_pid					= task_struct.task_ctl.parent_pid;
+	uframe_tag* new_tag		= static_cast<uframe_tag*>(desc.frame_ptr);
+	if(!new_tag) throw std::invalid_argument("[COMPAT/execve] frame must not be null");
 	if(local_so_map)
 	{
 		if(parent_pid < 0)
 		{
 			local_so_map->shared_frame	= nullptr;
 			fm.destroy_frame(get_frame());
-			sm_alloc.deallocate(local_so_map, 1UZ);
+			delete local_so_map;
 		}
-		local_so_map		= sm_alloc.allocate(1UZ);
+		local_so_map		= new shared_object_map(new_tag);
 		if(__unlikely(!local_so_map)) return false;
 	}
-	uframe_tag* new_tag		= static_cast<uframe_tag*>(desc.frame_ptr);
-	if(!new_tag) throw std::invalid_argument("[COMPAT/execve] frame must not be null");
 	task_struct.frame_ptr	= new_tag;
 	allocated_stack			= desc.prg_stack;
 	stack_allocated_size	= desc.stack_size;

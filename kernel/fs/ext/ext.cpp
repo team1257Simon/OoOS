@@ -292,7 +292,7 @@ filesystem::target_pair extfs::get_parent(directory_vnode* start, std::string co
 		else if(node->is_directory()) cur = node->as_directory();
 		else throw std::invalid_argument("[FS/EXT4] path is invalid because entry " + pathspec[i] + " is not a directory");
 	}
-	return target_pair(std::piecewise_construct, std::forward_as_tuple(cur), std::forward_as_tuple(pathspec.back()));
+	return target_pair(std::piecewise_construct, std::forward_as_tuple(cur), std::forward_as_tuple(std::move(pathspec.back())));
 }
 file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mode, bool create)
 {

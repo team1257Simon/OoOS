@@ -53,6 +53,7 @@ file_vnode* filesystem::get_file_or_null(std::string const& path)
 		if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->get_file_or_null(parent.second);
 		if(tnode* node			= parent.first->find(parent.second))
 		{
+					
 			file_vnode* file	= on_open(node);
 			if(file) register_fd(file);
 			return file;
@@ -218,7 +219,8 @@ filesystem::target_pair filesystem::get_parent(directory_vnode* start, std::stri
 		else if(cur->is_directory()) start = cur->as_directory();
 		else throw std::invalid_argument("[FS] path is invalid because entry " + pathspec[i] + " is not a directory");
 	}
-	return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(pathspec.back()));
+	std::string last(std::move(pathspec.back()));
+	return target_pair(std::piecewise_construct, std::forward_as_tuple(start), std::forward_as_tuple(std::move(last)));
 }
 vnode* filesystem::find_node(std::string const& path, bool ignore_links, std::ios_base::openmode mode)
 {

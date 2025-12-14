@@ -11,7 +11,9 @@ class frame_manager : std::set<uframe_tag>
 	std::unordered_map<addr_t, shared_block> __global_shared_blocks;
 	std::unordered_map<addr_t, int> __local_shared_blocks;
 	frame_manager();
-	void __release_block(block_descriptor& bd);
+protected:
+	friend struct uframe_tag;
+	void release_block(block_descriptor& bd);
 public:
 	using __base::iterator;
 	using __base::const_iterator;

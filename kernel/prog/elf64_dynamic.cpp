@@ -2,11 +2,6 @@
 #include <kernel_mm.hpp>
 #include <stdlib.h>
 #include <algorithm>
-constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
-constexpr static std::allocator<uint32_t> w_alloc{};
-constexpr static std::allocator<uint64_t> q_alloc{};
-constexpr static std::allocator<elf64_rela> r_alloc{};
-constexpr static std::alignval_allocator<elf64_dyn, std::align_val_t(PAGESIZE)> dynseg_alloc;
 constexpr static bool is_object_rela(elf64_rela const& r) { return r.r_info.type == R_X86_64_GLOB_DAT; }
 bool elf64_dynamic_object::load_preinit() { return true; /* stub; only applicable to executables */ }
 addr_t elf64_dynamic_object::resolve_rela_target(elf64_rela const& r) const { return resolve(r.r_offset); }
@@ -20,7 +15,7 @@ elf64_dynamic_object::elf64_dynamic_object(file_vnode* n) : elf64_object(n), sym
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
 	elf64_object	{ that },
 	num_dyn_entries	{ that.num_dyn_entries },
-	dyn_entries		{ dynseg_alloc.allocate(num_dyn_entries) },
+	dyn_entries		{ that.dyn_entries },
 	num_plt_relas	{ that.num_plt_relas },
 	plt_relas		{ that.plt_relas },
 	got_vaddr		{ that.got_vaddr },
@@ -51,7 +46,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object const& that) :
 elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
 	elf64_object	{ std::move(that) },
 	num_dyn_entries	{ that.num_dyn_entries },
-	dyn_entries		{ that.dyn_entries },
+	dyn_entries		{ std::move(that.dyn_entries) },
 	num_plt_relas	{ that.num_plt_relas },
 	plt_relas		{ std::move(that.plt_relas) },
 	got_vaddr		{ that.got_vaddr },
@@ -79,14 +74,7 @@ elf64_dynamic_object::elf64_dynamic_object(elf64_dynamic_object&& that) :
 		.verneed	{ std::move(that.symbol_index.verneed) }
 	}
 	{}
-elf64_dynamic_object::~elf64_dynamic_object()
-{
-	release_segments();
-	if(segments && num_seg_descriptors)
-		sd_alloc.deallocate(segments, num_seg_descriptors);
-	if(dyn_entries)
-		dynseg_alloc.deallocate(dyn_entries, num_dyn_entries);
-}
+elf64_dynamic_object::~elf64_dynamic_object() = default;
 constexpr static bool is_tls_rela(elf64_rela const& r)
 {
 	elf_rel_type t = r.r_info.type;
@@ -294,8 +282,8 @@ bool elf64_dynamic_object::load_syms()
 		if(is_dynamic(ph))
 		{
 			num_dyn_entries		= ph.p_filesz / sizeof(elf64_dyn);
-			dyn_entries			= dynseg_alloc.allocate(num_dyn_entries);
-			array_copy<elf64_dyn>(dyn_entries, segment_ptr(n), num_dyn_entries);
+			elf64_dyn const* d	= segment_ptr(n);
+			dyn_entries			= std::move(std::vector<elf64_dyn>(d, d + num_dyn_entries));
 			have_dyn			= true;
 			dyn_segment_idx		= n;
 		}

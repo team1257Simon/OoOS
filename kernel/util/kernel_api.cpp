@@ -47,7 +47,7 @@ namespace ooos
 	struct kmod_mm_impl : kmod_mm, kframe_tag
 	{
 		kernel_memory_mgr* mm;
-		block_tag* first_managed_block;
+		std::vector<block_tag*> managed_blocks{};
 		spinlock_t mod_mutex{};
 		virtual void* mem_allocate(size_t size, size_t align) override;
 		virtual void mem_release(void* block, size_t align) override;
@@ -77,9 +77,7 @@ namespace ooos
 			size_t count	= mod.buffer_count();
 			size_t rx_sz	= mod.rx_limit();
 			size_t tx_sz	= mod.tx_limit();
-			auto rx_bind	= std::bind(&netdev_helper::rx_transfer, this, std::placeholders::_1);
-			auto tx_bind = std::bind(&abstract_netdev_module::poll_tx, std::addressof(mod), std::placeholders::_1);
-			for(size_t i	= 0UZ; i < count; i++) transfer_buffers.emplace(rx_sz, tx_sz, rx_bind, tx_bind, rx_sz, tx_sz);
+			for(size_t i	= 0UZ; i < count; i++) transfer_buffers.emplace(rx_sz, tx_sz, std::bind(&netdev_helper::rx_transfer, this, std::placeholders::_1), std::bind(&abstract_netdev_module::poll_tx, std::addressof(mod), std::placeholders::_1), rx_sz, tx_sz);
 			return true;
 		}
 		catch(...) { return false; }
@@ -213,20 +211,13 @@ namespace ooos
 		}
 	} __api_impl{};
 	void register_type(std::type_info const& ti) { __api_impl.register_type_info(std::addressof(ti)); }
-	kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm), first_managed_block(nullptr) {}
+	kmod_mm_impl::kmod_mm_impl() : kmod_mm(), kframe_tag(), mm(__api_impl.mm) {}
 	void* kmod_mm_impl::mem_allocate(size_t size, size_t align)
 	{
 		block_tag* tag						= get_for_allocation(size ? size : 1UL, align);
 		if(!tag) throw std::bad_alloc();
 		lock(std::addressof(mod_mutex));
-		if(!first_managed_block)
-			first_managed_block				= tag;
-		else
-		{
-			tag->next						= first_managed_block;
-			first_managed_block->previous	= tag;
-			first_managed_block				= tag;
-		}
+		managed_blocks.push_back(tag);
 		release(std::addressof(mod_mutex));
 		return tag->actual_start();
 	}
@@ -236,11 +227,9 @@ namespace ooos
 		if(block_tag* tag = find_tag(block, align))
 		{
 			lock(std::addressof(mod_mutex));
-			if(first_managed_block == tag) first_managed_block	= tag->next;
-			if(tag->previous) tag->previous->next				= tag->next;
-			if(tag->next) tag->next->previous					= tag->previous;
-			tag->previous										= nullptr;
-			tag->next											= nullptr;
+			std::vector<block_tag*>::iterator i	= managed_blocks.find(tag);
+			if(i != managed_blocks.end()) managed_blocks.erase(i);
+			else xklog("[KMOD_MM] W: released a block that was not managed: " + std::to_string(tag));
 			release_block(tag);
 			release(std::addressof(mod_mutex));
 		}
@@ -253,16 +242,16 @@ namespace ooos
 		mem_release(old, align);
 		return result;
 	}
-	kmod_mm_impl::~kmod_mm_impl()
-	{
-		block_tag* tag			= first_managed_block;
-		while(tag)
+	kmod_mm_impl::~kmod_mm_impl() {
+		for(block_tag* tag : managed_blocks) release_block(tag);
+		for(size_t i = 0UZ; i < block_index_range; i++)
 		{
-			block_tag* next	 	= tag->next;
-			tag->next			= nullptr;
-			tag->previous		= nullptr;
-			release_block(tag);
-			tag					= next;
+			for(block_tag* tag	= available_blocks[i]; tag; tag = tag->next)
+			{
+				while(tag->left_split)	tag	= melt_left(tag);
+				while(tag->right_split)	tag	= melt_right(tag);
+				kmm.deallocate_block(tag, tag->block_size, false);
+			}
 		}
 	}
 	void init_api()

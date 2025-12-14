@@ -6,8 +6,18 @@
 #include <tuple>
 namespace std
 {
-	template<typename T> struct default_delete { constexpr void operator()(T* ptr) const { operator delete(ptr, static_cast<std::align_val_t>(alignof(T))); } };
-	template<typename T> struct default_delete<T[]> { constexpr void operator()(T* ptr) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); } };
+	template<typename T> struct default_delete
+	{ 
+		constexpr void operator()(T* ptr) const {
+			if constexpr(!std::is_trivially_destructible_v<T>)
+				ptr->~T();
+			operator delete(ptr, static_cast<std::align_val_t>(alignof(T)));
+		} 
+	};
+	template<typename T> struct default_delete<T[]> { 
+		static_assert(std::is_trivially_destructible_v<T>, "nontrivial destructors unsupported for array unique_ptr");
+		constexpr void operator()(T* ptr) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); }
+	};
 	namespace __detail
 	{
 		template<typename FT, typename T> concept __ptr_accept_ftor		= requires(FT ft) { ft(declval<T*>()); };
@@ -36,29 +46,30 @@ namespace std
 	{
 		using __traits	= __detail::__unique_ptr_traits<T, DT>;
 		typedef typename __traits::copy_deleter_type __del_t;
-		tuple<T*, DT> __ptr_impl;
+		std::tuple<T*, DT> __ptr_impl;
 	public:
 		typedef typename __traits::pointer pointer;
 		typedef typename __traits::element_type element_type;
 		typedef typename __traits::deleter_type deleter_type;
-		constexpr unique_ptr() = default;
+		constexpr unique_ptr() : __ptr_impl(nullptr, deleter_type()) {}
 		constexpr unique_ptr(nullptr_t) : unique_ptr() {}
 		constexpr explicit unique_ptr(pointer p) : __ptr_impl(p, deleter_type()) {}
 		constexpr unique_ptr(pointer p, __del_t d) : __ptr_impl(p, d) {}
 		constexpr unique_ptr(pointer p, remove_reference_t<DT>&& d) : __ptr_impl(p, forward<DT>(d)) {}
 	private:
-		constexpr T*& __ptr() noexcept { return get<0>(__ptr_impl); }
-		constexpr T* __ptr() const noexcept { return get<0>(__ptr_impl); }
-		constexpr DT& __deleter() noexcept { return get<1>(__ptr_impl); }
-		constexpr DT const& __deleter() const noexcept { return get<1>(__ptr_impl); }
-		constexpr void __delete_if_present() noexcept { if(__ptr()) __deleter()(__ptr()); }
+		constexpr T*& __ptr() noexcept { return std::get<0>(__ptr_impl); }
+		constexpr T* __ptr() const noexcept { return std::get<0>(__ptr_impl); }
+		constexpr DT& __deleter() noexcept { return std::get<1>(__ptr_impl); }
+		constexpr DT const& __deleter() const noexcept { return std::get<1>(__ptr_impl); }
+		constexpr void __delete_if_present() noexcept { pointer p = __ptr(); if(p) __deleter()(p); }
+		constexpr void __release_ptr() noexcept { __ptr() = nullptr; }
 	public:
 		constexpr pointer get() const noexcept { return __ptr(); }
 		constexpr deleter_type& get_deleter() noexcept { return __deleter(); }
 		constexpr deleter_type const& get_deleter() const noexcept { return __deleter(); }
 		constexpr operator bool() const noexcept { return __ptr() != nullptr; }
 		constexpr void reset(pointer p = pointer()) noexcept { __delete_if_present(); __ptr() = p; }
-		constexpr pointer release() noexcept { pointer result = __ptr(); reset(); return result; }
+		constexpr pointer release() noexcept { pointer result = __ptr(); __release_ptr(); return result; }
 		unique_ptr(unique_ptr const&) = delete;
 		constexpr unique_ptr(unique_ptr&& that) noexcept : __ptr_impl(that.release(), std::move(that.__deleter())) {}
 		unique_ptr& operator=(unique_ptr const&) = delete;
@@ -78,24 +89,25 @@ namespace std
 		typedef typename __traits::pointer pointer;
 		typedef typename __traits::element_type element_type;
 		typedef typename __traits::deleter_type deleter_type;
-		constexpr unique_ptr() = default;
+		constexpr unique_ptr() : __ptr_impl(nullptr, deleter_type()) {}
 		constexpr unique_ptr(nullptr_t) : unique_ptr() {}
 		constexpr explicit unique_ptr(pointer p) : __ptr_impl(p, deleter_type()) {}
 		constexpr unique_ptr(pointer p, __del_t d) : __ptr_impl(p, d) {}
 		constexpr unique_ptr(pointer p, remove_reference_t<DT>&& d) : __ptr_impl(p, forward<DT>(d)) {}
 	private:
-		constexpr T*& __ptr() noexcept { return get<0>(__ptr_impl); }
-		constexpr T* __ptr() const noexcept { return get<0>(__ptr_impl); }
-		constexpr DT& __deleter() noexcept { return get<1>(__ptr_impl); }
-		constexpr DT const& __deleter() const noexcept { return get<1>(__ptr_impl); }
-		constexpr void __delete_if_present() noexcept { if(__ptr()) __deleter()(__ptr()); }
+		constexpr T*& __ptr() noexcept { return std::get<0>(__ptr_impl); }
+		constexpr T* __ptr() const noexcept { return std::get<0>(__ptr_impl); }
+		constexpr DT& __deleter() noexcept { return std::get<1>(__ptr_impl); }
+		constexpr DT const& __deleter() const noexcept { return std::get<1>(__ptr_impl); }
+		constexpr void __delete_if_present() noexcept { pointer p = __ptr(); if(p) __deleter()(p); }
+		constexpr void __release_ptr() noexcept { __ptr() = nullptr; }
 	public:
 		constexpr pointer get() const noexcept { return __ptr(); }
 		constexpr deleter_type& get_deleter() noexcept { return __deleter(); }
 		constexpr deleter_type const& get_deleter() const noexcept { return __deleter(); }
 		constexpr operator bool() const noexcept { return __ptr() != nullptr; }
 		constexpr void reset(pointer p = pointer()) noexcept { __delete_if_present(); __ptr() = p; }
-		constexpr pointer release() noexcept { pointer result = __ptr(); reset(); return result; }
+		constexpr pointer release() noexcept { pointer result = __ptr(); __release_ptr(); return result; }
 		unique_ptr(unique_ptr const&) = delete;
 		constexpr unique_ptr(unique_ptr&& that) noexcept : __ptr_impl(that.release(), std::move(that.__deleter())) {}
 		unique_ptr& operator=(unique_ptr const&) = delete;

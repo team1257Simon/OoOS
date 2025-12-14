@@ -8,7 +8,7 @@ class elf64_dynamic_object : public virtual elf64_object
 {
 protected:
 	size_t num_dyn_entries{};
-	elf64_dyn* dyn_entries{};
+	std::vector<elf64_dyn> dyn_entries{};
 	size_t num_plt_relas{};
 	std::vector<elf64_rela> plt_relas{};
 	size_t got_vaddr{};

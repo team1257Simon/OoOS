@@ -27,6 +27,7 @@ elf64_object::~elf64_object()
 	if(symtab.data) free(symtab.data);
 	if(symstrtab.data) free(symstrtab.data);
 	if(shstrtab.data) free(shstrtab.data);
+	release_segments();
 }
 void elf64_object::cleanup()
 {
@@ -45,7 +46,7 @@ void elf64_object::process_headers()
 	for(size_t i = 0; i < ehdr().e_phnum; i++)
 		if(is_load(phdr(i)) && phdr(i).p_memsz)
 			num_seg_descriptors++;
-	segments	= sd_alloc.allocate(num_seg_descriptors);
+	segments.reserve(num_seg_descriptors);
 }
 bool elf64_object::validate() noexcept
 {
@@ -139,10 +140,10 @@ std::vector<block_descriptor> elf64_object::segment_blocks() const
 elf64_object::elf64_object(elf64_object const& that) :
 	__validated			{ that.__validated },
 	__loaded			{ that.__loaded },
-	__image_start		{ that.__image_start },
-	__image_size		{ that.__image_size },
+	__image_start		{ that.__image_start ? clone_image(that.__image_start, that.__image_size) : nullptr },
+	__image_size		{ that.__image_start ? that.__image_size : 0UZ },
 	num_seg_descriptors { that.num_seg_descriptors },
-	segments			{ sd_alloc.allocate(num_seg_descriptors) },
+	segments			{ that.segments },
 	symtab				{ that.symtab.total_size, that.symtab.entry_size, ch_alloc.allocate(that.symtab.total_size) },
 	symstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.symstrtab.total_size) },
 	shstrtab			{ that.symstrtab.total_size, ch_alloc.allocate(that.shstrtab.total_size) },
@@ -156,7 +157,6 @@ elf64_object::elf64_object(elf64_object const& that) :
 		array_copy<char>(symtab.data, that.symtab.data, that.symtab.total_size);
 		array_copy<char>(symstrtab.data, that.symstrtab.data, that.symstrtab.total_size);
 		array_copy<char>(shstrtab.data, that.shstrtab.data, that.shstrtab.total_size);
-		array_copy<program_segment_descriptor>(segments, that.segments, that.num_seg_descriptors); // based generic "memcpy" routine
 	}
 }
 elf64_object::elf64_object(elf64_object&& that) :
@@ -165,7 +165,7 @@ elf64_object::elf64_object(elf64_object&& that) :
 	__image_start		{ that.__image_start },
 	__image_size		{ that.__image_size },
 	num_seg_descriptors { that.num_seg_descriptors },
-	segments			{ that.segments },
+	segments			{ std::move(that.segments) },
 	symtab				{ std::move(that.symtab) },
 	symstrtab			{ std::move(that.symstrtab) },
 	shstrtab			{ std::move(that.shstrtab) },
@@ -178,7 +178,6 @@ elf64_object::elf64_object(elf64_object&& that) :
 	that.__loaded				= false;
 	that.__image_size			= 0UZ;
 	that.__image_start			= nullptr;
-	that.segments				= nullptr;
 	that.num_seg_descriptors	= 0UZ;
 	that.tls_base				= nullptr;
 	that.tls_size				= 0UZ;
@@ -193,6 +192,6 @@ void elf64_object::on_copy(uframe_tag* new_frame)
 	{
 		if(!segments[i].absolute_addr || !segments[i].size) continue;
 		segments[i].absolute_addr	= new_frame->translate(segments[i].virtual_addr);
-		if(!segments[i].absolute_addr) throw std::runtime_error("[PRG] cannot change frame before remapping blocks");
+		if(!segments[i].absolute_addr) throw std::runtime_error("[PRG] cannot change frame before copying blocks");
 	}
 }

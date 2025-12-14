@@ -1,6 +1,6 @@
 #ifndef __IPV4
 #define __IPV4
-#include <net/netdev.hpp>
+#include <net/netdev_module.hpp>
 #include <bits/hash_set.hpp>
 enum ecn_t : net8
 {

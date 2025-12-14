@@ -24,7 +24,7 @@ shared_object_map::const_iterator shared_object_map::cend() const noexcept { ret
 shared_object_map::iterator shared_object_map::find(std::string const& what) noexcept { return __base::find(what); }
 shared_object_map::const_iterator shared_object_map::find(std::string const& what) const noexcept { return __base::find(what); }
 shared_object_map::size_type shared_object_map::size() const noexcept { return __base::size(); }
-void shared_object_map::set_path(iterator obj, std::string const& path) { __obj_paths.insert(std::make_pair(obj, std::move(std::string(path)))); }
+void shared_object_map::set_path(iterator obj, std::string const& path) { __obj_paths.insert(std::make_pair(obj, path)); }
 const char* shared_object_map::get_path(iterator obj) const { if(auto i = __obj_paths.find(obj); i != __obj_paths.end()) { return i->second.c_str(); } else return nullptr; }
 shared_object_map::shared_object_map(uframe_tag* frame, size_type init_ct) : __base(init_ct),
     __obj_paths     { init_ct },
@@ -34,7 +34,8 @@ bool shared_object_map::remove(iterator so_handle)
 {
     so_handle->decref();
     if(so_handle->refs() || so_handle->is_sticky()) return false;
-    __obj_paths.erase(so_handle); erase(so_handle);
+    __obj_paths.erase(so_handle);
+	erase(so_handle);
     return true;
 }
 shared_object_map::iterator shared_object_map::get_if_resident(file_vnode* so_file)
@@ -60,7 +61,7 @@ shared_object_map::iterator shared_object_map::transfer(shared_object_map& that,
     __obj_paths.erase(handle);
     erase(result->get_soname());
     for(block_descriptor& d : result->segment_blocks()) { shared_frame->transfer_block(*that.shared_frame, d); }
-    result->frame_tag	= that.shared_frame;
+    result->set_frame(that.shared_frame);
     that.set_path(result, xhpath);
     if(std::addressof(that) == std::addressof(__globals)) result->set_global();
     else result->set_global(false);

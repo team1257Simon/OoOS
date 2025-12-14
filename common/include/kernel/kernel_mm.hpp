@@ -280,6 +280,7 @@ public:
 	__nointerrupts __noinline addr_t allocate_kernel_block(size_t sz) noexcept;
 	__nointerrupts __noinline addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
 	__nointerrupts __noinline void deallocate_block(addr_t base, size_t sz, bool should_unmap = false) noexcept;
+	__nointerrupts __noinline void deallocate_user_block(addr_t base, size_t sz, size_t align, bool should_unmap) noexcept;
 	__nointerrupts paging_table allocate_pt() noexcept;
 	__nointerrupts addr_t allocate_dma(size_t sz, bool prefetchable) noexcept;
 	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;

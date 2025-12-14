@@ -12,7 +12,7 @@ elf64_kernel_object::~elf64_kernel_object() { if(module_object) module_takedown(
 void elf64_kernel_object::on_load_failed() { if(load_base) ::operator delete(load_base, load_align); load_base = nullptr; }
 addr_t elf64_kernel_object::resolve(uint64_t offs) const { return load_base.plus(offs); }
 bool elf64_kernel_object::is_position_relocated() const noexcept { return true; }
-elf64_kernel_object::elf64_kernel_object(elf64_kernel_object &&that) : elf64_object(std::move(that)), elf64_dynamic_object(std::move(that)),
+elf64_kernel_object::elf64_kernel_object(elf64_kernel_object&& that) : elf64_object(std::move(that)), elf64_dynamic_object(std::move(that)),
 	load_base		{ that.load_base },
 	load_align		{ that.load_align },
 	entry			{ that.entry },
@@ -62,18 +62,17 @@ void elf64_kernel_object::process_headers()
 }
 bool elf64_kernel_object::load_segments()
 {
-	size_t i		= 0;
 	size_t n		= ehdr().e_phnum;
 	bool have_loads	= false;
-	for(size_t j = 0; j < n; j++)
+	for(size_t i = 0; i < n; i++)
 	{
-		elf64_phdr const& ph = phdr(j);
+		elf64_phdr const& ph = phdr(i);
 		if(!is_load(ph) || !ph.p_memsz) continue;
 		addr_t addr		= is_tls(ph) ? tls_base : load_base.plus(ph.p_vaddr);
 		addr_t img_dat	= img_ptr(ph.p_offset);
 		array_copy<uint8_t>(addr, img_dat, ph.p_filesz);
 		if(ph.p_memsz > ph.p_filesz) array_zero<uint8_t>(addr.plus(ph.p_filesz), static_cast<size_t>(ph.p_memsz - ph.p_filesz));
-		new(std::addressof(segments[i++])) program_segment_descriptor
+		program_segment_descriptor desc
 		{
 			.absolute_addr	= addr,
 			.virtual_addr	= addr,
@@ -82,6 +81,7 @@ bool elf64_kernel_object::load_segments()
 			.seg_align		= ph.p_align,
 			.perms			= PV_RWX
 		};
+		segments.push_back(desc);
 		have_loads			= true;
 	}
 	return have_loads;
