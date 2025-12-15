@@ -717,7 +717,7 @@ pid_t task_ctx::thread_fork()
 	thread_t* current_thread	= frame.translate(task_struct.thread_ptr);
 	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::update_thread_state(*current_thread, task_struct);
-	thread_t* new_thread		= thread_create(*current_thread, true);
+	thread_t* new_thread		= thread_init(*current_thread, true);
 	dyn_thread.instantiate(*new_thread);
 	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread->self));
 	kthread_ptr kth(header(), new_thread->self);
@@ -725,20 +725,20 @@ pid_t task_ctx::thread_fork()
 	new_thread->ctl_info.state	= thread_state::RUNNING;
 	return new_thread->ctl_info.thread_id;
 }
-pid_t task_ctx::thread_vfork(addr_t entry_point, addr_t arg, addr_t exit_point)
+pid_t task_ctx::thread_add(addr_t entry_point, addr_t exit_point, size_t stack_target_size, bool start_detached, register_t arg)
 {
 	uframe_tag& frame			= get_frame();
 	thread_t* current_thread	= frame.translate(task_struct.thread_ptr);
 	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::update_thread_state(*current_thread, task_struct);
-	thread_t* new_thread		= thread_create(*current_thread, false);
+	thread_t* new_thread		= thread_init(*current_thread, false, stack_target_size, start_detached);
 	addr_t real_stack			= frame.translate(new_thread->saved_regs.rsp.minus(sizeof(register_t)));
 	if(!real_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	real_stack.assign(exit_point);
 	new_thread->saved_regs.rsp	-= sizeof(register_t);
 	new_thread->saved_regs.rbp	-= sizeof(register_t);
 	new_thread->saved_regs.rip	= entry_point;
-	new_thread->saved_regs.rdi	= arg.full;
+	new_thread->saved_regs.rdi	= arg;
 	dyn_thread.instantiate(*new_thread);
 	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread->self));
 	kthread_ptr kth(header(), new_thread->self);
@@ -785,9 +785,11 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 	}
 	else real->saved_regs.rax		= result_val;
 }
-thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all_regs)
+thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_regs, size_t stack_target_size, bool start_detached)
 {
 	uframe_tag& frame			= get_frame();
+	if(copy_all_regs)
+		stack_target_size		= template_thread.stack_size;
 	addr_t block_start;
 	addr_t block_end;
 	addr_t stack_begin;
@@ -799,7 +801,7 @@ thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all
 		block_end				= (task_struct.tls_master ? block_start.plus(task_struct.tls_size) : frame.extent).alignup(alignof(thread_t));
 		if(!frame.shift_extent(block_end.plus(sizeof(thread_t)) - frame.extent)) throw std::bad_alloc();
 		stack_begin				= frame.extent.next_page_aligned();
-		stack_end				= stack_begin.plus(template_thread.stack_size);
+		stack_end				= stack_begin.plus(stack_target_size);
 		if(!frame.shift_extent(stack_end - frame.extent)) throw std::bad_alloc();
 	}
 	else
@@ -810,7 +812,7 @@ thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all
 		block_start				= old->tls_start;
 		block_end				= old->self;
 		stack_begin				= old->stack_base;
-		stack_end				= stack_begin.plus(old->stack_size);
+		stack_end				= stack_begin.plus(stack_target_size);
 	}
 	if(task_struct.tls_master)
 	{
@@ -841,7 +843,7 @@ thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all
 				.state				= thread_state::STOPPED,
 				.park				= false,
 				.non_timed_park		= false,
-				.detached			= false,
+				.detached			= start_detached,
 				.cancel_disable		= false,
 				.cancel_async		= false
 			},
@@ -852,15 +854,18 @@ thread_t* task_ctx::thread_create(thread_t const& template_thread, bool copy_all
 			}
 		},
 		.stack_base				= stack_begin,
-		.stack_size				= static_cast<size_t>(stack_end - stack_begin),
+		.stack_size				= stack_target_size,
 		.tls_start				= block_start
 	};
 	new_thread->saved_regs.rsp	= stack_begin.plus(template_thread.saved_regs.rsp - template_thread.stack_base);
 	new_thread->saved_regs.rbp	= stack_begin.plus(template_thread.saved_regs.rbp - template_thread.stack_base);
-	addr_t real_stack			= frame.translate(new_thread->stack_base);
-	addr_t real_old_stack		= frame.translate(template_thread.stack_base);
-	if(!real_stack || !real_old_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	array_copy<uint8_t>(real_stack, real_old_stack, template_thread.stack_size);
+	if(copy_all_regs)
+	{
+		addr_t real_stack			= frame.translate(new_thread->stack_base);
+		addr_t real_old_stack		= frame.translate(template_thread.stack_base);
+		if(!real_stack || !real_old_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+		array_copy<uint8_t>(real_stack, real_old_stack, template_thread.stack_size);
+	}
 	return new_thread;
 }
 join_result task_ctx::thread_join(pid_t with_thread)

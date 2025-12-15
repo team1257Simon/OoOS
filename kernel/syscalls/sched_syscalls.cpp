@@ -298,15 +298,15 @@ extern "C"
 		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
 		return -ENOMEM; 
 	}
-	spid_t syscall_tvfork(addr_t entry_point, addr_t arg, addr_t exit_point)
+	spid_t syscall_threadcreate(addr_t entry_pt, addr_t exit_pt, size_t stack_sz, bool start_detached, register_t arg)
 	{
 		task_ctx* task		= active_task_context();
 		if(__unlikely(!task)) return -ENOSYS;
-		try { return static_cast<spid_t>(task->thread_vfork(entry_point, arg, exit_point)); }
+		try { return static_cast<spid_t>(task->thread_add(entry_pt, exit_pt, stack_sz, start_detached, arg)); }
 		catch(std::out_of_range& e) 	{ panic(e.what()); return -EFAULT; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EAGAIN; }
 		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
-		return -ENOMEM; 
+		return -ENOMEM;
 	}
 	spid_t syscall_getthreadid()
 	{

@@ -81,7 +81,7 @@
 	.extern							syscall_tlget
 	.extern							syscall_threadexit
 	.extern							syscall_tfork
-	.extern							syscall_tvfork
+	.extern							syscall_threadcreate
 	.extern							syscall_getthreadid
 	.extern							syscall_threadjoin
 	.extern							syscall_threaddetach
@@ -159,7 +159,7 @@
 	.type	syscall_tlget,			@function
 	.type	syscall_threadexit,		@function
 	.type	syscall_tfork,			@function
-	.type	syscall_tvfork,			@function
+	.type	syscall_threadcreate,	@function
 	.type	syscall_getthreadid,	@function
 	.type	syscall_threadjoin,		@function
 	.type	syscall_threaddetach,	@function
@@ -240,7 +240,7 @@ syscall_vec:
 	.quad	syscall_tlget			// 53; ldso-specific (exported as __tls_get_addr)
 	.quad	syscall_threadexit		// 54
 	.quad	syscall_tfork			// 55
-	.quad	syscall_tvfork			// 56
+	.quad	syscall_threadcreate	// 56
 	.quad	syscall_getthreadid		// 57
 	.quad	syscall_threadjoin		// 58
 	.quad	syscall_threaddetach	// 59

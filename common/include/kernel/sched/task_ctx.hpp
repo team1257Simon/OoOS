@@ -108,9 +108,9 @@ struct task_ctx
 	join_result thread_join(pid_t with_thread);
 	int thread_detach(pid_t thread_id);
 	pid_t thread_fork();
-	pid_t thread_vfork(addr_t entry_point, addr_t arg, addr_t exit_point);
+	pid_t thread_add(addr_t entry_point, addr_t exit_point, size_t stack_target_size, bool start_detached, register_t arg);
 	void thread_exit(pid_t thread_id, register_t result_val);
-	thread_t* thread_create(thread_t const& current_thread, bool copy_all_regs);
+	thread_t* thread_init(thread_t const& current_thread, bool copy_all_regs, size_t stack_target_size = 0UZ, bool start_detached = false);
 	void set_exit(int n);																// implements exit()
 	void set_signal(int sig, bool save_state);											// implements raise()
 	bool set_fork();																	// implements fork()

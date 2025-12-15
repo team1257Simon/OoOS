@@ -76,7 +76,7 @@ extern "C"
 {
 	[[noreturn]] void syscall_threadexit(register_t retval);
 	spid_t syscall_tfork();
-	spid_t syscall_tvfork(addr_t entry_point, addr_t arg, addr_t exit_point);
+	spid_t syscall_threadcreate(addr_t entry_pt, addr_t exit_pt, size_t stack_sz, bool start_detached, register_t arg);
 	spid_t syscall_getthreadid();
 	register_t syscall_threadjoin(pid_t thread);
 	int syscall_threaddetach(pid_t thread);

@@ -46,7 +46,7 @@ typedef unsigned long sigset_t;
 #define SYSCVEC_N_getvpwnam		51
 #define SYSCVEC_N_threadexit	54
 #define SYSCVEC_N_tfork			55
-#define SYSCVEC_N_tvfork		56
+#define SYSCVEC_N_threadcreate	56
 #define SYSCVEC_N_getthreadid	57
 #define SYSCVEC_N_threadjoin	58
 #define SYSCVEC_N_threaddetach	59
