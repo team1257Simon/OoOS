@@ -1,4 +1,6 @@
 #include <fs/fs.hpp>
+#include <users.hpp>
+#include <fs/permission_error.hpp>
 #include <sched/task_ctx.hpp>
 #include <algorithm>
 #include <stdexcept>
@@ -230,6 +232,13 @@ vnode* filesystem::find_node(std::string const& path, bool ignore_links, std::io
 		if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->find_node(parent.second, ignore_links, mode);
 		tnode* tn				= ignore_links ? parent.first->find_l(parent.second) : parent.first->find(parent.second);
 		if(!tn) return nullptr;
+		task_ctx* task			= active_task_context();
+		if(task && user_accounts_manager::is_initialized())
+		{
+			permission_check chk	= static_cast<permission_check>((mode.in ? CHK_READ : CHK_NONE) | (mode.out ? CHK_WRITE : CHK_NONE));
+			const_user_handle user	= user_accounts_manager::get_by_uid(task->euid());
+			if(__unlikely(!tn->check_permissions(*user, chk))) __throw_permission_error(*user, chk);
+		}
 		if(!current_open_files.contains(tn->ref().vid())) { register_fd(tn->ptr()); }
 		if(tn->is_file() || tn->is_pipe()) { return on_open(tn, mode); }
 		else return tn->ptr();
@@ -258,6 +267,13 @@ file_vnode* filesystem::open_file(std::string const& path, std::ios_base::openmo
 	file_vnode* result				= delegate->on_open(node, mode);
 	if(result)
 	{
+		task_ctx* task				= active_task_context();
+		if(task && user_accounts_manager::is_initialized())
+		{
+			permission_check chk	= static_cast<permission_check>((mode.in ? CHK_READ : CHK_NONE) | (mode.out ? CHK_WRITE : CHK_NONE));
+			const_user_handle user	= user_accounts_manager::get_by_uid(task->euid());
+			if(__unlikely(!result->check_permissions(*user, chk))) __throw_permission_error(*user, chk);
+		}
 		register_fd(result);
 		if(!result->is_pipe())
 			result->current_mode	= mode;

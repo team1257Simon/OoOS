@@ -28,9 +28,13 @@ constexpr permission_flag escalate_process			= 0x1000U;
 constexpr permission_flag impersonate_any_uid		= 0x2000U;
 constexpr permission_flag impersonate_any_gid		= 0x4000U;
 constexpr permission_flag service_account_nxlogin	= 0x8000U;
-constexpr permission_flag file_read_override		= 0x10000U;
+constexpr permission_flag file_execute_override		= 0x10000U;
 constexpr permission_flag file_write_override		= 0x20000U;
-constexpr permission_flag file_execute_override		= 0x40000U;
+constexpr permission_flag file_read_override		= 0x40000U;
+constexpr permission_flag dir_search_override		= 0x80000U;
+constexpr permission_flag fs_permissions_mask		= file_read_override | file_write_override | file_execute_override | dir_search_override;
+constexpr int fs_permissions_shift					= __builtin_ctz(fs_permissions_mask);
+constexpr uint8_t get_fs_permissions(permission_flag p) { return static_cast<uint8_t>((p & fs_permissions_mask) >> fs_permissions_shift); }
 struct __pack user_credentials
 {
 	char	user_login_name[username_max_len];
@@ -45,18 +49,6 @@ struct __pack user_capabilities
 	int				pw_change_require_interval;
 	int				pw_change_warning_interval;
 	permission_flag	system_permissions;
-};
-struct __pack global_accounts_info
-{
-	time_t last_updated;
-	size_t num_users;
-	size_t num_groups;
-	uint32_t vpwd_ino;	// the vpwd, or virtual passwd file, is a string table that contains unix-specified user info fields of variable string length
-	uid_t next_uid;
-	gid_t next_gid;
-	uid_t next_service_uid;
-	gid_t next_service_gid;
-	user_capabilities default_permissions;
 };
 struct __pack user_info
 {
@@ -73,6 +65,18 @@ struct __pack user_info
 	bool check_pw(std::string const& pw) const;
 	void compute_csum();
 	bool verify_csum() const;
+};
+struct __pack global_accounts_info
+{
+	time_t last_updated;
+	size_t num_users;
+	size_t num_groups;
+	uint32_t vpwd_ino;	// the vpwd, or virtual passwd file, is a string table that contains unix-specified user info fields of variable string length
+	uid_t next_uid;
+	gid_t next_gid;
+	uid_t next_service_uid;
+	gid_t next_service_gid;
+	user_capabilities default_permissions;
 };
 struct vpwd_entry
 {
@@ -95,6 +99,7 @@ struct username_equals { constexpr bool operator()(const char n1[username_max_le
 typedef sysfs_hash_table<const char*, user_info, username_extract, username_hash, username_equals> user_accounts_table;
 typedef sysfs_object_handle<global_accounts_info> global_info_handle;
 typedef user_accounts_table::value_handle user_handle;
+typedef user_accounts_table::const_value_handle const_user_handle;
 class user_accounts_manager
 {
 	static user_accounts_manager* __instance;
@@ -115,6 +120,7 @@ public:
 	static bool init_instance(sysfs& config_src);
 	static bool is_initialized();
 	static user_accounts_manager* get_instance();
+	static const_user_handle get_by_uid(uid_t id);
 	bool user_exists(std::string const& username);
 	bool can_create_user(std::string const& name);
 	global_info_handle global_configs();
@@ -131,6 +137,9 @@ public:
 	int get_vpwd_entry(std::string const& name, std::function<int(vpwd_entry&)> const& callback);
 	bool persist();
 };
+#ifndef __KERNEL__
+typedef int unix_pwd;
+#endif
 extern "C"
 {																	// typedef struct { uid_t uid; gid_t gid; } login_result;
 	int syscall_getvpwuid(uid_t uid, unix_pwd* out);				// int getvpwuid(uid_t uid, struct passwd* out);

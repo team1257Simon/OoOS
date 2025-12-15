@@ -1,4 +1,6 @@
 #include <fs/ext.hpp>
+#include <fs/permission_error.hpp>
+#include <users.hpp>
 #include <sys/errno.h>
 #include <util/bitmap.hpp>
 #include <immintrin.h>
@@ -350,6 +352,13 @@ file_vnode* extfs::open_file(std::string const& path, std::ios_base::openmode mo
 	else result				= delegate->on_open(node, mode);
 	if(result)
 	{
+		task_ctx* task				= active_task_context();
+		if(task && user_accounts_manager::is_initialized())
+		{
+			permission_check chk	= static_cast<permission_check>((mode.in ? CHK_READ : CHK_NONE) | (mode.out ? CHK_WRITE : CHK_NONE));
+			const_user_handle user	= user_accounts_manager::get_by_uid(task->euid());
+			if(__unlikely(!result->check_permissions(*user, chk))) __throw_permission_error(*user, chk);
+		}
 		if(ext_file_vnode* exfn		= dynamic_cast<ext_file_vnode*>(result)) exfn->on_open();
 		register_fd(result);
 		if(!result->is_pipe())

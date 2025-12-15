@@ -112,6 +112,7 @@ struct sysfs_hashtable_header
 	size_t num_entries;             // the actual table size
 	size_t buckets[];
 	constexpr sysfs_hashtable_entry* entries() { return addr_t(std::addressof(buckets[num_buckets])); }
+	constexpr sysfs_hashtable_entry const* entries() const { return addr_t(std::addressof(buckets[num_buckets])); }
 };
 class sysfs;
 struct sysfs_vnode;
@@ -277,7 +278,9 @@ struct sysfs_hash_table_base
 	size_t total_table_bytes() const;
 	bool add_entry(size_t object_hash, size_t object_index);
 	sysfs_hashtable_entry* get_chain_start(size_t object_hash);
-	sysfs_hashtable_entry* get_chain_next(sysfs_hashtable_entry* e);
+	sysfs_hashtable_entry* get_chain_next(sysfs_hashtable_entry const* e);
+	sysfs_hashtable_entry const* get_chain_start(size_t object_hash) const;
+	sysfs_hashtable_entry const* get_chain_next(sysfs_hashtable_entry const* e) const;
 	sysfs_hashtable_header* header();
 	sysfs_hashtable_header const* header() const;
 };
@@ -294,6 +297,7 @@ sysfs_htbl_template struct sysfs_table_entry_handle
 	parent_table_type& parent;
 	size_t value_index;
 	constexpr void release() noexcept { value_index = 0UZ; }
+	constexpr operator bool() const noexcept { return value_index != 0UZ; }
 	constexpr sysfs_table_entry_handle(parent_table_type& p, size_t i) : parent(p), value_index(i) {}
 	constexpr sysfs_table_entry_handle(sysfs_table_entry_handle const& that) : parent(that.parent), value_index(that.value_index) {}
 	constexpr sysfs_table_entry_handle(sysfs_table_entry_handle&& that) : parent(that.parent), value_index(that.value_index) { that.release(); }
@@ -308,6 +312,21 @@ sysfs_htbl_template struct sysfs_table_entry_handle
 	VT const& operator*() const;
 	template<typename ... Args> requires(std::constructible_from<VT, Args...>) void emplace(Args&& ... args) { std::construct_at(ptr(), std::forward<Args>(args)...); }
 };
+sysfs_htbl_template struct sysfs_table_entry_const_handle
+{
+	typedef sysfs_hash_table<KT, VT, XT, HT, ET> parent_table_type;
+	parent_table_type const& parent;
+	size_t value_index;
+	constexpr void release() noexcept { value_index = 0UZ; }
+	constexpr operator bool() const noexcept { return value_index != 0UZ; }
+	constexpr sysfs_table_entry_const_handle(parent_table_type const& p, size_t i) : parent(p), value_index(i) {}
+	constexpr sysfs_table_entry_const_handle(sysfs_table_entry_const_handle const& that) : parent(that.parent), value_index(that.value_index) {}
+	constexpr sysfs_table_entry_const_handle(sysfs_table_entry_const_handle&& that) : parent(that.parent), value_index(that.value_index) { that.release(); }
+	constexpr sysfs_table_entry_const_handle& operator++() { value_index++; return *this; }
+	VT const* ptr() const;
+	VT const* operator->() const;
+	VT const& operator*() const;
+};
 /**
  * Implements the logic that is dependent on the stored object type.
  * This structure is still a non-owning reference but, unlike the object handle, does not commit when it goes out of scope.
@@ -320,6 +339,7 @@ sysfs_htbl_template struct sysfs_hash_table : sysfs_hash_table_base
 {
 	constexpr static size_t nxobj = 0UZ;
 	typedef sysfs_table_entry_handle<KT, VT, XT, HT, ET> value_handle;
+	typedef sysfs_table_entry_const_handle<KT, VT, XT, HT, ET> const_value_handle;
 	sysfs_vnode& object_node;
 	sysfs_hash_table(sysfs_vnode& n) : sysfs_hash_table_base(n), object_node(n.parent().open(header()->values_object_ino)) {}
 	sysfs_hash_table(sysfs& parent, std::string const& name, sysfs_object_type type, size_t buckets = 32UZ) : sysfs_hash_table_base(parent, name, type, buckets), object_node(parent.open(header()->values_object_ino)) {}
@@ -328,11 +348,13 @@ sysfs_htbl_template struct sysfs_hash_table : sysfs_hash_table_base
 	constexpr static size_t hash_of(KT const& key) { return HT{}(key); }
 	constexpr static KT key_of(VT const& value) { return XT{}(value); }
 	constexpr static bool key_matches(KT const& key, VT const& value) { return ET{}(key, XT{}(value)); }
-	size_t find_value_index(KT const& key);
+	size_t find_value_index(KT const& key) const;
 	size_t size() const { return header()->num_entries; }
 	value_handle find(KT const& key);
+	const_value_handle find(KT const& key) const { return const_value_handle(*this, find_value_index(key)); }
 	value_handle get(KT const& key) { size_t existing = find_value_index(key); if(existing == nxobj) throw std::out_of_range("[sysfs] key not found"); return value_handle(*this, existing); }
-	bool contains(KT const& key) { return find_value_index(key) != nxobj; }
+	const_value_handle get(KT const& key) const { size_t existing = find_value_index(key); if(existing == nxobj) throw std::out_of_range("[sysfs] key not found"); return const_value_handle(*this, existing); }
+	bool contains(KT const& key) const { return find_value_index(key) != nxobj; }
 	std::pair<value_handle, bool> add(VT const& value);
 };
 struct sysfs_string_table
@@ -352,12 +374,15 @@ sysfs_htbl_template VT* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator->
 sysfs_htbl_template VT const* sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator->() const { return ptr(); }
 sysfs_htbl_template VT& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() { return parent.data()[value_index - 1]; }
 sysfs_htbl_template VT const& sysfs_table_entry_handle<KT, VT, XT, HT, ET>::operator*() const { return parent.data()[value_index - 1]; }
-sysfs_htbl_template size_t sysfs_hash_table<KT, VT, XT, HT, ET>::find_value_index(KT const& key)
+sysfs_htbl_template VT const* sysfs_table_entry_const_handle<KT, VT, XT, HT, ET>::ptr() const { return std::addressof(parent.data()[value_index - 1]); }
+sysfs_htbl_template VT const* sysfs_table_entry_const_handle<KT, VT, XT, HT, ET>::operator->() const { return ptr(); }
+sysfs_htbl_template VT const& sysfs_table_entry_const_handle<KT, VT, XT, HT, ET>::operator*() const { return parent.data()[value_index - 1]; }
+sysfs_htbl_template size_t sysfs_hash_table<KT, VT, XT, HT, ET>::find_value_index(KT const& key) const
 {
-	VT* vs = data();
-	for(sysfs_hashtable_entry* e = get_chain_start(hash_of(key)); e != nullptr; e = get_chain_next(e))
+	VT const* vs = data();
+	for(sysfs_hashtable_entry const* e = get_chain_start(hash_of(key)); e != nullptr; e = get_chain_next(e))
 	{
-		VT& v = vs[e->object_index - 1];
+		VT const& v = vs[e->object_index - 1];
 		if(key_matches(key, v))
 			return e->object_index;
 	}

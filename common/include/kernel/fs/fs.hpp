@@ -20,6 +20,24 @@
 #include <sys/stat.h>
 #include <sys/fcntl.h>
 typedef std::ext::delegate_ptr<simplex_pipe> pipe_handle;
+struct user_info;
+enum class permission_set : int
+{
+	OTHERS	= 0,
+	GROUP	= 3,
+	OWNER	= 6
+};
+enum permission_check : uint8_t
+{
+	CHK_NONE	= 0UC,
+	CHK_EXECUTE	= 0b001UC,
+	CHK_READ	= 0b010UC,
+	CHK_RX		= CHK_READ	| CHK_EXECUTE,
+	CHK_WRITE	= 0b100UC,
+	CHK_WX		= CHK_WRITE	| CHK_EXECUTE,
+	CHK_RW		= CHK_READ	| CHK_WRITE,
+	CHK_RWX		= CHK_READ	| CHK_WRITE	| CHK_EXECUTE,
+};
 struct file_mode
 {
 	bool exec_others	: 1;
@@ -58,25 +76,29 @@ struct file_mode
 						{}
 	constexpr operator uint16_t() const noexcept
 	{
-		return uint16_t
-		(
-			(exec_others	? 0000001U : 0) |
-			(write_others	? 0000002U : 0) |
-			(read_others	? 0000004U : 0) |
-			(exec_group		? 0000010U : 0) |
-			(write_group	? 0000020U : 0) |
-			(read_group		? 0000040U : 0) |
-			(exec_owner		? 0000100U : 0) |
-			(write_owner	? 0000200U : 0) |
-			(read_owner		? 0000400U : 0) |
-			(sticky			? 0001000U : 0) |
-			(set_gid		? 0002000U : 0) |
-			(set_uid		? 0004000U : 0) |
-			(t_fifo			? 0010000U : 0) |
-			(t_chardev		? 0020000U : 0) |
-			(t_directory	? 0040000U : 0) |
-			(t_regular		? 0100000U : 0)
-		);
+		if consteval
+		{
+			return uint16_t
+			(
+				(exec_others	? 0000001U : 0) |
+				(write_others	? 0000002U : 0) |
+				(read_others	? 0000004U : 0) |
+				(exec_group		? 0000010U : 0) |
+				(write_group	? 0000020U : 0) |
+				(read_group		? 0000040U : 0) |
+				(exec_owner		? 0000100U : 0) |
+				(write_owner	? 0000200U : 0) |
+				(read_owner		? 0000400U : 0) |
+				(sticky			? 0001000U : 0) |
+				(set_gid		? 0002000U : 0) |
+				(set_uid		? 0004000U : 0) |
+				(t_fifo			? 0010000U : 0) |
+				(t_chardev		? 0020000U : 0) |
+				(t_directory	? 0040000U : 0) |
+				(t_regular		? 0100000U : 0)
+			);
+		}
+		else { return std::bit_cast<uint16_t>(*this); }
 	}
 	constexpr operator mode_t() const noexcept { return static_cast<mode_t>(static_cast<uint16_t>(*this)); }
 	constexpr operator mode_t&() & noexcept { return addr_t(this).deref<mode_t>(); }
@@ -88,6 +110,7 @@ struct file_mode
 	constexpr bool is_regular() const noexcept { return t_regular && !t_directory && !t_chardev && !t_fifo; }
 	constexpr bool is_fifo() const noexcept { return t_fifo && !t_regular && !t_directory && !t_chardev; }
 	constexpr bool is_type_invalid() const noexcept { return (t_fifo && (t_directory || t_chardev || t_regular)) || (t_directory + t_chardev + t_regular) > 2; }
+	constexpr uint8_t permission_bits(permission_set which) const noexcept { return static_cast<uint8_t>((static_cast<uint16_t>(*this) >> static_cast<int>(which)) & 07UC); }
 } __pack;
 struct disk_block { uint64_t block_number; char* data_buffer; bool dirty = false; size_t chain_len = 1U; };
 class tnode;
@@ -111,7 +134,7 @@ struct vnode
 	virtual uid_t owner_uid() const noexcept;
 	virtual gid_t owner_gid() const noexcept;
 	virtual ~vnode();
-	file_mode mode = 0774U;
+	file_mode mode = 0774US;
 	std::set<tnode*> refs{};
 	int fd;
 	uint64_t real_id;
@@ -129,6 +152,7 @@ struct vnode
 	void prune_refs();									// equivalent to calling rm_reference on every node in the reference list; used by filesystems like fat32 that do not support hard links
 	bool has_refs() const noexcept;						// equivalent to (num_refs() != 0)
 	size_t num_refs() const noexcept;					// the number of tnodes that link to the filesystem object represented by this node
+	bool check_permissions(user_info const& user, permission_check what);	// true if and only if the user has all specified permissions to this object
 	friend class tnode;
 	friend constexpr std::strong_ordering operator<=>(vnode const& a, vnode const& b) noexcept { return a.real_id <=> b.real_id; }
 	friend constexpr std::strong_ordering operator<=>(vnode const& a, uint64_t b) noexcept { return a.real_id <=> b; }
@@ -206,6 +230,7 @@ public:
 	mount_vnode const* as_mount() const;
 	void invlnode() noexcept;
 	bool assign(vnode* n) noexcept;
+	bool check_permissions(user_info const& user, permission_check what);
 	friend tnode mklink(tnode* original, std::string const& name);
 	constexpr operator bool() const noexcept { return bool(__my_node); }
 	friend constexpr bool operator==(tnode const& __this, tnode const& __that) { return __this.__my_name == __that.__my_name && __this.__my_node == __that.__my_node; }

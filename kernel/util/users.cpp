@@ -46,6 +46,12 @@ static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx)
 	kmm.exit_frame();
 	return result;
 }
+const_user_handle user_accounts_manager::get_by_uid(uid_t id)
+{
+	std::map<uid_t, size_t>::iterator result = __instance->__uid_index_map.find(id);
+	if(result != __instance->__uid_index_map.end()) return const_user_handle(__instance->__table, result->second);
+	throw std::out_of_range("[UAM] no user with uid " + std::to_string(id));
+}
 user_handle user_accounts_manager::get_user(uid_t uid)
 {
 	std::map<uid_t, size_t>::iterator result = __uid_index_map.find(uid);
@@ -99,6 +105,7 @@ bool user_accounts_manager::init_instance(sysfs& config_src)
 			inf.num_groups++;
 			inf.last_updated			= sys_time(nullptr);
 			__instance->__global_info.commit_object();
+			__instance->__uid_index_map.insert(std::make_pair(0U, root_handle.value_index));
 		}
 	}
 	catch(std::exception& e) { panic(e.what()); return false; }
@@ -155,7 +162,8 @@ int user_accounts_manager::create_user(std::string const& name, std::string cons
 		inf.num_users++;
 		inf.num_groups++;
 		inf.last_updated 			= sys_time(nullptr);
-		__global_info.commit_object();
+		uid_t uidval				= result->uid;
+		__uid_index_map.insert(std::make_pair(uidval, result.value_index));
 	}
 	return 0;
 }
@@ -182,6 +190,8 @@ int user_accounts_manager::create_service_account(std::string const& name, std::
 		inf.num_groups++;
 		inf.last_updated 			= sys_time(nullptr);
 		__global_info.commit_object();
+		uid_t uidval				= result->uid;
+		__uid_index_map.insert(std::make_pair(uidval, result.value_index));
 	}
 	return 0;
 }

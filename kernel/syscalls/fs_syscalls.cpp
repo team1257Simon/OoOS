@@ -1,7 +1,9 @@
 #include <fs/fs.hpp>
+#include <fs/permission_error.hpp>
 #include <sched/task_ctx.hpp>
 #include <stdexcept>
 #include <errno.h>
+#include <users.hpp>
 typedef std::map<int, posix_directory>::iterator pdir_it;
 static inline timespec timestamp_to_timespec(time_t ts) { return timespec(ts / 1000U, static_cast<long>(ts % 1000U) * 1000000L); }
 static inline pdir_it __open_pdir(task_ctx* task, directory_vnode* dir, int fd) { return task->opened_directories.emplace(std::piecewise_construct, std::forward_as_tuple(fd), std::forward_as_tuple(dir, task->task_struct.frame_ptr)).first; }
@@ -64,6 +66,7 @@ extern "C"
 			else if(file_vnode* n		= fsptr->open_file(name, mode))
 				return n->vid();
 		}
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
 		catch(std::invalid_argument& e)	{ panic(e.what()); return -ENOTDIR; }
 		catch(std::out_of_range& e)		{ panic(e.what()); return -ENOENT; }
@@ -146,6 +149,7 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		if(__unlikely(!old || !__new)) return -EFAULT;
 		try { return fsptr->link(old, __new) != nullptr ? 0 : -ENOSPC; }
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e) { panic(e.what()); return -EMLINK; }
 		catch(std::exception& e) { panic(e.what()); }
 		return -ENOMEM;
@@ -179,6 +183,7 @@ extern "C"
 		name				= translate_user_pointer(name);
 		if(__unlikely(!name)) return -EFAULT;
 		try { return fsptr->unlink(name) ? 0 : -ENOENT; }
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
 		catch(std::exception& e)		{ panic(e.what()); }
 		return -ENOMEM;
@@ -246,6 +251,7 @@ extern "C"
 			}
 			else return -EBADF;
 		}
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::exception& e) { panic(e.what()); }
 		return -ENOMEM;
 	}
@@ -265,6 +271,7 @@ extern "C"
 			}
 			else return -EISDIR;
 		}
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
 		catch(std::exception& e)		{ panic(e.what()); }
 		return -ENOENT;
@@ -279,6 +286,7 @@ extern "C"
 		if(__unlikely(fsptr->get_directory_or_null(path, false) != nullptr)) return -EEXIST;
 		mode_t full_mode	= mode | 0040000;
 		try { fsptr->create_node(nullptr, path, full_mode); return 0; }
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
 		catch(std::invalid_argument& e)	{ panic(e.what()); return -ENOTDIR; }
 		catch(std::out_of_range& e)		{ panic(e.what()); return -ENOENT; }
@@ -316,6 +324,7 @@ extern "C"
 			int fd					= dir->vid();
 			return __open_pdir(task, dir, fd)->second.get_dir_struct_vaddr();
 		}
+		catch(permission_error& e)		{ panic(e.what()); return addr_t(static_cast<uintptr_t>(-EPERM)); }
 		catch(std::exception& e) { panic(e.what()); }
 		return addr_t(static_cast<uintptr_t>(-ENOMEM));
 	}
@@ -353,6 +362,7 @@ extern "C"
 		if(__unlikely(!fsptr)) return -ENOSYS;
 		if(__unlikely(!name)) return -EFAULT;
 		try { fsptr->create_node(nullptr, name, mode, dev); }
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
 		catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
 		catch(std::domain_error& e)		{ panic(e.what()); return -EEXIST; }
@@ -372,6 +382,7 @@ extern "C"
 		directory_vnode* dirnode	= dynamic_cast<directory_vnode*>(node);
 		if(__unlikely(!node)) return -ENOTDIR;
 		try { fsptr->create_node(dirnode, name, mode, dev); }
+		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
 		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
 		catch(std::invalid_argument& e) { panic(e.what()); return -ENOTDIR; }
 		catch(std::domain_error& e)		{ panic(e.what()); return -EEXIST; }

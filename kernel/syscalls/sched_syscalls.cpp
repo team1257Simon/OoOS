@@ -7,6 +7,7 @@
 #include <elf64_exec.hpp>
 #include <arch/arch_amd64.h>
 #include <rtc.h>
+#include <users.hpp>
 extern "C"
 {
 	extern task_t* kproc;
@@ -21,6 +22,12 @@ extern "C"
 	};
 	int prg_execve(file_vnode* restrict n, task_ctx* restrict task, char** restrict argv, char** restrict env, bool noparent)
 	{
+		if(user_accounts_manager::is_initialized())
+		{
+			user_handle user	= user_accounts_manager::get_instance()->get_user(task->euid());
+			if(__unlikely(!n->check_permissions(*user, CHK_EXECUTE)))
+				return -EPERM;
+		}
 		elf64_executable* ex = prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;
 		cstrvec argv_v{}, env_v{};
@@ -42,6 +49,12 @@ extern "C"
 	}
 	spid_t prg_spawn(file_vnode* restrict n, task_ctx* restrict task, char** restrict argv, char** restrict renv)
 	{
+		if(user_accounts_manager::is_initialized())
+		{
+			user_handle user	= user_accounts_manager::get_instance()->get_user(task->euid());
+			if(__unlikely(!n->check_permissions(*user, CHK_EXECUTE)))
+				return -EPERM;
+		}
 		if(task_ctx* clone	= tl.task_vfork(task))
 		{
 			exec_fail_guard guard(clone);

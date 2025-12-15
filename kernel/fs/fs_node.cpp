@@ -1,5 +1,6 @@
 #include <fs/fs.hpp>
 #include <sched/task_ctx.hpp>	// uid_undef, gid_undef
+#include <users.hpp>
 #include <rtc.h>
 vnode::vnode(std::string const& name, int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name(name) {}
 vnode::vnode(int vfd, uint64_t cid) : fd(vfd), real_id(cid), create_time(sys_time(nullptr)), modif_time(create_time), concrete_name() {}
@@ -88,6 +89,7 @@ bool tnode::is_pipe() const { return __my_node && __my_node->is_pipe(); }
 bool tnode::is_mount() const { return __my_node && __my_node->is_mount(); }
 void tnode::invlnode() noexcept { __my_node = nullptr; }
 bool tnode::assign(vnode* n) noexcept { if(!__my_node) { __my_node = n; return true; } else return false; }
+bool tnode::check_permissions(user_info const& user, permission_check what) { return __my_node->check_permissions(user, what); }
 tnode mklink(tnode* original, std::string const& name) { return tnode(original->__my_node, name); }
 pipe_vnode::pipe_vnode(std::string const& name, int vid, size_t id) : file_vnode(name, vid, 0), __pipe(id) { current_mode = std::ios_base::out; mode.t_regular = false; mode.t_fifo = true; }
 pipe_vnode::pipe_vnode(std::string const& name, int vid) : file_vnode(name, vid, 0), __pipe() { current_mode = std::ios_base::in; mode.t_regular = false; mode.t_fifo = true; }
@@ -112,3 +114,19 @@ mount_vnode::mount_vnode(int vfd, std::ext::dynamic_ptr<filesystem>&& fs) : dire
 mount_vnode::~mount_vnode() = default;
 bool mount_vnode::is_mount() const noexcept { return true; }
 bool mount_vnode::fsync() try { mounted->pubsyncdirs(); return true; } catch(std::exception& e) { panic(e.what()); return false; }
+static uint8_t get_user_permission_overrides(user_info const& user, bool is_dir)
+{
+	uint8_t user_overrides	= get_fs_permissions(user.capabilities.system_permissions);
+	//	directories assign different meaning to the lowest mode permission bit; this permission override is encoded in bit 3
+	if(is_dir)
+		user_overrides		= ((user_overrides & ~0x1UC) | ((user_overrides & 0x8UC) >> 3));
+	return user_overrides & 07UC;
+}
+bool vnode::check_permissions(user_info const& user, permission_check what)
+{
+	if(__unlikely(what == CHK_NONE)) return true;	// vacuous case
+	using enum permission_set;
+	uint8_t user_overrides	= get_user_permission_overrides(user, is_directory());
+	permission_set which	= (this->owner_uid() == user.uid) ? OWNER : (this->owner_gid() == user.gid) ? GROUP : OTHERS;
+	return ((this->mode.permission_bits(which) | user_overrides) & what) == what;
+}
