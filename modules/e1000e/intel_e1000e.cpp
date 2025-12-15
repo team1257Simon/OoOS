@@ -174,32 +174,28 @@ bool ie1000e::init_dev()
 	}
 	uint32_t bar	= __pcie_e1000e_controller->header_0x0.bar[0];
 	addr_t base		= map_dma(compute_base_addr(bar), 0x20000UZ, (bar & BIT(3)) != 0);
-	if(__unlikely(!base)) {
-		log("E: no base address for mmio");
-		return false;
-	}
-	try {
+	if(__unlikely(!base)) log("E: no base address for mmio");
+	else try
+	{
 		rx_ring.create(ooos::get_element<0>(cfg));
 		tx_ring.create(ooos::get_element<0>(cfg));
+		__mmio_region	= base;
+		dev_status status;
+		__pcie_e1000e_controller->command.memory_space	= true;
+		__pcie_e1000e_controller->command.io_space		= true;
+		__pcie_e1000e_controller->command.bus_master	= true;
+		if(__unlikely(!dev_reset())) return false;
+		if(__unlikely(!configure_mac_phy(status))) return false; 
+		for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i); read_status(status); }
+		for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, 0U); read_status(status); }
+		if(__unlikely(!configure_rx(status))) return false;
+		if(__unlikely(!configure_tx(status))) return false;
+		if(__unlikely(!configure_interrupts(status))) return false;
+		enable_receive();
+		return true;
 	}
-	catch(...) {
-		log("E: out of memory");
-		return false;
-	}
-	__mmio_region	= base;
-	dev_status status;
-	__pcie_e1000e_controller->command.memory_space	= true;
-	__pcie_e1000e_controller->command.io_space		= true;
-	__pcie_e1000e_controller->command.bus_master	= true;
-	if(__unlikely(!dev_reset())) return false;
-	if(__unlikely(!configure_mac_phy(status))) return false; 
-	for(int i = e1000_stats_min; i < e1000_stats_max; i += 4) { read_dma(i); read_status(status); }
-	for(int i = 0; i < 128; i++) { write_dma(e1000_mta + 4 * i, 0U); read_status(status); }
-	if(__unlikely(!configure_rx(status))) return false;
-	if(__unlikely(!configure_tx(status))) return false;
-	if(__unlikely(!configure_interrupts(status))) return false;
-	enable_receive();
-	return true;
+	catch(...) { log("E: out of memory"); }
+	return false;
 }
 bool ie1000e::configure_rx(dev_status& st) try
 {
@@ -247,7 +243,7 @@ bool ie1000e::configure_tx(dev_status& st) try
 	tctl->descriptor_granularity	= true;
 	write_dma(txdctl, tctl);
 	read_status(st);
-	tx_ctrl ctrl_reg{ .data_struct = ooos::get_element<4>(cfg) };
+	tx_ctrl ctrl_reg{ .data_struct	= ooos::get_element<4>(cfg) };
 	ctrl_reg->enable				= true;
 	write_dma(e1000_tctl, ctrl_reg);
 	read_status(st);

@@ -117,12 +117,9 @@ void task_exec(elf64_program_descriptor const& prg, cstrvec&& args, cstrvec&& en
 module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
 {
 	module_loader& loader = module_loader::get_instance();
-	if(mod_desc.buffer && mod_desc.size)
-	{
+	if(mod_desc.buffer && mod_desc.size) {
 		xdirect_writeln("Loading module " + std::string(mod_desc.filename));
-		addr_t mod_buffer = ::operator new(mod_desc.size, static_cast<std::align_val_t>(page_size));
-		atomic_copy<char>(mod_buffer, static_cast<char const*>(mod_desc.buffer), mod_desc.size);
-		return loader.add(mod_buffer, mod_desc.size).first;
+		return loader.add(mod_desc.buffer, mod_desc.size).first;
 	}
 	return loader.end();
 }
@@ -270,7 +267,6 @@ constexpr static int8_t test_array[]
 };
 constexpr static ooos::scale_vector<4UZ> test_dimensions{ 3UZ, 5UZ, 4UZ, 2UZ };
 constexpr static ooos::multiarray<const int8_t, 4UZ> test_multi(test_array, test_dimensions);
-constexpr static std::string test_constexpr_str("constexpr!");
 void str_tests()
 {
 	srand(sys_time(nullptr));
@@ -285,8 +281,7 @@ void str_tests()
 	std::string test_str("I/like/to/eat/apples/and/bananas");
 	for(std::string s : std::ext::split(test_str, "/")) xdirect_write(s + " ");
 	std::vector<std::string> v{ "Dewey", "Cheatem", "and Howe" };
-	xdirect_write(std::ext::join(v, ", ") + " ");
-	xdirect_writeln(test_constexpr_str);
+	xdirect_writeln(std::ext::join(v, ", "));
 	xdirect_write("crc32c test: ");
 	debug_print_num(crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(test_str.c_str()), test_str.size()), 8);
 	dwendl();
