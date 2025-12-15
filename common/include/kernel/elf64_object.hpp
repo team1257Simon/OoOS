@@ -26,7 +26,6 @@ protected:
 	constexpr addr_t segment_ptr(size_t n) const noexcept { return __image_start.plus(phdr(n).p_offset); }
 	constexpr addr_t section_ptr(size_t n) const noexcept { return __image_start.plus(shdr(n).sh_offset); }
 	virtual void process_headers();
-	virtual void xrelease();
 	virtual bool xload();
 	virtual bool load_syms();
 	virtual void on_load_failed();
@@ -36,7 +35,6 @@ protected:
 	virtual void set_frame(uframe_tag*)		= 0;
 	virtual uframe_tag* get_frame() const	= 0;
 	virtual bool is_position_relocated() const noexcept;
-	void release_segments();
 	off_t segment_index(size_t offset) const;
 	off_t segment_index(elf64_sym const* sym) const;
 	void cleanup();

@@ -85,12 +85,6 @@ const char* elf64_shared_object::sym_lookup(addr_t addr) const
 	}
 	return nullptr;
 }
-void elf64_shared_object::xrelease()
-{
-	if(frame_tag)
-		for(block_descriptor const& blk : segment_blocks()) 
-			frame_tag->drop_block(blk);
-}
 program_segment_descriptor const* elf64_shared_object::segment_of(addr_t symbol_vaddr) const
 {
 	off_t seg_idx = segment_index(symbol_vaddr - virtual_load_base);

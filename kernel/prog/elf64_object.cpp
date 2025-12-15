@@ -8,8 +8,6 @@ constexpr static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 constexpr static std::allocator<program_segment_descriptor> sd_alloc{};
 static inline addr_t clone_image(addr_t start, size_t size);
 elf64_object::elf64_object(addr_t start, size_t size) : __image_start(clone_image(start, size)), __image_size(size) {}
-void elf64_object::release_segments() { xrelease(); }
-void elf64_object::xrelease() { /* stub; some dynamic object types will need to override this to release segments for local SOs */ }
 void elf64_object::on_load_failed() { /* stub; additional cleanup to perform if the object fails to load goes here for inheritors */ }
 off_t elf64_object::segment_index(elf64_sym const* sym) const { return segment_index(sym->st_value); }
 addr_t elf64_object::resolve(elf64_sym const& sym) const { return sym.st_shndx != SHN_UNDEF ? addr_t(sym.st_value) : nullptr; }
@@ -27,7 +25,6 @@ elf64_object::~elf64_object()
 	if(symtab.data) free(symtab.data);
 	if(symstrtab.data) free(symstrtab.data);
 	if(shstrtab.data) free(shstrtab.data);
-	release_segments();
 }
 void elf64_object::cleanup()
 {
@@ -188,7 +185,7 @@ void elf64_object::on_copy(uframe_tag* new_frame)
 {
 	if(__unlikely(!new_frame)) { throw std::invalid_argument("[PRG] frame tag must not be null"); }
 	set_frame(new_frame);
-	for(size_t i = 0; i < num_seg_descriptors; i++)
+	for(size_t i = 0UZ; i < num_seg_descriptors; i++)
 	{
 		if(!segments[i].absolute_addr || !segments[i].size) continue;
 		segments[i].absolute_addr	= new_frame->translate(segments[i].virtual_addr);

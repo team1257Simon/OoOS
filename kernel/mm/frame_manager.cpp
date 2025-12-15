@@ -4,13 +4,13 @@
 frame_manager frame_manager::__instance{};
 frame_manager::frame_manager() : __global_shared_blocks(128), __local_shared_blocks(128) {}
 frame_manager& frame_manager::get() { return __instance; }
-void frame_manager::release_block(block_descriptor& blk)
+void frame_manager::__release_block(block_descriptor& blk)
 {
 	std::unordered_map<addr_t, int>::iterator i = __local_shared_blocks.find(blk.physical_start);
 	if(i != __local_shared_blocks.end())
 	{
 		i->second--;
-		if(i->second != 0) return;
+		if(i->second > 0) return;
 		__local_shared_blocks.erase(i);
 	}
 	else
@@ -19,20 +19,26 @@ void frame_manager::release_block(block_descriptor& blk)
 		if(j != __global_shared_blocks.end())
 		{
 			j->second.num_refs--;
-			if(j->second.num_refs != 0) return;
+			if(j->second.num_refs > 0) return;
 			__global_shared_blocks.erase(j);
 		}
 	}
 	kmm.deallocate_user_block(blk.virtual_start, blk.size, blk.align, blk.virtual_start != blk.physical_start);
 }
+void frame_manager::drop_local_block(uframe_tag* from, block_descriptor& bd)
+{
+	kmm.enter_frame(from);
+	__release_block(bd);
+	kmm.exit_frame();
+}
 void frame_manager::destroy_frame(uframe_tag& ft)
 {
 	if(!contains(ft)) throw std::out_of_range("[MM] invalid frame tag");
 	kmm.enter_frame(std::addressof(ft));
-	for(block_descriptor& bd : ft.usr_blocks) kmm.deallocate_user_block(bd.virtual_start, bd.size, bd.align, false);
-	for(block_descriptor* bd : ft.shared_blocks) release_block(*bd);
+	for(block_descriptor& bd : ft.usr_blocks) __release_block(bd);
+	for(block_descriptor* bd : ft.shared_blocks) __release_block(*bd);
 	kmm.exit_frame();
-	for(addr_t addr : ft.kernel_allocated_blocks) free(addr);
+	for(block_tag* tag : ft.page_table_blocks) block_free(tag);
 	erase(ft);
 }
 uframe_tag& frame_manager::create_frame(addr_t start_base, addr_t start_extent)
@@ -49,8 +55,10 @@ uframe_tag& frame_manager::fork_frame(uframe_tag* old_frame)
 	{
 		if(!bd.write)
 		{
-			__local_shared_blocks[bd.physical_start]++;
-			result.accept_block(std::move(block_descriptor(bd.physical_start, bd.virtual_start, bd.size, bd.align, false, bd.execute)));
+			block_descriptor clone(bd);
+			result.accept_block(std::move(clone));
+			if(__local_shared_blocks.contains(clone.physical_start)) __local_shared_blocks[clone.physical_start]++;
+			else __local_shared_blocks.insert(std::make_pair(clone.physical_start, 2));
 			continue;
 		}
 		block_descriptor* allocated	= result.add_block(bd.size, bd.virtual_start, bd.align, bd.write, bd.execute);
@@ -87,8 +95,7 @@ block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size,
 			.write			= false,
 			.execute		= execute
 		};
-		result_it			= __global_shared_blocks.insert(std::make_pair(start, sbd)).first;
-		result_it->second.num_refs++;
+		result_it			= __global_shared_blocks.insert(std::make_pair(start, shared_block(sbd, 1UZ))).first;
 	}
 	else
 	{

@@ -222,8 +222,7 @@ task_ctx::~task_ctx()
 		delete local_so_map;
 		local_so_map						= nullptr;
 	}
-	if(!task_struct.frame_ptr) return;
-	try { fm.destroy_frame(get_frame()); }
+	if(task_struct.frame_ptr) try { fm.destroy_frame(get_frame()); }
 	catch(std::exception& e) { panic(e.what()); }
 }
 void task_ctx::add_child(task_ctx* that)

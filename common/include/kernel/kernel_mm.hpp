@@ -74,6 +74,8 @@ struct block_tag
 	constexpr size_t aligned_size() const noexcept { return block_size - (align_bytes + sizeof(block_tag)); }
 	constexpr size_t available_size() const noexcept { return allocated_size() - (held_size + align_bytes); }
 	constexpr addr_t actual_start() const noexcept { return addr_t(this).plus(sizeof(block_tag) + align_bytes); }
+	constexpr bool is_free() const noexcept { return this->index >= 0 && !this->held_size; }
+	constexpr bool is_split() const noexcept { return left_split || right_split; }
 	block_tag* split();
 } __pack;
 struct kframe_tag
@@ -120,6 +122,12 @@ struct block_descriptor
 	bool write		{ true };
 	bool execute	{ true };
 };
+constexpr bool operator==(block_descriptor const& __this, block_descriptor const& __that) noexcept
+{
+	return	__this.physical_start	== __that.physical_start
+			&& __this.virtual_start	== __that.virtual_start
+			&& __this.size			== __that.size;
+}
 struct uframe_tag
 {
 	uint64_t magic;
@@ -130,7 +138,7 @@ struct uframe_tag
 	addr_t sysres_wm;
 	addr_t sysres_extent;
 	addr_t dynamic_extent{};
-	std::vector<addr_t> kernel_allocated_blocks{};
+	std::vector<block_tag*> page_table_blocks{};
 	std::vector<block_descriptor> usr_blocks{};
 	std::vector<block_descriptor*> shared_blocks{};
 private:
@@ -154,7 +162,6 @@ public:
 	bool mmap_remove(addr_t addr, size_t len);
 	void accept_block(block_descriptor&& desc);
 	void transfer_block(uframe_tag& that, block_descriptor const& which);
-	void drop_block(block_descriptor const& which);
 	block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true, bool allow_global_shared = false);
 	addr_t translate(addr_t addr);
 };

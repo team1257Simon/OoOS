@@ -242,7 +242,8 @@ namespace ooos
 		mem_release(old, align);
 		return result;
 	}
-	kmod_mm_impl::~kmod_mm_impl() {
+	kmod_mm_impl::~kmod_mm_impl()
+	{
 		for(block_tag* tag : managed_blocks) release_block(tag);
 		for(size_t i = 0UZ; i < block_index_range; i++)
 		{

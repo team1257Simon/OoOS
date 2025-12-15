@@ -17,7 +17,6 @@ protected:
 	virtual void process_headers() override;
 	virtual bool load_segments() override;
 	virtual bool xvalidate() override;
-	virtual void xrelease() override;
 	virtual void frame_enter() override;
 	virtual void process_flags(elf_dyn_flags flags) override;
 	virtual void process_dyn_entry(size_t i) override;
