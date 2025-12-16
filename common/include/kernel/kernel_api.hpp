@@ -123,6 +123,12 @@ namespace ooos
 		virtual kframe_tag* get_frame() 													= 0;
 		virtual ~kmod_mm() 																	= default;
 	};
+	struct register_data
+	{
+		register_t data;
+		constexpr register_data() noexcept = default;
+		template<typename T> requires(sizeof(T) <= sizeof(register_t)) constexpr register_data(T t) noexcept : data(__builtin_bit_cast(register_t, t)) {}
+	};
 	union local_functor_types
 	{
 		void* object;

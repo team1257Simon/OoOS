@@ -718,7 +718,6 @@ pid_t task_ctx::thread_fork()
 	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::update_thread_state(*current_thread, task_struct);
 	thread_t* new_thread		= thread_init(*current_thread, true);
-	dyn_thread.instantiate(*new_thread);
 	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread));
 	kthread_ptr kth(header(), new_thread);
 	sch.register_task(kth);
@@ -738,7 +737,6 @@ pid_t task_ctx::thread_add(addr_t entry_point, addr_t exit_point, size_t stack_t
 	new_thread->saved_regs.rbp	-= sizeof(register_t);
 	new_thread->saved_regs.rip	= entry_point;
 	new_thread->saved_regs.rdi	= arg;
-	dyn_thread.instantiate(*new_thread);
 	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread));
 	kthread_ptr kth(header(), new_thread);
 	sch.register_task(kth);
@@ -859,6 +857,7 @@ thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_r
 		if(!real_stack || !real_old_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 		array_copy<uint8_t>(real_stack, real_old_stack, template_thread.stack_size);
 	}
+	dyn_thread.instantiate(*new_thread);
 	return new_thread;
 }
 join_result task_ctx::thread_join(pid_t with_thread)
