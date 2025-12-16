@@ -1,7 +1,18 @@
 #include <ext/type_erasure.hpp>
+using namespace ABI_NAMESPACE;
+struct vtable_header
+{
+	ptrdiff_t					leaf_offset;	/** Offset of the leaf object. */
+	const __class_type_info*	type;			/** Type of the object. */
+};
+static __class_type_info const* __extract_type(void* obj)
+{
+	std::type_info const* volatile check	= addr_t(obj).deref<addr_t>().minus(sizeof(vtable_header)).deref<vtable_header>().type;
+	__class_type_info const* volatile res	= dynamic_cast<__class_type_info const*>(check);
+	return res;
+}
 namespace std
 {
-	using namespace ABI_NAMESPACE;
 	static bool __is_derived_from(__class_type_info const* __type, __class_type_info const* __base)
 	{
 		if(__type && __base)
@@ -41,6 +52,7 @@ namespace std
 			if(pfrom && pto) return __reflective_cast(*pfrom->__pointee, *pto->__pointee, *static_cast<void**>(obj));
 			return nullptr;
 		}
+		type_info const* extract_typeid(void* obj) { return __extract_type(obj); }
 		type_erasure::type_erasure(type_info const& i) : type_index(i) {}
 		void* type_erasure::cast_to(void* obj, type_info const& ti) const { return __reflective_cast(*info, ti, obj); }
 		void* type_erasure::cast_from(void* obj, type_erasure const& that) const { return that.cast_to(obj, *info); }
@@ -49,6 +61,13 @@ namespace std
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthis, cthat);
+			return false;
+		}
+		bool type_erasure::derives(type_info const& that)
+		{
+			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
+			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
+			if(cthis && cthat) return __is_derived_from(cthat, cthis);
 			return false;
 		}
 	}

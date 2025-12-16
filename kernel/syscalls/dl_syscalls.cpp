@@ -1,5 +1,6 @@
 #include <shared_object_map.hpp>
 #include <elf64_dynamic_exec.hpp>
+#include <ext/type_erasure.hpp>
 #include <frame_manager.hpp>
 #include <stdexcept>
 #include <sched/task_ctx.hpp>
@@ -64,10 +65,12 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 }
 static elf64_dynamic_object* validate_handle(addr_t handle)
 {
+	// First we must verify that we have actually been passed something that won't cause the dynamic_cast operator to call an invalid virtual function
+	if(__unlikely(!std::ext::extract_typeid(handle))) return nullptr;
 	// We need to do this so the dynamic cast doesn't get optimized out; we can use it to verify that the object is indeed a handle and not some random pointer
-	volatile elf64_object* o				= static_cast<volatile elf64_object*>(handle.as<volatile elf64_dynamic_object>());
-	barrier();
-	return const_cast<elf64_dynamic_object*>(dynamic_cast<elf64_dynamic_object volatile*>(o));
+	elf64_object* volatile o				= static_cast<elf64_object* volatile>(handle.as<elf64_dynamic_object>());
+	elf64_dynamic_object* volatile result	= dynamic_cast<elf64_dynamic_object*>(o);
+	return result;
 }
 extern "C"
 {
@@ -202,10 +205,12 @@ extern "C"
 	}
 	int syscall_dlclose(addr_t handle)
 	{
-		task_ctx* task			= active_task_context();
+		task_ctx* task				= active_task_context();
 		if(__unlikely(!task || !task->local_so_map)) return -ENOSYS;
-		if(static_cast<elf64_object*>(handle.as<elf64_dynamic_object>()) == task->program_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
-		elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(handle.as<elf64_dynamic_object>());
+		elf64_dynamic_object* obj	= validate_handle(handle);
+		if(__unlikely(!obj)) return -EINVAL;
+		if(static_cast<elf64_object*>(obj) == task->program_handle) return -EBADF; // dlclose on the "self" handle does nothing (UB)
+		elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(obj);
 		if(__unlikely(!so)) return -EINVAL;
 		shared_object_map::iterator it(addr_t(so).minus(shared_object_map::node_offset));
 		if(!task->local_so_map) return -ENOSYS;
@@ -276,9 +281,9 @@ extern "C"
 	{
 		task_ctx* task				= active_task_context();
 		if(__unlikely(!task || !task->local_so_map)) return -ENOSYS;
-		elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(obj);
-		if(__unlikely(!so)) return -EBADF;
-		ent = translate_user_pointer(ent);
+		elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(validate_handle(obj));
+		if(__unlikely(!so)) return -EINVAL;
+		ent							= translate_user_pointer(ent);
 		if(__unlikely(!ent)) return -EFAULT;
 		ent->dynamic_section		= so->dyn_segment_ptr();
 		ent->dynamic_section_length	= so->dyn_segment_len();
@@ -288,7 +293,7 @@ extern "C"
 		size_t len					= std::strlen(fp) + 1;
 		ent->absolute_pathname		= sysres_add(len);
 		if(__unlikely(!ent->absolute_pathname)) return -ENOMEM;
-		char* target_real = translate_user_pointer(ent->absolute_pathname);
+		char* target_real			= translate_user_pointer(ent->absolute_pathname);
 		array_copy(target_real, fp, len - 1);
 		target_real[len]				= '\0';
 		ent->vaddr_offset				= so->get_load_offset();

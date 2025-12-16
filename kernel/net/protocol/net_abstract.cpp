@@ -2,7 +2,7 @@
 #include <sys/errno.h>
 #include <stdexcept>
 constexpr static inline std::string digits_out(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC] }; }
-constexpr static inline std::string digits_in(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC], ':' };  }
+constexpr static inline std::string digits_in(uint8_t b) { return { "0123456789ABCDEF"[(b >> 4) & 0x0FUC], "0123456789ABCDEF"[b & 0x0FUC], ':' }; }
 std::string stringify(ipv4_addr ip) { return std::to_string(ip.hi.hi) + "." + std::to_string(ip.hi.lo) + "." + std::to_string(ip.lo.hi) + "." + std::to_string(ip.lo.lo); }
 std::string stringify(mac_t const& mac) { std::string result(digits_in(mac[0])); for(int i = 1; i < 5; i++) result += digits_in(mac[i]); return result + digits_out(mac[5]); }
 abstract_packet_base::abstract_packet_base(void* data, std::type_info const& type, size_t sz, void (*dealloc)(void*, size_t)) : packet_data(data), packet_type(type), packet_size(sz), release_fn(dealloc) {}
@@ -18,7 +18,7 @@ abstract_ip_resolver::~abstract_ip_resolver() = default;
 abstract_protocol_handler::abstract_protocol_handler(abstract_protocol_handler* n) : next(n), base(next->base) {}
 abstract_protocol_handler::abstract_protocol_handler(abstract_protocol_handler* n, protocol_ethernet* b) : next(n), base(b) {}
 int abstract_protocol_handler::receive(abstract_packet_base& p) { return 0; }
-int abstract_protocol_handler::transmit(abstract_packet_base& p) { if(!next) throw std::runtime_error("cannot send packet with empty protocol"); return next->transmit(p); }
+int abstract_protocol_handler::transmit(abstract_packet_base& p) { if(!next) throw std::runtime_error("[NET] cannot send packet with empty protocol"); return next->transmit(p); }
 abstract_packet_base::abstract_packet_base(abstract_packet_base const& that) :
 	packet_data { ::operator new(that.packet_size) },
 	packet_type { that.packet_type },

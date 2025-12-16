@@ -58,7 +58,8 @@ extern "C"
 		if(task_ctx* clone	= tl.task_vfork(task))
 		{
 			exec_fail_guard guard(clone);
-			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
+			try { clone->start_task(task->exit_target); }
+			catch(...) { return -ENOMEM; }
 			task->add_child(clone);
 			int ecode		= prg_execve(n, clone, argv, renv, true);
 			if(__unlikely(ecode)) return ecode;
@@ -67,9 +68,28 @@ extern "C"
 		}
 		return -EAGAIN; 
 	}
-	clock_t syscall_times(tms* out) { out = translate_user_pointer(out); if(!out) return -EFAULT; if(task_ctx* task = active_task_context()) { new(out) tms(task->get_times()); return sys_time(nullptr); } else return -ENOSYS; }
-	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz) { tm = translate_user_pointer(tm); if(!tm) return -EFAULT; std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp())); return 0; } 
-	spid_t syscall_getpid() { if(task_ctx* task = active_task_context()) return static_cast<long>(task->get_pid()); else return 0; /* Not an error technically; system tasks are PID 0 */ }
+	clock_t syscall_times(tms* out)
+	{
+		task_ctx* task	= active_task_context();
+		if(__unlikely(!task)) return -ENOSYS;
+		out				= translate_user_pointer(out);
+		if(!out) return -EFAULT;
+		new(out) tms(task->get_times());
+		return sys_time(nullptr);
+	}
+	int syscall_gettimeofday(timeval* restrict tm, void* restrict tz)
+	{
+		tm = translate_user_pointer(tm);
+		if(!tm) return -EFAULT;
+		std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp()));
+		return 0;
+	} 
+	spid_t syscall_getpid()
+	{
+		if(task_ctx* task = active_task_context())
+			return static_cast<long>(task->get_pid());
+		else return 0; /* Not an error technically; system tasks are PID 0 */
+	}
 	void syscall_exit(int n) {
 		if(task_ctx* task = active_task_context())
 			task->set_exit(n);

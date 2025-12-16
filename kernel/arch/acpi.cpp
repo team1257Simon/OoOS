@@ -13,6 +13,6 @@ void* find_system_table(const char* expected_sig)
 {
     addr_t* ptrs		= addr_t(sysinfo->xsdt).plus(sizeof(acpi_header));
     size_t total_len	= ((sysinfo->xsdt->hdr.length - sizeof(acpi_header)) / sizeof(addr_t));
-    for(size_t i = 0; i < total_len; i++) { if(matches(ptrs[i], expected_sig) && checksum(ptrs[i])) return ptrs[i]; }
+    for(size_t i = 0UZ; i < total_len; i++) { if(matches(ptrs[i], expected_sig) && checksum(ptrs[i])) return ptrs[i]; }
     return nullptr;
 }

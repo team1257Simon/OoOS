@@ -16,7 +16,7 @@ namespace interrupt_table
     spinlock_t __itable_mutex;
     void __lock() { lock(std::addressof(__itable_mutex)); }
     void __unlock() { release(std::addressof(__itable_mutex)); }
-    __nointerrupts void deregister_owner(void* owner) noexcept
+	void deregister_owner(void* owner) noexcept
 	{
 		if(owner)
 		{
@@ -25,7 +25,7 @@ namespace interrupt_table
 			__unlock();
 		}
 	}
-    __nointerrupts bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
+	bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
 	{
 		try
 		{
@@ -43,7 +43,7 @@ namespace interrupt_table
 			abort();
 		}
 	}
-    __nointerrupts bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
+	bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
 	{
 		try
 		{
@@ -61,7 +61,7 @@ namespace interrupt_table
 			abort();
 		}
 	}
-    __nointerrupts void add_interrupt_callback(interrupt_callback&& cb) noexcept
+	void add_interrupt_callback(interrupt_callback&& cb) noexcept
 	{
 		try { __registered_callbacks.push_back(std::move(cb)); }
 		catch(...) {

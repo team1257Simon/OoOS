@@ -20,6 +20,7 @@ namespace std
 			constexpr type_erasure() noexcept : type_index() {}
 			constexpr type_info const& get_type_info() const { return *info; }
 			bool is_derived_from(type_info const& that);
+			bool derives(type_info const& that);
 			void* cast_to(void* obj, type_info const& ti) const;
 			void* cast_from(void* obj, type_erasure const& that) const;
 			template<typename T> T* cast_to(void* obj) { return static_cast<T*>(cast_to(obj, typeid(T))); }
@@ -31,6 +32,7 @@ namespace std
 			friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
 		};
 		template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
+		type_info const* extract_typeid(void* obj);
 	}
 }
 #endif

@@ -13,7 +13,7 @@ bool apic::init() volatile
     size_t table_size				= madt->header.length - (8 + sizeof(acpi_header));
     addr_t table_ptr(madt->record_data);
     madt_record_header* h;
-    for(size_t i = 0; i < table_size; i += h->length)
+    for(size_t i = 0UZ; i < table_size; i += h->length)
     {
         h = table_ptr.plus(i);
         switch(h->type)
@@ -71,7 +71,7 @@ bool apic::init() volatile
     barrier();
     __apic_mem->timer_count_init.value	= count_target;
     barrier();
-    for(size_t i = 0; i < 16; i++, barrier())
+    for(size_t i = 0UZ; i < 16UZ; i++, barrier())
     {
         __ioapic_mem->select_reg		= (0x10U + i * 2);
         barrier();

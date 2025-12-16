@@ -557,8 +557,8 @@ pipe_pair extfs::mkpipe(directory_vnode* parent, std::string const& name)
 }
 void extfs::release_all(ext_vnode& extn)
 {
-	for(size_t i = 0; i < extn.cached_metadata.size(); i++) { free_block_buffer(extn.cached_metadata[i]); release_blocks(extn.cached_metadata[i].block_number, extn.cached_metadata[i].chain_len); }
-	for(size_t i = 0; i < extn.block_data.size(); i++) { release_blocks(extn.block_data[i].block_number, extn.block_data[i].chain_len); }
+	for(size_t i = 0UZ; i < extn.cached_metadata.size(); i++) { free_block_buffer(extn.cached_metadata[i]); release_blocks(extn.cached_metadata[i].block_number, extn.cached_metadata[i].chain_len); }
+	for(size_t i = 0UZ; i < extn.block_data.size(); i++) { release_blocks(extn.block_data[i].block_number, extn.block_data[i].chain_len); }
 	extn.extents.base_extent_level.clear();
 	extn.extents.tracked_extents.clear();
 	if(extn.on_disk_node->flags & use_extents) { array_zero(extn.on_disk_node->block_info.ext4_extent.root_nodes, 4UZ); }

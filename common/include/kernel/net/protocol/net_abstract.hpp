@@ -47,7 +47,7 @@ struct abstract_packet_base
 	template<typename T> T* get_as() { return packet_type.template cast_to<T>(packet_data); }
 	template<typename T> T const* get_as() const { return packet_type.template cast_to<T>(packet_data); }
 };
-template<typename T>
+template<typename T> requires(std::is_trivially_destructible_v<T>)
 class abstract_packet : public abstract_packet_base
 {
 	constexpr static std::allocator<T> __alloc{};
