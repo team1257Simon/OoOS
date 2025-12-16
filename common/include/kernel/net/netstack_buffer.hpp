@@ -5,7 +5,6 @@
 #include <net/net_types.hpp>
 class netstack_buffer : public std::ext::dynamic_duplex_streambuf<char>
 {
-	friend class net_device;
 	friend struct abstract_packet_base;
 	typedef std::ext::dynamic_duplex_streambuf<char> __base;
 public:
@@ -26,7 +25,6 @@ public:
 	virtual void rx_accumulate(netstack_buffer& that);
 	netstack_buffer();
 	netstack_buffer(size_type initial_rx_cap, size_type initial_tx_cap, poll_functor&& rxp, poll_functor&& txp, size_type tx_limit, size_type rx_limit);
-	[[gnu::__nonnull__]] netstack_buffer(net_device* dev);
 	constexpr void* tx_base() { return pbase(); }
 	constexpr void* rx_base() { return eback(); }
 };
