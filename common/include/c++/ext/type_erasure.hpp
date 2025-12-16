@@ -23,6 +23,7 @@ namespace std
 			bool derives(type_info const& that);
 			void* cast_to(void* obj, type_info const& ti) const;
 			void* cast_from(void* obj, type_erasure const& that) const;
+			void* cast_inferred(void* obj) const;
 			template<typename T> T* cast_to(void* obj) { return static_cast<T*>(cast_to(obj, typeid(T))); }
 			template<typename T> T const* cast_to(const void* obj) { return static_cast<T const*>(cast_to(const_cast<void*>(obj), typeid(T))); }
 			template<typename T> void* cast(T& t);
@@ -32,7 +33,25 @@ namespace std
 			friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
 		};
 		template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
-		type_info const* extract_typeid(void* obj);
+		/**
+		 * If ptr is a virtual pointer to an object whose full type is U, then this returns the equivalent of dynamic_cast<T*>(static_cast<U*>(ptr)).
+		 * Otherwise, it will return a null pointer.
+		 * Note that the type U need not be known to the caller, so this can be used to verify that an unknown pointer is of an expected type.
+		 */
+		template<typename T> requires(std::is_polymorphic_v<T>)
+		T* reflective_cast(void* ptr)
+		{
+			type_erasure erasure	= type_erasure(typeid(T));
+			void* result			= erasure.cast_inferred(ptr);
+			return static_cast<T*>(result);
+		}
+		/**
+		 * Attempts to extract the RTTI from the passed pointer.
+		 * If successful, this function returns the typeid of the object's most-derived type.
+		 * If passed a null pointer, it returns typeid(nullptr).
+		 * On a failure (because the passed pointer is not polymorphic), it returns typeid(void).
+		 */
+		type_info const& extract_typeid(void*);
 	}
 }
 #endif

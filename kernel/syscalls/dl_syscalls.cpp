@@ -10,6 +10,7 @@
 typedef std::pair<addr_t, bool> search_result;
 typedef std::pair<elf64_sym, addr_t> sym_pair;
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.deref<uframe_tag>().sysres_add(len); }
+static elf64_dynamic_object* validate_handle(addr_t handle) { return std::ext::reflective_cast<elf64_dynamic_object>(handle); }
 static shared_object_map::iterator global_object_search(std::string const& name, int flags) { return (flags & RTLD_GLOBAL) ? shared_object_map::get_globals().find(name) : shared_object_map::get_globals().end(); }
 static search_result global_search(const char* name)
 {
@@ -62,15 +63,6 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 	// TODO: check symbol versioning
 	if(have_weak && !res.second) res.second	= true;
 	return res;
-}
-static elf64_dynamic_object* validate_handle(addr_t handle)
-{
-	// First we must verify that we have actually been passed something that won't cause the dynamic_cast operator to call an invalid virtual function
-	if(__unlikely(!std::ext::extract_typeid(handle))) return nullptr;
-	// We need to do this so the dynamic cast doesn't get optimized out; we can use it to verify that the object is indeed a handle and not some random pointer
-	elf64_object* volatile o				= static_cast<elf64_object* volatile>(handle.as<elf64_dynamic_object>());
-	elf64_dynamic_object* volatile result	= dynamic_cast<elf64_dynamic_object*>(o);
-	return result;
 }
 extern "C"
 {
