@@ -26,6 +26,12 @@ void scheduler::register_task(kthread_ptr const& task) {
 	__queues[task->task_ctl.prio_base].push(task);
 	__total_tasks++;
 }
+static kthread_ptr kthread_of(task_t* task_base)
+{
+	uint64_t fmagic	= task_base->frame_ptr.deref<uint64_t>();
+	if(fmagic == uframe_magic) return kthread_ptr(task_base, task_base->frame_ptr.deref<uframe_tag>().translate(task_base->thread_ptr));
+	return kthread_ptr(task_base, task_base->thread_ptr);
+}
 bool scheduler::__set_untimed_wait(kthread_ptr& task)
 {
 	try
@@ -209,7 +215,7 @@ void scheduler::on_tick()
 		}
 	}
 	task_t* cptr				= get_task_base();
-	kthread_ptr cur(cptr, cptr->thread_ptr);
+	kthread_ptr cur				= kthread_of(cptr);
 	if(cur->quantum_rem) cur->quantum_rem--;
 	if(cur->quantum_rem	== 0 || cur.is_blocking())
 	{
@@ -261,7 +267,7 @@ __nointerrupts bool scheduler::init() noexcept
 kthread_ptr scheduler::yield()
 {
 	task_t* cptr		= current_active_task();
-	kthread_ptr cur(cptr, cptr->thread_ptr);
+	kthread_ptr cur		= kthread_of(cptr);
 	cur->quantum_rem	= 0US;
 	kthread_ptr next	= select_next();
 	if(!next) next		= cur;
@@ -281,7 +287,7 @@ kthread_ptr scheduler::fallthrough_yield()
 void scheduler::remove_worker_task(kthread_ptr const& w)
 {
 	task_t* cptr			= get_task_base();
-	kthread_ptr cur(cptr, cptr->thread_ptr);
+	kthread_ptr cur			= kthread_of(cptr);
 	if(cptr == w)
 	{
 		kthread_ptr next	= __instance.fallthrough_yield();

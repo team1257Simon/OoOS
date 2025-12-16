@@ -33,7 +33,7 @@ extern "C"
 		if(task->task_sig_info.pending_signals) task->set_signal(__builtin_ffsl(task->task_sig_info.pending_signals), false); // state is already saved
 		else
 		{
-			kthread_ptr t(task->header(), task->sigret_thread);
+			kthread_ptr t(task->header(), translate_user_pointer(task->sigret_thread));
 			t.activate();
 			task->sigret_thread = nullptr;
 		}

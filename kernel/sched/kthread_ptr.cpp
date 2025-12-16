@@ -33,19 +33,31 @@ clock_t kthread_ptr::get_wait_delta() const noexcept
 }
 void kthread_ptr::activate() const noexcept
 {
-	if(thread_ptr != task_ptr->thread_ptr && task_ptr->frame_ptr.deref<uint64_t>() == uframe_magic)
+	if(thread_ptr != task_ptr->thread_ptr)
 	{
-		uframe_tag& frame		= task_ptr->frame_ptr.deref<uframe_tag>();
-		thread_t* current		= frame.translate(task_ptr->thread_ptr);
-		thread_t* next			= frame.translate(thread_ptr);
-		if(current && next)
+		if(task_ptr->frame_ptr.deref<uint64_t>() == uframe_magic)
 		{
-			ooos::update_thread_state(*current, *task_ptr);
-			task_ptr->saved_regs	= next->saved_regs;
-			task_ptr->fxsv			= next->fxsv;
-			task_ptr->thread_ptr	= next->self;
+			uframe_tag& frame		= task_ptr->frame_ptr.deref<uframe_tag>();
+			thread_t* current		= frame.translate(task_ptr->thread_ptr);
+			if(current)
+				ooos::update_thread_state(*current, *task_ptr);
+			if(current || !task_ptr->thread_ptr)
+			{
+				task_ptr->saved_regs	= thread_ptr->saved_regs;
+				task_ptr->fxsv			= thread_ptr->fxsv;
+				task_ptr->thread_ptr	= thread_ptr->self;
+			}
+			else klog("[EXEC/THREAD] W: virtual address fault; no thread change occurred");
 		}
-		else klog("[EXEC/THREAD] W: virtual address fault; no thread change occurred");
+		else
+		{
+			thread_t* current		= task_ptr->thread_ptr;
+			if(current)
+				ooos::update_thread_state(*current, *task_ptr);
+			task_ptr->saved_regs	= thread_ptr->saved_regs;
+			task_ptr->fxsv			= thread_ptr->fxsv;
+			task_ptr->thread_ptr	= thread_ptr->self;
+		}
 	}
 }
 void kthread_ptr::set_blocking(bool can_interrupt) const noexcept

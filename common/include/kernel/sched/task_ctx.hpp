@@ -105,6 +105,7 @@ struct task_ctx
 	void tls_assemble();
 	void init_thread_0();
 	void thread_switch(pid_t to_thread);
+	thread_t* current_thread_ptr();
 	join_result thread_join(pid_t with_thread);
 	int thread_detach(pid_t thread_id);
 	pid_t thread_fork();
