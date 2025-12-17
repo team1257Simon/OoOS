@@ -19,7 +19,7 @@ clock_t task_wait_queue::cumulative_remaining_ticks() const noexcept
 bool task_wait_queue::interrupt_wait(const_iterator where)
 {
 	if(__unlikely(!(where < end() && where->is_interruptible()))) return false;
-	if(const_iterator subs		= where + 1; subs < end()) subs->add_wait_ticks(where->get_wait_delta());
+	if(const_iterator subs		= where + 1Z; subs < end()) subs->add_wait_ticks(where->get_wait_delta());
 	where->clear_blocking();
 	return erase(where) != 0UZ;
 }

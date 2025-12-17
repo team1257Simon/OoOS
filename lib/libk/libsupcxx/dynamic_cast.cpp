@@ -24,6 +24,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <bits/typeinfo.h>
+#include <bits/move.h>
 using namespace ABI_NAMESPACE;
 /**
  * Vtable header.
@@ -58,7 +59,7 @@ bool __pbase_type_info::__do_catch(std::type_info const* ex_type, void** excepti
 	if(*__pointee == typeid(void)) return true;
 	return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
-bool __class_type_info::__do_upcast(const __class_type_info *target, void **thrown_object) const
+bool __class_type_info::__do_upcast(const __class_type_info *target, void** thrown_object) const
 {
 	return this == target;
 }
@@ -95,7 +96,7 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** 
 	if(this == target) return true;
 	for(unsigned int i = 0; i < __base_count; i++)
 	{
-		const __base_class_type_info* info		= &__base_info[i];
+		const __base_class_type_info* info		= std::addressof(__base_info[i]);
 		ptrdiff_t                     offset	= info->offset();
 		// If this is a virtual superclass, the offset is stored in the
 		// object's vtable at the offset requested; 2.9.5.6.c:
@@ -114,7 +115,7 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** 
 			offset			= *off;
 		}
 		void* cast			= ADD_TO_PTR(obj, offset);
-		if(info->__base_type == target || (info->__base_type->__do_upcast(target, &cast)))
+		if(info->__base_type == target || (info->__base_type->__do_upcast(target, std::addressof(cast))))
 		{
 			*thrown_object	= cast;
 			return true;

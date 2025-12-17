@@ -194,7 +194,7 @@ namespace ooos
 		}
 		void __relocate_vmi_r(__base_class_type_info* bases, size_t num_bases, std::type_info const* local_si, std::type_info const* local_vmi)
 		{
-			for(size_t i = 0; i < num_bases; i++)
+			for(size_t i = 0UZ; i < num_bases; i++)
 			{
 				__class_type_info* base			= const_cast<__class_type_info*>(bases[i].__base_type);
 				__class_type_info const* equiv	= kernel_type_info[base->__type_name];

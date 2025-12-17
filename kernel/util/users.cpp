@@ -35,7 +35,7 @@ user_accounts_manager::user_accounts_manager(sysfs& config_src, uint32_t table_i
 						size_t total_users		= __table.size();
 						user_info* table_data	= __table.data();
 						for(size_t i = 0UZ; i < total_users; i++)
-							__uid_index_map.insert(std::make_pair(static_cast<uid_t>(table_data[i].uid), static_cast<size_t>(i + 1)));
+							__uid_index_map.insert(std::make_pair(static_cast<uid_t>(table_data[i].uid), static_cast<size_t>(i + 1Z)));
 					}
 static addr_t alloc_user_vpwd(size_t n, task_ctx const& ctx)
 {

@@ -224,7 +224,7 @@ void scheduler::on_tick()
 		else cur->quantum_rem	= cur->quantum_val;
 	}
 }
-__nointerrupts bool scheduler::init() noexcept
+bool scheduler::init() noexcept
 {
 	typedef prio_level_task_queues::iterator meta_iterator;
 	try
