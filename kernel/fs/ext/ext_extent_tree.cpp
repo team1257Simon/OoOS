@@ -46,7 +46,7 @@ bool ext_node_extent_tree::parse_legacy()
 	base_depth++;
 	disk_block* single_ptr_block	= std::addressof(tracked_node->cached_metadata.emplace_back(ind1, tracked_node->parent_fs->allocate_block_buffer(), false, 1U));
 	if(!tracked_node->parent_fs->read_block(*single_ptr_block)) { panic("[FS/EXT4/EXTENT] read on single pointer block failed"); return false; }
-	uint64_t cur_file_block    		= 12;
+	uint64_t cur_file_block    		= 12UL;
 	cached_extent_node* base    	= std::addressof(tracked_extents.emplace_back(single_ptr_block, tracked_node, 1US));
 	offset_iterator exnode			= base_extent_level.insert(std::move(std::make_pair(cur_file_block, cached_node_pos(base)))).first;
 	try
@@ -89,7 +89,7 @@ bool ext_node_extent_tree::parse_ext4()
 	ext_extent_node* nodes	= tracked_node->on_disk_node->block_info.ext4_extent.root_nodes;
 	size_t num				= std::min(size_t(h->entries), 4UL);
 	uint64_t cur_file_block;
-	for(size_t i = 0; i < num; i++)
+	for(size_t i = 0UZ; i < num; i++)
 	{
 		if(base_depth)
 		{
@@ -109,7 +109,7 @@ bool ext_node_extent_tree::parse_ext4()
 			uint64_t blknum	= qword(nodes[i].leaf.extent_start_lo, uint32_t(nodes[i].leaf.extent_start_hi));
 			tracked_node->block_data.reserve(tracked_node->block_data.size() + ext_sz);
 			disk_block* blk	= tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, std::move(disk_block(blknum, nullptr, false, 1U))).base();
-			for(size_t k = 1; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, std::move(disk_block(blknum + k, nullptr, false, 1U))); }
+			for(size_t k	= 1UZ; k < ext_sz; k++) { tracked_node->block_data.insert(tracked_node->block_data.begin() + cur_file_block++, std::move(disk_block(blknum + k, nullptr, false, 1U))); }
 			base_extent_level.insert_or_assign(cur_file_block, cached_node_pos(tracked_extents.emplace_back(blk, tracked_node, base_depth)));
 			total_extent	+= ext_sz;
 		}

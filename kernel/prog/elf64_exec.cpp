@@ -102,7 +102,7 @@ bool elf64_executable::load_segments()
 {
 	frame_tag				= std::addressof(fm.create_frame(frame_base, frame_extent));
 	if(__unlikely(!frame_tag)) { panic("[PRG/EXEC] failed to allocate frame"); return false; }
-	for(size_t n = 0; n < ehdr().e_phnum; n++)
+	for(size_t n = 0UZ; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h = phdr(n);
 		if(!is_load(h) || !h.p_memsz) continue;
@@ -129,7 +129,7 @@ bool elf64_executable::load_segments()
 			.obj_offset		= static_cast<off_t>(h.p_offset),
 			.size			= h.p_memsz,
 			.seg_align		= h.p_align,
-			.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0))
+			.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0UC) | (is_exec(h) ? 0b001UC : 0UC))
 		};
 		segments.push_back(desc);
 	}

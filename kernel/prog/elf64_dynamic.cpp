@@ -276,7 +276,7 @@ bool elf64_dynamic_object::load_syms()
 	if(__unlikely(!elf64_object::load_syms())) { panic("[PRG/DYN] no symbol table present"); return false; }
 	bool have_dyn		= false;
 	elf64_ehdr const& e	= ehdr();
-	for(size_t n = 0; n < e.e_phnum && !have_dyn; n++)
+	for(size_t n = 0UZ; n < e.e_phnum && !have_dyn; n++)
 	{
 		elf64_phdr const& ph	= phdr(n);
 		if(is_dynamic(ph))

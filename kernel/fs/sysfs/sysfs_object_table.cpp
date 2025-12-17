@@ -66,7 +66,7 @@ sysfs_hashtable_entry* sysfs_hash_table_base::get_chain_next(sysfs_hashtable_ent
 	size_t next_idx				= e->next_in_chain;
 	if(next_idx > hdr->num_entries)
 		throw std::out_of_range("[FS/SYSFS/HTAB] hashtable chain points out of range; the table might be corrupted");
-	return std::addressof(hdr->entries()[next_idx - 1]);
+	return std::addressof(hdr->entries()[next_idx - 1Z]);
 }
 sysfs_hashtable_entry const* sysfs_hash_table_base::get_chain_next(sysfs_hashtable_entry const* e) const
 {
@@ -75,7 +75,7 @@ sysfs_hashtable_entry const* sysfs_hash_table_base::get_chain_next(sysfs_hashtab
 	size_t next_idx						= e->next_in_chain;
 	if(next_idx > hdr->num_entries)
 		throw std::out_of_range("[FS/SYSFS/HTAB] hashtable chain points out of range; the table might be corrupted");
-	return std::addressof(hdr->entries()[next_idx - 1]);
+	return std::addressof(hdr->entries()[next_idx - 1Z]);
 }
 sysfs_hashtable_entry const* sysfs_hash_table_base::get_chain_start(size_t object_hash) const
 {

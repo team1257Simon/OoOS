@@ -9,14 +9,14 @@ fat32_filebuf::fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_fil
 std::streamsize fat32_filebuf::unread_size()
 {
 	if(__next_cluster_idx < __my_clusters.size())
-		return (static_cast<size_t>(__my_clusters.size() - (__next_cluster_idx + 1)) * __parent->parent_fs->block_size()) + 1UL; /* The minimum nuber of bytes remaining, if there are any unread clusters, is 1 (for a cluster with only 1 written byte) */
+		return (static_cast<size_t>(__my_clusters.size() - (__next_cluster_idx + 1Z)) * __parent->parent_fs->block_size()) + 1UL; /* The minimum nuber of bytes remaining, if there are any unread clusters, is 1 (for a cluster with only 1 written byte) */
 	else return 0UL;
 }
 int fat32_filebuf::write_dev()
 {
-	size_t bs = __parent->parent_fs->block_size();
-	size_t n = 0UZ;
-	for(size_t i = 0UZ; i < __my_clusters.size() && n < __size(); i++, n += bs)
+	size_t bs		= __parent->parent_fs->block_size();
+	size_t n		= 0UZ;
+	for(size_t i	= 0UZ; i < __my_clusters.size() && n < __size(); i++, n += bs)
 		if(!__parent->parent_fs->write_clusters(__my_clusters[i], this->__get_ptr(n)))
 			return -1;
 	return 0;
@@ -33,12 +33,12 @@ int fat32_filebuf::sync()
 }
 std::streamsize fat32_filebuf::read_dev(std::streamsize n)
 {
-	size_t bs	= __parent->parent_fs->block_size();
-	size_t s	= div_round_up(n, bs);
-	size_t k	= 0UZ;
+	size_t bs		= __parent->parent_fs->block_size();
+	size_t s		= div_round_up(n, bs);
+	size_t k		= 0UZ;
 	if(!__grow_buffer_exact(s * bs)) return 0UZ;
 	if(!gptr()) { setg(__beg(), __cur(), __max()); }
-	for(size_t i = 0UZ; i < s && __next_cluster_idx < __my_clusters.size(); i++, ++__next_cluster_idx)
+	for(size_t i	= 0UZ; i < s && __next_cluster_idx < __my_clusters.size(); i++, ++__next_cluster_idx)
 	{
 		if(__parent->parent_fs->read_clusters(__get_ptr(k), __my_clusters[i]))
 			k += bs;
@@ -49,10 +49,10 @@ std::streamsize fat32_filebuf::read_dev(std::streamsize n)
 }
 std::streamsize fat32_filebuf::on_overflow(std::streamsize n)
 {
-	size_t bs	= __parent->parent_fs->block_size();
-	size_t s	= div_round_up(n, bs);
-	size_t k	= 0UZ;
-	for(size_t i = 0UZ; i < s; i++, k += bs)
+	size_t bs		= __parent->parent_fs->block_size();
+	size_t s		= div_round_up(n, bs);
+	size_t k		= 0UZ;
+	for(size_t i	= 0UZ; i < s; i++, k += bs)
 	{
 		if(uint32_t cl = __parent->claim_next(__my_clusters.back()))
 			__my_clusters.push_back(cl);

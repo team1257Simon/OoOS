@@ -99,7 +99,7 @@ ext_pipe_vnode::ext_pipe_vnode(extfs* parent, uint32_t inode_num, ext_inode* ino
 	ext_vnode_base(parent, inode_num, inode), pipe_vnode(fd) {
 		mode = on_disk_node->mode;
 	}
-ext_pipe_pair::ext_pipe_pair(extfs *parent, uint32_t inode_number, std::string const& name) :
+ext_pipe_pair::ext_pipe_pair(extfs* parent, uint32_t inode_number, std::string const& name) :
 	vnode(name, -1, inode_number),
 	in(parent, inode_number, -1),
 	out(parent, inode_number, -1, in.pipe_id())
@@ -203,7 +203,7 @@ std::streamsize ext_vnode::xsputn(const char* s, std::streamsize n)
 	size_t nblk		= div_round_up(n, parent_fs->block_size());
 	array_copy(__cur(), s, n);
 	__bumpc(n);
-	for(size_t i = 0UZ; i < nblk; i++) block_data[sblk + i].dirty = true;
+	for(size_t i	= 0UZ; i < nblk; i++) block_data[sblk + i].dirty = true;
 	on_modify();
 	return n;
 }

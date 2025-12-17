@@ -1,6 +1,6 @@
 #include <kernel_defs.h>
 extern sysinfo_t* sysinfo;
-bool matches(acpi_header* h, const char* expected_sig) { return !__builtin_memcmp(h->signature, expected_sig, 4); }
+bool matches(acpi_header* h, const char* expected_sig) { return !__builtin_memcmp(h->signature, expected_sig, 4UZ); }
 bool checksum(acpi_header* h)
 {
 	char* c			= reinterpret_cast<char*>(h);

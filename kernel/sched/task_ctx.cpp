@@ -33,7 +33,7 @@ static inline void init_fx(fx_state& fx)
 }
 static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
 {
-	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
+	elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(obj);
 	if(so && so->is_symbolic())
 	{
 		sym_pair result_pair	= so->resolve_by_name(name);

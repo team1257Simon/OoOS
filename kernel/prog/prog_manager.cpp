@@ -10,14 +10,14 @@ constexpr static elf64_phdr const& phdr(elf64_ehdr const& ehdr, size_t i) {
 }
 static size_t find_dyn(elf64_ehdr const& ehdr)
 {
-	for(size_t i = 0; i < ehdr.e_phnum; i++)
+	for(size_t i = 0UZ; i < ehdr.e_phnum; i++)
 		if(phdr(ehdr, i).p_type == PT_DYNAMIC)
 			return i;
 	return 0UZ;
 }
 static bool is_pic_exec(elf64_dyn* dyn_entries, size_t n)
 {
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0UZ; i < n; i++)
 		if(dyn_entries[i].d_tag == DT_FLAGS_1 && (dyn_entries[i].d_val & DF_1_PIE))
 			return true;
 	return false;

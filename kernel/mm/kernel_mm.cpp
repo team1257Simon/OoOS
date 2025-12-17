@@ -16,8 +16,8 @@ extern "C"
 	paging_table			kernel_cr3;
 }
 constexpr ptrdiff_t	bt_offset		= sizeof(block_tag);
-constexpr size_t	min_block_size	= 1UL << min_exponent;
-constexpr size_t	max_block_size	= 1UL << max_block_index;
+constexpr size_t	min_block_size	= 1UZ << min_exponent;
+constexpr size_t	max_block_size	= 1UZ << max_block_index;
 constexpr size_t	st_bits			= CHAR_BIT * sizeof(size_t);
 constexpr size_t	ltob_bit_diff	= CHAR_BIT * (sizeof(uint64_t) - sizeof(uint8_t));
 static uint8_t		__kmm_data[sizeof(kernel_memory_mgr)];

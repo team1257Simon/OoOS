@@ -5,7 +5,7 @@ fd_locks_container::~fd_locks_container() = default;
 size_t fd_locks_container::compute_start(ptrdiff_t start, std::ios_base::seekdir whence)
 {
 	ptrdiff_t base	= (whence > 0 ? static_cast<ptrdiff_t>(locking_file->size()) : whence == std::ios_base::cur ? static_cast<ptrdiff_t>(locking_file->tell()) : 0L);
-	base			= std::max(base + start, 0L);
+	base			= std::max(base + start, 0Z);
 	return static_cast<size_t>(base);
 }
 bool fd_locks_container::test(file_lock const& l)

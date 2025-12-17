@@ -27,7 +27,7 @@ uint32_t claim_cluster(fat32_allocation_table& tb, uint32_t last_sect)
 			return i;
 		}
 	}
-	return 0;
+	return 0U;
 }
 fat32_allocation_table::fat32_allocation_table(size_t num_sectors, size_t bytes_per_sector, uint64_t start_sector, fat32* parent) :
 	__base(num_sectors * bytes_per_sector / sizeof(uint32_t)),
@@ -91,7 +91,7 @@ static void set_filename(char* fname, std::string const& sname)
 	size_t pos_dot = sname.find('.'), l = std::min(8UL, sname.size());
 	if(pos_dot != std::string::npos && pos_dot < l) l = pos_dot;
 	std::string::const_iterator i = sname.begin();
-	for(size_t j = 0; j < 8; j++)
+	for(size_t j = 0UZ; j < 8UZ; j++)
 	{
 		if(j < l) {
 			fname[j] = *i;
@@ -100,7 +100,7 @@ static void set_filename(char* fname, std::string const& sname)
 		else fname[j] = ' ';
 	}
 	++i;
-	for(size_t j = 8; j < 11; j++, i++) { fname[j] = (i < sname.end()) ? *i : ' '; }
+	for(size_t j = 8UZ; j < 11UZ; j++, i++) { fname[j] = (i < sname.end()) ? *i : ' '; }
 }
 fat32_file_vnode* fat32::put_file_node(std::string const& name, fat32_directory_vnode* parent, uint32_t cl0, size_t dirent_idx)
 {

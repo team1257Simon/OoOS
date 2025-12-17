@@ -40,7 +40,7 @@ elf64_shared_object::elf64_shared_object(elf64_shared_object const& that) : elf6
 static const char* find_so_name(addr_t image_start, file_vnode* so_file)
 {
 	elf64_ehdr const& eh		= image_start.deref<elf64_ehdr>();
-	for(size_t i = 0; i < eh.e_phnum; i++)
+	for(size_t i = 0UZ; i < eh.e_phnum; i++)
 	{
 		elf64_phdr const* phptr = image_start.plus(eh.e_phoff + i * eh.e_phentsize);
 		elf64_phdr const& ph	= *phptr;
@@ -49,7 +49,7 @@ static const char* find_so_name(addr_t image_start, file_vnode* so_file)
 			elf64_dyn* dyn_ent	= image_start.plus(ph.p_offset);
 			size_t n			= ph.p_filesz / sizeof(elf64_dyn);
 			size_t strtab_off	= 0UZ, name_off = 0UZ;
-			for(size_t j = 0; j < n; j++)
+			for(size_t j = 0UZ; j < n; j++)
 			{
 				if(dyn_ent[j].d_tag == DT_STRTAB) strtab_off	= dyn_ent[j].d_ptr;
 				else if(dyn_ent[j].d_tag == DT_SONAME) name_off	= dyn_ent[j].d_val;
@@ -77,7 +77,7 @@ const char* elf64_shared_object::sym_lookup(addr_t addr) const
 {
 	if(__unlikely(!could_contain(addr))) return nullptr;
 	size_t nsym = symtab.entries();
-	for(size_t i = 0; i < nsym; i++)
+	for(size_t i = 0UZ; i < nsym; i++)
 	{
 		elf64_sym const& sym	= symtab[i];
 		addr_t sym_base			= resolve(sym);
@@ -95,7 +95,7 @@ void elf64_shared_object::process_headers()
 {
 	elf64_dynamic_object::process_headers();
 	size_t total_size = 0UZ, tls_idx = 0UZ;
-	for(size_t n = 0; n < ehdr().e_phnum; n++)
+	for(size_t n = 0UZ; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h			= phdr(n);
 		if(is_tls(h)) tls_idx 		= n;
@@ -150,7 +150,7 @@ bool elf64_shared_object::load_segments()
 				.obj_offset		= static_cast<off_t>(h.p_offset),
 				.size			= h.p_memsz,
 				.seg_align		= h.p_align,
-				.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0) | (is_exec(h) ? 0b001UC : 0))
+				.perms			= static_cast<elf_segment_prot>(0b100UC | (is_write(h) ? 0b010UC : 0UC) | (is_exec(h) ? 0b001UC : 0UC))
 			};
 			segments.push_back(desc);
 			frame_tag->dynamic_extent	= std::max(frame_tag->dynamic_extent, target.plus(actual_size).next_page_aligned());

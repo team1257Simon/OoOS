@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <errno.h>
-fd_map::fd_map() : __base(256) {}
+fd_map::fd_map() : __base(256UZ) {}
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd) { return (fd < 3) ? ctx->stdio_ptrs[fd] : fsptr->get_file(fd); }
 filesystem::filesystem() : pipes(256UZ), current_open_files(), next_fd(3), blockdev(nullptr) {}
 filesystem::~filesystem() = default;

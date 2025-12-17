@@ -77,13 +77,13 @@ bool scheduler::interrupt_wait(task_t* task)
 bool scheduler::__set_wait_time(kthread_ptr& task, clock_t time, bool can_interrupt)
 {
 	task.set_blocking(can_interrupt);
-	unsigned int total			= __sleepers.cumulative_remaining_ticks();
+	clock_t total				= __sleepers.cumulative_remaining_ticks();
 	if(time < total)
 	{
-		unsigned int cumulative	= 0;
+		clock_t cumulative		= 0UL;
 		for(waiterator i		= __sleepers.current(); i != __sleepers.end(); i++)
 		{
-			unsigned int cwait 	= i->get_wait_delta();
+			clock_t cwait 		= i->get_wait_delta();
 			if(cwait + cumulative > time)
 			{
 				task.set_wait_delta(static_cast<clock_t>(time - cumulative));

@@ -42,7 +42,8 @@ void elf64_kernel_object::process_headers()
 	for(size_t i = 0; i < n; i++)
 	{
 		elf64_phdr const& ph	= phdr(i);
-		if(is_tls(ph)) {
+		if(is_tls(ph))
+		{
 			tls_size			= ph.p_memsz;
 			tls_align			= ph.p_align;
 			continue;

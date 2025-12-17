@@ -24,7 +24,7 @@ ext_jbd2_mode extfs::journal_mode() const { return ordered; /* TODO get this fro
 size_t extfs::blocks_per_group() { return sb->blocks_per_group; }
 void extfs::free_block_buffer(disk_block& bl) { if(bl.data_buffer && bl.chain_len) buff_alloc.deallocate(bl.data_buffer, block_size() * bl.chain_len); }
 off_t extfs::inode_block_offset(uint32_t inode) { return static_cast<off_t>(inode_pos_in_group(inode) * sb->inode_size); }
-uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1)) / sb->inodes_per_group); }
+uint64_t extfs::group_num_for_inode(uint32_t inode) { return ((static_cast<size_t>(inode - 1Z)) / sb->inodes_per_group); }
 uint32_t extfs::inode_pos_in_group(uint32_t inode_num) { return (inode_num - 1) % (sb->inodes_per_group); }
 dev_t extfs::xgdevid() const noexcept { return sb->fs_uuid.data_a; }
 void extfs::syncdirs() { if(!fs_journal.execute_pending_txns()) panic("[FS/EXT4] failed to execute transaction(s)"); }
@@ -152,7 +152,7 @@ void ext_block_group::compute_checksums(size_t group_num)
 		descr->block_usage_bmp_checkum_hi	= bbmp_cs.hi;
 		descr->inode_usage_bmp_checksum		= ibmp_cs.lo;
 		descr->inode_usage_bmp_checksum_hi	= ibmp_cs.hi;
-		descr->group_checksum				= 0;
+		descr->group_checksum				= 0US;
 		barrier();
 		dword cs_full						= crc32c(cs_seed, *descr);
 		barrier();
@@ -198,7 +198,7 @@ void extfs::initialize()
 		if(!read_block(bg.inode_usage_bmp) || !read_block(bg.blk_usage_bmp)) throw std::runtime_error("[FS/EXT4] failed to read block group");
 		if(!read_block(bg.inode_block)) { throw std::runtime_error("[FS/EXT4] failed to read inode table"); }
 		uint16_t cs							= blk_group_descs[i].group_checksum;
-		blk_group_descs[i].group_checksum	= 0;
+		blk_group_descs[i].group_checksum	= 0US;
 		uint32_t cs0						= crc32c(uuid_csum, dword(i));
 		dword dw_cs							= crc32c(cs0, blk_group_descs[i]);
 		if(dw_cs.lo != cs) throw std::runtime_error("[FS/EXT4] checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex));
@@ -234,7 +234,7 @@ bool extfs::update_free_block_count(int diff)
 }
 uint32_t extfs::claim_inode(bool dir)
 {
-	for(size_t i = 0; i < block_groups.size(); i++)
+	for(size_t i = 0UZ; i < block_groups.size(); i++)
 	{
 		if(block_groups[i].has_available_inode())
 		{
@@ -305,7 +305,7 @@ filesystem::target_pair extfs::get_parent(directory_vnode* start, std::string co
 	std::vector<std::string> pathspec	= std::ext::split(path, path_separator());
 	if(pathspec.empty()) throw std::logic_error("[FS/EXT4] empty path");
 	directory_vnode* cur				= start;
-	for(size_t i = 0; i < pathspec.size() - 1; i++)
+	for(size_t i = 0UZ; i < pathspec.size() - 1; i++)
 	{
 		if(pathspec[i].empty()) continue;
 		tnode* node = cur->find(pathspec[i]);
@@ -612,7 +612,7 @@ void extfs::dlpipenode(vnode* fn)
 disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 {
 	if(!how_many) return nullptr;
-	for(size_t i = 0; i < block_groups.size(); i++)
+	for(size_t i = 0UZ; i < block_groups.size(); i++)
 	{
 		if(block_groups[i].has_available_blocks(how_many))
 		{
@@ -637,7 +637,7 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 }
 disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
 {
-	for(size_t i = 0; i < block_groups.size(); i++)
+	for(size_t i = 0UZ; i < block_groups.size(); i++)
 	{
 		if(block_groups[i].has_available_blocks())
 		{

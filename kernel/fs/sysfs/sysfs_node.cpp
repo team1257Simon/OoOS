@@ -71,10 +71,10 @@ void sysfs_vnode::init()
 	if(size_t ext			= extent_tree.total_extent())
 	{
 		if(!__grow_buffer_exact(block_capacity())) throw std::bad_alloc();
-		for(size_t i		= 0; i < ext; i++)
+		for(size_t i		= 0UZ; i < ext; i++)
 		{
 			uint32_t actual	= extent_tree[i].start;
-			for(size_t j	= 0; i < extent_tree[i].length; j++, actual++)
+			for(size_t j	= 0UZ; i < extent_tree[i].length; j++, actual++)
 				parent_fs.read_data(sector_ptr(actual), actual, sector_size());
 		}
 		__setc(inode().size_bytes);

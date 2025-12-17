@@ -44,7 +44,7 @@ void direct_text_render::print_text(const char* str)
 }
 void direct_text_render::print_line(const char* str)
 {
-	for(size_t i = 0; str[i]; i++)
+	for(size_t i = 0UZ; str[i]; i++)
 		putc(str[i]);
 	endl();
 }

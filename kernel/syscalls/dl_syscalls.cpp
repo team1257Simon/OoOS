@@ -88,11 +88,11 @@ extern "C"
 				else target.assign(sr.first);
 			}
 		}
-		size_t len		= obj_handle->get_init().size() + 1;
+		size_t len		= obj_handle->get_init().size() + 1UZ;
 		addr_t result	= sysres_add(len * sizeof(addr_t));
 		if(!result) return addr_t(static_cast<uintptr_t>(-ENOMEM));
 		addr_t res_real = translate_user_pointer(result);
-		if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
+		if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1Z);
 		res_real.plus((len - 1) * sizeof(addr_t)).assign(nullptr);
 		return result;
 	}
@@ -100,11 +100,11 @@ extern "C"
 	{
 		elf64_dynamic_object* obj_handle	= validate_handle(handle);
 		if(__unlikely(!obj_handle)) return addr_t(static_cast<uintptr_t>(-EBADF));
-		size_t len							= obj_handle->get_fini().size() + 1;
+		size_t len							= obj_handle->get_fini().size() + 1UZ;
 		addr_t result						= sysres_add(len * sizeof(addr_t));
 		if(__unlikely(!result)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
 		addr_t res_real						= translate_user_pointer(result);
-		if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
+		if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1Z);
 		res_real.plus((len - 1) * sizeof(addr_t)).assign(nullptr);
 		return result;
 	}
@@ -121,7 +121,7 @@ extern "C"
 			addr_t result						= sysres_add(len * sizeof(addr_t));
 			if(__unlikely(!result)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
 			addr_t res_real					 	= translate_user_pointer(result);
-			if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1);
+			if(len > 1) array_copy(res_real, obj_handle->get_init().data(), len - 1Z);
 			res_real.plus((len - 1) * sizeof(addr_t)).assign(nullptr);
 			return result;
 		}
@@ -303,7 +303,7 @@ extern "C"
 		char** result_real						= translate_user_pointer(result);
 		if(__unlikely(!result || !result_real)) return addr_t(static_cast<uintptr_t>(-ENOMEM));
 		size_t n;
-		for(n = 0; n < ndep; n++)
+		for(n = 0UZ; n < ndep; n++)
 		{
 			std::string const& str	= deps[n];
 			size_t len				= str.size() + 1;
@@ -325,13 +325,13 @@ extern "C"
 		if(__unlikely(!info)) return -EFAULT;
 		array_zero(reinterpret_cast<uint64_t*>(info), sizeof(dl_addr_info) / sizeof(uint64_t));
 		size_t n		= task->attached_so_handles.size();
-		for(size_t i	= 0; i < n; i++)
+		for(size_t i	= 0UZ; i < n; i++)
 		{
 			elf64_shared_object* so		= task->attached_so_handles[i];
 			if(!so->could_contain(sym_addr)) continue;
 			info->so_vbase				= so->get_load_offset();
 			std::string const& oname	= so->get_soname();
-			size_t len					= oname.size() + 1;
+			size_t len					= oname.size() + 1UZ;
 			info->so_name				= sysres_add(len);
 			if(__unlikely(!info->so_name)) return -ENOMEM;
 			array_copy(translate_user_pointer(info->so_name), oname.data(), len);
@@ -339,7 +339,7 @@ extern "C"
 			if(sname)
 			{
 				info->actual_addr	= so->resolve_by_name(sname).second;
-				len				 	= std::strlen(sname) + 1;
+				len				 	= std::strlen(sname) + 1UZ;
 				info->symbol_name	= sysres_add(len);
 				if(!info->symbol_name) return -ENOMEM;
 				array_copy(translate_user_pointer(info->symbol_name), sname, len);

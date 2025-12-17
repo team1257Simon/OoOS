@@ -8,7 +8,7 @@ bool apic::init() volatile
     madt_t* madt					= static_cast<madt_t*>(find_system_table("APIC"));
     if(__unlikely(!madt)) return false;
     uintptr_t physical_base			= madt->local_apic_physical_address;
-    uintptr_t ioapic_physical_base	= 0;
+    uintptr_t ioapic_physical_base	= 0UZ;
     bool have_sapic					= false;
     size_t table_size				= madt->header.length - (8 + sizeof(acpi_header));
     addr_t table_ptr(madt->record_data);

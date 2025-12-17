@@ -24,7 +24,7 @@ void fat32_file_vnode::on_close() { __my_filebuf.release(); }
 bool fat32_file_vnode::truncate()
 {
 	array_zero(__my_filebuf.__beg(), __my_filebuf.__capacity());
-	__on_disk_size = 0;
+	__on_disk_size = 0UZ;
 	return fsync();
 }
 static void update_times(fat32_regular_entry& e)

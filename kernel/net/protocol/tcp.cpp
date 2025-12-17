@@ -102,7 +102,7 @@ bool tcp_header::verify_tcp_checksum() const
 	size_t num_words			= tcp_length / sizeof(net16);
 	if((tcp_length % 2) != 0)
 		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
-	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
+	for(size_t i = 0UZ; i < num_words; i++) intermediate_csum += words[i];
 	dword dw_csum				= intermediate_csum;
 	intermediate_csum			= dw_csum.hi + dw_csum.lo;
 	dw_csum						= intermediate_csum;

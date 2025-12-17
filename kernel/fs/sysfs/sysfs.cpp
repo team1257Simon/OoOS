@@ -148,7 +148,7 @@ sysfs_extent_branch& sysfs::extend_to_leaf(size_t from_idx, uint32_t ordinal)
 	sysfs_extent_branch& br		= get_extent_branch(from_idx);
 	sysfs_extent_branch* added	= new(std::addressof(get_extent_branch(next))) sysfs_extent_branch
 	{
-		.depth		{ br.depth - 1 },
+		.depth		{ br.depth - 1Z },
 		.entries	{},
 		.checksum	{}
 	};

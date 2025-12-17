@@ -35,12 +35,12 @@ void elf64_object::cleanup()
 addr_t elf64_object::resolve(uint64_t offs) const
 {
 	off_t idx	= segment_index(offs);
-	if(__unlikely(idx < 0)) return nullptr;
+	if(__unlikely(idx < 0Z)) return nullptr;
 	return to_segment_ptr(offs, segments[idx]);
 }
 void elf64_object::process_headers()
 {
-	for(size_t i = 0; i < ehdr().e_phnum; i++)
+	for(size_t i = 0UZ; i < ehdr().e_phnum; i++)
 		if(is_load(phdr(i)) && phdr(i).p_memsz)
 			num_seg_descriptors++;
 	segments.reserve(num_seg_descriptors);
@@ -72,17 +72,17 @@ bool elf64_object::load() noexcept
 }
 off_t elf64_object::segment_index(size_t offset) const
 {
-	for(size_t i = 0; i < num_seg_descriptors; i++)
+	for(size_t i = 0UZ; i < num_seg_descriptors; i++)
 		if(static_cast<uintptr_t>(segments[i].obj_offset) <= offset && offset < static_cast<uintptr_t>(segments[i].obj_offset + segments[i].size))
 			return static_cast<off_t>(i);
-	return -1L;
+	return -1Z;
 }
 elf64_object::elf64_object(file_vnode* n) : elf64_object(n->data(), n->size())
 {
 	if(__unlikely(!__image_start))
 	{
 		panic("[PRG] elf object file read failed");
-		__image_size	= 0;
+		__image_size	= 0UZ;
 		__image_start	= nullptr;
 	}
 }
@@ -92,7 +92,7 @@ bool elf64_object::load_syms()
 	shstrtab.total_size				= shstrtab_shdr.sh_size;
 	shstrtab.data					= aligned_malloc(shstrtab_shdr.sh_size, shstrtab_shdr.sh_addralign);
 	array_copy<char>(shstrtab.data, img_ptr(shstrtab_shdr.sh_offset), shstrtab_shdr.sh_size);
-	for(size_t i = 0; i < ehdr().e_shnum; i++)
+	for(size_t i = 0UZ; i < ehdr().e_shnum; i++)
 	{
 		elf64_shdr const& h			= shdr(i);
 		if(h.sh_type == SHT_DYNSYM || h.sh_type == SHT_SYMTAB)
