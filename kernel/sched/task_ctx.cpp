@@ -752,8 +752,8 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 	kthread_ptr kth(header(), thread);
 	ooos::update_thread_state(*thread, task_struct);
 	bool detached			= thread->ctl_info.detached;
-	thread->ctl_info.state	= thread_state::TERMINATED;
 	sch.unregister_task(kth);
+	thread->ctl_info.state	= thread->ctl_info.retrigger_capable ? thread_state::STOPPED : thread_state::TERMINATED;
 	if(notify_threads.contains(thread_id))
 	{
 		std::vector<thread_t*>& notif	= notify_threads[thread_id];
@@ -769,11 +769,15 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 	if(detached)
 	{
 		notify_threads.erase(thread_id);
-		dyn_thread.takedown(*thread);
 		thread_ptr_by_id.erase(i);
-		// The memory remains a part of the process; both the thread ID and the memory used for the TLS and thread struct can be reused later if needed
-		inactive_threads.push_back(thread);
-		next_assigned_thread_id		= thread_id;
+		if(!thread->ctl_info.retrigger_capable)
+		{
+			dyn_thread.takedown(*thread);
+			// The memory remains a part of the process; both the thread ID and the memory used for the TLS and thread struct can be reused later if needed
+			inactive_threads.push_back(thread);
+			next_assigned_thread_id		= thread_id;
+		}
+		else if(thread->ctl_info.reset_cb) (*thread->ctl_info.reset_cb)(thread->ctl_info.reset_arg);
 	}
 	else thread->saved_regs.rax		= result_val;
 }
@@ -868,13 +872,17 @@ join_result task_ctx::thread_join(pid_t with_thread)
 	thread_t* thread			= i->second;
 	thread_t* current			= current_thread_ptr();
 	if(!current) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	if(thread->ctl_info.state == thread_state::TERMINATED)
+	if(thread->ctl_info.state == thread_state::TERMINATED || (thread->ctl_info.retrigger_capable && thread->ctl_info.state == thread_state::STOPPED))
 	{
 		current->saved_regs.rax	= task_struct.saved_regs.rax	= thread->saved_regs.rax;
-		dyn_thread.takedown(*thread);
-		next_assigned_thread_id	= i->first;
-		thread_ptr_by_id.erase(i);
-		inactive_threads.push_back(thread);
+		if(!thread->ctl_info.retrigger_capable)
+		{
+			dyn_thread.takedown(*thread);
+			next_assigned_thread_id	= i->first;
+			thread_ptr_by_id.erase(i);
+			inactive_threads.push_back(thread);
+		}
+		else if(thread->ctl_info.reset_cb) (*thread->ctl_info.reset_cb)(thread->ctl_info.reset_arg);
 		return join_result::IMMEDIATE;
 	}
 	notify_threads[with_thread].push_back(current);

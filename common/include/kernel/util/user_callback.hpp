@@ -17,6 +17,9 @@ namespace ooos
 		bool start_detached;
 		kthread_ptr cb_thread;
 		callback_arg arg;
+		regstate_t initial_regstate;
+		fx_state initial_fpstate;
+		thread_ctl initial_ctlstate;
 	};
 	template<typename T> concept register_passable	= (sizeof(T) <= sizeof(register_t));
 	struct user_callback_base
@@ -26,6 +29,8 @@ namespace ooos
 		size_t stack_offs;
 		addr_t stack_real;
 		void trigger(callback_arg arg);
+		void reset();
+		virtual ~user_callback_base();
 	protected:
 		virtual void vinit(thread_t& thread) = 0;
 	};
@@ -35,6 +40,7 @@ namespace ooos
 		constexpr static size_t needed_stack_size	= up_to_nearest(sizeof(AT), alignof(register_t));
 		constexpr user_callback(user_callback_data&& data, task_ctx* ctx) noexcept : user_callback_base(ctx, std::move(data), needed_stack_size, nullptr) {}
 		void operator()(AT const& arg) { this->trigger(callback_arg{ .pointer_argument = addr_t(std::addressof(arg)) }); }
+		virtual ~user_callback() = default;
 	protected:
 		virtual void vinit(thread_t& thread) override
 		{
@@ -49,6 +55,7 @@ namespace ooos
 	{
 		constexpr user_callback(user_callback_data&& data, task_ctx* ctx) noexcept : user_callback_base(ctx, std::move(data), 0UZ, nullptr) {}
 		void operator()(AT a) { this->trigger(callback_arg{ .register_data_argument	= register_data(a) }); }
+		virtual ~user_callback() = default;
 	protected:
 		virtual void vinit(thread_t& thread) override { thread.saved_regs.rdi		= data.arg.integral_argument; }
 	};

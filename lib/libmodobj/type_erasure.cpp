@@ -77,14 +77,14 @@ namespace std
 		type_erasure::type_erasure(type_info const& i) : type_index(i) {}
 		void* type_erasure::cast_to(void* obj, type_info const& ti) const { return __reflective_cast(*info, ti, obj); }
 		void* type_erasure::cast_from(void* obj, type_erasure const& that) const { return that.cast_to(obj, *info); }
-		bool type_erasure::is_derived_from(type_info const& that)
+		bool type_erasure::is_derived_from(type_info const& that) const
 		{
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthis, cthat);
 			return false;
 		}
-		bool type_erasure::derives(type_info const& that)
+		bool type_erasure::derives(type_info const& that) const
 		{
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));

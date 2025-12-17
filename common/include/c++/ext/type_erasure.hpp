@@ -8,10 +8,10 @@ namespace std
 		/**
 		 * std::ext::type_erasure
 		 * An extension of the basic C++ type_info / type_index structures that allows passing generic polymorphic pointers through type-unaware intermediates.
-		 * When using type erasure to manage a polymorphic object, the actual type need only be known to the object's owner and, potentially, to its end-users.
+		 * When using type erasure to manage a polymorphic object, the actual type need only be known to the object's owner.
 		 * This differs from the analogous concept in Java, where all objects are owned by the JVM, and the underlying type might never see the light of day at all.
-		 * Because C++ lacks true reflection, the end-user must also be aware of at least one (potentially virtual) base of the object at compile time.
-		 * A combination of pointer and type erasure can essentially be used to implement a dynamic_cast equivalent on a void pointer.
+		 * Because C++ lacks true reflection, the end-user must be aware of at least one base of the object at compile time if the object is not polymorphic.
+		 * In order to actually use the object, of course, the desired type must be input by the end-user.
 		 */
 		class type_erasure : public type_index
 		{
@@ -19,8 +19,8 @@ namespace std
 			type_erasure(type_info const& i);
 			constexpr type_erasure() noexcept : type_index() {}
 			constexpr type_info const& get_type_info() const { return *info; }
-			bool is_derived_from(type_info const& that);
-			bool derives(type_info const& that);
+			bool is_derived_from(type_info const& that) const;
+			bool derives(type_info const& that) const;
 			void* cast_to(void* obj, type_info const& ti) const;
 			void* cast_from(void* obj, type_erasure const& that) const;
 			void* cast_inferred(void* obj) const;

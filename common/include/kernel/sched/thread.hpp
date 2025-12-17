@@ -15,23 +15,26 @@ enum class thread_state : uint8_t
 namespace ooos { typedef addr_t dynamic_thread_vector; }
 typedef uint8_t thread_state;
 #endif
+typedef void (*reset_callback)(void*);
 struct thread_ctl
 {
 	volatile struct
 	{
-		thread_state state	: 2;		// current state
-		bool park			: 1;		// parked threads are waiting, potentially with a timer
-		bool non_timed_park	: 1;		// indicates a parked thread has no wait timer and will only wake when notified
-		bool detached		: 1;		// indicates the thread should immediately terminate upon exit rather than wait for a join
-		bool cancel_disable	: 1;		// if true, the thread ignores cancellation
-		bool cancel_async	: 1;		// if true, cancellation occurs as soon as possible; if false, it waits until a cancel point function is called
-		bool				: 1;		// currently unused
+		thread_state state		: 2;		// current state
+		bool park				: 1;		// parked threads are waiting, potentially with a timer
+		bool non_timed_park		: 1;		// indicates a parked thread has no wait timer and will only wake when notified
+		bool detached			: 1;		// indicates the thread should immediately terminate upon exit rather than wait for a join
+		bool cancel_disable		: 1;		// if true, the thread ignores cancellation
+		bool cancel_async		: 1;		// if true, cancellation occurs as soon as possible; if false, it waits until a cancel point function is called
+		bool retrigger_capable	: 1;		// if true, the thread is a repeatable callback with a reset function pointed to by reset_cb with argument reset_arg
 	};
 	struct
 	{
 		spinlock_t thread_lock;		// modifications to the thread's data should lock this first
 		pid_t thread_id;			// unique identifier within a process
 		clock_t wait_time_delta;	// amount of ticks remaining in wait time
+		reset_callback reset_cb;	// called to reset the thread's state if applicable
+		void* reset_arg;			// argument for the above callback if applicable
 	};
 };
 struct __align(16) thread_t
