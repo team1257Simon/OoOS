@@ -13,26 +13,20 @@
 #include <tree-pass.h>
 #include <stringpool.h>
 #include <attribs.h>
+#define XPNEW(T) new(xmalloc(sizeof(T))) T
 int plugin_is_GPL_compatible;
-static const char* plugin_name = "ooos_attrs";
-constexpr static const char attr_name_nointerrupts[] = "nointerrupts";
+static const char* plugin_name				= "ooos_attrs";
+static const char* attr_name_nointerrupts	= "nointerrupts";
+static size_t held_ptr_ct					= 0UZ;
+static void* to_free_on_exit_ptrs[128]{};
 extern "C" { extern gcc::context* g; }
-static pass_data gp_nointerrupts_data
+static void add_free_on_exit_ptr(void* ptr) { to_free_on_exit_ptrs[held_ptr_ct++] = ptr; }
+static void exit_fn(void*, void*)
 {
-	.type					= GIMPLE_PASS,
-	.name					= "ooos_attrs",
-	.optinfo_flags			= OPTGROUP_NONE,
-	.tv_id					= TV_NONE,
-	.properties_required	= PROP_gimple,
-	.todo_flags_finish		= TODO_cleanup_cfg | TODO_update_ssa | TODO_rebuild_cgraph_edges
-};
-static attribute_spec nointerrupts_attr
-{
-	.name = attr_name_nointerrupts,
-	.min_length = 0,
-	.max_length = 0,
-};
-static void register_attributes(void*, void*) { register_attribute(std::addressof(nointerrupts_attr)); }
+	for(size_t i = 0UZ; i < held_ptr_ct; i++)
+		if(to_free_on_exit_ptrs[i])
+			free(to_free_on_exit_ptrs[i]);
+}
 struct nointerrupts_gimple_pass : public gimple_opt_pass
 {
 	nointerrupts_gimple_pass(pass_data const& data, gcc::context* ctxt) : gimple_opt_pass(data, ctxt) {}
@@ -74,24 +68,44 @@ struct nointerrupts_gimple_pass : public gimple_opt_pass
 		}
 		return 0U;
 	}
-} gimple_pass(gp_nointerrupts_data, g);
-static plugin_info pi
-{
-	.version = "0",
-	.help = "",
 };
+static void register_attributes(void*, void*)
+{
+	attribute_spec* nointerrupts_attr	= XPNEW(attribute_spec)
+	{
+		.name		= attr_name_nointerrupts,
+		.min_length = 0,
+		.max_length	= 0,
+	};
+	register_attribute(nointerrupts_attr);
+	add_free_on_exit_ptr(nointerrupts_attr);
+}
 int plugin_init(plugin_name_args* info, plugin_gcc_version* ver)
 {
-
-	register_callback(plugin_name, PLUGIN_INFO, nullptr, std::addressof(pi));
-	register_pass_info gp
+	pass_data gp_nointerrupts_data
 	{
-		.pass 						= std::addressof(gimple_pass),
+		.type					= GIMPLE_PASS,
+		.name					= plugin_name,
+		.optinfo_flags			= OPTGROUP_NONE,
+		.tv_id					= TV_NONE,
+		.properties_required	= PROP_gimple,
+		.todo_flags_finish		= TODO_cleanup_cfg | TODO_update_ssa | TODO_rebuild_cgraph_edges
+	};
+	plugin_info* pi							= XPNEW(plugin_info)("0", "");
+	nointerrupts_gimple_pass* gimple_pass	= XPNEW(nointerrupts_gimple_pass)(gp_nointerrupts_data, g);
+	register_pass_info* gp					= XPNEW(register_pass_info)
+	{
+		.pass 						= gimple_pass,
 		.reference_pass_name 		= "ssa",
 		.ref_pass_instance_number 	= 1,
 		.pos_op 					= PASS_POS_INSERT_AFTER
 	};
-	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, nullptr, std::addressof(gp));
+	add_free_on_exit_ptr(pi);
+	add_free_on_exit_ptr(gimple_pass);
+	add_free_on_exit_ptr(gp);
+	register_callback(plugin_name, PLUGIN_INFO, nullptr, pi);
+	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, nullptr, gp);
 	register_callback(plugin_name, PLUGIN_ATTRIBUTES, register_attributes, nullptr);
+	register_callback(plugin_name, PLUGIN_GGC_END, exit_fn, nullptr);
 	return 0;
 }
