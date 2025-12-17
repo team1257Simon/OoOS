@@ -3,6 +3,7 @@
 #include <bits/stl_iterator.hpp>
 #include <bits/stl_allocator.h>
 #include <bits/dynamic_buffer.hpp>
+#include <bits/stdexcept.h>
 namespace std
 {
 	template<typename T, std::allocator_object<T> A = std::allocator<T>>
@@ -22,19 +23,35 @@ namespace std
 		typedef ::__impl::__iterator<const_pointer, vector> const_iterator;
 		typedef std::reverse_iterator<iterator> reverse_iterator;
 		typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+	private:
+		constexpr static bool __ntalloc() noexcept { return noexcept(std::declval<allocator_type>().allocate(std::declval<size_type>())); }
+		constexpr static bool __nt_move_assign() noexcept { return std::is_nothrow_move_assignable_v<allocator_type> || !__has_move_propagate<allocator_type>; }
+		constexpr static bool __nt_copy_assign() noexcept { return __ntalloc() && (std::is_nothrow_copy_assignable_v<allocator_type> || !__has_copy_propagate<allocator_type>); }
+		constexpr static bool __nt_move_construct() noexcept { return std::is_nothrow_copy_constructible_v<allocator_type>; }
+		constexpr static bool __nt_copy_construct() noexcept { return __ntalloc() && std::is_nothrow_copy_constructible_v<allocator_type>; }
+	public:
 		constexpr explicit vector(allocator_type const& alloc) noexcept(noexcept(allocator_type(alloc))) : __base(alloc) {}
 		constexpr vector() noexcept(noexcept(allocator_type())) : __base() {}
-		constexpr explicit vector(size_type count) noexcept(noexcept(std::declval<allocator_type>().allocate(count))) : __base(count, allocator_type()) {}
-		constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type()) noexcept(noexcept(std::declval<allocator_type>().allocate(count))) : __base(count, value, alloc) {}
-		template<std::matching_input_iterator<value_type> IT> constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type()) noexcept(noexcept(alloc.allocate(std::declval<size_type>()))) : __base(start, end, alloc) {}
-		constexpr vector(vector const& that) noexcept(std::is_nothrow_copy_constructible_v<allocator_type>) : __base(that) {}
-		constexpr vector(vector&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>) : __base(forward<__base>(that)) {}
-		constexpr vector(vector const& that, allocator_type const& alloc) noexcept(std::is_nothrow_copy_constructible_v<allocator_type>) : __base(that, alloc) {}
-		constexpr vector(vector&& that, allocator_type const& alloc) noexcept(std::is_nothrow_copy_constructible_v<allocator_type>) : __base(forward<__base>(that), alloc) {}
-		constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type()) noexcept(noexcept(std::declval<allocator_type>().allocate(std::declval<size_type>())) && std::is_nothrow_copy_constructible_v<allocator_type>) : __base(init, alloc) {}
-		constexpr vector& operator=(vector const& that) noexcept(noexcept(std::declval<allocator_type>().allocate(std::declval<size_type>())) && std::is_nothrow_copy_assignable_v<allocator_type>) { this->__copy_assign(that); return *this; }
-		constexpr vector& operator=(vector&& that) noexcept(std::is_nothrow_move_assignable_v<allocator_type> || !__has_move_propagate<allocator_type>) { this->__move_assign(move(that)); return *this; }
+		constexpr explicit vector(size_type count) noexcept(__ntalloc()) : __base(count, allocator_type()) {}
+		constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type()) noexcept(__ntalloc()) : __base(count, value, alloc) {}
+		template<std::matching_input_iterator<value_type> IT> constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type()) noexcept(__ntalloc()) : __base(start, end, alloc) {}
+		constexpr vector(vector const& that) noexcept(__nt_copy_construct()) : __base(that) {}
+		constexpr vector(vector&& that) noexcept(__nt_move_construct()) : __base(forward<__base>(that)) {}
+		constexpr vector(vector const& that, allocator_type const& alloc) noexcept(__nt_copy_construct()) : __base(that, alloc) {}
+		constexpr vector(vector&& that, allocator_type const& alloc) noexcept(__nt_move_construct()) : __base(forward<__base>(that), alloc) {}
+		constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type()) noexcept(__nt_copy_construct()) : __base(init, alloc) {}
+		constexpr vector& operator=(vector const& that) noexcept(__nt_copy_assign()) { this->__copy_assign(that); return *this; }
+		constexpr vector& operator=(vector&& that) noexcept(__nt_move_assign()) { this->__move_assign(move(that)); return *this; }
 		constexpr allocator_type get_allocator() const noexcept { return this->__get_alloc(); }
+		constexpr iterator find(const_reference what) requires(equality_comparable<value_type>);
+		constexpr const_iterator find(const_reference what) const requires(equality_comparable<value_type>);
+		constexpr iterator insert(const_iterator pos, const_reference value);
+		template<std::matching_input_iterator<value_type> IT> constexpr iterator insert(const_iterator pos, IT start, IT __end);
+		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace(const_iterator pos, Args&& ... args);
+		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr reference emplace_back(Args&& ... args);
+		constexpr iterator erase(const_iterator pos);
+		constexpr iterator erase(const_iterator start, const_iterator __end);
+		constexpr void push_back(const_reference value) { this->__append_element(value); }
 		constexpr pointer data() noexcept { return this->__beg(); }
 		constexpr const_pointer data() const noexcept { return this->__beg(); }
 		constexpr reference at(size_type i) { return this->__get(i); }
@@ -64,19 +81,75 @@ namespace std
 		constexpr size_type capacity() const noexcept { return this->__capacity(); }
 		constexpr void shrink_to_fit() { this->__trim_buffer(); }
 		constexpr void clear() { this->__clear(); }
-		constexpr iterator find(const_reference what) requires(equality_comparable<value_type>) { for(iterator i = begin(); i != end(); i++) { if(*i == what) return i; } return end(); }
-		constexpr const_iterator find(const_reference what) const requires(equality_comparable<value_type>) { for(const_iterator i = begin(); i != end(); i++) { if(*i == what) return i; } return end(); }
-		constexpr iterator insert(const_iterator pos, const_reference value) { return iterator { this->__insert_element(pos.base(), value) }; }
-		template<std::matching_input_iterator<value_type> IT> constexpr iterator insert(const_iterator pos, IT start, IT end) { return iterator(this->template __insert_elements<IT>(pos.base(), start, end)); }
-		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace(const_iterator pos, Args&& ... args) { return iterator(this->__emplace_element(pos.base(), forward<Args>(args)...)); }
-		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr reference emplace_back(Args&& ... args) { return *(this->__emplace_at_end(forward<Args>(args)...)); }
-		constexpr void push_back(const_reference value) { this->__append_element(value); }
 		template<std::matching_input_iterator<value_type> IT> constexpr void push_back(IT start, IT end) { this->__append_elements(start, end); }
 		constexpr void pop_back() { this->__erase_at_end(1UZ); }
-		constexpr iterator erase(const_iterator pos) { return iterator(this->__erase(pos.base())); }
-		constexpr iterator erase(const_iterator start, const_iterator end) { return iterator(this->__erase_range(start.base(), end.base())); }
 		constexpr void swap(vector& that) { this->__swap(that); }
 		extension constexpr operator bool() const noexcept { return this->__beg() != nullptr; }
 	};
+	template<typename T, allocator_object<T> A>
+	constexpr typename vector<T, A>::iterator vector<T, A>::find(const_reference what)
+	requires(equality_comparable<value_type>)
+	{
+		for(iterator i = begin(); i != end(); i++)
+			if(*i == what)
+				return i;
+		return end();
+	}
+	template<typename T, allocator_object<T> A>
+	constexpr typename vector<T, A>::const_iterator vector<T, A>::find(const_reference what) const
+	requires(equality_comparable<value_type>)
+	{
+		for(const_iterator i = begin(); i != end(); i++)
+			if(*i == what)
+				return i;
+		return end();
+	}
+	template<typename T, allocator_object<T> A>
+	constexpr typename vector<T, A>::iterator vector<T, A>::insert(const_iterator pos, const_reference value)
+	{
+		pointer result	= this->__insert_element(pos.base(), value);
+		if(result) return iterator(result);
+		return end();
+	}
+	template<typename T, allocator_object<T> A>
+	template<matching_input_iterator<typename __impl::__dynamic_buffer<T, A, false>::__value_type> IT>
+	constexpr typename vector<T, A>::iterator vector<T, A>::insert(const_iterator pos, IT start, IT __end)
+	{
+		pointer result	= this->template __insert_elements<IT>(pos.base(), start, __end);
+		if(result) return iterator(result);
+		return end();
+	}
+	template<typename T, allocator_object<T> A>
+	template<typename... Args>
+	requires(constructible_from<T, Args...>)
+	constexpr typename vector<T, A>::iterator vector<T, A>::emplace(const_iterator pos, Args&& ... args)
+	{
+		pointer result	= this->__emplace_element(pos.base(), forward<Args>(args)...);
+		if(result) return iterator(result);
+		return end();
+	}
+	template<typename T, allocator_object<T> A>
+	template<typename... Args>
+	requires(constructible_from<T, Args...>)
+	constexpr typename vector<T, A>::reference vector<T, A>::emplace_back(Args&& ... args)
+	{
+		pointer result	= this->__emplace_at_end(forward<Args>(args)...);
+		if(!result) throw std::bad_alloc();
+		return *result;
+	}
+	template<typename T, allocator_object<T> A>
+	constexpr typename vector<T, A>::iterator vector<T, A>::erase(const_iterator pos)
+	{
+		pointer result	= this->__erase(pos.base());
+		if(result) return iterator(result);
+		return end();
+	}
+	template<typename T, allocator_object<T> A>
+	constexpr typename vector<T, A>::iterator vector<T, A>::erase(const_iterator start, const_iterator __end)
+	{
+		pointer result	= this->__erase_range(start.base(), __end.base());
+		if(result) return iterator(result);
+		return end();
+	}
 }
 #endif

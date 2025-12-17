@@ -724,6 +724,7 @@ extern "C"
 			// Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
 			panic(e.what());
 			panic("unexpected error in tests");
+			asm volatile("" ::: "memory");
 			abort();
 			__builtin_unreachable();
 		}

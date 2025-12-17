@@ -39,7 +39,6 @@ namespace ooos
 	bool delegate_hda::read(void* out, uint64_t start_sector, uint32_t count)
 	{
 		if(__unlikely(!__block_device)) { panic("[HDA] cannot access disk before initializing the delegate module"); return false; }
-		std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
 		eh_exit_guard guard(__provider_module);
 		if(__unlikely(setjmp(__provider_module->ctx_jmp())))
 		{
@@ -52,6 +51,7 @@ namespace ooos
 		size_t s_read		= 0UZ;
 		size_t s_per_op		= __block_device->max_operation_blocks();
 		size_t b_per_s		= sector_size();
+		std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
 		if(__unlikely(!await_result(check_io_avail, max_wait))) { panic("[HDA] block device is unresponsive"); return false; }
 		fence();
 		while(rem)
@@ -70,7 +70,6 @@ namespace ooos
 	bool delegate_hda::write(uint64_t start_sector, const void* in, uint32_t count)
 	{
 		if(__unlikely(!__block_device)) { panic("[HDA] cannot access disk before initializing the delegate module"); return false; }
-		std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
 		eh_exit_guard guard(__provider_module);
 		if(__unlikely(setjmp(__provider_module->ctx_jmp())))
 		{
@@ -83,6 +82,7 @@ namespace ooos
 		size_t s_write		= 0UZ;
 		size_t s_per_op		= __block_device->max_operation_blocks();
 		size_t b_per_s		= sector_size();
+		std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
 		if(__unlikely(!await_result(check_io_avail, max_wait))) { panic("[HDA] block device is unresponsive"); return false; }
 		fence();
 		while(rem)

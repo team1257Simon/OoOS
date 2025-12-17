@@ -202,12 +202,12 @@ namespace std::__impl
 	template<typename T, allocator_object<T> A>
 	constexpr bool __dynamic_queue<T, A>::__q_grow_buffer(typename __dynamic_queue<T, A>::__size_type added)
 	{
-		if(__unlikely(!added)) return true; // Vacuously true success value
+		if(__unlikely(!added)) return true;		// Vacuously true success value
 		__size_type num_elements	= __qsize();
 		__size_type nx_offs			= __stell();
 		__size_type target_cap		= __qcapacity() + added;
-		try { __my_queue_data.__set_ptrs(resize(__qbeg(), __qcapacity(), target_cap, __qallocator), nx_offs, num_elements, target_cap); }
-		catch(...) { return false; }
+		__my_queue_data.__set_ptrs(resize(__qbeg(), __qcapacity(), target_cap, __qallocator), nx_offs, num_elements, target_cap);
+		if(__unlikely(!__qbeg())) return false;	// No-throw allocators will return null if they fail
 		return true;
 	}
 	template<typename T, allocator_object<T> A>
@@ -286,55 +286,47 @@ namespace std::__impl
 	{
 		if(__unlikely(__q_out_of_range(start))) return 0UL;
 		if(start + n > __qmax()) { n = static_cast<__size_type>(__qmax() - start); }
-		try
+		if(start == __qbeg() && start + n >= __end())
 		{
-			if(start == __qbeg() && start + n >= __end())
-			{
-				size_t r	= __qsize();
-				__qdestroy();
-				__my_queue_data.__reset();
-				return r;
-			}
-			__ptr_container tmp(__qallocator.allocate(__qcapacity() - n), __qcapacity() - n);
-			if(__end() > start + n) tmp.__bumpn(__qsize() - n);
-			else if(__end() > start) tmp.__bumpn(start - __qbeg());
-			else tmp.__bumpn(__qsize());
-			if(__qcur() > start + n) tmp.__bumpc(__tell() - n);
-			else if(__qcur() > start) tmp.__bumpc(start - __qbeg());
-			else { tmp.__bumpc(__tell()); }
-			if(tmp.__next > tmp.__end) tmp.__next = tmp.__end;
-			__size_type pstart	= static_cast<__size_type>(start - __qbeg());
-			__size_type srem	= static_cast<__size_type>(__qmax() - (start + n));
-			array_move(tmp.__begin, __qbeg(), pstart);
-			if(srem) array_move(tmp.__q_get_ptr(pstart), __q_get_ptr(pstart) + n, srem);
+			size_t r	= __qsize();
 			__qdestroy();
-			__my_queue_data.__copy_ptrs(tmp);
-			return n;
+			__my_queue_data.__reset();
+			return r;
 		}
-		catch(...) { return 0UZ; }
+		__ptr_container tmp(__qallocator.allocate(__qcapacity() - n), __qcapacity() - n);
+		if(__end() > start + n) tmp.__bumpn(__qsize() - n);
+		else if(__end() > start) tmp.__bumpn(start - __qbeg());
+		else tmp.__bumpn(__qsize());
+		if(__qcur() > start + n) tmp.__bumpc(__tell() - n);
+		else if(__qcur() > start) tmp.__bumpc(start - __qbeg());
+		else { tmp.__bumpc(__tell()); }
+		if(tmp.__next > tmp.__end) tmp.__next = tmp.__end;
+		__size_type pstart	= static_cast<__size_type>(start - __qbeg());
+		__size_type srem	= static_cast<__size_type>(__qmax() - (start + n));
+		array_move(tmp.__begin, __qbeg(), pstart);
+		if(srem) array_move(tmp.__q_get_ptr(pstart), __q_get_ptr(pstart) + n, srem);
+		__qdestroy();
+		__my_queue_data.__copy_ptrs(tmp);
+		return n;
 	}
 	template<typename T, allocator_object<T> A>
 	constexpr typename __dynamic_queue<T, A>::__pointer __dynamic_queue<T, A>::__insert(__const_pointer where, __const_reference what, __size_type how_many)
 	{
 		if(__unlikely(__q_out_of_range(where))) return nullptr;
 		if(__unlikely(!how_many)) return nullptr;
-		try
-		{
-			__ptr_container tmp(__qallocator.allocate(__qcapacity() + how_many), __qcapacity() + how_many);
-			if(where < __qcur()) tmp.__bumpc(__tell() + how_many);
-			else tmp.__bumpc(__tell());
-			if(where < __end()) tmp.__bumpn(__qsize() + how_many);
-			else tmp.__bumpn(where - __qbeg());
-			__size_type preface_elems							= where - __qbeg();
-			if(preface_elems) array_move(tmp.__begin, __qbeg(), preface_elems);
-			if(how_many == 1) *(tmp.__q_get_ptr(preface_elems))	= what;
-			else __qset(tmp.__q_get_ptr(preface_elems), what, how_many);
-			array_move(tmp.__q_get_ptr(preface_elems + how_many), __q_get_ptr(preface_elems), static_cast<__size_type>(__end() - where));
-			__qdestroy();
-			__my_queue_data.__copy_ptrs(tmp);
-			return __q_get_ptr(preface_elems + how_many - 1);
-		}
-		catch(...) { return nullptr; }
+		__ptr_container tmp(__qallocator.allocate(__qcapacity() + how_many), __qcapacity() + how_many);
+		if(where < __qcur()) tmp.__bumpc(__tell() + how_many);
+		else tmp.__bumpc(__tell());
+		if(where < __end()) tmp.__bumpn(__qsize() + how_many);
+		else tmp.__bumpn(where - __qbeg());
+		__size_type preface_elems							= where - __qbeg();
+		if(preface_elems) array_move(tmp.__begin, __qbeg(), preface_elems);
+		if(how_many == 1) *(tmp.__q_get_ptr(preface_elems))	= what;
+		else __qset(tmp.__q_get_ptr(preface_elems), what, how_many);
+		array_move(tmp.__q_get_ptr(preface_elems + how_many), __q_get_ptr(preface_elems), static_cast<__size_type>(__end() - where));
+		__qdestroy();
+		__my_queue_data.__copy_ptrs(tmp);
+		return __q_get_ptr(preface_elems + how_many - 1);
 	}
 }
 #endif

@@ -41,15 +41,19 @@ namespace ooos
 	}
 	/**
 	 * Stateful allocator that uses a shared pool of memory blocks.
-	 * The shared pool uses an std::ext::delegate_ptr for reference count tracking and garbage collection.
+	 * The shared pool uses a delegate_ptr for reference count tracking and garbage collection.
 	 * The default constructor requests a new pool, using the next index available for a delegate_ptr.
-	 * Copy and move semantics are inherited from delegate_ptr, which in turn mimic std::shared_ptr in most respects.
+	 * Copy and move semantics are inherited from delegate_ptr, which in turn mimic a shared_ptr in most respects.
 	 * Each allocation grabs a memory block big enough for a number of objects equal to the smallest power of 2 greater than or equal to the number actually requested.
 	 * When a block is freed, it is placed in the shared pool if it does not already contain a block of that size. Otherwise, the block is released back to the system.
 	 * Allocations will pull from the shared pool before calling the kernel MM to allocate a new block.
 	 * The resize() function will attempt to resize the array in place (i.e. if the block is allocated to sufficient size) if possible.
 	 * When the shared pool has no more references, all blocks still in the pool will be freed.
 	 * The rebind constructor will ignore its argument and construct a new pool, since the size and alignment of the allocated blocks are non-arbitrary.
+	 * This is a partial no-throw allocator. If an allocation fails, it will return a null pointer rather than throw a bad_alloc.
+	 * If the type T can be default-constructed, then allocate() and resize() are noexcept if and only if array_zero<T> is noexcept.
+	 * If the type T is not trivially destructible, then deallocate() and resize() are noexcept if and only if ~T() is noexcept.
+	 * Note: array_zero<T> is noexcept if T is trivially copyable. It is also noexcept for non-trivially-copyable types that are not default-constructible. Otherwise, noexcept(array_zero<T>) is equivalent to noexcept(T()).
 	 */
 	template<typename T, size_t A = alignof(T)>
 	struct pool_allocator
@@ -90,13 +94,14 @@ namespace ooos
 			__blocks[n_objs]	= nullptr;
 			return t;
 		}
+		constexpr static bool __nt_resize() noexcept { return std::is_nothrow_destructible_v<value_type> && noexcept(copy_or_move(std::declval<pointer>(), std::declval<pointer>(), std::declval<size_type>())) && noexcept(array_zero(std::declval<pointer>(), std::declval<size_type>())); }
 	public:
 		template<typename U,  size_t B = alignof(U)> struct rebind { typedef pool_allocator<U, B> other; };
 		pool_allocator() : __blocks() {}
-		pool_allocator(pool_allocator const&) noexcept					= default;
+		pool_allocator(pool_allocator const&)							= default;
 		pool_allocator(pool_allocator&&) noexcept						= default;
 		pool_allocator& operator=(pool_allocator&& that) noexcept		= default;
-		pool_allocator& operator=(pool_allocator const& that) noexcept { if(__builtin_expect(!(this->__blocks == that.__blocks), true)) { this->__blocks = that.__blocks; } return *this; }
+		pool_allocator& operator=(pool_allocator const& that) { if(__builtin_expect(!(this->__blocks == that.__blocks), true)) { this->__blocks = that.__blocks; } return *this; }
 		template<typename U, size_t B> requires(!std::is_same_v<T, U> || (A != B)) pool_allocator(pool_allocator<U, B> const& that) : __blocks() {}
 		constexpr void swap(pool_allocator& that) noexcept { this->__blocks.__swap(that.__blocks); }
 		void deallocate(pointer p, size_type n) noexcept(std::is_nothrow_destructible_v<value_type>)
@@ -117,8 +122,7 @@ namespace ooos
 			}
 			else return nullptr;
 		}
-		[[nodiscard]] pointer resize(pointer arr, size_type old, size_type target)
-		noexcept(std::is_nothrow_destructible_v<value_type> && noexcept(copy_or_move(std::declval<pointer>(), arr, old)) && noexcept(array_zero(arr, target)))
+		[[nodiscard]] pointer resize(pointer arr, size_type old, size_type target) noexcept(__nt_resize())
 		{
 			pointer result				= nullptr;
 			if(target)
