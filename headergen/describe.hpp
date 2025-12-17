@@ -11,6 +11,7 @@ struct member_name_and_offset
 	std::string_view name;
 	std::ptrdiff_t offset_bytes;
 	std::ptrdiff_t offset_bits;
+	size_t bit_width;
     bool is_bit_flag;
 };
 struct describe
@@ -26,7 +27,7 @@ struct describe
     {
         ptrdiff_t bytes = offset_of(member).bytes + offset_mod;
         ptrdiff_t bits  = offset_of(member).bits;
-		return member_name_and_offset(identifier_if_present(member), bytes, bits, bit_size_of(member) == 1UZ);
+		return member_name_and_offset(identifier_if_present(member), bytes, bits, is_bit_field(member) ? bit_size_of(member) : 0UZ, bit_size_of(member) == 1UZ);
 	}
     constexpr static describe for_offset(member_offset o) { return describe(o.bytes); }
     constexpr static describe for_offset(member_offset o, ptrdiff_t base) { return describe(o.bytes + base); }

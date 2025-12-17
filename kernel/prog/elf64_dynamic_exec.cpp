@@ -9,7 +9,7 @@ bool elf64_dynamic_executable::load_syms() { return elf64_dynamic_object::load_s
 bool elf64_dynamic_executable::is_position_relocated() const noexcept { return static_cast<bool>(virtual_load_base); }
 elf64_dynamic_executable::elf64_dynamic_executable(addr_t start, size_t size, size_t stack_sz, uintptr_t base_offset) :
 	elf64_object(start, size),
-	elf64_executable(start, size, stack_size),
+	elf64_executable(start, size, stack_sz),
 	elf64_dynamic_object(start, size),
 	virtual_load_base(base_offset)
 {}

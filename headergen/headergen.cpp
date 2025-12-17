@@ -28,17 +28,31 @@ using std::endl;
 using std::hex;
 using std::dec;
 using std::uppercase;
+uint64_t calc_bit_mask(member_name_and_offset const& m)
+{
+	uint64_t result	= 0UZ;
+	for(size_t i = 0UZ; i < m.bit_width; i++) result	|= (1 << (i + m.offset_bits));
+	return result;
+}
 void def_task_m(member_name_and_offset const& m)
 {
 	cout << "#define TASK_MEMBER_" << m.name << "_OFFSET 0x" << m.offset_bytes << "\n";
 	if(m.is_bit_flag)
 		cout << dec << "#define TASK_MEMBER_" << m.name << "_BIT " << m.offset_bits << "\n" << hex;
+	else if(m.bit_width) {
+		cout << dec << "#define TASK_MEMBER_" << m.name << "_SHIFT " << m.offset_bits << "\n" << hex;
+		cout << "#define TASK_MEMBER_" << m.name << "_MASK 0x" << calc_bit_mask(m) << "\n";
+	}
 }
 void def_thread_m(member_name_and_offset const& m)
 {
 	cout << "#define THREAD_MEMBER_" << m.name << "_OFFSET 0x" << m.offset_bytes << "\n";
 	if(m.is_bit_flag)
 		cout << dec << "#define THREAD_MEMBER_" << m.name << "_BIT " << m.offset_bits << "\n" << hex;
+	else if(m.bit_width) {
+		cout << dec << "#define THREAD_MEMBER_" << m.name << "_SHIFT " << m.offset_bits << "\n" << hex;
+		cout << "#define THREAD_MEMBER_" << m.name << "_MASK 0x" << calc_bit_mask(m) << "\n";
+	}
 }
 int main()
 {
@@ -55,6 +69,10 @@ int main()
 	cout << "#define L_OFFS(m) THREAD_MEMBER_##m##_OFFSET\n";
 	cout << "#define T_BIT(m) TASK_MEMBER_##m##_BIT\n";
 	cout << "#define L_BIT(m) THREAD_MEMBER_##m##_BIT\n";
+	cout << "#define T_SHIFT(m) TASK_MEMBER_##m##_SHIFT\n";
+	cout << "#define L_SHIFT(m) THREAD_MEMBER_##m##_SHIFT\n";
+	cout << "#define T_MASK(m) TASK_MEMBER_##m##_MASK\n";
+	cout << "#define L_MASK(m) THREAD_MEMBER_##m##_MASK\n";
 	cout << "#define T_SIZE 0x" << sizeof(task_t) << "\n";
 	cout << "#define L_SIZE 0x" << sizeof(thread_t) << endl;
 	return 0;

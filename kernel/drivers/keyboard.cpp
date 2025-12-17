@@ -640,7 +640,7 @@ seq_fail:
 		if(__unlikely(!__ps2_controller.ready && !ps2_init(__ps2_controller))) return false;
 		try
 		{
-			uint8_t echo_reply;
+			uint8_t echo_reply{};
 			size_t attempts{}, n{};
 			do {
 				if(attempts++ > 3UZ) throw std::runtime_error("[KBD] keyboard is absent or nonfunctional");

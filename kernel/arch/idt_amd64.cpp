@@ -93,14 +93,15 @@ extern "C"
     void exception_handler(int exception_number, void* exception_address) { idt_set_descriptor(static_cast<uint8_t>(exception_number), exception_address); }
     constexpr static void idt_set_descriptor(uint8_t vector, addr_t isr)
     {
-        new(static_cast<void*>(std::addressof(idt_table[vector]))) idt_entry_t
+        new(std::addressof(idt_table[vector])) idt_entry_t
         {
             .isr_low	{ static_cast<uint16_t>(isr.full & 0xFFFFUS) },
             .kernel_cs	{ 0x8US },
             .ist		{ static_cast<uint8_t>((vector < 0x30UC) ? 1 : 0) },
             .attributes	{ 0xEEUC },
             .isr_mid	{ static_cast<uint16_t>((isr.full >> 16) & 0xFFFFUS) },
-            .isr_high	{ static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFFU) }
+            .isr_high	{ static_cast<uint32_t>((isr.full >> 32) & 0xFFFFFFFFU) },
+			.reserved	{ 0U }
         };
     }
     void isr_dispatch(uint8_t idx)

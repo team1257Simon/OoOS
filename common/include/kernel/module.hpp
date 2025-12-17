@@ -153,7 +153,7 @@ namespace ooos
 	inline size_t abstract_module_base::asprintf(const char** strp, const char* fmt, ...)
 	{
 		va_list args;
-		va_start(args, 0);
+		va_start(args, fmt);
 		size_t result	= __api_hooks->vformat(__allocated_mm, fmt, *strp, args);
 		va_end(args);
 		return result;
@@ -181,7 +181,7 @@ namespace ooos
 	inline size_t abstract_module_base::logf(const char* fmt, ...)
 	{
 		va_list args;
-		va_start(args, 0);
+		va_start(args, fmt);
 		size_t result = __api_hooks->vlogf(typeid(*this), fmt, args);
 		va_end(args);
 		return result;

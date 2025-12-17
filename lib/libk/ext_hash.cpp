@@ -48,7 +48,7 @@ template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static 
 	const char* p		= name;
 	while(len > 0)
 	{
-		process_input<is_signed>(name, in, len, num);
+		process_input<is_signed>(p, in, len, num);
 		(*hash_fn)(buf, in);
 		len	-= num * 4;
 		p	+= num * 4;

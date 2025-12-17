@@ -17,16 +17,7 @@
 int plugin_is_GPL_compatible;
 static const char* plugin_name				= "ooos_attrs";
 static const char* attr_name_nointerrupts	= "nointerrupts";
-static size_t held_ptr_ct					= 0UZ;
-static void* to_free_on_exit_ptrs[128]{};
 extern "C" { extern gcc::context* g; }
-static void add_free_on_exit_ptr(void* ptr) { to_free_on_exit_ptrs[held_ptr_ct++] = ptr; }
-static void exit_fn(void*, void*)
-{
-	for(size_t i = 0UZ; i < held_ptr_ct; i++)
-		if(to_free_on_exit_ptrs[i])
-			free(to_free_on_exit_ptrs[i]);
-}
 struct nointerrupts_gimple_pass : public gimple_opt_pass
 {
 	nointerrupts_gimple_pass(pass_data const& data, gcc::context* ctxt) : gimple_opt_pass(data, ctxt) {}
@@ -78,7 +69,6 @@ static void register_attributes(void*, void*)
 		.max_length	= 0,
 	};
 	register_attribute(nointerrupts_attr);
-	add_free_on_exit_ptr(nointerrupts_attr);
 }
 int plugin_init(plugin_name_args* info, plugin_gcc_version* ver)
 {
@@ -100,12 +90,8 @@ int plugin_init(plugin_name_args* info, plugin_gcc_version* ver)
 		.ref_pass_instance_number 	= 1,
 		.pos_op 					= PASS_POS_INSERT_AFTER
 	};
-	add_free_on_exit_ptr(pi);
-	add_free_on_exit_ptr(gimple_pass);
-	add_free_on_exit_ptr(gp);
 	register_callback(plugin_name, PLUGIN_INFO, nullptr, pi);
 	register_callback(plugin_name, PLUGIN_PASS_MANAGER_SETUP, nullptr, gp);
 	register_callback(plugin_name, PLUGIN_ATTRIBUTES, register_attributes, nullptr);
-	register_callback(plugin_name, PLUGIN_GGC_END, exit_fn, nullptr);
 	return 0;
 }

@@ -109,3 +109,10 @@
 	movq    %rax,                   %cr3
 	popq    %rax
 .endm
+.macro		get_thread_exec_state		reg
+	mov		%gs:L_OFFS(state),			%&reg
+	#if	L_SHIFT(state)
+	shr		$L_SHIFT(state),			%&reg
+	#endif
+	and		$L_MASK(state),				%&reg
+.endm

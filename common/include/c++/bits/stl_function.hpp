@@ -51,7 +51,7 @@ namespace std
 			template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, true_type) { new(dest.__access()) FT(forward<F2>(src)); }
 			template<typename F2> constexpr static void __create_wrapper(__data_store& dest, F2&& src, false_type) { dest.__access<FT*>() = new(::operator new(sizeof(FT), static_cast<std::align_val_t>(alignof(FT)))) FT(forward<F2>(src)); }
 			constexpr static void __delete_wrapper(__data_store& target, true_type) { target.__access<FT>().~FT(); }
-			constexpr static void __delete_wrapper(__data_store& target, false_type) { ::operator delete(target.__access<FT*>(), sizeof(FT), static_cast<std::align_val_t>(alignof(FT))); }
+			constexpr static void __delete_wrapper(__data_store& target, false_type) { if(FT* fn = target.__access<FT*>()) delete fn; }
 		protected:
 			using __is_locally_storable = __and_<is_trivially_copyable<FT>, bool_constant<sizeof(FT) <= __max_size && __alignof__(FT) <= __max_align && __max_align % __alignof__(FT) == 0>>;
 			constexpr static bool __is_local_store = __is_locally_storable::value;

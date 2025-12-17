@@ -13,7 +13,13 @@ enum class thread_state : uint8_t
 };
 #else
 namespace ooos { typedef addr_t dynamic_thread_vector; }
-typedef uint8_t thread_state;
+enum class thread_state : uint8_t
+{
+	STOPPED		= 0,	// not running (yet)
+	RUNNING		= 1,	// running or runnable but not active (due to scheduling)
+	CANCELLED	= 2,	// cancelled and due to exit depending on cancel type
+	TERMINATED	= 3,	// finished execution, normally or otherwise
+};
 #endif
 typedef void (*reset_callback)(void*);
 struct thread_ctl

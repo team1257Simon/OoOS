@@ -24,7 +24,7 @@ namespace ooos
 				template<typename GT> constexpr static void __create(functor_store& dst, GT&& func, std::false_type) { dst.set_ptr(new FT(std::forward<GT>(func))); }
 				template<typename GT> constexpr static void __create(functor_store& dst, GT&& func, std::true_type) { new(dst.access()) FT(std::forward<GT>(func)); }
 				template<typename GT> constexpr static void __create(functor_store& dst, GT&& func) { __create(dst, std::forward<GT>(func), __is_locally_storable()); }
-				constexpr static void __destroy(functor_store& tgt, std::false_type) { ::operator delete(tgt.template cast<FT*>()); }
+				constexpr static void __destroy(functor_store& tgt, std::false_type) { if(FT* fn = tgt.template cast<FT*>()) delete fn; }
 				constexpr static void __destroy(functor_store& tgt, std::true_type) { tgt.template cast<FT>().~FT(); }
 				constexpr static void __destroy(functor_store& tgt) { __destroy(tgt, __is_locally_storable()); }
 				constexpr static FT* __get_ptr(functor_store const& f) { if constexpr(__is_local_store) return std::addressof(const_cast<FT&>(f.template cast<FT>())); else return f.template cast<FT*>(); }
