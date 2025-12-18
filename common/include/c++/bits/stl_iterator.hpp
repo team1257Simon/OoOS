@@ -2,6 +2,7 @@
 #define __STL_ITERATOR
 #include <bits/iterator_concepts.hpp>
 #include <compare>
+#include <libk_decls.h>
 namespace std
 {
 	struct input_iterator_tag {};
@@ -10,6 +11,12 @@ namespace std
 	struct bidirectional_iterator_tag : public forward_iterator_tag {};
 	struct random_access_iterator_tag : public bidirectional_iterator_tag {};
 	struct contiguous_iterator_tag : public random_access_iterator_tag {};
+	namespace __detail
+	{
+		typedef tuple<input_iterator_tag, forward_iterator_tag, bidirectional_iterator_tag, random_access_iterator_tag, contiguous_iterator_tag> __iter_concept_tag_selector;
+		template<input_iterator IT> constexpr auto __iter_concept_helper(IT) -> decltype(std::get<first_false_in<forward_iterator<IT>, bidirectional_iterator<IT>, random_access_iterator<IT>, contiguous_iterator<IT>>()>(std::declval<__iter_concept_tag_selector>()));
+		template<input_iterator IT> using __iterator_concept	= decltype(__iter_concept_helper(declval<IT>()));
+	}
 	template<typename CT, typename T, typename DT = ptrdiff_t, typename PT = T*, typename RT = T&>
 	struct iterator
 	{
@@ -81,10 +88,175 @@ namespace std
 	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator >(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() < __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  < __that.base(); }
 	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator<=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() >= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() >= __that.base(); }
 	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator>=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() <= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() <= __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> requires three_way_comparable_with<JT, IT> constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr typename std::iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
+	template<bidirectional_iterator IT, bidirectional_iterator JT> requires(three_way_comparable_with<JT, IT>) constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
+	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr typename iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
 	template<__detail::__dereferenceable IT> struct deref { typedef decltype(*declval<IT>()) type; };
-	template<__detail::__dereferenceable IT> using deref_t = typename deref<IT>::type;
+	template<__detail::__dereferenceable IT> using deref_t			= typename deref<IT>::type;
+	template<indirectly_readable IT> using iter_const_reference_t	= common_reference_t<const iter_value_t<IT>&&, iter_reference_t<IT>>;
+	template<input_iterator IT> class basic_const_iterator;
+	namespace __detail
+	{
+		template<typename IT> concept __constant_iterator						= input_iterator<IT> && same_as<iter_const_reference_t<IT>, iter_reference_t<IT>>;
+		template<typename IT> constexpr inline bool __is_const_iterator			= __constant_iterator<IT>;
+		template<typename IT> concept __not_const_iterator						= !__is_const_iterator<IT>;
+		template<indirectly_readable IT> using __iter_const_rvalue_reference_t	= common_reference_t<const iter_value_t<IT>&&, iter_rvalue_reference_t<IT>>;
+		template<typename> struct __basic_const_iterator_iter_cat{};
+		template<forward_iterator IT> struct __basic_const_iterator_iter_cat<IT> { typedef typename iterator_traits<IT>::iterator_category iterator_category; };
+	}
+	template<input_iterator IT> using const_iterator = conditional_t<__detail::__constant_iterator<IT>, IT, basic_const_iterator<IT>>;
+	namespace __detail
+	{
+		template<typename ST> struct __const_sentinel { typedef ST type; };
+		template<input_iterator IT> struct __const_sentinel<IT> { typedef const_iterator<IT> type; };
+	}
+	template<semiregular ST> using const_sentinel	= typename __detail::__const_sentinel<ST>::type;
+	template<input_iterator IT>
+	class basic_const_iterator : public __detail::__basic_const_iterator_iter_cat<IT>
+	{
+		IT __current{};
+		typedef iter_const_reference_t<IT> __reference;
+		typedef __detail::__iter_const_rvalue_reference_t<IT> __rvalue_reference;
+		template<input_iterator JT> friend class basic_const_iterator;
+	public:
+		typedef __detail::__iter_concept<IT> iterator_concept;
+		typedef iter_value_t<IT> value_type;
+		typedef iter_difference_t<IT> difference_type;
+		constexpr basic_const_iterator() requires(default_initializable<IT>) = default;
+		constexpr basic_const_iterator(IT i) noexcept(is_nothrow_move_constructible_v<IT>) : __current(move(i)) {}
+		template<convertible_to<IT> JT> constexpr basic_const_iterator(basic_const_iterator<JT> that) noexcept(is_nothrow_move_constructible_v<IT>) : __current(move(that.__current)) {}
+		template<not_self<IT> JT> requires(convertible_to<JT, IT>) constexpr basic_const_iterator(JT&& j) noexcept(is_nothrow_constructible_v<IT, JT>) : __current(forward<JT>(j)) {}
+		constexpr IT const& base() const & noexcept { return __current; }
+		constexpr IT base() && noexcept(is_nothrow_move_constructible_v<IT>) { return move(__current); }
+		constexpr __reference operator*() const noexcept(noexcept(static_cast<__reference>(*__current))) { return static_cast<__reference>(*__current); }
+		constexpr const auto* operator->() const noexcept(contiguous_iterator<IT> || noexcept(*__current)) requires is_lvalue_reference_v<iter_reference_t<IT>> && same_as<remove_cvref_t<iter_reference_t<IT>>, value_type>
+		{
+			if constexpr(contiguous_iterator<IT>)
+			return to_address(__current);
+			else return addressof(*__current);
+		}
+		constexpr basic_const_iterator& operator++() noexcept(noexcept(++__current)) {
+			++__current;
+			return *this;
+		}
+		constexpr void operator++(int) noexcept(noexcept(++__current)) { ++__current; }
+		constexpr basic_const_iterator operator++(int)
+		noexcept(noexcept(++*this) && is_nothrow_copy_constructible_v<basic_const_iterator>)
+		requires(forward_iterator<IT>)
+		{
+			auto __tmp = *this;
+			++*this;
+			return __tmp;
+		}
+		constexpr basic_const_iterator& operator--()
+		noexcept(noexcept(--__current))
+		requires(bidirectional_iterator<IT>) {
+			--__current;
+			return *this;
+		}
+		constexpr basic_const_iterator operator--(int)
+		noexcept(noexcept(--*this) && is_nothrow_copy_constructible_v<basic_const_iterator>)
+		requires(bidirectional_iterator<IT>)
+		{
+			auto __tmp = *this;
+			--*this;
+			return __tmp;
+		}
+		constexpr basic_const_iterator& operator+=(difference_type n)
+		noexcept(noexcept(__current += n))
+		requires(random_access_iterator<IT>) {
+			__current += n;
+			return *this;
+		}
+		constexpr basic_const_iterator& operator-=(difference_type n)
+		noexcept(noexcept(__current -= n))
+		requires(random_access_iterator<IT>) {
+			__current -= n;
+			return *this;
+		}
+		constexpr __reference operator[](difference_type n) const
+		noexcept(noexcept(static_cast<__reference>(__current[n]))) 
+		requires(random_access_iterator<IT>) { return static_cast<__reference>(__current[n]); }
+		template<sentinel_for<IT> ST>
+		constexpr bool operator==(ST const& __s) const
+		noexcept(noexcept(__current == __s)) { return __current == __s; }
+		template<__detail::__not_const_iterator CIT> requires(__detail::__constant_iterator<CIT> && convertible_to<IT, CIT>)
+		constexpr operator CIT() const& { return __current; }
+		template<__detail::__not_const_iterator CIT> requires(__detail::__constant_iterator<CIT> && convertible_to<IT, CIT>)
+		constexpr operator CIT() && { return move(__current); }
+		constexpr bool operator<(basic_const_iterator const& that) const
+		noexcept(noexcept(__current < that.__current))
+		requires(random_access_iterator<IT>) { return this->__current < that.__current; }
+		constexpr bool operator>(basic_const_iterator const& that) const
+		noexcept(noexcept(__current > that.__current))
+		requires(random_access_iterator<IT>) { return this->__current > that.__current; }
+		constexpr bool operator<=(basic_const_iterator const& that) const
+		noexcept(noexcept(__current <= that.__current))
+		requires(random_access_iterator<IT>) { return this->__current <= that.__current; }
+		constexpr bool operator>=(basic_const_iterator const& that) const
+		noexcept(noexcept(__current >= that.__current))
+		requires(random_access_iterator<IT>) { return this->__current >= that.__current; }
+		constexpr auto operator<=>(basic_const_iterator const& that) const
+		noexcept(noexcept(__current <=> that.__current))
+		requires(random_access_iterator<IT> && three_way_comparable<IT>) { return this->__current <=> that.__current; }
+		template<not_self<basic_const_iterator> IT2>
+		constexpr bool operator<(IT2 const& that) const
+		noexcept(noexcept(__current < that))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return this->__current < that; }
+		template<not_self<basic_const_iterator> IT2>
+		constexpr bool operator>(IT2 const& that) const
+		noexcept(noexcept(__current > that))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return this->__current > that; }
+		template<not_self<basic_const_iterator> IT2>
+		constexpr bool operator<=(IT2 const& that) const
+		noexcept(noexcept(__current <= that))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return this->__current <= that; }
+		template<not_self<basic_const_iterator> IT2>
+		constexpr bool operator>=(IT2 const& that) const
+		noexcept(noexcept(__current >= that))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return this->__current >= that; }
+		template<not_self<basic_const_iterator> IT2>
+		constexpr auto operator<=>(IT2 const& that) const
+		noexcept(noexcept(__current <=> that))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2> && three_way_comparable_with<IT, IT2>) { return this->__current <=> that; }
+		template<__detail::__not_const_iterator IT2, same_as<IT> IT3>
+		friend constexpr bool operator<(IT2 const& __this, basic_const_iterator<IT3> const& __that)
+		noexcept(noexcept(__this < __that.__current))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return __this < __that.__current; }
+		template<__detail::__not_const_iterator IT2, same_as<IT> IT3>
+		friend constexpr bool operator>(IT2 const& __this, basic_const_iterator<IT3> const& __that)
+		noexcept(noexcept(__this > __that.__current))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return __this > __that.__current; }
+		template<__detail::__not_const_iterator IT2, same_as<IT> IT3>
+		friend constexpr bool operator<=(IT2 const& __this, basic_const_iterator<IT3> const& __that)
+		noexcept(noexcept(__this <= __that.__current))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return __this <= __that.__current; }
+		template<__detail::__not_const_iterator IT2, same_as<IT> IT3>
+		friend constexpr bool operator>=(IT2 const& __this, basic_const_iterator<IT3> const& __that)
+		noexcept(noexcept(__this >= __that.__current))
+		requires(random_access_iterator<IT> && totally_ordered_with<IT, IT2>) { return __this >= __that.__current; }
+		friend constexpr basic_const_iterator operator+(basic_const_iterator const& that, difference_type n)
+		noexcept(noexcept(basic_const_iterator(that.__current + n)))
+		requires(random_access_iterator<IT>) { return basic_const_iterator(that.__current + n); }
+		friend constexpr basic_const_iterator operator+(difference_type n, basic_const_iterator const& that)
+		noexcept(noexcept(basic_const_iterator(that.__current + n)))
+		requires(random_access_iterator<IT>) { return basic_const_iterator(that.__current + n); }
+		friend constexpr basic_const_iterator operator-(basic_const_iterator const& that, difference_type n)
+		noexcept(noexcept(basic_const_iterator(that.__current - n)))
+		requires(random_access_iterator<IT>) { return basic_const_iterator(that.__current - n); }
+		template<sized_sentinel_for<IT> ST>
+		constexpr difference_type operator-(ST const& __that) const
+		noexcept(noexcept(__current - __that)) { return this->__current - __that; }
+		template<__detail::__not_const_iterator ST, same_as<IT> IT2> requires(sized_sentinel_for<ST, IT>)
+		friend constexpr difference_type operator-(ST const& __this, const basic_const_iterator<IT2>& __that)
+		noexcept(noexcept(__this - __that.__current)) { return __this - __that.__current; }
+		friend constexpr __rvalue_reference iter_move(basic_const_iterator const& that)
+		noexcept(noexcept(static_cast<__rvalue_reference>(ranges::iter_move(that.__current)))) { return static_cast<__rvalue_reference>(ranges::iter_move(that.__current)); }
+	};
+	template<typename T, common_with<T> U> requires(input_iterator<common_type_t<T, U>>) struct common_type<basic_const_iterator<T>, U> { typedef basic_const_iterator<common_type_t<T, U>> type; };
+	template<typename T, common_with<T> U> requires(input_iterator<common_type_t<T, U>>) struct common_type<U, basic_const_iterator<T>> { typedef basic_const_iterator<common_type_t<T, U>> type; };
+	template<typename T, common_with<T> U> requires(input_iterator<common_type_t<T, U>>) struct common_type<basic_const_iterator<T>, basic_const_iterator<U>> { typedef basic_const_iterator<common_type_t<T, U>> type; };
+	template<input_iterator IT> constexpr const_iterator<IT> make_const_iterator(IT i) noexcept(is_nothrow_convertible_v<IT, const_iterator<IT>>) { return i; }
+	template<semiregular ST> constexpr const_sentinel<ST> make_const_sentinel(ST s) noexcept(is_nothrow_convertible_v<ST, const_sentinel<ST>>) { return s; }
 }
 namespace __impl
 {
@@ -105,7 +277,7 @@ namespace __impl
 		constexpr IT const& base() const noexcept { return current; }
 		constexpr __iterator() noexcept : current(IT()) {}
 		constexpr explicit __iterator(IT const& __i) noexcept : current(__i) {}
-		template<std::same_as<typename CT::pointer> JT> constexpr __iterator(__iterator<JT, CT> const& that) : current(that.base()) {}
+		template<typename JT> requires(std::is_convertible_v<JT, IT>) constexpr __iterator(__iterator<JT, CT> const& that) noexcept : current(that.base()) {}
 		constexpr reference operator*() const noexcept { return *current; }
 		constexpr pointer operator->() const noexcept { return current; }
 		constexpr reference operator[](difference_type __n) const noexcept { return current[__n]; }

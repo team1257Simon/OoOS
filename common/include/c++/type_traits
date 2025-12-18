@@ -233,6 +233,7 @@ namespace std
 	template<typename FT, typename TT> class __is_convertible_helper<FT, TT, false> { template<typename T1> static void __test_aux(T1) noexcept; template<typename F1, typename T1, typename = decltype(__test_aux <T1> (declval<F1>()))> static true_type __test(int); template<typename, typename> static false_type __test(...); public: using type = decltype(__test<FT, TT>(0)); };
 	#pragma GCC diagnostic pop
 	template<typename FT, typename TT> struct is_convertible : public __is_convertible_helper<FT, TT>::type {};
+	template<typename FT, typename TT> struct is_nothrow_convertible : public __bool_constant<__is_nothrow_convertible(FT, TT)> {};
 	template<typename TET, typename FET> using __is_array_convertible = is_convertible<FET(*)[], TET(*)[]>;
 	template<typename T> struct remove_const { using type = T; };
 	template<typename T> struct remove_const<T const> { using type = T; };
@@ -547,6 +548,7 @@ namespace std
 	template<typename T> inline constexpr bool is_nothrow_move_assignable_v = __is_nothrow_assignable(__add_lval_ref_t<T>, __add_rval_ref_t<T>);
 	template<typename T> inline constexpr bool is_nothrow_destructible_v = is_nothrow_destructible<T>::value;
 	template<typename T> inline constexpr bool has_virtual_destructor_v = __has_virtual_destructor(T);
+	template<typename FT, typename TT> inline constexpr bool is_nothrow_convertible_v	= is_nothrow_convertible<FT, TT>::value;
 	template<typename T> inline constexpr size_t alignment_of_v = alignment_of<T>::value;
 	template<typename T> inline constexpr size_t rank_v = 0;
 	template<typename T, size_t S> inline constexpr size_t rank_v<T[S]> = 1 + rank_v<T>;

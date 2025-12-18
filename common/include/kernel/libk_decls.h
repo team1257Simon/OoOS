@@ -5,6 +5,25 @@
 #include <memory>
 #include <tuple>
 #ifdef __cplusplus
+namespace std
+{
+	attribute(__always_inline__, __visibility__("default")) inline void __libk_assert_fail(){}
+	#define __libk_assert(cond)					\
+	do {										\
+		if(is_constant_evaluated() && !(cond))	\
+		__libk_assert_fail();					\
+	} while(false)
+	template<bool ... Bs, size_t ... Is>
+	consteval size_t __first_false_helper(tuple<bool_constant<Bs>...>, index_sequence<Is...>)
+	{
+		template for(constexpr size_t i : { Is ... })
+			if constexpr(!(Bs...[i]))
+				return i;
+		return sizeof...(Bs);
+	}
+	template<bool ... Bs>
+	consteval size_t first_false_in() { return __first_false_helper(tuple<bool_constant<Bs>...>(), make_index_sequence<sizeof...(Bs)>()); }
+}
 extern "C"
 {
 #else

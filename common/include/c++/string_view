@@ -7,6 +7,7 @@
 #include <bits/stl_hash.hpp>
 #include <bits/ptr_traits.hpp>
 #include <bits/stdexcept.h>
+#include <bits/range_access.hpp>
 namespace std
 {
 	template<char_type CT, char_traits_type<CT> TT = char_traits<CT>>
@@ -63,10 +64,10 @@ namespace std
 		[[nodiscard]] constexpr size_type length() const noexcept { return this->__len; }
 		[[nodiscard]] constexpr size_type max_size() const noexcept { return (npos - sizeof(const_pointer) - sizeof(size_type)) / sizeof(value_type) / 4; }
 		[[nodiscard]] constexpr bool empty() const noexcept { return __len == 0; }
-		[[nodiscard]] constexpr const_reference operator[](size_type pos) const noexcept { return __str[pos]; }
+		[[nodiscard]] constexpr const_reference operator[](size_type pos) const noexcept { __libk_assert(pos < __len); return __str[pos]; }
 		[[nodiscard]] constexpr const_reference at(size_type pos) const { return __str[__bounds_check(pos, "[CXX/SV] at()")]; }
-		[[nodiscard]] constexpr const_reference front() const noexcept { return __str[0UZ]; }
-		[[nodiscard]] constexpr const_reference back() const noexcept { return __str[__len - 1Z]; }
+		[[nodiscard]] constexpr const_reference front() const noexcept { __libk_assert(!empty()); return __str[0UZ]; }
+		[[nodiscard]] constexpr const_reference back() const noexcept { __libk_assert(!empty()); return __str[__len - 1Z]; }
 		constexpr void remove_prefix(size_type n) noexcept { size_type rn	= std::min(this->__len, n); this->__len -= n; this->__str += n; }
 		constexpr void remove_suffix(size_type n) noexcept { size_type rn	= std::min(this->__len, n); this->__len -= n; }
 		constexpr void swap(basic_string_view& that) noexcept { basic_string_view tmp(this->__str, this->__len); *this = that; that = tmp; }
@@ -174,6 +175,11 @@ namespace std
 			inline constexpr basic_string_view<char32_t> operator""sv(const char32_t* str, size_t len) noexcept { return basic_string_view<char32_t>(str, len); }
 #pragma GCC diagnostic pop
 		}
+	}
+	namespace ranges
+	{
+		template<typename CT, typename TT> constexpr inline bool enable_borrowed_range<basic_string_view<CT, TT>>	= true;
+		template<typename CT, typename TT> constexpr inline bool enable_view<basic_string_view<CT, TT>>				= true;
 	}
 }
 #endif
