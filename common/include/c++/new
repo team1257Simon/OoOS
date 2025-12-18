@@ -1,10 +1,11 @@
 #ifndef __NEW
 #define __NEW
-#include <bits/stl_allocator.h>
 #define __visible __attribute__((__externally_visible__))
 namespace std
 {
-	struct nothrow_t{ explicit nothrow_t() = default; };
+	enum class align_val_t : decltype(alignof(int)) {};
+	using size_t = decltype(sizeof(int));
+	struct nothrow_t { explicit nothrow_t() = default; };
 	extern const std::nothrow_t nothrow;
 	typedef void (*new_handler)();
 	new_handler set_new_handler(new_handler handler);
@@ -14,10 +15,10 @@ namespace std
 [[nodiscard]] void* operator new[](std::size_t count) __visible;
 [[nodiscard]] void* operator new(std::size_t count, std::align_val_t al) __visible;
 [[nodiscard]] void* operator new[](std::size_t count, std::align_val_t al) __visible;
-[[nodiscard]] void* operator new(size_t count, std::nothrow_t const&) noexcept __visible;
-[[nodiscard]] void* operator new[](size_t count, std::nothrow_t const&) noexcept __visible;
-[[nodiscard]] void* operator new(size_t count, std::align_val_t al, std::nothrow_t const&) noexcept;
-[[nodiscard]] void* operator new[](size_t count, std::align_val_t al, std::nothrow_t const&) noexcept;
+[[nodiscard]] void* operator new(std::size_t count, std::nothrow_t const&) noexcept __visible;
+[[nodiscard]] void* operator new[](std::size_t count, std::nothrow_t const&) noexcept __visible;
+[[nodiscard]] void* operator new(std::size_t count, std::align_val_t al, std::nothrow_t const&) noexcept;
+[[nodiscard]] void* operator new[](std::size_t count, std::align_val_t al, std::nothrow_t const&) noexcept;
 [[nodiscard]] [[gnu::always_inline]] __visible constexpr void* operator new(std::size_t, void* ptr) noexcept { return ptr; }
 [[nodiscard]] [[gnu::always_inline]] __visible constexpr void* operator new[](std::size_t, void* ptr) noexcept { return ptr; }
 void operator delete(void* ptr) noexcept __visible;
@@ -26,6 +27,6 @@ void operator delete(void* ptr, std::align_val_t al) noexcept __visible;
 void operator delete[](void* ptr, std::align_val_t al) noexcept __visible;
 void operator delete(void* ptr, std::size_t, std::align_val_t al) noexcept __visible;
 void operator delete[](void* ptr, std::size_t, std::align_val_t al) noexcept __visible;
-[[gnu::always_inline]] __visible constexpr void operator delete  (void*, void*) noexcept {}
+[[gnu::always_inline]] __visible constexpr void operator delete(void*, void*) noexcept {}
 [[gnu::always_inline]] __visible constexpr void operator delete[](void*, void*) noexcept {}
 #endif

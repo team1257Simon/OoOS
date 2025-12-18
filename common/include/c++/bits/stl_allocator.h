@@ -8,8 +8,6 @@
 #include <new>
 namespace std
 {
-	using size_t = decltype(sizeof(int));
-	enum class align_val_t : decltype(alignof(int)) {};
 	struct __allocator_traits_base
 	{
 		template<typename T, typename U, typename = void> struct __rebind : __replace_first_arg<T, U> {};

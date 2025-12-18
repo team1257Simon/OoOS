@@ -1,0 +1,465 @@
+#ifndef __OPTIONAL
+#define __OPTIONAL
+#include <bits/in_place_t.hpp>
+#include <bits/invoke.hpp>
+#include <bits/range_access.hpp>
+#include <bits/functional_hash.hpp>
+#include <bits/exception.h>
+#include <bits/enable_special_members.hpp>
+#include <bits/std_construct.hpp>
+namespace std
+{
+	constexpr inline struct nullopt_t {
+		enum class __construct{ __token };
+		constexpr explicit nullopt_t(__construct) noexcept {}
+	} nullopt(nullopt_t::__construct::__token);
+	template<typename FT> struct __optional_ftor { FT& fn; };
+	class bad_optional_access : public exception
+	{
+	public:
+		bad_optional_access() = default;
+		virtual ~bad_optional_access() = default;
+		constexpr const char* what() const noexcept override { return "std::bad_optional_access"; }
+	};
+	constexpr void __throw_bad_optional_access() { throw bad_optional_access(); }
+	template<typename T>
+	struct __optional_payload_base
+	{
+		typedef remove_const_t<T> __stored_type;
+		struct __empty_byte{};
+		template<typename U>
+		union __storage
+		{
+			__empty_byte __empty;
+			U __value;
+			constexpr __storage() noexcept : __empty() {}
+			template<typename ... Args> constexpr __storage(in_place_t, Args&& ... args) : __value(forward<Args>(args)...) {}
+			template<typename V, typename ... Args> constexpr __storage(initializer_list<V> ini, Args&& ... args) : __value(ini, forward<Args>(args)...) {}
+			template<typename FT, typename AT> constexpr __storage(__optional_ftor<FT> fn, AT&& arg) : __value(__invoke(fn.fn, forward<AT>(arg))) {}
+			constexpr ~__storage() requires(is_trivially_destructible_v<U>) {}
+			~__storage()							= default;
+			__storage(__storage const&)				= default;
+			__storage(__storage&&)					= default;
+			__storage& operator=(__storage const&)	= default;
+			__storage& operator=(__storage&&)		= default;
+		};
+		__storage<__stored_type> __payload;
+		bool __present														= false;
+		__optional_payload_base()											= default;
+		~__optional_payload_base()											= default;
+		__optional_payload_base(__optional_payload_base const&)				= default;
+		__optional_payload_base(__optional_payload_base&&)					= default;
+		__optional_payload_base& operator=(__optional_payload_base const&)	= default;
+		__optional_payload_base& operator=(__optional_payload_base&&)		= default;
+		constexpr __optional_payload_base(bool, __optional_payload_base const& that) {
+			if(that.__present)
+				this->__construct(that.__get());
+		}
+		constexpr __optional_payload_base(bool, __optional_payload_base&& that) {
+			if(that.__present)
+				this->__construct(move(that.__get()));
+		}
+		template<typename ... Args> constexpr __optional_payload_base(in_place_t tag, Args&& ... args) : __payload(tag, forward<Args>(args)...), __present(true) {}
+		template<typename U, typename ... Args> constexpr __optional_payload_base(initializer_list<U> ini, Args&& ... args) : __payload(ini, forward<Args>(args)...), __present(true) {}
+		constexpr T& __get() noexcept { return __payload.__value; }
+		constexpr T const& __get() const noexcept { return __payload.__value; }
+		template<typename ... Args>
+		constexpr void __construct(Args&& ... args)
+		noexcept(is_nothrow_constructible_v<__stored_type, Args...>) {
+			construct_at(addressof(__payload.__value), forward<Args>(args)...);
+			__present	= true;
+		}
+		constexpr void __destruct() noexcept {
+			__present	= false;
+			__payload.__value.~__stored_type();
+		}
+		constexpr void __reset() noexcept {
+			if(__present)
+				__destruct();
+			// according to the wizards that wrote GCC's libstdc++, this apparently helps code generation
+			else __present	= false;
+		}
+		constexpr void __copy_assign(__optional_payload_base const& that)
+		noexcept(is_nothrow_copy_assignable_v<T> && is_nothrow_copy_constructible_v<T>)
+		{
+			if(this->__present && that.__present)
+				this->__get()	= that.__get();
+			else if(that.__present)
+				this->__construct(that.__get());
+			else this->__reset();
+		}
+		constexpr void __move_assign(__optional_payload_base&& that)
+		noexcept(is_nothrow_move_assignable_v<T> && is_nothrow_move_constructible_v<T>)
+		{
+			if(this->__present && that.__present)
+				this->__get()	= move(that.__get());
+			else if(that.__present)
+				this->__construct(move(that.__get()));
+			else this->__reset();
+		}
+		template<typename FT, typename U>
+		constexpr void __apply(__optional_ftor<FT> f, U&& u) {
+			construct_at(addressof(__payload), f, forward<U>(u));
+			__present	= true;
+		}
+	};
+	template<typename T> concept __full_trivial_copy	= is_trivially_copy_assignable_v<T> && is_trivially_copy_constructible_v<T>;
+	template<typename T> concept __full_trivial_move	= is_trivially_move_assignable_v<T> && is_trivially_move_constructible_v<T>;
+	template<typename T> concept __full_trivial			= __full_trivial_copy<T> && __full_trivial_move<T>;
+	template<typename T> concept __copy_only_trivial	= __full_trivial_copy<T> && !__full_trivial<T>;
+	template<typename T> concept __move_only_trivial	= __full_trivial_move<T> && !__full_trivial<T>;
+	template<typename T>
+	struct __optional_payload : __optional_payload_base<T>
+	{
+		using __optional_payload_base<T>::__optional_payload_base;
+		constexpr ~__optional_payload() requires(!is_trivially_destructible_v<T>) { this->__reset(); }
+		__optional_payload()							= default;
+		~__optional_payload()							= default;
+		__optional_payload(__optional_payload const&)	= default;
+		__optional_payload(__optional_payload&&)		= default;
+		constexpr __optional_payload& operator=(__optional_payload const& that)
+		noexcept(is_nothrow_copy_assignable_v<T> && is_nothrow_copy_constructible_v<T>) {
+			this->__copy_assign(that);
+			return *this;
+		}
+		constexpr __optional_payload& operator=(__optional_payload&& that)
+		noexcept(is_nothrow_move_assignable_v<T> && is_nothrow_move_constructible_v<T>) {
+			this->__move_assign(move(that));
+			return *this;
+		}
+	};
+	template<__copy_only_trivial T>
+	struct __optional_payload<T> : __optional_payload_base<T>
+	{
+		using __optional_payload_base<T>::__optional_payload_base;
+		constexpr ~__optional_payload() requires(!is_trivially_destructible_v<T>) { this->__reset(); }
+		__optional_payload()										= default;
+		~__optional_payload()										= default;
+		__optional_payload(__optional_payload const&)				= default;
+		__optional_payload(__optional_payload&&)					= default;
+		__optional_payload& operator=(__optional_payload const&)	= default;
+		constexpr __optional_payload& operator=(__optional_payload&& that)
+		noexcept(is_nothrow_move_assignable_v<T> && is_nothrow_move_constructible_v<T>) {
+			this->__move_assign(move(that));
+			return *this;
+		}
+	};
+	template<__move_only_trivial T>
+	struct __optional_payload<T> : __optional_payload_base<T>
+	{
+		using __optional_payload_base<T>::__optional_payload_base;
+		constexpr ~__optional_payload() requires(!is_trivially_destructible_v<T>) { this->__reset(); }
+		__optional_payload()										= default;
+		~__optional_payload()										= default;
+		__optional_payload(__optional_payload const&)				= default;
+		__optional_payload& operator=(__optional_payload&&)			= default;
+		constexpr __optional_payload& operator=(__optional_payload const& that)
+		noexcept(is_nothrow_copy_assignable_v<T> && is_nothrow_copy_constructible_v<T>) {
+			this->__copy_assign(that);
+			return *this;
+		}
+	};
+	template<__full_trivial T>
+	struct __optional_payload<T> : __optional_payload_base<T>
+	{
+		using __optional_payload_base<T>::__optional_payload_base;
+		constexpr ~__optional_payload() requires(!is_trivially_destructible_v<T>) { this->__reset(); }
+		__optional_payload()										= default;
+		~__optional_payload()										= default;
+		__optional_payload(__optional_payload const&)				= default;
+		__optional_payload(__optional_payload&&)					= default;
+		__optional_payload& operator=(__optional_payload const&)	= default;
+		__optional_payload& operator=(__optional_payload&&)			= default;
+	};
+	template<typename T> concept __not_tag			= !is_same_v<remove_cvref_t<T>, nullopt_t> && !is_same_v<remove_cvref_t<T>, in_place_t>;
+	template<typename T> concept __valid_optional	= (is_object_v<T> && is_destructible_v<T> && !is_array_v<T>) && __not_tag<T>;
+	template<__valid_optional T> class optional;
+	template<typename T> constexpr inline bool __is_optional_v				= false;
+	template<typename T> constexpr inline bool __is_optional_v<optional<T>>	= true;
+	template<typename T> constexpr inline bool __not_an_optional			= !__is_optional_v<T>;
+	template<typename T, typename U>
+	using __converts_from_any_cvref	= __or_<
+		is_constructible<T, U&>,		is_convertible<U&, T>,
+		is_constructible<T, U>,			is_convertible<U, T>,
+		is_constructible<T, U const&>,	is_convertible<U const&, T>,
+		is_constructible<T, const U>,	is_convertible<const U, T>
+	>;
+	template<typename T, typename U>
+	using __converts_from_optional	= __converts_from_any_cvref<T, optional<U>>;
+	template<typename T, typename U>
+	using __assigns_from_optional	= __or_<
+		is_assignable<T&, optional<U> const&>,
+		is_assignable<T&, optional<U>&>,
+		is_assignable<T&, const optional<U>&&>,
+		is_assignable<T&, optional<U>&&>
+	>;
+	template<__valid_optional T>
+	using __opt_enable_members		= __enable_copy_move<
+		is_copy_constructible_v<T>,
+		is_move_constructible_v<T> && is_move_assignable_v<T>,
+		is_move_constructible_v<T>,
+		is_move_constructible_v<T> && is_move_assignable_v<T>,
+		optional<T>
+	>;
+	template<__valid_optional T>
+	struct __optional_base
+	{
+		typedef remove_const_t<T> __stored_type;
+		__optional_payload<T> __payload;
+		constexpr __optional_base()																			= default;
+		constexpr __optional_base(__optional_base const&) requires(is_trivially_copy_constructible_v<T>)	= default;
+		constexpr __optional_base(__optional_base&&) requires(is_trivially_move_constructible_v<T>)			= default;
+		constexpr __optional_base(__optional_base const& that) noexcept(is_nothrow_copy_constructible_v<T>) : __payload(that.__is_present(), that.__payload) {} 
+		constexpr __optional_base(__optional_base&& that) noexcept(is_nothrow_move_constructible_v<T>) : __payload(that.__is_present(), move(that.__payload)) {}
+		template<typename ... Args> requires(constructible_from<T, Args...>) constexpr explicit __optional_base(in_place_t t, Args&& ... args) : __payload(t, forward<Args>(args)...) {}
+		template<typename V, typename ... Args> requires(constructible_from<T, initializer_list<V>&, Args...>)
+		constexpr explicit __optional_base(in_place_t t, initializer_list<V> ini, Args&& ... args) : __payload(t, ini, forward<Args>(args)...) {}
+		template<typename ... Args> constexpr void __construct(Args&& ... args) noexcept(is_nothrow_constructible_v<T, Args...>) { __payload.__construct(forward<Args>(args)...); }
+		constexpr void __destruct() noexcept { __payload.__destruct(); }
+		constexpr bool __is_present() const noexcept { return __payload.__present; }
+		constexpr T& __get() noexcept { return __payload.__get(); }
+		constexpr T const& __get() const noexcept { return __payload.__get(); }
+	};
+	template<__valid_optional T>
+	class optional : private __optional_base<T>, private __opt_enable_members<T>
+	{
+		typedef __optional_base<T> __base;
+		constexpr static bool __type_is_bool	= is_same_v<remove_cvref_t<T>, bool>;
+		constexpr static bool __type_not_bool	= !is_same_v<remove_cvref_t<T>, bool>;
+		template<typename U> using __not_constructing_bool_from_optional	= bool_constant<__type_not_bool	|| __not_an_optional<remove_cvref_t<U>>>;
+		template<typename U> using __construct_from_contained_value			= bool_constant<__type_is_bool	|| negation_v<__converts_from_optional<T, remove_cvref_t<U>>>>;
+		template<typename U> using __non_tag_other							= bool_constant<__not_an_optional<remove_cvref_t<U>> && __not_tag<U>>;
+		template<typename U> using __can_construct							= is_constructible<T, U>;
+		template<typename U> using __can_copy								= is_constructible<T, U const&>;
+		template<typename U> using __not_same_type							= __not_<is_same<T, U>>;
+		template<typename U> using __assignable_value						= __and_<__non_tag_other<U>, __can_construct<U>, __not_<__and_<is_scalar<T>, is_same<T, decay_t<U>>>>, is_assignable<T&, U>>;
+		template<typename FT> using __ftor_invoke_result					= remove_cvref_t<invoke_result_t<FT, T>>;
+		template<typename FT> using __ftor_invoke_ref_result				= remove_cvref_t<invoke_result_t<FT, T&>>;
+		template<typename FT> using __ftor_invoke_const_result				= remove_cvref_t<invoke_result_t<FT, T const>>;
+		template<typename FT> using __ftor_invoke_const_ref_result			= remove_cvref_t<invoke_result_t<FT, T const&>>;
+		template<typename FT> using __opt_ftor								= bool_constant<__is_optional_v<__ftor_invoke_result<FT>>>;
+		template<typename FT> using __opt_ref_ftor							= bool_constant<__is_optional_v<__ftor_invoke_ref_result<FT>>>;
+		template<typename FT> using __opt_const_ftor						= bool_constant<__is_optional_v<__ftor_invoke_const_result<FT>>>;
+		template<typename FT> using __opt_const_ref_ftor					= bool_constant<__is_optional_v<__ftor_invoke_const_ref_result<FT>>>;
+		template<typename U> constexpr static bool __need_explicit			= !is_convertible_v<U, T>;
+		[[__gnu__::__always_inline__]] constexpr T& __fwd()& noexcept { return this->__get(); }
+		[[__gnu__::__always_inline__]] constexpr T&& __fwd()&& noexcept { return move(this->__get()); }
+		[[__gnu__::__always_inline__]] constexpr T const& __fwd() const& noexcept { return this->__get(); }
+		[[__gnu__::__always_inline__]] constexpr T const&& __fwd() const&& noexcept { return move(this->__get()); }
+		template<__valid_optional U> friend class optional;
+		template<typename FT, typename U> constexpr explicit optional(__optional_ftor<FT> f, U&& u) { this->__payload.__apply(f, forward<U>(u)); }
+	public:
+		typedef T value_type;
+		typedef ::__impl::__iterator<T*, optional> iterator;
+		typedef ::__impl::__iterator<T const*, optional> const_iterator;
+		constexpr bool has_value() const noexcept { return this->__is_present(); }
+		constexpr operator bool() const noexcept { return this->__is_present(); }
+		constexpr optional() noexcept {}
+		constexpr optional(nullopt_t) noexcept {}
+		template<satisfies_all<__not_constructing_bool_from_optional, __non_tag_other, __can_construct> U = remove_cv_t<T>> explicit(__need_explicit<U>)
+		constexpr optional(U&& u)
+		noexcept(is_nothrow_constructible_v<T, U>) : __base(in_place, forward<U>(u)) {}
+		template<satisfies_all<__construct_from_contained_value, __not_same_type, __can_copy> U> explicit(__need_explicit<U const&>)
+		constexpr optional(optional<U> const& that)
+		noexcept(is_nothrow_constructible_v<T, U const&>) { if(that) this->emplace(that.__fwd()); }
+		template<satisfies_all<__construct_from_contained_value, __not_same_type, __can_construct> U> explicit(!is_convertible_v<U, T>)
+		constexpr optional(optional<U>&& that)
+		noexcept(is_nothrow_constructible_v<T, U>) { if(that) this->emplace(move(that).__fwd()); }
+		template<typename ... Args> requires(constructible_from<T, Args...>)
+		constexpr explicit optional(in_place_t t, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<T, Args...>) : __base(t, forward<Args>(args)...) {}
+		template<typename U, typename ... Args> requires(constructible_from<T, initializer_list<U>&, Args...>)
+		constexpr explicit optional(in_place_t t, initializer_list<U> ini, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<T, initializer_list<U>&, Args...>) : __base(t, ini, forward<Args>(args)...) {}
+		template<typename ... Args> requires(constructible_from<T, Args...>)
+		constexpr T& emplace(Args&& ... args)
+		noexcept(is_nothrow_constructible_v<T, Args...>)
+		{
+			this->__reset();
+			this->__construct(forward<Args>(args)...);
+			return this->__get();
+		}
+		template<typename U, typename ... Args> requires(constructible_from<T, initializer_list<U>&, Args...>)
+		constexpr T& emplace(initializer_list<U> ini, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<T, initializer_list<U>&, Args...>)
+		{
+			this->__reset();
+			this->__construct(ini, forward<Args>(args)...);
+			return this->__get();
+		}
+		template<satisfies<__assignable_value> U = remove_cv_t<T>>
+		constexpr optional& operator=(U&& u)
+		noexcept(is_nothrow_constructible_v<T, U> && is_nothrow_assignable_v<T&, U>)
+		{
+			if(this->__is_present())
+				this->__get()	= forward<U>(u);
+			else this->__construct(forward<U>(u));
+			return *this;
+		}
+		template<not_self<T> U> requires(is_constructible_v<T, U const&> && is_assignable_v<T&, U const&> && !__converts_from_optional<T, U>::value && !__assigns_from_optional<T, U>::value)
+		constexpr optional& operator=(optional<U> const& that)
+		noexcept(is_nothrow_constructible_v<T, U const&> && is_nothrow_assignable_v<T&, U const&>)
+		{
+			if(that)
+			{
+				if(this->__is_present())
+					this->__get()	= that.__fwd();
+				else this->__construct(that.__fwd());
+			}
+			else this->__reset();
+			return *this;
+		}
+		template<not_self<T> U> requires(is_constructible_v<T, U> && is_assignable_v<T&, U> && !__converts_from_optional<T, U>::value && !__assigns_from_optional<T, U>::value)
+		constexpr optional& operator=(optional<U>&& that)
+		noexcept(is_nothrow_constructible_v<T, U> && is_nothrow_assignable_v<T&, U>)
+		{
+			if(that)
+			{
+				if(this->__is_present())
+					this->__get()	= move(that).__fwd();
+				else this->__construct(move(that).__fwd());
+			}
+			else this->__reset();
+			return *this;
+		}
+		constexpr void swap(optional& that)
+		noexcept(is_nothrow_move_constructible_v<T> && is_nothrow_swappable_v<T>)
+		{
+			using std::swap;
+			if(this->__is_present() && that.__is_present()) swap(this->__get(), that.__get());
+			else if(this->__is_present()) {
+				that.__construct(move(this->__get()));
+				this->__destruct();
+			}
+			else if(that.__is_present()) {
+				this->__construct(move(that.__get()));
+				that.__destruct();
+			}
+		}
+		constexpr iterator begin() noexcept { return iterator(this->__is_present() ? std::addressof(this->__get()) : nullptr); }
+		constexpr const_iterator begin() const noexcept { return const_iterator(this->__is_present() ? std::addressof(this->__get()) : nullptr); }
+		constexpr iterator end() noexcept { return begin() + has_value(); }
+		constexpr const_iterator end() const noexcept { return begin() + has_value(); }
+		constexpr T* operator->() noexcept { __libk_assert(this->__is_present()); return std::addressof(this->__get()); }
+		constexpr T const* operator->() const noexcept { __libk_assert(this->__is_present()); return std::addressof(this->__get()); }
+		constexpr T& operator*()& noexcept { __libk_assert(this->__is_present()); return this->__get(); }
+		constexpr T const& operator*() const& noexcept { __libk_assert(this->__is_present()); return this->__get(); }
+		constexpr T&& operator*()&& noexcept { __libk_assert(this->__is_present()); return move(this->__get()); }
+		constexpr T const&& operator*() const&& noexcept { __libk_assert(this->__is_present()); return move(this->__get()); }
+		constexpr T& value()& { if(this->__is_present()) return this->__get(); else __throw_bad_optional_access(); }
+		constexpr T const& value() const& { if(this->__is_present()) return this->__get(); else __throw_bad_optional_access(); }
+		constexpr T&& value()&& { if(this->__is_present()) return move(this->__get()); else __throw_bad_optional_access(); }
+		constexpr T const&& value() const&& { if(this->__is_present()) return move(this->__get()); else __throw_bad_optional_access(); }
+		template<typename U = remove_cv_t<T>> requires(is_convertible_v<T const&, remove_cv_t<T>> && is_convertible_v<U, remove_cv_t<T>>)
+		constexpr remove_cv_t<T> value_or(U&& u) const&
+		{
+			if(this->__is_present())
+				return this->__get();
+			return forward<U>(u);
+		}
+		template<typename U = remove_cv_t<T>> requires(is_convertible_v<T, remove_cv_t<T>> && is_convertible_v<U, remove_cv_t<T>>)
+		constexpr remove_cv_t<T> value_or(U&& u)&&
+		{
+			if(this->__is_present())
+				return move(this->__get());
+			return forward<U>(u);
+		}
+		template<satisfies<__opt_ftor> FT>
+		constexpr auto and_then(FT&& f)&&
+		{
+			if(has_value())
+				return __invoke(forward<FT>(f), move(this->__get()));
+			else return __ftor_invoke_result<FT>();
+		}
+		template<satisfies<__opt_const_ftor> FT>
+		constexpr auto and_then(FT&& f) const&&
+		{
+			if(has_value())
+				return __invoke(forward<FT>(f), move(this->__get()));
+			else return __ftor_invoke_const_result<FT>();
+		}
+		template<satisfies<__opt_ref_ftor> FT>
+		constexpr auto and_then(FT&& f)&
+		{
+			if(has_value())
+				return __invoke(forward<FT>(f), this->__get());
+			else return __ftor_invoke_ref_result<FT>();
+		}
+		template<satisfies<__opt_const_ref_ftor> FT>
+		constexpr auto and_then(FT&& f) const&
+		{
+			if(has_value())
+				return __invoke(forward<FT>(f), this->__get());
+			else return __ftor_invoke_const_ref_result<FT>();
+		}
+		template<typename FT>
+		constexpr auto transform(FT&& f)&&
+		{
+			typedef __ftor_invoke_result<FT> U;
+			if(has_value())
+				return optional<U>(__optional_ftor<FT>(f), move(this->__get()));
+			else return optional<U>();
+		}
+		template<typename FT>
+		constexpr auto transform(FT&& f) const&&
+		{
+			typedef __ftor_invoke_const_result<FT> U;
+			if(has_value())
+				return optional<U>(__optional_ftor<FT>(f), move(this->__get()));
+			else return optional<U>();
+		}
+		template<typename FT>
+		constexpr auto transform(FT&& f)&
+		{
+			typedef __ftor_invoke_ref_result<FT> U;
+			if(has_value())
+				return optional<U>(__optional_ftor<FT>(f), this->__get());
+			else return optional<U>();
+		}
+		template<typename FT>
+		constexpr auto transform(FT&& f) const&
+		{
+			typedef __ftor_invoke_const_ref_result<FT> U;
+			if(has_value())
+				return optional<U>(__optional_ftor<FT>(f), this->__get());
+			else return optional<U>();
+		}
+		template<typename FT> requires(invocable<FT> && copy_constructible<T> && is_same_v<remove_cvref_t<invoke_result_t<FT>>, optional<T>>)
+		constexpr optional or_else(FT&& f) const&
+		{
+			if(has_value())
+				return *this;
+			return forward<FT>(f)();
+		}
+		template<typename FT> requires(invocable<FT> && move_constructible<T> && is_same_v<remove_cvref_t<invoke_result_t<FT>>, optional<T>>)
+		constexpr optional or_else(FT&& f)&&
+		{
+			if(has_value())
+				return move(*this);
+			return forward<FT>(f)();
+		}
+		constexpr void reset() noexcept { this->__reset(); }
+	};
+	namespace ranges
+	{
+		template<typename T> constexpr inline bool enable_view<optional<T>>				= true;
+		template<typename T> constexpr inline bool enable_borrowed_range<optional<T>>	= true;
+	}
+	template<typename T, three_way_comparable_with<T> U>
+	constexpr compare_three_way_result_t<T, U> operator<=>(optional<T> const& __this, optional<T> const& __that)
+	{
+		if(__this && __that)
+			return *__this <=> *__that;
+		return __this.has_value() <=> __that.has_value();
+	}
+	template<typename T, typename U> requires(__detail::__boolean_testable<decltype(declval<T const&>() == declval<U const&>())>)
+	constexpr bool operator==(optional<T> const& __this, optional<T> const& __that)
+	{
+		if(__this ^ __that)
+			return false;
+		if(!__this)
+			return true;
+		return *__this	==	*__that;
+	}
+}
+#endif

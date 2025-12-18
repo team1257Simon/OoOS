@@ -119,7 +119,7 @@ namespace std
 			if(pos < this->__len)
 			{
 				size_type n				= static_cast<size_type>(this->__len - pos);
-				const_pointer result	= traits_type::find(this->__str + pos, c, n);
+				const_pointer result	= traits_type::find(this->__str + pos, what, n);
 				if(result)
 					return static_cast<size_type>(result - this->__str);
 			}

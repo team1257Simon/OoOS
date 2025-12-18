@@ -23,6 +23,21 @@ namespace std
 	}
 	template<bool ... Bs>
 	consteval size_t first_false_in() { return __first_false_helper(tuple<bool_constant<Bs>...>(), make_index_sequence<sizeof...(Bs)>()); }
+	// Helper for circumventing the restriction on the scope of concepts.
+	template<typename T, template<typename> class C>
+	struct __trait_substitution
+	{
+		typedef C<T> __sub_t;
+		constexpr static bool __evaluate() noexcept requires(requires{ { __sub_t::value } -> convertible_to<bool>; }) { return __sub_t::value; }
+		constexpr static bool __evaluate() noexcept { return false; }
+		typedef bool_constant<__evaluate()> type;
+	};
+	template<typename T, template<typename> class C> using __trait_substitution_t			= typename __trait_substitution<T, C>::type;
+	template<typename T, template<typename> class C> concept satisfies						= __trait_substitution_t<T, C>::value;
+	template<typename T, template<typename...> class O, template<typename> class ... Cs>
+	using __multi_trait_substitution														= O<__trait_substitution_t<T, Cs>...>;
+	template<typename T, template<typename> class ... Cs> concept satisfies_all				= __multi_trait_substitution<T, __and_, Cs ...>::value;
+	template<typename T, template<typename> class ... Cs> concept satisfies_any				= __multi_trait_substitution<T, __or_, Cs ...>::value;
 }
 extern "C"
 {

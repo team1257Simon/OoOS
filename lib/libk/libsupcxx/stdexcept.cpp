@@ -29,11 +29,6 @@
 #include <bits/stdexcept.h>
 namespace std
 {
-	exception::exception() noexcept {}
-	exception::~exception() noexcept {}
-	exception::exception(exception const&) noexcept {}
-	exception& exception::operator=(exception const&) noexcept { return *this; }
-	const char*	exception::what() const noexcept { return "std::exception"; }
 	bad_alloc::bad_alloc() noexcept {}
 	bad_alloc::~bad_alloc() noexcept {}
 	bad_alloc::bad_alloc(bad_alloc const&) noexcept {}

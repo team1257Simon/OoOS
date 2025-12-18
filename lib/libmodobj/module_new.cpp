@@ -1,7 +1,7 @@
 #include <kernel_mm.hpp>
-#include <new>
 #include <stdexcept>
 #include <atomic>
+#include <bits/stl_allocator.h>
 extern "C"
 {
 	extern kframe_tag* __module_frame_tag;
