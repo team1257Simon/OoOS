@@ -279,7 +279,6 @@ extern "C"
 	}
 	void* dlopen(char* name, int flags)
 	{
-		flags &= ~(RTLD_PREINIT);
 		void* result = __so_open(name, flags & ~(RTLD_PREINIT));
 		if(__builtin_expect(result && __load_deps(result, flags), true)) return result;
 		else return nullptr;

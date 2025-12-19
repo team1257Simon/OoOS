@@ -47,13 +47,12 @@ struct __align(16) thread_t
 {
 	thread_t* self;							// thread self-pointer; this is also the end of the static TLS block
 	ooos::dynamic_thread_vector* dtv_ptr;	// pointer to the thread's dynamic TLS vector
-	size_t dtv_len;							// length of the thread's dynamic TLS vector in entries; will be at least 1 if there is a DTV at all
 	regstate_t saved_regs;					// local register state for the thread
 	fx_state fxsv;							// local floating point state for the thread
 	thread_ctl ctl_info;					// thread scheduling and control info
 	addr_t stack_base;						// pointer to the thread's local stack
 	size_t stack_size;						// size of the local stack
-	addr_t tls_start;						// start of the TLS block, accounting for alignment shifts
+	addr_t tls_start;						// start of the TLS block, accounting for alignup operations
 };
 enum class join_result
 {
@@ -77,6 +76,7 @@ namespace ooos
 		void instantiate(thread_t& thread);
 		bool takedown(thread_t& thread);
 	};
+	bool test_thread_mutex(thread_t const& t);
 	void lock_thread_mutex(thread_t& t);
 	void unlock_thread_mutex(thread_t& t);
 	void update_thread_state(thread_t& thread, task_t& task_struct);

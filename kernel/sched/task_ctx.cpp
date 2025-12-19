@@ -708,7 +708,7 @@ addr_t task_ctx::tls_get(size_t mod_idx, size_t offs)
 		size_t n						= static_cast<size_t>(end - target);
 		array_copy<uint8_t>(dest, src, n);
 		dtv[mod_idx] 					= target;
-		ooos::lock_thread_mutex(*thread);
+		ooos::unlock_thread_mutex(*thread);
 	}
 	return dtv[mod_idx].plus(offs);
 }
@@ -763,6 +763,7 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 			// Pass the thread's return value to the waiting thread
 			tptr->saved_regs.rax	= result_val;
 			sch.interrupt_wait(tkth);
+			ooos::unlock_thread_mutex(*tptr);
 		}
 		detached					= true;
 	}
@@ -872,6 +873,8 @@ join_result task_ctx::thread_join(pid_t with_thread)
 	thread_t* thread			= i->second;
 	thread_t* current			= current_thread_ptr();
 	if(!current) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	if(ooos::test_thread_mutex(*current) || ooos::test_thread_mutex(*thread)) throw std::runtime_error("[EXEC/THREAD] illegal join call");
+	ooos::lock_thread_mutex(*current);
 	if(thread->ctl_info.state == thread_state::TERMINATED || (thread->ctl_info.retrigger_capable && thread->ctl_info.state == thread_state::STOPPED))
 	{
 		current->saved_regs.rax	= task_struct.saved_regs.rax	= thread->saved_regs.rax;
@@ -883,6 +886,7 @@ join_result task_ctx::thread_join(pid_t with_thread)
 			inactive_threads.push_back(thread);
 		}
 		else if(thread->ctl_info.reset_cb) (*thread->ctl_info.reset_cb)(thread->ctl_info.reset_arg);
+		ooos::unlock_thread_mutex(*current);
 		return join_result::IMMEDIATE;
 	}
 	notify_threads[with_thread].push_back(current);
@@ -893,6 +897,7 @@ int task_ctx::thread_detach(pid_t thread_id)
 	if(__unlikely(!thread_ptr_by_id.contains(thread_id))) return -ESRCH;
 	thread_t* ptr			= thread_ptr_by_id[thread_id];
 	if(__unlikely(ptr->ctl_info.state != thread_state::RUNNING)) return -EINVAL;
+	if(ooos::test_thread_mutex(*ptr)) return 1;
 	ptr->ctl_info.detached	= true;
 	return 0;
 }

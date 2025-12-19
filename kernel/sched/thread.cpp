@@ -1,6 +1,7 @@
 #include <sched/thread.hpp>
 namespace ooos
 {
+	bool ooos::test_thread_mutex(thread_t const& t) { return test_lock(std::addressof(t.ctl_info.thread_lock)); }
 	void lock_thread_mutex(thread_t& t) { lock(std::addressof(t.ctl_info.thread_lock)); }
 	void unlock_thread_mutex(thread_t& t) { release(std::addressof(t.ctl_info.thread_lock)); }
 	task_dtv::task_dtv() : __dtv_map(64UZ), __dtv_alloc() {}
@@ -15,7 +16,6 @@ namespace ooos
 		for(size_t i = 0UZ; i < base_offsets.size(); i++)
 			vec[i + 1]						= addr_t(thread.self).minus(base_offsets[i]);
 		thread.dtv_ptr 						= std::addressof(vec);
-		thread.dtv_len						= vec.size();
 		unlock_thread_mutex(thread);
 	}
 	bool task_dtv::takedown(thread_t& thread)

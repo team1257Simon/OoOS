@@ -336,7 +336,7 @@ extern "C"
 		if(__unlikely(!thread)) return -EFAULT;
 		return static_cast<spid_t>(thread->ctl_info.thread_id);
 	}
-	register_t syscall_threadjoin(pid_t thread)
+	register_t syscall_threadjoin(pid_t thread) try
 	{
 		task_ctx* task		= active_task_context();
 		if(__unlikely(!task)) return -ENOSYS;
@@ -348,6 +348,8 @@ extern "C"
 		kthread_ptr next	= sch.yield();
 		return next->saved_regs.rax;
 	}
+	catch(std::runtime_error& e) { panic(e.what()); return -EBUSY; }
+	catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
 	int syscall_threaddetach(pid_t thread)
 	{
 		task_ctx* task		= active_task_context();

@@ -10,6 +10,7 @@ struct kframe_tag;
 struct kframe_exports;
 #ifndef __HAVE_ALIGNED_REALLOCATE
 namespace std::__detail { [[nodiscard]] [[gnu::externally_visible]] void* __aligned_reallocate(void* ptr, size_t n, size_t align); }
+#define __HAVE_ALIGNED_REALLOCATE
 #endif
 namespace ooos
 {
@@ -493,9 +494,9 @@ namespace ooos
 	template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
 	template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...>& get_element(module_config<Ts...>& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
 	template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...> const& get_element(module_config<Ts...> const& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
-	template<typename FT> concept eh_functor = requires(FT ft, const char* c, int i) { ft(c, i); };
-	template<typename MT> concept module_type = std::derived_from<MT, abstract_module_base>;
-	template<typename FT> concept condition_callable = boolable<decltype(std::declval<FT>()())>;
+	template<typename FT> concept eh_functor			= requires(FT ft, const char* c, int i) { ft(c, i); };
+	template<typename MT> concept module_type			= std::derived_from<MT, abstract_module_base>;
+	template<typename FT> concept condition_callable	= boolable<decltype(std::declval<FT>()())>;
 	struct module_eh_ctx
 	{
 		jmp_buf handler_ctx;
