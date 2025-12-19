@@ -8,7 +8,6 @@ namespace ooos
 		if(callback) callback->reset();
 		else throw std::bad_cast();
 	}
-	user_callback_base::~user_callback_base() {}
 	void user_callback_base::trigger(callback_arg arg)
 	{
 		bool is_retrigger				= data.cb_thread;
@@ -31,7 +30,7 @@ namespace ooos
 			data.initial_ctlstate		= created->ctl_info;
 		}
 		data.arg				= arg;
-		vinit(*created);
+		insert_arg(*created);
 		created->saved_regs.rsp	-= sizeof(register_t);
 		stack_real				-= sizeof(register_t);
 		stack_real.assign(data.landing);

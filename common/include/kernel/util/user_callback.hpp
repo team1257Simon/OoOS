@@ -30,9 +30,9 @@ namespace ooos
 		addr_t stack_real;
 		void trigger(callback_arg arg);
 		void reset();
-		virtual ~user_callback_base();
+		virtual ~user_callback_base() = default;
 	protected:
-		virtual void vinit(thread_t& thread) = 0;
+		virtual void insert_arg(thread_t& thread) = 0;
 	};
 	template<typename AT>
 	struct user_callback : public user_callback_base
@@ -42,7 +42,7 @@ namespace ooos
 		void operator()(AT const& arg) { this->trigger(callback_arg{ .pointer_argument = addr_t(std::addressof(arg)) }); }
 		virtual ~user_callback() = default;
 	protected:
-		virtual void vinit(thread_t& thread) override
+		virtual void insert_arg(thread_t& thread) override
 		{
 			AT const* in_arg_value	= data.arg.pointer_argument;
 			AT* arg_pos				= stack_real;
@@ -57,7 +57,7 @@ namespace ooos
 		void operator()(AT a) { this->trigger(callback_arg{ .register_data_argument	= register_data(a) }); }
 		virtual ~user_callback() = default;
 	protected:
-		virtual void vinit(thread_t& thread) override { thread.saved_regs.rdi		= data.arg.integral_argument; }
+		virtual void insert_arg(thread_t& thread) override { thread.saved_regs.rdi		= data.arg.integral_argument; }
 	};
 }
 #endif

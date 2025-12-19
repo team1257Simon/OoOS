@@ -36,7 +36,7 @@ extern char* crypt_gensalt_ra(__const char* prefix, unsigned long count, __const
 #endif
 #ifdef __cplusplus
 }
-#include "string"
+#include <string>
 std::string create_hash_setting_string(size_t n = 2UZ);
 std::string create_crypto_string(std::string const& key, std::string const& setting);
 #endif

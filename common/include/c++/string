@@ -138,6 +138,20 @@ namespace std
 	extension u32string to_u32string(unsigned int value, ext::nphex_t);
 	extension u32string to_u32string(unsigned long value, ext::nphex_t);
 	extension u32string to_u32string(unsigned long long value, ext::nphex_t);
+	inline namespace literals
+	{
+		inline namespace string_literals
+		{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wliteral-suffix"
+			inline constexpr string operator""s(const char* str, size_t len) { return string(str, len); }
+			inline constexpr wstring operator""s(const wchar_t* str, size_t len) { return wstring(str, len); }
+			inline constexpr u8string operator""s(const char8_t* str, size_t len) { return u8string(str, len); }
+			inline constexpr u16string operator""s(const char16_t* str, size_t len) { return u16string(str, len); }
+			inline constexpr u32string operator""s(const char32_t* str, size_t len) { return u32string(str, len); }
+#pragma GCC diagnostic pop
+		}
+	}
 }
 void xklog(std::string const& str);
 #endif
