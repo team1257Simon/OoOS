@@ -25,6 +25,7 @@
 #include <span>
 #include <string_view>
 #include <vector>
+#define __have_reflection 1
 namespace std
 {
 #if __has_builtin(__builtin_is_string_literal)

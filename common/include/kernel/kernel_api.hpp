@@ -482,9 +482,15 @@ namespace ooos
 		parameter_types parameters;
 		constexpr void compute_size() noexcept { size_bytes = __internal::__size(parameters); }
 	};
-	template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
-	template<__internal::__can_be_parameter_type ... Ts> union [[gnu::may_alias]] module_config { generic_config_table generic; module_config_table<Ts...> actual; constexpr module_config& compute_size_value() noexcept { actual.compute_size(); return *this; } };
+	template<__internal::__can_be_parameter_type ... Ts>
+	union [[gnu::may_alias]] module_config
+	{
+		generic_config_table generic;
+		module_config_table<Ts...> actual;
+		constexpr module_config& compute_size_value() noexcept { actual.compute_size(); return *this; }
+	};
 	template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ std::forward<config_parameter<Ts>>(params)... } } }.compute_size_value(); }
+	template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
 	template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...>& get_element(module_config<Ts...>& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
 	template<size_t I, __internal::__can_be_parameter_type ... Ts> constexpr element_type_t<I, Ts...> const& get_element(module_config<Ts...> const& conf) noexcept { return __internal::__get<I>(conf.actual.parameters); }
 	template<typename FT> concept eh_functor = requires(FT ft, const char* c, int i) { ft(c, i); };

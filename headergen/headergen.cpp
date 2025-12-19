@@ -1,3 +1,4 @@
+#if (__cplusplus > 202302L) && (__cpp_impl_reflection >= 202506L)
 #include "describe.hpp"
 #include <iostream>
 typedef long register_t;
@@ -77,3 +78,4 @@ int main()
 	cout << "#define L_SIZE 0x" << sizeof(thread_t) << endl;
 	return 0;
 }
+#endif
