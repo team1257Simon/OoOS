@@ -1,15 +1,14 @@
 #ifndef _SYS__PTHREADTYPES_H_
 #define	_SYS__PTHREADTYPES_H_
-#include <sys/types.h>
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-typedef pid_t pthread_t;
+typedef int pthread_t;
 typedef struct { volatile unsigned char : 8; } pthread_spinlock_t;
-typedef const struct { volatile unsigned long : 64; } private_data_qword;
+typedef struct { const volatile unsigned long : 64; } private_data_qword;
 typedef struct {
-	size_t stack_size;
+	unsigned long stack_size;
 	unsigned char detach_state;
 } pthread_attr_t;
 typedef struct

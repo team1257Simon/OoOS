@@ -2,6 +2,7 @@
 #define __TYPES
 #ifdef __KERNEL__
 #include <kernel/kernel_defs.h>
+#include <sys/_pthreadtypes.h>
 typedef addr_t caddr_t;
 #else
 #include <stdint.h>

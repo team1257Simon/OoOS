@@ -1,6 +1,6 @@
 #ifndef __PTHREAD_H
 #define __PTHREAD_H
-#include <sys/pthread.h>
+#include <sys/types.h>
 #include <stdint.h>
 #ifdef __cplusplus
 extern "C"
