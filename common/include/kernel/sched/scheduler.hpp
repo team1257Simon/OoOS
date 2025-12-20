@@ -10,10 +10,6 @@ class scheduler
 	prio_level_task_queues __queues;
 	task_wait_queue __sleepers;
 	std::vector<kthread_ptr> __non_timed_sleepers;
-	unsigned int __tick_rate;
-	unsigned int __cycle_divisor;
-	std::atomic<unsigned> __tick_cycles;
-	cpu_timer_stopwatch __timestamp_stopwatch;
 	bool __running;
 	size_t __total_tasks;
 	ooos::deferred_action_queue __deferred_actions;

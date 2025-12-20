@@ -1,6 +1,5 @@
 	.code64
 	.altmacro
-	.global	pr_isr_data
 	.global	kernel_isr_stack_top
 	.global	kernel_isr_stack_base
 	.global	ecode
@@ -13,7 +12,6 @@
 	.global	delay_flag
 	.global	debug_stop_flag
 	.global	task_lock_flag
-	.global	pr_isr_data_end
 	.extern	isr_dispatch
 	.extern	set_task_signal
 	.extern	task_change
@@ -26,7 +24,6 @@
 	.type	test_fault,				@function
 	.type	no_waiting_op,			@function
 	.type	isr_trampoline,			@function
-	.type	pr_isr_data,			@object
 	.type	kernel_isr_stack_top,	@object
 	.type	kernel_isr_stack_base,	@object
 	.type	ecode,					@object
@@ -39,11 +36,9 @@
 	.type	delay_flag,				@object
 	.type	debug_stop_flag,		@object
 	.type	task_lock_flag,			@object
-	.type	pr_isr_data_end,		@object
-	.data
-	.align	4096
+	
 	//		If we ever get around to using SMP, this will allow us to have separate versions of the local storage here for each processor.
-pr_isr_data:
+	.section	.data.plocal
 kernel_isr_stack_base:
 	.zero	16384
 kernel_isr_stack_top:
@@ -82,10 +77,6 @@ task_lock_flag:
 	.align	8
 .Ltrampoline_return:
 	.quad	0
-	.align	4096
-pr_isr_data_end:
-	.size	pr_isr_data_end,	0
-	.size	pr_isr_data,		.-pr_isr_data
 	.text
 	.macro xm_1 macro at
 		\macro \at

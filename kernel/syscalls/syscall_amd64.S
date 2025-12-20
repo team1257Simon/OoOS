@@ -96,9 +96,7 @@
 	.extern							syscall_setuid
 	.extern							syscall_setgid
 	.extern							on_invalid_syscall
-	.global							pr_syscall_data
 	.global							syscall_vec
-	.global							pr_syscall_data_end
 	.extern							task_lock_flag
 	.extern							kernel_cr3
 	.type	do_syscall,				@function
@@ -174,15 +172,9 @@
 	.type	syscall_setuid,			@function
 	.type	syscall_setgid,			@function
 	.type	on_invalid_syscall,		@function
-	.type	pr_syscall_data,		@object
 	.type	kernel_cr3,				@object
 	.type	task_lock_flag,			@object
 	.type	syscall_vec,			@object
-	.type	pr_syscall_data_end,	@object
-	.align	4096
-	//		If we ever get around to using SMP, this will allow us to have separate versions of the local storage here for each processor.
-	//		There isn't all that much of it, but it needs to be page-aligned at start and end, so may as well include the syscall pointer vector as well.
-pr_syscall_data:
 syscall_vec:
 	.quad	syscall_exit			// 0
 	.quad	syscall_sleep			// 1
@@ -257,6 +249,8 @@ syscall_vec:
 .L_syscv_end:
 	.quad	on_invalid_syscall		// handler for out-of-range syscalls
 	.size syscall_vec,				.-syscall_vec
+	//		If we ever get around to using SMP, this will allow us to have separate versions of the local storage here for each processor.
+	.section	.data.plocal
 	.align	8
 .Lheld_pc:
 	.quad	0
@@ -281,10 +275,6 @@ syscall_vec:
 	.zero	4
 .Lpost_timestamp_hi:
 	.zero	4
-	.align	4096
-pr_syscall_data_end:
-	.size	pr_syscall_data_end,	0
-	.size	pr_syscall_data,		.-pr_syscall_data
 	.text
 do_syscall:
 	lock	orb	$1,					task_lock_flag

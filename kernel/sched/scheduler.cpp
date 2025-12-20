@@ -10,6 +10,28 @@ extern "C"
 	extern task_t kproc;
 	extern void direct_reentry(kthread_ptr) attribute(noreturn);
 }
+struct scheduler_times
+{
+	unsigned int tick_rate;
+	unsigned int cycle_divisor;
+	std::atomic<unsigned> tick_cycles;
+	cpu_timer_stopwatch timestamp_stopwatch;
+	void init()
+	{
+		uint32_t timer_frequency		= cpuid(0x15U, 0).ecx;
+		if(!timer_frequency)
+			timer_frequency				= cpuid(0x16U, 0).ecx;
+		cycle_divisor					= timer_frequency;
+		tick_rate						= magnitude(timer_frequency);
+	}
+	bool tick()
+	{
+		tick_cycles		+= tick_rate;
+		bool result		= (tick_cycles >= cycle_divisor);
+		tick_cycles		= tick_cycles % cycle_divisor;
+		return result;
+	}
+} sched_times attribute(section(".data.plocal"));
 typedef task_wait_queue::const_iterator waiterator;
 typedef std::vector<kthread_ptr>::iterator ntwaiterator;
 typedef task_pl_queue::const_iterator task_citerator;
@@ -104,7 +126,7 @@ void scheduler::__do_task_change(kthread_ptr& cur, kthread_ptr& next)
 	cur->next			= next.task_ptr;
 	if(next.thread_ptr) next.activate();
 	task_change_flag.store(true);
-	uint64_t ts			= __timestamp_stopwatch.get();
+	uint64_t ts			= sched_times.timestamp_stopwatch.get();
 	next->run_split		= ts;
 	cur->run_time		+= (ts - cur->run_split);
 }
@@ -236,20 +258,14 @@ bool scheduler::init() noexcept
 	}
 	catch(std::exception& e) { panic(e.what()); return false; }
 	task_change_flag.store(false);
-	uint32_t timer_frequency		= cpuid(0x15U, 0).ecx;
-	if(!timer_frequency)
-		timer_frequency				= cpuid(0x16U, 0).ecx;
-	__cycle_divisor					= timer_frequency;
-	__tick_rate						= magnitude(timer_frequency);
-	__deferred_actions.ticks_per_ms	= (1.0L / static_cast<long double>(__cycle_divisor)) * __tick_rate;
+	sched_times.init();
+	__deferred_actions.ticks_per_ms	= (1.0L / static_cast<long double>(sched_times.cycle_divisor)) * sched_times.tick_rate;
 	interrupt_table::add_irq_handler(0, std::move([this]() -> void
 	{
 		if(__running)
-		{
-			__tick_cycles		+= __tick_rate;
-			if(__tick_cycles >= __cycle_divisor) on_tick();
-			__tick_cycles		= __tick_cycles % __cycle_divisor;
-		}
+			if(sched_times.tick())
+				on_tick();
+		
 	}));
 	interrupt_table::add_interrupt_callback([this](byte idx, qword) -> void
 	{
@@ -261,7 +277,7 @@ bool scheduler::init() noexcept
 		}
 	});
 	__total_tasks 				= 0UZ;
-	__timestamp_stopwatch.start();
+	sched_times.timestamp_stopwatch.start();
 	return true;
 }
 kthread_ptr scheduler::yield()

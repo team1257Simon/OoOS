@@ -12,8 +12,13 @@ SECTIONS
 	__start = .;
 	.data : AT(ADDR(.data))
 	{
-		__data = .;
+		__data 					= .;
 		*(.data)
+		. = ALIGN(4096);
+		processor_local_data 	= .;
+		*(.data.plocal)
+		. = ALIGN(4096);
+		__plocal_data_end		= .;
 	} :data
 	.bss : AT(ADDR(.bss))
 	{
@@ -73,7 +78,8 @@ SECTIONS
 	{
 		*(.comment)
 	}
-	. = ALIGN(4096);
-	__end = .;
-	__kernel_pages = (__end - __start) / 4096;
+	. 					= ALIGN(4096);
+	__end				= .;
+	__kernel_pages		= (__end - __start) / 4096;
+	__plocal_data_size	= __plocal_data_end - processor_local_data;
 }

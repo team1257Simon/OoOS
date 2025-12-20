@@ -13,7 +13,9 @@ extern "C"
 	extern kframe_tag*		__kernel_frame_tag;
 	extern unsigned char	sigtramp_code[4096];
 	extern const size_t		kernel_pages;
-	paging_table			kernel_cr3;
+	extern unsigned char	processor_local_data[];
+	extern const size_t		processor_local_data_size;
+	paging_table			kernel_cr3 attribute(section(".data.plocal"));
 }
 constexpr ptrdiff_t	bt_offset		= sizeof(block_tag);
 constexpr size_t	min_block_size	= 1UZ << min_exponent;

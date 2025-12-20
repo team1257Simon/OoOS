@@ -67,7 +67,7 @@ extern "C"
 	extern unsigned char kernel_isr_stack_top;
 	extern bool debug_stop_flag;
 	extern void test_fault();
-	task_t kproc{};
+	attribute(section(".data.plocal")) task_t kproc{};
 	int get_debug_char() { if(com && com->read(dbg_serial_io, 1UZ)) { return dbg_serial_io[0]; } return -1; }
 	void put_debug_char(int ch) { dbg_serial_io[1] = static_cast<char>(ch); if(com) com->write(1UZ, dbg_serial_io + 1); }
 }
