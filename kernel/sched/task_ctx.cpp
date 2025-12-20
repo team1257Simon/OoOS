@@ -659,8 +659,8 @@ void task_ctx::init_thread_0()
 				.wait_time_delta	= 0UL,
 			}
 		},
-		.stack_base				= allocated_stack,
 		.stack_size				= stack_allocated_size,
+		.stack_base				= allocated_stack,
 		.tls_start				= tls_block_start
 	};
 	init_fx(thread_0->fxsv);
@@ -722,6 +722,7 @@ pid_t task_ctx::thread_fork()
 	kthread_ptr kth(header(), new_thread);
 	sch.register_task(kth);
 	new_thread->ctl_info.state	= thread_state::RUNNING;
+	active_added_thread_count++;
 	return new_thread->ctl_info.thread_id;
 }
 pid_t task_ctx::thread_add(addr_t entry_point, addr_t exit_point, size_t stack_target_size, bool start_detached, register_t arg)
@@ -741,6 +742,7 @@ pid_t task_ctx::thread_add(addr_t entry_point, addr_t exit_point, size_t stack_t
 	kthread_ptr kth(header(), new_thread);
 	sch.register_task(kth);
 	new_thread->ctl_info.state	= thread_state::RUNNING;
+	active_added_thread_count++;
 	return new_thread->ctl_info.thread_id;
 }
 void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
@@ -754,6 +756,7 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 	bool detached			= thread->ctl_info.detached;
 	sch.unregister_task(kth);
 	thread->ctl_info.state	= thread->ctl_info.retrigger_capable ? thread_state::STOPPED : thread_state::TERMINATED;
+	if(active_added_thread_count && !thread->ctl_info.retrigger_capable) active_added_thread_count--;
 	if(notify_threads.contains(thread_id))
 	{
 		std::vector<thread_t*>& notif	= notify_threads[thread_id];
@@ -778,7 +781,7 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 			inactive_threads.push_back(thread);
 			next_assigned_thread_id		= thread_id;
 		}
-		else if(thread->ctl_info.reset_cb) (*thread->ctl_info.reset_cb)(thread->ctl_info.reset_arg);
+		else if(thread->ctl_info.reset) (*thread->ctl_info.reset)(thread->ctl_info.callback_handle);
 	}
 	else thread->saved_regs.rax		= result_val;
 }
@@ -849,8 +852,8 @@ thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_r
 				.wait_time_delta	= 0UL
 			}
 		},
-		.stack_base				= stack_begin,
 		.stack_size				= stack_target_size,
+		.stack_base				= stack_begin,
 		.tls_start				= block_start
 	};
 	new_thread->saved_regs.rsp	= stack_begin.plus(template_thread.saved_regs.rsp - template_thread.stack_base);
@@ -885,7 +888,7 @@ join_result task_ctx::thread_join(pid_t with_thread)
 			thread_ptr_by_id.erase(i);
 			inactive_threads.push_back(thread);
 		}
-		else if(thread->ctl_info.reset_cb) (*thread->ctl_info.reset_cb)(thread->ctl_info.reset_arg);
+		else if(thread->ctl_info.reset) (*thread->ctl_info.reset)(thread->ctl_info.callback_handle);
 		ooos::unlock_thread_mutex(*current);
 		return join_result::IMMEDIATE;
 	}

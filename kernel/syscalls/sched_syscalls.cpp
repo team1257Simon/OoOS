@@ -328,13 +328,14 @@ extern "C"
 		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
 		return -ENOMEM;
 	}
-	spid_t syscall_getthreadid()
+	ssize_t syscall_getthreadcount()
 	{
 		task_ctx* task		= active_task_context();
 		if(__unlikely(!task)) return -ENOSYS;
-		thread_t* thread	= translate_user_pointer(task->task_struct.thread_ptr);
-		if(__unlikely(!thread)) return -EFAULT;
-		return static_cast<spid_t>(thread->ctl_info.thread_id);
+		// The stored value does not count the initial thread, so bump it by 1.
+		// Note that callbacks do not count as threads for the purpose of this syscall.
+		// Once quotas are implemented, those will be tracked separately and have their own quota.
+		return static_cast<ssize_t>(task->active_added_thread_count + 1Z);
 	}
 	register_t syscall_threadjoin(pid_t thread) try
 	{

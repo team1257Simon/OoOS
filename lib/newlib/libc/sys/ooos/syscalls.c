@@ -2,7 +2,6 @@
 #ifdef __KERNEL__
 #undef __KERNEL__
 #endif
-void _exit(int code) { asm volatile("syscall" :: "a"(0), "D"(code) : "memory", "%r11", "%rcx"); __builtin_unreachable(); }
 DEF_SYSCALL1(int, close, int, fd)
 DEF_SYSCALL3(int, execve, char* restrict, name, char** restrict, argv, char** restrict, env)
 DEF_SYSCALL3(pid_t, spawn, char* restrict, name, char** restrict, argv, char** restrict, env)
@@ -17,7 +16,6 @@ DEF_SYSCALL1(int, isatty, int, fd)
 DEF_SYSCALL2(int, kill, int, pid, int, sig)
 DEF_SYSCALL2(int, link, char* restrict, old, char* restrict, new)
 DEF_SYSCALL3(int, lseek, int, fd, int, ptr, int, dir)
-int open(const char* name, int flags, ...) { int ret; asm volatile("syscall" : "=a"(ret) : "0"(SYSCVEC_N_open), "D"(name), "S"(flags) : "memory", "%r11", "%rcx"); do { if(__builtin_expect((signed long)(ret) < 0L && (signed long)(ret) > -4095L, 0)) { *(__errno()) = -(int)(ret); return (int)(-1); } else return (int)(ret); } while(0); }
 DEF_SYSCALL3(int, read, int, fd, char*, buf, int, len)
 DEF_SYSCALL1(void*, sbrk, int, incr)
 DEF_SYSCALL1(clock_t, times, struct tms*, buf)
@@ -32,7 +30,38 @@ DEF_SYSCALL3(int, sigprocmask, int, how, sigset_t const* restrict, set, sigset_t
 DEF_SYSCALL2(int, mkdir, const char*, path, mode_t, mode)
 DEF_SYSCALL2(int, lstat, const char* restrict, name, struct stat* restrict, st)
 DEF_SYSCALL3(int, mknod, const char*, path, mode_t, mode, dev_t, dev)
-int pipe(int out[2]) { int ret; asm volatile("syscall" : "=a"(ret): "0"(SYSCVEC_N_pipe), "D"(&out[0]) : "memory", "%r11", "%rcx"); if(__builtin_expect(ret < 0 && ret > -4095, 0)) { *__errno() = -ret; return -1; } return ret; }
+DEF_SYSCALL1(int, escalate, const char*, pw)
+DEF_SYSCALL1(int, setuid, uid_t, id)
+DEF_SYSCALL1(int, setgid, gid_t, id)
+DEF_SYSCALL0(size_t, threadcount)
+void _exit(int code) {
+	asm volatile("syscall" :: "a"(SYSCVEC_N_exit), "D"(code) : "memory", "%r11", "%rcx");
+	__builtin_unreachable();
+}
+void exit_thread(void* retval) {
+	asm volatile("syscall" :: "a"(SYSCVEC_N_threadexit), "D"(retval) : "memory", "%r11", "%rcx");
+	__builtin_unreachable();
+}
+int open(const char* name, int flags, ...)
+{
+	int ret;
+	asm volatile("syscall" : "=a"(ret) : "0"(SYSCVEC_N_open), "D"(name), "S"(flags) : "memory", "%r11", "%rcx");
+	if(__builtin_expect(ret < 0 && ret > -4096, 0))  {
+		errno = -ret;
+		return -1;
+	}
+	else return ret;
+}
+int pipe(int out[2])
+{
+	int ret;
+	asm volatile("syscall" : "=a"(ret): "0"(SYSCVEC_N_pipe), "D"(&out[0]) : "memory", "%r11", "%rcx");
+	if(__builtin_expect(ret < 0 && ret > -4096, 0)) {
+		errno = -ret;
+		return -1;
+	}
+	return ret;
+}
 int login(const char* restrict user, const char* restrict pass, login_result* restrict result_out)
 {
 	asm volatile("syscall" : "=a"(result_out->uid), "=d"(result_out->gid) : "0"(SYSCVEC_N_login), "D"(user), "S"(pass) : "memory", "%r11", "%rcx");
@@ -53,12 +82,9 @@ int impersonate(const char* restrict user, const char* restrict pass, login_resu
 	}
 	return 0;
 }
-DEF_SYSCALL1(int, escalate, const char*, pw)
 login_result urevert()
 {
 	login_result result;
 	asm volatile("syscall" : "=a"(result.uid), "=d"(result.gid) : "0"(SYSCVEC_N_urevert) : "memory", "%r11", "%rcx");
 	return result;
 }
-DEF_SYSCALL1(int, setuid, uid_t, id)
-DEF_SYSCALL1(int, setgid, gid_t, id)

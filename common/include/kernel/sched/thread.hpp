@@ -3,7 +3,7 @@
 #if (defined(__KERNEL__) || defined(__LIBK__))
 #include <sched/task.h>
 #include <util/pool_allocator.hpp>
-namespace ooos { typedef std::vector<addr_t, pool_allocator<addr_t>> dynamic_thread_vector; }
+namespace ooos { typedef std::vector<addr_t, pool_allocator<addr_t>> dynamic_thread_vector; struct user_callback_base; }
 enum class thread_state : uint8_t
 {
 	STOPPED		= 0UC,	// not running (yet)
@@ -12,7 +12,7 @@ enum class thread_state : uint8_t
 	TERMINATED	= 3UC,	// finished execution, normally or otherwise
 };
 #else
-namespace ooos { typedef addr_t dynamic_thread_vector; }
+namespace ooos { typedef addr_t dynamic_thread_vector; struct user_callback_base; }
 enum class thread_state : uint8_t
 {
 	STOPPED		= 0,	// not running (yet)
@@ -21,7 +21,7 @@ enum class thread_state : uint8_t
 	TERMINATED	= 3,	// finished execution, normally or otherwise
 };
 #endif
-typedef void (*reset_callback)(void*);
+typedef void (*callback_reset_fn)(void*);
 struct thread_ctl
 {
 	volatile struct
@@ -32,15 +32,15 @@ struct thread_ctl
 		bool detached			: 1;		// indicates the thread should immediately terminate upon exit rather than wait for a join
 		bool cancel_disable		: 1;		// if true, the thread ignores cancellation
 		bool cancel_async		: 1;		// if true, cancellation occurs as soon as possible; if false, it waits until a cancel point function is called
-		bool retrigger_capable	: 1;		// if true, the thread is a repeatable callback with a reset function pointed to by reset_cb with argument reset_arg
+		bool retrigger_capable	: 1;		// if true, the thread is a repeatable callback with a reset function, which is pointed to by reset
 	};
 	struct
 	{
-		spinlock_t thread_lock;		// modifications to the thread's data should lock this first
-		pid_t thread_id;			// unique identifier within a process
-		clock_t wait_time_delta;	// amount of ticks remaining in wait time
-		reset_callback reset_cb;	// called to reset the thread's state if applicable
-		void* reset_arg;			// argument for the above callback if applicable
+		spinlock_t thread_lock;							// modifications to the thread's data should lock this first
+		pid_t thread_id;								// unique identifier within a process
+		clock_t wait_time_delta;						// amount of ticks remaining in wait time
+		callback_reset_fn reset;						// called to reset the thread's state if applicable
+		ooos::user_callback_base* callback_handle;		// if this thread is a callback, this is a handle to the callback's data structure
 	};
 };
 struct __align(16) thread_t
@@ -50,8 +50,8 @@ struct __align(16) thread_t
 	regstate_t saved_regs;					// local register state for the thread
 	fx_state fxsv;							// local floating point state for the thread
 	thread_ctl ctl_info;					// thread scheduling and control info
-	addr_t stack_base;						// pointer to the thread's local stack
 	size_t stack_size;						// size of the local stack
+	addr_t stack_base;						// pointer to the thread's local stack
 	addr_t tls_start;						// start of the TLS block, accounting for alignup operations
 };
 enum class join_result
@@ -86,7 +86,7 @@ extern "C"
 	[[noreturn]] void syscall_threadexit(register_t retval);
 	spid_t syscall_tfork();
 	spid_t syscall_threadcreate(addr_t entry_pt, addr_t exit_pt, size_t stack_sz, bool start_detached, register_t arg);
-	spid_t syscall_getthreadid();
+	ssize_t syscall_getthreadcount();
 	register_t syscall_threadjoin(pid_t thread);
 	int syscall_threaddetach(pid_t thread);
 }

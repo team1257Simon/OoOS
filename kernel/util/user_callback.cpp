@@ -18,16 +18,16 @@ namespace ooos
 		if(is_retrigger) created		= data.cb_thread.thread_ptr;
 		else
 		{
-			created						= execution_ctx->thread_init(*cur, false, data.stack_target_size, data.start_detached);
-			created->saved_regs.rsp		-= static_cast<ptrdiff_t>(stack_offs);
-			stack_real					= execution_ctx->get_frame().translate(created->saved_regs.rsp);
+			created								= execution_ctx->thread_init(*cur, false, data.stack_target_size, data.start_detached);
+			created->saved_regs.rsp				-= static_cast<ptrdiff_t>(stack_offs);
+			stack_real							= execution_ctx->get_frame().translate(created->saved_regs.rsp);
 			if(!stack_real) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-			created->saved_regs.rip		= data.entry_point;
-			created->ctl_info.reset_cb	= reset_callback;
-			created->ctl_info.reset_arg	= this;
-			data.initial_fpstate		= created->fxsv;
-			data.initial_regstate		= created->saved_regs;
-			data.initial_ctlstate		= created->ctl_info;
+			created->saved_regs.rip				= data.entry_point;
+			created->ctl_info.reset				= reset_callback;
+			created->ctl_info.callback_handle	= this;
+			data.initial_fpstate				= created->fxsv;
+			data.initial_regstate				= created->saved_regs;
+			data.initial_ctlstate				= created->ctl_info;
 		}
 		data.arg				= arg;
 		insert_arg(*created);

@@ -7,7 +7,7 @@ else
 AM_CCASFLAGS = $(INCLUDES)
 endif
 
-LIB_SOURCES = tls_stub.c dl_stub.c
+LIB_SOURCES = tls_stub.c dl_stub.c thread_landing.S
 
 libooosx86_64_la_LDFLAGS = -Xcompiler -nostdlib
 

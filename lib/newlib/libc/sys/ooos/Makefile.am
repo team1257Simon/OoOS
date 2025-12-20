@@ -10,7 +10,7 @@ noinst_LIBRARIES = lib.a
 SUBLIBS = $(OOOS_MACHINE_LIB) \
 	$(EXTRA_SUBLIBS)
 
-GENERAL_SOURCES = syscalls.c posix_stub.c dirent.c
+GENERAL_SOURCES = syscalls.c posix_stub.c dirent.c pthread_syscalls.c
 ADD_OBJS = $(OOOS_MACHINE_LIB)
 
 # libooos_la_LDFLAGS = -Xcompiler -nostdlib

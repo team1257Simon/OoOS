@@ -61,6 +61,7 @@ struct task_ctx
 	std::map<pid_t, thread_t*> thread_ptr_by_id				{};
 	std::map<pid_t, std::vector<thread_t*>> notify_threads	{};
 	std::vector<thread_t*> inactive_threads					{};
+	size_t active_added_thread_count						{};		// Active threads excluding the initial (thread 0)
 	bool impersonate										{};
 	uid_t imp_uid											{};		// Effective UID if it is different from the real UID in task_struct; 0 otherwise
 	gid_t imp_gid											{};		// Effective GID if it is different from the real GID in task_struct; 0 otherwise

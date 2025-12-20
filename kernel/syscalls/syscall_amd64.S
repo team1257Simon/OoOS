@@ -82,7 +82,7 @@
 	.extern							syscall_threadexit
 	.extern							syscall_tfork
 	.extern							syscall_threadcreate
-	.extern							syscall_getthreadid
+	.extern							syscall_getthreadcount
 	.extern							syscall_threadjoin
 	.extern							syscall_threaddetach
 	.extern							syscall_fexecve
@@ -160,7 +160,7 @@
 	.type	syscall_threadexit,		@function
 	.type	syscall_tfork,			@function
 	.type	syscall_threadcreate,	@function
-	.type	syscall_getthreadid,	@function
+	.type	syscall_getthreadcount,	@function
 	.type	syscall_threadjoin,		@function
 	.type	syscall_threaddetach,	@function
 	.type	syscall_fexecve,		@function
@@ -241,7 +241,7 @@ syscall_vec:
 	.quad	syscall_threadexit		// 54
 	.quad	syscall_tfork			// 55
 	.quad	syscall_threadcreate	// 56
-	.quad	syscall_getthreadid		// 57
+	.quad	syscall_getthreadcount		// 57
 	.quad	syscall_threadjoin		// 58
 	.quad	syscall_threaddetach	// 59
 	.quad	syscall_fexecve			// 60

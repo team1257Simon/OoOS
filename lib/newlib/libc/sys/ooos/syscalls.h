@@ -47,7 +47,7 @@ typedef unsigned long sigset_t;
 #define SYSCVEC_N_threadexit	54
 #define SYSCVEC_N_tfork			55
 #define SYSCVEC_N_threadcreate	56
-#define SYSCVEC_N_getthreadid	57
+#define SYSCVEC_N_threadcount	57
 #define SYSCVEC_N_threadjoin	58
 #define SYSCVEC_N_threaddetach	59
 #define SYSCVEC_N_fexecve		60
@@ -106,6 +106,7 @@ int escalate(const char* pw);
 login_result urevert();
 int setuid(uid_t uid);
 int setgid(gid_t gid);
+size_t threadcount();
 #define SYSCVEC_ARG(name) "0"(SYSCVEC_N_##name)
 #define XSYSCALL0(name, ret) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name) : "memory", "%r11", "%rcx")
 #define XSYSCALL1(name, ret, arg0) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0) : "memory", "%r11", "%rcx")
@@ -114,7 +115,7 @@ int setgid(gid_t gid);
 #define XSYSCALL6(name, ret, arg0, arg1, arg2, arg3, arg4, arg5) asm volatile("syscall" : "=a"(ret) : SYSCVEC_ARG(name), "D"(arg0), "S"(arg1), "d"(arg2), "r"(arg3), "r"(arg4), "r"(arg5) : "memory", "%r11", "%rcx")
 #define SYSCALL_RETVAL(type, ret) do \
 { \
-	if(__builtin_expect((signed long)(ret) < 0L, 0)) { errno = -(int)(ret); return (type)(-1); } \
+	if(__builtin_expect((signed long)(ret) < 0L && (signed long)(ret) > -4096L, 0)) { errno = -(int)(ret); return (type)(-1); } \
 	else return (type)(ret); \
 } while(0)
 #define DEF_SYSCALL0(rt, name) rt name() \
