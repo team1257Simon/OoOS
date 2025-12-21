@@ -258,17 +258,13 @@ namespace std
 	namespace ranges::__cust_access
 	{
 		using std::__detail::__class_or_enum;
-		struct __decay_copy final { template<typename T> constexpr decay_t<T> operator()(T&& __t) const { return forward<T>(__t); } } inline constexpr __decay_copy{};
-		template<typename T> concept __member_begin = requires(T& __t) { { __decay_copy(__t.begin()) } -> input_or_output_iterator; };
-		void begin(auto&) = delete;
-		void begin(const auto&) = delete;
-		template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
-		template<typename T> requires(is_array_v<T> || __member_begin<T&> || __adl_begin<T&>) auto __begin(T& __t) { if constexpr (is_array_v<T>) return __t + 0; else if constexpr (__member_begin<T&>) return __t.begin(); else return begin(__t); }
+		void begin() = delete;
+		template<typename T> concept __member_begin		= requires(T& __t) { { __decay_copy(__t.begin()) } -> input_or_output_iterator; };
+		template<typename T> concept __adl_begin		= __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
+		template<typename T> concept __cust_beginnable	= (is_array_v<T> || __member_begin<T&> || __adl_begin<T&>);
+		template<__cust_beginnable T> constexpr auto __begin(T& __t) { if constexpr(is_array_v<T>) return __t + 0; else if constexpr(__member_begin<T&>) return __t.begin(); else return begin(__t); }
 	}
-	namespace __detail
-	{
-		template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(declval<T&>()));
-	}
+	namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(declval<T&>())); }
 #pragma region nonstandard useful concepts and typedefs
 	extension template<typename IT, typename T2> concept matching_input_iterator = input_iterator<IT> && __detail::__points_to<IT, T2>;
 	extension template<typename IT, typename T2> concept matching_forward_iterator = forward_iterator<IT> && __detail::__points_to<IT, T2>;

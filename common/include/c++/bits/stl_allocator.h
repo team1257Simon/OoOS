@@ -39,9 +39,12 @@ namespace std
 				if consteval { return new T[n]; }
 			std::size_t total = n * __size_val;
 			if consteval { return static_cast<T*>(operator new(total, static_cast<std::align_val_t>(__align_val))); }
-			return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total));
+			return static_cast<T*>(__builtin_memset(operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total));
 		}
-		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
+		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const {
+			if consteval { delete[] ptr; }
+			else { operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
+		}
 	};
 	namespace __detail
 	{
@@ -146,17 +149,32 @@ namespace std
 	extension template<typename T, allocator_object<T> AT	= allocator<T>>
 	[[nodiscard]] constexpr T* resize(T* array, size_t ocount, size_t ncount, AT const& alloc = AT())
 	{
-		if(__builtin_expect(!array, false)) return alloc.allocate(ncount);
-		if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
-		if constexpr(!std::is_trivially_destructible_v<T>)
+		if consteval
 		{
 			T* result		= alloc.allocate(ncount);
-			size_t ccount	= ncount < ocount ? ncount : ocount;
-			for(size_t i = 0; i < ccount; i++) { new(addressof(result[i])) T(std::move(array[i])); }
+			for(size_t i	= 0UZ; i < (ocount < ncount ? ocount : ncount); i++)
+			{
+				if constexpr(std::is_assignable_v<decltype(result[i]), decltype(std::move(array[i]))>)
+					result[i]	= std::move(array[i]);
+				else new(result + i) T(std::move(array[i]));
+			}
 			alloc.deallocate(array, ocount);
 			return result;
 		}
-		else { return static_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
+		else
+		{
+			if(__builtin_expect(!array, false)) return alloc.allocate(ncount);
+			if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
+			if constexpr(!std::is_trivially_destructible_v<T>)
+			{
+				T* result		= alloc.allocate(ncount);
+				size_t ccount	= ncount < ocount ? ncount : ocount;
+				for(size_t i	= 0UZ; i < ccount; i++) new(addressof(result[i])) T(std::move(array[i]));
+				alloc.deallocate(array, ocount);
+				return result;
+			}
+			else { return static_cast<T*>(__detail::__aligned_reallocate(array, ncount * sizeof(T), alignof(T))); }
+		}
 	}
 #pragma endregion
 }

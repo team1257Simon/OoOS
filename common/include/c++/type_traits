@@ -127,7 +127,7 @@ namespace std
 	template<typename T> struct is_arithmetic : public __or_<is_integral<T>, is_floating_point<T>>::type {};
 	template<typename T> struct is_fundamental : public __or_<is_arithmetic<T>, is_void<T>, is_null_pointer<T>>::type {};
 	template<typename> struct is_member_pointer;
-	template<typename T> struct is_scalar: public __or_<is_arithmetic<T>, is_enum<T>, is_pointer<T>, is_member_pointer<T>, is_null_pointer<T>>::type {};
+	template<typename T> struct is_scalar : public __or_<is_arithmetic<T>, is_enum<T>, is_pointer<T>, is_member_pointer<T>, is_null_pointer<T>>::type {};
 	template<typename T> struct is_compound : public __bool_constant<!is_fundamental <T>::value> {};
 	template<typename T> struct __is_member_pointer_helper : public false_type {};
 	template<typename T, typename CT> struct __is_member_pointer_helper<T CT::*> : public true_type {};
@@ -137,7 +137,7 @@ namespace std
 	extension template<typename T> using __is_signed_integer = __is_one_of<__remove_cv_t<T>, signed char, signed short, signed int, signed long, signed long long>;
 	extension template<typename T> using __is_unsigned_integer = __is_one_of<__remove_cv_t<T>, unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long>;
 	template<typename T> using __is_standard_integer = __or_<__is_signed_integer<T>, __is_unsigned_integer<T>>;
-	template<typename T> struct is_object : public __or_<is_scalar<T>, is_array<T>, is_union<T>, is_class<T>>::type {};
+	template<typename T> struct is_object : public bool_constant<__is_object(T)> {};
 	template<typename ... Ts> using __void_t = void;
 	template<typename> struct is_const : public false_type {};
 	template<typename T> struct is_const<T const> : public true_type {};
@@ -306,6 +306,7 @@ namespace std
 	template<> struct make_signed<bool const>;
 	template<> struct make_signed<bool volatile>;
 	template<> struct make_signed<bool const volatile>;
+	template<typename T> using make_unsigned_t = typename make_unsigned<T>::type;
 	template<typename T> using make_signed_t = typename make_signed<T>::type;
 	template<typename T> struct remove_extent { using type = T; };
 	template<typename T, size_t S> struct remove_extent<T[S]> { using type = T; };
@@ -630,4 +631,9 @@ namespace std
 	using ::size_t;
 	using ::nullptr_t;
 }
+#if __cpp_auto_cast
+#define __decay_copy(x) auto(x)
+#else
+#define __decay_copy(x) decay_t<decltype((x))>(x)
+#endif
 #endif

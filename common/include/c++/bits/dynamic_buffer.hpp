@@ -104,7 +104,8 @@ namespace std::__impl
 		template<allocator_object<__value_type> A>
 		constexpr void __destroy(A& alloc)
 		{
-			if(__unlikely(!__begin)) return;
+			if consteval { if(!__begin) return; }
+			else { if(__unlikely(!__begin)) return; }
 			if constexpr(!std::is_trivially_destructible_v<__value_type>)
 				for(__pointer p = __begin; p < __end; p++)
 					p->~T();
@@ -114,7 +115,8 @@ namespace std::__impl
 		template<allocator_object<__value_type> A>
 		constexpr void __create(A& alloc, __size_type cap)
 		{
-			if(__unlikely(__begin != nullptr)) this->__destroy(alloc);
+			if consteval { if(__begin != nullptr) this->__destroy(alloc); }
+			else { if(__unlikely(__begin != nullptr)) this->__destroy(alloc); }
 			__begin	= alloc.allocate(cap);
 			__end	= __begin;
 			__cap	= cap;
@@ -126,7 +128,7 @@ namespace std::__impl
 				__begin		= alloc.resize(__begin, ncur, ncap);
 			else __begin	= resize(__begin, __cap, ncap, alloc);
 			__cap			= ncap;
-			if(__unlikely(ncur > __cap))
+			if(ncur > __cap)
 				ncur		= __cap;
 			__end			= __begin + ncur;
 		}
@@ -222,7 +224,8 @@ namespace std::__impl
 		template<allocator_object<__value_type> A>
 		constexpr void __create(A& a, __size_type sz)
 		{
-			if(__unlikely(__beg() != nullptr)) this->__destroy(a);
+			if consteval { if(__beg() != nullptr) this->__destroy(a); }
+			else { if(__unlikely(__beg() != nullptr)) this->__destroy(a); }
 			if(sz > __local_capacity)
 			{
 				__pointer result	= a.allocate(sz);
@@ -444,13 +447,18 @@ namespace std::__impl
 		}
 		constexpr void __construct_element(__pointer pos, T const& t)
 		{
-			if(__unlikely(__out_of_range(pos))) return;
+			if consteval { if(__out_of_range(pos)) return; }
+			else { if(__unlikely(__out_of_range(pos))) return; }
 			construct_at(pos, t);
 			if(pos > __cur()) __setc(pos);
 		}
 		constexpr __pointer __assign_elements(__size_type count, T const& t)
 		{
-			if(count > __capacity() && __unlikely(!__grow_buffer(count - __capacity()))) return nullptr;
+			if(count > __capacity())
+			{
+				if consteval { __grow_buffer(count - __capacity()); }
+				else { if(__unlikely(!__grow_buffer(count - __capacity()))) return nullptr; }
+			}
 			__set(__beg(), t, count);
 			__setc(count);
 			if(count < __size()) __zero(__cur(), __size() - count);
@@ -459,7 +467,11 @@ namespace std::__impl
 		constexpr __pointer __assign_elements(__const_pointer start, __const_pointer end)
 		{
 			__size_type count	= end - start;
-			if(count > __capacity() && __unlikely(!__grow_buffer(count - __capacity()))) return nullptr;
+			if(count > __capacity())
+			{
+				if consteval { __grow_buffer(count - __capacity()); }
+				else { if(__unlikely(!__grow_buffer(count - __capacity()))) return nullptr; }
+			}
 			__copy(__beg(), start, count);
 			__setc(count);
 			if(count < __size()) __zero(__cur(), __size() - count);
@@ -474,7 +486,11 @@ namespace std::__impl
 		constexpr __pointer __append_elements(__size_type count, T const& t)
 		{
 			__size_type bsz		= __size();
-			if(!(__max() > __cur() + count) && __unlikely(!__grow_buffer(static_cast<__size_type>(count - __rem())))) return nullptr;
+			if(!(__max() > __cur() + count))
+			{
+				if consteval { __grow_buffer(static_cast<__size_type>(count - __rem())); }
+				else { if(__unlikely(!__grow_buffer(static_cast<__size_type>(count - __rem())))) return nullptr; }
+			}
 			__size_type tsz		= bsz + count;
 			__pointer pos		= __get_ptr(bsz);
 			for(__size_type i	= 0UZ; i < count; i++) construct_at(pos + i, t);
@@ -484,7 +500,11 @@ namespace std::__impl
 		constexpr __pointer __append_element(T const& t)
 		{
 			__size_type bsz		= __size();
-			if(!(__max() > __cur()) && __unlikely(!__grow_buffer(1UZ))) return nullptr;
+			if(!(__max() > __cur()))
+			{
+				if consteval { __grow_buffer(1UZ); }
+				else { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; }
+			}
 			construct_at(__get_ptr(bsz), t);
 			__setc(bsz + 1UZ);
 			return __cur();
@@ -502,16 +522,15 @@ namespace std::__impl
 			else { __backtrack(how_many); __zero(__cur(), how_many); }
 			return __cur();
 		}
-		constexpr void __destroy()
-		{
-			if(__unlikely(!this->__beg()))
-				return;
-			__my_data.__destroy();
+		constexpr void __destroy() {
+			if(this->__beg())
+				__my_data.__destroy();
 		}
 		constexpr void __copy_assign(__dynamic_buffer const& that)
 		{
 			__destroy();
-			if(__unlikely(!that.__beg())) return;
+			if consteval { if(!that.__beg()) return; }
+			else{ if(__unlikely(!that.__beg())) return; }
 			if constexpr(__has_copy_propagate<__allocator_type>)
 				*static_cast<__allocator_type*>(std::addressof(this->__my_data)) = that.__get_alloc();
 			__allocate_storage(that.__capacity());
@@ -529,10 +548,10 @@ namespace std::__impl
 	template<matching_input_iterator<T> IT>
 	constexpr void __dynamic_buffer<T, A, NTS>::__transfer(__pointer where, IT start, IT end)
 	{
-		if(__unlikely(!(end > start))) return;
 		if consteval { array_init(where, start, end); }
 		else
 		{
+			if(__unlikely(!(end > start))) return;
 			if constexpr(contiguous_iterator<IT>)
 				array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end)));
 			else for(IT i = start; i != end; i++, where++)
@@ -587,8 +606,7 @@ namespace std::__impl
 		__size_type cur_capacity	= __capacity();
 		__size_type target 			= cur_capacity + added + (__using_sso ? 1UZ : 0UZ);
 		__data_resize(num_elements + (__using_sso ? added : 0UZ), target);
-		if(__unlikely(!__cur())) return false;	// No-throw allocators will return null if they fail
-		return true;
+		return __cur() != nullptr;	// No-throw allocators will return null if they fail
 	}
 	template<typename T, allocator_object<T> A, bool NTS>
 	template<matching_input_iterator<T> IT>
@@ -599,7 +617,11 @@ namespace std::__impl
 		__size_type num	= distance(start_it, end_it);
 		__size_type bsz	= __size();
 		__size_type tsz	= bsz + num;
-		if((!__beg() || num > rem) && __unlikely(!__grow_buffer(num - rem))) return nullptr;
+		if((!__beg() || num > rem))
+		{
+			if consteval { __grow_buffer(num - rem); }
+			else { if(__unlikely(!__grow_buffer(num - rem))) return nullptr; }
+		}
 		__transfer(__get_ptr(bsz), start_it, end_it);
 		__setc(tsz);
 		return __cur();
@@ -609,7 +631,8 @@ namespace std::__impl
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer
 	__dynamic_buffer<T, A, NTS>::__insert_elements(__const_pointer pos, IT start_ptr, IT end_ptr)
 	{
-		if(__unlikely(__out_of_range(pos))) return nullptr;
+		if consteval {}
+		else { if(__unlikely(__out_of_range(pos))) return nullptr; }
 		__pointer ncpos				= __get_ptr(__diff(pos));
 		__size_type range_size	= distance(start_ptr, end_ptr);
 		__size_type offs		= __diff(pos);
@@ -658,7 +681,8 @@ namespace std::__impl
 	requires(constructible_from<T, Args...>)
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__emplace_element(__const_pointer pos, Args&& ... args)
 	{
-		if(__unlikely(pos < this->__beg())) return nullptr;
+		if consteval {}
+		else { if(__unlikely(pos < this->__beg())) return nullptr; }
 		if(pos >= __max()) return __emplace_at_end(forward<Args>(args)...);
 		__size_type start_pos	= __diff(pos);
 		__size_type rem			= __ediff(pos);
@@ -671,12 +695,16 @@ namespace std::__impl
 		__assign_ptrs(nwdat);
 		return result;
 	}
-	template <typename T, allocator_object<T> A, bool NTS>
-	template <typename ... Args>
+	template<typename T, allocator_object<T> A, bool NTS>
+	template<typename ... Args>
 	requires(constructible_from<T, Args...>)
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__emplace_at_end(Args && ...args)
 	{
-		if(__size() == __capacity() && __unlikely(!__grow_buffer(1UZ))) return nullptr;
+		if(__size() == __capacity())
+		{
+			if consteval { __grow_buffer(1UZ); }
+			else { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; }
+		}
 		__pointer p	= construct_at(__cur(), forward<Args>(args)...);
 		__advance(1UZ);
 		return p;
@@ -684,7 +712,8 @@ namespace std::__impl
 	template<typename T, allocator_object<T> A, bool NTS>
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__erase_range(__const_pointer start, __const_pointer end)
 	{
-		if(__unlikely(__out_of_range(start, end))) return nullptr;
+		if consteval {}
+		else { if(__unlikely(__out_of_range(start, end))) return nullptr; }
 		__size_type how_many	= end - start;
 		__size_type rem			= __ediff(end);
 		__size_type start_pos	= __diff(start);
