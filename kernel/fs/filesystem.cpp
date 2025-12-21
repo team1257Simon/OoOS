@@ -142,7 +142,7 @@ pipe_pair filesystem::mkpipe()
 	while(current_open_files.contains(second_fd)) second_fd++;
 	pipe_vnode* second_pipe	= pipes.emplace(second_fd, id).first.base();
 	register_fd(second_pipe);
-	return pipe_pair{ .in = first_pipe, .out = second_pipe };
+	return pipe_pair(first_pipe, second_pipe);
 }
 pipe_pair filesystem::mkpipe(directory_vnode*, std::string const& name)
 {
@@ -155,7 +155,7 @@ pipe_pair filesystem::mkpipe(directory_vnode*, std::string const& name)
 	while(current_open_files.contains(second_fd)) second_fd++;
 	pipe_vnode* second_pipe	= pipes.emplace(name, second_fd, id).first.base();
 	register_fd(second_pipe);
-	return pipe_pair{ .in = first_pipe, .out = second_pipe };
+	return pipe_pair(first_pipe, second_pipe);
 }
 bool filesystem::xunlink(directory_vnode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {

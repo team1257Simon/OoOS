@@ -3,40 +3,40 @@
 #include <module.hpp>
 struct amd64_ahci;
 #pragma region magic_numbers
-constexpr uint32_t sig_sata 					= 0x00000101U;
-constexpr uint32_t sig_atapi 					= 0xEB140101U;
-constexpr uint32_t sig_semb 					= 0xC33C0101U;
-constexpr uint32_t sig_pmul 					= 0x96690101U;
-constexpr uint32_t hba_reset 					= 0x00000001U;
-constexpr uint16_t hba_cmd_start 				= 0x0001US;
-constexpr uint16_t hba_command_spin_up_disk 	= 0x0002US;
+constexpr uint32_t	sig_sata 						= 0x00000101U;
+constexpr uint32_t	sig_atapi 						= 0xEB140101U;
+constexpr uint32_t	sig_semb 						= 0xC33C0101U;
+constexpr uint32_t	sig_pmul 						= 0x96690101U;
+constexpr uint32_t	hba_reset 						= 0x00000001U;
+constexpr uint16_t	hba_cmd_start 					= 0x0001US;
+constexpr uint16_t	hba_command_spin_up_disk	 	= 0x0002US;
 constexpr uint8_t	hba_sud_bit 					= 0x01UC;
-constexpr uint16_t hba_command_fre 				= 0x0010US;
-constexpr uint16_t hba_command_fr					= 0x4000US;
-constexpr uint16_t hba_command_cr					= 0x8000US;
-constexpr uint16_t hba_control_det 				= 0x0001US;
-constexpr uint32_t hba_enable_interrupts_all 	= 0xFDC000FFU;
-constexpr uint32_t hba_error 					= 0x78000000U;
-constexpr uint32_t hba_enable_ahci 				= 0x80000002;
-constexpr byte port_active 						= 0x01UC;
-constexpr byte port_present 					= 0x03UC;
-constexpr uint32_t port_power_on 				= 0x10000000U;
-constexpr uint8_t soft_reset_bit 				= 0x02UC;
-constexpr uint8_t nien_bit 						= 0x01UC;
-constexpr uint8_t i_state_hi_byte_error 		= 0x78UC;
-constexpr uint8_t busy_bit 						= 7UC;
-constexpr uint8_t drq_bit 						= 3UC;
-constexpr uint8_t cr_bit 						= 15UC;
-constexpr uint8_t fr_bit 						= 14UC;
-constexpr uint8_t fre_bit 						= 4UC;
-constexpr uint8_t start_bit 					= 0UC;
-constexpr uint8_t descriptor_processed_bit 		= 5UC;
-constexpr uint8_t dev_class_storage_controller 	= 1UC;
-constexpr uint8_t subclass_sata_controller 		= 6UC;
-constexpr uint8_t oos_bit 						= 2UC;
-constexpr uint8_t ooc_bit 						= 4UC;
-constexpr uint8_t bos_bit 						= 1UC;
-constexpr uint8_t bb_bit 						= 5UC;
+constexpr uint16_t	hba_command_fre 				= 0x0010US;
+constexpr uint16_t	hba_command_fr					= 0x4000US;
+constexpr uint16_t	hba_command_cr					= 0x8000US;
+constexpr uint16_t	hba_control_det 				= 0x0001US;
+constexpr uint32_t	hba_enable_interrupts_all 		= 0xFDC000FFU;
+constexpr uint32_t	hba_error 						= 0x78000000U;
+constexpr uint32_t	hba_enable_ahci 				= 0x80000002;
+constexpr byte		port_active 					= 0x01UC;
+constexpr byte		port_present 					= 0x03UC;
+constexpr uint32_t	port_power_on 					= 0x10000000U;
+constexpr uint8_t	soft_reset_bit 					= 0x02UC;
+constexpr uint8_t	nien_bit 						= 0x01UC;
+constexpr uint8_t	i_state_hi_byte_error 			= 0x78UC;
+constexpr uint8_t	busy_bit 						= 7UC;
+constexpr uint8_t	drq_bit 						= 3UC;
+constexpr uint8_t	cr_bit 							= 15UC;
+constexpr uint8_t	fr_bit 							= 14UC;
+constexpr uint8_t	fre_bit 						= 4UC;
+constexpr uint8_t	start_bit 						= 0UC;
+constexpr uint8_t	descriptor_processed_bit 		= 5UC;
+constexpr uint8_t	dev_class_storage_controller	= 1UC;
+constexpr uint8_t	subclass_sata_controller 		= 6UC;
+constexpr uint8_t	oos_bit 						= 2UC;
+constexpr uint8_t	ooc_bit 						= 4UC;
+constexpr uint8_t	bos_bit 						= 1UC;
+constexpr uint8_t	bb_bit 							= 5UC;
 enum fis_type : uint8_t
 {
 	reg_h2d 		= 0x27UC,
@@ -64,7 +64,7 @@ enum ata_command : uint8_t
 	read_stream_dma_ext 		= 0x2AUC,
 	read_stream_ext 			= 0x2BUC,
 	read_log_ext 				= 0x2FUC,
-	write_sectors_pio				= 0x30UC,	// 8-bit
+	write_sectors_pio			= 0x30UC,	// 8-bit
 	write_sectors_pio_ext 		= 0x34UC,	// 16-bit
 	write_dma_ext 				= 0x35UC,
 	cfa_write_headers_no_erase 	= 0x38UC,
@@ -138,11 +138,11 @@ enum ahci_device : uint8_t
 };
 struct __pack identify_data
 {
-	uint16_t low_data[60]; // this data isn't that useful at the moment
+	uint16_t low_data[60];			// this data isn't that useful at the moment
 	uint32_t logical_sectors_28b;
-	uint16_t mid_data[26]; // more things we don't need yet
+	uint16_t mid_data[26];			// more things we don't need yet
 	uint16_t udma_modes;
-	uint16_t more_data[11]; // yet more things we don't need yet
+	uint16_t more_data[11];			// yet more things we don't need yet
 	uint64_t logical_sectors_48b;
 	uint16_t transfer_time;
 	uint16_t high_data[150];
@@ -160,12 +160,12 @@ struct __pack fis_reg_h2d
 	uint8_t	lba0;			// LBA low register, 7:0
 	uint8_t	lba1;			// LBA mid register, 15:8
 	uint8_t	lba2;			// LBA high register, 23:16
-	uint8_t	device;		// Device register
+	uint8_t	device;			// Device register
 	// DWORD 2
 	uint8_t	lba3;			// LBA register, 31:24
 	uint8_t	lba4;			// LBA register, 39:32
 	uint8_t	lba5;			// LBA register, 47:40
-	uint8_t	feature_hi;	// Feature register, 15:8
+	uint8_t	feature_hi;		// Feature register, 15:8
 	// DWORD 3
 	uint16_t count;
 	uint8_t	icc;			// Isochronous command completion
@@ -180,24 +180,24 @@ struct __pack fis_reg_d2h
 	uint8_t	rsv0		: 2;	// Reserved
 	uint8_t	interrupt	: 1;	// Interrupt bit
 	uint8_t	rsv1		: 1;	// Reserved
-	uint8_t	status;			// Status register
+	uint8_t	status;				// Status register
 	uint8_t	error;				// Error register
 	// DWORD 1
-	uint8_t	lba0;			// LBA low register, 7:0
-	uint8_t	lba1;			// LBA mid register, 15:8
-	uint8_t	lba2;			// LBA high register, 23:16
-	uint8_t	device;		// Device register
+	uint8_t	lba0;				// LBA low register, 7:0
+	uint8_t	lba1;				// LBA mid register, 15:8
+	uint8_t	lba2;				// LBA high register, 23:16
+	uint8_t	device;				// Device register
 	// DWORD 2
-	uint8_t	lba3;			// LBA register, 31:24
-	uint8_t	lba4;			// LBA register, 39:32
-	uint8_t	lba5;			// LBA register, 47:40
-	uint8_t	rsv2;			// Reserved
+	uint8_t	lba3;				// LBA register, 31:24
+	uint8_t	lba4;				// LBA register, 39:32
+	uint8_t	lba5;				// LBA register, 47:40
+	uint8_t	rsv2;				// Reserved
 	// DWORD 3
-	uint8_t	countl;		// Count register, 7:0
-	uint8_t	counth;		// Count register, 15:8
-	uint8_t	rsv3[2];		// Reserved
+	uint8_t	countl;				// Count register, 7:0
+	uint8_t	counth;				// Count register, 15:8
+	uint8_t	rsv3[2];			// Reserved
 	// DWORD 4
-	uint8_t	rsv4[4];		// Reserved
+	uint8_t	rsv4[4];			// Reserved
 };
 struct __pack fis_data
 {
@@ -306,27 +306,27 @@ struct __pack hba_cmd_table
 struct __pack hba_cmd_header
 {
 	// DW0
-	uint8_t	cmd_fis_len			: 5;		// Command FIS length in DWORDS, 2 ~ 16
-	bool		atapi			: 1;		// ATAPI
-	bool		w_direction		: 1;		// Write, 1: H2D, 0: D2H
-	bool		prefetch		: 1;		// Prefetchable
-	bool		reset			: 1;		// Reset
-	bool		bist			: 1;		// BIST
-	uint8_t	cl_busy				: 1;		// Clear busy upon R_OK
-	uint8_t	rsv0				: 1;		// Reserved
-	uint8_t	pm_port				: 4;		// Port multiplier port
-	uint16_t prdt_length;					// Physical region descriptor table length in entries
+	uint8_t		cmd_fis_len			: 5;		// Command FIS length in DWORDS, 2 ~ 16
+	bool		atapi				: 1;		// ATAPI
+	bool		w_direction			: 1;		// Write, 1: H2D, 0: D2H
+	bool		prefetch			: 1;		// Prefetchable
+	bool		reset				: 1;		// Reset
+	bool		bist				: 1;		// BIST
+	uint8_t		cl_busy				: 1;		// Clear busy upon R_OK
+	uint8_t		rsv0				: 1;		// Reserved
+	uint8_t		pm_port				: 4;		// Port multiplier port
+	uint16_t	prdt_length;					// Physical region descriptor table length in entries
 	// DW1
-	volatile uint32_t prd_count;			// Physical region descriptor byte count transferred
+	volatile uint32_t	prd_count;				// Physical region descriptor byte count transferred
 	// DW2, 3
-	hba_cmd_table* command_table;
+	hba_cmd_table*		command_table;
 	// DW4 - 7
-	uint32_t rsv1[4];						// Reserved
+	uint32_t rsv1[4];							// Reserved
 };
 typedef volatile struct __pack tport
 {
 	hba_cmd_header* command_list;
-	hba_fis* 	fis_receive;
+	hba_fis*		fis_receive;
 	uint32_t		i_state;	// 0x10, interrupt status
 	uint32_t		i_enable;	// 0x14, interrupt enable
 	uint32_t		cmd;		// 0x18, command and status
@@ -340,8 +340,8 @@ typedef volatile struct __pack tport
 	uint32_t		cmd_issue;	// 0x38, command issue
 	uint32_t		s_notif;	// 0x3C, SATA notification (SCR4:SNotification)
 	uint32_t		fb_switch;	// 0x40, FIS-based switch control
-	uint32_t 	rsv1[11];		// 0x44 ~ 0x6F, Reserved
-	uint32_t 	vendor[4];		// 0x70 ~ 0x7F, vendor specific
+	uint32_t 		rsv1[11];	// 0x44 ~ 0x6F, Reserved
+	uint32_t 		vendor[4];	// 0x70 ~ 0x7F, vendor specific
 } hba_port;
 typedef volatile struct __pack tmem
 {

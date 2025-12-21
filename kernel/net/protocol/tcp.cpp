@@ -81,7 +81,7 @@ void tcp_header::compute_tcp_checksum()
 	size_t num_words			= tcp_length / sizeof(net16);
 	if((tcp_length % 2) != 0)
 		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
-	for(size_t i = 0; i < num_words; i++) intermediate_csum += words[i];
+	for(size_t i = 0UZ; i < num_words; i++) intermediate_csum += words[i];
 	dword dw_csum				= intermediate_csum;
 	intermediate_csum			= dw_csum.hi + dw_csum.lo;
 	dw_csum						= intermediate_csum;
@@ -118,7 +118,7 @@ constexpr static time_t abs_diff(time_t a, time_t b)
 }
 void tcp_transmission_timer::update()
 {
-	time_t r = stopwatch.split();
+	time_t r						= stopwatch.split();
 	if(smoothed_round_trip_time)
 	{
 		round_trip_time_variation	*= 3UZ;
