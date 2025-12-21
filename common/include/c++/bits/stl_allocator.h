@@ -32,7 +32,13 @@ namespace std
 		constexpr __base_allocator(__base_allocator const&) noexcept = default;
 		constexpr ~__base_allocator()				= default;
 		template<class U> constexpr __base_allocator(__base_allocator<U, alignof(U)> const&) noexcept {}
-		[[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const { if(!n) return nullptr; std::size_t total = n * __size_val; return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total)); }
+		[[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const
+		{
+			if(!n) return nullptr;
+			if consteval { return new T[n]; }
+			std::size_t total = n * __size_val;
+			return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total));
+		}
 		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
 	};
 	namespace __detail

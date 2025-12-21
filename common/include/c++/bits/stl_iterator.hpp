@@ -53,7 +53,8 @@ namespace std
 	template<std::input_iterator IIT> constexpr inline IIT next(IIT __x, typename iterator_traits<IIT>::difference_type __n = 1) { std::advance(__x, __n); return __x; }
 	template<std::bidirectional_iterator BIT> constexpr inline BIT prev(BIT __x, typename iterator_traits<BIT>::difference_type __n = 1)  { std::advance(__x, -__n); return __x; }
 	template<typename CT, typename LT, typename OT = CT> using __clamp_iter_cat = conditional_t<derived_from<CT, LT>, LT, OT>;
-	template<bidirectional_iterator BIT> class reverse_iterator
+	template<typename BIT>
+	class reverse_iterator
 	{
 	protected:
 		BIT current{};
@@ -82,14 +83,14 @@ namespace std
 		constexpr reverse_iterator& operator+=(difference_type __n) { current -= __n; return *this; }
 		constexpr reverse_iterator& operator-=(difference_type __n) { current += __n; return *this; }
 	};
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator==(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() == __that.base()} -> __detail::__boolean_testable;  } { return __this.base() == __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator!=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() != __that.base()} -> __detail::__boolean_testable;  } { return __this.base() != __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator <(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() > __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  > __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator >(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() < __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  < __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator<=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() >= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() >= __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr bool operator>=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() <= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() <= __that.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> requires(three_way_comparable_with<JT, IT>) constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
-	template<bidirectional_iterator IT, bidirectional_iterator JT> constexpr typename iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
+	template<typename IT, typename JT> constexpr bool operator==(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() == __that.base()} -> __detail::__boolean_testable;  } { return __this.base() == __that.base(); }
+	template<typename IT, typename JT> constexpr bool operator!=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() != __that.base()} -> __detail::__boolean_testable;  } { return __this.base() != __that.base(); }
+	template<typename IT, typename JT> constexpr bool operator <(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() > __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  > __that.base(); }
+	template<typename IT, typename JT> constexpr bool operator >(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() < __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  < __that.base(); }
+	template<typename IT, typename JT> constexpr bool operator<=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() >= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() >= __that.base(); }
+	template<typename IT, typename JT> constexpr bool operator>=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() <= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() <= __that.base(); }
+	template<typename IT, typename JT> requires(three_way_comparable_with<JT, IT>) constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
+	template<typename IT, typename JT> constexpr typename iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
 	template<__detail::__dereferenceable IT> struct deref { typedef decltype(*declval<IT>()) type; };
 	template<__detail::__dereferenceable IT> using deref_t			= typename deref<IT>::type;
 	template<indirectly_readable IT> using iter_const_reference_t	= common_reference_t<const iter_value_t<IT>&&, iter_reference_t<IT>>;

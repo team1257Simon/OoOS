@@ -403,7 +403,6 @@ namespace std::__impl
 		constexpr __dynamic_buffer(__size_type sz) : __my_data(sz) {}
 		constexpr __dynamic_buffer(__size_type sz, A const& alloc) : __my_data(alloc, sz) {}
 		constexpr __dynamic_buffer(__size_type sz, __const_reference val, A const& alloc) : __my_data(alloc, sz) { if(sz) { __set(__beg(), val, sz); __advance(sz); } }
-		constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __dynamic_buffer(__ils.begin(), __ils.end(), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that) : __dynamic_buffer(that.__beg(), that.__cur(), that.__get_alloc()) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, A const& alloc) : __dynamic_buffer(that.__beg(), that.__cur(), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), that.__cur(), alloc) {}
@@ -418,6 +417,12 @@ namespace std::__impl
 		constexpr void __assign_ptrs(__container const& c) noexcept { __my_data.__copy_ptrs(c); }
 		constexpr void __move_assign(__dynamic_buffer&& that) { this->__my_data	= std::move(that.__my_data); }
 		constexpr bool __grow_buffer_exact(__size_type added);
+		constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __my_data(alloc, __ils.size())
+		{
+			for(size_t i = 0UZ; i < __ils.size(); i++)
+				*this->__get_ptr(i)	= __ils.begin()[i];
+			this->__setc(__ils.size());
+		}
 		template<matching_input_iterator<T> IT>
 		constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __my_data(alloc, __clamp_diff(start, end))
 		{
