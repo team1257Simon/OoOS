@@ -128,6 +128,8 @@ inline task_t* current_active_task() { task_t* gsb; asm volatile("movq %%gs:0x00
 inline task_ctx* active_task_context() { task_t* task = current_active_task(); if(task && task->frame_ptr.deref<uint64_t>() == uframe_magic) return reinterpret_cast<task_ctx*>(task); else return nullptr; }
 // Shortcut because this also gets used a lot
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
+// Shortcut because I said so
+inline void write_thread_ptr(addr_t value) { asm volatile("wrfsbase %0" :: "r"(value.full) : "memory"); }
 extern "C"
 {
 	[[noreturn]] void handle_exit();

@@ -1,4 +1,5 @@
 #include <pwd.h>
+#include <string.h>
 #include "syscalls.h"
 static struct passwd local_pwent;
 static struct passwd local_pwd;
@@ -24,4 +25,17 @@ struct passwd* getpwnam(const char* name)
 	if(getvpwnam(name, &local_pwd) == 0)
 		return &local_pwd;
 	return NULL;    
+}
+const char* getlogin()
+{
+	struct passwd tmp_pw = {};
+	static char buf[32];
+	uid_t id = getuid();
+	if(getvpwuid(id, &tmp_pw) == 0)
+	{
+		memset(buf, 0, sizeof(buf));
+		strncpy(buf, tmp_pw.pw_name, sizeof(buf));
+		return buf;
+	}
+	return NULL;
 }

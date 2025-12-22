@@ -59,6 +59,7 @@ clean:
 	rm -rf $(OUT_IMG) *.bin common/include/asm-generated/* boot/*.o boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
 	cd kernel && $(MAKE) clean
 	cd headergen && $(MAKE) clean
+	cd test && $(MAKE) clean
 distclean:
 	rm -rf $(OUT_IMG) $(ATTR_PLUGIN) boot/*.o boot/uefi/*.o boot/uefi/*.a $(LOG_DIR) || true
 	rm *.bin || true

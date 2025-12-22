@@ -14,19 +14,19 @@ TARGET = $(OUTDIR)/test.elf
 CSRC = test.c
 CPPSRC = $(wildcard *.cpp)
 OBJECTS = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)
-SYM_LOG = $(LOG_DIR)/test-syms.txt
+SYM_LOG := $(LOG_DIR)/test-syms.txt
 .PHONY: all
+all: $(OBJECTS) $(OUTDIR) $(TARGET) $(SYM_LOG)
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 $(TARGET): $(OBJECTS)
 	$(LD) $(OBJECTS) $(LDFLAGS) -o $@
-all: $(OBJECTS) $(OUTDIR) $(TARGET) $(SYM_LOG)
 clean:
 	rm *.o || true
 	rm $(TARGET) || true
 $(OUTDIR) $(LOG_DIR):
 	@mkdir -p $@
-$(SYM_LOG):	$(TARGET) $(LOG_DIR)
+$(SYM_LOG):	$(TARGET)
 	$(READ) $(READFLAGS) $< > $@

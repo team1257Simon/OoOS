@@ -177,7 +177,7 @@ namespace std
 				IT j			= __abs(i);
 				for(size_t n	= 0UZ; n < __max_dec && __get_pow10(n) <= j; n++) str.append(__get_dec_digit(j, n));
 				if constexpr(std::is_signed_v<IT>) { if(i < 0) str.append(__digi_type::minus); }
-				return std::basic_string<CT>(str.rend(), str.rbegin());
+				return std::basic_string<CT>(str.rbegin(), str.rend());
 			}
 			constexpr static std::basic_string<CT> __to_hex_string(IT i)
 			{
@@ -188,7 +188,7 @@ namespace std
 				for(size_t n	= 0UZ; n < nd; n++) hstr.append(__get_hex_digit(j, n));
 				hstr.append(__digi_type::hexpref);
 				if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
-				return basic_string<CT>(hstr.rend(), hstr.rbegin());
+				return basic_string<CT>(hstr.rbegin(), hstr.rend());
 			}
 			constexpr static std::basic_string<CT> __to_bare_hex_string(IT i)
 			{
@@ -198,7 +198,7 @@ namespace std
 				IT j			= __abs(i);
 				for(size_t n	= 0UZ; n < nd; n++) hstr.append(__get_hex_digit(j, n));
 				if constexpr(std::is_signed_v<IT>) { if(i < 0) hstr.append(__digi_type::minus); }
-				return basic_string<CT>(hstr.rend(), hstr.rbegin());
+				return basic_string<CT>(hstr.rbegin(), hstr.rend());
 			}
 		};
 		inline std::string __fptocs_conv(float f, int digits)

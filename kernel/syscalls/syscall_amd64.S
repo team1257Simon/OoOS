@@ -233,7 +233,7 @@ syscall_vec:
 	.quad	syscall_threadexit		// 54
 	.quad	syscall_tfork			// 55
 	.quad	syscall_threadcreate	// 56
-	.quad	syscall_getthreadcount		// 57
+	.quad	syscall_getthreadcount	// 57
 	.quad	syscall_threadjoin		// 58
 	.quad	syscall_threaddetach	// 59
 	.quad	syscall_fexecve			// 60

@@ -33,6 +33,8 @@ DEF_SYSCALL3(int, mknod, const char*, path, mode_t, mode, dev_t, dev)
 DEF_SYSCALL1(int, escalate, const char*, pw)
 DEF_SYSCALL1(int, setuid, uid_t, id)
 DEF_SYSCALL1(int, setgid, gid_t, id)
+DEF_SYSCALL0(uid_t, getuid)
+DEF_SYSCALL0(gid_t, getgid)
 DEF_SYSCALL0(size_t, threadcount)
 void _exit(int code) {
 	asm volatile("syscall" :: "a"(SYSCVEC_N_exit), "D"(code) : "memory", "%r11", "%rcx");

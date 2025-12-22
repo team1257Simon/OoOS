@@ -10,11 +10,11 @@ namespace ooos
 	{
 		lock_thread_mutex(thread);
 		std::tuple<pid_t> id_tuple			= std::tuple<pid_t>(thread.ctl_info.thread_id);
-		size_t target_size					= base_offsets.size() + 1UZ;
+		size_t target_size					= base_offsets.size();
 		dtv_by_thread_id::iterator result	= __dtv_map.emplace(std::piecewise_construct, id_tuple, std::forward_as_tuple(target_size, nullptr, __dtv_alloc)).first;
 		dynamic_thread_vector& vec			= result->second;
-		for(size_t i = 0UZ; i < base_offsets.size(); i++)
-			vec[i + 1]						= addr_t(thread.self).minus(base_offsets[i]);
+		for(size_t i = 1UZ; i < base_offsets.size(); i++)
+			vec[i]							= addr_t(thread.self).minus(base_offsets[i]);
 		thread.dtv_ptr 						= std::addressof(vec);
 		unlock_thread_mutex(thread);
 	}

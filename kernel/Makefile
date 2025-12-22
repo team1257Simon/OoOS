@@ -29,7 +29,7 @@ OBJ_SYMS = $(addprefix $(LOG_DIR)/,$(OBJECT_NAMES:%.o=%-syms.txt))
 CRTBEGIN := $(shell $(CC) $(CCFLAGS) -print-file-name=crtbegin.o)
 CRTEND := $(shell $(CC) $(CCFLAGS) -print-file-name=crtend.o)
 ASM_TEST = $(CPPSRC:%.cpp=%.test.asm) $(CSRC:%.c=%.test.asm)
-SYM_LOG = $(LOG_DIR)/ooos-syms.txt
+SYM_LOG := $(LOG_DIR)/ooos-syms.txt
 .PHONY: all asmtest
 all: $(OUTDIR) $(OSUBDIRS) $(OBJDIR) $(LSUBDIRS) $(OUT_ELF) $(SYM_LOG) $(OBJ_SYMS)
 asmtest: $(ASM_TEST)

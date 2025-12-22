@@ -39,6 +39,6 @@ $(OBJDIR)/%.o: %.c
 	$(CC) $(CCFLAGS) -S $< -o $@
 $(SYM_LOG): $(OUT_A)
 	$(READ) $(READFLAGS) $< > $@
-asmtest:$(ASM_TEST)
+asmtest: $(ASM_TEST)
 clean:
 	rm $(ASM_TEST) > /dev/null 2>/dev/null || true

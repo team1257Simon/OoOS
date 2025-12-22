@@ -50,14 +50,14 @@ namespace std
 			constexpr iterator end() { return iterator(this->__end()); }
 			constexpr const_iterator cend() const { return const_iterator(this->__end()); }
 			constexpr const_iterator end() const { return cend(); }
-			constexpr reverse_iterator rbegin() { return reverse_iterator(begin()); }
-			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cbegin()); }
+			constexpr reverse_iterator rbegin() { return reverse_iterator(end()); }
+			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
 			constexpr const_reverse_iterator rbegin() const { return crbegin(); }
 			extension constexpr reverse_iterator rcurrent() { return reverse_iterator(ccurrent()); }
 			extension constexpr const_reverse_iterator crcurrent() const { return const_reverse_iterator(ccurrent()); }
 			extension constexpr const_reverse_iterator rcurrent() const { return crcurrent(); }
-			constexpr reverse_iterator rend() { return reverse_iterator(end()); }
-			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cend()); }
+			constexpr reverse_iterator rend() { return reverse_iterator(begin()); }
+			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 			constexpr const_reverse_iterator rend() const { return crend(); }
 			constexpr void push(value_type const& value) { this->__push_elements(value, 1UL); }
 			constexpr void push(value_type&& value) { this->__push_elements(move(value), 1UL); }

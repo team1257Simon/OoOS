@@ -7,7 +7,7 @@
 #include <isr_table.hpp>
 #include <kernel_mm.hpp>
 #include <prog_manager.hpp>
-typedef std::pair<elf64_sym, addr_t> sym_pair;
+typedef std::pair<elf64_sym, elf64_dynamic_object*> sym_pair;
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
 constexpr static addr_t pml4_of(addr_t frame) noexcept { return frame.deref<uframe_tag>().pml4; }
@@ -31,8 +31,10 @@ static inline void init_fx(fx_state& fx)
 	array_zero(fx.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
 	array_zero(fx.stmm, sizeof(fx_state::stmm) / sizeof(long double));
 }
-static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
+static sym_pair tls_search(elf64_dynamic_object* obj, task_ctx* task, elf64_rela const& r)
 {
+	if(r.r_info.type == R_X86_64_DPTMOD64) return sym_pair(elf64_sym(), obj);
+	const char* name			= obj->symbol_name(obj->get_sym(r.r_info.sym_index));
 	elf64_shared_object* so		= dynamic_cast<elf64_shared_object*>(obj);
 	if(so && so->is_symbolic())
 	{
@@ -138,7 +140,8 @@ task_ctx::task_ctx(task_ctx const& that) :
 		.fxsv				{ that.task_struct.fxsv },
 		.tls_master			{ that.task_struct.tls_master },
 		.tls_size			{ that.task_struct.tls_size },
-		.tls_align			{ that.task_struct.tls_align }
+		.tls_align			{ that.task_struct.tls_align },
+		.thread_ptr			{ that.task_struct.thread_ptr }
 	},
 	child_tasks				{},
 	arg_vec					{ that.arg_vec },
@@ -460,6 +463,7 @@ bool task_ctx::set_fork()
 			kmm.map_to_current_frame(so->segment_blocks());
 			kmm.exit_frame();
 		}
+		if(!tls_modules.size()) return true;
 		if(opened_directories.empty()) return true;
 		std::map<int, posix_directory> old_dirs(std::move(opened_directories));
 		opened_directories.clear();
@@ -552,6 +556,19 @@ void task_ctx::tls_assemble()
 	};
 	std::vector<tls_sub_block> sub_blocks;
 	std::vector<elf64_dynamic_object*> modules_with_tls;
+	if(local_so_map)
+	{
+		for(elf64_shared_object& so : *local_so_map)
+		{
+			if(addr_t tls_addr	= so.module_tls())
+			{
+				addr_t real		= frame.translate(tls_addr);
+				if(!real) throw std::out_of_range("[EXEC/THREAD] TLS virtual address fault in shared object: " + so.get_soname());
+				sub_blocks.emplace_back(so.module_tls_size(), so.module_tls_align(), real);
+				modules_with_tls.push_back(std::addressof(so));
+			}
+		}
+	}
 	for(elf64_shared_object* so : attached_so_handles)
 	{
 		if(addr_t tls_addr	= so->module_tls())
@@ -573,9 +590,11 @@ void task_ctx::tls_assemble()
 	}
 	if(__unlikely(sub_blocks.empty())) return;	// no TLS -> nothing to do
 	size_t midx 			= 1UZ;
-	for(std::vector<elf64_dynamic_object*>::reverse_iterator i = modules_with_tls.rbegin(); i != modules_with_tls.rend(); i++, midx++) {
-		(*i)->module_tls_index(midx);
-		tls_modules.push_back(*i);
+	for(std::vector<elf64_dynamic_object*>::reverse_iterator i = modules_with_tls.rbegin(); i != modules_with_tls.rend(); i++, midx++)
+	{
+		elf64_dynamic_object* o	= *i;
+		o->module_tls_index(midx);
+		tls_modules.push_back(o);
 	}
 	addr_t end_virtual		= frame.extent;
 	for(tls_sub_block& b : sub_blocks)
@@ -601,11 +620,26 @@ void task_ctx::tls_assemble()
 		if(!start_real) throw std::out_of_range("[EXEC/THREAD] TLS virtual address fault");
 		array_copy<uint8_t>(start_real, i->real_addr, i->size);
 	}
+	if(local_so_map)
+	{
+		for(elf64_shared_object& so : *local_so_map)
+		{
+			for(elf64_rela const& r : so.get_tls_relas())
+			{
+				addr_t target					= frame.translate(so.resolve_rela_target(r));
+				if(!target) throw std::out_of_range("[EXEC/THREAD] TLS relocation target virtual address fault in shared object: " + so.get_soname());
+				sym_pair result					= tls_search(std::addressof(so), this, r);
+				if(!result.second) throw std::runtime_error("[EXEC/THREAD] TLS relocation has invalid or absent symbol");
+				elf64_dynamic_object* sym_owner	= result.second;
+				target.assign(sym_owner->resolve_tls_rela(result.first, r, dyn_thread.base_offsets));
+			}
+		}
+	}
 	for(elf64_rela const& r : dyn_prg->get_tls_relas())
 	{
 		addr_t target					= frame.translate(dyn_prg->resolve_rela_target(r));
 		if(!target) throw std::out_of_range("[EXEC/THREAD] TLS relocation target virtual address fault");
-		sym_pair result					= tls_search(dyn_prg, this, dyn_prg->symbol_name(dyn_prg->get_sym(r.r_info.sym_index)));
+		sym_pair result					= tls_search(dyn_prg, this, r);
 		if(!result.second) throw std::runtime_error("[EXEC/THREAD] TLS relocation has invalid or absent symbol");
 		elf64_dynamic_object* sym_owner	= result.second;
 		target.assign(sym_owner->resolve_tls_rela(result.first, r, dyn_thread.base_offsets));
@@ -616,7 +650,7 @@ void task_ctx::tls_assemble()
 		{
 			addr_t target					= frame.translate(so->resolve_rela_target(r));
 			if(!target) throw std::out_of_range("[EXEC/THREAD] TLS relocation target virtual address fault");
-			sym_pair result					= tls_search(so, this, so->symbol_name(so->get_sym(r.r_info.sym_index)));
+			sym_pair result					= tls_search(so, this, r);
 			if(!result.second) throw std::runtime_error("[EXEC/THREAD] TLS relocation has invalid or absent symbol");
 			elf64_dynamic_object* sym_owner	= result.second;
 			target.assign(sym_owner->resolve_tls_rela(result.first, r, dyn_thread.base_offsets));
@@ -641,7 +675,7 @@ void task_ctx::init_thread_0()
 	if(!real) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	thread_t* thread_0			= new(real) thread_t
 	{
-		.self					= task_struct.thread_ptr,
+		.self					= tls_block_end,
 		.saved_regs				= task_struct.saved_regs,
 		.ctl_info
 		{
@@ -668,6 +702,7 @@ void task_ctx::init_thread_0()
 	dyn_thread.instantiate(*thread_0);
 	next_assigned_thread_id 	= 1U;
 	task_struct.thread_ptr		= tls_block_end;
+	write_thread_ptr(thread_0->self);
 	sch.retrothread(header(), thread_0);
 	thread_0->ctl_info.state	= thread_state::RUNNING;
 }
@@ -677,7 +712,7 @@ void task_ctx::thread_switch(pid_t to_thread)
 	thread_t* next_thread		= thread_ptr_by_id[to_thread];
 	thread_t* current_thread	= current_thread_ptr();
 	if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;	// if the thread is already active there's nothing to do
-	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault on switch");
 	ooos::update_thread_state(*current_thread, task_struct);
 	task_struct.saved_regs		= next_thread->saved_regs;
 	task_struct.fxsv			= next_thread->fxsv;
@@ -685,9 +720,10 @@ void task_ctx::thread_switch(pid_t to_thread)
 }
 addr_t task_ctx::tls_get(size_t mod_idx, size_t offs)
 {
-	if(__unlikely(!(mod_idx < tls_modules.size() && mod_idx))) throw std::invalid_argument("[EXEC/THREAD] module ID is out of range");
+	// DTV is 1-indexed rather than 0-indexed, so use a less-than-or-equal check
+	if(!(mod_idx <= tls_modules.size() && mod_idx)) throw std::invalid_argument("[EXEC/THREAD] module ID is out of range");
 	thread_t* thread					= current_thread_ptr();
-	if(!thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
+	if(!thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault on thread base");
 	ooos::dynamic_thread_vector* dtvp	= thread->dtv_ptr;
 	if(!dtvp) throw std::runtime_error("[EXEC/THREAD] cannot load tls address without a DTV");
 	ooos::dynamic_thread_vector& dtv	= *dtvp;

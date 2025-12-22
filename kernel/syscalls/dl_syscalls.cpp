@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <sys/errno.h>
 #include <arch/arch_amd64.h>
+#include <kdebug.hpp>
 typedef std::pair<addr_t, bool> search_result;
 typedef std::pair<elf64_sym, addr_t> sym_pair;
 static addr_t sysres_add(size_t len) { return current_active_task()->frame_ptr.deref<uframe_tag>().sysres_add(len); }
@@ -46,22 +47,33 @@ static search_result full_search(task_ctx* task, const char* name)
 			result				= result_pair.second;
 		else return search_result(result_pair.second, true);
 	}
-	if(result) return search_result(result, true);
-	return global_search(name);
+	search_result gresult		= global_search(name);
+	if(!gresult.second && result)
+		return search_result(result, true);
+	return gresult;
 }
 static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, const char* name)
 {
 	elf64_shared_object* so	= dynamic_cast<elf64_shared_object*>(obj);
 	bool have_weak			= false;
+	addr_t weak_value		= nullptr;
 	if(so && so->is_symbolic())
 	{
 		sym_pair result_pair = so->resolve_by_name(name);
-		if(result_pair.second) return search_result(result_pair.second, true);
-		else if(result_pair.first.st_info.bind == SB_WEAK) have_weak = true;
+		if(result_pair.second && result_pair.first.st_info.bind != SB_WEAK) return search_result(result_pair.second, true);
+		else if(result_pair.first.st_info.bind == SB_WEAK) {
+			have_weak	= true;
+			weak_value	= result_pair.second;
+		}
 	}
 	search_result res						= full_search(task, name);
 	// TODO: check symbol versioning
-	if(have_weak && !res.second) res.second	= true;
+	if(have_weak && !res.second)
+	{
+		if(!res.first)
+			res.first	= weak_value;
+		res.second	= true;
+	}
 	return res;
 }
 extern "C"

@@ -84,11 +84,6 @@ namespace std
 		constexpr reverse_iterator& operator-=(difference_type __n) { current += __n; return *this; }
 	};
 	template<typename IT, typename JT> constexpr bool operator==(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() == __that.base()} -> __detail::__boolean_testable;  } { return __this.base() == __that.base(); }
-	template<typename IT, typename JT> constexpr bool operator!=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() != __that.base()} -> __detail::__boolean_testable;  } { return __this.base() != __that.base(); }
-	template<typename IT, typename JT> constexpr bool operator <(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() > __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  > __that.base(); }
-	template<typename IT, typename JT> constexpr bool operator >(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() < __that.base()} -> __detail::__boolean_testable;  } { return __this.base()  < __that.base(); }
-	template<typename IT, typename JT> constexpr bool operator<=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() >= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() >= __that.base(); }
-	template<typename IT, typename JT> constexpr bool operator>=(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() <= __that.base()} -> __detail::__boolean_testable;  } { return __this.base() <= __that.base(); }
 	template<typename IT> constexpr auto make_reverse_iterator(IT it) noexcept(is_nothrow_copy_constructible_v<IT>) { return reverse_iterator<IT>(it); }
 	template<typename IT, typename JT> requires(three_way_comparable_with<JT, IT>) constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
 	template<typename IT, typename JT> constexpr typename iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }

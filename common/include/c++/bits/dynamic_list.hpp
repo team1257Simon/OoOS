@@ -183,11 +183,11 @@ namespace std
 			constexpr iterator end() noexcept { return iterator(this->__end()); }
 			constexpr const_iterator cend() const noexcept { return const_iterator(this->__end()); }
 			constexpr const_iterator end() const noexcept { return cend(); }
-			constexpr reverse_iterator rbegin() { return reverse_iterator(begin()); }
-			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cbegin()); }
+			constexpr reverse_iterator rbegin() { return reverse_iterator(end()); }
+			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
 			constexpr const_reverse_iterator rbegin() const { return crbegin(); }
-			constexpr reverse_iterator rend() { return reverse_iterator(end()); }
-			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cend()); }
+			constexpr reverse_iterator rend() { return reverse_iterator(begin()); }
+			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 			constexpr const_reverse_iterator rend() const { return crend(); }
 			constexpr AT get_allocator() const noexcept { return AT(*this); }
 			template<typename ... Args> requires(constructible_from<T, Args...>) constexpr iterator emplace_front(Args&& ... args) { return iterator(this->__create_after(addressof(this->__head), forward<Args>(args)...)); }
