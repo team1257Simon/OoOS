@@ -612,7 +612,8 @@ namespace std::__impl
 	template<matching_input_iterator<T> IT>
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__append_elements(IT start_it, IT end_it)
 	{
-		if(__unlikely(!(end_it > start_it))) return __cur();
+		if consteval {}
+		else { if(__unlikely(!(end_it > start_it))) return __cur(); }
 		__size_type rem	= __rem();
 		__size_type num	= distance(start_it, end_it);
 		__size_type bsz	= __size();
