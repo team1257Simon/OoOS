@@ -5,6 +5,7 @@ constexpr static pci_config_space* check_valid(pci_config_space* ptr) { return p
 pci_config_table* find_pci_config() { return static_cast<pci_config_table*>(find_system_table("MCFG")); }
 void* compute_base_address(uint32_t bar_registers[], uint8_t i) { return addr_t((bar_registers[i] & 0x00000001UL) ? (bar_registers[i] & 0xFFFFFFFCUL) : ((bar_registers[i] & 0xFFFFFFF0UL) | (bar_registers[i] & 0x00000004UL ? (static_cast<uint64_t>(bar_registers[i + 1]) << 32) : 0UL))); }
 void* compute_base(uint32_t bar) { return addr_t((bar & 0x00000001U) ? (bar & 0xFFFFFFFCU) : (bar & 0xFFFFFFF0U)); }
+pci_device_list* pci_device_list::get_instance() { return std::addressof(__instance); }
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func)
 {
 	for(uint8_t i = 0UC; i < static_cast<uint8_t>((tb->hdr.length - sizeof(tb->hdr) - 8UC) / 16UC); i++)
@@ -39,7 +40,6 @@ bool pci_device_list::init_instance()
 	__instance.add_all(tb);
 	return true;
 }
-pci_device_list* pci_device_list::get_instance() { return std::addressof(__instance); }
 pci_capabilities_register* get_first_capability_register(pci_config_space* device)
 {
     if(device->status.capabilities_list)

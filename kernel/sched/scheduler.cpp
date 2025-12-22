@@ -2,6 +2,19 @@
 #include <sched/scheduler.hpp>
 #include <isr_table.hpp>
 using enum priority_val;
+typedef task_wait_queue::const_iterator waiterator;
+typedef std::vector<kthread_ptr>::iterator ntwaiterator;
+typedef task_pl_queue::const_iterator task_citerator;
+typedef task_pl_queue::iterator task_iterator;
+struct scheduler_times
+{
+	unsigned int tick_rate;
+	unsigned int cycle_divisor;
+	std::atomic<unsigned> tick_cycles;
+	cpu_timer_stopwatch timestamp_stopwatch;
+	void init();
+	bool tick();
+} sched_times attribute(section(".data.plocal"));
 extern "C"
 {
 	extern std::atomic<bool> task_change_flag;
@@ -10,32 +23,6 @@ extern "C"
 	extern task_t kproc;
 	extern void direct_reentry(kthread_ptr) attribute(noreturn);
 }
-struct scheduler_times
-{
-	unsigned int tick_rate;
-	unsigned int cycle_divisor;
-	std::atomic<unsigned> tick_cycles;
-	cpu_timer_stopwatch timestamp_stopwatch;
-	void init()
-	{
-		uint32_t timer_frequency		= cpuid(0x15U, 0).ecx;
-		if(!timer_frequency)
-			timer_frequency				= cpuid(0x16U, 0).ecx;
-		cycle_divisor					= timer_frequency;
-		tick_rate						= magnitude(timer_frequency);
-	}
-	bool tick()
-	{
-		tick_cycles		+= tick_rate;
-		bool result		= (tick_cycles >= cycle_divisor);
-		tick_cycles		= tick_cycles % cycle_divisor;
-		return result;
-	}
-} sched_times attribute(section(".data.plocal"));
-typedef task_wait_queue::const_iterator waiterator;
-typedef std::vector<kthread_ptr>::iterator ntwaiterator;
-typedef task_pl_queue::const_iterator task_citerator;
-typedef task_pl_queue::iterator task_iterator;
 scheduler scheduler::__instance;
 bool scheduler::__has_init;
 scheduler::scheduler() = default;
@@ -47,6 +34,21 @@ void scheduler::add_worker_task(kthread_ptr const& w) { __instance.register_task
 void scheduler::register_task(kthread_ptr const& task) {
 	__queues[task->task_ctl.prio_base].push(task);
 	__total_tasks++;
+}
+void scheduler_times::init()
+{
+	uint32_t timer_frequency		= cpuid(0x15U, 0).ecx;
+	if(!timer_frequency)
+		timer_frequency				= cpuid(0x16U, 0).ecx;
+	cycle_divisor					= timer_frequency;
+	tick_rate						= magnitude(timer_frequency);
+}
+bool scheduler_times::tick()
+{
+	tick_cycles		+= tick_rate;
+	bool result		= (tick_cycles >= cycle_divisor);
+	tick_cycles		= tick_cycles % cycle_divisor;
+	return result;
 }
 static kthread_ptr kthread_of(task_t* task_base)
 {

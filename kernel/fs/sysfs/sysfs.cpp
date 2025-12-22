@@ -231,7 +231,7 @@ void sysfs::init_blank(sysfs_backup_filenames const& bak)
 void sysfs::init_load()
 {
 	sysfs_directory_file& dirfile	= __dir();
-	for(size_t i = 0; i < dirfile.total_entries; i++)
+	for(size_t i = 0UZ; i < dirfile.total_entries; i++)
 	{
 		uint32_t ino = dirfile.entries[i].inode_number;
 		if(verify_dirent_csum(dirfile.entries[i]))

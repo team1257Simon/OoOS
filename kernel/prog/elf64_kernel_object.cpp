@@ -65,7 +65,7 @@ bool elf64_kernel_object::load_segments()
 {
 	size_t n		= ehdr().e_phnum;
 	bool have_loads	= false;
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0UZ; i < n; i++)
 	{
 		elf64_phdr const& ph = phdr(i);
 		if(!is_load(ph) || !ph.p_memsz) continue;

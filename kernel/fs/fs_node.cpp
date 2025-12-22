@@ -43,7 +43,7 @@ uint64_t directory_vnode::num_subdirs() const noexcept { return subdir_count; }
 uint64_t directory_vnode::num_files() const noexcept { return file_count; }
 uint64_t directory_vnode::size() const noexcept { return directory_tnodes.size(); }
 bool directory_vnode::is_directory() const noexcept { return true; }
-bool directory_vnode::is_empty() const noexcept { return size() == 0; }
+bool directory_vnode::is_empty() const noexcept { return !size(); }
 bool directory_vnode::relink(std::string const& oldn, std::string const& newn) { if(tnode* ptr = find(oldn)) { return unlink(oldn) && link(ptr, newn); } else return false; }
 device_vnode::device_vnode(int fd, device_stream* dev_buffer, dev_t id) : file_vnode(fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer(dev_buffer), __dev_id(id) { mode = 027666; }
 device_vnode::device_vnode(std::string const& name, int fd, device_stream* dev_buffer, dev_t id) : file_vnode(name, fd, reinterpret_cast<uint64_t>(dev_buffer)), __dev_buffer(dev_buffer), __dev_id(id) { mode = 027666; }

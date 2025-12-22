@@ -17,7 +17,7 @@ off_t sysfs_string_table::write(std::string const& str)
 std::string sysfs_string_table::read(off_t pos) const
 {
 	std::streamoff result	= node.pubseekpos(pos);
-	if(result < 0) throw std::out_of_range("[FS/SYSFS/STRTAB] out of range: " + std::to_string(pos) + " for size " + std::to_string(node.range()));
+	if(result < 0Z) throw std::out_of_range("[FS/SYSFS/STRTAB] out of range: " + std::to_string(pos) + " for size " + std::to_string(node.range()));
 	const char* ptr			= node.data() + pos;
 	return std::string(ptr, std::strnlen(ptr, 1024UZ));
 }

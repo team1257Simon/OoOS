@@ -283,10 +283,10 @@ void task_ctx::init_task_state()
 		char* target_real	= frame.translate(target_ptr);
 		size_t len			= std::strlen(str);
 		array_copy(target_real, str, len);
-		target_real[len]	= 0;
+		target_real[len]	= char();
 		*argv_real			= target_ptr;
 		argv_real++;
-		old_ext				+= len + 1;
+		old_ext				+= len + 1Z;
 	}
 	*argv_real				= nullptr;
 	for(const char* str : env_vec)
@@ -295,10 +295,10 @@ void task_ctx::init_task_state()
 		char* target_real	= frame.translate(target_ptr);
 		size_t len			= std::strlen(str);
 		array_copy(target_real, str, len);
-		target_real[len]	= 0;
+		target_real[len]	= char();
 		*env_real			= target_ptr;
 		env_real++;
-		old_ext				+= len + 1;
+		old_ext				+= len + 1Z;
 	}
 	*env_real				= nullptr;
 	set_arg_registers(rdi_val, rt_argv_ptr.full, rt_env_ptr.full);
@@ -589,7 +589,7 @@ void task_ctx::tls_assemble()
 		modules_with_tls.push_back(dyn_prg);
 	}
 	if(__unlikely(sub_blocks.empty())) return;	// no TLS -> nothing to do
-	size_t midx 			= 1UZ;
+	size_t midx 				= 1UZ;
 	for(std::vector<elf64_dynamic_object*>::reverse_iterator i = modules_with_tls.rbegin(); i != modules_with_tls.rend(); i++, midx++)
 	{
 		elf64_dynamic_object* o	= *i;

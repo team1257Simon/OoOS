@@ -88,14 +88,14 @@ block_descriptor* frame_manager::get_global_shared(uframe_tag* tag, size_t size,
 		if(__builtin_expect(!allocated, false)) return nullptr;
 		block_descriptor sbd
 		{
-			.physical_start = allocated,
-			.virtual_start	= start,
-			.size			= size,
-			.align			= align,
-			.write			= false,
-			.execute		= execute
+			.physical_start		= allocated,
+			.virtual_start		= start,
+			.size				= size,
+			.align				= align,
+			.write				= false,
+			.execute			= execute
 		};
-		result_it			= __global_shared_blocks.insert(std::make_pair(start, shared_block(sbd, 1UZ))).first;
+		result_it				= __global_shared_blocks.insert(std::make_pair(start, shared_block(sbd, 1UZ))).first;
 	}
 	else
 	{
