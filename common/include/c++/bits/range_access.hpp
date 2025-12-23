@@ -243,14 +243,14 @@ namespace std
 		}
 		inline namespace __access_ftors
 		{
-			constexpr inline std::ranges::__access::__begin begin{};
-			constexpr inline std::ranges::__access::__end end{};
-			constexpr inline std::ranges::__access::__size size{};
-			constexpr inline std::ranges::__access::__ssize ssize{};
-			constexpr inline std::ranges::__access::__data data{};
-			constexpr inline std::ranges::__access::__rbegin rbegin{};
-			constexpr inline std::ranges::__access::__rend rend{};
-			constexpr inline std::ranges::__access::__empty empty{};
+			constexpr inline std::ranges::__access::__begin		begin{};
+			constexpr inline std::ranges::__access::__end		end{};
+			constexpr inline std::ranges::__access::__size		size{};
+			constexpr inline std::ranges::__access::__ssize		ssize{};
+			constexpr inline std::ranges::__access::__data		data{};
+			constexpr inline std::ranges::__access::__rbegin	rbegin{};
+			constexpr inline std::ranges::__access::__rend		rend{};
+			constexpr inline std::ranges::__access::__empty		empty{};
 		};
 		template<typename T> concept range					= requires(T& t) { ranges::begin(t); ranges::end(t); };
 		template<typename T> concept sized_range			= range<T> && requires(T& t) { ranges::size(t); };
@@ -263,7 +263,8 @@ namespace std
 		template<range RT> using range_rvalue_reference_t	= iter_rvalue_reference_t<iterator_t<RT>>;
 		template<sized_range RT> using range_size_t			= decltype(ranges::size(declval<RT&>()));
 		struct view_base {};
-		template<typename DT> requires(is_class_v<DT> && same_as<DT, remove_cv_t<DT>>) class view_interface;
+		namespace __detail { template<typename T> concept __valid_view_interface_arg	= is_class_v<T> && same_as<T, remove_cv_t<T>>; }
+		template<__detail::__valid_view_interface_arg DT> class view_interface;
 		namespace __detail
 		{
 			template<typename T, typename U> requires(!same_as<T, view_interface<U>>) void __is_derived_from_view_interface_fn(T const&, view_interface<U> const&); // not defined
@@ -278,6 +279,242 @@ namespace std
 		template<typename T> concept random_access_range		= bidirectional_range<T> && random_access_iterator<iterator_t<T>>;
 		template<typename T> concept contiguous_range			= random_access_range<T> && contiguous_iterator<iterator_t<T>> && requires(T& t) { { ranges::data(t) } -> same_as<add_pointer_t<range_reference_t<T>>>; };
 		template<typename T> concept common_range				= range<T> && same_as<iterator_t<T>, sentinel_t<T>>;
+		template<typename T> concept constant_range				= input_range<T> && std::__detail::__constant_iterator<iterator_t<T>>;
+		namespace __access
+		{
+			template<input_range RT>
+			constexpr auto& __possibly_const_range(RT& r) noexcept
+			{
+				if constexpr(!input_range<RT const>) return r;
+				return const_cast<RT const&>(r);
+			}
+			template<typename T, typename U> requires(is_same_v<T&, U&>)
+			constexpr decltype(auto) __as_const(U& u)
+			{
+				if constexpr(is_lvalue_reference_v<T>)
+					return const_cast<U const&>(u);
+				else return static_cast<const U&&>(u);
+			}
+			template<typename T> concept __valid_cbegin = __detail::__maybe_borrowed_range<T> && requires(T&& t) { make_const_iterator(ranges::begin(__possibly_const_range(t))); };
+			template<typename T> concept __valid_cend	= __detail::__maybe_borrowed_range<T> && requires(T&& t) { make_const_sentinel(ranges::end(__possibly_const_range(t))); };
+			template<typename T> concept __valid_crbegin = __detail::__maybe_borrowed_range<T> && requires(T&& t) { make_const_iterator(ranges::rbegin(__possibly_const_range(t))); };
+			template<typename T> concept __valid_crend	= __detail::__maybe_borrowed_range<T> && requires(T&& t) { make_const_sentinel(ranges::rend(__possibly_const_range(t))); };
+			struct __cbegin
+			{
+				template<__valid_cbegin T>
+				constexpr auto operator()(T&& t) const
+				noexcept(noexcept(make_const_iterator(ranges::begin(__possibly_const_range(t))))) {
+					auto& r = __possibly_const_range(t);
+					return const_iterator<decltype(ranges::begin(r))>(ranges::begin(r));
+				}
+			};
+			struct __cend
+			{
+				template<__valid_cend T>
+				constexpr auto operator()(T&& t) const
+				noexcept(noexcept(make_const_sentinel(ranges::end(__possibly_const_range(t))))) {
+					auto& r = __possibly_const_range(t);
+					return const_iterator<decltype(ranges::end(r))>(ranges::end(r));
+				}
+			};
+			struct __crbegin
+			{
+				template<__valid_crbegin T>
+				constexpr auto operator()(T&& t) const
+				noexcept(noexcept(make_const_iterator(ranges::rbegin(__possibly_const_range(t))))) {
+					auto& r = __possibly_const_range(t);
+					return const_iterator<decltype(ranges::rbegin(r))>(ranges::rbegin(r));
+				}
+			};
+			struct __crend
+			{
+				template<__valid_crend T>
+				constexpr auto operator()(T&& t) const
+				noexcept(noexcept(make_const_sentinel(ranges::rend(__possibly_const_range(t))))) {
+					auto& r = __possibly_const_range(t);
+					return const_iterator<decltype(ranges::rend(r))>(ranges::rend(r));
+				}
+			};
+			template<typename T> concept __valid_cdata = __detail::__maybe_borrowed_range<T> && requires(T&& t) { ranges::data(__possibly_const_range(t)); };
+			struct __cdata
+			{
+				template<__valid_cdata T>
+				constexpr auto const* operator()(T&& t) const
+				noexcept(noexcept(ranges::data(__possibly_const_range(t)))) { return ranges::data(__possibly_const_range(t)); }
+			};
+		}
+		inline namespace __access_ftors
+		{
+			constexpr inline ranges::__access::__cbegin		cbegin{};
+			constexpr inline ranges::__access::__cend		cend{};
+			constexpr inline ranges::__access::__crbegin	crbegin{};
+			constexpr inline ranges::__access::__crend		crend{};
+		}
+		namespace __detail
+		{
+			template<typename T> constexpr inline bool __is_initializer_list						= false;
+			template<typename T> constexpr inline bool __is_initializer_list<initializer_list<T>>	= true;
+			template<typename T> concept __simple_ctor_view	= view<remove_cvref_t<T>> && constructible_from<remove_cvref_t<T>, T>;
+			template<typename T> concept __movable_non_view	= !view<remove_cvref_t<T>> && (is_lvalue_reference_v<T> || (movable<remove_reference_t<T>> && !__is_initializer_list<T>));
+		}
+		template<typename T> concept viewable_range	= range<T> && (__detail::__simple_ctor_view<T> || __detail::__movable_non_view<T>);
+		struct __advance_fn final
+		{
+			template<input_or_output_iterator IT>
+			constexpr void operator()(IT& i, iter_difference_t<IT> n) const
+			{
+				if constexpr(random_access_iterator<IT>) i += n;
+				else if constexpr(bidirectional_iterator<IT>) {
+					if(n > 0) do { ++i; } while(--n);
+					else if(n < 0) do { --i; } while(++n);
+				}
+				else
+				{
+					__libk_assert(n >= 0);
+					while(n-- > 0)
+						++i;
+				}
+			}
+			template<input_or_output_iterator IT, sentinel_for<IT> ST>
+			constexpr void operator()(IT& i, ST bound) const
+			{
+				if constexpr(assignable_from<IT&, ST>)
+					i	= move(bound);
+				else if constexpr(sized_sentinel_for<ST, IT>)
+					(*this)(i, bound - i);
+				else while(i != bound)
+					++i;
+			}
+			template<input_or_output_iterator IT, sentinel_for<IT> ST>
+			constexpr iter_difference_t<IT> operator()(IT& i, iter_difference_t<IT> n, ST bound) const
+			{
+				if constexpr(sized_sentinel_for<ST, IT>)
+				{
+					iter_difference_t<IT> const diff = bound - i;
+					if(diff == 0)
+					{
+						// inline any possible side effects of advance(it, bound)
+						if constexpr(assignable_from<IT&, ST>)
+							i = move(bound);
+						else if constexpr(random_access_iterator<IT>)
+							i += iter_difference_t<IT>(0);
+						return n;
+					}
+					else if((diff > 0) ? (n > diff) : (n <= diff)) {
+						(*this)(i, bound);
+						return n - diff;
+					}
+					else if(n != 0) [[likely]]
+					{
+						__libk_assert(n < 0 == diff < 0);
+						(*this)(i, n);
+						return 0;
+					}
+					else
+					{
+						// inline any possible side effects of advance(it, n)
+						if constexpr(random_access_iterator<IT>)
+							i += iter_difference_t<IT>(0);
+						return 0;
+					}
+				}
+				else if(n == 0 || i == bound) return n;
+				else if(n > 0)
+				{
+					iter_difference_t<IT> m = 0;
+					do {
+						++i;
+						++m;
+					} while(m != n && i != bound);
+					return n - m;
+				}
+				else if constexpr(bidirectional_iterator<IT> && same_as<IT, ST>)
+				{
+					iter_difference_t<IT> m = 0;
+					do {
+						--i;
+						--m;
+					} while(m != n && i != bound);
+					return n - m;
+				}
+				else { __libk_assert(n >= 0); return n; }
+			}
+			void operator&() = delete;
+		};
+		struct __distance_fn final
+		{
+			template<typename IT, sentinel_for<IT> ST>
+			constexpr iter_difference_t<IT> operator()(IT&& first, ST last) const
+			{
+				if constexpr(sized_sentinel_for<ST, IT>) { return last - static_cast<decay_t<IT> const&>(first); }
+				else
+				{
+					iter_difference_t<IT> result = 0;
+					for(IT i = first; i != last; i++, result++);
+					return result;
+				}
+			}
+			template<range RT>
+			constexpr range_difference_t<RT> operator()(RT&& r) const
+			{
+				if constexpr(sized_range<RT>)
+					return static_cast<range_difference_t<RT>>(ranges::size(r));
+				else return (*this)(ranges::begin(r), ranges::end(r));
+			}
+			void operator&() const = delete;
+		};
+		constexpr inline __advance_fn advance{};
+		constexpr inline __distance_fn distance{};
+		struct __next_fn final
+		{
+			template<input_or_output_iterator IT>
+			constexpr IT operator()(IT i) const {
+				++i;
+				return i;
+			}
+			template<input_or_output_iterator IT>
+			constexpr IT operator()(IT i, iter_difference_t<IT> n) const {
+				ranges::advance(i, n);
+				return i;
+			}
+			template<input_or_output_iterator IT, sentinel_for<IT> ST>
+			constexpr IT operator()(IT i, ST bound) const {
+				ranges::advance(i, bound);
+				return i;
+			}
+			template<input_or_output_iterator IT, sentinel_for<IT> ST>
+			constexpr IT operator()(IT i, iter_difference_t<IT> n, ST bound) const {
+				ranges::advance(i, n, bound);
+				return i;
+			}
+			void operator&() const = delete;
+		};
+		struct __prev_fn final
+		{
+			template<bidirectional_iterator IT>
+			constexpr IT operator()(IT i) const {
+				--i;
+				return i;
+			}
+			template<bidirectional_iterator IT>
+			constexpr IT operator()(IT i, iter_difference_t<IT> n) const {
+				ranges::advance(i, -n);
+				return i;
+			}
+			template<bidirectional_iterator IT>
+			constexpr IT operator()(IT i, iter_difference_t<IT> n, IT bound) const {
+				ranges::advance(i, -n, bound);
+				return i;
+			}
+			void operator&() const = delete;
+		};
+		constexpr inline __next_fn next{};
+		constexpr inline __prev_fn prev{};
+		struct dangling {
+			constexpr dangling() noexcept = default;
+			template<typename ... Args> constexpr dangling(Args&& ...) noexcept {}
+		};
+		template<range RT> using borrowed_iterator_t = conditional_t<borrowed_range<RT>, iterator_t<RT>, dangling>;
 	}
 }
 #endif
