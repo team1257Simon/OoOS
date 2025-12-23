@@ -27,9 +27,13 @@ namespace ooos
 	}
 	void update_thread_state(thread_t& thread, task_t& task_struct)
 	{
-		lock_thread_mutex(thread);
-		thread.saved_regs	= task_struct.saved_regs;
-		thread.fxsv			= task_struct.fxsv;
-		unlock_thread_mutex(thread);
+		//	don't mess with thread states in tasks that are in between vfork() and execve()
+		if(!task_struct.task_ctl.vfork_dirty)
+		{
+			lock_thread_mutex(thread);
+			thread.saved_regs	= task_struct.saved_regs;
+			thread.fxsv			= task_struct.fxsv;
+			unlock_thread_mutex(thread);
+		}
 	}
 }

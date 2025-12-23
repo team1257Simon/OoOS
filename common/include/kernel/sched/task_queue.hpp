@@ -8,7 +8,7 @@
  *  3: If the process was selected from a queue of higher priority than its base value, it moves to the back of the queue one loweer than its current queue.
  *  4: Otherwise, the task queue element is "popped" and the pointer moves to the next element (or to the beginning if it is at the end).
  *  5: The "times skipped" value of the front process in each queue of lower priority than the one accessed is incremented.
- *  6: If the above value exceeds the threshold (tbd), the process is moved to the back of the queue above its current queue.
+ *  6: If the above value exceeds the threshold (WIP), the process is moved to the back of the queue above its current queue.
  */
 #include <sched/task_ctx.hpp>
 #include <bits/stl_queue.hpp>
@@ -64,7 +64,7 @@ public:
 class prio_level_task_queues : public std::array<task_pl_queue, 5UZ>
 {
 	typedef std::array<task_pl_queue, 5UZ> __base;
-	constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(static_cast<int8_t>(pv)); }
+	constexpr static __base::size_type __idx_by_prio(priority_val pv) { return static_cast<__base::size_type>(static_cast<uint8_t>(pv)); }
 public:
 	task_pl_queue& operator[](priority_val pv) noexcept;
 	task_pl_queue const& operator[](priority_val pv) const noexcept;

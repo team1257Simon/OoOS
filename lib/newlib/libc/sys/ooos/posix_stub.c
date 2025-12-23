@@ -23,3 +23,5 @@ __attribute__((weak)) int getentropy(void* buffer, unsigned long length)
 	while(buffer < buf_end) { *((unsigned char*)buffer++) = rand() % 256; }
 	return 0;
 }
+// Currently N/A
+__attribute__((weak)) int issetugid() { return 0; }

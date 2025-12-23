@@ -107,14 +107,15 @@ struct tctl_t
 		bool				should_notify	: 1;		// true if the wait should be interrupted on a child process termination
 		bool				killed			: 1;		// true if the process has stopped due to an abnormal termination (e.g. kill signal)
 		enum priority_val	prio_base		: 4;		// the base priority of the thread/process
-		uint8_t				skips;						// the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
+		uint8_t				skips			: 7;		// the number of times the task has been skipped for a higher-priority one. The system will escalate a lower-priority process at the front of its queue with enough skips.
+		bool				vfork_dirty		: 1;		// true if the process was spawned from vfork() and has not yet called execve()
 	};
 	struct
 	{
 		spid_t						parent_pid;			// a negative number indicates no parent; a zero here means the task is actually a kernel worker
 		pid_t						task_pid;			// PID of process; kernel itself is zero
-		uid_t						task_uid;			// WIP
-		gid_t						task_gid;			// WIP
+		uid_t						task_uid;			// UID of the user that created the process
+		gid_t						task_gid;			// GID of the user that created the process
 		struct task_signal_info_t*	signal_info;		// points to the signal info struct for the process (handled in the larger, encompassing c++ task_ctx structure)
 		clock_t						wait_ticks_delta;	// for a sleeping task, how many ticks remain in the set time as an offset from the previous waiting task (or from zero if it is the first waiting process)
 	};
@@ -180,10 +181,11 @@ enum class execution_state : uint8_t
 	IN_DYN_EXIT = 3UC	// for processes with destructors to execute before fully exiting, this state indicates such code is running
 };
 /**
- * Pointer-like struct that is meant to behave abstractly like a pointer to a fake "kthread" structure.
- * That (exposure-only) object nominally encodes a process and, optionally, a thread within that process.
+ * Pointer-like struct that is meant to behave like a pointer to an exposure-only "kthread" structure.
+ * That object abstractly encodes a process and, optionally, a thread within that process.
  * Certain scheduler functionality does not depend on the thread pointer at all.
  * Some other scheduler routines use information from the thread pointer if present or the corresponding process information otherwise.
+ * Methods like set_blocking() and activate() can be thought to effectively be invoked using '->' logic even though the syntax uses the '.' operator.
  * In any case, it uses iterator-like logic for qualifiers, i.e. anything that involves dereferencing one of the pointers is const-qualified.
  */
 struct kthread_ptr

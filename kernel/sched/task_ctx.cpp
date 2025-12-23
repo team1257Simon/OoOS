@@ -12,6 +12,7 @@ constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34
 constexpr static std::allocator<shared_object_map> sm_alloc{};
 constexpr static addr_t pml4_of(addr_t frame) noexcept { return frame.deref<uframe_tag>().pml4; }
 static bool is_tls_sym(elf64_sym const& s) { return s.st_info.type == ST_TLS; }
+static thread_t* thread_0_ptr(task_ctx const& t) { return t.thread_ptr_by_id.contains(0U) ? t.thread_ptr_by_id.find(0U)->second : nullptr; }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
@@ -128,6 +129,7 @@ task_ctx::task_ctx(task_ctx const& that) :
 				.killed			{ false },
 				.prio_base		{ that.task_struct.task_ctl.prio_base },
 				.skips			{ that.task_struct.task_ctl.skips },
+				.vfork_dirty	{ true },
 			},
 			{
 				.parent_pid		{ static_cast<spid_t>(that.get_pid()) },
@@ -143,7 +145,6 @@ task_ctx::task_ctx(task_ctx const& that) :
 		.tls_align			{ that.task_struct.tls_align },
 		.thread_ptr			{ that.task_struct.thread_ptr }
 	},
-	child_tasks				{},
 	arg_vec					{ that.arg_vec },
 	env_vec					{ that.env_vec },
 	dl_search_paths			{ that.dl_search_paths },
@@ -158,53 +159,51 @@ task_ctx::task_ctx(task_ctx const& that) :
 	exit_code				{ that.exit_code },
 	exit_target				{ that.exit_target },
 	dynamic_exit			{ that.dynamic_exit },
-	notif_target			{ nullptr },
-	last_notified			{ nullptr },
 	program_handle			{ that.program_handle },
 	local_so_map			{ that.local_so_map },
 	rt_argv_ptr				{ that.rt_argv_ptr },
 	rt_env_ptr				{ that.rt_env_ptr },
-	task_sig_info			{},
 	opened_directories		{ that.opened_directories },
 	dyn_thread				{ that.dyn_thread },
 	impersonate				{ that.impersonate },
 	imp_uid					{ that.imp_uid },
 	imp_gid					{ that.imp_gid }
-							{}
+							{ thread_ptr_by_id.insert(std::make_pair(0U, thread_0_ptr(that))); }
 task_ctx::task_ctx(task_ctx&& that) :
-	task_struct				{ std::move(that.task_struct) },
-	child_tasks				{ std::move(that.child_tasks) },
-	arg_vec					{ std::move(that.arg_vec) },
-	env_vec					{ std::move(that.env_vec) },
-	dl_search_paths			{ std::move(that.dl_search_paths) },
-	attached_so_handles		{ std::move(that.attached_so_handles) },
-	tls_modules				{ std::move(that.tls_modules) },
-	entry					{ std::move(that.entry) },
-	allocated_stack			{ std::move(that.allocated_stack) },
-	stack_allocated_size	{ std::move(that.stack_allocated_size) },
-	ctx_filesystem			{ std::move(that.ctx_filesystem) },
-	stdio_ptrs				{ std::move(that.stdio_ptrs[0]), std::move(that.stdio_ptrs[1]), std::move(that.stdio_ptrs[2]) },
-	current_state			{ std::move(that.current_state) },
-	exit_code				{ std::move(that.exit_code) },
-	exit_target				{ std::move(that.exit_target) },
-	dynamic_exit			{ std::move(that.dynamic_exit) },
-	notif_target			{ std::move(that.notif_target) },
-	last_notified			{ std::move(that.last_notified) },
-	program_handle			{ std::move(that.program_handle) },
-	local_so_map			{ std::move(that.local_so_map) },
-	rt_argv_ptr				{ std::move(that.rt_argv_ptr) },
-	rt_env_ptr				{ std::move(that.rt_env_ptr) },
-	task_sig_info			{ std::move(that.task_sig_info) },
-	opened_directories		{ std::move(that.opened_directories) },
-	dyn_thread				{ std::move(that.dyn_thread) },
-	next_assigned_thread_id	{ that.next_assigned_thread_id },
-	sigret_thread			{ that.sigret_thread },
-	thread_ptr_by_id		{ std::move(that.thread_ptr_by_id) },
-	notify_threads			{ std::move(that.notify_threads) },
-	inactive_threads		{ std::move(that.inactive_threads) },
-	impersonate				{ that.impersonate },
-	imp_uid					{ that.imp_uid },
-	imp_gid					{ that.imp_gid }
+	task_struct					{ std::move(that.task_struct) },
+	child_tasks					{ std::move(that.child_tasks) },
+	arg_vec						{ std::move(that.arg_vec) },
+	env_vec						{ std::move(that.env_vec) },
+	dl_search_paths				{ std::move(that.dl_search_paths) },
+	attached_so_handles			{ std::move(that.attached_so_handles) },
+	tls_modules					{ std::move(that.tls_modules) },
+	entry						{ std::move(that.entry) },
+	allocated_stack				{ std::move(that.allocated_stack) },
+	stack_allocated_size		{ std::move(that.stack_allocated_size) },
+	ctx_filesystem				{ std::move(that.ctx_filesystem) },
+	stdio_ptrs					{ std::move(that.stdio_ptrs[0]), std::move(that.stdio_ptrs[1]), std::move(that.stdio_ptrs[2]) },
+	current_state				{ std::move(that.current_state) },
+	exit_code					{ std::move(that.exit_code) },
+	exit_target					{ std::move(that.exit_target) },
+	dynamic_exit				{ std::move(that.dynamic_exit) },
+	notif_target				{ std::move(that.notif_target) },
+	last_notified				{ std::move(that.last_notified) },
+	program_handle				{ std::move(that.program_handle) },
+	local_so_map				{ std::move(that.local_so_map) },
+	rt_argv_ptr					{ std::move(that.rt_argv_ptr) },
+	rt_env_ptr					{ std::move(that.rt_env_ptr) },
+	task_sig_info				{ std::move(that.task_sig_info) },
+	opened_directories			{ std::move(that.opened_directories) },
+	dyn_thread					{ std::move(that.dyn_thread) },
+	next_assigned_thread_id		{ that.next_assigned_thread_id },
+	sigret_thread				{ that.sigret_thread },
+	thread_ptr_by_id			{ std::move(that.thread_ptr_by_id) },
+	notify_threads				{ std::move(that.notify_threads) },
+	inactive_threads			{ std::move(that.inactive_threads) },
+	active_added_thread_count	{ that.active_added_thread_count },
+	impersonate					{ that.impersonate },
+	imp_uid						{ that.imp_uid },
+	imp_gid						{ that.imp_gid }
 	{
 		array_zero(that.task_struct.self, 1UZ);
 		task_struct.self					= std::addressof(task_struct);
@@ -445,25 +444,27 @@ bool task_ctx::set_fork()
 	typedef std::vector<elf64_dynamic_object*>::iterator tl_it;
 	try
 	{
-		uframe_tag* old_frame			= task_struct.frame_ptr;
-		uframe_tag* new_frame			= std::addressof(fm.fork_frame(old_frame));
-		tl_it ph_pos					= tls_modules.find(dynamic_cast<elf64_dynamic_object*>(program_handle));
-		program_handle					= prog_manager::get_instance().clone(program_handle);
+		uframe_tag* old_frame				= task_struct.frame_ptr;
+		uframe_tag* new_frame				= std::addressof(fm.fork_frame(old_frame));
+		tl_it ph_pos						= tls_modules.find(dynamic_cast<elf64_dynamic_object*>(program_handle));
+		program_handle						= prog_manager::get_instance().clone(program_handle);
 		if(__unlikely(!program_handle)) return false;
 		if(ph_pos != tls_modules.end())
-			*ph_pos						= dynamic_cast<elf64_dynamic_object*>(program_handle);
+			*ph_pos							= dynamic_cast<elf64_dynamic_object*>(program_handle);
 		program_handle->on_copy(new_frame);
-		task_struct.frame_ptr			= new_frame;
-		task_struct.saved_regs.cr3		= new_frame->pml4;
-		shared_object_map* old_so_map	= local_so_map;
-		if(old_so_map) (local_so_map	= new shared_object_map(new_frame))->copy(*old_so_map);
+		task_struct.frame_ptr				= new_frame;
+		task_struct.saved_regs.cr3			= new_frame->pml4;
+		shared_object_map* old_so_map		= local_so_map;
+		if(old_so_map) (local_so_map		= new shared_object_map(new_frame))->copy(*old_so_map);
 		for(elf64_shared_object* so : attached_so_handles)
 		{
 			kmm.enter_frame(new_frame);
 			kmm.map_to_current_frame(so->segment_blocks());
 			kmm.exit_frame();
 		}
-		if(!tls_modules.size()) return true;
+		task_struct.thread_ptr				= thread_ptr_by_id[0U] ? thread_ptr_by_id[0U]->self : nullptr;
+		thread_ptr_by_id[0U]				= new_frame->translate(task_struct.thread_ptr);
+		task_struct.task_ctl.vfork_dirty	= false;
 		if(opened_directories.empty()) return true;
 		std::map<int, posix_directory> old_dirs(std::move(opened_directories));
 		opened_directories.clear();
@@ -476,7 +477,7 @@ bool task_ctx::set_fork()
 }
 bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cstrvec&& env)
 {
-	spid_t parent_pid					= task_struct.task_ctl.parent_pid;
+	spid_t parent_pid		= task_struct.task_ctl.parent_pid;
 	uframe_tag* new_tag		= static_cast<uframe_tag*>(desc.frame_ptr);
 	if(!new_tag) throw std::invalid_argument("[COMPAT/execve] frame must not be null");
 	if(local_so_map)
@@ -498,6 +499,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cst
 	uid_t cur_gid			= gid();
 	priority_val prio		= task_struct.task_ctl.prio_base;
 	uint16_t quantum		= task_struct.quantum_val;
+	thread_ptr_by_id.clear();
 	new(std::addressof(task_struct)) task_t
 	{
 		.self				{ std::addressof(task_struct) },
@@ -522,6 +524,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cst
 				.killed			{ false },
 				.prio_base		{ prio },
 				.skips			{ 0UC },
+				.vfork_dirty	{ false },
 			},
 			{
 				.parent_pid		{ parent_pid },
@@ -708,15 +711,19 @@ void task_ctx::init_thread_0()
 }
 void task_ctx::thread_switch(pid_t to_thread)
 {
-	if(!thread_ptr_by_id.contains(to_thread)) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(to_thread));
-	thread_t* next_thread		= thread_ptr_by_id[to_thread];
-	thread_t* current_thread	= current_thread_ptr();
-	if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;	// if the thread is already active there's nothing to do
-	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault on switch");
-	ooos::update_thread_state(*current_thread, task_struct);
-	task_struct.saved_regs		= next_thread->saved_regs;
-	task_struct.fxsv			= next_thread->fxsv;
-	task_struct.thread_ptr		= next_thread->self;
+	// don't mess with thread states if we're between vfork() and execve()
+	if(!task_struct.task_ctl.vfork_dirty)
+	{
+		if(!thread_ptr_by_id.contains(to_thread)) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(to_thread));
+		thread_t* next_thread		= thread_ptr_by_id[to_thread];
+		thread_t* current_thread	= current_thread_ptr();
+		if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;	// if the thread is already active there's nothing to do
+		if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault on switch");
+		ooos::update_thread_state(*current_thread, task_struct);
+		task_struct.saved_regs		= next_thread->saved_regs;
+		task_struct.fxsv			= next_thread->fxsv;
+		task_struct.thread_ptr		= next_thread->self;
+	}
 }
 addr_t task_ctx::tls_get(size_t mod_idx, size_t offs)
 {

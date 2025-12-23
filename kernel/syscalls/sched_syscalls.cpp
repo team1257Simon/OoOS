@@ -190,7 +190,7 @@ extern "C"
 	{
 		task_ctx* task	= active_task_context();
 		task_ctx* clone	= tl.task_vfork(task);
-		kthread_ptr thr(task->header(), task->task_struct.thread_ptr);
+		kthread_ptr thr(task->header(), task->current_thread_ptr());
 		if(clone && sch.set_wait_untimed(thr))
 		{
 			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
@@ -201,7 +201,7 @@ extern "C"
 			kthread_ptr next							= sch.yield();
 			if(next.task_ptr == task->header())
 			{
-				next				= kthread_ptr(clone->header(), nullptr);
+				next				= kthread_ptr(clone->header(), clone->current_thread_ptr());
 				next->quantum_rem	= next->quantum_val;
 				write_task_base(*next);
 			}
