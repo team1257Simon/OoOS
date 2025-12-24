@@ -2,7 +2,7 @@
 #define __DYN_QUEUE
 #include <memory>
 #include <limits>
-#include <bits/stl_iterator.hpp>
+#include <bits/range_access.hpp>
 #include <libk_decls.h>
 #include <initializer_list>
 #include <bits/stdexcept.h>
@@ -87,7 +87,7 @@ namespace std::__impl
 			}
 		} __qallocator;
 		__ptr_container __my_queue_data;
-		template<matching_input_iterator<T> IT> constexpr void __qtransfer(__pointer where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, addressof(*start), static_cast<__size_type>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
+		template<matching_input_iterator<T> IT> constexpr void __qtransfer(__pointer where, IT start, IT end) { if constexpr(contiguous_iterator<IT>) array_copy(where, to_address(start), static_cast<__size_type>(distance(start, end))); else for(IT i = start; i != end; i++, where++) { *where = *i; } }
 		constexpr void __qset(__pointer where, __value_type const& val, __size_type n) { fill_n(where, n, val); }
 		constexpr void __qassign(__pointer where, __value_type&& val) { *where = move(val); }
 		constexpr void __qcopy(__pointer where, __const_pointer src, __size_type n) { array_copy(where, src, n); }
@@ -172,7 +172,7 @@ namespace std::__impl
 		template<matching_input_iterator<T> IT> constexpr __pointer __push_elements(IT start, IT end) requires(!is_same_v<IT, __const_pointer>);
 		template<matching_input_iterator<T> IT> constexpr __pointer __push_elements(IT what) requires(!is_same_v<IT, __const_pointer>) { IT end = what; end++; return __push_elements(what, end); }
 		constexpr __pointer __push_elements(__const_pointer start, __const_pointer end);
-		template<output_iterator<T> IT> constexpr __size_type __pop_elements(IT out_start, IT out_end) requires(!is_same_v<IT, __pointer>);
+		template<output_iterator<T> IT, sentinel_for<IT> ET> constexpr __size_type __pop_elements(IT out_start, ET out_end) requires(!is_same_v<IT, __pointer>);
 		constexpr __size_type __pop_elements(__pointer out_start, __pointer out_end);
 		constexpr __size_type __erase_elements(__const_pointer start, __size_type n = 1UZ);
 		constexpr __size_type __force_trim() { return __erase_before_next(); }
@@ -270,13 +270,19 @@ namespace std::__impl
 		return __end();
 	}
 	template<typename T, allocator_object<T> A>
-	template<output_iterator<T> IT>
-	constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(IT out_start, IT out_end)
+	template<output_iterator<T> IT, sentinel_for<IT> ET>
+	constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__pop_elements(IT out_start, ET out_end)
 	requires(!is_same_v<IT, typename __dynamic_queue<T, A>::__pointer>)
 	{
-		if(__unlikely(out_end <= out_start)) return 0UL;
-		__size_type n			= 0UZ;
-		for(IT i = out_start; i != out_end && __qcur() != __end(); ++i, ++n, __bumpn()) *i = *__qcur();
+		__size_type n			= (std::min(static_cast<__size_type>(std::ranges::distance(out_start, out_end)), static_cast<__size_type>(__end() - __qcur())));
+		if constexpr(contiguous_iterator<IT>) __qtransfer(to_address(out_start), __qcur(), n);
+		else
+		{
+			__size_type s{};
+			for(IT i	= out_start; s < n; s++, ++i)
+				*i		= std::move(__qcur()[s]);
+		}
+		__bumpn(n);
 		__qallocator.__op_cnt	= 0;
 		on_modify_queue();
 		return n;

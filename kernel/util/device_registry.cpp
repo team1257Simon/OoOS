@@ -24,3 +24,11 @@ bool device_registry::remove(device_stream* dev)
 	if(this->erase(id.hi)) return true;
 	return false;
 }
+uint32_t device_registry::add(device_stream *dev, device_type type, uint16_t minor_hint)
+{
+	dev_class_map& m	= (*static_cast<__base*>(this))[type];
+	uint16_t minor		= minor_hint;
+	while(m.contains(minor)) minor++;
+	m.emplace(minor, dev);
+	return dword(minor, type);
+}

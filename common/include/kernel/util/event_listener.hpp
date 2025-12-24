@@ -119,7 +119,8 @@ namespace ooos
 		}
 		constexpr event_listener& operator=(event_listener const& that) { event_listener(that).swap(*this); return *this; }
 		constexpr event_listener& operator=(event_listener&& that) { event_listener(std::move(that)).swap(*this); return *this; }
-		constexpr void operator()(ET e) const { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }
+		constexpr void operator()(ET&& e) const { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }
+		constexpr void operator()(ET e) const requires(std::is_trivially_copyable_v<ET>) { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }
 		constexpr std::type_info const& target_type() const noexcept { if(this->__my_manager) { functor_store tmp; (*this->__my_manager)(tmp, this->__my_listener, get_type_info); if(std::type_info const* result = tmp.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
 	};
 }

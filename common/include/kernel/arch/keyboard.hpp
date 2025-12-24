@@ -66,7 +66,17 @@ namespace ooos
 		void __init();
 	public:
 		ps2_keyboard(ps2_controller& ps2);
+		keyboard_listener& listener_for(void* owner);
+		bool remove_listener(void* owner);
+		inline uint16_t id_word() const noexcept { return __controller.id_word(); }
 		template<__internal::__callable<keyboard_event> FT> constexpr bool add_listener(void* owner, FT&& ft) { return __listeners.emplace(std::piecewise_construct, std::tuple<void*>(owner), std::forward_as_tuple<FT>(std::forward<FT>(ft))).second; }
+		template<__internal::__callable<keyboard_event> FT>
+		constexpr keyboard_listener replace_listener(void* owner, FT&& ft)
+		{
+			keyboard_listener l(std::forward<FT>(ft));
+			__listeners[owner].swap(l);
+			return std::move(l);
+		}
 	};
 }
 #endif

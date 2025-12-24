@@ -53,12 +53,12 @@ namespace std
 			void rbegin()	= delete;
 			void rend()		= delete;
 			void size()		= delete;
-			template<typename T> concept __member_begin = requires(T& __t) { { __decay_copy(__t.begin()) } -> input_or_output_iterator; };
-			template<typename T> concept __adl_begin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
-			template<typename T> concept __member_end = requires(T& __t) { { __decay_copy(__t.end()) } -> sentinel_for<__range_iter_t<T>>; };
-			template<typename T> concept __adl_end =__class_or_enum<remove_reference_t<T>> && requires(T& __t)  { { __decay_copy(end(__t)) } -> sentinel_for<__range_iter_t<T>>; };
-			template<typename T> concept __valid_begin = (__member_begin<T> || __adl_begin<T> || (is_array_v<remove_reference_t<T>> && is_lvalue_reference_v<T>)) && __detail::__maybe_borrowed_range<T>;
-			template<typename T> concept __valid_end = (__member_end<T> || __adl_end<T> || (is_bounded_array_v<remove_reference_t<T>> && is_lvalue_reference_v<T>)) && __detail::__maybe_borrowed_range<T>;	
+			template<typename T> concept __member_begin	= requires(T& __t) { { __decay_copy(__t.begin()) } -> input_or_output_iterator; };
+			template<typename T> concept __adl_begin	= __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(begin(__t)) } -> input_or_output_iterator; };
+			template<typename T> concept __member_end	= requires(T& __t) { { __decay_copy(__t.end()) } -> sentinel_for<__range_iter_t<T>>; };
+			template<typename T> concept __adl_end		= __class_or_enum<remove_reference_t<T>> && requires(T& __t)  { { __decay_copy(end(__t)) } -> sentinel_for<__range_iter_t<T>>; };
+			template<typename T> concept __valid_begin	= (__member_begin<T> || __adl_begin<T> || (is_array_v<remove_reference_t<T>> && is_lvalue_reference_v<T>)) && __detail::__maybe_borrowed_range<T>;
+			template<typename T> concept __valid_end	= (__member_end<T> || __adl_end<T> || (is_bounded_array_v<remove_reference_t<T>> && is_lvalue_reference_v<T>)) && __detail::__maybe_borrowed_range<T>;	
 			struct __begin
 			{
 				template<typename T>
@@ -96,13 +96,13 @@ namespace std
 					else return end(t);
 				}
 			};
-			template<typename T> concept __member_rbegin = requires(T& __t) { { __decay_copy(__t.rbegin()) } -> input_or_output_iterator; };
-			template<typename T> concept __adl_rbegin = __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(rbegin(__t)) } -> input_or_output_iterator; };
-			template<typename T> concept __member_rend = requires(T& __t) { { __decay_copy(__t.rend()) } -> sentinel_for<__range_iter_t<T>>; };
-			template<typename T> concept __adl_rend =__class_or_enum<remove_reference_t<T>> && requires(T& __t)  { { __decay_copy(rend(__t)) } -> sentinel_for<__range_iter_t<T>>; };
-			template<typename T> concept __reversable = requires(T& t) { { __begin{}(t) } -> bidirectional_iterator; { __end{}(t) } -> same_as<decltype(__begin{}(t))>; };
-			template<typename T> concept __valid_rbegin = (__member_rbegin<T> || __adl_rbegin<T> || __reversable<T>) && __detail::__maybe_borrowed_range<T>;
-			template<typename T> concept __valid_rend = (__member_rend<T> || __adl_rend<T> || __reversable<T>) && __detail::__maybe_borrowed_range<T>;
+			template<typename T> concept __member_rbegin	= requires(T& __t) { { __decay_copy(__t.rbegin()) } -> input_or_output_iterator; };
+			template<typename T> concept __adl_rbegin		= __class_or_enum<remove_reference_t<T>> && requires(T& __t) { { __decay_copy(rbegin(__t)) } -> input_or_output_iterator; };
+			template<typename T> concept __member_rend		= requires(T& __t) { { __decay_copy(__t.rend()) } -> sentinel_for<__range_iter_t<T>>; };
+			template<typename T> concept __adl_rend			= __class_or_enum<remove_reference_t<T>> && requires(T& __t)  { { __decay_copy(rend(__t)) } -> sentinel_for<__range_iter_t<T>>; };
+			template<typename T> concept __reversable		= requires(T& t) { { __begin{}(t) } -> bidirectional_iterator; { __end{}(t) } -> same_as<decltype(__begin{}(t))>; };
+			template<typename T> concept __valid_rbegin		= (__member_rbegin<T> || __adl_rbegin<T> || __reversable<T>) && __detail::__maybe_borrowed_range<T>;
+			template<typename T> concept __valid_rend		= (__member_rend<T> || __adl_rend<T> || __reversable<T>) && __detail::__maybe_borrowed_range<T>;
 			struct __rbegin
 			{
 				template<typename T>

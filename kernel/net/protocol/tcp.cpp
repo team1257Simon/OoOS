@@ -79,7 +79,7 @@ void tcp_header::compute_tcp_checksum()
 	intermediate_csum			+= tcp_length;
 	net16 const* words			= std::addressof(source_port);
 	size_t num_words			= tcp_length / sizeof(net16);
-	if((tcp_length % 2) != 0)
+	if(tcp_length % 2)
 		intermediate_csum		+= payload_end().minus(1Z).deref<net8>();
 	for(size_t i = 0UZ; i < num_words; i++) intermediate_csum += words[i];
 	dword dw_csum				= intermediate_csum;

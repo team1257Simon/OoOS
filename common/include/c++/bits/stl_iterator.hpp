@@ -71,7 +71,7 @@ namespace std
 		template<typename BJT> requires(!same_as<BIT, BJT> && std::convertible_to<BJT const&, BIT>)
 		constexpr reverse_iterator(BJT const& __it) noexcept(is_nothrow_convertible_v<BJT, BIT>) : current(__it) {}
 		constexpr reference operator*() const { return *std::prev(current); }
-		constexpr pointer operator->() const requires (std::is_pointer_v<BIT> || requires(const BIT i) { i.operator->(); }) { if constexpr(std::is_pointer_v<BIT>) return current - 1; else return std::prev(current).operator->(); }
+		constexpr pointer operator->() const requires(std::is_pointer_v<BIT> || requires(const BIT i) { i.operator->(); }) { if constexpr(std::is_pointer_v<BIT>) return current - 1; else return std::prev(current).operator->(); }
 		constexpr iterator_type base() const { return current; }
 		constexpr reference operator[](difference_type __n) { return current[ -__n - 1]; }
 		constexpr reverse_iterator& operator++() { --current; return *this; }
@@ -83,7 +83,7 @@ namespace std
 		constexpr reverse_iterator& operator+=(difference_type __n) { current -= __n; return *this; }
 		constexpr reverse_iterator& operator-=(difference_type __n) { current += __n; return *this; }
 	};
-	template<typename IT, typename JT> constexpr bool operator==(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires requires {  {__this.base() == __that.base()} -> __detail::__boolean_testable;  } { return __this.base() == __that.base(); }
+	template<typename IT, typename JT> constexpr bool operator==(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) requires(requires { { __this.base() == __that.base() } -> __detail::__boolean_testable; }) { return __this.base() == __that.base(); }
 	template<typename IT> constexpr auto make_reverse_iterator(IT it) noexcept(is_nothrow_copy_constructible_v<IT>) { return reverse_iterator<IT>(it); }
 	template<typename IT, typename JT> requires(three_way_comparable_with<JT, IT>) constexpr compare_three_way_result_t<IT, JT> operator<=>(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() <=> __this.base(); }
 	template<typename IT, typename JT> constexpr typename iterator_traits<IT>::difference_type operator-(reverse_iterator<IT> const& __this, reverse_iterator<JT> const& __that) { return __that.base() - __this.base(); }
@@ -110,10 +110,10 @@ namespace std
 	template<input_iterator IT>
 	class basic_const_iterator : public __detail::__basic_const_iterator_iter_cat<IT>
 	{
-		IT __current{};
 		typedef iter_const_reference_t<IT> __reference;
 		typedef __detail::__iter_const_rvalue_reference_t<IT> __rvalue_reference;
 		template<input_iterator JT> friend class basic_const_iterator;
+		IT __current{};
 	public:
 		typedef __detail::__iter_concept<IT> iterator_concept;
 		typedef iter_value_t<IT> value_type;
@@ -122,13 +122,14 @@ namespace std
 		constexpr basic_const_iterator(IT i) noexcept(is_nothrow_move_constructible_v<IT>) : __current(move(i)) {}
 		template<convertible_to<IT> JT> constexpr basic_const_iterator(basic_const_iterator<JT> that) noexcept(is_nothrow_move_constructible_v<IT>) : __current(move(that.__current)) {}
 		template<not_self<IT> JT> requires(convertible_to<JT, IT>) constexpr basic_const_iterator(JT&& j) noexcept(is_nothrow_constructible_v<IT, JT>) : __current(forward<JT>(j)) {}
-		constexpr IT const& base() const & noexcept { return __current; }
-		constexpr IT base() && noexcept(is_nothrow_move_constructible_v<IT>) { return move(__current); }
+		constexpr IT const& base() const& noexcept { return __current; }
+		constexpr IT base()&& noexcept(is_nothrow_move_constructible_v<IT>) { return move(__current); }
 		constexpr __reference operator*() const noexcept(noexcept(static_cast<__reference>(*__current))) { return static_cast<__reference>(*__current); }
-		constexpr const auto* operator->() const noexcept(contiguous_iterator<IT> || noexcept(*__current)) requires is_lvalue_reference_v<iter_reference_t<IT>> && same_as<remove_cvref_t<iter_reference_t<IT>>, value_type>
+		constexpr const auto* operator->() const noexcept(contiguous_iterator<IT> || noexcept(*__current))
+		requires(is_lvalue_reference_v<iter_reference_t<IT>> && same_as<remove_cvref_t<iter_reference_t<IT>>, value_type>)
 		{
 			if constexpr(contiguous_iterator<IT>)
-			return to_address(__current);
+				return to_address(__current);
 			else return addressof(*__current);
 		}
 		constexpr basic_const_iterator& operator++() noexcept(noexcept(++__current)) {

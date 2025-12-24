@@ -10,8 +10,8 @@ static void init_pwd(unix_pwd* out, vpwd_entry* data)
 		.pw_gid		{ data->gid },
 		.pw_comment	{ data->gecos_home_shell },
 		.pw_gecos	{ data->gecos_home_shell },
-		.pw_dir		{ std::addressof(data->gecos_home_shell[data->gecos_size + 1]) },
-		.pw_shell	{ std::addressof(data->gecos_home_shell[data->gecos_size + data->home_size + 2]) }
+		.pw_dir		{ std::addressof(data->gecos_home_shell[data->gecos_size + 1Z]) },
+		.pw_shell	{ std::addressof(data->gecos_home_shell[data->gecos_size + data->home_size + 2Z]) }
 	};
 }
 extern "C"

@@ -85,7 +85,7 @@ namespace ooos
 			constexpr bool __empty() const noexcept { return !__manager || !__invoker; }
 			constexpr ~__deferred_action_base() { if(__manager) (*__manager)(__functor, __functor, destroy); }
 			constexpr __deferred_action_base() noexcept = default;
-			constexpr __deferred_action_base(time_t delay) noexcept : __manager(), __invoker(), __functor(), __delay_ticks(delay) { if(!__delay_ticks) __delay_ticks++; }
+			constexpr __deferred_action_base(time_t delay) noexcept : __manager(), __invoker(), __functor(), __delay_ticks(std::max(delay, 1UL)) {}
 		};
 	}
 	class deferred_action : public __internal::__deferred_action_base
@@ -97,7 +97,7 @@ namespace ooos
 		 * Returns true if the function has already executed, i.e. the delay timer is already zero.
 		 * Because the decrement occurs immediately before the functor is invoked, the timer will not be zero.
 		 * If a zero is passed to the constructor, the timer will be initialized to 1, which effectively creates a functor with a minimal delay.
-		 * This is not recommended, however, as short-delay calls are more precisely handled by the HPET.
+		 * This is not recommended for precise timings; use the HPET for that instead.
 		 */
 		constexpr bool is_done() const noexcept { return !__delay_ticks; }
 		/**

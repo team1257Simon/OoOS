@@ -84,7 +84,7 @@ constexpr uint16_t unix_year_base				= 1970U;
 constexpr inline size_t gigabyte				= 0x40000000;
 template<typename T> concept trivial_copy		= std::is_trivially_copyable_v<T>;
 template<typename T> concept nontrivial_copy	= !trivial_copy<T> && std::is_copy_constructible_v<T>;
-template<typename T> concept trivial_move		= std::is_trivially_move_constructible_v<T>;
+template<typename T> concept trivial_move		= std::is_trivially_move_constructible_v<T> && std::is_trivially_destructible_v<T>;
 template<typename T> concept nontrivial_move	= !trivial_move<T> && std::is_move_constructible_v<T>;
 template<typename T> concept standard_layout	= std::is_standard_layout_v<T>;
 template<typename T> concept qword_size			= (sizeof(T) == sizeof(uint64_t));

@@ -39,7 +39,7 @@ void elf64_kernel_object::process_headers()
 	elf64_dynamic_object::process_headers();
 	size_t seg_base				= 0UZ, extent = 0UZ, needed_align = 0UZ, tls_off = 0UZ;
 	size_t n					= ehdr().e_phnum;
-	for(size_t i = 0; i < n; i++)
+	for(size_t i = 0UZ; i < n; i++)
 	{
 		elf64_phdr const& ph	= phdr(i);
 		if(is_tls(ph))

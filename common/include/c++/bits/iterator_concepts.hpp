@@ -232,10 +232,10 @@ namespace std
 			struct __iter_swap
 			{
 			private:
-				template<typename T, typename U> static constexpr bool _is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(declval<T>(), declval<U>())); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*declval<T>(), *declval<U>())); else return noexcept(*declval<T>() = __iter_exchange_move(declval<U>(), declval<T>())); }
+				template<typename T, typename U> static constexpr bool _is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(declval<T>(), declval<U>())); else if constexpr(indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*declval<T>(), *declval<U>())); else return noexcept(*declval<T>() = __iter_exchange_move(declval<U>(), declval<T>())); }
 			public:
 				template<typename T, typename U> requires __adl_iswap<T, U> || (indirectly_readable<remove_reference_t<T>> && indirectly_readable<remove_reference_t<U>> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) || (indirectly_movable_storable<T, U> && indirectly_movable_storable<U, T>)
-				constexpr void operator()(T&& __e1, U&& __e2) const noexcept(_is_noexcept<T, U>()) { if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2)); else if constexpr (indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2); else *__e1 = __iter_exchange_move(__e2, __e1); }
+				constexpr void operator()(T&& __e1, U&& __e2) const noexcept(_is_noexcept<T, U>()) { if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2)); else if constexpr(indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2); else *__e1 = __iter_exchange_move(__e2, __e1); }
 			};
 		}
 		inline namespace __cust { inline constexpr __cust_iswap::__iter_swap iter_swap{}; }

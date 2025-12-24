@@ -75,8 +75,8 @@ namespace std
 		constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 		constexpr const_reverse_iterator rend() const { return crend(); }
 		constexpr bool empty() const noexcept { return this->__size() == 0; }
-		constexpr size_t size() const noexcept { return this->__size(); }
-		constexpr size_t max_size() const noexcept { return this->__max_capacity(); }
+		constexpr size_type size() const noexcept { return this->__size(); }
+		constexpr size_type max_size() const noexcept { return this->__max_capacity(); }
 		constexpr void reserve(size_type count) { if(count > this->__capacity()) this->__grow_buffer(size_type(count - this->__capacity())); }
 		constexpr size_type capacity() const noexcept { return this->__capacity(); }
 		constexpr void shrink_to_fit() { this->__trim_buffer(); }
@@ -85,6 +85,7 @@ namespace std
 		constexpr void pop_back() { this->__erase_at_end(1UZ); }
 		constexpr void swap(vector& that) { this->__swap(that); }
 		extension constexpr operator bool() const noexcept { return this->__beg() != nullptr; }
+		extension constexpr void size(size_type count) requires(is_default_constructible_v<value_type>);
 	};
 	template<typename T, allocator_object<T> A>
 	constexpr typename vector<T, A>::iterator vector<T, A>::find(const_reference what)
@@ -150,6 +151,30 @@ namespace std
 		pointer result	= this->__erase_range(start.base(), __end.base());
 		if(result) return iterator(result);
 		return end();
+	}
+	extension template<typename T, allocator_object<T> A>
+	constexpr void vector<T, A>::size(size_type count)
+	requires(is_default_constructible_v<value_type>)
+	{
+		if(count)
+		{
+			size_type old_size	= this->__size();
+			if(count < old_size)
+			{
+				if constexpr(!is_trivially_destructible_v<value_type>)
+					for(pointer p = this->__get_ptr(count); p < this->__get_ptr(old_size); p++)
+						p->~value_type();
+			}
+			else
+			{
+				reserve(count);
+				if constexpr(!is_trivially_default_constructible_v<value_type>)
+					for(pointer p = this->__get_ptr(old_size); p < this->__get_ptr(count); p++)
+						construct_at(p);
+			}
+			this->__setc(count);
+		}
+		else this->clear();
 	}
 }
 #endif

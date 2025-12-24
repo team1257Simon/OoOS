@@ -1,6 +1,7 @@
 #ifndef __STL_QUEUE
 #define __STL_QUEUE
 #include <bits/dynamic_queue.hpp>
+#include <bits/range_access.hpp>
 namespace std
 {
 	extension namespace ext
@@ -79,6 +80,8 @@ namespace std
 			extension constexpr size_type transfer(resettable_queue& to_whom) { return this->transfer(to_whom, 1UZ); }
 			extension template<equality_comparable_to<value_type> U> constexpr iterator find_like(U const& what, bool include_stale = false) noexcept { for(iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
 			extension template<equality_comparable_to<value_type> U> constexpr const_iterator find_like(U const& what, bool include_stale = false) const noexcept { for(const_iterator i = include_stale ? begin() : current(); i != end(); i++) { if(*i == what) return i; } return end(); }
+			template<std::ranges::output_range<T> RT> constexpr size_type get(RT&& r) const { return this->__pop_elements(std::ranges::begin(r), std::ranges::end(r)); }
+			template<std::output_iterator<T> IT, sentinel_for<IT> ET> constexpr size_type get(IT first, ET last) { return this->__pop_elements(first, last); }
 		};
 	}
 }

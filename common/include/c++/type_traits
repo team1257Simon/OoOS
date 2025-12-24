@@ -178,7 +178,7 @@ namespace std
 	template<typename T> struct is_nothrow_destructible : public __is_nt_destructible_safe<T>::type { ARGCHK(T); };
 	template<typename T, typename...Args> using __is_constructible_impl = __bool_constant<__is_constructible(T, Args...)>;
 	template<typename T, typename...Args> struct is_constructible : public __is_constructible_impl<T, Args...> { ARGCHK(T); };
-	template<typename T> struct is_default_constructible: public __is_constructible_impl<T> { ARGCHK(T); };
+	template<typename T> struct is_default_constructible : public __is_constructible_impl<T> { ARGCHK(T); };
 	template<typename T, typename = void> struct __add_lvalue_reference_helper { using type = T; };
 	template<typename T> struct __add_lvalue_reference_helper<T, __void_t<T&>> { using type = T&; };
 	template<typename T> using __add_lval_ref_t = typename __add_lvalue_reference_helper<T>::type;
@@ -230,7 +230,7 @@ namespace std
 	template<typename FT, typename TT, bool = __or_<is_void<FT>, is_function<TT>, is_array<TT>>::value> struct __is_convertible_helper { using type = typename is_void<TT>::type; };
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wctor-dtor-privacy"
-	template<typename FT, typename TT> class __is_convertible_helper<FT, TT, false> { template<typename T1> static void __test_aux(T1) noexcept; template<typename F1, typename T1, typename = decltype(__test_aux <T1> (declval<F1>()))> static true_type __test(int); template<typename, typename> static false_type __test(...); public: using type = decltype(__test<FT, TT>(0)); };
+	template<typename FT, typename TT> class __is_convertible_helper<FT, TT, false> { template<typename T1> static void __test_aux(T1) noexcept; template<typename F1, typename T1, typename = decltype(__test_aux<T1>(declval<F1>()))> static true_type __test(int); template<typename, typename> static false_type __test(...); public: using type = decltype(__test<FT, TT>(0)); };
 	#pragma GCC diagnostic pop
 	template<typename FT, typename TT> struct is_convertible : public __is_convertible_helper<FT, TT>::type {};
 	template<typename FT, typename TT> struct is_nothrow_convertible : public __bool_constant<__is_nothrow_convertible(FT, TT)> {};

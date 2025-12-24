@@ -1,5 +1,6 @@
 #include <arch/keyboard.hpp>
 #include <arch/arch_amd64.h>
+#include <fs/dev_stream.hpp>	// device_type
 #include <isr_table.hpp>
 #include <array>
 namespace ooos
@@ -740,4 +741,6 @@ seq_fail:
 		if(uint8_t nlights 	= std::bit_cast<uint8_t>(__decoder.led_state); nlights != lights) __controller.set_leds(__decoder.led_state);
 		for(keyboard_listener_registry::value_type const& p : __listeners) p.second(e);
 	}
+	bool ps2_keyboard::remove_listener(void* owner) { return __listeners.erase(owner) != 0UZ; }
+	keyboard_listener& ps2_keyboard::listener_for(void* owner) { return __listeners[owner]; }
 }

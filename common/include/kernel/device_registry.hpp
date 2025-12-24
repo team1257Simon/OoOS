@@ -20,6 +20,7 @@ public:
 	static device_registry& get_instance();
 	device_stream* operator[](dword id) const;
 	uint32_t add(device_stream* dev, device_type type);
+	uint32_t add(device_stream* dev, device_type type, uint16_t minor_hint);
 	bool remove(device_stream* dev);
 };
 #define dreg device_registry::get_instance()
