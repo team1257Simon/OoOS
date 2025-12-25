@@ -83,10 +83,12 @@ uint16_t crc16_calc(const void* data, size_t len, uint16_t seed = 0);
 constexpr uint16_t unix_year_base				= 1970U;
 constexpr inline size_t gigabyte				= 0x40000000;
 template<typename T> concept trivial_copy		= std::is_trivially_copyable_v<T>;
-template<typename T> concept nontrivial_copy	= !trivial_copy<T> && std::is_copy_constructible_v<T>;
+template<typename T> concept nontrivial_copy	= !trivial_copy<T> && (std::is_copy_assignable_v<T> || std::is_copy_constructible_v<T>);
 template<typename T> concept trivial_move		= std::is_trivially_move_constructible_v<T> && std::is_trivially_destructible_v<T>;
-template<typename T> concept nontrivial_move	= !trivial_move<T> && std::is_move_constructible_v<T>;
+template<typename T> concept nontrivial_move	= !trivial_move<T> && (std::is_move_assignable_v<T> || std::is_move_constructible_v<T>);
 template<typename T> concept standard_layout	= std::is_standard_layout_v<T>;
+template<typename T> concept nothrow_copy		= (std::is_copy_assignable_v<T> && std::is_nothrow_copy_assignable_v<T>) || (!std::is_copy_assignable_v<T> && std::is_nothrow_copy_constructible_v<T>);
+template<typename T> concept nothrow_move		= (std::is_move_assignable_v<T> && std::is_nothrow_move_assignable_v<T>) || (!std::is_move_assignable_v<T> && std::is_nothrow_move_constructible_v<T>);
 template<typename T> concept qword_size			= (sizeof(T) == sizeof(uint64_t));
 template<typename T> concept dword_size			= (sizeof(T) == sizeof(uint32_t));
 template<typename T> concept word_size			= (sizeof(T) == sizeof(uint16_t));
@@ -127,7 +129,7 @@ inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>) constexpr T* array_zero(T* dest, std::size_t n) noexcept;
 template<trivial_copy T> requires(std::larger<T, uint64_t>) constexpr T* array_zero(T* dest, std::size_t n) noexcept;
 template<trivial_copy T> constexpr T* array_copy(void* dest, T const* src, std::size_t n) noexcept;
-template<nontrivial_copy T> constexpr T* array_copy(T* dest, T const* src, std::size_t n) noexcept(std::is_nothrow_copy_constructible_v<T>);
+template<nontrivial_copy T> constexpr T* array_copy(T* dest, T const* src, std::size_t n) noexcept(nothrow_copy<T>);
 template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, J>::quotient_type div_round_up(I num, J denom) { return (num % denom == 0) ? (num / denom) : (1 + (num / denom)); }
 template<integral_structure I, integral_structure J> constexpr typename arithmetic_result<I, J>::modulus_type truncate(I n, J unit) { return (n % unit == 0) ? n : n - (n % unit); }
 template<integral_structure I, integral_structure J> constexpr alignup_type<I, J> up_to_nearest(I n, J unit) { return (n % unit == 0) ? static_cast<alignup_type<I, J>>(n) : (unit * div_round_up(n, unit)); }
@@ -139,17 +141,20 @@ template<trivial_move T> constexpr T* array_move(T* dest, T* src, std::size_t n)
 template<trivial_copy T> constexpr T* array_copy(void* dest, T const* src, std::size_t n) noexcept { return static_cast<T*>(__builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T)))); }
 template<nontrivial_copy T>
 constexpr T* array_copy(T* dest, T const* src, std::size_t n)
-noexcept(std::is_nothrow_copy_constructible_v<T>)
+noexcept(nothrow_copy<T>)
 {
 	T* p			= dest;
-	for(size_t i	= 0; i < n; i++, p++) std::construct_at(p, src[i]);
+	if constexpr(std::is_copy_assignable_v<T>)
+		for(size_t i	= 0UZ; i < n; i++, p++)
+			*p		= src[i];
+	else for(size_t i	= 0UZ; i < n; i++, p++) std::construct_at(p, src[i]);
 	return dest;
 }
 template<trivial_copy T> requires(std::larger<T, uint64_t>)
 constexpr T* array_fill(T* dest, T const& value, std::size_t n) noexcept
 {
 	T* ptr			= dest;
-	for(size_t i	= 0; i < n; i++, ptr++)	new(ptr) T(value);
+	for(size_t i	= 0UZ; i < n; i++, ptr++)	new(ptr) T(value);
 	return dest;
 }
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>)
@@ -157,7 +162,7 @@ constexpr T* array_fill(void* dest, T value, std::size_t n) noexcept
 {
 	if constexpr(!std::integral<T>)
 	{
-		for(size_t i = 0; i < n; i++)
+		for(size_t i = 0UZ; i < n; i++)
 			std::construct_at(std::addressof(static_cast<T*>(dest)[i]), value);
 		return static_cast<T*>(dest);
 	}
@@ -188,7 +193,7 @@ constexpr T* array_fill(T* dest, std::tuple<Args...>&& arg_tuple, size_t n)
 noexcept(std::is_nothrow_constructible_v<T, Args...>)
 {
 	T* p = dest;
-	for(size_t i = 0; i < n; i++, p++) std::ext::tuple_construct(p, std::forward<std::tuple<Args...>>(arg_tuple));
+	for(size_t i = 0UZ; i < n; i++, p++) std::ext::tuple_construct(p, std::forward<std::tuple<Args...>>(arg_tuple));
 	return dest;
 }
 template<nontrivial_copy T>
@@ -196,7 +201,7 @@ constexpr T* array_zero(T* dest, std::size_t n)
 noexcept(std::is_nothrow_default_constructible_v<T> || !std::is_default_constructible_v<T>)
 {
 	if constexpr(std::is_default_constructible_v<T>)
-		for(std::size_t i = 0; i < n; i++)
+		for(std::size_t i = 0UZ; i < n; i++)
 			std::construct_at(std::addressof(dest[i]));
 	return dest;
 }
@@ -209,10 +214,12 @@ constexpr typename arithmetic_result<I, I>::product_type raise_power(I base, J p
 }
 template<nontrivial_move T>
 constexpr T* array_move(T* dest, T* src, std::size_t n)
-noexcept(std::is_nothrow_move_constructible_v<T>)
+noexcept(nothrow_move<T>)
 {
 	T* p			= dest;
-	for(size_t i	= 0; i < n; i++, p++) new(p) T(std::move(src[i]));
+	if constexpr(std::is_move_assignable_v<T>)
+		for(size_t i	= 0UZ; i < n; i++, p++)	*p = std::move(src[i]);
+	else for(size_t i	= 0UZ; i < n; i++, p++) std::construct_at(p, std::move(src[i]));
 	return dest;
 }
 template<typename T>

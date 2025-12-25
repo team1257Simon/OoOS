@@ -54,7 +54,6 @@ static char kb_pos[sizeof(ooos::ps2_keyboard)]{};
 static ooos::delegate_hda test_delegate;
 static std::ext::delegate_ptr<sysfs> test_sysfs(nullptr);
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', };
-std::atomic<bool> dbg_hold{};
 extern "C"
 {
 	extern uint64_t errinst;
@@ -62,8 +61,6 @@ extern "C"
 	extern void* isr_table[];
 	extern void* svinst;
 	extern bool task_change_flag;
-	extern unsigned char kernel_stack_base;
-	extern unsigned char kernel_stack_top;
 	extern unsigned char kernel_isr_stack_top;
 	extern bool debug_stop_flag;
 	extern void test_fault();
@@ -649,12 +646,12 @@ extern "C"
 		__serial_write("[KERNEL] E: " + std::string(msg));
 		direct_print_enable	= prt;
 	}
-	void attribute(sysv_abi) kmain(sysinfo_t* si, mmap_t* mmap)
+	void kmain(sysinfo_t* si, mmap_t* mmap)
 	{
 		// The bootloader gives us the machine with all memory identity-mapped, interrupts off, and an unspecified but valid GDT.
-		// First thing we need to do is set up the kernel stack.
-		asm volatile("movq %0, %%rsp" :: "r"(std::addressof(kernel_stack_top))  : "memory");
-		asm volatile("movq %0, %%rbp" :: "r"(std::addressof(kernel_stack_base)) : "memory");
+		// The entry point function sets up the initial kernel stack, so grab that information for the kernel process tag.
+		asm volatile("movq %%rsp, %0" : "=g"(kproc.saved_regs.rsp)	:: "memory");
+		asm volatile("movq %%rbp, %0" : "=g"(kproc.saved_regs.rbp)	:: "memory");
 		// The GDT is only used to set up the IDT (as well as enabling switching rings), but it's still a requirement because Intel wants back-compatibility.
 		gdt_setup();
 		// The IDT descriptors will essentially index a table of trampoline functions, each of which passes the interrupt vector number as an argument to isr_dispatch.
@@ -665,18 +662,18 @@ extern "C"
 		kproc.self 				= std::addressof(kproc);
 		// This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator.
 		kernel_memory_mgr::init_instance(mmap);
-		// Someone (aka the OSDev wiki) told me I need to do this in order to get exception handling to work properly, so here we are. It's imlemented in libgcc.
-		__register_frame(std::addressof(__ehframe));
 		try
 		{
 			// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init.
 			_init();
+			// The code in libgcc that initializes the exception-handling frame will malloc a significant amount of memory for the frame data.
+			// It normally waits until an exception is thrown, but because of the unusual layout of the eh_frame data in the kernel, this can cause problems.
+			// By forcing it to do the initialization now, before any other large allocations occur, we can hopefully avoid those.
+			force_eager_fde();
 			tss_init(std::addressof(kernel_isr_stack_top));
 			enable_fs_gs_insns();
 			set_kernel_gs_base(std::addressof(kproc));
 			kproc.saved_regs.cr3	= get_cr3();
-			kproc.saved_regs.rsp	= std::addressof(kernel_stack_top);
-			kproc.saved_regs.rbp	= std::addressof(kernel_stack_base);
 			// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
 			init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
 			fadt_t* fadt			= nullptr;

@@ -25,7 +25,7 @@ struct dev_stream
 	virtual size_type seek(int direction, difference_type where, uint8_t ioflags)	= 0;
 	virtual size_type seek(size_type where, uint8_t ioflags)						= 0;
 	virtual size_type avail() const													= 0;
-	virtual size_type out_avail() const												= 0;
+	virtual size_type tellg() const													= 0;
 	virtual uint32_t get_device_id() const noexcept									= 0;
 };
 #endif

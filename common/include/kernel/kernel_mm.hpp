@@ -202,13 +202,21 @@ enum block_size : uint32_t
  *	In addition, a region can be allocated in its entirety as a 512-page block.
  *	Blocks are assigned as follows:
  *		1. When memory is requested (i.e. a frame needs additional blocks), the amount of memory requested is used to determine the block size to allocate.
- *			- If the requested block is larger than 256 pages but smaller than 512 pages, a 512-page block is allocated to be divided later.
- *			- If the requested block is larger than 512 pages, a set of physically-contiguous 512-page blocks is allocated as a single block to be divided later.
+ *			- If the requested block is larger than 256 pages but smaller than 512 pages, a full 512-page region is allocated.
+ *			- If the requested block is larger than 512 pages, a set of physically-contiguous 512-page regions is allocated as a single block.
+ *			- In all other cases, the requested amount (in pages) will be rounded up to the next power of 2, to a minimum of 4, and used as the size of the block.
+ *			-- Any successful block allocation will therefore allocate at least 16 kilobytes of memory as a single contiguous block.
+ *			-- Blocks are then divided by the kernel frame (either the main kernel's or that of the relevant module) to satisfy individual allocation requests.
  *		2. Physical addresses are assigned in order low-to-high, globally, from regions of conventional memory.
+ *			- When a block is allocated, a watermark pointer serving as a hint for searches is set to equal the end of that block.
+ *			- When a page block is released, the watermark pointer is updated to reflect the newly-available address if it is lower.
+ *			- If the watermark is below an in-use block, that block will prevent allocating contiguous regions containing it.
+ *			- If a search reaches the end of available memory, the watermark will be reset to the start of the kernel heap.
+ *			- Searches for available blocks track where the watermark was when they started, so the search will not reset the watermark more than once.
  *		3. An amount of identity-mapped space directly after the kernel is reserved at startup for use with these structures. It is never released.
  *			- This amount depends on how much memory is available; 512 bytes track 1 GB of RAM. The kernel's frame-tag will also go here.
  *			- The page-table data for the kernel has been allocated by the bootloader and should be in a region marked as loader data (and thus not available).
- *			Page table entries generated after startup will come from the kernel heap.
+ *			- Page table entries generated after startup (such as for process page frames) will come from the kernel heap.
  *		4. Virtual addresses are assigned in order low-to-high per userspace page frame. Each page frame tracks its own address-mapping watermark.
  *			- Because of the extreme size of the address space, it should not be necessary to track released virtual addresses.
  *			Instead, blocks that are released from the frame are unmapped, and if they are reallocated later their virtual address will likely change.
@@ -241,14 +249,15 @@ class kernel_memory_mgr
 	gb_status* const __status_bytes;			// Array of 512-byte arrays
 	size_t const __num_status_bytes;			// Length of said array
 	uintptr_t const __kernel_heap_begin;		// Convenience pointer to the end of above array
-	uintptr_t __watermark{};					// Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+	uintptr_t __watermark;					// Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
 	addr_t __suspended_cr3{};					// Saved cr3 value for a frame suspended in order to access kernel paging structures
 	uframe_tag* __active_frame{};				// Tag for the frame currently being modified, if any
 	static kernel_memory_mgr* __instance;
 	constexpr kernel_memory_mgr(gb_status* status_bytes, size_t num_status_bytes, uintptr_t kernel_heap_addr) noexcept :
 		__status_bytes				{ status_bytes },
 		__num_status_bytes			{ num_status_bytes },
-		__kernel_heap_begin			{ kernel_heap_addr }
+		__kernel_heap_begin			{ kernel_heap_addr },
+		__watermark					{ kernel_heap_addr }
 									{}
 	constexpr status_byte* __get_sb(uintptr_t addr) { return std::addressof(__status_bytes[status_byte::gb_of(addr)][status_byte::sb_of(addr)]); }
 	constexpr status_byte& __status(uintptr_t addr) { return *__get_sb(addr); }

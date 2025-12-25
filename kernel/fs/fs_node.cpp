@@ -54,7 +54,7 @@ uint64_t device_vnode::size() const noexcept { return __dev_buffer->avail(); }
 bool device_vnode::truncate() { return true; /* NOP for device nodes */ }
 char* device_vnode::data() { return nullptr; /* Device nodes may not have proper data pointers */ }
 bool device_vnode::grow(size_t) { return false; }
-device_vnode::pos_type device_vnode::tell() const { return __dev_buffer->out_avail(); }
+device_vnode::pos_type device_vnode::tell() const { return __dev_buffer->tellg(); }
 device_vnode::size_type device_vnode::write(const_pointer src, size_type n) { size_type result = __dev_buffer->write(n, src); if(result) sys_time(std::addressof(modif_time)); return result; }
 device_vnode::size_type device_vnode::read(pointer dest, size_type n) { return __dev_buffer->read(dest, n); }
 device_vnode::pos_type device_vnode::seek(off_type off, std::ios_base::seekdir way) { return __dev_buffer->seek(way, off, std::ios_base::out | std::ios_base::in); }

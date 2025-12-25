@@ -1,4 +1,4 @@
-ENTRY(kmain)
+ENTRY(_start)
 KERNEL_VMA = 2M;
 PHDRS
 {
@@ -24,7 +24,7 @@ SECTIONS
 	{
 		. = ALIGN(4096);
 		__bss = .;
-		*(COMMON)
+		*(COMMON) *(.bss) *(.bss.*)
 	}
 	.ctors : AT(ADDR(.ctors))
 	{
@@ -42,22 +42,30 @@ SECTIONS
 		QUAD(0)
 		__DTOR_END__ = .;
 	}
+	.init (READONLY) : AT(ADDR(.init))
+	{
+		KEEP (*(SORT_NONE(.init)))
+	} :text
 	.text (READONLY) : AT(ADDR(.text))
 	{
 		__code = .;
 		*(.text .text.*)
 		*(.rodata*)
 	} :text
+	.fini (READONLY) : AT(ADDR(.fini))
+	{
+		KEEP (*(SORT_NONE(.fini)))
+	} :text
 	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr))
 	{
 		*(.eh_frame_hdr)
 		*(.eh_frame_entry .eh_frame_entry.*)
 	}
+	. = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
 	.eh_frame : AT(ADDR(.eh_frame))
 	{
-		. = ALIGN(4);
 		__ehframe = .;
-		*(.eh_frame)
+		KEEP(*(.eh_frame))
 		*(.eh_frame.*)
 		QUAD(0)
 	}
@@ -73,6 +81,10 @@ SECTIONS
 	.gnu_extab : AT(ADDR(.gnu_extab))
 	{
 		*(.gnu_extab*)
+	}
+	.exception_ranges   : AT(ADDR(.exception_ranges))
+	{
+		*(.exception_ranges*)
 	}
 	/DISCARD/ :
 	{

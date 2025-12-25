@@ -197,8 +197,7 @@ efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_p
 			if(EFI_ERROR(status)) { fprintf(stderr, "Unable to get pages for page tables\n"); return status; }
 		}
 	}
-	else 
-	{
+	else {
 		efi_status_t status	= BS->AllocatePages(AllocateAnyPages, EfiLoaderData, n, (efi_physical_address_t*)&tables_start);
 		if(EFI_ERROR(status)) { fprintf(stderr, "Unable to get pages for page tables\n"); return status; }
 	}
@@ -282,14 +281,16 @@ efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
 		return -ENODIR;
 	}
 	count						= dir_file_count(dir);
-	if(!count) {
+	if(!count)
+	{
 		// no modules to load at boot time...
 		printf("Note: no modules to load\n");
 		*out = NULL;
 		goto end; 
 	}
 	printf("Loading %li module files\n", count);
-	if(!(result = (boot_modules_list*)malloc(sizeof(boot_modules_list) + count * sizeof(boot_loaded_module)))) {
+	if(!(result = (boot_modules_list*)malloc(sizeof(boot_modules_list) + count * sizeof(boot_loaded_module))))
+	{
 		fprintf(stderr, "unable to allocate memory\n");
 		status					= -EMALLOC;
 		goto result_alloc_fail;
@@ -301,7 +302,8 @@ efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
 		if(ent->d_type == DT_REG)
 		{
 			filepath			= pathcat(dir_path, path_len, ent);
-			if(!filepath) {
+			if(!filepath)
+			{
 				fprintf(stderr, "unable to allocate memory\n");
 				status			= -EMALLOC;
 				goto loop_alloc_fail;

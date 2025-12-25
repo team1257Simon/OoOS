@@ -12,4 +12,5 @@ namespace std
 		virtual constexpr const char* what() const noexcept { return "std::exception"; }
 	};
 }
+void force_eager_fde();
 #endif

@@ -31,6 +31,7 @@
  */
 #include <bits/stdexcept.h>
 #include <stdlib.h>
+attribute(noinline) void __throw_generic() { throw std::exception(); }
 /**
  * Called to generate a bad cast exception.  This function is intended to allow
  * compilers to insert code generating this exception without needing to
@@ -71,4 +72,11 @@ extern "C" void __cxa_throw_bad_alloc()
 {
 	panic("(DBG) std::bad_alloc");
 	throw std::bad_alloc{};
+}
+void force_eager_fde()
+{
+	// libgcc tries to lazily initialize the FDE data which can cause problems. This forces it to initialize.
+	// TODO: figure out something a little less hacky
+	try { __throw_generic(); }
+	catch(...) {}
 }

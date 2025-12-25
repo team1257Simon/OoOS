@@ -38,12 +38,12 @@ namespace std
 			if constexpr(std::is_default_constructible_v<T>)
 				if consteval { return new T[n]; }
 			std::size_t total = n * __size_val;
-			if consteval { return static_cast<T*>(operator new(total, static_cast<std::align_val_t>(__align_val))); }
-			return static_cast<T*>(__builtin_memset(operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total));
+			if consteval { return static_cast<T*>(::operator new(total, static_cast<std::align_val_t>(__align_val))); }
+			return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total));
 		}
 		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const {
 			if consteval { delete[] ptr; }
-			else { operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
+			else { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
 		}
 	};
 	namespace __detail
@@ -170,6 +170,7 @@ namespace std
 				T* result		= alloc.allocate(ncount);
 				size_t ccount	= ncount < ocount ? ncount : ocount;
 				for(size_t i	= 0UZ; i < ccount; i++) new(addressof(result[i])) T(std::move(array[i]));
+				if(ccount < ocount) for(size_t i = ccount; i < ocount; i++) array[i].~T();
 				alloc.deallocate(array, ocount);
 				return result;
 			}

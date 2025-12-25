@@ -1,6 +1,7 @@
 #ifndef __SIMPLEX_STREAM
 #define __SIMPLEX_STREAM
 #include <tuple>
+#include <bits/stl_algobase.hpp>
 #include <bits/range_access.hpp>
 namespace std
 {
@@ -37,6 +38,7 @@ namespace std
 			typedef std::ranges::range_size_t<ORT> size_type;
 			typedef std::iter_difference_t<out_range_iterator> difference_type;
 			typedef typename std::ranges::range_value_t<ORT> value_type;
+			typedef std::add_pointer_t<std::add_const_t<value_type>> const_pointer;
 		protected:
 			std::pair<IRT, ORT> regions;
 			size_type out_pos;
@@ -52,7 +54,6 @@ namespace std
 			constexpr size_type out_rem() const noexcept { return static_cast<size_type>(std::ranges::size(regions.second) - out_pos); }
 			constexpr size_type seek(int whence, difference_type diff) { return this->seek(static_cast<size_type>(std::max(difference_type(0), diff + this->__start_for(whence)))); }
 			template<typename T> requires(__detail::__can_push<IRT, T>) constexpr void push(T t) { regions.first.push(std::forward<T>(t)); }
-			template<typename T> requires(__detail::__can_push<IRT, T&&>) constexpr void push(T&& t) { regions.first.push(std::move(t)); }
 			template<typename ... Args> requires(__detail::__can_emplace<IRT, Args...>) constexpr void emplace(Args&& ... args) { regions.first.emplace(std::forward<Args>(args)...); }
 			constexpr void flush()
 			{
@@ -67,7 +68,7 @@ namespace std
 				size_type avail_size	= std::ranges::size(regions.second);
 				if(pos > avail_size) this->input_flush();
 				size_type actual		= std::min(pos, std::ranges::size(regions.second));
-				return (out_pos			= actual);
+				return (out_pos	= actual);
 			}
 			constexpr void input_flush()
 			{
@@ -83,6 +84,10 @@ namespace std
 			}
 			constexpr size_type read(pointer dest, size_type n)
 			{
+				if(out_pos) {
+					this->__shift(out_pos);
+					out_pos		= size_type(0);
+				}
 				size_type available		= out_rem();
 				if(available < n) input_flush();
 				size_type actual		= std::min(n, out_rem());
@@ -90,13 +95,27 @@ namespace std
 				if constexpr(std::contiguous_iterator<out_range_iterator>) copy_or_move(dest, std::to_address(i), actual);
 				else for(size_type j	= 0UZ; j < actual; j++, i = std::ranges::next(i))
 					dest[j]				= std::move(*i);
-				out_pos					+= actual;
+				out_pos			+= actual;
 				return actual;
 			}
+			template<std::input_iterator IT, std::sentinel_for<IT> ST> requires(__detail::__can_push<IRT, std::iter_value_t<IT>>)
+			constexpr size_type write(IT start, ST finish)
+			{
+				size_type result{};
+				for(IT i = start; i != finish; i = std::ranges::next(i), result++)
+					push(*i);
+				input_flush();
+				return result;
+			}
 		private:
-			constexpr out_range_iterator __get_pos(size_type where) noexcept { return std::ranges::advance(std::ranges::begin(regions.second), static_cast<difference_type>(where)); }
-			constexpr void __shift(size_type where) { regions.second = std::move(ORT(__get_pos(where), std::ranges::end(regions.second))); }
+			constexpr void __shift(size_type where) { regions.second = std::move(ORT(this->__get_pos(where), std::ranges::end(regions.second))); }
 			constexpr difference_type __start_for(int whence) const noexcept { return static_cast<difference_type>(whence > 0 ? std::ranges::size(regions.second) : whence == 0 ? out_pos : size_type(0)); }
+			constexpr out_range_iterator __get_pos(size_type where) noexcept
+			{
+				out_range_iterator it = std::ranges::begin(regions.second);
+				std::ranges::advance(it, static_cast<difference_type>(where));
+				return it;
+			}
 		};
 	}
 }

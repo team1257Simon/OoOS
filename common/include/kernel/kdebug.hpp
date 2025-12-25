@@ -3,7 +3,6 @@
 #include <libk_decls.h>
 #include <atomic>
 #include <string>
-extern std::atomic<bool> dbg_hold;
 extern "C"
 {
     void debug_print_num(uintptr_t num, int lenmax = 16);

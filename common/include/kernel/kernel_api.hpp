@@ -523,6 +523,7 @@ namespace ooos
 			T* result 		= alloc.allocate(ncount);
 			size_t ccount 	= ncount < ocount ? ncount : ocount;
 			copy_or_move(result, array, ccount);
+			if(ccount < ocount) for(size_t i = ccount; i < ocount; i++) array[i].~T();
 			alloc.deallocate(array, ocount);
 			return result;
 		}

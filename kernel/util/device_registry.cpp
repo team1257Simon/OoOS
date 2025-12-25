@@ -1,4 +1,5 @@
 #include <device_registry.hpp>
+#include <stdexcept>
 device_registry device_registry::__instance{};
 device_registry::device_registry() : __base(256UZ) {}
 device_registry::~device_registry() = default;
@@ -16,7 +17,7 @@ uint32_t device_registry::add(device_stream* dev, device_type type)
 	dev_class_map& m	= (*static_cast<__base*>(this))[type];
 	uint16_t minor		= static_cast<uint16_t>(m.size());
 	m.emplace(minor, dev);
-	return dword(minor, type);
+	return create_id(type, minor);
 }
 bool device_registry::remove(device_stream* dev)
 {
@@ -24,11 +25,10 @@ bool device_registry::remove(device_stream* dev)
 	if(this->erase(id.hi)) return true;
 	return false;
 }
-uint32_t device_registry::add(device_stream *dev, device_type type, uint16_t minor_hint)
+uint32_t device_registry::add(device_stream* dev, device_type type, uint16_t minor_id)
 {
 	dev_class_map& m	= (*static_cast<__base*>(this))[type];
-	uint16_t minor		= minor_hint;
-	while(m.contains(minor)) minor++;
-	m.emplace(minor, dev);
-	return dword(minor, type);
+	if(m.contains(minor_id)) throw std::invalid_argument("[DEV] the identifier " + std::to_string(create_id(type, minor_id), std::ext::hex) + " is already in use");
+	m.emplace(minor_id, dev);
+	return create_id(type, minor_id);
 }

@@ -251,7 +251,7 @@ namespace ooos
 		virtual size_type seek(int direction, difference_type where, uint8_t ioflags) override;
 		virtual size_type seek(size_type where, uint8_t ioflags) override;
 		virtual size_type avail() const override { return in.remaining(); }
-		virtual size_type out_avail() const override { return out.remaining(); }
+		virtual size_type tellg() const override { return out.size(); }
 		virtual uint32_t get_device_id() const noexcept override { return device_id; }
 		void create_buffer(io_buffer& b, size_type n) { b.set(new (this->allocate_buffer(n * sizeof(value_type), alignof(value_type))) value_type[n], n); }
 		void destroy_buffer(io_buffer& b) { this->release_buffer(b.beg, alignof(value_type)); b.reset(); }

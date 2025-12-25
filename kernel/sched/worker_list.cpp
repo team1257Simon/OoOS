@@ -3,7 +3,7 @@
 namespace ooos
 {
 	worker_list worker_list::instance;
-	bool worker_list::destroy_worker(pid_t pid) { return contains(pid) ? destroy(find(pid).base()) : false; }
+	bool worker_list::destroy_worker(pid_t pid) { return contains(pid) ? destroy(std::to_address(find(pid))) : false; }
 	pid_t worker_list::__upid() const noexcept
 	{
 		pid_t pid{};

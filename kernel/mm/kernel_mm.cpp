@@ -9,7 +9,7 @@ extern "C"
 {
 	extern unsigned char	__start[];
 	extern unsigned char	__end[];
-	extern unsigned char	__code;
+	extern unsigned char	__code[];
 	extern kframe_tag*		__kernel_frame_tag;
 	extern unsigned char	sigtramp_code[4096];
 	extern const size_t		kernel_pages;
@@ -33,7 +33,7 @@ static paging_table	__build_new_pt(paging_table in, uint16_t idx, bool write_thr
 static paging_table	__build_new_pt(paging_table in, uint16_t idx, bool write_thru);
 static paging_table	__get_table(addr_t of_page, bool write_thru, paging_table pml4);
 static void			__unmap_pages(addr_t start, size_t pages, addr_t pml4);
-static bool			__is_code_page(addr_t addr) { return addr_t(addressof(__code)) <= addr && addr < addr_t(addressof(__end)); }
+static bool			__is_code_page(addr_t addr) { return addr_t(__code) <= addr && addr < addr_t(__end); }
 constexpr uint32_t	calculate_block_index(size_t size) { return size < min_block_size ? 0U : size > max_block_size ? max_block_index : (st_bits - __builtin_clzl(size)) - min_exponent; }
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t	region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, region_size)) : nearest(sz); }
@@ -45,7 +45,7 @@ void				kernel_memory_mgr::__lock() { lock(addressof(__heap_mutex)); __suspend_f
 void				kernel_memory_mgr::__unlock() { release(addressof(__heap_mutex)); __resume_frame(); }
 void				kernel_memory_mgr::__userlock() { lock(addressof(__user_mutex)); }
 void				kernel_memory_mgr::__userunlock() { release(addressof(__user_mutex)); }
-void				kernel_memory_mgr::__mark_used(uintptr_t start, size_t num_regions) { for(size_t i = 0; i < num_regions; i++, start += region_size) __get_sb(start)->set_used(ALL); }
+void				kernel_memory_mgr::__mark_used(uintptr_t start, size_t num_regions) { for(size_t i = 0UZ; i < num_regions; i++, start += region_size) __get_sb(start)->set_used(ALL); }
 size_t				kernel_memory_mgr::dma_size(size_t requested) { return region_size_for(requested); }
 size_t				kernel_memory_mgr::aligned_size(addr_t start, size_t requested) { return static_cast<size_t>(start.plus(requested).next_page_aligned() - start.page_aligned()); }
 void				kernel_memory_mgr::suspend_user_frame() { __instance->__suspend_frame(); }
@@ -374,28 +374,35 @@ void kernel_memory_mgr::__release_region(size_t sz, uintptr_t start)
 }
 void kernel_memory_mgr::init_instance(mmap_t* mmap)
 {
-	kernel_cr3						= get_cr3();
-	__kernel_frame_tag				= new(__end) kframe_tag();
-	addr_t		sb_addr				= addr_t(__kernel_frame_tag).plus(sizeof(kframe_tag));
+	size_t 		total_mem			= mmap->total_memory;
+	addr_t		sb_addr				= addr_t(__end).plus(sizeof(kframe_tag));
 	size_t		num_status_bytes	= div_round_up(mmap->total_memory, gigabyte);
 	uintptr_t	heap				= sb_addr.plus(num_status_bytes * sizeof(gb_status));
-	gb_status*	status_bytes		= new(sb_addr) gb_status[num_status_bytes];
-	(__instance						= new(__kmm_data) kernel_memory_mgr(status_bytes, num_status_bytes, heap))->__mark_used(0UL, div_round_up(heap, region_size));
-	total_memory					= mmap->total_memory;
+	//	The structure that contains the information regarding the kernel's data structures is positioned immediately after the kernel itself.
+	//	This is then immediately followed after by the allocation bitmap for physical memory locations.
+	//	All available memory with an address higher than that of the end of the bitmap is considered part of the kernel heap.
+	//	Allocated page blocks come from the kernel heap, which then can be divided into smaller blocks for individual structures.
+	//	Process page frames also allocate from the kernel heap. A separate data structure tracks allocations to userspace.
+	//	This also includes the metatada, such as page tables, used to manage the process page frame.
+	//	The KMM instance itself is a singleton object that holds pointers to these dynamically-sized structures.
+	__kernel_frame_tag				= new(__end) kframe_tag();
+	__instance						= new(__kmm_data) kernel_memory_mgr(new(sb_addr) gb_status[num_status_bytes], num_status_bytes, heap);
+	//	Any memory that is not part of conventional memory is not usable by the heap allocator.
 	for(size_t i					= 0UZ; i < mmap->num_entries; i++)
 	{
 		if(mmap->entries[i].type != AVAILABLE)
 		{
 			size_t taken_pages		= div_round_up(mmap->entries[i].len, PT_LEN);
+			total_mem				-= taken_pages * page_size;
+			if(mmap->entries[i].type == MMIO) __map_mmio_pages(addr_t(mmap->entries[i].addr), mmap->entries[i].len);
 			__instance->__mark_used(mmap->entries[i].addr, taken_pages);
-			total_memory			-= taken_pages * page_size;
-			if(mmap->entries[i].type == MMIO)
-				__map_mmio_pages(addr_t(mmap->entries[i].addr), mmap->entries[i].len);
 		}
 	}
-	__instance->__watermark			= heap;
+	//	The kernel itself, as well as the status byte array, will be below the heap in memory, alongside other regions that aren't safe to touch.
+	__instance->__mark_used(0UL, div_round_up(heap, region_size));
 	__set_kernel_page_flags(sb_addr);
-	remaining_memory				= total_memory;
+	remaining_memory				= total_memory	= total_mem;
+	kernel_cr3						= get_cr3();
 }
 addr_t kernel_memory_mgr::allocate_dma(size_t sz, bool prefetchable) noexcept
 {
@@ -617,6 +624,13 @@ block_tag* kframe_tag::get_for_allocation(size_t size, size_t align) noexcept
 			direct_write("[MM] W: tag at ");
 			debug_print_addr(tag);
 			direct_writeln("was its own previous tag");
+		}
+		if(tag->magic != block_magic)
+		{
+			direct_write("[MM] W: tag at ");
+			debug_print_addr(tag);
+			direct_writeln("is corrupted; check for buffer overruns");
+			tag->magic	= block_magic;
 		}
 		size_t align_add		= add_align_size(tag, align);
 		if(tag->available_size() >= size + align_add)

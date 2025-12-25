@@ -20,8 +20,9 @@ public:
 	static device_registry& get_instance();
 	device_stream* operator[](dword id) const;
 	uint32_t add(device_stream* dev, device_type type);
-	uint32_t add(device_stream* dev, device_type type, uint16_t minor_hint);
+	uint32_t add(device_stream* dev, device_type type, uint16_t minor_id);
 	bool remove(device_stream* dev);
+	constexpr static uint32_t create_id(device_type type, uint16_t minor) noexcept { return dword(minor, type); }
 };
 #define dreg device_registry::get_instance()
 #endif

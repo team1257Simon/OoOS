@@ -126,7 +126,7 @@ namespace std::__impl
 		{
 			if constexpr(__has_resize<A, __value_type>)
 				__begin		= alloc.resize(__begin, ncur, ncap);
-			else __begin	= resize(__begin, __cap, ncap, alloc);
+			else __begin	= std::resize(__begin, __cap, ncap, alloc);
 			__cap			= ncap;
 			if(ncur > __cap)
 				ncur		= __cap;
