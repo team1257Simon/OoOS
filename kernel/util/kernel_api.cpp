@@ -4,6 +4,7 @@
 #include <device_registry.hpp>
 #include <isr_table.hpp>
 #include <bits/hash_set.hpp>
+#include <sched/scheduler.hpp>
 #include <stdexcept>
 #include <stdlib.h>
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
@@ -29,6 +30,7 @@ static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_
 }
 namespace ooos
 {
+	pid_t active_pid() noexcept { return scheduler::active_pid(); }
 	template<typename T> struct type_tag { constexpr explicit type_tag() = default; };
 	template<typename T> constexpr inline type_tag<T> tag{};
 	struct get_name { constexpr const char* const& operator()(std::type_info const* const& ti) const noexcept { return ti->__type_name; } };

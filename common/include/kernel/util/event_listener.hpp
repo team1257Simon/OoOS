@@ -13,7 +13,8 @@ namespace ooos
 		template<typename ET>
 		struct __listener_base
 		{
-			template<typename T> constexpr static bool not_empty(T t) { return isr_actor_base::not_empty(t); }
+			template<typename T> requires(std::is_object_v<T> && !std::is_pointer_v<T>) constexpr static bool not_empty(T&) { return true; }
+			template<typename T> requires(!std::is_object_v<T> || std::is_pointer_v<T>) constexpr static bool not_empty(T t) { return isr_actor_base::not_empty(t); }
 			template<__callable<ET> FT>
 			struct __manager
 			{
@@ -37,8 +38,10 @@ namespace ooos
 						dst.set_ptr(__get_ptr(src));
 						break;
 					case clone:
+						break;
 					case move:
-						__create(dst, *__get_ptr(src));
+						if constexpr(std::is_move_constructible_v<FT> && !std::is_trivially_move_constructible_v<FT>) __create(dst, std::move(*__get_ptr(src)));
+						else dst	= std::move(src);
 						break;
 					case destroy:
 						__destroy(dst);
@@ -85,29 +88,20 @@ namespace ooos
 			if(__internal::__listener_base<ET>::not_empty(f))
 			{
 				__cvt c(std::forward<FT>(f));
-				__mgr::__create(this->__my_listener, std::forward<__cvt>(c));
+				__mgr::__create(this->__my_listener, std::move(c));
 				this->__my_manager	= std::addressof(__mgr::__action);
 				this->__my_invoke	= std::addressof(__mgr::__invoke);
-			}
-		}
-		constexpr event_listener(event_listener const& that) : __internal::__listener_base<ET>()
-		{
-			if(static_cast<bool>(that))
-			{
-				that.__my_manager(this->__my_listener, that.__my_listener, clone);
-				this->__my_manager 	= that.__my_manager;
-				this->__my_invoke	= that.__my_invoke;
 			}
 		}
 		constexpr event_listener(event_listener&& that) : __internal::__listener_base<ET>()
 		{
 			if(static_cast<bool>(that))
 			{
-				this->__my_listener = that.__my_listener;
 				this->__my_manager 	= that.__my_manager;
 				this->__my_invoke	= that.__my_invoke;
 				that.__my_manager	= nullptr;
 				that.__my_invoke	= nullptr;
+				(*this->__my_manager)(this->__my_listener, that.__my_listener, move);
 			}
 		}
 		constexpr void swap(event_listener& that)
@@ -117,7 +111,6 @@ namespace ooos
 			__swap(this->__my_manager, that.__my_manager);
 			__swap(this->__my_invoke, that.__my_invoke);
 		}
-		constexpr event_listener& operator=(event_listener const& that) { event_listener(that).swap(*this); return *this; }
 		constexpr event_listener& operator=(event_listener&& that) { event_listener(std::move(that)).swap(*this); return *this; }
 		constexpr void operator()(ET&& e) const { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }
 		constexpr void operator()(ET e) const requires(std::is_trivially_copyable_v<ET>) { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }

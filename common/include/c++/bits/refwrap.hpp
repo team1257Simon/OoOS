@@ -40,13 +40,13 @@ __MEM_FN_TRAITS(&& noexcept, false_type, true_type)
 		static void __get_ptr(T&&) = delete;
 	public:
 		typedef T type;
-		template<typename U, typename = decltype(reference_wrapper::__get_ptr(std::declval<U>()))> requires (!std::is_same_v<reference_wrapper, typename std::__remove_cv_t<U>::type>)
+		template<typename U, typename = decltype(reference_wrapper::__get_ptr(std::declval<U>()))> requires(!std::is_same_v<reference_wrapper, typename std::__remove_cv_t<U>::type>)
 		constexpr reference_wrapper(U&& __uref) noexcept(noexcept(reference_wrapper::__get_ptr(std::declval<U>()))) : __my_object(reference_wrapper::__get_ptr(std::forward<U>(__uref))){}
 		constexpr reference_wrapper(reference_wrapper const&)				= default;
 		constexpr reference_wrapper& operator=(reference_wrapper const&)	= default;
 		constexpr operator T&() const noexcept { return this->get(); }
 		constexpr T& get() const noexcept { return *__my_object; }
-		template<typename ... Args> constexpr typename result_of<T&(Args&&...)>::type operator()(Args&& ... __args) const { if constexpr (is_object_v<type>) static_assert(sizeof(type), "type must be complete"); return std::__invoke(get(), std::forward<Args>(__args)...); }
+		template<typename ... Args> constexpr typename result_of<T&(Args&&...)>::type operator()(Args&& ... __args) const { if constexpr(is_object_v<type>) static_assert(sizeof(type), "type must be complete"); return std::__invoke(get(), std::forward<Args>(__args)...); }
 	};
 	template<typename T> reference_wrapper(T&) -> reference_wrapper<T>;
 	template<typename T> constexpr inline reference_wrapper<T> ref(T& __t) noexcept { return reference_wrapper<T>(__t); }

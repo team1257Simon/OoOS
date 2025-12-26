@@ -291,6 +291,7 @@ namespace ooos
 	};
 	kernel_api* get_api_instance();
 	void init_api();
+	pid_t active_pid() noexcept;
 	struct generic_config_parameter
 	{
 		const char* parameter_name;

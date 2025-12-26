@@ -646,6 +646,58 @@ extern "C"
 		__serial_write("[KERNEL] E: " + std::string(msg));
 		direct_print_enable	= prt;
 	}
+	bool kernel_setup() try
+	{
+		tss_init(std::addressof(kernel_isr_stack_top));
+		enable_fs_gs_insns();
+		set_kernel_gs_base(std::addressof(kproc));
+		kproc.saved_regs.cr3	= get_cr3();
+		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
+		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
+		fadt_t* fadt			= nullptr;
+		// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
+		if(sysinfo->xsdt) fadt	= find_fadt();
+		if(fadt) rtc::init_instance(fadt->century_register);
+		else rtc::init_instance();
+		// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
+		new(std::addressof(startup_tty)) direct_text_render(sysinfo);
+		direct_print_enable		= true;
+		dwclear();
+		bsp_lapic.init();
+		nmi_enable();
+		sti();
+		// The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
+		// It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
+		// If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
+		set_gs_base(std::addressof(kproc));
+		asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
+		array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
+		array_zero(kproc.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
+		fx_enable 				= true;
+		scheduler::init_instance();
+		hpet_amd64::init_instance();
+		if(pci_device_list::init_instance())
+		{
+			ooos::init_api();
+			ooos::block_io_provider_module* hda	= load_ahci_module();
+			if(__unlikely(!hda)) panic("HDA load failed");
+			else
+			{
+				test_delegate.initialize(*hda);
+				direct_writeln("Initialized delegate HDA");
+				test_extfs.tie_block_device(std::addressof(test_delegate));
+				return true;
+			}
+		}
+		else direct_writeln("PCI enum failed");
+		return false;
+	}
+	catch(std::exception& e)
+	{
+		panic("unexpected error in setup:");
+		panic(e.what());
+		return false;
+	}
 	void kmain(sysinfo_t* si, mmap_t* mmap)
 	{
 		// The bootloader gives us the machine with all memory identity-mapped, interrupts off, and an unspecified but valid GDT.
@@ -662,68 +714,25 @@ extern "C"
 		kproc.self 				= std::addressof(kproc);
 		// This initializer is freestanding by necessity. It's called before _init because some global constructors invoke the heap allocator.
 		kernel_memory_mgr::init_instance(mmap);
+		// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init.
+		_init();
+		// The code in libgcc that initializes the exception-handling frame will malloc a significant amount of memory for the frame data.
+		// It normally waits until an exception is thrown, but because of the unusual layout of the eh_frame data in the kernel, this can cause problems.
+		// By forcing it to do the initialization now, before any other large allocations occur, we can hopefully avoid those.
+		force_eager_fde();
 		try
 		{
-			// Because we are linking a barebones crti.o and crtn.o into the kernel, we can control the invocation of global constructors by calling _init.
-			_init();
-			// The code in libgcc that initializes the exception-handling frame will malloc a significant amount of memory for the frame data.
-			// It normally waits until an exception is thrown, but because of the unusual layout of the eh_frame data in the kernel, this can cause problems.
-			// By forcing it to do the initialization now, before any other large allocations occur, we can hopefully avoid those.
-			force_eager_fde();
-			tss_init(std::addressof(kernel_isr_stack_top));
-			enable_fs_gs_insns();
-			set_kernel_gs_base(std::addressof(kproc));
-			kproc.saved_regs.cr3	= get_cr3();
-			// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
-			init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
-			fadt_t* fadt			= nullptr;
-			// FADT really just contains the century register; if we can't find it, just ignore and set the value based on the current century as of writing
-			if(sysinfo->xsdt) fadt	= find_fadt();
-			if(fadt) rtc::init_instance(fadt->century_register);
-			else rtc::init_instance();
-			// The startup "terminal" just directly renders text to the screen using a font that's stored as an object in the kernel's data segment.
-			new(std::addressof(startup_tty)) direct_text_render(sysinfo);
-			direct_print_enable		= true;
-			dwclear();
-			bsp_lapic.init();
-			nmi_enable();
-			sti();
-			// The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
-			// It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
-			// If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
-			set_gs_base(std::addressof(kproc));
-			asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
-			array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
-			array_zero(kproc.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
-			fx_enable 				= true;
-			scheduler::init_instance();
-			hpet_amd64::init_instance();
-			if(pci_device_list::init_instance())
-			{
-				ooos::init_api();
-				ooos::block_io_provider_module* hda	= load_ahci_module();
-				if(__unlikely(!hda)) panic("HDA load failed");
-				else
-				{
-					test_delegate.initialize(*hda);
-					direct_writeln("Initialized delegate HDA");
-					test_extfs.tie_block_device(std::addressof(test_delegate));
-					// Most of the current kmain is tests...because ya know.
-					run_tests();
-				}
-			}
-			else direct_writeln("PCI enum failed");
+			// Most of the current kmain is tests...because ya know.
+			if(kernel_setup()) run_tests();
 			// The test tasks might trip after this point, so add a backstop to avoid any shenanigans
 			while(1);
 		}
 		catch(std::exception& e)
 		{
 			// Any theoretical exceptions encountered in the test methods will propagate out to here. std::terminate essentially does the same thing as this, but the catch block also prints the exception's message.
+			panic("unexpected error in tests:");
 			panic(e.what());
-			panic("unexpected error in tests");
-			asm volatile("" ::: "memory");
-			abort();
-			__builtin_unreachable();
+			while(1);
 		}
 		__cxa_finalize(nullptr);
 		__builtin_unreachable();

@@ -1,6 +1,7 @@
 #ifndef __CIRC_Q
 #define __CIRC_Q
 #include <kernel_api.hpp>
+#include <bits/refwrap.hpp>
 namespace ooos
 {
 	/**
@@ -291,31 +292,47 @@ namespace ooos
 				typedef circular_queue::size_type size_type;
 				typedef circular_queue::pointer pointer;
 				typedef circular_queue::reference reference;
-				__circular_buffer const& __buff;
+				friend class circular_queue::iterator_bound;
+			private:
+				__circular_buffer const* __buff;
 				pointer __pos;
+				constexpr size_type __offset() const noexcept { return __buff ? __buff->__pos_of(__pos) : 0UZ; }
 				constexpr pointer __next() const noexcept
 				{
-					if(__buff.__capacity() && __pos != __buff.__last)
-						return (__pos + 1 < __buff.__bmax) ? __pos + 1 : __buff.__base;
-					else return __buff.__last;
+					if(__buff)
+					{
+						if(__buff->__capacity() && __pos != __buff->__last)
+							return (__pos + 1 < __buff->__bmax) ? __pos + 1 : __buff->__base;
+						else return __buff->__last;
+					}
+					return nullptr;
 				}
 				constexpr pointer __advance_pos(size_type n) const noexcept
 				{
-					if(n == 1UZ) return __next();
-					else if(__buff.__capacity() && __pos != __buff.__last)
-						return __buff.__adv_ptr(__pos, n);
-					else return __buff.__last;
+					if(__buff)
+					{
+							if(n == 1UZ) return __next();
+						else if(__buff->__capacity() && __pos != __buff->__last)
+							return __buff->__adv_ptr(__pos, n);
+						else return __buff->__last;
+					}
+					return nullptr;
 				}
 				constexpr pointer __backtrack_pos(size_type n) const noexcept
 				{
-					size_type o	= this->__offset();
-					if(n >= o)
-						return __buff.__curr;
-					size_type noffs	= static_cast<size_type>(o - n);
-					return __buff.__get_ptr(noffs);
+					if(__buff)
+					{
+						size_type o		= this->__offset();
+						if(n >= o)
+							return __buff->__curr;
+						size_type noffs	= static_cast<size_type>(o - n);
+						return __buff->__get_ptr(noffs);
+					}
+					return nullptr;
 				}
-				constexpr size_type __offset() const noexcept { return __buff.__pos_of(__pos); }
-				constexpr __circular_iterator(__circular_buffer const& b, pointer p) noexcept : __buff(b), __pos(p) {}
+			public:
+				constexpr __circular_iterator() noexcept : __buff(), __pos() {}
+				constexpr __circular_iterator(__circular_buffer const& b, pointer p) noexcept : __buff(std::addressof(b)), __pos(p) {}
 				constexpr __circular_iterator(__circular_iterator const& that) noexcept : __buff(that.__buff), __pos(that.__pos) {}
 				constexpr __circular_iterator(__circular_iterator&& that) noexcept : __buff(that.__buff), __pos(that.__pos) {}
 				constexpr __circular_iterator& operator=(__circular_iterator const& that) noexcept { this->__pos = that.__pos; return *this; }
@@ -325,9 +342,9 @@ namespace ooos
 				constexpr pointer operator->() const noexcept { return __pos; }
 				constexpr reference operator*() const noexcept { return *__pos; }
 				constexpr reference operator[](size_type n) const noexcept { return *(__advance_pos(n)); }
-				constexpr __circular_iterator operator++(int) noexcept { __circular_iterator that(__buff, __pos); __pos = __next(); return that; }
+				constexpr __circular_iterator operator++(int) noexcept { __circular_iterator that(*this); __pos = __next(); return that; }
 				constexpr __circular_iterator& operator++() noexcept { __pos = __next(); return *this; }
-				constexpr __circular_iterator operator--(int) noexcept { __circular_iterator that(__buff, __pos); __pos = __backtrack_pos(1UZ); return that; }
+				constexpr __circular_iterator operator--(int) noexcept { __circular_iterator that(*this); __pos = __backtrack_pos(1UZ); return that; }
 				constexpr __circular_iterator& operator--() noexcept { __pos = __backtrack_pos(1UZ); return *this; }
 				constexpr __circular_iterator operator+(difference_type n) const noexcept { return __circular_iterator(__buff, n > 0 ? __advance_pos(static_cast<size_type>(n)) : __backtrack_pos(static_cast<size_type>(-n))); }
 				constexpr __circular_iterator& operator+=(difference_type n) noexcept { return (*this = *this + n); }
@@ -337,6 +354,8 @@ namespace ooos
 				constexpr difference_type operator-(__circular_iterator const& that) noexcept { return this->__offset() - that.__offset(); }
 				friend constexpr std::strong_ordering operator<=>(__circular_iterator const& __this, __circular_iterator const& __that) noexcept { return __this.__offset() <=> __that.__offset(); }
 			};
+			constexpr __circular_iterator __beg() const noexcept { return __circular_iterator(*this, __curr); }
+			constexpr __circular_iterator __end() const noexcept { return __circular_iterator(*this, __last); }
 		} __buffer;
 	public:
 		typedef typename __circular_buffer::__circular_iterator iterator;
@@ -347,28 +366,41 @@ namespace ooos
 		{
 			pointer __bound_value;
 		public:
+			typedef circular_queue::iterator::difference_type difference_type;
+		private:
+			constexpr difference_type __sub_from(circular_queue::iterator const& that) const noexcept { return that.__pos - this->__bound_value; }
+			constexpr difference_type __sub(circular_queue::iterator const& that) const noexcept { return this->__bound_value - that.__pos; }
+		public:
 			constexpr iterator_bound() noexcept = default;
 			constexpr iterator_bound(pointer value) noexcept : __bound_value(value) {}
 			constexpr iterator_bound(circular_queue::iterator const& i) noexcept : __bound_value(i.__pos) {}
 			constexpr operator pointer() const noexcept { return __bound_value; }
 			constexpr bool operator==(circular_queue::iterator const& that) const noexcept { return this->__bound_value == that.__pos; }
-			constexpr std::strong_ordering operator<=>(circular_queue::iterator const& that) const noexcept { return this->__bound_value <=> that.__pos; }
+			constexpr bool operator==(circular_queue::reverse_iterator const& that) const noexcept { return (*this == that.base()); }
+			friend constexpr difference_type operator-(iterator_bound const& __this, circular_queue::iterator const& __that) noexcept { return __this.__sub(__that); }
+			friend constexpr difference_type operator-(circular_queue::iterator const& __this, iterator_bound const& __that) noexcept { return __that.__sub_from(__this); }
+			friend constexpr difference_type operator-(iterator_bound const& __this, circular_queue::reverse_iterator const& __that) noexcept { return __this.__sub_from(__that.base()); }
+			friend constexpr difference_type operator-(circular_queue::reverse_iterator const& __this, iterator_bound const& __that) noexcept { return __that.__sub(__this.base()); }
+			friend constexpr std::strong_ordering operator<=>(iterator_bound const& __this, circular_queue::iterator const& __that) noexcept { return (__this - __that) <=> difference_type(0Z); }
+			friend constexpr std::strong_ordering operator<=>(iterator_bound const& __this, circular_queue::reverse_iterator const& __that) noexcept { return (__this - __that) <=> difference_type(0Z); }
+			friend constexpr std::strong_ordering operator<=>(circular_queue::iterator const& __this, iterator_bound const& __that) noexcept { return (__this - __that) <=> difference_type(0Z); }
+			friend constexpr std::strong_ordering operator<=>(circular_queue::reverse_iterator const& __this, iterator_bound const& __that) noexcept { return (__this - __that) <=> difference_type(0Z); }
 		};
 		constexpr ~circular_queue() noexcept { __buffer.__destroy(); }
 		constexpr circular_queue() noexcept(noexcept(allocator_type())) = default;
 		constexpr circular_queue(size_type n) : __buffer(n) {}
-		constexpr iterator begin() noexcept { return iterator(__buffer, __buffer.__curr); }
-		constexpr const_iterator cbegin() const noexcept { return const_iterator(iterator(__buffer, __buffer.__curr)); }
+		constexpr iterator begin() noexcept { return __buffer.__beg(); }
+		constexpr const_iterator cbegin() const noexcept { return __buffer.__beg(); }
 		constexpr const_iterator begin() const noexcept { return cbegin(); }
-		constexpr iterator_bound end() noexcept { return iterator_bound(__buffer.__last); }
-		constexpr const_iterator cend() const noexcept { return const_iterator(iterator(__buffer, __buffer.__last)); }
-		constexpr const_iterator end() const noexcept { return cend(); }
-		constexpr reverse_iterator rbegin() noexcept { return std::make_reverse_iterator(end()); }
-		constexpr const_reverse_iterator crbegin() const noexcept { return std::make_reverse_iterator(cend()); }
+		constexpr iterator_bound end() noexcept { return __buffer.__end(); }
+		constexpr iterator_bound cend() const noexcept { return __buffer.__end(); }
+		constexpr iterator_bound end() const noexcept { return cend(); }
+		constexpr reverse_iterator rbegin() noexcept { return reverse_iterator(__buffer.__end()); }
+		constexpr const_reverse_iterator crbegin() const noexcept { return reverse_iterator(__buffer.__end()); }
 		constexpr const_reverse_iterator rbegin() const noexcept { return crbegin(); }
-		constexpr reverse_iterator rend() noexcept { return std::make_reverse_iterator(begin()); }
-		constexpr const_reverse_iterator crend() const noexcept { return std::make_reverse_iterator(cbegin()); }
-		constexpr const_reverse_iterator rend() const noexcept { return crend(); }
+		constexpr iterator_bound rend() noexcept { return __buffer.__beg(); }
+		constexpr iterator_bound crend() const noexcept { return __buffer.__beg(); }
+		constexpr iterator_bound rend() const noexcept { return crend(); }
 		constexpr size_type capacity() const noexcept { return __buffer.__capacity(); }
 		constexpr size_type size() const noexcept { return __buffer.__length(); }
 		constexpr size_type length() const noexcept { return __buffer.__length(); }

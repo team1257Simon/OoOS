@@ -1,6 +1,5 @@
-#include <arch/keyboard.hpp>
 #include <arch/arch_amd64.h>
-#include <fs/dev_stream.hpp>	// device_type
+#include <arch/keyboard_stdin.hpp>
 #include <isr_table.hpp>
 #include <array>
 namespace ooos
@@ -743,4 +742,14 @@ seq_fail:
 	}
 	bool ps2_keyboard::remove_listener(void* owner) { return __listeners.erase(owner) != 0UZ; }
 	keyboard_listener& ps2_keyboard::listener_for(void* owner) { return __listeners[owner]; }
+	bool ps2_keyboard::stdin_tie(void* owner)
+	{
+		if(!__listeners.contains(owner))
+		{
+			keyboard_stdin tie(id_word());
+			__listeners.emplace(std::piecewise_construct, std::make_tuple(owner), std::forward_as_tuple(std::move(tie)));
+			return true;
+		}
+		return false;
+	}
 }

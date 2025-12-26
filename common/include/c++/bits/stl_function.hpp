@@ -113,6 +113,8 @@ namespace std
 		template<typename FT> using __helper	= __function_helper<RT(Args...), __decay_t<FT>>;
 		using __invoker_type					= RT(*)(__data_store const&, Args&&...);
 		__invoker_type __my_invoker				= nullptr;
+	protected:
+		constexpr void __invoke_nt(Args&& ... args) const { if(!this->__empty()) __my_invoker(__my_functor, forward<Args>(args)...); }
 	public:
 		typedef RT result_type;
 		template<__alternate_callable<RT, Args...> FT> requires(is_copy_constructible<__decay_t<FT>>::value && is_constructible<__decay_t<FT>, FT>::value)
@@ -227,6 +229,16 @@ namespace std
 			};
 		};
 		template<typename CT, typename RT, RT (CT::*G)()> using getter_t = typename getter_access<CT, RT>::template bind<G>;
+		// Variant of function that does not throw a bad_function_call if invoked when empty; only usable with functions that return void.
+		// Note that any exceptions thrown by the pointee will still propagate to the caller.
+		template<typename ... Args>
+		struct nothrow_function : public std::function<void(Args...)>
+		{
+			using std::function<void(Args...)>::function;
+			using std::function<void(Args...)>::operator=;
+			using std::function<void(Args...)>::operator bool;
+			constexpr void operator()(Args... args) const { this->__invoke_nt(std::forward<Args>(args)...); }
+		};
 	}
 }
 #endif

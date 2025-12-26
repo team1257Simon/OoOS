@@ -16,9 +16,10 @@ template<typename T>
 struct dev_stream
 {
 	typedef decltype(sizeof(T)) size_type;
-	typedef T const* const_pointer;
-	typedef T* pointer;
 	typedef decltype(std::declval<T*>() - std::declval<T*>()) difference_type;
+	typedef T* pointer;
+	typedef T const* const_pointer;
+	inline virtual void on_open() {}
 	virtual int sync()																= 0;
 	virtual size_type read(pointer dest, size_type n)								= 0;
 	virtual size_type write(size_type n, const_pointer src)							= 0;

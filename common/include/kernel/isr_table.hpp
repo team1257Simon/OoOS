@@ -5,8 +5,8 @@
 #include <kernel_api.hpp>
 #include <functional>
 #include <vector>
-typedef std::function<void()> irq_callback;
-typedef std::function<void(byte, qword)> interrupt_callback;
+typedef std::ext::nothrow_function<> irq_callback;
+typedef std::ext::nothrow_function<byte, qword> interrupt_callback;
 namespace interrupt_table
 {
 	__nointerrupts bool add_irq_handler(byte idx, irq_callback&& handler) noexcept;

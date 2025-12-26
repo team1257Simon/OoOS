@@ -59,6 +59,7 @@ device_vnode::size_type device_vnode::write(const_pointer src, size_type n) { si
 device_vnode::size_type device_vnode::read(pointer dest, size_type n) { return __dev_buffer->read(dest, n); }
 device_vnode::pos_type device_vnode::seek(off_type off, std::ios_base::seekdir way) { return __dev_buffer->seek(way, off, std::ios_base::out | std::ios_base::in); }
 device_vnode::pos_type device_vnode::seek(pos_type pos) { return __dev_buffer->seek(pos, std::ios_base::out | std::ios_base::in); }
+bool device_vnode::on_open() { __dev_buffer->on_open(); return file_vnode::on_open(); }
 tnode::tnode(vnode* node, std::string const& name) : __my_node(node), __my_name(name) { if(__my_node) __my_node->refs.insert(this); }
 tnode::tnode(vnode* node, const char* name) : __my_node(node), __my_name(name) { if(__my_node) __my_node->refs.insert(this); }
 tnode::tnode(std::string name) : __my_node(nullptr), __my_name(name) {}

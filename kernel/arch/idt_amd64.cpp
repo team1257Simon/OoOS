@@ -27,7 +27,8 @@ namespace interrupt_table
 	}
 	bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
 	{
-		try
+		if(__unlikely(!handler)) { klog("[ISR] W: bad callback functor"); }
+		else try
 		{
 			if(idx < 16UC && owner)
 			{
@@ -42,10 +43,12 @@ namespace interrupt_table
 			panic("out of memory");
 			abort();
 		}
+		return false;
 	}
 	bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
 	{
-		try
+		if(__unlikely(!handler)) { klog("[ISR] W: bad callback functor"); }
+		else try
 		{
 			if(idx < 16UC)
 			{
@@ -60,10 +63,12 @@ namespace interrupt_table
 			panic("out of memory");
 			abort();
 		}
+		return false;
 	}
 	void add_interrupt_callback(interrupt_callback&& cb) noexcept
 	{
-		try { __registered_callbacks.push_back(std::move(cb)); }
+		if(__unlikely(!cb)) { klog("[ISR] W: bad callback functor"); }
+		else try { __registered_callbacks.push_back(std::move(cb)); }
 		catch(...) {
 			panic("out of memory");
 			abort();

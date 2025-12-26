@@ -285,6 +285,7 @@ public:
 	virtual bool truncate() override;
 	virtual char* data() override;
 	virtual bool grow(size_t) override;
+	virtual bool on_open() override;
 	device_vnode(std::string const& name, int fd, device_stream* dev_buffer, dev_t id);
 	device_vnode(int fd, device_stream* dev_buffer, dev_t id);
 	virtual ~device_vnode();

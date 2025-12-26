@@ -315,3 +315,10 @@ void scheduler::remove_worker_task(kthread_ptr const& w)
 	__instance.unregister_task(w.task_ptr);
 	if(__unlikely(!__instance.__total_tasks)) set_gs_base(std::addressof(kproc));
 }
+pid_t scheduler::active_pid() noexcept
+{
+	task_t* cptr			= get_task_base();
+	if(cptr->next && task_lock_flag)
+		cptr				= cptr->next;
+	return cptr->task_ctl.task_pid;
+}

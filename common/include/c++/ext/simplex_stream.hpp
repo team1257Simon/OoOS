@@ -43,24 +43,28 @@ namespace std
 			std::pair<IRT, ORT> regions;
 			size_type out_pos;
 		public:
-			constexpr simplex_stream() noexcept(std::is_nothrow_default_constructible_v<std::pair<IRT, ORT>>) requires(std::is_default_constructible_v<std::pair<IRT, ORT>>) : regions(), out_pos() {}
-			constexpr ~simplex_stream() noexcept(std::is_nothrow_destructible_v<std::pair<IRT, ORT>>) {}
+			constexpr simplex_stream(size_type s1, size_type s2) requires(std::constructible_from<IRT, size_type> && std::constructible_from<ORT, size_type>) :
+				regions(std::piecewise_construct, std::tuple<size_type>(s1), std::tuple<size_type>(s2)),
+				out_pos()
+			{}
 			template<typename ... Args> requires(std::constructible_from<std::pair<IRT, ORT>, Args...>)
-			constexpr simplex_stream(Args&& ... args) noexcept(std::is_nothrow_constructible_v<std::pair<IRT, ORT>, Args...>) :
+			constexpr simplex_stream(std::in_place_t, Args&& ... args)
+			noexcept(std::is_nothrow_constructible_v<std::pair<IRT, ORT>, Args...>) :
 				regions(std::forward<Args>(args)...), 
 				out_pos()
 			{}
+			constexpr simplex_stream() noexcept(std::is_nothrow_default_constructible_v<std::pair<IRT, ORT>>) requires(std::is_default_constructible_v<std::pair<IRT, ORT>>) : regions(), out_pos() {}
+			constexpr ~simplex_stream() noexcept(std::is_nothrow_destructible_v<std::pair<IRT, ORT>>) {}
 			constexpr size_type in_avail() const noexcept { return std::ranges::size(regions.first); }
 			constexpr size_type out_rem() const noexcept { return static_cast<size_type>(std::ranges::size(regions.second) - out_pos); }
+			constexpr size_type tellg() const noexcept { return out_pos; }
 			constexpr size_type seek(int whence, difference_type diff) { return this->seek(static_cast<size_type>(std::max(difference_type(0), diff + this->__start_for(whence)))); }
 			template<typename T> requires(__detail::__can_push<IRT, T>) constexpr void push(T t) { regions.first.push(std::forward<T>(t)); }
 			template<typename ... Args> requires(__detail::__can_emplace<IRT, Args...>) constexpr void emplace(Args&& ... args) { regions.first.emplace(std::forward<Args>(args)...); }
 			constexpr void flush()
 			{
-				if(out_pos) {
+				if(out_pos)
 					this->__shift(out_pos);
-					out_pos	= size_type(0);
-				}
 				this->input_flush();
 			}
 			constexpr size_type seek(size_type pos)
@@ -84,18 +88,17 @@ namespace std
 			}
 			constexpr size_type read(pointer dest, size_type n)
 			{
-				if(out_pos) {
-					this->__shift(out_pos);
-					out_pos		= size_type(0);
+				if(out_pos)	this->__shift(out_pos);
+				if(!(out_rem() > n) && in_avail()) input_flush();
+				size_type actual			= std::min(n, out_rem());
+				if(actual)
+				{
+					out_range_iterator i	= __get_pos(out_pos);
+					if constexpr(std::contiguous_iterator<out_range_iterator>) copy_or_move(dest, std::to_address(i), actual);
+					else for(size_type j	= 0UZ; j < actual; j++, i = std::ranges::next(i))
+						dest[j]				= std::move(*i);
+					out_pos			+= actual;
 				}
-				size_type available		= out_rem();
-				if(available < n) input_flush();
-				size_type actual		= std::min(n, out_rem());
-				out_range_iterator i	= __get_pos(out_pos);
-				if constexpr(std::contiguous_iterator<out_range_iterator>) copy_or_move(dest, std::to_address(i), actual);
-				else for(size_type j	= 0UZ; j < actual; j++, i = std::ranges::next(i))
-					dest[j]				= std::move(*i);
-				out_pos			+= actual;
 				return actual;
 			}
 			template<std::input_iterator IT, std::sentinel_for<IT> ST> requires(__detail::__can_push<IRT, std::iter_value_t<IT>>)
@@ -108,8 +111,18 @@ namespace std
 				return result;
 			}
 		private:
-			constexpr void __shift(size_type where) { regions.second = std::move(ORT(this->__get_pos(where), std::ranges::end(regions.second))); }
-			constexpr difference_type __start_for(int whence) const noexcept { return static_cast<difference_type>(whence > 0 ? std::ranges::size(regions.second) : whence == 0 ? out_pos : size_type(0)); }
+			constexpr difference_type __start_for(int whence) const noexcept
+			{
+				if(!whence) return static_cast<difference_type>(out_pos);
+				else if(whence > 0) return static_cast<difference_type>(std::ranges::size(regions.second));
+				else return difference_type(0);
+			}
+			constexpr void __shift(size_type where)
+			{
+				ORT shifted(this->__get_pos(where), std::ranges::end(regions.second));
+				regions.second	= std::move(shifted);
+				out_pos			-= where;
+			}
 			constexpr out_range_iterator __get_pos(size_type where) noexcept
 			{
 				out_range_iterator it = std::ranges::begin(regions.second);
