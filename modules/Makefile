@@ -15,6 +15,8 @@ PRE_OBJ_NAMES := modcrti.o modcrtbegin.o modcrt0.o
 POST_OBJ_NAMES := modcrtend.o modcrtn.o
 PRE_OBJS := $(addprefix $(LIB_DIR)/,$(PRE_OBJ_NAMES))
 POST_OBJS := $(addprefix $(LIB_DIR)/,$(POST_OBJ_NAMES))
+ST_SYMS := __* _ZZ* _ZSt* _ZNSt* _ZN*St* _ZN*10__cxx* _ZN10__cxx* _ZN9pathscale* _ZT* _Znw* _Zna* _Zdl* _Zda* _ZGV* _ZL* _Unwind* _ITM* _impure_ptr fde_* uw_* execute_* seen_* unseen_* errno read_* frame_* linear_* search_* dwarf_reg_size_table get_cie_encoding pthread* str* abort free malloc calloc realloc mem* getenv setjmp longjmp register_tm_clones deregister_tm_clones *.*
+ST_OP := -x -X -w $(addprefix --strip-symbol=, $(ST_SYMS))
 export OUTDIR
 export LDSCRIPT
 export OBJ_BASE_DIR
@@ -34,6 +36,7 @@ export PRE_OBJ_NAMES
 export POST_OBJ_NAMES
 export PRE_OBJS
 export POST_OBJS
+export ST_OP
 SUBDIRS = amd64_serial amd64_ahci e1000e
 .PHONY: all $(SUBDIRS)
 all: $(SUBDIRS)
