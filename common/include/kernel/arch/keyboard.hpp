@@ -9,7 +9,6 @@ namespace ooos
 	typedef circular_queue<uint8_t> byte_queue;
 	typedef event_listener<keyboard_event> keyboard_listener;
 	typedef std::unordered_map<void*, keyboard_listener> keyboard_listener_registry;
-	class keyboard_stdin;
 	struct keyboard_command
 	{
 		bool has_sub;
@@ -68,10 +67,12 @@ namespace ooos
 	public:
 		ps2_keyboard(ps2_controller& ps2);
 		keyboard_listener& listener_for(void* owner);
+		keyboard_listener& create_listener(void* owner, keyboard_listener&& l);
 		bool remove_listener(void* owner);
-		bool stdin_tie(void* owner);
-		inline uint16_t id_word() const noexcept { return __controller.id_word(); }
-		template<__internal::__callable<keyboard_event> FT> constexpr bool add_listener(void* owner, FT&& ft) { return __listeners.emplace(std::piecewise_construct, std::tuple<void*>(owner), std::forward_as_tuple<FT>(std::forward<FT>(ft))).second; }
+		bool has_listener(void* owner);
+		uint16_t id_word() const noexcept;
+		template<__internal::__callable<keyboard_event> FT>
+		constexpr bool add_listener(void* owner, FT&& ft) { return __listeners.emplace(std::piecewise_construct, std::tuple<void*>(owner), std::forward_as_tuple<FT>(std::forward<FT>(ft))).second; }
 		template<__internal::__callable<keyboard_event> FT>
 		constexpr keyboard_listener replace_listener(void* owner, FT&& ft)
 		{

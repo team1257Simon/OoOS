@@ -32,3 +32,9 @@ uint32_t device_registry::add(device_stream* dev, device_type type, uint16_t min
 	m.emplace(minor_id, dev);
 	return create_id(type, minor_id);
 }
+bool device_registry::registry_contains(device_type type, uint16_t minor)
+{
+	if(!__instance.contains(type))
+		return false;
+	return (static_cast<__base&>(__instance))[type].contains(minor);
+}

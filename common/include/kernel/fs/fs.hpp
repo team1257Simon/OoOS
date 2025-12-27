@@ -7,6 +7,7 @@
 */
 #include <string>
 #include <functional>
+#include <arch/keyboard_stdin.hpp>
 #include <bits/ios_base.hpp>
 #include <bits/hash_set.hpp>
 #include <vector>
@@ -363,6 +364,8 @@ public:
 	bool write_blockdev(uint64_t lba_dest, const void* src, size_t sectors);
 	bool read_blockdev(void* dest, uint64_t lba_src, size_t sectors);
 	void tie_block_device(block_device* dev);
+	device_vnode* tie_char_device(std::string const& where, ooos::keyboard_interface const& dev, int fd = 0, bool create_parents = true);
+	ooos::keyboard_stdin* get_stdin_backend(ooos::keyboard_interface const& dev);
 	vnode* find_node(std::string const& path, bool ignore_links = false, std::ios_base::openmode mode = std::ios_base::in | std::ios_base::out);
 	void create_node(directory_vnode* parent, std::string const& path, mode_t mode, dev_t dev = 0U);
 	void create_pipe(int fds[2]);

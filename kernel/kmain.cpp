@@ -109,6 +109,14 @@ void task_exec(elf64_program_descriptor const& prg, cstrvec&& args, cstrvec&& en
 	ctx->set_stdio_ptrs(std::move(stdio_ptrs));
 	if(exit_fn) ctx->start_task(exit_fn);
 	else ctx->start_task();
+	if(test_kb->has_listener(dynamic_cast<void*>(ctx->ctx_filesystem)))
+	{
+		ooos::keyboard_stdin* tie = test_kb->listener_for(dynamic_cast<void*>(ctx->ctx_filesystem)).target<ooos::keyboard_stdin>();
+		if(tie)
+			tie->activate(ctx->task_struct.task_ctl.task_pid);
+		else direct_write("W: no keyboard tie");
+	}
+	else direct_write("W: no keyboard listener");
 	user_entry(std::addressof(ctx->task_struct));
 }
 module_loader::iterator init_boot_module(boot_loaded_module& mod_desc)
@@ -341,6 +349,7 @@ void dyn_elf_tests()
 void elf64_tests()
 {
 	std::string console("/dev/console");
+	std::string keybd("/dev/kbd");
 	if(test_extfs.has_init()) try
 	{
 		file_vnode* tst             = test_extfs.open_file("test.elf");
@@ -348,12 +357,18 @@ void elf64_tests()
 		test_extfs.close_file(tst);
 		if(test_exec)
 		{
-			file_vnode* c    						= test_extfs.get_file_or_null(console);
-			if(!c) c        						= test_extfs.lndev(console, 0, com->get_device_id());
-			elf64_program_descriptor const& desc 	= test_exec->describe();
-			xdirect_writeln("Entry at " + std::to_string(desc.entry));
-			task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ c, c, c }));
-			prog_manager::get_instance().remove(test_exec);
+			file_vnode* k							= test_extfs.get_file_or_null(keybd);
+			if(!k) k								= test_extfs.tie_char_device(keybd, ooos::make_interface(*test_kb));
+			if(k)
+			{
+				file_vnode* c    						= test_extfs.get_file_or_null(console);
+				if(!c) c        						= test_extfs.lndev(console, 1, com->get_device_id());
+				elf64_program_descriptor const& desc 	= test_exec->describe();
+				xdirect_writeln("Entry at " + std::to_string(desc.entry));
+				task_exec(desc, std::move(std::vector<const char*>{ "test.elf" }), std::move(std::vector<const char*>{ nullptr }), std::move(std::array{ k, c, c }));
+				prog_manager::get_instance().remove(test_exec);
+			}
+			else xdirect_writeln("Keyboard listener failed to initialize");
 		}
 		else xdirect_writeln("Executable failed to validate");
 	}

@@ -22,6 +22,7 @@ public:
 	uint32_t add(device_stream* dev, device_type type);
 	uint32_t add(device_stream* dev, device_type type, uint16_t minor_id);
 	bool remove(device_stream* dev);
+	static bool registry_contains(device_type type, uint16_t minor);
 	constexpr static uint32_t create_id(device_type type, uint16_t minor) noexcept { return dword(minor, type); }
 };
 #define dreg device_registry::get_instance()

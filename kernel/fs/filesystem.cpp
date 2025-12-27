@@ -369,3 +369,18 @@ void default_device_impl_fs::dldevnode(device_vnode* n)
 	device_nodes.erase(*n);
 	syncdirs();
 }
+device_vnode* filesystem::tie_char_device(std::string const& where, ooos::keyboard_interface const& dev, int fd, bool create_parents)
+{
+	uint16_t id						= dev.id_word();
+	if(__unlikely(device_registry::registry_contains(CHARDEV, id))) return lndev(where, fd, device_registry::create_id(CHARDEV, id), create_parents);
+	ooos::keyboard_stdin* ptr		= dev.create_listener(dynamic_cast<void*>(this), std::move(ooos::keyboard_stdin(id))).target<ooos::keyboard_stdin>();
+	if(__unlikely(!ptr)) return nullptr;
+	return lndev(where, fd, dreg.add(ptr, CHARDEV, id), create_parents);
+}
+ooos::keyboard_stdin* filesystem::get_stdin_backend(ooos::keyboard_interface const& dev)
+{
+	void* key	= dynamic_cast<void*>(this);
+	if(dev.has_listener(key))
+		return dev.listener_for(key).target<ooos::keyboard_stdin>();
+	return nullptr;
+}

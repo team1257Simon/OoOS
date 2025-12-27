@@ -1,5 +1,5 @@
 #include <arch/arch_amd64.h>
-#include <arch/keyboard_stdin.hpp>
+#include <arch/keyboard.hpp>
 #include <isr_table.hpp>
 #include <array>
 namespace ooos
@@ -512,6 +512,11 @@ namespace ooos
 	keyboard_scanset ps2_keyboard_controller::scanset() const noexcept { return __state.scanset; }
 	ps2_keyboard_controller::operator bool() const noexcept { return __state_valid; }
 	ps2_keyboard::ps2_keyboard(ps2_controller& ps2) : __controller(ps2), __decoder(), __input_queue(8UZ), __listeners() { __init(); }
+	bool ps2_keyboard::remove_listener(void* owner) { return __listeners.erase(owner) != 0UZ; }
+	bool ooos::ps2_keyboard::has_listener(void* owner) { return __listeners.contains(owner); }
+	keyboard_listener& ps2_keyboard::listener_for(void* owner) { return __listeners[owner]; }
+	keyboard_listener& ps2_keyboard::create_listener(void* owner, keyboard_listener&& l) { return __listeners.emplace(std::piecewise_construct, std::tuple<void*>(owner), std::forward_as_tuple(std::move(l))).first->second; }
+	uint16_t ps2_keyboard::id_word() const noexcept { return __controller.id_word(); }
 	keyboard_event keyboard_scan_decoder::__decode_one(uint8_t scan, byte_queue& rem) const
 	{
 		keyboard_event e	= __scans[scan];
@@ -739,17 +744,5 @@ seq_fail:
 		keyboard_event e	= __decoder.decode(__input_queue);
 		if(uint8_t nlights 	= std::bit_cast<uint8_t>(__decoder.led_state); nlights != lights) __controller.set_leds(__decoder.led_state);
 		for(keyboard_listener_registry::value_type const& p : __listeners) p.second(e);
-	}
-	bool ps2_keyboard::remove_listener(void* owner) { return __listeners.erase(owner) != 0UZ; }
-	keyboard_listener& ps2_keyboard::listener_for(void* owner) { return __listeners[owner]; }
-	bool ps2_keyboard::stdin_tie(void* owner)
-	{
-		if(!__listeners.contains(owner))
-		{
-			keyboard_stdin tie(id_word());
-			__listeners.emplace(std::piecewise_construct, std::make_tuple(owner), std::forward_as_tuple(std::move(tie)));
-			return true;
-		}
-		return false;
 	}
 }

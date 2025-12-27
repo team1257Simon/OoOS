@@ -13,8 +13,9 @@ namespace ooos
 		template<typename ET>
 		struct __listener_base
 		{
-			template<typename T> requires(std::is_object_v<T> && !std::is_pointer_v<T>) constexpr static bool not_empty(T&) { return true; }
-			template<typename T> requires(!std::is_object_v<T> || std::is_pointer_v<T>) constexpr static bool not_empty(T t) { return isr_actor_base::not_empty(t); }
+			template<typename T> requires(std::is_object_v<std::decay_t<T>> && !std::__detail::__boolean_testable<std::decay_t<T>>) constexpr static bool not_empty(T const&) { return true; }
+			template<typename T> requires(std::is_object_v<std::decay_t<T>> && std::__detail::__boolean_testable<std::decay_t<T>>) constexpr static bool not_empty(T const& t) { return t ? true : false; }
+			template<typename T> requires(!std::is_object_v<std::decay_t<T>>) constexpr static bool not_empty(T t) { return isr_actor_base::not_empty(t); }
 			template<__callable<ET> FT>
 			struct __manager
 			{
@@ -32,6 +33,7 @@ namespace ooos
 				static void __invoke(functor_store const& f, ET&& e) { __invoke_v(std::forward<FT>(*__get_ptr(f)), std::forward<ET>(e)); }
 				static void __action(functor_store& dst, functor_store const& src, mgr_op op)
 				{
+					typedef std::type_info const* ti_ptr;
 					switch(op)
 					{
 					case get_pointer:
@@ -47,7 +49,7 @@ namespace ooos
 						__destroy(dst);
 						break;
 					case get_type_info:
-						dst.set_ptr(std::addressof(typeid(FT)));
+						new(dst.access()) ti_ptr(std::addressof(typeid(FT)));
 						break;
 					}
 				}
@@ -57,8 +59,8 @@ namespace ooos
 			functor_store __my_listener;
 			__manager_type __my_manager;
 			__invoke_type __my_invoke;
-			constexpr bool __empty() const noexcept { return __my_manager && __my_invoke; }
-			constexpr ~__listener_base() { if(__my_manager) (*__my_manager)(__my_listener, __my_listener, destroy); }
+			constexpr bool __empty() const noexcept { return !(__my_manager && __my_invoke); }
+			constexpr ~__listener_base() { if(__my_manager) __my_manager(__my_listener, __my_listener, destroy); }
 		};
 	};
 	template<typename ET> struct event_listener;
@@ -69,7 +71,7 @@ namespace ooos
 		constexpr operator bool() const noexcept { return !this->__empty(); }
 		constexpr event_listener() noexcept = default;
 		constexpr ~event_listener() noexcept = default;
-		template<__internal::__callable<ET> FT>
+		template<__internal::__callable<ET> FT> requires(!std::is_same_v<event_listener, std::decay_t<FT>>)
 		constexpr event_listener(FT&& f) : __internal::__listener_base<ET>()
 		{
 			typedef typename __internal::__listener_base<ET>::__manager<std::decay_t<FT>> __mgr;
@@ -95,13 +97,13 @@ namespace ooos
 		}
 		constexpr event_listener(event_listener&& that) : __internal::__listener_base<ET>()
 		{
-			if(static_cast<bool>(that))
+			if(!that.__empty())
 			{
 				this->__my_manager 	= that.__my_manager;
 				this->__my_invoke	= that.__my_invoke;
 				that.__my_manager	= nullptr;
 				that.__my_invoke	= nullptr;
-				(*this->__my_manager)(this->__my_listener, that.__my_listener, move);
+				this->__my_manager(this->__my_listener, that.__my_listener, move);
 			}
 		}
 		constexpr void swap(event_listener& that)
@@ -112,9 +114,50 @@ namespace ooos
 			__swap(this->__my_invoke, that.__my_invoke);
 		}
 		constexpr event_listener& operator=(event_listener&& that) { event_listener(std::move(that)).swap(*this); return *this; }
-		constexpr void operator()(ET&& e) const { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }
-		constexpr void operator()(ET e) const requires(std::is_trivially_copyable_v<ET>) { if(this->__my_invoke) (*this->__my_invoke)(this->__my_listener, std::forward<ET>(e)); }
-		constexpr std::type_info const& target_type() const noexcept { if(this->__my_manager) { functor_store tmp; (*this->__my_manager)(tmp, this->__my_listener, get_type_info); if(std::type_info const* result = tmp.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
+		constexpr void operator()(ET&& e) const { if(this->__my_invoke) this->__my_invoke(this->__my_listener, std::forward<ET>(e)); }
+		constexpr void operator()(ET e) const requires(std::is_trivially_copyable_v<ET>) { if(this->__my_invoke) this->__my_invoke(this->__my_listener, std::forward<ET>(e)); }
+		constexpr std::type_info const& target_type() const noexcept
+		{
+			if(this->__my_manager)
+			{
+				functor_store tmp;
+				this->__my_manager(tmp, this->__my_listener, get_type_info);
+				if(std::type_info const* result = tmp.cast<std::type_info const*>()) return *result;
+			}
+			return typeid(nullptr);
+		}
+		template<typename FT>
+		FT* target() noexcept
+		{
+			if constexpr(std::is_object_v<FT>)
+			{
+				typedef typename __internal::__listener_base<ET>::__manager<FT> __mgr;
+				if(this->__my_manager == std::addressof(__mgr::__action) || (this->__my_manager && typeid(FT) == target_type()))
+				{
+					functor_store tmp;
+					this->__my_manager(tmp, this->__my_listener, get_pointer);
+					FT** result	= static_cast<FT**>(tmp.access());
+					return *result;
+				}
+			}
+			return nullptr;
+		}
+		template<typename FT>
+		FT const* target() const noexcept
+		{
+			if constexpr(std::is_object_v<FT>)
+			{
+				typedef typename __internal::__listener_base<ET>::__manager<FT> __mgr;
+				if(this->__my_manager == std::addressof(__mgr::__action) || (this->__my_manager && typeid(FT) == target_type()))
+				{
+					functor_store tmp;
+					this->__my_manager(tmp, this->__my_listener, get_pointer);
+					FT const** result	= static_cast<FT**>(tmp.access());
+					return *result;
+				}
+			}
+			return nullptr;
+		}
 	};
 }
 #endif

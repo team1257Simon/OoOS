@@ -6,4 +6,5 @@ namespace ooos
 	keyboard_stdin::keyboard_stdin(keyboard_stdin&&) = default;
 	keyboard_stdin::~keyboard_stdin() = default;
 	void keyboard_stdin::operator()(keyboard_event&& e) { if(wchar_t wc = e; wc <= 127) __base::push_to_active(static_cast<char>(wc)); }
+	void keyboard_stdin::activate(pid_t id) { __base::activate(id); }
 }
