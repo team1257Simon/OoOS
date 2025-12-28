@@ -36,47 +36,47 @@ namespace ooos
 		{
 			pointer __base;
 			pointer __curr;
-			pointer __last;
-			pointer __bmax;
+			pointer __back;
+			pointer __rmax;
 			constexpr __circular_buffer() noexcept(noexcept(allocator_type())) :
 				allocator_type(),
 				__base(),
 				__curr(),
-				__last(),
-				__bmax()
+				__back(),
+				__rmax()
 			{}
 			constexpr __circular_buffer(size_type n) :
 				allocator_type(),
 				__base(allocator_type::allocate(n)),
 				__curr(__base),
-				__last(__base),
-				__bmax(__base + n)
+				__back(__base),
+				__rmax(__base + n)
 			{}
 			constexpr __circular_buffer(__circular_buffer const& that)
 			requires(__copy_assign || __copy_construct) :
 				allocator_type(that),
 				__base(allocator_type::allocate(that.__capacity())),
 				__curr(this->__base + static_cast<size_type>(that.__curr - that.__base)),
-				__last(this->__base + static_cast<size_type>(that.__last - that.__base)),
-				__bmax(this->__base + that.__capacity())
+				__back(this->__base + static_cast<size_type>(that.__back - that.__base)),
+				__rmax(this->__base + that.__capacity())
 				{ if(that.__base) array_copy(this->__base, that.__base, that.__capacity()); }
 			constexpr __circular_buffer(__circular_buffer&& that)
 			noexcept(std::is_nothrow_move_constructible_v<allocator_type>) :
 				allocator_type(std::move(that)),
 				__base(that.__base),
 				__curr(that.__curr),
-				__last(that.__last),
-				__bmax(that.__bmax)
+				__back(that.__back),
+				__rmax(that.__rmax)
 				{ that.__reset(); }
-			constexpr void __reset() noexcept { __base = __curr = __last = __bmax = pointer(); }
-			constexpr void __rewind() noexcept { __curr = __last = __base; }
-			constexpr size_type __capacity() const noexcept { return static_cast<size_type>(__bmax - __base); }
-			constexpr void __create(size_type n) { __base = allocator_type::allocate(n); __curr = __last = __base; __bmax = __base + n; }
+			constexpr void __reset() noexcept { __base = __curr = __back = __rmax = pointer(); }
+			constexpr void __rewind() noexcept { __curr = __back = __base; }
+			constexpr size_type __capacity() const noexcept { return static_cast<size_type>(__rmax - __base); }
+			constexpr void __create(size_type n) { __base = allocator_type::allocate(n); __curr = __back = __base; __rmax = __base + n; }
 			constexpr reference __peek() noexcept { return *__curr; }
 			constexpr const_reference __peek() const noexcept { return *__curr; }
-			constexpr reference __peek_back() noexcept { return *pclamp(__last - 1Z, __curr, __last); }
-			constexpr const_reference __peek_back() const noexcept { return *pclamp(__last - 1Z, __curr, __last); }
-			constexpr size_type __length() const noexcept { return this->__pos_of(__last); }
+			constexpr reference __peek_back() noexcept { return *pclamp(__back - 1Z, __curr, __back); }
+			constexpr const_reference __peek_back() const noexcept { return *pclamp(__back - 1Z, __curr, __back); }
+			constexpr size_type __length() const noexcept { return this->__pos_of(__back); }
 			constexpr pointer __get_ptr(size_type n) const noexcept { return this->__adv_ptr(__curr, n); }
 			constexpr void __flush() noexcept requires(__trivial)
 			{
@@ -89,8 +89,8 @@ namespace ooos
 			{
 				std::swap(this->__base, that.__base);
 				std::swap(this->__curr, that.__curr);
-				std::swap(this->__last, that.__last);
-				std::swap(this->__bmax, that.__bmax);
+				std::swap(this->__back, that.__back);
+				std::swap(this->__rmax, that.__rmax);
 				if constexpr(std::__has_swap_propagate<allocator_type>) std::swap<allocator_type>(*this, that);
 			}
 			constexpr __circular_buffer& operator=(__circular_buffer const& that) requires(__copy_assign || __copy_construct)
@@ -103,8 +103,8 @@ namespace ooos
 				{
 					this->__base	= allocator_type::allocate(that.__capacity());
 					this->__curr	= this->__base + static_cast<size_type>(that.__curr - that.__base);
-					this->__last	= this->__base + static_cast<size_type>(that.__last - that.__base);
-					this->__bmax	= this->__base + that.__capacity();
+					this->__back	= this->__base + static_cast<size_type>(that.__back - that.__base);
+					this->__rmax	= this->__base + that.__capacity();
 				}
 				return *this;
 			}
@@ -119,8 +119,8 @@ namespace ooos
 				{
 					this->__base	= that.__base;
 					this->__curr	= that.__curr;
-					this->__last	= that.__last;
-					this->__bmax	= that.__bmax;
+					this->__back	= that.__back;
+					this->__rmax	= that.__rmax;
 					that.__reset();
 				}
 				return *this;
@@ -136,8 +136,8 @@ namespace ooos
 			constexpr void __expand_splice()
 			{
 				size_type s         = __capacity();
-				size_type l         = static_cast<size_type>(__last - __base) + 1UZ;
-				size_type c         = static_cast<size_type>(__bmax - __curr);
+				size_type l         = static_cast<size_type>(__back - __base) + 1UZ;
+				size_type c         = static_cast<size_type>(__rmax - __curr);
 				size_type tar		= s * 2UZ;
 				pointer tmp         = allocator_type::allocate(tar);
 				copy_or_move(tmp, __curr, c);
@@ -145,8 +145,8 @@ namespace ooos
 				allocator_type::deallocate(__base, s);
 				__base              = tmp;
 				__curr              = tmp;
-				__last              = tmp + c + l;
-				__bmax              = __base + tar;
+				__back              = tmp + c + l;
+				__rmax              = __base + tar;
 			}
 			constexpr void __expand_direct()
 			{
@@ -154,24 +154,24 @@ namespace ooos
 				size_type tar		= s * 2UZ;
 				__base              = ooos::resize(__base, s, tar, *this);
 				__curr              = __base;
-				__last              = __base + s;
-				__bmax              = __base + tar;
+				__back              = __base + s;
+				__rmax              = __base + tar;
 			}
 			constexpr void __adv_push()
 			{
-				pointer target          = __last + 1Z;
-				if(target == __bmax && __curr == __base) __expand_direct();
+				pointer target          = __back + 1Z;
+				if(target == __rmax && __curr == __base) __expand_direct();
 				else if(target == __curr) __expand_splice();
 				else
 				{
 					size_type tpos          = static_cast<size_type>(target - __base);
 					size_type actual_tpos   = tpos % __capacity();
-					__last                  = __base + actual_tpos;
+					__back                  = __base + actual_tpos;
 				}
 			}
 			constexpr pointer __adv_ptr(pointer p) const noexcept
 			{
-				if(!(++p < __bmax))
+				if(!(++p < __rmax))
 					p	= __base;
 				return p;
 			}
@@ -179,11 +179,11 @@ namespace ooos
 			{
 				size_type tpos          = static_cast<size_type>((p + n) - __base);
 				size_type actual_tpos   = tpos % __capacity();
-				return pclamp(__base + actual_tpos, __base, __bmax);
+				return pclamp(__base + actual_tpos, __base, __rmax);
 			}
 			constexpr void __adv_pop() noexcept
 			{
-				if(__capacity() && __curr != __last)
+				if(__capacity() && __curr != __back)
 				{
 					if constexpr(!__trivial)
 						__curr->~T();
@@ -221,27 +221,27 @@ namespace ooos
 			}
 			constexpr void __push(value_type const& v)
 			requires(__copy_assign) {
-				*__last = v;
+				*__back = v;
 				__adv_push();
 			}
 			constexpr void __push(value_type const& v)
 			requires(__copy_construct) {
-				new(__last) value_type(v);
+				new(__back) value_type(v);
 				__adv_push();
 			}
 			constexpr void __push(value_type&& v)
 			requires(__move_assign) {
-				*__last = std::move(v);
+				*__back = std::move(v);
 				__adv_push();
 			}
 			constexpr void __push(value_type&& v)
 			requires(__move_construct) {
-				new(__last) value_type(std::move(v));
+				new(__back) value_type(std::move(v));
 				__adv_push();
 			}
 			constexpr size_type __rem() const noexcept
 			{
-				difference_type diff 	= __last - __curr;
+				difference_type diff 	= __back - __curr;
 				if(diff < 0Z) diff 		*= -1Z;
 				return static_cast<size_type>(diff);
 			}
@@ -253,9 +253,11 @@ namespace ooos
 				return static_cast<size_type>((cap + diff) % cap);
 			}
 			template<typename ... Args> requires(std::constructible_from<value_type, Args...>)
-			constexpr void __emplace(Args&& ... args) {
-				new(__last) value_type(std::forward<Args>(args)...);
+			constexpr pointer __emplace(Args&& ... args)
+			{
+				pointer result	= new(__back) value_type(std::forward<Args>(args)...);
 				__adv_push();
+				return result;
 			}
 			template<std::output_iterator<value_type> IT, std::sentinel_for<IT> ET>
 			constexpr size_type __sink(IT start, ET fin)
@@ -264,9 +266,9 @@ namespace ooos
 				if constexpr(std::contiguous_iterator<IT>)
 				{
 					size_type n					= std::min(static_cast<size_type>(std::ranges::distance(start, fin)), this->__length());
-					if(__last < __curr)
+					if(__back < __curr)
 					{
-						size_type back_part		= static_cast<size_type>(__bmax - __curr);
+						size_type back_part		= static_cast<size_type>(__rmax - __curr);
 						size_type front_part	= static_cast<size_type>(n - back_part);
 						copy_or_move(std::to_address(start), __curr, back_part);
 						copy_or_move(std::to_address(start) + back_part, __base, front_part);
@@ -301,9 +303,9 @@ namespace ooos
 				{
 					if(__buff)
 					{
-						if(__buff->__capacity() && __pos != __buff->__last)
-							return (__pos + 1 < __buff->__bmax) ? __pos + 1 : __buff->__base;
-						else return __buff->__last;
+						if(__buff->__capacity() && __pos != __buff->__back)
+							return (__pos + 1 < __buff->__rmax) ? __pos + 1 : __buff->__base;
+						else return __buff->__back;
 					}
 					return nullptr;
 				}
@@ -312,9 +314,9 @@ namespace ooos
 					if(__buff)
 					{
 							if(n == 1UZ) return __next();
-						else if(__buff->__capacity() && __pos != __buff->__last)
+						else if(__buff->__capacity() && __pos != __buff->__back)
 							return __buff->__adv_ptr(__pos, n);
-						else return __buff->__last;
+						else return __buff->__back;
 					}
 					return nullptr;
 				}
@@ -355,8 +357,12 @@ namespace ooos
 				friend constexpr std::strong_ordering operator<=>(__circular_iterator const& __this, __circular_iterator const& __that) noexcept { return __this.__offset() <=> __that.__offset(); }
 			};
 			constexpr __circular_iterator __beg() const noexcept { return __circular_iterator(*this, __curr); }
-			constexpr __circular_iterator __end() const noexcept { return __circular_iterator(*this, __last); }
+			constexpr __circular_iterator __end() const noexcept { return __circular_iterator(*this, __back); }
+			constexpr __circular_iterator __iter(pointer p) const noexcept { return __circular_iterator(*this, p); }
 		} __buffer;
+		consteval static bool __nt_swap() noexcept { return noexcept(std::declval<__circular_buffer&>().__swap(std::declval<__circular_buffer&>())); }
+		template<std::output_iterator<value_type> IT, std::sentinel_for<IT> ET> consteval bool __nt_sink() noexcept { return noexcept(__buffer.__sink(std::declval<IT>(), std::declval<ET>())); }
+		template<std::ranges::output_range<value_type> RT> consteval bool __nt_get() noexcept { return __nt_sink<std::ranges::iterator_t<RT>, std::ranges::sentinel_t<RT>>(); }
 	public:
 		typedef typename __circular_buffer::__circular_iterator iterator;
 		typedef std::basic_const_iterator<iterator> const_iterator;
@@ -419,21 +425,25 @@ namespace ooos
 		constexpr const_reference front() const noexcept { return peek(); }
 		constexpr reference back() noexcept { return peek_back(); }
 		constexpr const_reference back() const noexcept { return peek_back(); }
-		template<std::ranges::output_range<value_type> RT> constexpr size_type get(RT&& r) noexcept(noexcept(__buffer.__sink(std::ranges::begin(r), std::ranges::end(r)))) { return __buffer.__sink(std::ranges::begin(r), std::ranges::end(r)); }
-		template<std::output_iterator<value_type> IT, std::sentinel_for<IT> ET> constexpr size_type get(IT first, ET last) noexcept(noexcept(__buffer.__sink(first, last))) { return __buffer.__sink(first, last); }
 		constexpr void bump(size_type n) noexcept { __buffer.__adv_pop(n); }
 		constexpr void flush() noexcept requires(__trivial) { __buffer.__flush(); }
-		constexpr void swap(circular_queue& that) noexcept(noexcept(this->__buffer.__swap(std::declval<__circular_buffer&>()))) { this->__buffer.__swap(that.__buffer); }
-		template<typename ... Args> requires(std::constructible_from<value_type, Args...>)
-		constexpr void emplace(Args&& ... args) {
-			create_if_empty(4UZ);
-			__buffer.__emplace(std::forward<Args>(args)...);
-		}
+		constexpr void swap(circular_queue& that) noexcept(__nt_swap()) { this->__buffer.__swap(that.__buffer); }
+		template<std::ranges::output_range<value_type> RT>
+		constexpr size_type get(RT&& r) noexcept(__nt_get<RT>()) { return __buffer.__sink(std::ranges::begin(r), std::ranges::end(r)); }
+		template<std::output_iterator<value_type> IT, std::sentinel_for<IT> ET>
+		constexpr size_type get(IT first, ET last) noexcept(__nt_sink<IT, ET>()) { return __buffer.__sink(first, last); }
 		constexpr void clear() noexcept(__nothrow_zero)
 		{
 			__buffer.__destroy();
 			array_zero(__buffer.__base, __buffer.__capacity());
 			__buffer.__rewind();
+		}
+		template<typename ... Args> requires(std::constructible_from<value_type, Args...>)
+		constexpr iterator emplace(Args&& ... args)
+		{
+			create_if_empty(4UZ);
+			pointer result	= __buffer.__emplace(std::forward<Args>(args)...);
+			return __buffer.__iter(result);
 		}
 	};
 	template<typename T, std::allocator_object<T> A>

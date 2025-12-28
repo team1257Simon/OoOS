@@ -4,12 +4,12 @@
 namespace ooos
 {
 	template<typename FT, typename T> concept vec_draw_fn = std::assignable_from<typename multiarray<T, 2UZ>::reference, decltype(std::declval<FT>()(std::declval<vec2>()))>;
-	template<typename T> struct fill_t {
+	template<std::integral T> struct fill_t {
 		T value;
 		constexpr T operator()(vec2 const&) const noexcept { return value; }
 	};
-	template<typename T> struct scaled_frame_buffer;
-	template<typename T>
+	template<std::integral T> struct scaled_frame_buffer;
+	template<std::integral T>
 	struct linear_frame_buffer
 	{
 		typedef T pixel;
@@ -32,7 +32,7 @@ namespace ooos
 		constexpr void fill(vec2 const& start, pixel const& value) noexcept(std::is_nothrow_copy_constructible_v<pixel>) requires(std::copy_constructible<pixel>) { fill(start, __fb.dimensions(), value); }
 		constexpr void fill(pixel const& value) noexcept(std::is_nothrow_copy_constructible_v<pixel>) requires(std::copy_constructible<pixel>) { fill(vec(0UZ, 0UZ), value); }
 	};
-	template<typename T>
+	template<std::integral T>
 	struct scaled_frame_buffer
 	{
 		typedef T pixel;
@@ -50,7 +50,7 @@ namespace ooos
 		template<vec_draw_fn<T> DFT> constexpr void draw(vec2 const& pos, DFT&& fn) noexcept;
 		constexpr void fill(vec2 const& pos, pixel const& value) noexcept { this->template draw<fill_t<pixel>>(pos, std::move(fill_t<pixel>(value))); }
 	};
-	template<typename T>
+	template<std::integral T>
 	template<vec_draw_fn<T> DFT>
 	constexpr void linear_frame_buffer<T>::draw(vec4 const& area, DFT&& fn) noexcept
 	{
@@ -59,7 +59,7 @@ namespace ooos
 			for(pos[0]		= area[0]; pos[0] < area[2]; ++pos[0])
 				__fb[pos]	= fn(pos - base);
 	}
-	template<typename T>
+	template<std::integral T>
 	template<vec_draw_fn<T> DFT>
 	constexpr void scaled_frame_buffer<T>::draw(vec2 const& pos, DFT&& fn) noexcept
 	{

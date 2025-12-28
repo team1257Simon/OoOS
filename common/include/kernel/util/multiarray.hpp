@@ -2,6 +2,7 @@
 #define __MULTIARRAY
 #include <kernel_api.hpp>
 #include <array>
+#include <span>
 namespace ooos
 {
 	template<typename T> concept numeric = std::integral<T> || std::floating_point<T>;
@@ -144,50 +145,61 @@ namespace ooos
 		};
 	}
 	template<typename T, size_t R>
-	struct multiarray
+	struct multiarray : std::span<T>
 	{
-		typedef T value_type;
 		constexpr static size_t rank		= R;
-		typedef std::add_pointer_t<value_type> pointer;
-		typedef std::add_pointer_t<std::add_const_t<std::remove_cv_t<value_type>>> const_pointer;
-		typedef decltype(std::declval<pointer>()[std::declval<size_t>()]) reference;
-		typedef decltype(std::declval<const_pointer>()[std::declval<size_t>()]) const_reference;
-		typedef decltype(sizeof(value_type)) size_type;
 		typedef scale_vector<rank> scale_type;
+	private:
+		typedef std::span<T> __span;
+	public:
+		typedef typename __span::value_type value_type;
+		typedef typename __span::pointer pointer;
+		typedef typename __span::const_pointer const_pointer;
+		typedef typename __span::reference reference;
+		typedef typename __span::const_reference const_reference;
+		typedef typename __span::size_type size_type;
+		typedef typename __span::difference_type difference_type;
+		typedef typename __span::iterator iterator;
+		typedef typename __span::const_iterator const_iterator;
 		constexpr multiarray() noexcept		= default;
 		constexpr ~multiarray() noexcept	= default;
-		constexpr multiarray(pointer a, scale_type const& d, scale_type const& s) noexcept : __my_array(a), __dimensions(d), __scales(s), __total_size(__dimensions.volume()) {}
-		constexpr multiarray(pointer a, scale_type const& d) noexcept : __my_array(a), __dimensions(d), __scales(__compute_scales(d)), __total_size(__dimensions.volume()) {}
+		constexpr multiarray(pointer a, scale_type const& d, scale_type const& s) noexcept : __span(a, d.volume()), __dimensions(d), __scales(s) {}
+		constexpr multiarray(pointer a, scale_type const& d) noexcept : __span(a, d.volume()), __dimensions(d), __scales(__compute_scales(d)) {}
 		template<size_t S> using sub_array	= multiarray<value_type, __sub_rank(size_constant<S>())>;
 		template<size_t S> using sub_scale	= scale_vector<__sub_rank(size_constant<S>())>;
 	private:
-		pointer __my_array;
 		scale_type __dimensions;
 		scale_type __scales;
-		size_type __total_size;
 		template<typename U, size_t S> friend struct multiarray;
 		constexpr static scale_type __compute_scales(scale_type const& dimensions) noexcept;
+		template<size_t S> constexpr scale_vector<S>&& __check_bounds(scale_vector<S>&& v) const;
 		template<size_t S> requires(S <= rank) constexpr static size_t __sub_rank(size_constant<S>) noexcept { return static_cast<size_t>(rank - S); }
 		template<size_t S> requires(S < rank) constexpr sub_scale<S> __rem_dims() const noexcept { return __dimensions.template back_sub<__sub_rank(size_constant<S>())>(); }
 		template<size_t S> requires(S < rank) constexpr sub_scale<S> __rem_scales() const noexcept { return __scales.template back_sub<__sub_rank(size_constant<S>())>(); }
 		template<size_t S> requires(S <= rank) constexpr size_type __offset(scale_vector<S> const& target_pt) const noexcept { return __scales * (target_pt % __dimensions); }
-		template<size_t S> requires(S + 1UZ < rank) constexpr sub_array<S> __index(scale_vector<S> const& pt) const noexcept { return sub_array<S>(__my_array + __offset(pt), __rem_dims<S>(), __rem_scales<S>()); }
-		template<size_t S> requires(S + 1UZ == rank) constexpr pointer __index(scale_vector<S> const& pt) noexcept { return __my_array + __offset(pt); }
-		template<size_t S> requires(S + 1UZ == rank) constexpr const_pointer __index(scale_vector<S> const& pt) const noexcept { return __my_array + __offset(pt); }
-		template<size_t S> requires(S == rank) constexpr reference __index(scale_vector<S> const& pt) noexcept { return __my_array[__offset(pt)]; }
-		template<size_t S> requires(S == rank) constexpr const_reference __index(scale_vector<S> const& pt) const noexcept { return __my_array[__offset(pt)]; }
+		template<size_t S> requires(S + 1UZ < rank) constexpr sub_array<S> __index(scale_vector<S> const& pt) const noexcept { return sub_array<S>(this->data() + __offset(pt), __rem_dims<S>(), __rem_scales<S>()); }
+		template<size_t S> requires(S + 1UZ == rank) constexpr pointer __index(scale_vector<S> const& pt) noexcept { return this->data() + __offset(pt); }
+		template<size_t S> requires(S + 1UZ == rank) constexpr const_pointer __index(scale_vector<S> const& pt) const noexcept { return this->data() + __offset(pt); }
+		template<size_t S> requires(S == rank) constexpr reference __index(scale_vector<S> const& pt) noexcept { return this->data()[__offset(pt)]; }
+		template<size_t S> requires(S == rank) constexpr const_reference __index(scale_vector<S> const& pt) const noexcept { return this->data()[__offset(pt)]; }
 	public:
 		template<size_t S> requires(S <= rank) using index_result 		= decltype(std::declval<multiarray>().__index(std::declval<scale_vector<S> const>()));
 		template<size_t S> requires(S <= rank) using const_index_result = decltype(std::declval<multiarray const>().__index(std::declval<scale_vector<S> const>()));
 		template<size_t S> requires(S < rank) constexpr sub_array<S> operator[](scale_vector<S> const& pt) const noexcept { return __index(pt); }
 		constexpr reference operator[](scale_type const& pt) noexcept { return __index(pt); }
 		constexpr const_reference operator[](scale_type const& pt) const noexcept { return __index(pt); }
-		template<std::convertible_to<size_t> ... Is> requires(sizeof...(Is) <= rank && sizeof...(Is) != 0UZ) constexpr index_result<sizeof...(Is)> operator[](Is&& ... indices) noexcept { return __index(vec(static_cast<size_t>(indices)...)); }
-		template<std::convertible_to<size_t> ... Is> requires(sizeof...(Is) <= rank && sizeof...(Is) != 0UZ) constexpr const_index_result<sizeof...(Is)> operator[](Is&& ... indices) const noexcept { return __index(vec(static_cast<size_t>(indices)...)); }
-		constexpr size_type size() const noexcept { return __total_size; }
+		constexpr reference at(scale_type const& pt) { return __index(__check_bounds(scale_type(pt))); }
+		constexpr const_reference at(scale_type const& pt) const { return __index(__check_bounds(scale_type(pt))); }
+		template<std::convertible_to<size_t> ... Is> requires(sizeof...(Is) <= rank && sizeof...(Is) != 0UZ)
+		constexpr index_result<sizeof...(Is)> operator[](Is&& ... indices) noexcept { return __index(vec(static_cast<size_t>(indices)...)); }
+		template<std::convertible_to<size_t> ... Is> requires(sizeof...(Is) <= rank && sizeof...(Is) != 0UZ)
+		constexpr const_index_result<sizeof...(Is)> operator[](Is&& ... indices) const noexcept { return __index(vec(static_cast<size_t>(indices)...)); }
+		template<std::convertible_to<size_t> ... Is> requires(sizeof...(Is) <= rank && sizeof...(Is) != 0UZ)
+		constexpr index_result<sizeof...(Is)> at(Is&& ... indices) { return __index(__check_bounds(std::move(vec(static_cast<size_t>(indices)...)))); }
+		template<std::convertible_to<size_t> ... Is> requires(sizeof...(Is) <= rank && sizeof...(Is) != 0UZ)
+		constexpr const_index_result<sizeof...(Is)> at(Is&& ... indices) const { return __index(__check_bounds(std::move(vec(static_cast<size_t>(indices)...)))); }
 		constexpr scale_type const& dimensions() const noexcept { return __dimensions; }
 		constexpr scale_type const& scales() const noexcept { return __scales; }
-		constexpr pointer data() const noexcept { return __my_array; }
 	};
 	template<typename T, size_t R>
 	constexpr typename multiarray<T, R>::scale_type multiarray<T, R>::__compute_scales(scale_type const& dimensions) noexcept
@@ -216,6 +228,23 @@ namespace ooos
 			}
 		}
 		return result;
+	}
+	template <typename T, size_t R>
+	template<size_t S>
+	constexpr scale_vector<S>&& multiarray<T, R>::__check_bounds(scale_vector<S>&& v) const
+	{
+		size_t pos	= v.volume();
+		if(pos >= this->size())
+			throw std::out_of_range("[UTIL/MULTIARRAY] at(): position " + std::to_string(pos) + " out of range for size " + std::to_string(this->size()));
+		return std::forward<scale_vector<S>>(v);
+	}
+}
+namespace std
+{
+	namespace ranges
+	{
+		template<typename T, size_t R> constexpr inline bool enable_view<ooos::multiarray<T, R>>			= true;
+		template<typename T, size_t R> constexpr inline bool enable_borrowed_range<ooos::multiarray<T, R>>	= true;
 	}
 }
 #endif

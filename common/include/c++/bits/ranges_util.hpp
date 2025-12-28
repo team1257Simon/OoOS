@@ -18,13 +18,13 @@ namespace std
 		{
 			constexpr DT& __downcast() noexcept
 			{
-				static_assert(derived_from<DT, view_interface<DT>);
+				static_assert(derived_from<DT, view_interface<DT>>);
 				static_assert(view<DT>);
 				return static_cast<DT&>(*this);
 			}
 			constexpr DT const& __downcast() const noexcept
 			{
-				static_assert(derived_from<DT, view_interface<DT>);
+				static_assert(derived_from<DT, view_interface<DT>>);
 				static_assert(view<DT>);
 				return static_cast<DT const&>(*this);
 			}

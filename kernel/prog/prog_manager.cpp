@@ -32,7 +32,7 @@ static uintptr_t get_load_base(addr_t img_start, size_t dyn_idx)
 		uintptr_t generated		= rand() & 0x000FFFFF;
 		return generated << 12;
 	}
-	return 0UL;
+	return 0UZ;
 }
 elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t stack_sz)
 {

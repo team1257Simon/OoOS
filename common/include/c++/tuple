@@ -27,7 +27,7 @@ namespace std
 		constexpr __head_base(HT const& h) : HT(h) {}
 		constexpr __head_base() : HT() {}
 		template<typename GT> constexpr __head_base(GT&& h) : HT(std::forward<GT>(h)) {}
-		constexpr static HT& __head(__head_base & h) noexcept { return h; }
+		constexpr static HT& __head(__head_base& h) noexcept { return h; }
 		constexpr static HT const& __head(__head_base const& h) noexcept { return h; }
 	};
 	template<size_t I, typename HT>
@@ -39,7 +39,7 @@ namespace std
 		template<typename GT> constexpr __head_base(GT&& h) : __my_head(std::forward<GT>(h)) {}
 		constexpr __head_base(__head_base const&) = default;
 		constexpr __head_base(__head_base&&) = default;
-		constexpr static HT& __head(__head_base & h) noexcept { return h.__my_head; }
+		constexpr static HT& __head(__head_base& h) noexcept { return h.__my_head; }
 		constexpr static HT const& __head(__head_base const& h) noexcept { return h.__my_head; }
 	};
 	template<size_t I, typename ...ETs> struct __tuple_impl;
@@ -125,6 +125,7 @@ namespace std
 	template<template<typename...> class TRT, typename T, typename... U> inline constexpr bool __unpack_std_tuple<TRT, T, const tuple<U...>&> = TRT<T, const U&...>::value;
 	template<size_t I, class T> struct tuple_element;
 	template<size_t I, class T> struct tuple_element<I, const T> { using type = typename add_const<typename tuple_element<I, T>::type>::type; };
+	template<size_t I, typename T, typename U> struct tuple_element<I, pair<T, U>> : tuple_element<I, tuple<T, U>> {};
 	template<class T> struct tuple_size;
 	template<class T> struct tuple_size<const T> : integral_constant<size_t, tuple_size<T>::value> {};
 	template<class ... Ts> struct tuple_size<tuple<Ts...>> : integral_constant<size_t, sizeof...(Ts)> {};
@@ -132,7 +133,8 @@ namespace std
 	template<class HT, class... ETs> struct tuple_element<0, tuple<HT, ETs...>>  { using type = HT; };
 	template<size_t I, typename HT, typename ...ETs> constexpr HT& __get_helper(__tuple_impl<I, HT, ETs...>& t) { return __tuple_impl<I, HT, ETs...>::__head(t); }
 	template<size_t I, typename HT, typename ...ETs> constexpr HT const& __get_helper(__tuple_impl<I, HT, ETs...> const& t) { return __tuple_impl<I, HT, ETs...>::__head(t); }
-	template<size_t I, typename ...ETs> using __elem_t = typename tuple_element<I, tuple<ETs...>>::type;
+	template<size_t I, typename ...ETs> using __elem_t		= typename tuple_element<I, tuple<ETs...>>::type;
+	template<size_t I, typename T> using tuple_element_t	= typename tuple_element<I, T>::type;
 	template<size_t I, typename ...ETs> constexpr __elem_t<I, ETs...> const& get(tuple<ETs...> const& t) noexcept  { return __get_helper<I>(t); }
 	template<size_t I, typename ...ETs> constexpr __elem_t<I, ETs...>& get(tuple<ETs...>& t) noexcept { return __get_helper<I>(t); }
 	template<size_t I, typename... ETs> constexpr __elem_t<I, ETs...>&& get(tuple<ETs...>&& t) noexcept { return std::forward<__elem_t<I, ETs...>>(__get_helper<I>(t)); }

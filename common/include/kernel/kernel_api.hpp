@@ -589,5 +589,20 @@ namespace ooos
 		virtual ~netdev_api_helper() = default;
 		inline netdev_api_helper(mac_t const& mac) : netdev_helper(mac) {}
 	};
+	template<typename T, std::convertible_to<T> ... Us> constexpr std::array<T, sizeof...(Us)> make_array(Us ... vals) { return std::array<T, sizeof...(Us)>{ static_cast<T>(vals)... }; }
+}
+namespace std
+{
+	namespace __detail
+	{
+		template<typename T> concept __not_void	= !is_same_v<T, void>;
+		template<typename T>
+		concept __element_gettable	= requires(T& t, T const& ct) {
+			{ ooos::get_element<std::declval<size_t>()>(t) } -> __not_void;
+			{ ooos::get_element<std::declval<size_t>()>(ct) } -> __not_void;
+		};
+	}
+	template<size_t I, __detail::__element_gettable T> struct tuple_element<I, T> { typedef decltype(ooos::get_element<I>(std::declval<T&>())) type; };
+	template<size_t I, __detail::__element_gettable T> struct tuple_element<I, T const> { typedef decltype(ooos::get_element<I>(std::declval<T const&>())) type; };
 }
 #endif

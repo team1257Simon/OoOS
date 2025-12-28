@@ -13,7 +13,8 @@ elf64_shared_object::~elf64_shared_object() = default;
 elf64_shared_object::elf64_shared_object(file_vnode* n, uframe_tag* frame) : elf64_object(n), elf64_dynamic_object(n),
 	soname					{ find_so_name(img_ptr(), n) },
 	virtual_load_base		{ frame->dynamic_extent },
-	frame_tag				{ frame }
+	frame_tag				{ frame },
+	ref_count				{ 1UZ }
 							{}
 elf64_shared_object::elf64_shared_object(elf64_shared_object&& that) : elf64_object(std::move(that)), elf64_dynamic_object(std::move(that)),
 	soname					{ std::move(that.soname) },

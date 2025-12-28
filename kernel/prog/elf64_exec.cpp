@@ -76,7 +76,7 @@ void elf64_executable::process_headers()
 	if(!segments) elf64_object::process_headers();
 	stack_size				= std::max(stack_size, min_blk_sz);
 	size_t tls_seg			= 0UZ;
-	for(size_t n = 0; n < ehdr().e_phnum; n++)
+	for(size_t n = 0UZ; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h = phdr(n);
 		uintptr_t addr		= h.p_vaddr;

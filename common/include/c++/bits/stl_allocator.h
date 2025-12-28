@@ -38,12 +38,12 @@ namespace std
 			if constexpr(std::is_default_constructible_v<T>)
 				if consteval { return new T[n]; }
 			std::size_t total = n * __size_val;
-			if consteval { return static_cast<T*>(::operator new(total, static_cast<std::align_val_t>(__align_val))); }
-			return static_cast<T*>(__builtin_memset(::operator new(total, static_cast<std::align_val_t>(__align_val)), 0, total));
+			if consteval { return static_cast<T*>(::operator new[](total, static_cast<std::align_val_t>(__align_val))); }
+			return static_cast<T*>(__builtin_memset(::operator new[](total, static_cast<std::align_val_t>(__align_val)), 0, total));
 		}
 		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const {
 			if consteval { delete[] ptr; }
-			else { ::operator delete(ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
+			else { ::operator delete[](ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
 		}
 	};
 	namespace __detail
@@ -110,8 +110,8 @@ namespace std
 	public:
 		constexpr alignval_allocator() noexcept		= default;
 		constexpr ~alignval_allocator() noexcept	= default;
-		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new(total, __align), 0, total)); }
-		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete(p, n * __size_val, __align); }
+		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new[](total, __align), 0, total)); }
+		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete[](p, n * __size_val, __align); }
 	};
 	template<typename A> concept __defined_move_prop		= requires { typename A::propagate_on_container_move_assignment; { A::propagate_on_container_move_assignment::value ? 1 : 0 }; };
 	template<typename A> concept __defined_copy_prop		= requires { typename A::propagate_on_container_copy_assignment; { A::propagate_on_container_copy_assignment::value ? 1 : 0 }; };

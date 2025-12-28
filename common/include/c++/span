@@ -19,7 +19,7 @@ namespace std
 			constexpr __span_extent([[maybe_unused]] size_t n) noexcept { __libk_assert(n == N); }
 			consteval __span_extent(integral_constant<size_t, N>) noexcept {}
 			template<size_t M> __span_extent(integral_constant<size_t, M>) = delete;
-			[[__gnu__::__always_inline__]] constexpr size_t __extent() noexcept { return N; }
+			[[__gnu__::__always_inline__]] constexpr size_t __extent() const noexcept { return N; }
 		};
 		template<>
 		struct __span_extent<dynamic_extent>
@@ -28,7 +28,7 @@ namespace std
 			size_t __value;
 		public:
 			[[__gnu__::__always_inline__]] constexpr __span_extent(size_t n) noexcept : __value(n) {}
-			[[__gnu__::__always_inline__]] constexpr size_t __extent() noexcept { return __value; }
+			[[__gnu__::__always_inline__]] constexpr size_t __extent() const noexcept { return __value; }
 		};
 		template<typename T> struct __span_ptr { T* const __my_ptr; };
 	}
@@ -79,7 +79,7 @@ namespace std
 		}
 		constexpr size_type __bounds_check(size_type pos, const char* msg) const
 		{
-			if(pos > this->size())
+			if(pos >= this->size())
 				throw std::out_of_range(string(msg) + ": position " + to_string(pos) + " out of range for size " + to_string(this->size()));
 			return pos;	
 		}
