@@ -5,7 +5,7 @@ typedef void (*hash_round_fn)(hash_buffer& buf, const hash_buffer& in);
 constexpr uint64_t K1	= 0U;
 constexpr uint64_t K2	= 013240474631UL;
 constexpr uint64_t K3	= 015666365641UL;
-constexpr hash_buffer buf_init{ { 0x67452301U, 0xEFCDAB89U, 0x98BDACFEU, 0x10325476U, 0, 0, 0, 0 } };
+constexpr hash_buffer buf_init { { 0x67452301U, 0xEFCDAB89U, 0x98BDACFEU, 0x10325476U, 0U, 0U, 0U, 0U } };
 template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num);
 template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len);
 template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_t len);
@@ -17,7 +17,8 @@ uint64_t std::half_md4_hash_signed::operator()(const void* data, size_t n) { ret
 uint64_t std::half_md4_hash_unsigned::operator()(const void* data, size_t n) { return gen_ext_hash<false, std::addressof(apply_md4_half_transform), 8, 1U>(seed, data, n); }
 uint64_t std::tea_hash_signed::operator()(const void* data, size_t n) { return gen_ext_hash<true, std::addressof(apply_tea_transform), 4, 0U>(seed, data, n); }
 uint64_t std::tea_hash_unsigned::operator()(const void* data, size_t n) { return gen_ext_hash<false, std::addressof(apply_tea_transform), 4, 0U>(seed, data, n); }
-template<bool is_signed> void process_input(const void* in, hash_buffer& out, size_t len, int64_t num)
+template<bool is_signed>
+void process_input(const void* in, hash_buffer& out, size_t len, int64_t num)
 {
 	using data_t	= typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
 	uint32_t pad	= static_cast<uint32_t>(len) | (static_cast<uint32_t>(len) << 8);
@@ -25,12 +26,12 @@ template<bool is_signed> void process_input(const void* in, hash_buffer& out, si
 	uint32_t val	= pad;
 	len				= std::min(len, size_t(num * 4));
 	data_t buffer	= static_cast<data_t>(in);
-	size_t n		= 0;
+	size_t n		= 0UZ;
 	#pragma omp simd
-	for(size_t i	= 0; i < len; i++)
+	for(size_t i	= 0UZ; i < len; i++)
 	{
 		val			= static_cast<int>(buffer[i]) + (val << 8);
-		if((i % 4) == 3)
+		if((i % 4) == 3UZ)
 		{
 			out.dword_buf[n++] = val;
 			val		= pad;
@@ -40,7 +41,8 @@ template<bool is_signed> void process_input(const void* in, hash_buffer& out, si
 	if(--num >= 0) out.dword_buf[n++]		= val;
 	while(--num >= 0) out.dword_buf[n++]	= pad;
 }
-template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len)
+template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off>
+static uint64_t gen_ext_hash(uint32_t* seed, const void* data, size_t len)
 {
 	const char* name	= static_cast<const char*>(data);
 	hash_buffer in{};
@@ -56,13 +58,14 @@ template<bool is_signed, hash_round_fn hash_fn, int num, unsigned b_off> static 
 	}
 	return qword(buf.dword_buf[b_off], buf.dword_buf[b_off + 1]);
 }
-template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_t len)
+template<bool is_signed>
+static uint32_t apply_legacy_hash(const void* in, size_t len)
 {
 	uint32_t hash, hash0	= 0x12A3FE2DU, hash1	= 0x37ABE8F9U;
 	using data_t			= typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
 	data_t buffer			= static_cast<data_t>(in);
 	#pragma omp simd
-	for(size_t i = 0; i < len; i++)
+	for(size_t i			= 0UZ; i < len; i++)
 	{
 		hash				= hash1 + (hash0 ^ (static_cast<int>(buffer[i]) * 7152373));
 		if(hash & 0x80000000)
@@ -77,12 +80,13 @@ static void apply_tea_transform(hash_buffer& buf, hash_buffer const& in)
 	uint32_t sum	= 0U;
 	uint32_t b0		= buf.dword_buf[0], b1 = buf.dword_buf[1];
 	uint32_t a		= in.dword_buf[0], b = in.dword_buf[1], c = in.dword_buf[2], d = in.dword_buf[3];
-	size_t n		= 16UZ;
-	do {
+	#pragma omp simd
+	for(size_t n 	= 0UZ; n < 16UZ; n++)
+	{
 		sum			+= 0x9E3779B9U;
 		b0			+= ((b1 << 4) + a) ^ (b1 + sum) ^ ((b1 >> 5) + b);
 		b1			+= ((b0 << 4) + c) ^ (b0 + sum) ^ ((b0 >> 5) + d);
-	} while(--n);
+	}
 	buf.dword_buf[0]	+= b0;
 	buf.dword_buf[1]	+= b1;
 }

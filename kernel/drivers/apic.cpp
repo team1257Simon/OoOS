@@ -13,39 +13,40 @@ bool apic::init() volatile
     size_t table_size				= madt->header.length - (8 + sizeof(acpi_header));
     addr_t table_ptr(madt->record_data);
     madt_record_header* h;
-    for(size_t i = 0UZ; i < table_size; i += h->length)
+    for(size_t i	= 0UZ; i < table_size; i += h->length)
     {
-        h = table_ptr.plus(i);
+        h			= table_ptr.plus(i);
         switch(h->type)
         {
         case APIC_ADDRESS_OVERRIDE:
             {
 				local_apic_addr_override const& o	= table_ptr.plus(i).deref<local_apic_addr_override const>();
 				if(o.local_apic_physical_addr)
-                	physical_base = o.local_apic_physical_addr;
+                	physical_base					= o.local_apic_physical_addr;
             	break;
 			}
         case IO_SAPIC:
 			{
-				io_sapic_data const& d	= table_ptr.plus(i).deref<io_sapic_data const>();
-				have_sapic 				= (d.io_sapic_physical_addr != 0);
+				io_sapic_data const& d		= table_ptr.plus(i).deref<io_sapic_data const>();
+				have_sapic 					= (d.io_sapic_physical_addr != 0);
 				if(have_sapic)
-					ioapic_physical_base = d.io_sapic_physical_addr;
+					ioapic_physical_base	= d.io_sapic_physical_addr;
             	break;
 			}
         case IO_APIC:
             if(!have_sapic)
 			{
-				io_apic_data const& d	= table_ptr.plus(i).deref<io_apic_data const>();
+				io_apic_data const& d		= table_ptr.plus(i).deref<io_apic_data const>();
 				if(d.io_apic_physical_address)
-                	ioapic_physical_base = d.io_apic_physical_address;
+                	ioapic_physical_base	= d.io_apic_physical_address;
 			}
             break;
         default:
             break;
         }
     }
-    if(!ioapic_physical_base) ioapic_physical_base = ioapic_default_physical_base;
+    if(!ioapic_physical_base)
+		ioapic_physical_base			= ioapic_default_physical_base;
     addr_t the_apic						= kmm.map_dma(physical_base, sizeof(apic_map), false);
     addr_t the_ioapic					= kmm.map_dma(ioapic_physical_base, sizeof(ioapic), false);
     uint32_t frequency					= cpuid(0x15U, 0U).ecx;

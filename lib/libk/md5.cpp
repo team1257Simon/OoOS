@@ -62,18 +62,18 @@ void md5_update(md5_ctx* ctx, uint8_t const* input_buffer, size_t input_len)
 	ctx->size += input_len;
 	// Copy each byte in input_buffer into the next space in our context input
 	#pragma omp simd
-	for(unsigned i = 0; i < input_len; ++i)
+	for(unsigned i = 0U; i < input_len; ++i)
 	{
 		ctx->input[offset++] = input_buffer[i];
 		// If we've filled our context input, copy it into our local array input
 		// then reset the offset to 0 and fill in a new buffer.
 		// Every time we fill out a chunk, we run it through the algorithm
 		// to enable some back and forth between cpu and i/o
-		if(offset % 64 == 0)
+		if(!(offset % 64))
 		{
-			for(unsigned j = 0; j < 16; ++j) { input[j] = static_cast<uint32_t>(ctx->input[(j * 4) + 3]) << 24 | static_cast<uint32_t>(ctx->input[(j * 4) + 2]) << 16 | static_cast<uint32_t>(ctx->input[(j * 4) + 1]) <<  8 | static_cast<uint32_t>(ctx->input[(j * 4)]); }
+			for(unsigned j = 0U; j < 16U; ++j) { input[j] = static_cast<uint32_t>(ctx->input[(j * 4) + 3]) << 24 | static_cast<uint32_t>(ctx->input[(j * 4) + 2]) << 16 | static_cast<uint32_t>(ctx->input[(j * 4) + 1]) <<  8 | static_cast<uint32_t>(ctx->input[(j * 4)]); }
 			md5_step(ctx->buffer, input);
-			offset = 0;
+			offset = 0U;
 		}
 	}
 }
@@ -91,12 +91,12 @@ void md5_finalize(md5_ctx* ctx)
 	ctx->size -= static_cast<uint64_t>(padding_length);
 	// Do a final update (internal to this function)
 	// Last two 32-bit words are the two halves of the size (converted from bytes to bits)
-	for(unsigned j = 0; j < 14; ++j) { input[j] = static_cast<uint32_t>(ctx->input[(j * 4) + 3]) << 24 | static_cast<uint32_t>(ctx->input[(j * 4) + 2]) << 16 | static_cast<uint32_t>(ctx->input[(j * 4) + 1]) <<  8 | static_cast<uint32_t>(ctx->input[(j * 4)]); }
+	for(unsigned j = 0U; j < 14U; ++j) { input[j] = static_cast<uint32_t>(ctx->input[(j * 4) + 3]) << 24 | static_cast<uint32_t>(ctx->input[(j * 4) + 2]) << 16 | static_cast<uint32_t>(ctx->input[(j * 4) + 1]) <<  8 | static_cast<uint32_t>(ctx->input[(j * 4)]); }
 	input[14] = static_cast<uint32_t>((ctx->size * 8) & 0xFFFFFFFF);
 	input[15] = static_cast<uint32_t>((ctx->size * 8) >> 32);
 	md5_step(ctx->buffer, input);
 	// Move the result into digest (convert from little-endian)
-	for(unsigned int i = 0; i < 4; ++i)
+	for(unsigned int i = 0U; i < 4U; ++i)
 	{
 		ctx->digest[(i * 4) + 0] = static_cast<uint8_t>((ctx->buffer[i] & 0x000000FF));
 		ctx->digest[(i * 4) + 1] = static_cast<uint8_t>((ctx->buffer[i] & 0x0000FF00) >>  8);
@@ -113,7 +113,7 @@ void md5_step(uint32_t* buffer, uint32_t* input)
 	uint32_t __e;
 	unsigned int j;
 	#pragma omp simd
-	for(unsigned i = 0; i < 64U; ++i)
+	for(unsigned i = 0U; i < 64U; ++i)
 	{
 		switch(i / 16)
 		{

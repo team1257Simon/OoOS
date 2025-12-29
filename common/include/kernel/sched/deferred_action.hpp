@@ -161,7 +161,7 @@ namespace ooos
 	};
 	struct deferred_action_queue : public circular_queue<deferred_action>
 	{
-		long double ticks_per_ms;
+		__float128 ticks_per_ms;
 		deferred_action_queue() noexcept;
 		~deferred_action_queue() noexcept;
 		void tick();

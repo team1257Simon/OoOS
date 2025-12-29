@@ -15,8 +15,8 @@ namespace ooos
 	}
 	time_t deferred_action_queue::compute_ticks(time_t millis) const noexcept
 	{
-		long double ms 		= static_cast<long double>(millis);
-		long double result 	= ms * ticks_per_ms;
+		__float128 ms 		= static_cast<__float128>(millis);
+		__float128 result 	= ms * ticks_per_ms;
 		return static_cast<time_t>(result);
 	}
 }

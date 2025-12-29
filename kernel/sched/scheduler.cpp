@@ -261,7 +261,7 @@ bool scheduler::init() noexcept
 	catch(std::exception& e) { panic(e.what()); return false; }
 	task_change_flag.store(false);
 	sched_times.init();
-	__deferred_actions.ticks_per_ms	= (1.0L / static_cast<long double>(sched_times.cycle_divisor)) * sched_times.tick_rate;
+	__deferred_actions.ticks_per_ms	= (1.Q / static_cast<__float128>(sched_times.cycle_divisor)) * sched_times.tick_rate;
 	interrupt_table::add_irq_handler(0, std::move([this]() -> void
 	{
 		if(__running)
