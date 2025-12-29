@@ -26,6 +26,7 @@ template<bool is_signed> void process_input(const void* in, hash_buffer& out, si
 	len				= std::min(len, size_t(num * 4));
 	data_t buffer	= static_cast<data_t>(in);
 	size_t n		= 0;
+	#pragma omp simd
 	for(size_t i	= 0; i < len; i++)
 	{
 		val			= static_cast<int>(buffer[i]) + (val << 8);
@@ -60,6 +61,7 @@ template<bool is_signed> static uint32_t apply_legacy_hash(const void* in, size_
 	uint32_t hash, hash0	= 0x12A3FE2DU, hash1	= 0x37ABE8F9U;
 	using data_t			= typename std::conditional<is_signed, const signed char*, const unsigned char*>::type;
 	data_t buffer			= static_cast<data_t>(in);
+	#pragma omp simd
 	for(size_t i = 0; i < len; i++)
 	{
 		hash				= hash1 + (hash0 ^ (static_cast<int>(buffer[i]) * 7152373));

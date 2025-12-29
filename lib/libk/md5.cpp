@@ -61,6 +61,7 @@ void md5_update(md5_ctx* ctx, uint8_t const* input_buffer, size_t input_len)
 	unsigned int offset = ctx->size % 64;
 	ctx->size += input_len;
 	// Copy each byte in input_buffer into the next space in our context input
+	#pragma omp simd
 	for(unsigned i = 0; i < input_len; ++i)
 	{
 		ctx->input[offset++] = input_buffer[i];
@@ -111,6 +112,7 @@ void md5_step(uint32_t* buffer, uint32_t* input)
 	uint32_t __d = buffer[3];
 	uint32_t __e;
 	unsigned int j;
+	#pragma omp simd
 	for(unsigned i = 0; i < 64U; ++i)
 	{
 		switch(i / 16)
