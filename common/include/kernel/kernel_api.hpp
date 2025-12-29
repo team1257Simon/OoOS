@@ -596,13 +596,13 @@ namespace std
 	namespace __detail
 	{
 		template<typename T> concept __not_void	= !is_same_v<T, void>;
-		template<typename T>
+		template<typename T, size_t I>
 		concept __element_gettable	= requires(T& t, T const& ct) {
-			{ ooos::get_element<std::declval<size_t>()>(t) } -> __not_void;
-			{ ooos::get_element<std::declval<size_t>()>(ct) } -> __not_void;
+			{ ooos::get_element<I>(t) } -> __not_void;
+			{ ooos::get_element<I>(ct) } -> __not_void;
 		};
 	}
-	template<size_t I, __detail::__element_gettable T> struct tuple_element<I, T> { typedef decltype(ooos::get_element<I>(std::declval<T&>())) type; };
-	template<size_t I, __detail::__element_gettable T> struct tuple_element<I, T const> { typedef decltype(ooos::get_element<I>(std::declval<T const&>())) type; };
+	template<size_t I, __detail::__element_gettable<I> T> struct tuple_element<I, T> { typedef decltype(ooos::get_element<I>(std::declval<T&>())) type; };
+	template<size_t I, __detail::__element_gettable<I> T> struct tuple_element<I, T const> { typedef decltype(ooos::get_element<I>(std::declval<T const&>())) type; };
 }
 #endif
