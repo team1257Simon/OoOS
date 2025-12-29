@@ -94,7 +94,7 @@ void* __vmi_class_type_info::cast_to(void* obj, const struct __class_type_info* 
 bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
 {
 	if(this == target) return true;
-	for(unsigned int i = 0; i < __base_count; i++)
+	for(unsigned int i = 0U; i < __base_count; i++)
 	{
 		const __base_class_type_info* info		= std::addressof(__base_info[i]);
 		ptrdiff_t                     offset	= info->offset();

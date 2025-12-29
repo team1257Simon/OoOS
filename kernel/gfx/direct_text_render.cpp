@@ -10,14 +10,15 @@ void direct_text_render::print_line(const char* str) {
 	endl();
 }
 size_t direct_text_render::__bounds_check_idx(wchar_t c) {
-	if(__unlikely(static_cast<uint32_t>(c) > __font->numglyph || c < 1)) c = ' ';
+	if(__unlikely(static_cast<uint32_t>(c) >= __font->numglyph || c < 1)) c = ' ';
 	return static_cast<size_t>(c * __font->bpg);
 }
 uint32_t direct_text_render::__glyph_px(size_t glyph_idx, ooos::vec2 pt)
 {
-	if(__unlikely(pt[0]	>= __font->width || pt[1] >= __font->height || glyph_idx >= __font->numglyph * __font->bpg)) return background;
-	uint8_t glyph_byte	= __font->glyph_data[glyph_idx + (pt[0] / 8) + pt[1]];
-	return (glyph_byte & (0x80UC >> (pt[0] % 8))) ? foreground : background;
+	return (!__unlikely(pt[0] >= __font->width || pt[1] >= __font->height) 
+			&& (__font->glyph_data[glyph_idx + (pt[0] / 8) + pt[1]] & (0x80UC >> (pt[0] % 8))))
+			? foreground
+			: background;
 }
 void direct_text_render::__scur(int i)
 {

@@ -194,6 +194,18 @@ namespace ooos
 			static_cast<N>(__this[0] * __that[1] - __this[1] * __that[0])
 		};
 	}
+	template<numeric N, std::explicitly_convertible_to<N> M, size_t R, size_t ... Is>
+	requires(R >= sizeof...(Is))
+	constexpr numeric_vector<N, sizeof...(Is)> __cvt_vec(numeric_vector<M, R> const& v, std::index_sequence<Is...>)
+	{
+		typedef numeric_vector<N, sizeof...(Is)> result_type;
+		return result_type
+		{
+			// Helper function with parameter pack.
+			// I guess it can also be used directly.
+			static_cast<N>(v[Is])...
+		};
+	}
 	template<std::convertible_to<size_t> ... Ns>
 	constexpr scale_vector<sizeof...(Ns)> vec(Ns&& ... ns)
 	{
@@ -204,6 +216,11 @@ namespace ooos
 			// We can't use std::forward here because the inputs might be const-qualified.
 			static_cast<size_t>(ns)...
 		};
+	}
+	template<numeric N, std::explicitly_convertible_to<N> M, size_t R>
+	constexpr numeric_vector<N, R> xvec(numeric_vector<M, R> const& v) noexcept {
+		typedef std::make_index_sequence<R> indices;
+		return __cvt_vec<N>(v, indices());
 	}
 	template<typename T, size_t R>
 	struct multiarray : std::span<T>

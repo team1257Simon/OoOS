@@ -7,7 +7,6 @@
 	.global		task_change
 	.global		user_entry
 	.global		kernel_reentry
-	.global		enable_fs_gs_insns
 	.global		set_task_signal
 	.global		worker_exit
 	.global		worker_return
@@ -23,7 +22,6 @@
 	.type		task_change,			@function
 	.type		user_entry,				@function
 	.type		kernel_reentry,			@function
-	.type		enable_fs_gs_insns,		@function
 	.type		set_task_signal,		@function
 	.type		worker_exit,			@function
 	.type		worker_return,			@function
@@ -113,12 +111,6 @@ kernel_reentry:
 	sti
 	ret
 	.size		kernel_reentry,			.-kernel_reentry
-enable_fs_gs_insns:
-	movq		%cr4,		%rax
-	orl			$0x10000,	%eax
-	movq		%rax,		%cr4
-	ret
-	.size		enable_fs_gs_insns,		.-enable_fs_gs_insns
 set_task_signal:
 	isr_stack_save
 	base_state_save
@@ -146,7 +138,6 @@ worker_return:
 	movq		24(%rdi),	%r13
 	movq		32(%rdi),	%r14
 	movq		40(%rdi),	%r15
-	sti
 	ret
 	.size		worker_return,			.-worker_return
 start_worker:

@@ -36,7 +36,6 @@
 	.type	delay_flag,				@object
 	.type	debug_stop_flag,		@object
 	.type	task_lock_flag,			@object
-	
 	//		If we ever get around to using SMP, this will allow us to have separate versions of the local storage here for each processor.
 	.section	.data.plocal
 kernel_isr_stack_base:

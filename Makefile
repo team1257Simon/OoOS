@@ -40,7 +40,7 @@ SUBDIRS = headergen lib modules boot kernel test
 OUT_IMG = $(OSNAME).img
 EMULATE := qemu-system-$(ARCH)
 EMUFLAGS := -rtc base=utc -drive if=pflash,format=raw,unit=0,file=$(OVMF)/OVMF_CODE.fd,readonly=on -drive if=pflash,format=raw,unit=1,file=$(OVMF)/OVMF_VARS.fd,readonly=on\
-	-cpu max,+sse2,+sse4.1,+sse4.2,+sse4a,+ssse3 -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -smp cores=$(CORES) -device intel-iommu,intremap=on\
+	-cpu max,+sse2,+sse4.1,+sse4.2,+sse4a,+ssse3,+xsave -m 8G -M pc-q35-jammy-maxcpus,kernel-irqchip=split -smp cores=$(CORES) -device intel-iommu,intremap=on\
 	-netdev user,id=net0 -device e1000e,netdev=net0 -object filter-dump,id=f1,netdev=net0,file=dump.bin\
 	-monitor vc -serial stdio
 .PHONY: all $(SUBDIRS) asmtest asmtest_kernel clean distclean

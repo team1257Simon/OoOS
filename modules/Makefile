@@ -7,9 +7,9 @@ ST := $(TARGET_HOSTED)-strip
 READ := $(TARGET_HOSTED)-readelf
 OUTDIR := $(BUILD_DIR)/SYS/MOD
 LDSCRIPT := $(CURDIR)/module.$(TARGET_HOSTED).lds
-CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -I$(PROJECT_DIR)/common/include/c++ -Wno-packed-bitfield-compat -ffreestanding
+CFLAGS := -O2 -fPIC -fpie -I$(PROJECT_DIR)/common/include/kernel -I$(PROJECT_DIR)/common/include/c++ -Wno-packed-bitfield-compat -ffreestanding -msse -msse2 -mssse3 -msse4a -msse4
 CXXFLAGS := $(CFLAGS) -std=gnu++26 -fplugin=$(ATTR_PLUGIN) -nostdinc++ -freflection -fopenmp
-CCFLAGS := $(CFLAGS) -std=gnu23 -fplugin=$(ATTR_PLUGIN)
+CCFLAGS := $(CFLAGS) -std=gnu23 -fplugin=$(ATTR_PLUGIN) -fopenmp
 LDFLAGS := -L$(LIB_DIR) -T $(LDSCRIPT) -pie -nostdlib -lgcc $(CFLAGS)
 PRE_OBJ_NAMES := modcrti.o modcrtbegin.o modcrt0.o
 POST_OBJ_NAMES := modcrtend.o modcrtn.o

@@ -1,7 +1,23 @@
 #include <gfx_image.hpp>
+#include <stb_image_resize2.h>
 #include <stdlib.h>
 namespace ooos
 {
+	static inline uint8_t* __load(addr_t img_buffer, size_t buffer_len, int& width, int& height, int& channels) noexcept;
+	stb_image_data::stb_image_data() noexcept = default;
+	stb_image_data::~stb_image_data() noexcept = default;
+	stb_image_data::stb_image_data(stb_image_data&&) noexcept = default;
+	stb_image_data::stb_image_data(stb_image_data const& that) : stb_image_data(that.__channels, that.__dimensions, array_dup(that.__data_ptr.get(), that.size_bytes())) {}
+	stb_image_data& stb_image_data::operator=(stb_image_data&&) noexcept = default;
+	stb_image_data& stb_image_data::operator=(stb_image_data const& that) { return (*this = std::move(stb_image_data(that))); }
+	stb_image_data::stb_image_data(const void* image_buffer, size_t buffer_len, n2vec<int> const& dims) : stb_image_data(std::move(stb_image_data(image_buffer, buffer_len).scale(dims))) {}
+	stb_image_data::stb_image_data(int ch, n2vec<int> const& dm, uint8_t* dp) noexcept : __channels(ch), __dimensions(dm), __data_ptr(dp) {}
+	stb_image_data::stb_image_data(const void* image_buffer, size_t buffer_len) : __channels(), __dimensions(), __data_ptr(__load(image_buffer, buffer_len, __dimensions[0], __dimensions[1], __channels)) {}
+	size_t stb_image_data::size_bytes() const noexcept { return static_cast<size_t>(__dimensions.volume() * __channels); }
+	size_t stb_image_data::channels() const noexcept { return static_cast<size_t>(__channels); }
+	vec2 stb_image_data::dimensions() const noexcept { return vec(static_cast<size_t>(__dimensions[0]), static_cast<size_t>(__dimensions[1])); }
+	std::span<uint8_t> stb_image_data::get_view() const noexcept { return std::span<uint8_t>(__data_ptr.get(), size_bytes()); }
+	stb_image_data::operator bool() const noexcept { return __data_ptr; }
 	static inline std::span<uint8_t> __to_span(uint8_t* image, int width, int height, int channels) { return std::span<uint8_t>(image, static_cast<size_t>((vec(width, height)).volume() * channels)); }
 	static inline uint8_t* __load(addr_t img_buffer, size_t buffer_len, int& width, int& height, int& channels) noexcept
 	{
@@ -22,17 +38,20 @@ namespace ooos
 	}
 	static inline std::pair<std::vector<uint32_t>, vec2> __load_image_data(addr_t img_buffer, size_t buffer_len)
 	{
-		int width{}, height{}, channels{};
-		uint8_t* image	= __load(img_buffer, buffer_len, width, height, channels);
-		if(!image) throw std::runtime_error(stbi_failure_reason());
-		struct __simple_guard {
-			void* ptr;
-			inline ~__simple_guard() noexcept { free(ptr); }
-		} g(image);
-		return __convert_image_data(__to_span(image, width, height, channels), static_cast<size_t>(width), static_cast<size_t>(channels));
+		stb_image_data data(img_buffer, buffer_len);
+		size_t width	= data.dimensions()[0];
+		return __convert_image_data(data.get_view(), width, data.channels());
+	}
+	static inline std::pair<std::vector<uint32_t>, vec2> __load_image_data_scaled(addr_t img_buffer, size_t buffer_len, vec2 const& sdims)
+	{
+		n2vec<int> idims	= xvec<int>(sdims);
+		stb_image_data data(img_buffer, buffer_len, idims);
+		size_t width	= data.dimensions()[0];
+		return __convert_image_data(data.get_view(), width, data.channels());
 	}
 	gfx_image::gfx_image(std::pair<std::vector<uint32_t>, vec2>&& p) noexcept : __vec(std::move(p.first)), __arr(__vec::data(), p.second), __view() {}
 	gfx_image::gfx_image(const void* image_buffer, size_t buffer_len) : gfx_image(__load_image_data(image_buffer, buffer_len)) {}
+	gfx_image::gfx_image(const void* image_buffer, size_t buffer_len, vec2 const& dims) : gfx_image(__load_image_data_scaled(image_buffer, buffer_len, dims)) {}
 	gfx_image::~gfx_image()									= default;
 	gfx_image::gfx_image(gfx_image const&)					= default;
 	gfx_image::gfx_image(gfx_image&&) noexcept				= default;
@@ -49,4 +68,16 @@ namespace ooos
 	gfx_image::const_reference gfx_image::at(vec2 const& pos) const { return __arr::at(pos); }
 	gfx_image::pointer gfx_image::at(size_type pos) { return __arr::at(pos); }
 	gfx_image::const_pointer gfx_image::at(size_type pos) const { return __arr::at(pos); }
+	void gfx_image::display(linear_frame_buffer<uint32_t>& fb, vec2 const& pos) { fb.draw(pos, dimensions() + pos, std::bind_front(__idx, this)); }
+	stb_image_data& stb_image_data::scale(n2vec<int> const& target_dims)
+	{
+		if(__data_ptr)
+		{
+			uint8_t* result	= stbir_resize_uint8_linear(__data_ptr.get(), __dimensions[0], __dimensions[1], 0, nullptr, target_dims[0], target_dims[1], 0, static_cast<stbir_pixel_layout>(__channels));
+			if(!result) throw std::bad_alloc();
+			__data_ptr.reset(result);
+			__dimensions	= target_dims;
+		}
+		return *this;
+	}
 }

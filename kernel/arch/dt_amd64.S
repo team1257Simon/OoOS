@@ -77,8 +77,10 @@ gdt_setup:
 	.size		gdt_setup,			.-gdt_setup
 idt_register:
 	lidt		idt_descriptor
+	//	While we're here, enable some CPU functionality that's off by default
+	//	Enable the FS/GS base register instructions and XSAVE
 	movq		%cr4,				%rax
-	orq			$0x10000,			%rax
+	orq			$0x50000,			%rax
 	movq		%rax,				%cr4
 	ret
 	.size		idt_register,		.-idt_register

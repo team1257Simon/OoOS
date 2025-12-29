@@ -139,6 +139,7 @@ template<integral_structure I> constexpr I magnitude(I num) { I i; for(i = I(1);
 constexpr uint32_t years_to_days(uint16_t yr, uint16_t from) { return ((yr - from) * 365U + (yr - up_to_nearest(from, 4US)) / 4U + 1U); }
 template<trivial_move T> constexpr T* array_move(T* dest, T* src, std::size_t n) noexcept { return array_copy(dest, src, n); }
 template<trivial_copy T> constexpr T* array_copy(void* dest, T const* src, std::size_t n) noexcept { return static_cast<T*>(__builtin_memcpy(dest, src, static_cast<size_t>(n * sizeof(T)))); }
+template<typename T, std::allocator_object<T> A = std::allocator<T>> constexpr T* array_dup(T const* src, std::size_t n, A const& alloc = A()) { return array_copy(alloc.allocate(n), src, n); }
 template<nontrivial_copy T>
 constexpr T* array_copy(T* dest, T const* src, std::size_t n)
 noexcept(nothrow_copy<T>)

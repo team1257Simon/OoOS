@@ -25,6 +25,7 @@
 #include <elf64_exec.hpp>
 #include <elf64_shared.hpp>
 #include <frame_manager.hpp>
+#include <gfx_image.hpp>
 #include <kdebug.hpp>
 #include <kernel_mm.hpp>
 #include <kernel_api.hpp>
@@ -53,6 +54,7 @@ static ooos::ps2_keyboard* test_kb{};
 static char kb_pos[sizeof(ooos::ps2_keyboard)]{};
 static ooos::delegate_hda test_delegate;
 static std::ext::delegate_ptr<sysfs> test_sysfs(nullptr);
+static ooos::linear_frame_buffer<uint32_t> test_fb(sysinfo->fb_ptr, sysinfo->fb_width, sysinfo->fb_height);
 static const char digits[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', };
 extern "C"
 {
@@ -475,14 +477,12 @@ void worker_tests()
 	int i;
 	if(__unlikely(i = start_worker(w1)))
 	{
-		cli();
 		xdirect_writeln("returned " + std::to_string(i));
 		wl.destroy(w1);
 		w1 = nullptr;
 	}
 	else if(__unlikely(i = start_worker(w2)))
 	{
-		cli();
 		xdirect_writeln("returned " + std::to_string(i));
 		wl.destroy(w2);
 		w2 = nullptr;
@@ -510,6 +510,17 @@ void uam_tests()
 			else direct_writeln("UAM init failed");
 		}
 		catch(std::exception& e) { panic(e.what()); }
+	}
+}
+void gfx_tests()
+{
+	if(test_extfs.has_init())
+	{
+		file_vnode* picture	= test_extfs.open_file("picture.png", std::ios_base::in, false);
+		size_t w			= sysinfo->fb_width, h	= sysinfo->fb_height;
+		ooos::gfx_image image(picture->data(), picture->size(), ooos::vec(w, h));
+		test_extfs.close_file(picture);
+		image.display(test_fb);
 	}
 }
 static const char* codes[] =
@@ -622,7 +633,8 @@ void run_tests()
 	}
 	direct_writeln("worker tests...");
 	worker_tests();
-	direct_writeln("complete");
+	direct_writeln("image load test (delay 3S)...");
+	scheduler::defer_sec(3UZ, &gfx_tests);
 }
 static void __serial_write(std::string const& msg)
 {
@@ -638,7 +650,6 @@ extern "C"
 	extern void _init();
 	extern void gdt_setup();
 	extern void do_syscall();
-	extern void enable_fs_gs_insns();
 	paging_table get_kernel_cr3() { return kproc.saved_regs.cr3; }
 	void dwclear() { if(direct_print_enable) startup_tty.cls(); }
 	void dwendl() { if(direct_print_enable) startup_tty.endl(); }
@@ -664,7 +675,6 @@ extern "C"
 	bool kernel_setup() try
 	{
 		tss_init(std::addressof(kernel_isr_stack_top));
-		enable_fs_gs_insns();
 		set_kernel_gs_base(std::addressof(kproc));
 		kproc.saved_regs.cr3	= get_cr3();
 		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48

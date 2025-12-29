@@ -16,16 +16,24 @@ namespace std
 	};
 	template<typename T> struct default_delete<T[]> { 
 		static_assert(std::is_trivially_destructible_v<T>, "nontrivial destructors unsupported for array unique_ptr");
-		constexpr void operator()(T* ptr) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); }
+		constexpr void operator()(T ptr[]) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); }
 	};
 	namespace __detail
 	{
-		template<typename FT, typename T> concept __ptr_accept_ftor		= requires(FT ft) { ft(declval<T*>()); };
+		template<typename FT, typename T> concept __ptr_accept_ftor		= (!std::is_array_v<T> && requires(FT ft) { ft(declval<T*>()); }) || (std::is_unbounded_array_v<T> && requires(FT ft) { ft(declval<T>()); });
 		template<typename T> concept __unique_ptrable					= __or_<is_unbounded_array<T>, __not_<is_array<T>>>::value;
 		template<typename DT> concept __has_typedef_pointer				= requires { typename remove_reference_t<DT>::pointer; };
 		template<typename DT, typename T> concept __typedef_ptr_deleter	= __ptr_accept_ftor<DT, T> && __has_typedef_pointer<DT>;
 		template<__unique_ptrable T, __ptr_accept_ftor<T> DT>
 		struct __unique_ptr_traits
+		{
+			typedef T element_type;
+			typedef DT deleter_type;
+			typedef T* pointer;
+			typedef typename conditional<is_reference_v<DT>, DT, DT const&>::type copy_deleter_type;
+		};
+		template<__unique_ptrable T, __ptr_accept_ftor<T[]> DT>
+		struct __unique_ptr_traits<T[], DT>
 		{
 			typedef T element_type;
 			typedef DT deleter_type;
@@ -79,7 +87,7 @@ namespace std
 		constexpr typename add_lvalue_reference<element_type>::type operator*() const { return *__ptr(); }
 		constexpr pointer operator->() const noexcept { return __ptr(); }
 	};
-	template<typename T, __detail::__ptr_accept_ftor<T> DT>
+	template<typename T, __detail::__ptr_accept_ftor<T[]> DT>
 	class unique_ptr<T[], DT>
 	{
 		using __traits = __detail::__unique_ptr_traits<T[], DT>;
