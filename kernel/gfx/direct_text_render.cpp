@@ -39,6 +39,7 @@ void direct_text_render::cls()
 	for(ooos::vec2 pos	= ooos::vec(0UZ, 0UZ); pos[1] < __rows; ++pos[1])
 		for(pos[0]		= 0UZ; pos[0] < __cols; ++pos[0])
 			__fb.fill(pos, background);
+	__cursor			= ooos::vec(0UZ, 0UZ);
 }
 void direct_text_render::endl()
 {

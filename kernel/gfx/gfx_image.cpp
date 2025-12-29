@@ -2,13 +2,13 @@
 #include <stdlib.h>
 namespace ooos
 {
-	static inline std::span<uint8_t> __to_span(uint8_t* image, int width, int height, int channels) { return std::span<uint8_t>(image, static_cast<size_t>((vec(width, height) * channels).volume())); }
+	static inline std::span<uint8_t> __to_span(uint8_t* image, int width, int height, int channels) { return std::span<uint8_t>(image, static_cast<size_t>((vec(width, height)).volume() * channels)); }
 	static inline uint8_t* __load(addr_t img_buffer, size_t buffer_len, int& width, int& height, int& channels) noexcept
 	{
 		int* x	= std::addressof(width);
 		int* y	= std::addressof(height);
 		int* c	= std::addressof(channels);
-		return stbi_load_from_memory(img_buffer, static_cast<int>(buffer_len), x, y, c, 4);
+		return stbi_load_from_memory(img_buffer, static_cast<int>(buffer_len), x, y, c, 0);
 	}
 	static inline std::pair<std::vector<uint32_t>, vec2> __convert_image_data(std::span<uint8_t>&& image, size_t width, size_t channels)
 	{
