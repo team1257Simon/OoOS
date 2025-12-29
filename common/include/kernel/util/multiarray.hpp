@@ -11,68 +11,77 @@ namespace ooos
 	{
 		using typename std::array<N, R>::size_type;
 		using typename std::array<N, R>::value_type;
-		constexpr numeric_vector operator+(numeric_vector const& restrict that) const restrict noexcept
+		numeric_vector operator+(numeric_vector const& restrict that) const restrict noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] + that[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] + that[i];
 			return result;
 		}
-		constexpr numeric_vector operator-(numeric_vector const& restrict that) const restrict noexcept
+		numeric_vector operator-(numeric_vector const& restrict that) const restrict noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] - that[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] - that[i];
 			return result;
 		}
-		constexpr numeric_vector operator*(value_type scale) const noexcept
+		numeric_vector operator*(value_type scale) const noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] * scale;
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] * scale;
 			return result;
 		}
-		constexpr numeric_vector operator/(value_type divisor) const noexcept
+		numeric_vector operator/(value_type divisor) const noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] / divisor;
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] / divisor;
 			return result;
 		}
 		template<size_t S>
-		constexpr value_type operator*(numeric_vector<N, S> const& restrict that) const restrict noexcept
+		value_type operator*(numeric_vector<N, S> const& restrict that) const restrict noexcept
 		{
 			value_type result{};
 			size_type total = S < R ? S : R;
-			for(size_type i{}; i < total; i++) result += this->__my_array[i] * that[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < total; i++) result += this->__my_array[i] * that[i];
 			return result;
 		}
 		template<size_t S> requires(S >= R)
-		constexpr numeric_vector<N, R> operator%(numeric_vector<N, S> const& restrict that) const restrict noexcept
+		numeric_vector<N, R> operator%(numeric_vector<N, S> const& restrict that) const restrict noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] % that[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] % that[i];
 			return result;
 		}
 		template<size_t S> requires(S >= R)
-		constexpr numeric_vector<N, R> operator/(numeric_vector<N, R> const& restrict that) const restrict noexcept
+		numeric_vector<N, R> operator/(numeric_vector<N, R> const& restrict that) const restrict noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] / that[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] / that[i];
 			return result;
 		}
 		template<size_t S> requires(S <= R)
-		constexpr numeric_vector<N, S> sub() const noexcept
+		numeric_vector<N, S> sub() const noexcept
 		{
 			typedef numeric_vector<N, S> result_type;
 			if constexpr(S == R) return result_type(*this);
 			result_type result{};
-			for(size_type i{}; i < S; i++) result[i] = this->__my_array[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < S; i++) result[i] = this->__my_array[i];
 			return result;
 		}
 		template<size_t S> requires(S <= R)
-		constexpr numeric_vector<N, S> back_sub() const noexcept
+		numeric_vector<N, S> back_sub() const noexcept
 		{
 			typedef numeric_vector<N, S> result_type;
 			if constexpr(S == R) return result_type(*this);
 			size_type start_pos = static_cast<size_t>(R - S);
 			result_type result{};
+			#pragma omp simd
 			for(size_type i = start_pos; i < R; i++) result[i - start_pos] = this->__my_array[i];
 			return result;
 		}
@@ -91,27 +100,79 @@ namespace ooos
 			return result;
 		}
 		template<size_t S>
-		constexpr numeric_vector<N, R + S> splice(numeric_vector<N, S> const& restrict that) const restrict noexcept
+		numeric_vector<N, R + S> splice(numeric_vector<N, S> const& restrict that) const restrict noexcept
 		{
 			numeric_vector<N, R + S> result{};
-			for(size_type i{}; i < R; i++) result[i] 		= this->__my_array[i];
-			for(size_type j{}; j < S; j++) result[R + j] 	= that[j];
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] 		= this->__my_array[i];
+			#pragma omp simd
+			for(size_type j = size_type(); j < S; j++) result[R + j] 	= that[j];
 			return result;
 		}
 		template<size_t S> requires(S != 0UZ && R % S == 0)
-		constexpr numeric_vector<N, R> distribute(numeric_vector<N, S> const& restrict that) const restrict noexcept
+		numeric_vector<N, R> distribute(numeric_vector<N, S> const& restrict that) const restrict noexcept
 		{
 			size_t count = R / S;
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < count; i++)
-				for(size_type j{}; j < S; j++)
+			#pragma omp simd
+			for(size_type i = size_type(); i < count; i++)
+				for(size_type j = size_type(); j < S; j++)
 					result[i * S + j] = this->__my_array[i * S + j] * that[j];
 			return result;
 		}
-		constexpr numeric_vector<N, R> divide(numeric_vector<N, R> const& restrict that) const restrict noexcept
+		numeric_vector<N, R> divide(numeric_vector<N, R> const& restrict that) const restrict noexcept
 		{
 			numeric_vector<N, R> result{};
-			for(size_type i{}; i < R; i++) result[i] = this->__my_array[i] / that[i];
+			#pragma omp simd
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] / that[i];
+			return result;
+		}
+		template<size_t S>
+		consteval value_type cvmul(numeric_vector<N, S> const& that) const noexcept
+		{
+			value_type result{};
+			size_type total = S < R ? S : R;
+			for(size_type i = size_type(); i < total; i++) result += this->__my_array[i] * that[i];
+			return result;
+		}
+		template<size_t S> requires(S >= R)
+		consteval numeric_vector<N, R> cvmod(numeric_vector<N, S> const& that) const noexcept
+		{
+			numeric_vector<N, R> result{};
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] % that[i];
+			return result;
+		}
+		template<size_t S> requires(S <= R)
+		consteval numeric_vector<N, S> cvback_sub() const noexcept
+		{
+			typedef numeric_vector<N, S> result_type;
+			if constexpr(S == R) return result_type(*this);
+			constexpr size_type start_pos = static_cast<size_t>(R - S);
+			result_type result{};
+			for(size_type i = start_pos; i < R; i++) result[i - start_pos] = this->__my_array[i];
+			return result;
+		}
+		template<size_t S> requires(S <= R)
+		consteval numeric_vector<N, S> cvsub() const noexcept
+		{
+			typedef numeric_vector<N, S> result_type;
+			if constexpr(S == R) return result_type(*this);
+			result_type result{};
+			for(size_type i = size_type(); i < S; i++) result[i] = this->__my_array[i];
+			return result;
+		}
+		template<size_t S>
+		consteval numeric_vector<N, R + S> cvsplice(numeric_vector<N, S> const& that) const noexcept
+		{
+			numeric_vector<N, R + S> result{};
+			for(size_type i = size_type(); i < R; i++) result[i] 		= this->__my_array[i];
+			for(size_type j = size_type(); j < S; j++) result[R + j] 	= that[j];
+			return result;
+		}
+		consteval numeric_vector<N, R> cvdiv(numeric_vector<N, R> const& that) const noexcept
+		{
+			numeric_vector<N, R> result{};
+			for(size_type i = size_type(); i < R; i++) result[i] = this->__my_array[i] / that[i];
 			return result;
 		}
 	};
@@ -174,9 +235,9 @@ namespace ooos
 		constexpr static scale_type __compute_scales(scale_type const& dimensions) noexcept;
 		template<size_t S> constexpr scale_vector<S>&& __check_bounds(scale_vector<S>&& v) const;
 		template<size_t S> requires(S <= rank) constexpr static size_t __sub_rank(size_constant<S>) noexcept { return static_cast<size_t>(rank - S); }
-		template<size_t S> requires(S < rank) constexpr sub_scale<S> __rem_dims() const noexcept { return __dimensions.template back_sub<__sub_rank(size_constant<S>())>(); }
-		template<size_t S> requires(S < rank) constexpr sub_scale<S> __rem_scales() const noexcept { return __scales.template back_sub<__sub_rank(size_constant<S>())>(); }
-		template<size_t S> requires(S <= rank) constexpr size_type __offset(scale_vector<S> const& target_pt) const noexcept { return __scales * (target_pt % __dimensions); }
+		template<size_t S> requires(S < rank) constexpr sub_scale<S> __rem_dims() const noexcept { if consteval { return __dimensions.template cvback_sub<__sub_rank(size_constant<S>())>(); } else { return __dimensions.template back_sub<__sub_rank(size_constant<S>())>(); } }
+		template<size_t S> requires(S < rank) constexpr sub_scale<S> __rem_scales() const noexcept { if consteval { return __scales.template cvback_sub<__sub_rank(size_constant<S>())>(); } else { return __scales.template back_sub<__sub_rank(size_constant<S>())>(); } }
+		template<size_t S> requires(S <= rank) constexpr size_type __offset(scale_vector<S> const& target_pt) const noexcept { if consteval { return __scales.cvmul(target_pt.cvmod(__dimensions)); } else { return __scales * (target_pt % __dimensions); } }
 		template<size_t S> requires(S + 1UZ < rank) constexpr sub_array<S> __index(scale_vector<S> const& pt) const noexcept { return sub_array<S>(this->data() + __offset(pt), __rem_dims<S>(), __rem_scales<S>()); }
 		template<size_t S> requires(S + 1UZ == rank) constexpr pointer __index(scale_vector<S> const& pt) noexcept { return this->data() + __offset(pt); }
 		template<size_t S> requires(S + 1UZ == rank) constexpr const_pointer __index(scale_vector<S> const& pt) const noexcept { return this->data() + __offset(pt); }

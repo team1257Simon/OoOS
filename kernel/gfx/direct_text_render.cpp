@@ -1,6 +1,14 @@
 #include <direct_text_render.hpp>
 #include <string.h>
 #include <functional>
+void direct_text_render::print_text(const char* str) {
+	for(size_t i = 0UZ; str[i]; i++)
+		putc(str[i]);
+}
+void direct_text_render::print_line(const char* str) {
+	print_text(str);
+	endl();
+}
 size_t direct_text_render::__bounds_check_idx(wchar_t c) {
 	if(__unlikely(static_cast<uint32_t>(c) > __font->numglyph || c < 1)) c = ' ';
 	return static_cast<size_t>(c * __font->bpg);
@@ -14,7 +22,8 @@ uint32_t direct_text_render::__glyph_px(size_t glyph_idx, ooos::vec2 pt)
 void direct_text_render::__scur(int i)
 {
 	size_t target	= (__cursor[0] + i + __cols) % __cols;
-	if(target < __cursor[0]) __cursor[1] = (__cursor[1] + 1) % __rows;
+	if(target < __cursor[0])
+		__cursor[1]	= (__cursor[1] + 1) % __rows;
 	__cursor[0]		= target;
 }
 direct_text_render::direct_text_render(sysinfo_t const* si) noexcept :
@@ -36,17 +45,6 @@ void direct_text_render::endl()
 	__cursor[1]++;
 	__cursor[1]	%= __rows;
 	__cursor[0]	= 0UZ;
-}
-void direct_text_render::print_text(const char* str)
-{
-	for(size_t i = 0; str[i]; i++)
-		putc(str[i]);
-}
-void direct_text_render::print_line(const char* str)
-{
-	for(size_t i = 0UZ; str[i]; i++)
-		putc(str[i]);
-	endl();
 }
 void direct_text_render::putc(wchar_t c)
 {

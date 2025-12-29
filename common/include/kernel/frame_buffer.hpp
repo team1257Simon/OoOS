@@ -19,7 +19,7 @@ namespace ooos
 	private:
 		array_type __fb;
 		friend struct scaled_frame_buffer<T>;
-		constexpr vec4 __scale_dims(vec2 const& sc) const noexcept { return __fb.dimensions().divide(sc).splice(sc); }
+		constexpr vec4 __scale_dims(vec2 const& sc) const noexcept { if consteval { return __fb.dimensions().cvdiv(sc).cvsplice(sc); } else { return __fb.dimensions().divide(sc).splice(sc); } }
 	public:
 		constexpr linear_frame_buffer() noexcept = default;
 		constexpr linear_frame_buffer(pointer fb, size_t width, size_t height) noexcept : __fb(fb, vec(width, height)) {}
@@ -54,10 +54,20 @@ namespace ooos
 	template<vec_draw_fn<T> DFT>
 	constexpr void linear_frame_buffer<T>::draw(vec4 const& area, DFT&& fn) noexcept
 	{
-		vec2 base 			= area.template sub<2UZ>();
-		for(vec2 pos 		= base; pos[1] < area[3]; ++pos[1])
-			for(pos[0]		= area[0]; pos[0] < area[2]; ++pos[0])
-				__fb[pos]	= fn(pos - base);
+		if consteval
+		{
+			vec2 base 			= area.template cvsub<2UZ>();
+			for(vec2 pos 		= base; pos[1] < area[3]; ++pos[1])
+				for(pos[0]		= area[0]; pos[0] < area[2]; ++pos[0])
+					__fb[pos]	= fn(pos - base);
+		}
+		else
+		{
+			vec2 base 			= area.template sub<2UZ>();
+			for(vec2 pos 		= base; pos[1] < area[3]; ++pos[1])
+				for(pos[0]		= area[0]; pos[0] < area[2]; ++pos[0])
+					__fb[pos]	= fn(pos - base);
+		}
 	}
 	template<std::integral T>
 	template<vec_draw_fn<T> DFT>
