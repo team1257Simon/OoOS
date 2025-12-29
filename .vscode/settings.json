@@ -137,5 +137,6 @@
 		"**/*.c": "${fileDirname}/${fileBasenameNoExtension}.test.asm",
 		"**/*.cpp": "${fileDirname}/${fileBasenameNoExtension}.test.asm"
 	},
-	"disasexpl.dimUnusedSourceLines": false
+	"disasexpl.dimUnusedSourceLines": false,
+	"disasexpl.useBinaryParsing": false
 }

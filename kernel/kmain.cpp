@@ -272,15 +272,11 @@ constexpr static int8_t test_array[]
 	100,	101,	102,	103,	108,	109,	110,	111,	116,	117,	118,	119
 	/*---------------------------------------------------------------------------------------*/
 };
-constexpr static ooos::scale_vector<4UZ> test_dimensions{ 3UZ, 5UZ, 4UZ, 2UZ };
-constexpr static ooos::multiarray<const int8_t, 4UZ> test_multi(test_array, test_dimensions);
 void str_tests()
 {
 	srand(sys_time(nullptr));
-	constexpr int the_answer 			= linear_combination<int>()(std::array{ 3, 2, 4, 1 }, std::array{ 2, 5, 5, 6 });
-	constexpr int8_t other_answer		= test_multi[ooos::vec(2UZ, 1UZ, 2UZ, 0UZ)];
-	xdirect_write(std::to_string(the_answer) + " ");
-	xdirect_write(std::to_string(other_answer) + " ");
+	xdirect_write(std::to_string(linear_combination<int>()(std::array{ 3, 2, 4, 1 }, std::array{ 2, 5, 5, 6 })) + " ");
+	xdirect_write(std::to_string(ooos::multiarray<const int8_t, 4UZ>(test_array, ooos::vec(3UZ, 5UZ, 4UZ, 2UZ))[ooos::vec(2UZ, 1UZ, 2UZ, 0UZ)]) + " ");
 	xdirect_write(std::to_string(sysinfo) + " ");
 	xdirect_write(std::to_string(3.14159265358L) + " ");
 	xdirect_write(std::to_string(rand()) + " ");
