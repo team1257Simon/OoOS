@@ -392,7 +392,7 @@ constexpr static sysfs_backup_filenames test_backup_filenames
 	.extents_backup_file_name   { "blocks.bak" },
 	.directory_backup_file_name { "tags.bak" }
 };
-constexpr static sysfs_file_paths sys_files
+static sysfs_file_paths sys_files
 {
 	.data_file		= std::string("sys/objects.dat"),
 	.index_file		= std::string("sys/index.dat"),
