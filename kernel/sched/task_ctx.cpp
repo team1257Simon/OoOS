@@ -957,7 +957,7 @@ register_t task_ctx::worker_dispatch(ooos::worker& w)
 		w.reset();
 		sch.interrupt_wait(kthread_of(this));
 		sti();
-		return result;
+		return result == 1Z ? 0Z : result;
 	}
 	else
 	{
