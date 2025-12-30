@@ -36,15 +36,15 @@ static uintptr_t get_load_base(addr_t img_start, size_t dyn_idx)
 }
 elf64_executable* prog_manager::__add(addr_t img_start, size_t img_size, size_t stack_sz)
 {
-	if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) { panic("[PRG] missing identifier; invalid object"); return nullptr; }
+	if(__builtin_memcmp(img_start, "\177ELF", 4) != 0) return panic("[PRG] missing identifier; invalid object"), nullptr;
 	if(size_t dyn = find_dyn(img_start.deref<elf64_ehdr>()))
 	{
 		__dynamic_base::iterator result	= __dynamic_base::emplace_back(img_start, img_size, stack_sz, get_load_base(img_start, dyn));
-		if(__unlikely(!result->load())) { __dynamic_base::erase(result); return nullptr; }
+		if(__unlikely(!result->load())) return __dynamic_base::erase(result), nullptr;
 		return result.base();
 	}
 	__static_base::iterator result = __static_base::emplace_back(img_start, img_size, stack_sz);
-	if(__unlikely(!result->load())) { __static_base::erase(result); return nullptr; }
+	if(__unlikely(!result->load())) return __static_base::erase(result), nullptr;
 	return result.base();
 }
 elf64_executable* prog_manager::add(file_vnode* exec_file, size_t stack_sz)

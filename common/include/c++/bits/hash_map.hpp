@@ -30,6 +30,7 @@ namespace std
 		constexpr hash_map()							= default;
 		constexpr hash_map(hash_map&&)					= default;
 		constexpr hash_map(hash_map const&)				= default;
+		template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>) constexpr hash_map(IT first, ST last) : __base(first, last) {}
 		constexpr hash_map& operator=(hash_map&&)		= default;
 		constexpr hash_map& operator=(hash_map const&)	= default;
 		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this); }

@@ -156,7 +156,7 @@ namespace ooos
 				out			 	= str;
 				return count;
 			}
-			catch(...) { panic("no memory"); return 0UZ; }
+			catch(...) { return panic("[KAPI] no memory"), 0UZ; }
 		}
 		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args)
 		{

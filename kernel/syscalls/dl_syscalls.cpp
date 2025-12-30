@@ -159,9 +159,9 @@ extern "C"
 			result	= cached;
 		else
 		{
-			std::vector<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
-			paths.push_back("lib");
-			paths.push_back("usr/lib");
+			std::unordered_set<std::string> paths(task->dl_search_paths.cbegin(), task->dl_search_paths.cend());
+			paths.emplace("/usr/lib");
+			paths.emplace("/lib");
 			file_vnode* n					= nullptr;
 			std::string const* found_path	= nullptr;
 			for(std::string const& path : paths)

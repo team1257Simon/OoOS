@@ -13,7 +13,9 @@ int netstack_buffer::tx_flush()
 }
 int netstack_buffer::rx_flush()
 {
-	if(rx_poll) if(int err = rx_poll(*this); __unlikely(err != 0)) return err;
+	if(rx_poll)
+		if(int err = rx_poll(*this); __unlikely(err != 0))
+			return err;
 	fence();
 	if(__in_region.__capacity() > rx_limit) size(rx_limit, std::ios_base::in);
 	array_zero(__in_region.__begin, __in_region.__capacity());

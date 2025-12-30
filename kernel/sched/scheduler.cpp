@@ -258,7 +258,7 @@ bool scheduler::init() noexcept
 		for(meta_iterator i			= __queues.begin(); i != __queues.end(); i++) i->reserve(16);
 		__deferred_actions.create_if_empty(4UZ);
 	}
-	catch(std::exception& e) { panic(e.what()); return false; }
+	catch(std::exception& e) { return panic(e.what()), false; }
 	task_change_flag.store(false);
 	sched_times.init();
 	__deferred_actions.ticks_per_ms	= (1.Q / static_cast<__float128>(sched_times.cycle_divisor)) * sched_times.tick_rate;

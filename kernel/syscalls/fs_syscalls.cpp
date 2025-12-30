@@ -66,13 +66,13 @@ extern "C"
 			else if(file_vnode* n		= fsptr->open_file(name, mode))
 				return n->vid();
 		}
-		catch(permission_error& e)		{ panic(e.what()); return -EPERM; }
-		catch(std::overflow_error& e)	{ panic(e.what()); return -EMLINK; }
-		catch(std::invalid_argument& e)	{ panic(e.what()); return -ENOTDIR; }
-		catch(std::out_of_range& e)		{ panic(e.what()); return -ENOENT; }
-		catch(std::domain_error& e)		{ panic(e.what()); return -ENOLCK; }
-		catch(std::runtime_error& e)	{ panic(e.what()); return -ENOSPC; }
-		catch(std::exception& e)		{ panic(e.what()); return -ENOMEM; }
+		catch(permission_error& e)		{ return panic(e.what()), -EPERM; }
+		catch(std::overflow_error& e)	{ return panic(e.what()), -EMLINK; }
+		catch(std::invalid_argument& e)	{ return panic(e.what()), -ENOTDIR; }
+		catch(std::out_of_range& e)		{ return panic(e.what()), -ENOENT; }
+		catch(std::domain_error& e)		{ return panic(e.what()), -ENOLCK; }
+		catch(std::runtime_error& e)	{ return panic(e.what()), -ENOSPC; }
+		catch(std::exception& e)		{ return panic(e.what()), -ENOMEM; }
 		return -EIO;
 	}
 	int syscall_close(int fd)

@@ -42,8 +42,8 @@ extern "C"
 				return 0;
 			else return -ENOMEM;
 		}
-		catch(std::invalid_argument& e)	{ panic(e.what()); return -ECANCELED; }
-		catch(std::out_of_range& e)	 	{ panic(e.what()); return -EFAULT; }
+		catch(std::invalid_argument& e)	{ return panic(e.what()), -ECANCELED; }
+		catch(std::out_of_range& e)	 	{ return panic(e.what()), -EFAULT; }
 		catch(std::bad_alloc&)			{ panic("[PRG/EXEC] no memory for argument vectors"); }
 		return -ENOMEM;
 	}
@@ -227,7 +227,7 @@ extern "C"
 			if(__unlikely(ecode)) return ecode;
 			return task->task_struct.saved_regs.rax;
 		}
-		catch(std::exception& e) { panic(e.what()); return -ENOENT; }
+		catch(std::exception& e) { return panic(e.what()), -ENOENT; }
 	}
 	int syscall_fexecve(int fd, char** restrict argv, char** restrict env)
 	{
@@ -313,8 +313,8 @@ extern "C"
 		task_ctx* task		= active_task_context();
 		if(__unlikely(!task)) return -ENOSYS;
 		try { return static_cast<spid_t>(task->thread_fork()); }
-		catch(std::out_of_range& e) 	{ panic(e.what()); return -EFAULT; }
-		catch(std::overflow_error& e)	{ panic(e.what()); return -EAGAIN; }
+		catch(std::out_of_range& e) 	{ return panic(e.what()), -EFAULT; }
+		catch(std::overflow_error& e)	{ return panic(e.what()), -EAGAIN; }
 		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
 		return -ENOMEM; 
 	}
@@ -323,8 +323,8 @@ extern "C"
 		task_ctx* task		= active_task_context();
 		if(__unlikely(!task)) return -ENOSYS;
 		try { return static_cast<spid_t>(task->thread_add(entry_pt, exit_pt, stack_sz, start_detached, arg)); }
-		catch(std::out_of_range& e) 	{ panic(e.what()); return -EFAULT; }
-		catch(std::overflow_error& e)	{ panic(e.what()); return -EAGAIN; }
+		catch(std::out_of_range& e) 	{ return panic(e.what()), -EFAULT; }
+		catch(std::overflow_error& e)	{ return panic(e.what()), -EAGAIN; }
 		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
 		return -ENOMEM;
 	}
@@ -349,8 +349,8 @@ extern "C"
 		kthread_ptr next	= sch.yield();
 		return next->saved_regs.rax;
 	}
-	catch(std::runtime_error& e) { panic(e.what()); return -EBUSY; }
-	catch(std::out_of_range& e) { panic(e.what()); return -EFAULT; }
+	catch(std::runtime_error& e) { return panic(e.what()), -EBUSY; }
+	catch(std::out_of_range& e) { return panic(e.what()), -EFAULT; }
 	int syscall_threaddetach(pid_t thread)
 	{
 		task_ctx* task		= active_task_context();

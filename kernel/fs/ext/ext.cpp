@@ -632,7 +632,7 @@ disk_block* extfs::claim_blocks(ext_vnode* requestor, size_t how_many)
 			return blk;
 		}
 	}
-	panic("out of space");
+	panic("[FS/EXT4] out of space");
 	return nullptr;
 }
 disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
@@ -653,7 +653,7 @@ disk_block* extfs::claim_metadata_block(ext_node_extent_tree* requestor)
 			return std::addressof(requestor->tracked_node->cached_metadata.emplace_back(result, allocate_block_buffer(), false, 1U));
 		}
 	}
-	panic("out of space");
+	panic("[FS/EXT4] out of space");
 	return nullptr;
 }
 bool extfs::persist(ext_vnode* n)

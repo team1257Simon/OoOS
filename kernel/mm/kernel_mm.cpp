@@ -386,7 +386,7 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
 	//	This also includes the metatada, such as page tables, used to manage the process page frame.
 	//	The KMM instance itself is a singleton object that holds pointers to these dynamically-sized structures.
 	__kernel_frame_tag				= new(__end) kframe_tag();
-	__instance						= new(__kmm_data) kernel_memory_mgr(new(sb_addr) gb_status[num_status_bytes], num_status_bytes, heap);
+	__instance						= new(__kmm_data) kernel_memory_mgr(new(sb_addr) gb_status[num_status_bytes](), num_status_bytes, heap);
 	//	Any memory that is not part of conventional memory is not usable by the heap allocator.
 	for(size_t i					= 0UZ; i < mmap->num_entries; i++)
 	{
@@ -743,17 +743,18 @@ block_tag* block_tag::split()
 bool uframe_tag::shift_extent(ptrdiff_t amount)
 {
 	if(__unlikely(!amount)) return true; // nothing to do, vacuous success; sbrk(0) is useful to get the initial value of the break/extent
+	typedef std::vector<block_descriptor>::reverse_iterator r_it;
 	if(amount < 0)
 	{
 		__lock();
 		uintptr_t amt_freed	= -amount;
 		if(__unlikely(!(static_cast<size_t>(extent - base) > amt_freed))) return false;
-		addr_t target	= extent + amount;
-		std::vector<block_descriptor>::reverse_iterator i;
-		for(i = usr_blocks.rend(); i->physical_start >= target && i->write; i++) fm.drop_local_block(this, *i);
+		r_it i				= usr_blocks.rend();
+		for(addr_t target	= extent + amount; i->physical_start >= target && i->write; i++) fm.drop_local_block(this, *i);
 		usr_blocks.erase((--i).base(), usr_blocks.end());
-		if(usr_blocks.empty()) { extent = base = nullptr; }
-		else extent		= usr_blocks.back().physical_start.plus(usr_blocks.back().size);
+		if(usr_blocks.empty())
+			extent			= base	= nullptr;
+		else extent			= usr_blocks.back().physical_start.plus(usr_blocks.back().size);
 		__unlock();
 		return !usr_blocks.empty();
 	}
@@ -825,9 +826,13 @@ bool uframe_tag::mmap_remove(addr_t addr, size_t len)
 	len			= std::min(len, static_cast<size_t>(mapped_max - addr));
 	for(bd_it i	= usr_blocks.begin(); i != usr_blocks.end(); i++)
 	{
-		if(i->virtual_start < addr && i->virtual_start.plus(i->size) > addr) {
+	check_block:
+		if(i->virtual_start < addr && i->virtual_start.plus(i->size) > addr)
+		{
 			fm.drop_local_block(this, *i);
 			i	= usr_blocks.erase(i);
+			if(i == usr_blocks.end()) break;
+			goto check_block;
 		}
 	}
 	return true;

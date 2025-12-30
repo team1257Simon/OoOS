@@ -112,13 +112,13 @@ int protocol_dhcp::process_offer_packet(dhcp_packet const& p)
 		addr_t pos					= p.parameters;
 		transition_state(ipv4_client_state::SELECTING);
 		try { while(pos.deref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.deref<dhcp_parameter>()); }
-		catch(std::invalid_argument& e) { panic(e.what()); return -EPROTO; }
+		catch(std::invalid_argument& e) { return panic(e.what()), -EPROTO; }
 		catch(std::bad_alloc&)          { return -ENOMEM; }
 		if(__unlikely(base->ip_resolver->check_presence(req_addr)))
 		{
 			if(int err = decline(req_addr, p.transaction_id); __unlikely(err != 0)) return err;
 			try                             { discover(std::vector<net8>()); }
-			catch(std::runtime_error& e)    { panic(e.what()); return -ENETDOWN; }
+			catch(std::runtime_error& e)    { return panic(e.what()), -ENETDOWN; }
 			catch(std::bad_alloc&)          { return -ENOMEM; }
 		}
 		else if(int err = request(req_addr, p.transaction_id); __unlikely(err != 0)) return err;
@@ -131,7 +131,7 @@ int protocol_dhcp::process_ack_packet(dhcp_packet const& p)
 	ipconfig.leased_addr	= p.your_ip;
 	addr_t pos				= p.parameters;
 	try { while(pos.deref<dhcp_parameter_type>() != END_OF_TRANSMISSION) pos += process_packet_parameter(pos.deref<dhcp_parameter>()); }
-	catch(std::invalid_argument& e) { panic(e.what()); return -EPROTO; }
+	catch(std::invalid_argument& e) { return panic(e.what()), -EPROTO; }
 	catch(std::bad_alloc&)          { return -ENOMEM; }
 	if(__unlikely(!ipconfig.lease_duration)) return -EPROTO;
 	if(ipconfig.lease_duration != 0xFFFFFFFFU)

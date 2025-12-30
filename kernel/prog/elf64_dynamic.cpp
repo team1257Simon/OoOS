@@ -153,9 +153,9 @@ bool elf64_dynamic_object::xload()
 	// allocate the array to have enough space for all indices, but the non-load segments will be zeroed
 	bool success = true;
 	process_headers();
-	if(__unlikely(!load_segments())) { panic("[PRG/DYN] object contains no loadable segments"); success = false; }
-	else if(__unlikely(!load_syms())) { panic("[PRG/DYN] failed to load symbols"); success = false; }
-	else if(__unlikely(!post_load_init())) { panic("[PRG/DYN] failed to initialize program image"); success = false; }
+	if(__unlikely(!load_segments())) { success = (panic("[PRG/DYN] object contains no loadable segments"), false); }
+	else if(__unlikely(!load_syms())) { success = (panic("[PRG/DYN] failed to load symbols"), false); }
+	else if(__unlikely(!post_load_init())) { success = (panic("[PRG/DYN] failed to initialize program image"), false); }
 	// other segments and sections, if/when needed, can be handled here; free the rest up
 	cleanup();
 	return success;
@@ -163,7 +163,7 @@ bool elf64_dynamic_object::xload()
 void elf64_dynamic_object::process_relas(elf64_rela* rela_array, size_t num_relas)
 {
 	size_t unrec_rela_ct	= 0UZ;
-	for(size_t i = 0UZ; i < num_relas; i++)
+	for(size_t i			= 0UZ; i < num_relas; i++)
 	{
 		if(is_object_rela(rela_array[i])) { object_relas.push_back(rela_array[i]); }
 		else if(is_tls_rela(rela_array[i])) { tls_relas.push_back(rela_array[i]); }
@@ -191,7 +191,7 @@ bool elf64_dynamic_object::post_load_init()
 	{
 		addr_t* got = translate_in_frame(global_offset_table());
 		if(__builtin_expect(got != nullptr, true)) { got[1] = this; }
-		else { panic("[PRG/DYN] GOT pointer is non-null but is invalid"); return false; }
+		else return panic("[PRG/DYN] GOT pointer is non-null but is invalid"), false;
 	}
 	try
 	{
@@ -203,15 +203,15 @@ bool elf64_dynamic_object::post_load_init()
 		{
 			addr_t init_ptrs_vaddr	= resolve(init_array_ptr);
 			uintptr_t* init_ptrs	= translate_in_frame(init_ptrs_vaddr);
-			if(__unlikely(!init_ptrs)) { panic("[PRG] initialization array pointer is non-null but is invalid"); return false; }
-			for(size_t i = 0UZ; i < init_array_size; i++) { init_array.push_back(addr_t(init_ptrs[i])); }
+			if(__unlikely(!init_ptrs)) return panic("[PRG] initialization array pointer is non-null but is invalid"), false;
+			for(size_t i = 0UZ; i < init_array_size; i++) init_array.push_back(addr_t(init_ptrs[i]));
 		}
 		if(fini_array_size && fini_array_ptr)
 		{
 			addr_t fini_ptrs_vaddr	= resolve(fini_array_ptr);
 			uintptr_t* fini_ptrs	= translate_in_frame(fini_ptrs_vaddr);
-			if(__unlikely(!fini_ptrs)) { panic("[PRG] finalization array pointer is non-null but is invalid"); return false; }
-			for(size_t i = 0UZ; i < fini_array_size; i++) { fini_reverse_array.push_back(addr_t(fini_ptrs[i])); }
+			if(__unlikely(!fini_ptrs)) return panic("[PRG] finalization array pointer is non-null but is invalid"), false;
+			for(size_t i = 0UZ; i < fini_array_size; i++) fini_reverse_array.push_back(addr_t(fini_ptrs[i]));
 		}
 		if(!fini_reverse_array.empty()) { fini_array.push_back(fini_reverse_array.rend(), fini_reverse_array.rbegin()); }
 		return true;
@@ -273,7 +273,7 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 }
 bool elf64_dynamic_object::load_syms()
 {
-	if(__unlikely(!elf64_object::load_syms())) { panic("[PRG/DYN] no symbol table present"); return false; }
+	if(__unlikely(!elf64_object::load_syms())) return panic("[PRG/DYN] no symbol table present"), false;
 	bool have_dyn		= false;
 	elf64_ehdr const& e	= ehdr();
 	for(size_t n = 0UZ; n < e.e_phnum && !have_dyn; n++)
@@ -290,7 +290,8 @@ bool elf64_dynamic_object::load_syms()
 	}
 	find_and_process_relas();
 	if(have_dyn) process_dynamic();
-	if(__unlikely((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size))) { panic("[PRG/DYN] mismatched init and/or fini array entries"); return false; }
+	if(__unlikely((!init_array_ptr ^ !init_array_size) || (!fini_array_ptr ^ !fini_array_size)))
+		return panic("[PRG/DYN] mismatched init and/or fini array entries"), false;
 	if(__unlikely(!(symbol_index.verdef || symbol_index.verneed))) return process_plt_got();
 	for(size_t n = 0UZ; n < e.e_shnum; n++)
 	{
@@ -303,11 +304,11 @@ bool elf64_dynamic_object::load_syms()
 			symbol_index.versym	= std::move(std::vector<uint16_t>(begin.as<uint16_t>(), begin.plus(sh.sh_size).as<uint16_t>()));
 			continue;
 		case SHT_VERDEF:
-			if(__unlikely(!symbol_index.verdef)) { panic("[PRG/DYN] mismatched verdef entries"); return false; }
+			if(__unlikely(!symbol_index.verdef)) return panic("[PRG/DYN] mismatched verdef entries"), false;
 			symbol_index.verdef.build(begin, elf64_string_table(sl.sh_size, img_ptr(sl.sh_offset)));
 			continue;
 		case SHT_VERNEED:
-			if(__unlikely(!symbol_index.verneed)) { panic("[PRG/DYN] mismatched verneed entries"); return false; }
+			if(__unlikely(!symbol_index.verneed)) return panic("[PRG/DYN] mismatched verneed entries"), false;
 			symbol_index.verneed.build(begin, elf64_string_table(sl.sh_size, img_ptr(sl.sh_offset)));
 			continue;
 		default:
@@ -359,10 +360,8 @@ std::pair<elf64_sym, addr_t> elf64_dynamic_object::fallback_resolve(std::string 
 }
 std::pair<elf64_sym, addr_t> elf64_dynamic_object::resolve_by_name(std::string const& symbol) const
 {
-	if(__unlikely(!segments || !num_seg_descriptors)) {
-		panic("[PRG/DYN] cannot load symbols from an uninitialized object");
-		return std::make_pair(elf64_sym(), nullptr);
-	}
+	if(__unlikely(!segments || !num_seg_descriptors))
+		return panic("[PRG/DYN] cannot load symbols from an uninitialized object"), std::make_pair(elf64_sym(), nullptr);
 	elf64_sym const* sym = symbol_index[symbol];
 	return sym ? std::make_pair(*sym, sym->st_info.type == ST_TLS ? addr_t(static_cast<elf64_dynamic_object const*>(this)) : resolve(*sym)) : std::make_pair(elf64_sym(), nullptr);
 }
@@ -379,7 +378,7 @@ bool elf64_dynamic_object::process_plt_got()
 			for(elf64_rela const& r : plt_relas)
 			{
 				addr_t target		= frame ? frame->translate(resolve_rela_target(r)) : resolve_rela_target(r);
-				if(__unlikely(!target)) { panic("[PRG/DYN] virtual address fault"); return false; }
+				if(__unlikely(!target)) return panic("[PRG/DYN] virtual address fault"), false;
 				addr_t sym_addr		= bind_now ? resolve(symtab[r.r_info.sym_index]) : nullptr;
 				if(sym_addr) target.assign(sym_addr);
 				else if(need_got_fixup) target.assign(resolve(target.deref<uintptr_t>()));

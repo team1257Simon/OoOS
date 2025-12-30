@@ -125,13 +125,13 @@ bool jbd2::create_txn(std::vector<disk_block> const& txn_blocks)
 bool jbd2::ddread()
 {
 	disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-	if(!parent_fs->read_block(full_blk)) { panic("[FS/EXT4/JBD2] failed to read journal"); return false; }
+	if(!parent_fs->read_block(full_blk)) return panic("[FS/EXT4/JBD2] failed to read journal"), false;
 	return true;
 }
 bool jbd2::ddwrite()
 {
 	disk_block full_blk(block_data[0].block_number, __beg(), false, extents.total_extent);
-	if(!parent_fs->write_block(full_blk)) { panic("[FS/EXT4/JBD2] failed to write journal"); return false; }
+	if(!parent_fs->write_block(full_blk)) return panic("[FS/EXT4/JBD2] failed to write journal"), false;
 	return true;
 }
 bool jbd2::clear_log()
@@ -199,7 +199,7 @@ log_read_state jbd2::read_next_log_entry()
 	uint32_t type		= h->blocktype;
 	try
 	{
-		if(type == revocation) { parse_revocation(); return VALID; }
+		if(type == revocation) return parse_revocation(), VALID;
 		else if(type == descriptor) return read_log_transaction();
 		else return SKIP;
 	}

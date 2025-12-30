@@ -21,8 +21,13 @@ bool tcp_header::peer_chk(tcp_connection_info const& connection_info) const noex
 protocol_tcp::protocol_tcp(protocol_ipv4 *n) : abstract_protocol_handler(n), ipconfig(n->client_config), generate_isn() {}
 std::type_info const& protocol_tcp::packet_type() const { return typeid(tcp_header); }
 std::type_info const& tcp_port_handler::packet_type() const { return typeid(tcp_header); }
-int tcp_port_handler::receive(abstract_packet_base& p) { if(__unlikely(!p.get_as<tcp_header>())) throw std::bad_cast(); return rx_process(reinterpret_cast<tcp_packet&>(p)); }
 sequence_map::iterator tcp_port_handler::rx_add_packet(tcp_packet& p) { return receive_packets.emplace(std::piecewise_construct, std::forward_as_tuple(p->sequence_number), std::forward_as_tuple(std::move(p))).first; }
+int tcp_port_handler::receive(abstract_packet_base& p)
+{
+	if(!p.get_as<tcp_header>())
+		throw std::bad_cast();
+	return rx_process(reinterpret_cast<tcp_packet&>(p));
+}
 std::streamsize tcp_session_buffer::xsputn(const char* s, size_type n)
 {
 	size_type send_capacity   = __out_region.__capacity();
@@ -147,7 +152,7 @@ tcp_port_handler::tcp_port_handler(protocol_tcp& tcp, uint16_t port) :
 void tcp_port_handler::close()
 {
 	connection_state = tcp_connection_state::CLOSED;
-	new(std::addressof(connection_info)) tcp_connection_info{};
+	new(std::addressof(connection_info)) tcp_connection_info();
 	send_packets.clear();
 	receive_packets.clear();
 	new(std::addressof(timer)) tcp_transmission_timer();

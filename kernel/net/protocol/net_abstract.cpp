@@ -18,7 +18,12 @@ abstract_ip_resolver::~abstract_ip_resolver() = default;
 abstract_protocol_handler::abstract_protocol_handler(abstract_protocol_handler* n) : next(n), base(next->base) {}
 abstract_protocol_handler::abstract_protocol_handler(abstract_protocol_handler* n, protocol_ethernet* b) : next(n), base(b) {}
 int abstract_protocol_handler::receive(abstract_packet_base& p) { return 0; }
-int abstract_protocol_handler::transmit(abstract_packet_base& p) { if(!next) throw std::runtime_error("[NET] cannot send packet with empty protocol"); return next->transmit(p); }
+int abstract_protocol_handler::transmit(abstract_packet_base& p)
+{
+	if(!next)
+		throw std::runtime_error("[NET] cannot send packet with empty protocol");
+	return next->transmit(p);
+}
 abstract_packet_base::abstract_packet_base(abstract_packet_base const& that) :
 	packet_data { ::operator new(that.packet_size) },
 	packet_type { that.packet_type },
@@ -40,20 +45,20 @@ abstract_packet_base::abstract_packet_base(netstack_buffer& buffer, std::type_in
 abstract_packet_base& abstract_packet_base::operator=(abstract_packet_base const& that)
 {
 	if(packet_data) (*release_fn)(packet_data, packet_size);
-	packet_data = ::operator new(that.packet_size);
-	packet_type = that.packet_type;
-	packet_size = that.packet_size;
-	release_fn  = that.release_fn;
-	array_copy(packet_data, static_cast<char const*>(that.packet_data), packet_size);
+	this->packet_data = ::operator new(that.packet_size);
+	this->packet_type = that.packet_type;
+	this->packet_size = that.packet_size;
+	this->release_fn  = that.release_fn;
+	array_copy(this->packet_data, static_cast<char const*>(that.packet_data), this->packet_size);
 	return *this;
 }
 abstract_packet_base& abstract_packet_base::operator=(abstract_packet_base&& that)
 {
 	if(packet_data) (*release_fn)(packet_data, packet_size);
-	packet_data			= that.packet_data;
-	packet_type			= std::move(that.packet_type);
-	packet_size			= that.packet_size;
-	release_fn			= that.release_fn;
+	this->packet_data	= that.packet_data;
+	this->packet_type	= std::move(that.packet_type);
+	this->packet_size	= that.packet_size;
+	this->release_fn	= that.release_fn;
 	that.packet_data	= nullptr;
 	return *this;
 }

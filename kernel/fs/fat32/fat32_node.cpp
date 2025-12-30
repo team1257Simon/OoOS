@@ -78,8 +78,8 @@ fat32_file_vnode::size_type fat32_file_vnode::write(const_pointer src, size_type
 }
 fat32_regular_entry* fat32_directory_vnode::find_dirent(std::string const& name)
 {
-	if(tnode_dir::iterator i = directory_tnodes.find(name); i != directory_tnodes.end())
-		if(fat32_vnode* n = dynamic_cast<fat32_vnode*>(i->ptr()); n && n->parent_dir)
+	if(tnode_dir::iterator i	= directory_tnodes.find(name); i != directory_tnodes.end())
+		if(fat32_vnode* n		= dynamic_cast<fat32_vnode*>(i->ptr()); n && n->parent_dir)
 			return n->disk_entry();
 	return nullptr;
 }
@@ -152,7 +152,9 @@ bool fat32_directory_vnode::__dir_ent_erase(std::string const& what)
 			std::vector<fat32_directory_entry>::iterator r	= __my_dir_data.erase(j, i + 1);
 			size_t n										= static_cast<size_t>(r - __my_dir_data.begin());
 			__my_dir_data.reserve(sz);
-			for(tnode_dir::iterator tn = directory_tnodes.begin(); tn != directory_tnodes.end(); tn++) { if(fat32_vnode* fn = dynamic_cast<fat32_vnode*>(tn->ptr()); fn->dirent_index >= n) { fn->dirent_index -= erased; } }
+			for(tnode_dir::iterator tn = directory_tnodes.begin(); tn != directory_tnodes.end(); tn++)
+				if(fat32_vnode* fn = dynamic_cast<fat32_vnode*>(tn->ptr()); fn->dirent_index >= n)
+					fn->dirent_index -= erased;
 			__dirty											= true;
 			return true;
 		}
@@ -169,12 +171,14 @@ bool fat32_directory_vnode::__read_disk_data()
 	bool success	= false;
 	try
 	{
-		for(size_t i = 0UZ; i < __my_covered_clusters.size(); i++) { if(!parent_fs->read_clusters(buffer + i * bpc, __my_covered_clusters[i])) throw std::runtime_error{ "cluster " + std::to_string(__my_covered_clusters[i]) }; }
+		for(size_t i = 0UZ; i < __my_covered_clusters.size(); i++)
+			if(!parent_fs->read_clusters(buffer + i * bpc, __my_covered_clusters[i]))
+				throw std::runtime_error("cluster " + std::to_string(__my_covered_clusters[i]));
 		char* end	= buffer + total;
 		__my_dir_data.push_back(reinterpret_cast<fat32_directory_entry*>(buffer), reinterpret_cast<fat32_directory_entry*>(end));
 		success		= true;
 	}
-	catch(std::exception& e) { panic("[FS/FAT32] read failed: "); panic(e.what()); }
+	catch(std::exception& e) { xpanic(std::string("[FS/FAT32] read failed: ") + e.what()); }
 	b_alloc.deallocate(buffer, total);
 	return success;
 }
@@ -183,13 +187,33 @@ void fat32_directory_vnode::__add_parsed_entry(fat32_regular_entry const& e, siz
 	bool dotted		= false;
 	size_t c_spaces	= 0UZ;
 	std::string name{};
-	for(int i = 0; i < 8; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0UZ; k < c_spaces; k++) { name.append(' '); } name.append(e.filename[i]); c_spaces = 0UZ; } }
+	for(int i = 0; i < 8; i++)
+	{
+		if(e.filename[i] == ' ') c_spaces++;
+		else if(e.filename[i])
+		{
+			for(size_t k = 0UZ; k < c_spaces; k++) name.append(' ');
+			name.append(e.filename[i]);
+			c_spaces = 0UZ;
+		}
+	}
 	c_spaces		= 0UZ;
-	for(size_t i	= 8UZ; i < 11; i++) { if(e.filename[i] == ' ') c_spaces++; else if(e.filename[i]) { for(size_t k = 0UZ; k < c_spaces; k++) { name.append(' '); } if(!dotted) { name.append('.'); dotted = true; } name.append(e.filename[i]); c_spaces = 0UZ; } }
+	for(size_t i	= 8UZ; i < 11; i++)
+	{
+		if(e.filename[i] == ' ') c_spaces++;
+		else if(e.filename[i])
+		{
+			for(size_t k = 0UZ; k < c_spaces; k++) name.append(' ');
+			if(!dotted) name.append('.');
+			dotted		= true;
+			name.append(e.filename[i]);
+			c_spaces	= 0UZ;
+		}
+	}
 	uint32_t cl		= start_of(e);
 	if(e.attributes & 0x10)
 	{
-		fat32_directory_vnode* n = parent_fs->put_directory_node(name, this, cl, j);
+		fat32_directory_vnode* n	= parent_fs->put_directory_node(name, this, cl, j);
 		if(!n) throw std::runtime_error("[FS/FAT32] failed to create directory node " + name);
 		directory_tnodes.emplace(n, name);
 		if(!n->parse_dir_data()) throw std::runtime_error("[FS/FAT32] parse failed on directory " + name);
@@ -197,7 +221,7 @@ void fat32_directory_vnode::__add_parsed_entry(fat32_regular_entry const& e, siz
 	}
 	else
 	{
-		fat32_file_vnode* n = parent_fs->put_file_node(name, this, cl, j);
+		fat32_file_vnode* n			= parent_fs->put_file_node(name, this, cl, j);
 		if(!n) throw std::runtime_error("[FS/FAT32] failed to create file node " + name);
 		directory_tnodes.emplace(n, name);
 		file_count++;
@@ -211,7 +235,9 @@ bool fat32_directory_vnode::parse_dir_data()
 		if(__read_disk_data())
 		{
 			size_t j = 0UZ;
-			for(std::vector<fat32_directory_entry>::iterator i = __my_dir_data.begin(); i != __my_dir_data.end(); i++, j++) { if(!(is_unused(*i) || is_longname(*i) || i->regular_entry.filename[0] == '.' || !start_of(i->regular_entry))) __add_parsed_entry(i->regular_entry, j); }
+			for(std::vector<fat32_directory_entry>::iterator i = __my_dir_data.begin(); i != __my_dir_data.end(); i++, j++)
+				if(!(is_unused(*i) || is_longname(*i) || i->regular_entry.filename[0] == '.' || !start_of(i->regular_entry)))
+					__add_parsed_entry(i->regular_entry, j);
 			return (__has_init = true);
 		}
 	}
@@ -221,23 +247,27 @@ bool fat32_directory_vnode::parse_dir_data()
 void fat32_directory_vnode::get_short_name(std::string const& full, std::string& result)
 {
 	std::string upper	= std::ext::to_upper(full);
-	if(upper.size() < 13UZ) { result = std::string(upper.c_str(), std::min(12UZ, upper.size())); return; }
-	bool have_dot		= upper.contains('.');
-	std::string trimmed	= upper.without_any_of(". ");
-	unsigned i			= 1U;
-	size_t j;
-	do {
-		std::string tail	= "~" + std::to_string(i);
-		j					= std::min(static_cast<size_t>(6UL - tail.size()), trimmed.size());
-		if(trimmed.size() > 1UZ && have_dot) tail.append('.');
-		if(trimmed.size() >= 3UZ) tail.append(trimmed[trimmed.size() - 3Z]);
-		if(trimmed.size() >= 2UZ) tail.append(trimmed[trimmed.size() - 2Z]);
-		if(trimmed.size() >= 1UZ) tail.append(trimmed.back());
-		result				= std::string(trimmed.c_str(), j);
-		result.append(tail);
-		i++;
-	} while(directory_tnodes.contains(result) && i <= 999999U);
-	if(directory_tnodes.contains(result)) throw std::logic_error("[FS/FAT32] unique short name from " + upper + " cannot be formed");
+	if(upper.size() < 13UZ)
+		result			= std::string(upper.c_str(), std::min(12UZ, upper.size()));
+	else
+	{
+		bool have_dot		= upper.contains('.');
+		std::string trimmed	= upper.without_any_of(". ");
+		unsigned i			= 1U;
+		size_t j;
+		do {
+			std::string tail	= "~" + std::to_string(i);
+			j					= std::min(static_cast<size_t>(6UL - tail.size()), trimmed.size());
+			if(trimmed.size() > 1UZ && have_dot) tail.append('.');
+			if(trimmed.size() >= 3UZ) tail.append(trimmed[trimmed.size() - 3Z]);
+			if(trimmed.size() >= 2UZ) tail.append(trimmed[trimmed.size() - 2Z]);
+			if(trimmed.size() >= 1UZ) tail.append(trimmed.back());
+			result				= std::string(trimmed.c_str(), j);
+			result.append(tail);
+			i++;
+		} while(directory_tnodes.contains(result) && i <= 999999U);
+		if(directory_tnodes.contains(result)) throw std::logic_error("[FS/FAT32] unique short name from " + upper + " cannot be formed");
+	}
 }
 bool fat32_directory_vnode::fsync()
 {
@@ -247,7 +277,12 @@ bool fat32_directory_vnode::fsync()
 	try
 	{
 		char const* pos		= reinterpret_cast<char const*>(__my_dir_data.begin().base());
-		for(size_t i = 0UZ; i < __my_covered_clusters.size(); i++) { if(parent_fs->write_clusters(__my_covered_clusters[i], pos)) { pos += parent_fs->block_size(); } else { panic("write failed"); return false; } }
+		for(size_t i = 0UZ; i < __my_covered_clusters.size(); i++)
+		{
+			if(parent_fs->write_clusters(__my_covered_clusters[i], pos))
+				pos += parent_fs->block_size();
+			else return panic("write failed"), false;
+		}
 		__dirty				= false;
 		return true;
 	}
@@ -257,7 +292,8 @@ bool fat32_directory_vnode::fsync()
 bool fat32_directory_vnode::unlink(std::string const& name)
 {
 	tnode_dir::iterator i	= directory_tnodes.find(name);
-	if(__builtin_expect(i == directory_tnodes.end(), false)) { panic("[FS/FAT32] target does not exist"); return false; }
+	if(__unlikely(i == directory_tnodes.end()))
+		return panic("[FS/FAT32] target does not exist"), false;
 	return __dir_ent_erase(name);
 }
 bool fat32_directory_vnode::truncate()

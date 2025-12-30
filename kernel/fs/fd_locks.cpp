@@ -10,7 +10,7 @@ size_t fd_locks_container::compute_start(ptrdiff_t start, std::ios_base::seekdir
 }
 bool fd_locks_container::test(file_lock const& l)
 {
-	if(l.type == file_lock::read) 
+	if(l.type == file_lock::read)
 		return !read_locks.contains(l);
 	return !write_locks.contains(l);
 }
@@ -19,13 +19,13 @@ bool fd_locks_container::test(short type, ptrdiff_t start, std::ios_base::seekdi
 	size_t actual_start	= compute_start(start, whence);
 	file_lock test_file_lock(file_lock_span(actual_start, len));
 	if(type == file_lock::read) return !read_locks.contains(test_file_lock);
-	else return !write_locks.contains(test_file_lock);   
+	else return !write_locks.contains(test_file_lock);
 }
 file_lock& fd_locks_container::add(uint64_t pid, short type, std::ios_base::seekdir whence, ptrdiff_t start, size_t len)
 {
 	if(type == file_lock::read)
 		return *(read_locks.insert(file_lock(file_lock_span(compute_start(start, whence), len), file_lock::read, whence, start, pid)).first);
-	else 
+	else
 		return *(write_locks.insert(file_lock(file_lock_span(compute_start(start, whence), len), file_lock::write, whence, start, pid)).first);
 }
 bool fd_locks_container::remove(ptrdiff_t start, std::ios_base::seekdir whence, size_t len)

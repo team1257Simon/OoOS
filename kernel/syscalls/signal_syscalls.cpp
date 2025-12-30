@@ -3,7 +3,9 @@
 static bool check_kill(task_ctx* caller, task_list::iterator target)
 {
 	if(static_cast<uint64_t>(target->get_parent_pid()) == caller->get_pid()) return true;
-	for(task_ctx* c : caller->child_tasks) { if(check_kill(c, target)) return true; } 
+	for(task_ctx* c : caller->child_tasks)
+		if(check_kill(c, target))
+			return true;
 	return false;
 }
 static void kill_one(task_ctx* target, int sig, bool force = false) 

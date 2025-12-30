@@ -55,7 +55,6 @@ file_vnode* filesystem::get_file_or_null(std::string const& path)
 		if(mount_vnode* mount	= dynamic_cast<mount_vnode*>(parent.first)) return mount->mounted->get_file_or_null(parent.second);
 		if(tnode* node			= parent.first->find(parent.second))
 		{
-					
 			file_vnode* file	= on_open(node);
 			if(file) register_fd(file);
 			return file;
@@ -160,7 +159,12 @@ pipe_pair filesystem::mkpipe(directory_vnode*, std::string const& name)
 bool filesystem::xunlink(directory_vnode* parent, std::string const& what, bool ignore_nonexistent, bool dir_recurse)
 {
 	tnode* node				= parent->find(what);
-	if(!node) { if(!ignore_nonexistent) throw std::logic_error("[FS] cannot unlink " + what + " because it does not exist"); else return false; }
+	if(!node)
+	{
+		if(!ignore_nonexistent)
+			throw std::logic_error("[FS] cannot unlink " + what + " because it does not exist");
+		else return false;
+	}
 	if(node->is_directory() && (*node)->num_refs() < 2UZ)
 	{
 		if(!node->as_directory()->is_empty() && !dir_recurse)

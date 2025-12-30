@@ -210,10 +210,10 @@ void sysfs::init_blank(sysfs_backup_filenames const& bak)
 	size_t needed_directory	= sizeof(sysfs_directory_file) - std::min(__directory_file.size(), sizeof(sysfs_directory_file));
 	if((needed_data && !__data_file.grow(needed_data)) || (needed_index && !__index_file.grow(needed_index)) || (needed_extents && !__extents_file.grow(needed_extents)) || (needed_directory && !__directory_file.grow(needed_directory)))
 		throw std::runtime_error("[FS/SYSFS] no space on disk for storage");
-	sysfs_data_file_header* data	= new(std::addressof(__header())) sysfs_data_file_header{};
-	sysfs_index_file* idx			= new(std::addressof(__index())) sysfs_index_file{};
-	sysfs_extents_file* exts		= new(std::addressof(__extents())) sysfs_extents_file{};
-	sysfs_directory_file* dirfile	= new(std::addressof(__dir())) sysfs_directory_file{};
+	sysfs_data_file_header* data	= new(std::addressof(__header())) sysfs_data_file_header();
+	sysfs_index_file* idx			= new(std::addressof(__index())) sysfs_index_file();
+	sysfs_extents_file* exts		= new(std::addressof(__extents())) sysfs_extents_file();
+	sysfs_directory_file* dirfile	= new(std::addressof(__dir())) sysfs_directory_file();
 	array_copy(data->backup_file_name, bak.data_backup_file_name, 16UZ);
 	array_copy(idx->backup_file_name, bak.index_backup_file_name, 16UZ);
 	array_copy(exts->backup_file_name, bak.extents_backup_file_name, 16UZ);
@@ -231,9 +231,9 @@ void sysfs::init_blank(sysfs_backup_filenames const& bak)
 void sysfs::init_load()
 {
 	sysfs_directory_file& dirfile	= __dir();
-	for(size_t i = 0UZ; i < dirfile.total_entries; i++)
+	for(size_t i		= 0UZ; i < dirfile.total_entries; i++)
 	{
-		uint32_t ino = dirfile.entries[i].inode_number;
+		uint32_t ino	= dirfile.entries[i].inode_number;
 		if(verify_dirent_csum(dirfile.entries[i]))
 			__directory_map.insert(std::make_pair(std::string(dirfile.entries[i].object_name, std::strnlen(dirfile.entries[i].object_name, sizeof(sysfs_dir_entry::object_name))), ino));
 		else xklog("[FS/SYSFS] W: directory entry checksum of " + std::to_string(dirfile.entries[i].checksum, std::ext::hex) + " is incorrect; skipping");

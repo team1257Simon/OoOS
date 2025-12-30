@@ -283,10 +283,18 @@ bool ext_directory_vnode::on_open()
 {
 	if(__initialized) return true;
 	size_t bs				= parent_fs->block_size();
-	if(__builtin_expect(!init_extents(), false)) return false;
-	if(__builtin_expect(!__grow_buffer_exact(extents.total_extent * bs), false)) { panic("[FS/EXT4] failed to allocate buffer for directory data"); return false; }
+	if(__unlikely(!init_extents())) return false;
+	if(__unlikely(!__grow_buffer_exact(extents.total_extent * bs))) return panic("[FS/EXT4] failed to allocate buffer for directory data"), false;
 	update_block_ptrs();
-	for(size_t i = 0; i < block_data.size(); i++) { if(!parent_fs->read_block(block_data[i])) { std::string errstr = "[FS/EXT4] read failed on directory block " + std::to_string(block_data[i].block_number); panic(errstr.c_str()); return false; } }
+	for(size_t i = 0UZ; i < block_data.size(); i++)
+	{
+		if(!parent_fs->read_block(block_data[i]))
+		{
+			std::string errstr = "[FS/EXT4] read failed on directory block " + std::to_string(block_data[i].block_number);
+			panic(errstr.c_str());
+			return false;
+		}
+	}
 	return (__initialized	= __parse_entries(bs));
 }
 tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<vnode*>& checked_elements)
@@ -329,9 +337,9 @@ tnode* ext_directory_vnode::find_l(std::string const& name)
 }
 tnode* ext_directory_vnode::find_r(std::string const& name, std::set<vnode*>& checked_elements)
 {
-	if(tnode_dir::iterator i = directory_tnodes.find(name); i != directory_tnodes.end())
+	if(tnode_dir::iterator i	= directory_tnodes.find(name); i != directory_tnodes.end())
 	{
-		if(ext_vnode* vn = dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
+		if(ext_vnode* vn		= dynamic_cast<ext_vnode*>(i->ptr()); vn && vn->is_symlink())
 		{
 			if(checked_elements.contains(i->ptr()))
 				throw std::overflow_error("[FS/EXT4] circular link");

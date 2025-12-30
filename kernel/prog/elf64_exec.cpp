@@ -65,10 +65,10 @@ elf64_executable::elf64_executable(elf64_executable const& that) : elf64_object(
 	}
 bool elf64_executable::xvalidate()
 {
-	if(__unlikely(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB)) { panic("[PRG/EXEC] not an object for the correct machine"); return false; }
-	if(__unlikely(ehdr().e_ident[elf_ident_class_idx] != EC_64)) { panic("[PRG/EXEC] 32-bit executables are not yet supported"); return false; }
-	if(__unlikely(ehdr().e_type != ET_EXEC)) { panic("[PRG/EXEC] object is not an executable"); return false; }
-	if(__unlikely(!ehdr().e_phnum)) { panic("[PRG/EXEC] no program headers present"); return false; }
+	if(__unlikely(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB)) return panic("[PRG/EXEC] not an object for the correct machine"), false;
+	if(__unlikely(ehdr().e_ident[elf_ident_class_idx] != EC_64)) return panic("[PRG/EXEC] 32-bit executables are not yet supported"), false;
+	if(__unlikely(ehdr().e_type != ET_EXEC)) return panic("[PRG/EXEC] object is not an executable"), false;
+	if(__unlikely(!ehdr().e_phnum)) return panic("[PRG/EXEC] no program headers present"), false;
 	return true;
 }
 void elf64_executable::process_headers()
@@ -101,8 +101,8 @@ void elf64_executable::process_headers()
 bool elf64_executable::load_segments()
 {
 	frame_tag				= std::addressof(fm.create_frame(frame_base, frame_extent));
-	if(__unlikely(!frame_tag)) { panic("[PRG/EXEC] failed to allocate frame"); return false; }
-	for(size_t n = 0UZ; n < ehdr().e_phnum; n++)
+	if(__unlikely(!frame_tag)) return panic("[PRG/EXEC] failed to allocate frame"), false;
+	for(size_t n			= 0UZ; n < ehdr().e_phnum; n++)
 	{
 		elf64_phdr const& h = phdr(n);
 		if(!is_load(h) || !h.p_memsz) continue;
@@ -111,10 +111,7 @@ bool elf64_executable::load_segments()
 		size_t full_size	= h.p_memsz + (addr - target);
 		addr_t img_dat		= segment_ptr(n);
 		block_descriptor* b	= frame_tag->add_block(full_size, target, h.p_align, is_write(h), is_exec(h));
-		if(__unlikely(!b)) {
-			panic("[PRG/EXEC] failed allocate blocks for executable");
-			return false;
-		}
+		if(__unlikely(!b)) return panic("[PRG/EXEC] failed allocate blocks for executable"), false;
 		if(is_tls(h)) {
 			tls_base		= b->virtual_start;
 			tls_size		= b->size;
@@ -134,7 +131,7 @@ bool elf64_executable::load_segments()
 		segments.push_back(desc);
 	}
 	block_descriptor* s		= frame_tag->add_block(stack_size, stack_base, page_size, true, false);
-	if(__unlikely(!s)) { panic("[PRG/EXEC] failed to allocate block for stack"); return false; }
+	if(__unlikely(!s)) return panic("[PRG/EXEC] failed to allocate block for stack"), false;
 	frame_tag->extent		= frame_extent;
 	frame_tag->mapped_max	= frame_extent;
 	new(std::addressof(program_descriptor)) elf64_program_descriptor

@@ -31,14 +31,15 @@ namespace ooos
 		partition_entry_t* arr	= pt_alloc.allocate(actual);
 		std::ext::ptr_guard<partition_entry_t> guard(arr, actual, pt_alloc);
 		array_zero<partition_entry_t>(arr, n);
-		if(!read(arr, hdr->lba_partition_entry_array, div_round_up(n * sizeof(partition_entry_t), block_size))) throw std::runtime_error("[HDA] failed to read GPT");
+		if(!read(arr, hdr->lba_partition_entry_array, div_round_up(n * sizeof(partition_entry_t), block_size)))
+			throw std::runtime_error("[HDA] failed to read GPT");
 		for(size_t i = 0UZ; i < n; i += sz_multi) __part_table.push_back(arr[i]);
 		pt_alloc.deallocate(arr, actual);
 		guard.release();
 	}
 	bool delegate_hda::read(void* out, uint64_t start_sector, uint32_t count)
 	{
-		if(__unlikely(!__block_device)) { panic("[HDA] cannot access disk before initializing the delegate module"); return false; }
+		if(__unlikely(!__block_device)) return panic("[HDA] cannot access disk before initializing the delegate module"), false;
 		eh_exit_guard guard(__provider_module);
 		if(__unlikely(setjmp(__provider_module->ctx_jmp())))
 		{
@@ -52,14 +53,14 @@ namespace ooos
 		size_t s_per_op		= __block_device->max_operation_blocks();
 		size_t b_per_s		= sector_size();
 		std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
-		if(__unlikely(!await_result(check_io_avail, max_wait))) { panic("[HDA] block device is unresponsive"); return false; }
+		if(__unlikely(!await_result(check_io_avail, max_wait))) return panic("[HDA] block device is unresponsive"), false;
 		fence();
 		while(rem)
 		{
 			size_t sct		= std::min(rem, s_per_op);
 			int ticket		= __block_device->read(addr_t(out).plus(t_read), start_sector + s_read, sct);
-			if(__unlikely(ticket < 0)) { panic("[HDA] block device has no available bandwidth"); return false; }
-			if(__unlikely(!__await_disk(static_cast<unsigned>(ticket)))) { panic("[HDA] block device hung"); return false; }
+			if(__unlikely(ticket < 0)) return panic("[HDA] block device has no available bandwidth"), false;
+			if(__unlikely(!__await_disk(static_cast<unsigned>(ticket)))) return panic("[HDA] block device hung"), false;
 			t_read			+= b_per_s * sct;
 			s_read			+= sct;
 			rem				-= sct;
@@ -69,7 +70,7 @@ namespace ooos
 	}
 	bool delegate_hda::write(uint64_t start_sector, const void* in, uint32_t count)
 	{
-		if(__unlikely(!__block_device)) { panic("[HDA] cannot access disk before initializing the delegate module"); return false; }
+		if(__unlikely(!__block_device)) return panic("[HDA] cannot access disk before initializing the delegate module"), false;
 		eh_exit_guard guard(__provider_module);
 		if(__unlikely(setjmp(__provider_module->ctx_jmp())))
 		{
@@ -83,14 +84,14 @@ namespace ooos
 		size_t s_per_op		= __block_device->max_operation_blocks();
 		size_t b_per_s		= sector_size();
 		std::function<bool()> check_io_avail(std::bind(&abstract_block_device::io_ready, __block_device));
-		if(__unlikely(!await_result(check_io_avail, max_wait))) { panic("[HDA] block device is unresponsive"); return false; }
+		if(__unlikely(!await_result(check_io_avail, max_wait))) return panic("[HDA] block device is unresponsive"), false;
 		fence();
 		while(rem)
 		{
 			size_t sct		= std::min(rem, s_per_op);
 			int ticket		= __block_device->write(start_sector + s_write, addr_t(in).plus(t_write), sct);
-			if(__unlikely(ticket < 0)) { panic("[HDA] block device has no available bandwidth"); return false; }
-			if(__unlikely(!__await_disk(static_cast<unsigned>(ticket)))) { panic("[HDA] block device hung"); return false; }
+			if(__unlikely(ticket < 0)) return panic("[HDA] block device has no available bandwidth"), false;
+			if(__unlikely(!__await_disk(static_cast<unsigned>(ticket)))) return panic("[HDA] block device hung"), false;
 			t_write			+= b_per_s * sct;
 			s_write			+= sct;
 			rem				-= sct;

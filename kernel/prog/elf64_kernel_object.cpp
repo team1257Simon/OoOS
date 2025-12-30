@@ -91,14 +91,16 @@ bool elf64_kernel_object::load_syms()
 {
 	if(__unlikely(!elf64_dynamic_object::load_syms())) return false;
 	uint64_t e_entry	= ehdr().e_entry;
-	if(__unlikely(!e_entry)) { panic("[KO/LOADER] no module setup function found"); return false; }
+	if(__unlikely(!e_entry)) return panic("[KO/LOADER] no module setup function found"), false;
 	entry				= load_base.plus(e_entry);
 	return true;
 }
 bool elf64_kernel_object::xvalidate()
 {
-	if(__unlikely(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB || ehdr().e_ident[elf_ident_class_idx] != EC_64)) { panic("[KO/LOADER] not a valid kernel module object"); return false; }
-	if(__unlikely(!ehdr().e_phnum)) { panic("[KO/LOADER] no program headers present"); return false; }
+	if(__unlikely(ehdr().e_machine != EM_AMD64 || ehdr().e_ident[elf_ident_enc_idx] != ED_LSB || ehdr().e_ident[elf_ident_class_idx] != EC_64))
+		return panic("[KO/LOADER] not a valid kernel module object"), false;
+	if(__unlikely(!ehdr().e_phnum))
+		return panic("[KO/LOADER] no program headers present"), false;
 	return true;
 }
 abstract_module_base* elf64_kernel_object::load_module()

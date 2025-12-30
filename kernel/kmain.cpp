@@ -500,7 +500,8 @@ void uam_tests()
 				inst.create_user("test_user", "test_pass", "/bin/sh", "someone testy", "/home/test_user");
 				user_handle result						= inst.get_user("test_user");
 				result->capabilities.system_permissions	|= escalate_process;
-				if(result->check_pw("test_pass")) xdirect_writeln("created account test_user with uid " + std::to_string(result->uid) + " and gid " + std::to_string(result->gid));
+				if(result->check_pw("test_pass"))
+					xdirect_writeln("created account test_user with uid " + std::to_string(result->uid) + " and gid " + std::to_string(result->gid));
 				else direct_writeln("account failed to populate correctly");
 			}
 			else direct_writeln("UAM init failed");
