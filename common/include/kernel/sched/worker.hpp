@@ -6,15 +6,15 @@ namespace ooos { class worker; }
 extern "C"
 {
 	extern void worker_exit();
-	extern void worker_return(jmp_buf jb, int status) attribute(noreturn);
+	extern void worker_return(jmp_buf jb, register_t status) attribute(noreturn);
 	extern task_t kproc;
-	int worker_entry(ooos::worker* w);
+	register_t worker_entry(ooos::worker* w);
 }
 namespace ooos
 {
 	namespace __internal
 	{
-		template<typename FT> concept __worker_fn = __extended_runnable<FT> && no_args_supplier<FT, int>;
+		template<typename FT> concept __worker_fn = __extended_runnable<FT> && no_args_supplier<FT, register_t>;
 		struct __worker_func_base
 		{
 			template<typename T> constexpr static bool not_empty(T t) { return isr_actor_base::not_empty(t); }
@@ -25,7 +25,7 @@ namespace ooos
 				constexpr static void destruct(__extended_storage& tgt) noexcept(std::is_nothrow_destructible_v<FT>) { tgt.template get_as<FT>()->~FT(); }
 				constexpr static FT* get_ptr(__extended_storage& fn) noexcept { return fn.template get_as<FT>(); }
 				constexpr static FT const* get_ptr(__extended_storage const& fn) { return fn.template get_as<FT>(); }
-				static int invoke(__extended_storage& fn) noexcept(std::is_nothrow_invocable_v<FT>) { return static_cast<int>(__invoke_f(std::forward<FT>(*get_ptr(fn)))); }
+				static register_t invoke(__extended_storage& fn) noexcept(std::is_nothrow_invocable_v<FT>) { return static_cast<register_t>(__invoke_f(std::forward<FT>(*get_ptr(fn)))); }
 				static void action(__extended_storage& dst, __extended_storage const& src, mgr_op op)
 				{
 					switch(op)
@@ -48,7 +48,7 @@ namespace ooos
 				}
 			};
 			typedef void (*manager_type)(__extended_storage&, __extended_storage const&, mgr_op);
-			typedef int (*invoker_type)(__extended_storage&);
+			typedef register_t (*invoker_type)(__extended_storage&);
 			manager_type __manager;
 			invoker_type __invoker;
 			__extended_storage __functor;
@@ -96,7 +96,7 @@ namespace ooos
 				that.__invoker	= nullptr;
 			}
 		}
-		constexpr int operator()()
+		constexpr register_t operator()()
 		{
 			if(__unlikely(__empty()))
 				return -1;
@@ -117,8 +117,9 @@ namespace ooos
 		friend constexpr std::strong_ordering operator<=>(worker const& __this, pid_t const& __that) noexcept { return __this.get_id() <=> __that; }
 		friend constexpr std::strong_ordering operator<=>(pid_t const& __this, worker const& __that) noexcept { return __this <=> __that.get_id(); }
 		friend constexpr bool operator==(worker const& __this, worker const& __that) noexcept { return __this.task_struct.self == __that.task_struct.self; }
+		void reset() noexcept;
 	private:
-		void init_state();
+		void init_state() noexcept;
 	} __align(16);
 	template<__internal::__worker_fn FT>
 	inline worker::worker(FT&& wfn, addr_t stack, size_t stacksz, pid_t tid, uint16_t qv) :
@@ -167,5 +168,5 @@ namespace ooos
 		worker_sig_info		{}
 							{ init_state(); }
 }
-extern "C" int start_worker(ooos::worker* w) attribute(returns_twice);
+extern "C" register_t start_worker(ooos::worker* w) attribute(returns_twice);
 #endif

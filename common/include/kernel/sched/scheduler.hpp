@@ -15,9 +15,9 @@ class scheduler
 	ooos::deferred_action_queue __deferred_actions;
 	static scheduler __instance;
 	static bool __has_init;
-	bool __set_wait_time(kthread_ptr& task, clock_t time, bool can_interrupt);
-	bool __set_untimed_wait(kthread_ptr& task);
-	void __do_task_change(kthread_ptr& cur, kthread_ptr& next);
+	bool __set_wait_time(kthread_ptr const& task, clock_t time, bool can_interrupt);
+	bool __set_untimed_wait(kthread_ptr const& task);
+	void __do_task_change(kthread_ptr const& cur, kthread_ptr const& next);
 protected:
 	kthread_ptr select_next();
 	void on_tick();
@@ -32,10 +32,10 @@ public:
 	void register_task(kthread_ptr const& task);
 	bool unregister_task(kthread_ptr const& task);
 	bool unregister_task(task_t* task);
-	bool set_wait_untimed(kthread_ptr& task);
-	bool interrupt_wait(kthread_ptr& waiting);
+	bool set_wait_untimed(kthread_ptr const& task);
+	bool interrupt_wait(kthread_ptr const& waiting);
 	bool interrupt_wait(task_t* task);
-	bool set_wait_timed(kthread_ptr& task, clock_t time, bool can_interrupt = true);
+	bool set_wait_timed(kthread_ptr const& task, clock_t time, bool can_interrupt = true);
 	void retrothread(task_t* task, thread_t* thread);
 	kthread_ptr yield();
 	kthread_ptr fallthrough_yield();

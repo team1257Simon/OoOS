@@ -124,7 +124,7 @@ namespace std
 	public:
 		typedef RT result_type;
 		template<typename ... Args> constexpr explicit __bind_r_expr(FT const& __f, Args&& ... __args) : __my_functor(__f), __my_bound_args(forward<Args>(__args)...) {}
-		template<typename ... Args> constexpr explicit __bind_r_expr(FT && __f, Args&& ... __args) : __my_functor(move(__f)), __my_bound_args(forward<Args>(__args)...) {}
+		template<typename ... Args> constexpr explicit __bind_r_expr(FT&& __f, Args&& ... __args) : __my_functor(move(__f)), __my_bound_args(forward<Args>(__args)...) {}
 		constexpr __bind_r_expr(__bind_r_expr const&) = default;
 		constexpr __bind_r_expr(__bind_r_expr&&) = default;
 		template<typename ... Args> constexpr result_type operator()(Args&&... __args) { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }

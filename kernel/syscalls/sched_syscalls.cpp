@@ -38,7 +38,7 @@ extern "C"
 			if(!noparent)
 				if(task_list::iterator parent = tl.find(task->get_parent_pid()); parent != tl.end())
 					sch.interrupt_wait(std::addressof(parent->task_struct));
-			if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v))) 
+			if(task->subsume(ex->describe(), std::move(argv_v), std::move(env_v)))
 				return 0;
 			else return -ENOMEM;
 		}
@@ -66,7 +66,7 @@ extern "C"
 			guard.release();
 			return clone->get_pid();
 		}
-		return -EAGAIN; 
+		return -EAGAIN;
 	}
 	clock_t syscall_times(tms* out)
 	{
@@ -83,7 +83,7 @@ extern "C"
 		if(!tm) return -EFAULT;
 		std::construct_at<timeval>(tm, timestamp_to_timeval(rtc::get_instance().get_timestamp()));
 		return 0;
-	} 
+	}
 	spid_t syscall_getpid()
 	{
 		if(task_ctx* task = active_task_context())
@@ -145,9 +145,9 @@ extern "C"
 	int syscall_sleep(unsigned long seconds)
 	{
 		task_ctx* task		= active_task_context();
-		kthread_ptr thr(task->header(), task->task_struct.thread_ptr);
+		kthread_ptr thr		= kthread_of(task);
 		kthread_ptr next	= sch.yield();
-		if(__unlikely(next.task_ptr == task->header())) return -ECHILD;
+		if(__unlikely(next == thr)) return -ECHILD;
 		if(__unlikely(!sch.set_wait_timed(thr, seconds * 1000, false))) return -ENOMEM;
 		task->task_struct.saved_regs.rax = 0;
 		return next->saved_regs.rax;
@@ -155,60 +155,59 @@ extern "C"
 	pid_t syscall_wait(int* sc_out)
 	{
 		task_ctx* task	= active_task_context();
-		kthread_ptr thr(task->header(), task->task_struct.thread_ptr);
+		kthread_ptr thr	= kthread_of(task);
 		sc_out			= translate_user_pointer(sc_out);
 		if(task->last_notified)
-		{ 
+		{
 			if(sc_out)
 				*sc_out = task->last_notified->exit_code;
 			return task->last_notified->get_pid();
-		} 
-		else if(sch.set_wait_untimed(thr)) 
+		}
+		else
 		{
-			task->notif_target							= sc_out;
-			task->task_struct.task_ctl.should_notify	= true;
 			kthread_ptr next							= sch.yield();
-			if(__unlikely(next.task_ptr == task->header())) return -ECHILD;
-			return next->saved_regs.rax;
+			if(__unlikely(next == thr)) return -ECHILD;
+			if(sch.set_wait_untimed(thr))
+			{
+				task->notif_target							= sc_out;
+				task->task_struct.task_ctl.should_notify	= true;
+				return next->saved_regs.rax;
+			}
 		}
 		return -ENOMEM;
 	}
-	spid_t syscall_fork()
+	spid_t syscall_fork() try
 	{
 		task_ctx* task	= active_task_context();
 		task_ctx* clone	= tl.task_vfork(task);
 		if(clone && clone->set_fork())
 		{
-			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
+			clone->start_task(task->exit_target);
 			task->add_child(clone);
 			clone->task_struct.saved_regs.rax	= 0UL;
 			return clone->get_pid();
 		}
 		else return -EAGAIN;
 	}
-	spid_t syscall_vfork()
+	catch(...) { return -ENOMEM; }
+	spid_t syscall_vfork() try
 	{
 		task_ctx* task	= active_task_context();
 		task_ctx* clone	= tl.task_vfork(task);
 		kthread_ptr thr(task->header(), task->current_thread_ptr());
 		if(clone && sch.set_wait_untimed(thr))
 		{
-			try { clone->start_task(task->exit_target); } catch(...) { return -ENOMEM; }
+			clone->start_task(task->exit_target);
 			task->add_child(clone);
 			task->task_struct.task_ctl.should_notify	= true;
 			clone->task_struct.saved_regs.rax			= 0UL;
 			task->task_struct.saved_regs.rax			= clone->get_pid();
 			kthread_ptr next							= sch.yield();
-			if(next.task_ptr == task->header())
-			{
-				next				= kthread_ptr(clone->header(), clone->current_thread_ptr());
-				next->quantum_rem	= next->quantum_val;
-				write_task_base(*next);
-			}
 			return next->saved_regs.rax;
 		}
 		else return -EAGAIN;
 	}
+	catch(...) { return -ENOMEM; }
 	int syscall_execve(char* restrict name, char** restrict argv, char** restrict env)
 	{
 		task_ctx* task		= active_task_context();
@@ -316,7 +315,7 @@ extern "C"
 		catch(std::out_of_range& e) 	{ return panic(e.what()), -EFAULT; }
 		catch(std::overflow_error& e)	{ return panic(e.what()), -EAGAIN; }
 		catch(std::bad_alloc&)			{ panic("[EXEC/THREAD] no memory for thread data"); }
-		return -ENOMEM; 
+		return -ENOMEM;
 	}
 	spid_t syscall_threadcreate(addr_t entry_pt, addr_t exit_pt, size_t stack_sz, bool start_detached, register_t arg)
 	{
@@ -344,7 +343,7 @@ extern "C"
 		join_result result	= task->thread_join(thread);
 		if(__unlikely(result == join_result::NXTHREAD)) return -ESRCH;
 		else if(__unlikely(result == join_result::IMMEDIATE)) return task->task_struct.saved_regs.rax;
-		kthread_ptr kth(task->header(), task->task_struct.thread_ptr);
+		kthread_ptr kth		= kthread_of(task);
 		if(__unlikely(!sch.set_wait_untimed(kth))) return -ENOMEM;
 		kthread_ptr next	= sch.yield();
 		return next->saved_regs.rax;

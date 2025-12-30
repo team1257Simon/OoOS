@@ -50,13 +50,13 @@ bool scheduler_times::tick()
 	tick_cycles		= tick_cycles % cycle_divisor;
 	return result;
 }
-static kthread_ptr kthread_of(task_t* task_base)
+kthread_ptr kthread_of(task_t* task_base)
 {
 	uint64_t fmagic	= task_base->frame_ptr.deref<uint64_t>();
 	if(fmagic == uframe_magic) return kthread_ptr(task_base, task_base->frame_ptr.deref<uframe_tag>().translate(task_base->thread_ptr));
 	return kthread_ptr(task_base, task_base->thread_ptr);
 }
-bool scheduler::__set_untimed_wait(kthread_ptr& task)
+bool scheduler::__set_untimed_wait(kthread_ptr const& task)
 {
 	try
 	{
@@ -67,7 +67,7 @@ bool scheduler::__set_untimed_wait(kthread_ptr& task)
 	catch(std::exception& e) { panic(e.what()); }
 	return false;
 }
-bool scheduler::interrupt_wait(kthread_ptr& waiting)
+bool scheduler::interrupt_wait(kthread_ptr const& waiting)
 {
 	waiterator i	= __sleepers.find(waiting);
 	if(i			!= __sleepers.end()) return __sleepers.interrupt_wait(i);
@@ -98,7 +98,7 @@ bool scheduler::interrupt_wait(task_t* task)
 	}
 	return result;
 }
-bool scheduler::__set_wait_time(kthread_ptr& task, clock_t time, bool can_interrupt)
+bool scheduler::__set_wait_time(kthread_ptr const& task, clock_t time, bool can_interrupt)
 {
 	task.set_blocking(can_interrupt);
 	clock_t total				= __sleepers.cumulative_remaining_ticks();
@@ -121,7 +121,7 @@ bool scheduler::__set_wait_time(kthread_ptr& task, clock_t time, bool can_interr
 	__sleepers.push(task);
 	return true;
 }
-void scheduler::__do_task_change(kthread_ptr& cur, kthread_ptr& next)
+void scheduler::__do_task_change(kthread_ptr const& cur, kthread_ptr const& next)
 {
 	if(__unlikely(cur == next)) return;
 	next->quantum_rem	= next->quantum_val;
@@ -203,13 +203,13 @@ kthread_ptr scheduler::select_next()
 	}
 	return target;
 }
-bool scheduler::set_wait_untimed(kthread_ptr& task)
+bool scheduler::set_wait_untimed(kthread_ptr const& task)
 {
 	if(!task.is_blocking())
 		return __set_untimed_wait(task);
 	return false;
 }
-bool scheduler::set_wait_timed(kthread_ptr& task, clock_t time, bool can_interrupt)
+bool scheduler::set_wait_timed(kthread_ptr const& task, clock_t time, bool can_interrupt)
 {
 	if(!task.is_blocking())
 		return __set_wait_time(task, static_cast<clock_t>(__deferred_actions.compute_ticks(time)), can_interrupt);

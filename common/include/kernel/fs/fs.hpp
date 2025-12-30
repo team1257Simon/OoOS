@@ -405,7 +405,7 @@ filesystem* create_task_vfs();
 filesystem* get_task_vfs();
 extern "C"
 {
-	int syscall_open(char* name, int flags, ...);							// int open(char* name, int flags, ...);
+	int syscall_open(char* name, int flags);								// int open(char* name, int flags);
 	int syscall_close(int fd);												// int close(int fd);
 	int syscall_write(int fd, char* ptr, int len);							// int write(int fd, char* ptr, int len)
 	int syscall_read(int fd, char* ptr, int len);							// int read(int fd, char* ptr, int len);

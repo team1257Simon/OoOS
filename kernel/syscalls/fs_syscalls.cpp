@@ -40,7 +40,7 @@ static inline void __stat_init(vnode* n, filesystem* fsptr, stat* st)
 }
 extern "C"
 {
-	int syscall_open(char* name, int flags, ...)
+	int syscall_open(char* name, int flags)
 	{
 		filesystem* fsptr	= get_task_vfs();
 		name				= translate_user_pointer(name);

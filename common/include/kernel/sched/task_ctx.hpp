@@ -19,6 +19,7 @@ constexpr uint16_t user_code	= 0x23US;
 constexpr uint16_t user_data	= 0x1BUS;
 constexpr uid_t uid_undef		= static_cast<uid_t>(-1);
 constexpr gid_t gid_undef		= static_cast<gid_t>(-1);
+namespace ooos { struct worker; }
 struct task_descriptor
 {
 	elf64_program_descriptor const& program;
@@ -118,6 +119,7 @@ struct task_ctx
 	bool set_fork();																	// implements fork()
 	bool subsume(elf64_program_descriptor const& desc, cstrvec&& args, cstrvec&& env);	// implements exec() variants
 	addr_t tls_get(size_t mod_idx, size_t offs);										// implements __tls_get_addr()
+	register_t worker_dispatch(ooos::worker& w);
 } __align(16);
 file_vnode* get_by_fd(filesystem* fsptr, task_ctx* ctx, int fd);
 // Task struct base when in ISRs. In syscalls, use current_active_task instead

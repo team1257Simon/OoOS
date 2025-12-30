@@ -7,6 +7,7 @@
 #include <isr_table.hpp>
 #include <kernel_mm.hpp>
 #include <prog_manager.hpp>
+#include <sched/worker.hpp>
 typedef std::pair<elf64_sym, elf64_dynamic_object*> sym_pair;
 constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34, 35, 36, 37>::value;
 constexpr static std::allocator<shared_object_map> sm_alloc{};
@@ -20,6 +21,7 @@ void task_ctx::restart_task() { restart_task(addr_t(std::addressof(handle_exit))
 void task_ctx::set_stdio_ptrs(file_vnode* ptrs[3]) { array_copy(stdio_ptrs, ptrs, 3UL); }
 thread_t* task_ctx::current_thread_ptr() { return get_frame().translate(task_struct.thread_ptr); }
 elf64_dynamic_object* task_ctx::assert_dynamic() { return std::addressof(dynamic_cast<elf64_dynamic_executable&>(*program_handle)); }
+kthread_ptr kthread_of(task_ctx* task) { return kthread_ptr(task->header(), task->current_thread_ptr()); }
 static shared_object_map* create_so_map(task_descriptor& desc)
 {
 	if(dynamic_cast<elf64_dynamic_object*>(static_cast<elf64_executable*>(desc.program.object_handle)))
@@ -946,4 +948,22 @@ int task_ctx::thread_detach(pid_t thread_id)
 	if(ooos::test_thread_mutex(*ptr)) return 1;
 	ptr->ctl_info.detached	= true;
 	return 0;
+}
+register_t task_ctx::worker_dispatch(ooos::worker& w)
+{
+	cli();
+	if(register_t result = start_worker(std::addressof(w)))
+	{
+		w.reset();
+		sch.interrupt_wait(kthread_of(this));
+		sti();
+		return result;
+	}
+	else
+	{
+		sch.set_wait_untimed(kthread_of(this));
+		kthread_ptr next	= sch.yield();
+		sti();
+		return next->saved_regs.rax;
+	}
 }

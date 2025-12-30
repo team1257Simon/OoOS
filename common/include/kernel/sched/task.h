@@ -211,5 +211,8 @@ struct kthread_ptr
 	friend constexpr std::strong_ordering operator<=>(task_t* const& __this, kthread_ptr const& __that) noexcept { return __this <=> __that.task_ptr; }
 	friend constexpr std::strong_ordering operator<=>(kthread_ptr const& __this, task_t* const& __that) noexcept { return __this.task_ptr <=> __that; }
 };
+struct task_ctx;
+kthread_ptr kthread_of(task_t* task_base);
+kthread_ptr kthread_of(task_ctx* task);
 #endif
 #endif
