@@ -5,6 +5,7 @@
 #include "kdebug.hpp"
 #include "sched/task_ctx.hpp"
 using std::addressof;
+extern sysinfo_t* sysinfo;
 extern "C"
 {
 	extern unsigned char	__start[];
@@ -403,6 +404,8 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
 	__set_kernel_page_flags(sb_addr);
 	remaining_memory				= total_memory	= total_mem;
 	kernel_cr3						= get_cr3();
+	//	Make sure the framebuffer is mapped to the kernel, as it's not generally given in the memory map
+	__map_kernel_pages(sysinfo->fb_ptr, div_round_up(sysinfo->fb_width * sysinfo->fb_height * sysinfo->fb_pitch * 4, page_size), true);
 }
 addr_t kernel_memory_mgr::allocate_dma(size_t sz, bool prefetchable) noexcept
 {

@@ -93,13 +93,6 @@ inline static size_t required_tables(size_t num_pages_to_map)
 	size_t num_page_dir_tables	= div_round_up(num_page_dirs, PT_LEN);
 	return num_page_dir_tables + num_page_dirs + num_page_tables + 1; // Additional 1 for the PML4; each table itself fills one page of memory
 }
-size_t required_tables_postinit(size_t num_pages_to_map)
-{
-	size_t num_page_tables		= num_pages_to_map / PT_LEN;
-	size_t num_page_dirs		= num_page_tables / PT_LEN;
-	size_t num_page_dir_tables	= num_page_dirs / PT_LEN;
-	return num_page_dir_tables + num_page_dirs + num_page_tables;
-}
 void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages, paging_table tables_start)
 {
 	size_t total_mem			= num_pages * PAGESIZE;
@@ -170,38 +163,7 @@ efi_status_t map_id_pages(size_t num_pages)
 	boot_page_frame	= (page_frame*)malloc(sizeof(page_frame) + pts_only * sizeof(paging_table));
 	memset(boot_page_frame, 0, sizeof(page_frame) + pts_only * sizeof(paging_table));
 	boot_page_frame->num_saved_tables = pts_only;
-	map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512*sizeof(pt_entry)));
-	return EFI_SUCCESS;
-}
-efi_status_t map_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages)
-{
-	size_t n					= required_tables_postinit(num_pages);
-	indexed_address sv_start	= {};
-	sv_start.addr				= vaddr_start;
-	if(n < 1 && direct_table_idx(sv_start.idx) > boot_page_frame->num_saved_tables)
-	{
-		n				= 1;
-		size_t old_num	= boot_page_frame->num_saved_tables;
-		size_t new_num	= direct_table_idx(sv_start.idx);
-		boot_page_frame	= (page_frame*)realloc(boot_page_frame, sizeof(page_frame) + new_num * sizeof(paging_table));
-		size_t delta	= (size_t)(new_num - old_num);
-		memset(boot_page_frame->tables + old_num, 0, delta * sizeof(paging_table));
-	}
-	paging_table tables_start;
-	if(n == 0)
-	{
-		tables_start	= boot_page_frame->tables[direct_table_idx(sv_start.idx)];
-		if(tables_start == NULL)
-		{
-			efi_status_t status	= BS->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, (efi_physical_address_t*)&tables_start);
-			if(EFI_ERROR(status)) { fprintf(stderr, "Unable to get pages for page tables\n"); return status; }
-		}
-	}
-	else {
-		efi_status_t status	= BS->AllocatePages(AllocateAnyPages, EfiLoaderData, n, (efi_physical_address_t*)&tables_start);
-		if(EFI_ERROR(status)) { fprintf(stderr, "Unable to get pages for page tables\n"); return status; }
-	}
-	map_some_pages(vaddr_start, phys_start, num_pages, tables_start);
+	map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512 * sizeof(pt_entry)));
 	return EFI_SUCCESS;
 }
 size_t fsize(FILE* file)
@@ -408,8 +370,11 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Unable to allocate memory\n");
 		return EMALLOC;
 	}
-	// Put the new paging tables into cr3
-	asm volatile("movq %0, %%rax\n" "movq %%rax, %%cr3" :: "r"(__boot_pml4) : "%rax");
+	if(EFI_ERROR(status))
+	{
+		fprintf(stderr, "Unable to allocate memory\n");
+		return EMALLOC;
+	}
 	sysinfo				= (sysinfo_t*)malloc(sizeof(sysinfo_t));
 	MALLOC_CK(sysinfo);
 	efi_guid_t gopGuid	= EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
@@ -436,8 +401,6 @@ int main(int argc, char** argv)
 		fprintf(stderr, "Unable to get graphics output protocol\n");
 		return ENOGFX;
 	}
-	status	= map_pages((uintptr_t)sysinfo->fb_ptr, (uintptr_t)sysinfo->fb_ptr, (4 * sysinfo->fb_height * sysinfo->fb_width * sysinfo->fb_pitch) / PAGESIZE);
-	if(EFI_ERROR(status)) return status;
 	boot_modules_list* mods;
 	status	= load_modules_from(MOD_DIR, &mods);
 	if(EFI_ERROR(status)) return status;
@@ -507,6 +470,10 @@ int main(int argc, char** argv)
 	// free resources
 	free(buff);
 	exit_bs();
+	// put the new paging tables into cr3. 
+	// waiting to do this until now prevents us from faulting in the bootloader since some UEFI code might access devices.
+	// devices could be mapped to addresses that are out of range of normal RAM, so such an access would cause a page fault before we can handle that.
+	asm volatile("movq %0, %%rax\n" "movq %%rax, %%cr3" :: "r"(__boot_pml4) : "%rax");
 	// clear the interrupt flag before executing kmain, since IRQ handlers rely on global constructors.
 	// there is a small chance of getting an interrupt before the prologue of kmain finishes if we don't do this.
 	asm volatile("cli" ::: "memory");
