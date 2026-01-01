@@ -592,7 +592,7 @@ seq_fail:
 	{
 		if(__unlikely(!scan_bytes)) return uk_sc(0x00UC);
 		keyboard_event e 		= __decode_one(scan_bytes.pop(), scan_bytes);
-		if((dword(e).hi.hi & 0x0EUC) != 0x0EUC)
+		if((dword(e).hi.lo & 0x0EUC) != 0x0EUC)
 		{
 			uint8_t mod_state	= std::bit_cast<uint8_t>(current_state) ^ std::bit_cast<uint8_t>(e.kv_vstate);
 			e.kv_vstate			= current_state;

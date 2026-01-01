@@ -298,7 +298,7 @@ constexpr uint16_t crc16_table_val(uint16_t i)
 	}
 	return res ^ BV;
 }
-template<uintptr_t MV> constexpr uintptr_t mask_weave(uintptr_t a, uintptr_t b) noexcept { return (a & MV) | (B & ~MV); }
+template<uintptr_t MV> constexpr uintptr_t mask_weave(uintptr_t a, uintptr_t b) noexcept { return (a & MV) | (b & ~MV); }
 #if defined(__KERNEL__) || defined(__LIBK__)
 template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
 template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
