@@ -10,7 +10,7 @@ abstract_packet_base::~abstract_packet_base() { if(packet_data) (*release_fn)(pa
 abstract_ip_resolver::abstract_ip_resolver() : previously_resolved(1024UZ) {}
 netdev_helper::netdev_helper(mac_t const& mac) : arp_handler(std::addressof(ethernet_handler)), ethernet_handler(*this, mac) {}
 protocol_ethernet::protocol_ethernet(abstract_ip_resolver* ip_res, std::function<int(abstract_packet_base&)>&& tx_fn, mac_t const& mac) : abstract_protocol_handler(nullptr, this), ip_resolver(ip_res), transmit_fn(std::move(tx_fn)), handlers(64UZ), mac_addr(mac) {}
-protocol_ethernet::protocol_ethernet(netdev_helper& dev, mac_t const& mac): abstract_protocol_handler(nullptr, this), ip_resolver(dev.get_ip_resolver()), transmit_fn(std::bind(&netdev_helper::transmit, std::addressof(dev), std::placeholders::_1)), handlers(64UZ), mac_addr(mac) {}
+protocol_ethernet::protocol_ethernet(netdev_helper& dev, mac_t const& mac): abstract_protocol_handler(nullptr, this), ip_resolver(dev.get_ip_resolver()), transmit_fn(std::bind_front(&netdev_helper::transmit, std::addressof(dev))), handlers(64UZ), mac_addr(mac) {}
 protocol_ethernet::~protocol_ethernet() = default;
 std::type_info const& protocol_ethernet::packet_type() const { return typeid(ethernet_header); }
 int protocol_ethernet::transmit(abstract_packet_base& p) { return transmit_fn(p); }

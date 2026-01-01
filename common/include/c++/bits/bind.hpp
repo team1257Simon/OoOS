@@ -75,7 +75,7 @@ namespace std
 	template<typename T> struct is_bind_expression : public false_type {};
 	template<typename AT, bool __is_bind = is_bind_expression<AT>::value, bool __is_placeholder = (is_placeholder<AT>::value > 0)> struct __mu;
 	template<typename AT> struct __mu<AT, true, false> { template<typename CVArg, typename ... Args, size_t ... Is> constexpr auto __call(CVArg& __arg, tuple<Args...>& __tuple, __index_tuple<Is...> const&) const volatile -> decltype(__arg(declval<Args>()...)) { return __arg(std::get<Is>(std::move(__tuple))...); } template<typename CVArg, typename ... Args> constexpr auto operator()(CVArg& __arg, tuple<Args...>& __tuple) const volatile -> decltype(__arg(declval<Args>()...)) { typedef typename __build_index_tuple<sizeof...(Args)>::type __idxs; return this->__call(__arg, __tuple, __idxs{}); } };
-	template<typename AT> struct __mu<AT, false, true> { template<typename TT> __safe_tuple_element_t<(is_placeholder<AT>::value - 1), TT>&& operator()(const volatile AT&, TT &__tuple) const volatile { return ::std::get<(is_placeholder<AT>::value - 1)>(std::move(__tuple)); } };
+	template<typename AT> struct __mu<AT, false, true> { template<typename TT> __safe_tuple_element_t<(is_placeholder<AT>::value - 1), TT>&& operator()(const volatile AT&, TT& __tuple) const volatile { return ::std::get<(is_placeholder<AT>::value - 1)>(std::move(__tuple)); } };
 	template<typename AT> struct __mu<AT, false, false> { template<typename CVArg, typename TT> CVArg&& operator()(CVArg&& __arg, TT&) const volatile { return std::forward<CVArg>(__arg); } };
 	template<std::size_t I, typename... Ts> inline auto __volget(volatile tuple<Ts...>& __tuple) -> __elem_t<I, tuple<Ts...>> volatile& { return std::get<I>(const_cast<tuple<Ts...>&>(__tuple)); }
 	template<std::size_t I, typename... Ts> inline auto __volget(const volatile tuple<Ts...>& __tuple) -> __elem_t<I, tuple<Ts...>> const volatile& { return std::get<I>(const_cast<const tuple<Ts...>&>(__tuple)); }
@@ -97,7 +97,7 @@ namespace std
 		template<typename CAT, template<typename> class QT> using __res_type_cv = __res_type_impl<typename QT<__dependent<CAT>>::type, CAT, typename QT<BArgs>::type...>;
 	public:
 		template<typename ... Args> constexpr explicit __bind_expr(FT const& __f, Args&& ... __args) : __my_functor(__f), __my_bound_args(forward<Args>(__args)...) {}
-		template<typename ... Args> constexpr explicit __bind_expr(FT && __f, Args&& ... __args) : __my_functor(move(__f)), __my_bound_args(forward<Args>(__args)...) {}
+		template<typename ... Args> constexpr explicit __bind_expr(FT&& __f, Args&& ... __args) : __my_functor(move(__f)), __my_bound_args(forward<Args>(__args)...) {}
 		constexpr __bind_expr(__bind_expr const&) = default;
 		constexpr __bind_expr(__bind_expr&&) = default;
 		template<typename ... Args, typename RT = __res_type<tuple<Args...>>> constexpr RT operator()(Args&&... __args) { return this->__call<RT>(forward_as_tuple(forward<Args>(__args)...), __bound_indices{}); }

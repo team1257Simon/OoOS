@@ -40,10 +40,10 @@ namespace ooos
 		return keyboard_interface
 		{
 			.id_word			{ std::bind(&T::id_word, std::addressof(t)) },
-			.create_listener	{ std::bind(&T::create_listener, std::addressof(t), std::placeholders::_1, std::placeholders::_2) },
-			.listener_for		{ std::bind(&T::listener_for, std::addressof(t), std::placeholders::_1) },
-			.has_listener		{ std::bind(&T::has_listener, std::addressof(t), std::placeholders::_1) },
-			.remove_listener	{ std::bind(&T::remove_listener, std::addressof(t), std::placeholders::_1) }
+			.create_listener	{ std::bind_front(&T::create_listener, std::addressof(t)) },
+			.listener_for		{ std::bind_front(&T::listener_for, std::addressof(t)) },
+			.has_listener		{ std::bind_front(&T::has_listener, std::addressof(t)) },
+			.remove_listener	{ std::bind_front(&T::remove_listener, std::addressof(t)) }
 		};
 	}
 }

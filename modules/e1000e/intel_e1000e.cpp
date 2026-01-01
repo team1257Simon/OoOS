@@ -199,9 +199,9 @@ bool ie1000e::init_dev()
 bool ie1000e::configure_rx(dev_status& st) try
 {
 	std::ext::resettable_queue<netstack_buffer>::iterator i = transfer_head();
-	for(e1000e_receive_descriptor* d = rx_ring.descriptors; d < rx_ring.max_descriptor; d++, i++) 
+	for(e1000e_receive_descriptor* d = rx_ring.descriptors; d < rx_ring.max_descriptor; d++, i++)
 		new(d) e1000e_receive_descriptor{ .read{ .buffer_addr{ vtranslate(i->rx_base()) } } };
-		rx_ring.tail_descriptor	= static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.descriptors) / e1000_rxtxdesclen_base;
+	rx_ring.tail_descriptor	= static_cast<uint32_t>(rx_ring.max_descriptor - rx_ring.descriptors) / e1000_rxtxdesclen_base;
 	qword rxbase			= reinterpret_cast<uintptr_t>(rx_ring.descriptors);
 	uint32_t rx_total_len	= rx_ring.tail_descriptor * e1000_rxtxdesclen_base * sizeof(e1000e_receive_descriptor);
 	write_dma(rxbase_hi, rxbase.hi);
