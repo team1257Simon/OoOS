@@ -1,7 +1,6 @@
 #ifndef __CIRC_Q
 #define __CIRC_Q
 #include <kernel_api.hpp>
-#include <bits/refwrap.hpp>
 namespace ooos
 {
 	/**

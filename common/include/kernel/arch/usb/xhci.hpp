@@ -2,6 +2,9 @@
 #define __XHCI
 // TODO: comment/document all this stuff
 #include <arch/pci.hpp>
+constexpr uint8_t devclass_sb	= 0x0CUC;
+constexpr uint8_t subclass_usb	= 0x03UC;
+constexpr uint8_t progif_xhci	= 0x30UC;
 enum class slot_state : uint8_t
 {
 	SS_DISABLED_ENABLED	= 0UC,
@@ -16,6 +19,34 @@ enum class endpoint_state : uint8_t
 	EPS_HALTED			= 2UC,
 	EPS_STOPPED			= 3UC,
 	EPS_ERROR			= 4UC,
+};
+enum class port_link_state : uint8_t
+{
+	//	states valid on both write and read
+	/*------------------------------------*/
+	LS_U0				= 0UC,
+	LS_U2				= 2UC,
+	LS_U3				= 3UC,
+	LS_RX_DETECT		= 5UC,
+	LS_COMPLIANCE		= 10UC,
+	LS_RESUME			= 15UC,
+	//	states valid only on read
+	/*------------------------------------*/
+	LS_U1				= 1UC,
+	LS_DISABLED			= 4UC,
+	LS_INACTIVE			= 6UC,
+	LS_POLLING			= 7UC,
+	LS_RECOVERY			= 8UC,
+	LS_HOT_RESET		= 9UC,
+	LS_TEST_MODE		= 11UC,
+	//	state values 12 through 14 are never valid
+};
+enum class usb2_l1_status : uint8_t
+{
+	L1_ACK		= 1UC,
+	L1_NYET		= 2UC,
+	L1_STALL	= 3UC,
+	L1_TIMEOUT	= 4UC
 };
 enum class endpoint_type : uint8_t
 {
@@ -120,7 +151,7 @@ enum class control_transfer_type : uint8_t
 	CTT_OUT_DATA_STAGE				= 2UC,
 	CTT_IN_DATA_STAGE				= 3UC,
 };
-enum test_selector : uint8_t
+enum class test_selector : uint8_t
 {
 	TEST_J				= 0x01UC,
 	TEST_K				= 0x02UC,
@@ -131,6 +162,16 @@ enum test_selector : uint8_t
 	TEST_STD_MAX		= 0x3FUC,
 	TEST_VENDOR_MIN		= 0xC0UC,
 	TEST_VENDOR_MAX		= 0xFFUC,
+};
+enum class test_mode : uint8_t
+{
+	NO_TEST			= 0x00UC,
+	STATE_J			= 0x01UC,
+	STATE_K			= 0x02UC,
+	SE0_NAK			= 0x03UC,
+	PACKET			= 0x04UC,
+	FORCE_ENABLE	= 0x05UC,
+	ERROR			= 0x0FUC,	//	reading this value indicates a control error
 };
 enum class feature_selector : uint16_t
 {
@@ -180,6 +221,13 @@ enum completion_code : uint8_t
 	CC_VENDOR_ERROR_MAX				= 223UC,
 	CC_VENDOR_INFO_MIN				= 224UC,
 	CC_VENDOR_INFO_MAX				= 225UC,
+};
+enum class port_indicator_state : uint8_t
+{
+	OFF		= 0UC,
+	AMBER	= 1UC,
+	GREEN	= 2UC,
+	// 3 is undefined
 };
 struct __pack xhci_dequeue_link
 {
@@ -236,6 +284,15 @@ struct __pack xhci_endpoint_context
 	uint16_t max_esit_payload_lo;			// max endpoint service time interval payload, low-order 16 bits
 	uint32_t						: 32;
 	uint64_t						: 64;
+};
+struct xhci_device_context
+{
+	xhci_slot_context slot_context;
+	xhci_endpoint_context ep0;
+	struct {
+		xhci_endpoint_context in;
+		xhci_endpoint_context out;
+	} ep[15];
 };
 struct __pack xhci_stream_context
 {
@@ -473,6 +530,255 @@ struct xhci_generic_trb
 		constexpr operator trb_type() const noexcept { return value; }
 	} type;
 	uint16_t dw3hi;
+};
+struct xhci_capability_registers
+{
+	uint8_t capability_length;
+	uint8_t rsvd0;
+	uint16_t version_number;
+	struct __pack
+	{
+		uint8_t max_slots;
+		uint16_t max_interrupters;
+		uint8_t max_ports;
+	};
+	struct __pack
+	{
+		uint8_t isochronous_scheduling_threshold	: 4;
+		uint8_t event_ring_segment_table_max_shift2	: 4;	// ERST entries count must be at most (1 << ERSTMax)
+		short										: 13;
+		uint8_t max_scratchpad_buffers_hi			: 5;
+		bool scratchpad_restore						: 1;
+		uint8_t max_scratchpad_buffers_lo			: 5;
+	};
+	struct __pack
+	{
+		uint8_t u1_exit_latency;
+		uint8_t rsvd1;
+		uint16_t u2_exit_latency;
+	};
+	struct __pack
+	{
+		bool x64_addresses						: 1;
+		bool bandwidth_negotiation				: 1;
+		bool context_size_64					: 1;
+		bool port_power_control					: 1;
+		bool port_indicators					: 1;
+		bool controller_soft_reset				: 1;
+		bool latency_tolerance_messaging		: 1;
+		bool no_secondary_sid					: 1;
+		bool parse_all_event_data				: 1;
+		bool stopped_short_packet				: 1;
+		bool stopped_edtla						: 1;
+		bool contiguous_frame_id				: 1;
+		uint8_t max_primary_stream_array_size	: 4;
+		uint16_t extended_capabilities_offset;
+	};
+	uint32_t doorbell_offset;
+	uint32_t runtime_registers_offset;
+	struct __pack
+	{
+		bool u3_entry					: 1;
+		bool cmc						: 1;	// configure endpoint max exit latency too large capability
+		bool force_save_context			: 1;
+		bool compliance_transition		: 1;
+		bool large_esit_payload			: 1;
+		bool config_info_support		: 1;
+		bool extended_tbc				: 1;
+		bool extended_tbc_status		: 1;
+		bool get_set_extended_property	: 1;
+		bool vtio						: 1;	// virtualization-based trusted I/O
+		int								: 20;
+	};
+	uint32_t vtio_offset;
+	uint8_t rsvd2[];
+	constexpr addr_t operational_registers() const noexcept { return addr_t(this).plus(capability_length); }
+	constexpr addr_t runtime_registers() const noexcept { return addr_t(this).plus(runtime_registers_offset); }
+	constexpr addr_t doorbell_registers() const noexcept { return addr_t(this).plus(doorbell_offset); }
+};
+struct __pack usb3_pmsc
+{
+	int8_t u1_timeout_us;
+	int8_t u2_timeout_256us;
+	bool force_link_pm_accept	: 1;
+	short						: 15;
+};
+struct __pack usb2_pmsc
+{
+	usb2_l1_status l1_status	: 3;
+	bool remote_wake_enable		: 1;
+	uint8_t best_effort_latency	: 4;
+	uint8_t l1_device_slot;
+	bool hardware_lpm_enable	: 1;
+	short						: 11;
+	test_mode port_test_ctl		: 4;
+};
+struct __pack usb2_portexsc
+{
+	bool initiate_using_besld 			: 1;
+	bool								: 1;
+	uint8_t l1_timeout_256us			: 8;	// 0 corresponds to 128 us
+	uint8_t best_effort_latency_drop	: 4;
+	bool								: 2;
+};
+struct xhci_hc_port
+{
+	struct __pack
+	{
+		bool current_connect_status				: 1;
+		bool port_enabled						: 1;
+		bool									: 1;
+		bool overcurrent_active					: 1;
+		bool port_reset							: 1;
+		port_link_state link_state				: 4;
+		bool port_power							: 1;
+		uint8_t speed_value_id					: 4;
+		port_indicator_state indicator_control	: 2;
+		bool port_link_state_write_strobe		: 1;
+		bool connect_status_change				: 1;
+		bool enable_disable_change				: 1;
+		bool warm_reset_change					: 1;
+		bool overcurrent_change					: 1;
+		bool port_reset_change					: 1;
+		bool link_state_change					: 1;
+		bool port_config_error					: 1;
+		bool cold_attach_status					: 1;
+		bool wake_on_connect_enable				: 1;
+		bool wake_on_disconnect_enable			: 1;
+		bool wake_on_overcurrent_enable			: 1;
+		bool									: 2;
+		bool device_removable					: 1;
+		bool warm_port_reset					: 1;
+	} status_ctl;
+	union {
+		usb3_pmsc usb3;
+		usb2_pmsc usb2;
+	} power_management;
+	struct __pack
+	{
+		uint16_t link_error_count;
+		uint8_t rx_lane_count_shift2	: 4;	// lanes = 1 << RLC
+		uint8_t tx_lane_count_shift2	: 4;	// lanes = 1 << TLC
+	} link_info;
+	struct __pack
+	{
+		union
+		{
+			uint16_t port_hardware_lpm_ctl;		// reserved/opaque
+			uint16_t link_soft_error_count;
+			usb2_portexsc extended_status_ctl;
+		};
+		uint16_t hiword;						// reserved/opaque
+	} port_extended_status_ctl;
+};
+struct xhci_hc_mem
+{
+	struct __pack
+	{
+		bool run							: 1;
+		bool controller_reset				: 1;
+		bool interrupt_enable				: 1;
+		bool host_system_error_enable		: 1;	// enable signaling out-of-band errors
+		bool								: 3;
+		bool soft_reset						: 1;
+		bool save_controller_state			: 1;
+		bool restore_controller_state		: 1;
+		bool enable_wrap_event				: 1;
+		bool enable_u3_mfindex_stop			: 1;	// enable stopping the MFINDEX counting action if all ports are disconnected
+		bool								: 1;
+		bool cem_enable						: 1;
+		bool extended_tbc_enable			: 1;	// extended transfer burst enable
+		bool extended_tbc_trb_status_enable	: 1;
+		bool vtio_enable					: 1;
+		short								: 15;
+	} cmd;
+	struct __pack
+	{
+		bool halted						: 1;
+		bool							: 1;
+		bool host_system_error			: 1;
+		bool event_interrupt_pending	: 1;
+		bool port_change_detected		: 1;
+		bool							: 3;
+		bool save_state_status			: 1;
+		bool restore_state_status		: 1;
+		bool state_sr_error				: 1;	// state save/restore error
+		bool controller_not_ready		: 1;	// do not write controller registers other than status until this is 1
+		bool host_controller_error		: 1;
+		int								: 19;
+	} status;
+	uint32_t max_pagesize;
+	uint32_t rsvd0[2];
+	dword notification_ctl;						// each of the low 16 bits corresponds to a notification type; that notification is enabled iff that bit is 1
+	union
+	{
+		uintptr_t command_ring_ptr;				// always reads as 0
+		struct __pack
+		{
+			bool ring_cycle_state	: 1;
+			bool command_stop		: 1;
+			bool command_abort		: 1;
+			bool running			: 1;
+			uintptr_t cr_ptr_hibits	: 58;
+		} ring_ctl;
+	};
+	uint32_t rsvd1[4];
+	addr_t device_ctx_base_addr_array_ptr;		// low 6 bits must be 0; i.e. this address is 64-bytes aligned
+	struct __pack
+	{
+		uint8_t max_slots_enabled	: 7;
+		bool u3_entry_enable		: 1;
+		bool config_info_enable		: 1;
+		int							: 23;
+	} configure;
+	uint32_t rsvd2[241];
+	xhci_hc_port port_set_1[256];
+};
+struct xhci_interrupt_register_set
+{
+	struct __pack
+	{
+		bool pending	: 1;
+		bool enable		: 1;
+		uint32_t		: 30;
+	} iman;
+	uint16_t moderation_interval;
+	uint16_t moderation_counter;
+	uint16_t segment_table_size;	// size in entries
+	uint16_t rsvdp[3];
+	struct __pack __stb
+	{
+		bool				: 6;
+		uintptr_t addr		: 58;
+		constexpr operator addr_t() const noexcept { return std::bit_cast<addr_t>(*this); }
+		constexpr __stb& operator=(addr_t p) noexcept { return addr_t(this).assign(mask_weave<0x3FUZ>(std::bit_cast<uintptr_t>(*this), p.full)), *this; }
+	} event_ring_segment_table_base;
+	struct __pack __rdb
+	{
+		uint8_t dequeue_erst_segment_index	: 3;
+		bool event_handler_busy				: 1;
+		uintptr_t addr						: 60;
+		constexpr operator addr_t() const noexcept { return std::bit_cast<addr_t>(*this).trunc(1UZ << 4); }
+		constexpr __rdb& operator=(addr_t p) noexcept { return addr_t(this).assign(mask_weave<0xFUZ>(std::bit_cast<uintptr_t>(*this), p.full)), *this; }
+	} event_ring_dequeue_base;
+};
+struct xchi_hc_runtime_mem
+{
+	uint32_t microframe_index;
+	uint32_t rsvd0[7];
+	xhci_interrupt_register_set interrupt_registers[1024];
+};
+struct xhci_doorbell
+{
+	uint8_t db_target;
+	uint8_t rsvd0;
+	uint16_t db_stream_id;
+};
+struct xhci_event_ring_segment_table_entry
+{
+	addr_t ring_segment_base_addr;
+	uint16_t ring_segment_size;
+	uint16_t rsvd0[3];
 };
 template<qword_size Q0, dword_size D2, word_size D3H> struct xhci_trb : Q0, D2, xhci_trb_type_and_flags, D3H {};
 template<word_size D3H, qword_size Q0 = trb_data_ptr, dword_size D2 = transfer_trb_dw2> using xhci_transfer_trb		= xhci_trb<Q0, D2, D3H>;

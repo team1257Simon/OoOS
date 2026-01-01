@@ -121,6 +121,7 @@ namespace ooos
 		virtual void release_dma(void* ptr, size_t size) override { mm->deallocate_dma(ptr, size); }
 		virtual void* map_dma(uintptr_t addr, size_t sz, bool prefetchable) { return mm->map_dma(addr, sz, prefetchable); }
 		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) override { return pci->find(device_class, subclass); }
+		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if) override { return pci->find(device_class, subclass, prog_if); }
 		virtual void* acpi_get_table(const char* label) override { return find_system_table(label); }
 		virtual kmod_mm* create_mm() override { return new kmod_mm_impl(); }
 		virtual void destroy_mm(kmod_mm* mod_mm) override { if(mod_mm) delete mod_mm; }

@@ -231,12 +231,53 @@ struct __pack pci_config_table
 	uint8_t reserved[8];
 	pci_config_ptr addr_allocations[];
 };
+struct bar_desc
+{
+	bool is_mmap_bar;
+	bool is_prefetchable;
+	addr_t base_value;
+	size_t base_size;
+};
+attribute(nonnull)
+inline bar_desc compute_bar_info(pci_config_space volatile* dev, int i)
+{
+	if(__unlikely(dev->header_type == 0x2 || (i > (dev->header_type == 0x1 ? 2 : 6)))) return bar_desc();
+	uint16_t volatile* cmd_reg		= reinterpret_cast<uint16_t volatile*>(std::addressof(dev->command));
+	uint16_t cmd_saved				= *cmd_reg;
+	barrier();
+	dev->command.io_space			= false;
+	dev->command.memory_space		= false;
+	barrier();
+	uint32_t volatile* bar_reg		= std::addressof((dev->header_type == 0x0 ? dev->header_0x0.bar : dev->header_0x1.bar)[i]);
+	uint32_t bar_value				= bar_reg[0];
+	bool is_io_bar					= (bar_value & BIT(0)) != 0U;
+	bool is_long_bar				= (bar_value & BIT(2)) != 0U;
+	bool is_prefetchable			= is_io_bar ? false : (bar_value & BIT(3)) != 0U;
+	uint32_t value_mask				= is_io_bar ? 0xFFFFFFFCU : 0xFFFFFFF0U;
+	uint32_t masked_value			= bar_value & value_mask;
+	barrier();
+	bar_reg[0]						= 0xFFFFFFFFU;
+	barrier();
+	uint32_t size_indicator			= bar_reg[0];
+	barrier();
+	bar_reg[0]						= bar_value;
+	barrier();
+	uint32_t hi_value				= is_long_bar ? bar_reg[1] : 0U;
+	barrier();
+	*cmd_reg						= cmd_saved;
+	barrier();
+	return bar_desc
+	{
+		.is_mmap_bar				= !is_io_bar,
+		.is_prefetchable			= is_prefetchable,
+		.base_value					= addr_t(qword(masked_value, hi_value)),
+		.base_size					= (~(size_indicator & value_mask) + 1U),
+	};
+}
 #if defined(__KERNEL__) || defined(__LIBK__)
 pci_config_table* find_pci_config();
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
 pci_capabilities_register* get_first_capability_register(pci_config_space* device);
 pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r);
-void* compute_base_address(uint32_t bar_registers[], uint8_t i);
-void* compute_base(uint32_t bar);
 #endif
 #endif

@@ -3,8 +3,6 @@
 pci_device_list pci_device_list::__instance{};
 constexpr static pci_config_space* check_valid(pci_config_space* ptr) { return ptr->vendor_id != 0xFFFFUS ? ptr : nullptr; }
 pci_config_table* find_pci_config() { return static_cast<pci_config_table*>(find_system_table("MCFG")); }
-void* compute_base_address(uint32_t bar_registers[], uint8_t i) { return addr_t((bar_registers[i] & 0x00000001UL) ? (bar_registers[i] & 0xFFFFFFFCUL) : ((bar_registers[i] & 0xFFFFFFF0UL) | (bar_registers[i] & 0x00000004UL ? (static_cast<uint64_t>(bar_registers[i + 1]) << 32) : 0UL))); }
-void* compute_base(uint32_t bar) { return addr_t((bar & 0x00000001U) ? (bar & 0xFFFFFFFCU) : (bar & 0xFFFFFFF0U)); }
 pci_device_list* pci_device_list::get_instance() { return std::addressof(__instance); }
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func)
 {
@@ -30,6 +28,13 @@ pci_config_space* pci_device_list::find(uint8_t device_class, uint8_t subclass)
 {
 	for(pci_config_space* s : *this)
 		if(s && (s->class_code == device_class) && (s->subclass == subclass))
+			return s;
+	return nullptr;
+}
+pci_config_space* pci_device_list::find(uint8_t device_class, uint8_t subclass, uint8_t prog_if)
+{
+	for(pci_config_space* s : *this)
+		if(s && (s->class_code == device_class) && (s->subclass == subclass) && (s->prog_if = prog_if))
 			return s;
 	return nullptr;
 }

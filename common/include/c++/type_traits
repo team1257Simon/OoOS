@@ -390,7 +390,7 @@ namespace std
 	template<typename MPT, typename AT1, typename...Args> struct __result_of_memfun;
 	template<typename R, typename CLT, typename AT1, typename...Args> struct __result_of_memfun<R CLT::*, AT1, Args...> { using __argval = typename remove_reference<AT1>::type; using __mem_ptr = R CLT::*; using type = typename __conditional_t<is_base_of <CLT, __argval>::value, __result_of_memfun_ref<__mem_ptr, AT1, Args...>, __result_of_memfun_deref<__mem_ptr, AT1, Args...>>::type; };
 	template<typename T, typename U = __remove_cvref_t<T>> struct __inv_unwrap { using type = T; };
-	template<typename T, typename U> struct __inv_unwrap<T, reference_wrapper<U>> { using type = U &; };
+	template<typename T, typename U> struct __inv_unwrap<T, reference_wrapper<U>> { using type = U&; };
 	template<bool, bool, typename FT, typename...Args> struct __result_of_impl { using type = __failure_type; };
 	template<typename MPT, typename AT1> struct __result_of_impl<true, false, MPT, AT1> : public __result_of_memobj<__decay_t<MPT>, typename __inv_unwrap<AT1>::type> {};
 	template<typename MPT, typename AT1, typename...Args> struct __result_of_impl<false, true, MPT, AT1, Args...> : public __result_of_memfun<__decay_t <MPT>, typename __inv_unwrap<AT1>::type, Args...> {};
@@ -466,13 +466,13 @@ namespace std
 	template<typename F2, typename...Args> constexpr bool __call_is_nt(__invoke_other) { return noexcept(declval<F2>()(declval<Args>()...)); }
 	template<typename RST, typename F2, typename...Args> struct __call_is_nothrow : __bool_constant<__call_is_nt<F2, Args...> (typename RST::__invoke_type {})> {};
 	template<typename F2, typename...Args> using __call_is_nothrow_ = __call_is_nothrow<__invoke_result<F2, Args...>, F2, Args...>;
-	template<typename F2, typename...Args> struct __is_nothrow_invocable: __and_<__is_invocable<F2, Args...>, __call_is_nothrow_<F2, Args...>>::type {};
+	template<typename F2, typename...Args> struct __is_nothrow_invocable : __and_<__is_invocable<F2, Args...>, __call_is_nothrow_<F2, Args...>>::type {};
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wctor-dtor-privacy"
 	struct __nonesuchbase {};
 	struct __nonesuch : private __nonesuchbase { ~__nonesuch() = delete; __nonesuch(__nonesuch const&) = delete; void operator=(__nonesuch const&) = delete; };
 	#pragma GCC diagnostic pop
-	template<typename FT, typename...Args> struct invoke_result: public __invoke_result<FT, Args...> { ARGCHK(FT); ARGSCHK; };
+	template<typename FT, typename...Args> struct invoke_result : public __invoke_result<FT, Args...> { ARGCHK(FT); ARGSCHK; };
 	template<typename F2, typename...Args> using invoke_result_t = typename invoke_result<F2, Args...>::type;
 	template<typename F2, typename...Args> struct is_invocable : __is_invocable_impl<__invoke_result<F2, Args...>, void>::type { ARGCHK(F2); ARGSCHK; };
 	template<typename RTT, typename F2, typename...Args> struct is_invocable_r: __is_invocable_impl<__invoke_result<F2, Args...>, RTT>::type { ARGCHK(F2); ARGSCHK; ARGCHK(RTT); };

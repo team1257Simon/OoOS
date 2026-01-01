@@ -56,10 +56,10 @@ bool amd64_ahci::initialize()
 		log("E: no PCI config space found for AHCI");
 		return false;
 	}
-	uint32_t bar    = __ahci_pci_space->header_0x0.bar[5];
-	__abar          = addr_t((bar & 0x00000001U) ? static_cast<uintptr_t>(bar & 0xFFFFFFFCU) : static_cast<uintptr_t>(bar & 0xFFFFFFF0U));
+	bar_desc bar	= compute_bar_info(__ahci_pci_space, 5);
+	__abar			= static_cast<hba_mem*>(map_dma(bar.base_value, bar.base_size, bar.is_prefetchable));
 	__dma_size      = __at_least(__cap_size(ooos::get_element<0>(__cfg), 2097152UZ), 65536UZ);
-	__dma_block     = allocate_dma(__dma_size, (bar & BIT(3)) != 0);
+	__dma_block		= allocate_dma(__dma_size, bar.is_prefetchable);
 	if(!__dma_block) {
 		log("E: failed to allocate DMA");
 		return false;

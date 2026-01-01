@@ -1,6 +1,5 @@
 #ifndef __DEFERRED_ACTION
 #define __DEFERRED_ACTION
-#include <kernel_api.hpp>
 #include <util/circular_queue.hpp>
 namespace ooos
 {

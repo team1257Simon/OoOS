@@ -271,6 +271,7 @@ namespace ooos
 		virtual void release_dma(void* ptr, size_t size) 																				= 0;
 		virtual void* map_dma(uintptr_t addr, size_t sz, bool prefetchable)																= 0;
 		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) 												= 0;
+		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if)								= 0;
 		virtual void* acpi_get_table(const char* label) 																				= 0;
 		virtual uintptr_t vtranslate(void* addr) noexcept																				= 0;
 		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) 												= 0;

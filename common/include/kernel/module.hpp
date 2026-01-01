@@ -77,6 +77,7 @@ namespace ooos
 		inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
 		inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, size); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
+		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if) { return __api_hooks->find_pci_device(device_class, subclass, prog_if); }
 		inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
 		inline uintptr_t vtranslate(void* ptr) noexcept { return __api_hooks->vtranslate(ptr); }
 		[[noreturn]] inline void raise_error(const char* msg, int code = -1) { __api_hooks->ctx_raise(__eh_ctx, msg, code); __builtin_unreachable(); }

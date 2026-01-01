@@ -26,7 +26,6 @@ static inline bool await_completion(time_t max_spin, FT&& ft)
 			return true;
 	return ft();
 }
-static inline addr_t compute_base_addr(uintptr_t bar) { return addr_t((bar & 0x00000001UZ) ? (bar & 0xFFFFFFFCUZ) : (bar & 0xFFFFFFF0UZ)); }
 ie1000e::config_type ie1000e::cfg	= e1000e_config();
 ooos::generic_config_table& ie1000e::get_config() { return cfg.generic; }
 size_t ie1000e::rx_limit() const noexcept { return ooos::get_element<2>(cfg); }
@@ -172,8 +171,8 @@ bool ie1000e::init_dev()
 		log("E: no device found");
 		return false;
 	}
-	uint32_t bar	= __pcie_e1000e_controller->header_0x0.bar[0];
-	addr_t base		= map_dma(compute_base_addr(bar), 0x20000UZ, (bar & BIT(3)) != 0);
+	bar_desc bar	= compute_bar_info(__pcie_e1000e_controller, 0);
+	addr_t base		= map_dma(bar.base_value, bar.base_size, bar.is_prefetchable);
 	if(__unlikely(!base)) log("E: no base address for mmio");
 	else try
 	{
