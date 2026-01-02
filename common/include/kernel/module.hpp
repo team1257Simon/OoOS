@@ -96,6 +96,9 @@ namespace ooos
 		inline size_t asprintf(const char** strp, const char* fmt, ...);
 		inline size_t logf(const char* fmt, ...);
 		inline block_io_provider_module* as_blockdev();
+		template<typename T, size_t A = alignof(T)> inline T* allocate_array(size_t num) { return array_zero(static_cast<T*>(allocate_buffer(num * sizeof(T), A)), num); }
+		template<typename T, size_t A = alignof(T)> inline T* resize_array(T* orig, size_t old_size, size_t target_size) { return static_cast<T*>(resize_buffer(orig, old_size * sizeof(T), target_size * sizeof(T), A)); }
+		template<typename T> inline void release_array(T* arr) { this->release_buffer(arr, alignof(T)); }
 	};
 	template<typename T>
 	struct module_mm_allocator
@@ -254,9 +257,9 @@ namespace ooos
 		virtual size_type avail() const override { return in.remaining(); }
 		virtual size_type tellg() const override { return out.size(); }
 		virtual uint32_t get_device_id() const noexcept override { return device_id; }
-		void create_buffer(io_buffer& b, size_type n) { b.set(new (this->allocate_buffer(n * sizeof(value_type), alignof(value_type))) value_type[n], n); }
-		void destroy_buffer(io_buffer& b) { this->release_buffer(b.beg, alignof(value_type)); b.reset(); }
-		void resize_buffer(io_buffer& b, size_type nsz) { b.set(static_cast<pointer>(abstract_module_base::resize_buffer(b.beg, b.capacity(), nsz, alignof(value_type))), nsz); }
+		void create_buffer(io_buffer& b, size_type n) { b.set(this->allocate_array<value_type>(n), n); }
+		void destroy_buffer(io_buffer& b) { this->release_array(b.beg); b.reset(); }
+		void resize_buffer(io_buffer& b, size_type nsz) { b.set(this->resize_array(b.beg, b.capacity(), nsz), nsz); }
 		value_type get();
 		bool put(input_type t);
 	};

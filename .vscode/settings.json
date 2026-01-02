@@ -130,7 +130,7 @@
     "makefile.configureOnOpen": true,
     "C_Cpp.default.cppStandard": "gnu++26",
     "C_Cpp.default.cStandard": "gnu23",
-    "C_Cpp.inlayHints.autoDeclarationTypes.enabled": true,
+    "C_Cpp.inlayHints.autoDeclarationTypes.enabled": false,
 	"editor.insertSpaces": false,
 	"editor.detectIndentation": false,
 	"disasexpl.associations": {
@@ -138,5 +138,6 @@
 		"**/*.cpp": "${fileDirname}/${fileBasenameNoExtension}.test.asm"
 	},
 	"disasexpl.dimUnusedSourceLines": false,
-	"disasexpl.useBinaryParsing": false
+	"disasexpl.useBinaryParsing": false,
+	"C_Cpp.inlayHints.autoDeclarationTypes.showOnLeft": false
 }

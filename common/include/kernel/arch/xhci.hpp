@@ -285,7 +285,7 @@ struct __pack xhci_endpoint_context
 	uint32_t						: 32;
 	uint64_t						: 64;
 };
-struct xhci_device_context
+struct attribute(aligned(64)) xhci_device_context
 {
 	xhci_slot_context slot_context;
 	xhci_endpoint_context ep0;
@@ -691,7 +691,7 @@ struct xhci_hc_mem
 		bool extended_tbc_trb_status_enable	: 1;
 		bool vtio_enable					: 1;
 		short								: 15;
-	} cmd;
+	} command;
 	struct __pack
 	{
 		bool halted						: 1;
@@ -723,50 +723,52 @@ struct xhci_hc_mem
 		} ring_ctl;
 	};
 	uint32_t rsvd1[4];
-	addr_t device_ctx_base_addr_array_ptr;		// low 6 bits must be 0; i.e. this address is 64-bytes aligned
+	xhci_device_context* attribute(aligned(64))* ctx_addr_array_ptr;
 	struct __pack
 	{
 		uint8_t max_slots_enabled	: 7;
 		bool u3_entry_enable		: 1;
 		bool config_info_enable		: 1;
 		int							: 23;
-	} configure;
+	} config;
 	uint32_t rsvd2[241];
 	xhci_hc_port port_set_1[256];
 };
-struct xhci_interrupt_register_set
+struct xhci_interrupter_register
 {
 	struct __pack
 	{
-		bool pending	: 1;
-		bool enable		: 1;
-		uint32_t		: 30;
-	} iman;
+		bool interrupt_pending	: 1;
+		bool interrupt_enable	: 1;
+		uint32_t				: 30;
+	};
 	uint16_t moderation_interval;
 	uint16_t moderation_counter;
 	uint16_t segment_table_size;	// size in entries
 	uint16_t rsvdp[3];
-	struct __pack __stb
+	struct __pack
 	{
+		typedef p2align_mask<6UZ> mask;
 		bool				: 6;
 		uintptr_t addr		: 58;
 		constexpr operator addr_t() const noexcept { return std::bit_cast<addr_t>(*this); }
-		constexpr __stb& operator=(addr_t p) noexcept { return addr_t(this).assign(mask_weave<0x3FUZ>(std::bit_cast<uintptr_t>(*this), p.full)), *this; }
+		constexpr decltype(auto) operator=(addr_t p) noexcept { return mask_assign(*this, p.full); }
 	} event_ring_segment_table_base;
-	struct __pack __rdb
+	struct __pack
 	{
+		typedef p2align_mask<4UZ> mask;
 		uint8_t dequeue_erst_segment_index	: 3;
 		bool event_handler_busy				: 1;
 		uintptr_t addr						: 60;
 		constexpr operator addr_t() const noexcept { return std::bit_cast<addr_t>(*this).trunc(1UZ << 4); }
-		constexpr __rdb& operator=(addr_t p) noexcept { return addr_t(this).assign(mask_weave<0xFUZ>(std::bit_cast<uintptr_t>(*this), p.full)), *this; }
+		constexpr decltype(auto) operator=(addr_t p) noexcept { return mask_assign(*this, p.full); }
 	} event_ring_dequeue_base;
 };
 struct xchi_hc_runtime_mem
 {
 	uint32_t microframe_index;
 	uint32_t rsvd0[7];
-	xhci_interrupt_register_set interrupt_registers[1024];
+	xhci_interrupter_register interrupters[1024];
 };
 struct xhci_doorbell
 {

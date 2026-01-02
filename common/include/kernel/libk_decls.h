@@ -1,10 +1,10 @@
 #ifndef __LIBK_DECL
 #define __LIBK_DECL
 #include <kernel_defs.h>
+#ifdef __cplusplus
 #include <new>
 #include <memory>
-#include <tuple>
-#ifdef __cplusplus
+#include <cxx26_decls.hpp>
 namespace std
 {
 	attribute(__always_inline__, __visibility__("default")) inline void __libk_assert_fail(){}
@@ -13,22 +13,12 @@ namespace std
 		if(is_constant_evaluated() && !(cond))	\
 		__libk_assert_fail();					\
 	} while(false)
-	template<bool ... Bs, size_t ... Is>
-	consteval size_t __first_false_helper(tuple<bool_constant<Bs>...>, index_sequence<Is...>)
-	{
-		template for(constexpr size_t i : { Is ... })
-			if constexpr(!(Bs...[i]))
-				return i;
-		return sizeof...(Bs);
-	}
-	template<bool ... Bs>
-	consteval size_t first_false_in() { return __first_false_helper(tuple<bool_constant<Bs>...>(), make_index_sequence<sizeof...(Bs)>()); }
 	// Helper for circumventing the restriction on the scope of concepts.
 	template<typename T, template<typename> class C>
 	struct __trait_substitution
 	{
 		typedef C<T> __sub_t;
-		constexpr static bool __evaluate() noexcept requires(requires{ { __sub_t::value } -> convertible_to<bool>; }) { return __sub_t::value; }
+		constexpr static bool __evaluate() noexcept requires(std::convertible_to<decltype(__sub_t::value), bool>) { return __sub_t::value; }
 		constexpr static bool __evaluate() noexcept { return false; }
 		typedef bool_constant<__evaluate()> type;
 	};
@@ -170,7 +160,8 @@ constexpr T* array_fill(void* dest, T value, std::size_t n) noexcept
 	else return static_cast<T*>(__builtin_memset(dest, value, n));
 
 }
-template<trivial_copy T> constexpr T* array_init(T* dest, T const* src, size_t n)
+template<trivial_copy T>
+constexpr T* array_init(T* dest, T const* src, size_t n)
 {
 	if consteval
 	{
@@ -281,9 +272,10 @@ struct bit_or
     template<I I1> constexpr static I value(S<I1>) { return I1; }
     template<I I1, I ... Js> constexpr static I value(S<I1>, S<Js>...) { return value(S<I1>()) | value(S<Js>()...); }
 };
-template<uint64_t V> using u64_shift	= bit_shift<uint64_t, V>;
+template<uint64_t V> using u64_shift		= bit_shift<uint64_t, V>;
 typedef bit_or<uint64_t, c_u64> u64_or;
-template<uint64_t ... Is> using bit_mask = c_u64<u64_or::template value(u64_shift<Is>()...)>;
+template<uint64_t ... Is> using bit_mask	= c_u64<u64_or::template value(u64_shift<Is>()...)>;
+template<uint64_t N> using p2align_mask		= bit_mask<__integer_pack(N)...>;
 template<uint16_t PV, uint16_t BV = 0US, size_t NB = 8UZ>
 constexpr uint16_t crc16_table_val(uint16_t i)
 {
@@ -298,10 +290,25 @@ constexpr uint16_t crc16_table_val(uint16_t i)
 	}
 	return res ^ BV;
 }
-template<uintptr_t MV> constexpr uintptr_t mask_weave(uintptr_t a, uintptr_t b) noexcept { return (a & MV) | (b & ~MV); }
+template<typename T, typename I>
+concept maskable = requires
+{
+	typename T::mask;
+	requires(std::integral<I>);
+	{ T::mask::value } -> std::convertible_to<I>;
+	{ std::bit_cast<I>(std::declval<T>()) } -> std::same_as<I>;
+};
+template<std::integral I, I MV> constexpr I mask_weave(I a, I b) noexcept { return static_cast<I>((a & MV) | (b & ~MV)); }
+template<std::integral I, maskable<I> T>
+constexpr T& mask_assign(T& t, I val)
+{
+	I t_as_i	= std::bit_cast<I>(t);
+	addr_t(std::addressof(t)).assign(mask_weave<I, T::mask::value>(t_as_i, val));
+	return t;
+}
 #if defined(__KERNEL__) || defined(__LIBK__)
-template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
-template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(&t), sizeof(T)); }
+template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, addr_t(std::addressof(t)), sizeof(T)); }
+template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, addr_t(std::addressof(t)), sizeof(T)); }
 inline uint32_t crc32c(uint32_t start, const char* c, size_t l) { return crc32c_x86_3way(start, reinterpret_cast<uint8_t const*>(c), l); }
 void kfx_save();
 void kfx_load();

@@ -11,14 +11,14 @@ void amd64_serial::__trim_old() noexcept
 	{
 		size_type rem		= amd64_serial::avail();
 		size_type old_cap	= in.capacity();
-		pointer new_buf		= static_cast<pointer>(allocate_buffer(in.capacity(), alignof(value_type)));
-		if(!new_buf) raise_error("out of memory");
+		pointer new_buf		= allocate_array<value_type>(in.capacity());
+		if(!new_buf) raise_error("out of memory", -ENOMEM);
 		__builtin_memcpy(new_buf, in.cur, rem);
 		destroy_buffer(in);
 		in.set(new_buf, new_buf, new_buf + old_cap);
 		__input_pos			= in.beg + rem;
 	}
-	catch(...) { raise_error("out of memory"); }
+	catch(...) { raise_error("out of memory", -ENOMEM); }
 }
 static bool loopback_test(word port)
 {
