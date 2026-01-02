@@ -265,7 +265,7 @@ struct __pack xhci_slot_context
 };
 struct __pack xhci_endpoint_context
 {
-	endpoint_state state			: 2;
+	endpoint_state state			: 3;
 	bool							: 5;
 	uint8_t mult					: 2;	// maximum number of bursts within an interval supported; actual value is 1 higher
 	uint8_t max_primary_streams		: 5;
@@ -361,7 +361,7 @@ struct __pack setup_stage_trb_data
 	setup_request_type request_type		: 2;
 	setup_request_recipient recipient	: 5;
 	setup_request_code request_code;
-	union [[gnu::may_alias]] value_field
+	union __pack [[gnu::may_alias]] value_field
 	{
 		empty_word empty{};
 		xhci_descriptor_request_value descriptor;
@@ -370,14 +370,14 @@ struct __pack setup_stage_trb_data
 		feature_selector feature;
 		xhci_alternate_setting alternate_setting;
 	} value;
-	union [[gnu::may_alias]] low_index_field
+	union __pack [[gnu::may_alias]] low_index_field
 	{
 		empty_byte empty{};
 		xhci_index_for_endpoint endpoint;
 		xhci_index_for_interface interface;
 		uint8_t lang_id_lo;
 	} index;
-	union [[gnu::may_alias]] high_index_field
+	union __pack [[gnu::may_alias]] high_index_field
 	{
 		empty_byte empty{};
 		test_selector feature_set_test_selector;
@@ -433,7 +433,7 @@ struct __pack extended_property_cmd_trb_dw2
 struct __pack cmd_trb_dw2
 {
 	uint16_t				: 16;
-	union [[gnu::may_alias]]
+	union __pack [[gnu::may_alias]]
 	{
 		empty_byte empty{};
 		uint16_t stream_id;

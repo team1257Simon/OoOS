@@ -7,12 +7,13 @@ enum ht
 	br	= 0x1,	// pci-to-pci bridge
 	cb	= 0x2	// cardbus bridge
 };
-enum
+enum class pci_capability_id : uint8_t
 {
-	CID_POWER_MANAGEMENT	= 0x01,
-	CID_MSI					= 0x05,
-	CID_PCIE				= 0x10,
-	CID_SATA				= 0x12,
+	POWER_MANAGEMENT	= 0x01UC,
+	MSI					= 0x05UC,
+	PCIE				= 0x10UC,
+	MSIX				= 0x11UC,
+	SATA				= 0x12UC,
 	// ...
 };
 struct attribute(packed, aligned(4)) pci_config_space
@@ -136,10 +137,16 @@ struct attribute(packed, aligned(4)) pci_config_space
 	} __pack;
 	uint8_t device_specific[3948];
 };
+struct __pack pci_msix_bir
+{
+	uint8_t bar_idx			: 3;	// which BAR is used for the MSI-X base address
+	uint32_t table_offset	: 29;
+	constexpr operator size_t() const noexcept { if consteval { return static_cast<size_t>(table_offset) << 3; } else { return static_cast<size_t>(std::bit_cast<uint32_t>(*this) & ~0b111U); } }
+};
 struct attribute(packed, aligned(4)) pci_capabilities_register
 {
-	uint8_t capability_id;
-	uint8_t next;			// offset to the next register
+	pci_capability_id id;
+	uint8_t next;			// offset from the start of the config space to the next capabilities register
 	volatile union
 	{
 		struct
@@ -163,8 +170,8 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 				uint8_t data_scale	: 2;
 				bool pme_status		: 1;
 			} __pack ctl_status;
-			uint8_t bridge_support_extensions	: 8;
-			uint8_t data						: 8;
+			uint8_t bridge_support_extensions;
+			uint8_t data;
 		} __pack power_management;
 		struct
 		{
@@ -174,12 +181,42 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 				uint8_t multi_message_capable	: 3;
 				uint8_t multi_message_enable	: 3;
 				bool x64_capable				: 1;
-				uint8_t							: 8;
+				bool							: 8;
 			} __pack message_control;
-			uintptr_t message_address			: 64;
-			uint16_t message_data				: 16;
-			uint16_t							: 16;
-		} __pack message_signaled_interrupts;
+			uint32_t message_address;
+			uint16_t message_data;
+			short								: 16;
+			uint32_t mask_bits;
+			uint32_t pending_bits;
+		} __pack msi_32;
+		struct
+		{
+			struct
+			{
+				bool msi_enable					: 1;
+				uint8_t multi_message_capable	: 3;
+				uint8_t multi_message_enable	: 3;
+				bool x64_capable				: 1;
+				bool							: 8;
+			} __pack message_control;
+			uint64_t message_address;
+			uint16_t message_data;
+			short								: 16;
+			uint32_t mask_bits;
+			uint32_t pending_bits;
+		} __pack msi_64;
+		struct
+		{
+			struct
+			{
+				uint16_t table_size	: 11;
+				bool				: 3;
+				bool function_mask	: 1;
+				bool msix_enable	: 1;
+			} __pack message_control;
+			pci_msix_bir table_offset;
+			pci_msix_bir pending_bit_array_offset;
+		} __pack msix;
 		struct
 		{
 			struct
@@ -238,31 +275,32 @@ struct bar_desc
 	addr_t base_value;
 	size_t base_size;
 };
-attribute(nonnull)
-inline bar_desc compute_bar_info(pci_config_space volatile* dev, int i)
+inline bar_desc compute_bar_info(pci_config_space volatile& dev, int i)
 {
-	if(__unlikely(dev->header_type == 0x2 || (i > (dev->header_type == 0x1 ? 2 : 6)))) return bar_desc();
-	uint16_t volatile* cmd_reg		= reinterpret_cast<uint16_t volatile*>(std::addressof(dev->command));
+	if(__unlikely(dev.header_type == 0x2 || (i > (dev.header_type == 0x1 ? 2 : 6)))) return bar_desc();
+	uint16_t volatile* cmd_reg		= reinterpret_cast<uint16_t volatile*>(std::addressof(dev.command));
 	uint16_t cmd_saved				= *cmd_reg;
 	barrier();
-	dev->command.io_space			= false;
-	dev->command.memory_space		= false;
+	dev.command.io_space			= false;
+	dev.command.memory_space		= false;
 	barrier();
-	uint32_t volatile* bar_reg		= std::addressof((dev->header_type == 0x0 ? dev->header_0x0.bar : dev->header_0x1.bar)[i]);
+	uint32_t volatile* bar_reg		= std::addressof((dev.header_type == 0x0 ? dev.header_0x0.bar : dev.header_0x1.bar)[i]);
 	uint32_t bar_value				= bar_reg[0];
 	bool is_io_bar					= (bar_value & BIT(0)) != 0U;
-	bool is_long_bar				= (bar_value & BIT(2)) != 0U;
+	bool is_long_bar				= is_io_bar ? false : (bar_value & BIT(2)) != 0U;
 	bool is_prefetchable			= is_io_bar ? false : (bar_value & BIT(3)) != 0U;
 	uint32_t value_mask				= is_io_bar ? 0xFFFFFFFCU : 0xFFFFFFF0U;
 	uint32_t masked_value			= bar_value & value_mask;
+	uint32_t hi_value				= is_long_bar ? bar_reg[1] : 0U;
 	barrier();
 	bar_reg[0]						= 0xFFFFFFFFU;
+	if(is_long_bar) bar_reg[1]		= 0xFFFFFFFFU;
 	barrier();
 	uint32_t size_indicator			= bar_reg[0];
+	uint32_t size_hi				= is_long_bar ? bar_reg[1] : 0U;
 	barrier();
 	bar_reg[0]						= bar_value;
-	barrier();
-	uint32_t hi_value				= is_long_bar ? bar_reg[1] : 0U;
+	if(is_long_bar) bar_reg[1]		= hi_value;
 	barrier();
 	*cmd_reg						= cmd_saved;
 	barrier();
@@ -271,13 +309,29 @@ inline bar_desc compute_bar_info(pci_config_space volatile* dev, int i)
 		.is_mmap_bar				= !is_io_bar,
 		.is_prefetchable			= is_prefetchable,
 		.base_value					= addr_t(qword(masked_value, hi_value)),
-		.base_size					= (~(size_indicator & value_mask) + 1U),
+		.base_size					= qword(~(size_indicator & value_mask) + 1U, size_hi),
 	};
+}
+inline pci_capabilities_register* get_capability_register(pci_config_space const volatile& device)
+{
+    if(__unlikely(!device.status.capabilities_list)) return nullptr;
+	switch(device.header_type & ~0x80UC)
+	{
+		case st: return addr_t(std::addressof(device)).plus(device.header_0x0.capabilities_pointer & 0xFCUC);
+		case br: return addr_t(std::addressof(device)).plus(device.header_0x1.capabilities_pointer & 0xFCUC);
+		case cb: return addr_t(std::addressof(device)).plus(device.header_0x2.capabilities_pointer & 0xFCUC);
+		default: return nullptr;
+	}
+}
+inline pci_capabilities_register* find_capability_register(pci_config_space const volatile& device, pci_capability_id id)
+{
+	for(pci_capabilities_register* reg = get_capability_register(device); reg != nullptr; reg = reg->next ? addr_t(std::addressof(device)).plus(reg->next & 0xFCUC) : nullptr)
+		if(reg->id == id)
+			return reg;
+	return nullptr;
 }
 #if defined(__KERNEL__) || defined(__LIBK__)
 pci_config_table* find_pci_config();
 pci_config_space* get_device(pci_config_table* tb, uint8_t bus, uint8_t slot, uint8_t func);
-pci_capabilities_register* get_first_capability_register(pci_config_space* device);
-pci_capabilities_register* get_next_capability_register(pci_config_space* device, pci_capabilities_register* r);
 #endif
 #endif

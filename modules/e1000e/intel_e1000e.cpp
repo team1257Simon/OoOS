@@ -171,7 +171,7 @@ bool ie1000e::init_dev()
 		log("E: no device found");
 		return false;
 	}
-	bar_desc bar	= compute_bar_info(__pcie_e1000e_controller, 0);
+	bar_desc bar	= compute_bar_info(*__pcie_e1000e_controller, 0);
 	addr_t base		= map_dma(bar.base_value, bar.base_size, bar.is_prefetchable);
 	if(__unlikely(!base)) log("E: no base address for mmio");
 	else try

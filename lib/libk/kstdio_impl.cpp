@@ -76,13 +76,16 @@ size_t __arg_insert_fpx(FT f, std::basic_streambuf<char>* stream, size_t minwid,
 }
 size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_list args)
 {
-	size_t n	= std::strlen(fmt);
 	typedef const char* cstr;
-	size_t cnt	= 0;
+	size_t n	= std::strlen(fmt) + 1UZ;
+	size_t cnt	= 0UZ;
 	cstr c, d, end;
-	for(c = fmt, d = std::find(fmt, n, '%'), end = fmt + n; d && d < end; c = d + 1, d = std::find(c, n, '%'))
+	for(c = fmt, end = fmt + n; c < end; c = d)
 	{
-		cnt += stream->sputn(c, static_cast<std::streamsize>(d - c));
+		d						= std::find(c, static_cast<size_t>(end - c), '%');
+		if(!d) d				= end;
+		if(d != c)
+			cnt					+= stream->sputn(c, static_cast<std::streamsize>(d - c));
 		char spec				= d[1];
 		bool zeropad			= false;
 		bool left				= false;
@@ -98,7 +101,7 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
 		bool finish				= false;
 		char* tmpptr			= nullptr;
 		int tmpint				= 0;
-		for(cstr e = d + 1; e < end && !finish; e++) // <ObligatoryReference>E</ObligatoryReference>
+		for(++d; d < end && !finish; d++)
 		{
 			switch(spec)
 			{
@@ -231,7 +234,7 @@ size_t __kvfprintf_impl(std::basic_streambuf<char>* stream, const char* fmt, va_
 			}
 		}
 	}
-	stream->pubsync();
+	if(cnt) stream->pubsync();
 	return cnt;
 }
 typedef int FILE;
