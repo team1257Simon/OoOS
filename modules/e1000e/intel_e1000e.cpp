@@ -47,7 +47,7 @@ void ie1000e::fini_dev() {
 }
 bool ie1000e::__mdio_await(mdic& mdic_reg)
 {
-	return await_completion(ooos::get_element<6>(cfg), [&mdic_reg, this]() -> bool 
+	return await_completion(ooos::get_element<6>(cfg), [&mdic_reg, this] -> bool 
 	{
 		io_wait();
 		read_dma(e1000_mdic, mdic_reg);
@@ -67,7 +67,7 @@ bool ie1000e::dev_reset()
 	barrier();
 	ctrl->reset = true;
 	write_dma(e1000_ctrl, ctrl);
-	if(__unlikely(!await_completion(ooos::get_element<6>(cfg), [&ctrl, this]() -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) {
+	if(__unlikely(!await_completion(ooos::get_element<6>(cfg), [&ctrl, this] -> bool { io_wait(); read_dma(e1000_ctrl, ctrl); return !ctrl->reset; }))) {
 		log("E: device hung on reset");
 		return false;
 	}
@@ -144,7 +144,7 @@ uint16_t ie1000e::read_eeprom(uint16_t eep_addr)
 		}
 	};
 	write_dma(e1000_eerd, rd);
-	await_completion(ooos::get_element<6>(cfg), [&rd, this]() -> bool { io_wait(); read_dma(e1000_eerd, rd); return rd->read_done; });
+	await_completion(ooos::get_element<6>(cfg), [&rd, this] -> bool { io_wait(); read_dma(e1000_eerd, rd); return rd->read_done; });
 	return rd->read_data;
 }
 void ie1000e::write_phy(int phy_reg, uint16_t data)
@@ -267,7 +267,7 @@ bool ie1000e::configure_mac_phy(dev_status& st) try
 	read_dma(e1000_ctrl, ctl);
 	ctl->set_link_up    = true;
 	write_dma(e1000_ctrl, ctl);
-	if(await_completion(ooos::get_element<6>(cfg), [&st, this]() -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
+	if(await_completion(ooos::get_element<6>(cfg), [&st, this] -> bool { io_wait(); read_status(st); return st->link_up; })) return true;
 	log("E: device hung on link-up signal");
 	return false;
 }
@@ -341,7 +341,7 @@ int ie1000e::poll_tx(netstack_buffer& buff)
 	tail.fields.status					= 0UC;
 	tx_ring.tail_descriptor				= (tx_ring.tail_descriptor + 1U) % tx_ring.count();
 	write_dma(txt, tx_ring.tail_descriptor);
-	if(!await_completion(ooos::get_element<6>(cfg), [&tail, this]() -> bool { io_wait(); return (tail.fields.status & 0x1UC) != 0; })) return -ENETDOWN;
+	if(!await_completion(ooos::get_element<6>(cfg), [&tail, this] -> bool { io_wait(); return (tail.fields.status & 0x1UC) != 0; })) return -ENETDOWN;
 	return 0;
 }
 int ie1000e::poll_rx()

@@ -258,6 +258,12 @@ namespace ooos
 			}
 		}
 	}
+	kernel_api* get_api_instance()
+	{
+		if(__unlikely(!__api_impl.pci || !__api_impl.mm))
+			return nullptr;
+		else return std::addressof(__api_impl);
+	}
 	void init_api()
 	{
 		__api_impl.pci		= pci_device_list::get_instance();
@@ -270,5 +276,14 @@ namespace ooos
 		register_type(typeid(abstract_netdev));
 		register_type(typeid(abstract_netdev_module));
 	}
-	kernel_api* get_api_instance() { if(__unlikely(!__api_impl.pci || !__api_impl.mm)) return nullptr; else return std::addressof(__api_impl); }
+	void module_takedown(abstract_module_base* mod)
+	{
+		if(mod && mod->__api_hooks)
+		{
+			mod->finalize();
+			if(mod->__fini_fn) (*mod->__fini_fn)();
+			mod->__api_hooks->remove_actors(mod);
+			if(mod->__allocated_mm) mod->__api_hooks->destroy_mm(mod->__allocated_mm);
+		}
+	}
 }

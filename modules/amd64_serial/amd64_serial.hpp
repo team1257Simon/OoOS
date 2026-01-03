@@ -182,7 +182,7 @@ constexpr auto serial_config()
 		ooos::parameter("trim_on_read",		false)
 	);
 }
-struct amd64_serial : ooos::io_module_base<char>
+struct amd64_serial final : ooos::io_module_base<char>
 {
 	typedef decltype(serial_config()) config_type;
 private:

@@ -597,6 +597,7 @@ void run_tests()
 		{
 			if(e.kv_vstate.ctrl()) direct_putch('^');
 			if(e.kv_vstate.alt()) direct_putch('~');
+			if(e.kv_vstate.gui()) direct_putch('#');
 			direct_putch(ch);
 		}
 	});

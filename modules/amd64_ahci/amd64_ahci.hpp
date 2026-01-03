@@ -418,7 +418,7 @@ constexpr auto ahci_config()
 		ooos::parameter("prdt_max_bytes", 		8192UZ)
 	);
 }
-class ahci_port : public ooos::abstract_block_device
+class ahci_port final : public ooos::abstract_block_device
 {
 	amd64_ahci& __module;
 	hba_port& __port;
@@ -448,7 +448,7 @@ public:
 	size_t sectors_per_prdt_entry() const noexcept;
 	size_t command_table_size() const noexcept;
 };
-struct amd64_ahci : ooos::block_io_provider_module
+struct amd64_ahci final : ooos::block_io_provider_module
 {
 	typedef decltype(ahci_config()) config_type;
 private:
@@ -464,6 +464,7 @@ private:
 	friend class ahci_port;
 	void __handle_irq(dword s);
 	void __irq_init();
+	bool __handoff_done() noexcept;
 public:
 	amd64_ahci() noexcept;
 	virtual bool initialize() override;

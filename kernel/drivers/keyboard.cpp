@@ -9,9 +9,8 @@ namespace ooos
 	using enum keycode;
 	typedef keyboard_event const scancode_table[2][256];
 	// Helper functions to build the prototype packets for the scancode tables.
-	// Other than the unknown scan helpers and to_break, these should only be used in constant-evaluated context (i.e. in building the scancode tables).
 #pragma region packet prototypes
-	constexpr keyboard_event of_unicode(wchar_t unicode, bool is_break, bool is_numpad) noexcept
+	consteval keyboard_event of_unicode(wchar_t unicode, bool is_break, bool is_numpad) noexcept
 	{
 		return keyboard_event
 		{
@@ -21,49 +20,38 @@ namespace ooos
 			.kv_multiscan	= false
 		};
 	}
-	constexpr keyboard_event of_special(keycode keycode, bool is_break) noexcept
+	consteval keyboard_event of_special(keycode code, bool is_break) noexcept
 	{
 		return keyboard_event
 		{
-			.kv_code			= static_cast<wchar_t>(keycode),
+			.kv_code			= static_cast<wchar_t>(code),
 			.kv_release			= is_break,
-			.kv_multiscan		= (!is_break && keycode == KC_SEQB),
+			.kv_multiscan		= (!is_break && code == KC_SEQB),
 			.kv_vstate
 			{
-				.left_ctrl		= (keycode == KC_LCTRL),
-				.right_ctrl		= (keycode == KC_RCTRL),
-				.left_alt		= (keycode == KC_LALT),
-				.right_alt		= (keycode == KC_RALT),
-				.left_shift		= (keycode == KC_LSHFT),
-				.right_shift	= (keycode == KC_RSHFT),
-				.caps_lock		= (!is_break && keycode == KC_CAPS),
-				.num_lock		= (!is_break && keycode == KC_NUM)
+				.left_ctrl		= (code == KC_LCTRL),
+				.left_shift		= (code == KC_LSHFT),
+				.left_alt		= (code == KC_LALT),
+				.left_gui		= (code == KC_LGUI),
+				.right_ctrl		= (code == KC_RCTRL),
+				.right_shift	= (code == KC_RSHFT),
+				.right_alt		= (code == KC_RALT),
+				.right_gui		= (code == KC_RGUI)
 			}
 		};
 	}
-	// Converts a key-down packet into the equivalent key-up
-	constexpr keyboard_event to_break(keyboard_event const& make) noexcept
-	{
-		// Everything except the values of kv_release, kv_vstate.caps_lock, and kv_vstate.num_lock remain identical.
-		// Break events shouldn't toggle the locks, so we clear those bits in the XOR mask.
-		keyboard_event result(make);
-		result.kv_release 			= true;
-		result.kv_vstate.caps_lock 	= false;
-		result.kv_vstate.num_lock 	= false;
-		return result;
-	}
 	// key down for a character key
-	constexpr keyboard_event c_dn(wchar_t code) noexcept { return of_unicode(code, false, false); }
+	consteval keyboard_event c_dn(wchar_t code) noexcept { return of_unicode(code, false, false); }
 	// key down for a numpad character key
-	constexpr keyboard_event n_dn(wchar_t code) noexcept { return of_unicode(code, false, true); }
+	consteval keyboard_event n_dn(wchar_t code) noexcept { return of_unicode(code, false, true); }
 	// key down for a special (i.e. non-character) key
-	constexpr keyboard_event s_dn(keycode code) noexcept { return of_special(code, false); }
+	consteval keyboard_event s_dn(keycode code) noexcept { return of_special(code, false); }
 	// key up for a character key
-	constexpr keyboard_event c_up(wchar_t code) noexcept { return of_unicode(code, true, false); }
+	consteval keyboard_event c_up(wchar_t code) noexcept { return of_unicode(code, true, false); }
 	// key up for a numpad character key
-	constexpr keyboard_event n_up(wchar_t code) noexcept { return of_unicode(code, true, true); }
+	consteval keyboard_event n_up(wchar_t code) noexcept { return of_unicode(code, true, true); }
 	// key up for a special (i.e. non-character) key
-	constexpr keyboard_event s_up(keycode code) noexcept { return of_special(code, true); }
+	consteval keyboard_event s_up(keycode code) noexcept { return of_special(code, true); }
 	// unknown scancode
 	constexpr keyboard_event uk_sc(uint8_t scan) noexcept { return keyboard_event(static_cast<wchar_t>(KC_UNKNOWN) | scan); }
 	// unknown extended/escaped scancode
@@ -93,7 +81,7 @@ namespace ooos
 #pragma endregion
 	// Scanset 1 decode tables
 #pragma region scanset 1
-	static scancode_table set1
+	constinit scancode_table set1
 	{
 		{
 			uk_sc(0x00UC),		c_dn('\033'),		c_dn('1'),			c_dn('2'),
@@ -228,11 +216,11 @@ namespace ooos
 			uk_ex(0xFCUC),		uk_ex(0xFDUC),		uk_ex(0xFEUC),		uk_ex(0xFFUC)
 		}
 	};
-	static uint8_t pause_set1[]{ 0xE1UC, 0x1DUC, 0x45UC, 0xE1UC, 0x9DUC, 0xC5UC };
+	constinit uint8_t pause_set1[]{ 0xE1UC, 0x1DUC, 0x45UC, 0xE1UC, 0x9DUC, 0xC5UC };
 #pragma endregion
 	// Scanset 2 decode tables
 #pragma region scanset 2
-	static scancode_table set2
+	constinit scancode_table set2
 	{
 		{
 			uk_sc(0x00UC),		s_dn(KC_F9),		uk_sc(0x02UC),		s_dn(KC_F5),
@@ -319,11 +307,11 @@ namespace ooos
 			uk_ex(0x3CUC),		uk_ex(0x3DUC),		uk_ex(0x3EUC),		s_dn(KC_SLEEP),
 			s_dn(KC_M16),		uk_ex(0x41UC),		uk_ex(0x42UC),		uk_ex(0x43UC),
 			uk_ex(0x44UC),		uk_ex(0x45UC),		uk_ex(0x46UC),		uk_ex(0x47UC),
-			s_dn(KC_M17),		uk_ex(0x49UC),		n_dn('/'),		uk_ex(0x4BUC),
+			s_dn(KC_M17),		uk_ex(0x49UC),		n_dn('/'),			uk_ex(0x4BUC),
 			uk_ex(0x4CUC),		s_dn(KC_M2),		uk_ex(0x4EUC),		uk_ex(0x4FUC),
 			s_dn(KC_M18),		uk_ex(0x51UC),		uk_ex(0x52UC),		uk_ex(0x53UC),
 			uk_ex(0x54UC),		uk_ex(0x55UC),		uk_ex(0x56UC),		uk_ex(0x57UC),
-			uk_ex(0x58UC),		uk_ex(0x59UC),		n_dn('\n'),		uk_ex(0x5BUC),
+			uk_ex(0x58UC),		uk_ex(0x59UC),		n_dn('\n'),			uk_ex(0x5BUC),
 			uk_ex(0x5CUC),		uk_ex(0x5DUC),		s_dn(KC_WAKE),		uk_ex(0x5FUC),
 			uk_ex(0x60UC),		uk_ex(0x61UC),		uk_ex(0x62UC),		uk_ex(0x63UC),
 			uk_ex(0x64UC),		uk_ex(0x65UC),		uk_ex(0x66UC),		uk_ex(0x67UC),
@@ -367,11 +355,11 @@ namespace ooos
 			uk_ex(0xFCUC),		uk_ex(0xFDUC),		uk_ex(0xFEUC),		uk_ex(0xFFUC)
 		}
 	};
-	static uint8_t pause_set2[]{ 0xE1UC, 0x14UC, 0x77UC, 0xE1UC, 0xF0UC, 0x14UC, 0xF0UC, 0x77UC };
+	constinit uint8_t pause_set2[]{ 0xE1UC, 0x14UC, 0x77UC, 0xE1UC, 0xF0UC, 0x14UC, 0xF0UC, 0x77UC };
 #pragma endregion
 	// Scanset 3 decode table — just one, as set 3 doesn't use the extension byte like the other 2 sets do
 #pragma region scanset 3
-	static scancode_table set3
+	constinit scancode_table set3
 	{
 		{
 			uk_sc(0x00UC),		uk_sc(0x01UC),		uk_sc(0x02UC),		uk_sc(0x03UC),
@@ -445,8 +433,8 @@ namespace ooos
 	// Helper functions for handling the character value in the packets and the multiplexing for the scanset tables
 #pragma region miscellaneous helpers
 	// Case difference, for shifts and caps lock
-	constexpr char case_diff 					= 'a' - 'A';
-	static std::array<char, 127> shift_table	= std::ext::range_evaluate<char, '\177'>([](char value) -> char
+	constexpr char case_diff 							= 'a' - 'A';
+	constinit static std::array<char, 127> shift_table	= std::ext::range_evaluate<char, '\177'>([](char value) constexpr -> char
 	{
 		if(value >= 'a' && value <= 'z') return value - case_diff;
 		else if(value >= 'A' && value <= 'Z') return value + case_diff;
@@ -493,12 +481,19 @@ namespace ooos
 			default:		return static_cast<keycode>(base);
 		}
 	}
-	static keycode compute_by_state(keyboard_event const& e)
+	// Converts a key-down packet into the equivalent key-up
+	static keyboard_event to_break(keyboard_event const& make) noexcept
+	{
+		keyboard_event result(make);
+		result.kv_release 			= true;
+		return result;
+	}
+	static keycode compute_by_state(keyboard_event const& e, keyboard_lstate const& locks)
 	{
 		wchar_t value	= e;
 		bool is_shift	= e.kv_vstate.shift();
-		if(e.kv_numpad && (e.kv_vstate.num_lock || is_shift)) return numpad_shift(value);
-		if(e.kv_vstate.caps_lock && (value >= 'a' && value <= 'z')) value -= case_diff;
+		if(e.kv_numpad && (locks.num || is_shift)) return numpad_shift(value);
+		if(locks.caps && (value >= 'a' && value <= 'z')) value -= case_diff;
 		if(value < 127 && is_shift) value = shift_table[value];
 		return static_cast<keycode>(value);
 	}
@@ -571,7 +566,7 @@ seq_fail:
 		__pause_sequence(pause_sequence(ss)),
 		__pause_sequence_length(pause_sequence_length(ss)),
 		current_state(),
-		led_state()
+		lock_state()
 	{}
 	keyboard_scan_decoder::keyboard_scan_decoder() noexcept :
 		__scans(set2[0]),
@@ -579,7 +574,7 @@ seq_fail:
 		__pause_sequence(pause_set2),
 		__pause_sequence_length(sizeof(pause_set2)),
 		current_state(),
-		led_state()
+		lock_state()
 	{}
 	void keyboard_scan_decoder::set_scanset(keyboard_scanset ss) noexcept
 	{
@@ -599,11 +594,11 @@ seq_fail:
 			current_state		= std::bit_cast<keyboard_vstate>(mod_state);
 			if(!e.kv_release)
 			{
-				led_state.caps_lock		^= (e == KC_CAPS);
-				led_state.num_lock		^= (e == KC_NUM);
-				led_state.scroll_lock	^= (e == KC_SCRLL);
+				lock_state.caps		^= (e == KC_CAPS);
+				lock_state.num		^= (e == KC_NUM);
+				lock_state.scroll	^= (e == KC_SCRLL);
 			}
-			e.kv_code			= static_cast<wchar_t>(compute_by_state(e));
+			e.kv_code			= static_cast<wchar_t>(compute_by_state(e, lock_state));
 		}
 		scan_bytes.flush();
 		return e;
@@ -674,7 +669,7 @@ seq_fail:
 	bool ps2_keyboard_controller::enqueue_command(keyboard_command&& cmd) noexcept
 	{
 		if(__unlikely(!__state_valid)) return false;
-		try { __cmd_queue.push(std::move(cmd)); return true; }
+		try { return __cmd_queue.push(std::move(cmd)), true; }
 		catch(std::exception& e) { panic(e.what()); }
 		return false;
 	}
@@ -714,12 +709,12 @@ seq_fail:
 	}
 	bool ooos::ps2_keyboard_controller::set_leds(keyboard_lstate lstate) noexcept
 	{
-		uint8_t as_uchar = std::bit_cast<uint8_t>(lstate);
+		uint8_t as_uchar	= std::bit_cast<uint8_t>(lstate);
 		keyboard_command cmd
 		{
-			.has_sub 	= true,
-			.cmd_byte 	= KBC_SET_LEDS,
-			.sub 		= as_uchar
+			.has_sub 		= true,
+			.cmd_byte 		= KBC_SET_LEDS,
+			.sub 			= as_uchar
 		};
 		return enqueue_command(std::move(cmd));
 	}
@@ -727,7 +722,7 @@ seq_fail:
 	{
 		if(__unlikely(!__controller))
 			return;
-		interrupt_table::add_irq_handler(1UC, [this]() -> void { __on_irq(); });
+		interrupt_table::add_irq_handler(1UC, std::bind(&ps2_keyboard::__on_irq, this));
 	}
 	void ps2_keyboard::__on_irq()
 	{
@@ -740,9 +735,9 @@ seq_fail:
 			status			= __controller.__ps2_controller.status();
 		} while(status.ps2_out_avail);
 		if(__unlikely(!__input_queue)) return;
-		uint8_t lights		= std::bit_cast<uint8_t>(__decoder.led_state);
+		uint8_t locks		= std::bit_cast<uint8_t>(__decoder.lock_state);
 		keyboard_event e	= __decoder.decode(__input_queue);
-		if(uint8_t nlights 	= std::bit_cast<uint8_t>(__decoder.led_state); nlights != lights) __controller.set_leds(__decoder.led_state);
+		if(uint8_t nlocks 	= std::bit_cast<uint8_t>(__decoder.lock_state); nlocks != locks) __controller.set_leds(__decoder.lock_state);
 		for(keyboard_listener_registry::value_type const& p : __listeners) p.second(e);
 	}
 }

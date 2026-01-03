@@ -3,6 +3,7 @@
 #include <arch/ps2.hpp>
 #include <util/circular_queue.hpp>
 #include <util/event_listener.hpp>
+#include <keyboard_event.hpp>
 #include <unordered_map>
 namespace ooos
 {
@@ -28,7 +29,7 @@ namespace ooos
 		keyboard_event __decode_one_seq(uint8_t seq_bookend, byte_queue& rem) const;
 	public:
 		keyboard_vstate current_state;
-		keyboard_lstate led_state;
+		keyboard_lstate lock_state;
 		keyboard_scan_decoder(keyboard_scanset ss) noexcept;
 		keyboard_scan_decoder() noexcept;
 		void set_scanset(keyboard_scanset ss) noexcept;

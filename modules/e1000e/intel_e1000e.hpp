@@ -553,7 +553,7 @@ constexpr auto e1000e_config()
 		ooos::parameter("max_spin",					static_cast<time_t>(10000000UL))
 	);
 }
-class ie1000e : public ooos::abstract_netdev_module
+class ie1000e final : public ooos::abstract_netdev_module
 {
 	addr_t __mmio_region;
 	pci_config_space* __pcie_e1000e_controller;
