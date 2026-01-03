@@ -26,8 +26,7 @@ SECTIONS
 	 *(.got.plt)
 	 *(.got)
 
-	 /* the EFI loader doesn't seem to like a .bss section, so we stick
-			it all into .data: */
+	 /* the EFI loader doesn't seem to like a .bss section, so we stick it all into .data: */
 	 . = ALIGN(16);
 	 _bss = .;
 	 *(.sbss)

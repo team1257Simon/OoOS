@@ -1,16 +1,10 @@
 ENTRY(_start)
 KERNEL_VMA = 2M;
-PHDRS
-{
-	headers PT_PHDR PHDRS;
-	text PT_LOAD FILEHDR PHDRS FLAGS(0x5);
-	data PT_LOAD;
-}
 SECTIONS
 {
 	. = KERNEL_VMA;
-	__start = .;
-	.data : AT(ADDR(.data))
+	PROVIDE(__start = .);
+	.data : ALIGN(CONSTANT(MAXPAGESIZE))
 	{
 		__data 					= .;
 		*(.data)
@@ -19,62 +13,66 @@ SECTIONS
 		*(.data.plocal)
 		. = ALIGN(4096);
 		__plocal_data_end		= .;
-	} :data
-	.bss : AT(ADDR(.bss))
-	{
-		. = ALIGN(4096);
-		__bss = .;
-		*(COMMON) *(.bss) *(.bss.*)
 	}
-	.ctors : AT(ADDR(.ctors))
+	.ctors :
 	{
-		__CTOR_LIST__ = .;
-		QUAD((__CTOR_END__ - __CTOR_LIST__) / 8 - 2)
-		*(.ctors)
-		QUAD(0)
-		__CTOR_END__ = .;
+		KEEP (*crtbegin.o(.ctors))
+		KEEP (*crtbegin?.o(.ctors))
+		KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+		KEEP (*(SORT(.ctors.*)))
+		KEEP (*(.ctors))
 	}
-	.dtors : AT(ADDR(.dtors))
+	.dtors :
 	{
-		__DTOR_LIST__ = .;
-		QUAD((__DTOR_END__ - __DTOR_LIST__) / 8 - 2)
-		*(.dtors)
-		QUAD(0)
-		__DTOR_END__ = .;
+		KEEP (*crtbegin.o(.dtors))
+		KEEP (*crtbegin?.o(.dtors))
+		KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+		KEEP (*(SORT(.dtors.*)))
+		KEEP (*(.dtors))
 	}
-	.init (READONLY) : AT(ADDR(.init))
+	.bss :
 	{
-		KEEP (*(SORT_NONE(.init)))
-	} :text
-	.text (READONLY) : AT(ADDR(.text))
+		*(.bss .bss.* .gnu.linkonce.b.*)
+		*(COMMON)
+	}
+	.text : ALIGN(CONSTANT(MAXPAGESIZE))
 	{
-		__code = .;
+		*(.text.unlikely .text.*_unlikely .text.unlikely.*)
 		*(.text .text.*)
-		*(.rodata*)
-	} :text
-	.fini (READONLY) : AT(ADDR(.fini))
+	}
+	.init :
+	{
+		PROVIDE(__code = .);
+		KEEP (*(SORT_NONE(.init)))
+	}
+	.fini :
 	{
 		KEEP (*(SORT_NONE(.fini)))
-	} :text
-	.eh_frame_hdr : AT(ADDR(.eh_frame_hdr))
+	}
+	PROVIDE(__code_end	= .);
+	.rodata :
+	{
+		PROVIDE(__rodata	= .);
+		*(.rodata .rodata.*)
+	}
+	.eh_frame_hdr :
 	{
 		*(.eh_frame_hdr)
 		*(.eh_frame_entry .eh_frame_entry.*)
 	}
-	. = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE));
-	.eh_frame : AT(ADDR(.eh_frame))
+	.eh_frame :
 	{
 		__ehframe = .;
 		KEEP(*(.eh_frame))
 		*(.eh_frame.*)
 		QUAD(0)
 	}
-	.sframe : AT(ADDR(.sframe))
+	.sframe :
 	{
 		*(.sframe)
 		*(.sframe.*)
 	}
-	.gcc_except_table : AT(ADDR(.gcc_except_table))
+	.gcc_except_table :
 	{
 		*(.gcc_except_table .gcc_except_table.*)
 	}
@@ -82,16 +80,18 @@ SECTIONS
 	{
 		*(.gnu_extab*)
 	}
-	.exception_ranges   : AT(ADDR(.exception_ranges))
+	.exception_ranges :
 	{
 		*(.exception_ranges*)
 	}
+	PROVIDE(__rodata_end		= .);
+	.gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
 	/DISCARD/ :
 	{
-		*(.comment)
+		*(.comment) *(.debug*)
 	}
-	. 					= ALIGN(4096);
-	__end				= .;
-	__kernel_pages		= (__end - __start) / 4096;
-	__plocal_data_size	= __plocal_data_end - processor_local_data;
+	. 							= ALIGN(4096);
+	PROVIDE(__end				= .);
+	PROVIDE(__kernel_pages		= (__end - __start) / 4096);
+	PROVIDE(__plocal_data_size	= __plocal_data_end - processor_local_data);
 }

@@ -11,6 +11,9 @@ extern "C"
 	extern unsigned char	__start[];
 	extern unsigned char	__end[];
 	extern unsigned char	__code[];
+	extern unsigned char	__code_end[];
+	extern unsigned char	__rodata[];
+	extern unsigned char	__rodata_end[];
 	extern kframe_tag*		__kernel_frame_tag;
 	extern unsigned char	sigtramp_code[4096];
 	extern const size_t		kernel_pages;
@@ -34,7 +37,7 @@ static paging_table	__build_new_pt(paging_table in, uint16_t idx, bool write_thr
 static paging_table	__build_new_pt(paging_table in, uint16_t idx, bool write_thru);
 static paging_table	__get_table(addr_t of_page, bool write_thru, paging_table pml4);
 static void			__unmap_pages(addr_t start, size_t pages, addr_t pml4);
-static bool			__is_code_page(addr_t addr) { return addr_t(__code) <= addr && addr < addr_t(__end); }
+static bool			__is_readonly_page(addr_t addr) { return (addr_t(__code) <= addr && addr < addr_t(__code_end)) || (addr_t(__rodata) <= addr && addr < addr_t(__rodata_end)); }
 constexpr uint32_t	calculate_block_index(size_t size) { return size < min_block_size ? 0U : size > max_block_size ? max_block_index : (st_bits - __builtin_clzl(size)) - min_exponent; }
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t	region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, region_size)) : nearest(sz); }
@@ -110,7 +113,7 @@ static void __set_kernel_page_flags(uintptr_t max)
 		if(pt)
 		{
 			pt[addr.page_idx].global		= true;
-			pt[addr.page_idx].write			= !__is_code_page(addr);
+			pt[addr.page_idx].write			= !__is_readonly_page(addr);
 			pt[addr.page_idx].user_access	= false;
 		}
 	}

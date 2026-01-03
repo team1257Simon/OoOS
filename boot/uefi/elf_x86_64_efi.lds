@@ -39,8 +39,7 @@ SECTIONS
 	 *(.got)
 	 *(.data*)
 	 *(.sdata)
-	 /* the EFI loader doesn't seem to like a .bss section, so we stick
-			it all into .data: */
+	 /* the EFI loader doesn't seem to like a .bss section, so we stick it all into .data: */
 	 *(.sbss)
 	 *(.scommon)
 	 *(.dynbss)

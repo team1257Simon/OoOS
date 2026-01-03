@@ -68,7 +68,7 @@ LD = lld -flavor link
 OBJCOPY = true
 endif
 
-# recipies
+# recipes
 ifeq ($(wildcard uefi/Makefile),)
 ALLTARGETS = crt_$(ARCH).o libuefi.a buildlib
 else

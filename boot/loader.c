@@ -24,7 +24,7 @@
 #define PT_LOAD		1		/* Loadable program segment */
 #define EM_MACH		62		/* AMD x86-64 architecture */
 #define ST_SYMTAB	2
-const char *types[] = 
+static const char *types[] = 
 {
 	"EfiReservedMemoryType",		// 0
 	"EfiLoaderCode",				// 1
@@ -47,11 +47,11 @@ typedef struct
 	size_t num_saved_tables;	// size of the following array 
 	paging_table tables[];		// paging table pointers for quick access
 } __pack page_frame;
-paging_table __boot_pml4		= NULL;
-page_frame* boot_page_frame		= NULL;
-sysinfo_t* sysinfo				= NULL;
-paging_table* pg_addrs;
-inline static bool validate_elf(elf64_ehdr* elf)
+static paging_table __boot_pml4		= NULL;
+static page_frame* boot_page_frame	= NULL;
+static sysinfo_t* sysinfo			= NULL;
+static paging_table* pg_addrs;
+static inline bool validate_elf(elf64_ehdr* elf)
 {
 	return (memcmp(elf->e_ident, "\177ELF",	SELFMAG) == 0	/* magic match? */
 		&& elf->e_ident[EI_CLASS] == ELFCLASS64				/* 64 bit? */
@@ -61,12 +61,12 @@ inline static bool validate_elf(elf64_ehdr* elf)
 		&& elf->e_phnum > 0)								/* has program headers? */
 		? true : false;							
 }
-inline static bool is_typeinfo_symbol(const char* symbol_name) { return !memcmp(symbol_name, "_ZTI", 4); }
-inline static void* adjust(void* ptr, off_t offs) { return ((char*)ptr + offs); }
+static inline bool is_typeinfo_symbol(const char* symbol_name) { return !memcmp(symbol_name, "_ZTI", 4); }
+static inline void* adjust(void* ptr, off_t offs) { return ((char*)ptr + offs); }
 #define PTR_ADJ(type, ptr, offs) (type*)adjust(ptr, offs)
-inline static uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
-inline static size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx * 0x200 + idx.pdp_idx * 0x40000 + idx.pml4_idx * 0x8000000; }
-inline static uint64_t div_round_up(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
+static inline uintptr_t read_pt_entry_ptr(pt_entry ent) { return ent.physical_address << 12; }
+static inline size_t direct_table_idx(addr_t idx) { return idx.page_idx + idx.pd_idx * 0x200 + idx.pdp_idx * 0x40000 + idx.pml4_idx * 0x8000000; }
+static inline uint64_t div_round_up(uint64_t num, uint64_t denom) { if (num % denom == 0) return num / denom; else return 1 + (num / denom); }
 static bool guid_equals(efi_guid_t a, efi_guid_t b)
 {
 	if(a.Data1 != b.Data1 || a.Data2 != b.Data2 || a.Data3 != b.Data3) return 0;
@@ -86,14 +86,14 @@ static bool xsdt_checksum(struct xsdt_t* xsdt)
 	for(size_t i = 0; i < xsdt->hdr.length; i++) c += ((char*)xsdt)[i];
 	return (c == 0);
 }
-inline static size_t required_tables(size_t num_pages_to_map)
+static inline size_t required_tables(size_t num_pages_to_map)
 {
 	size_t num_page_tables		= div_round_up(num_pages_to_map, PT_LEN);
 	size_t num_page_dirs		= div_round_up(num_page_tables, PT_LEN);
 	size_t num_page_dir_tables	= div_round_up(num_page_dirs, PT_LEN);
 	return num_page_dir_tables + num_page_dirs + num_page_tables + 1; // Additional 1 for the PML4; each table itself fills one page of memory
 }
-void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages, paging_table tables_start)
+static void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_pages, paging_table tables_start)
 {
 	size_t total_mem			= num_pages * PAGESIZE;
 	size_t current_table_num	= 0;
@@ -144,7 +144,7 @@ void map_some_pages(uintptr_t vaddr_start, uintptr_t phys_start, size_t num_page
 		current_idx.addr	+= PAGESIZE;
 	}
 }
-efi_status_t map_id_pages(size_t num_pages)
+static efi_status_t map_id_pages(size_t num_pages)
 {
 	size_t n = required_tables(num_pages);
 	printf("Identity-mapping %i pages\n", num_pages);
@@ -166,7 +166,7 @@ efi_status_t map_id_pages(size_t num_pages)
 	map_some_pages(0, 0, num_pages, (paging_table)((uintptr_t)(tables_start) + 512 * sizeof(pt_entry)));
 	return EFI_SUCCESS;
 }
-size_t fsize(FILE* file)
+static size_t fsize(FILE* file)
 {
 	long result;
 	long pos	= ftell(file);
@@ -182,14 +182,14 @@ size_t fsize(FILE* file)
 		return -EMALLOC;								\
 	}													\
 } while(0)
-char* pathcat(const char* dir_path, size_t path_len, struct dirent* ent)
+static char* pathcat(const char* dir_path, size_t path_len, struct dirent* ent)
 {
 	char* result	= strdup(dir_path);
 	if(!(result && (result = realloc(strdup(dir_path), path_len + strlen(ent->d_name) + 1)))) return NULL;
 	result			= strcat(result, "\\");
 	return strcat(result, ent->d_name);
 }
-efi_status_t load_module_file(const char* name, const char* path, boot_loaded_module* out)
+static efi_status_t load_module_file(const char* name, const char* path, boot_loaded_module* out)
 {
 	FILE* file;
 	char* buffer;
@@ -204,7 +204,8 @@ efi_status_t load_module_file(const char* name, const char* path, boot_loaded_mo
 			.buffer		= malloc(size),
 			.size		= size
 		};
-		if(!out->buffer || !out->filename) {
+		if(!out->buffer || !out->filename)
+		{
 			fprintf(stderr, "unable to allocate memory\n");
 			fclose(file);
 			// the error handler in load_modules_from will call free on all the pointers allocated previously
@@ -214,13 +215,12 @@ efi_status_t load_module_file(const char* name, const char* path, boot_loaded_mo
 		fclose(file);
 		return OK;
 	}
-	else 
-	{
+	else {
 		fprintf(stderr, "Unable to open file\n");
 		return -EFOPEN;
 	}
 }
-size_t dir_file_count(DIR* dir)
+static size_t dir_file_count(DIR* dir)
 {
 	size_t result	= 0;
 	for(struct dirent* ent = readdir(dir); ent != NULL; ent = readdir(dir))
@@ -229,7 +229,7 @@ size_t dir_file_count(DIR* dir)
 	rewinddir(dir);
 	return result;
 }
-efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
+static efi_status_t load_modules_from(const char* dir_path, boot_modules_list** out)
 {
 	DIR* dir;
 	size_t count, path_len = strlen(dir_path) + 1;
@@ -295,35 +295,33 @@ int main(int argc, char** argv)
 	(void)argc;
 	(void)argv;
 	efi_status_t status;
-	efi_memory_descriptor_t *memory_map		= NULL,
+	efi_memory_descriptor_t	*memory_map		= NULL,
 							*mement			= NULL;
-	uintn_t				memory_map_size		= 0,
+	uintn_t					mmap_size		= 0,
 							map_key			= 0, 
 							desc_size		= 0;
 	// get the memory map
-	status = BS->GetMemoryMap(&memory_map_size, NULL, &map_key, &desc_size, NULL);
-	if(status != EFI_BUFFER_TOO_SMALL || !memory_map_size)
-	{
+	status = BS->GetMemoryMap(&mmap_size, NULL, &map_key, &desc_size, NULL);
+	if(status != EFI_BUFFER_TOO_SMALL || !mmap_size) {
 		fprintf(stderr, "Unable to get memory map\n");
 		return ENOMMAP;
 	}
-	memory_map_size += 4 * desc_size;
-	memory_map	= (efi_memory_descriptor_t*)malloc(memory_map_size);
+	mmap_size += 4 * desc_size;
+	memory_map	= (efi_memory_descriptor_t*)malloc(mmap_size);
 	MALLOC_CK(memory_map);
-	status = BS->GetMemoryMap(&memory_map_size, memory_map, &map_key, &desc_size, NULL);
-	if(EFI_ERROR(status)) 
-	{
+	status = BS->GetMemoryMap(&mmap_size, memory_map, &map_key, &desc_size, NULL);
+	if(EFI_ERROR(status)) {
 		fprintf(stderr, "Unable to get memory map\n");
 		return ENOMMAP;
 	}
 	size_t n						= 0;
 	size_t k						= 0;
-	size_t predicted				= (memory_map_size / desc_size);
+	size_t predicted				= (mmap_size / desc_size);
 	mmap_t* map						= (mmap_t*)malloc(sizeof(mmap_t) + predicted * sizeof(mmap_entry));
 	map->total_memory				= 0;
 	size_t top						= 0;
 	efi_memory_descriptor_t* prev	= NULL;
-	for(mement = memory_map; n < memory_map_size; mement = NextMemoryDescriptor(mement, desc_size)) 
+	for(mement = memory_map; n < mmap_size; mement = NextMemoryDescriptor(mement, desc_size)) 
 	{
 		if(prev != NULL && mement->Type == prev->Type && prev->PhysicalStart + prev->NumberOfPages * 4096 == mement->PhysicalStart)
 			map->entries[k-1].len += mement->NumberOfPages;
@@ -365,13 +363,7 @@ int main(int argc, char** argv)
 	map->num_entries	= k;
 	printf("Total memory: %lu\n", map->total_memory);
 	status				= map_id_pages(top / PAGESIZE);
-	if(EFI_ERROR(status))
-	{
-		fprintf(stderr, "Unable to allocate memory\n");
-		return EMALLOC;
-	}
-	if(EFI_ERROR(status))
-	{
+	if(EFI_ERROR(status)) {
 		fprintf(stderr, "Unable to allocate memory\n");
 		return EMALLOC;
 	}
@@ -386,8 +378,7 @@ int main(int argc, char** argv)
 		status = gop->SetMode(gop, 0);
 		ST->ConOut->Reset(ST->ConOut, 0);
 		ST->StdErr->Reset(ST->StdErr, 0);
-		if(EFI_ERROR(status)) 
-		{
+		if(EFI_ERROR(status)) {
 			fprintf(stderr, "Unable to set video mode\n");
 			return ESETGFX;
 		}
@@ -396,8 +387,7 @@ int main(int argc, char** argv)
 		sysinfo->fb_height	= gop->Mode->Information->VerticalResolution;
 		sysinfo->fb_pitch	= sizeof(uint32_t) * gop->Mode->Information->PixelsPerScanLine;
 	} 
-	else 
-	{
+	else {
 		fprintf(stderr, "Unable to get graphics output protocol\n");
 		return ENOGFX;
 	}
@@ -421,8 +411,7 @@ int main(int argc, char** argv)
 		fread(buff, size, 1, f);
 		fclose(f);
 	} 
-	else 
-	{
+	else {
 		fprintf(stderr, "Unable to open file\n");
 		return EFOPEN;
 	}
@@ -436,8 +425,7 @@ int main(int argc, char** argv)
 			if(checksum(ptr))
 			{
 				struct xsdt_t* xsdt	= (struct xsdt_t*)ptr->xsdt_address;
-				if(xsdt_checksum(xsdt))
-				{
+				if(xsdt_checksum(xsdt)) {
 					sysinfo->xsdt	= xsdt;
 					found			= 1;
 				}
@@ -461,8 +449,7 @@ int main(int argc, char** argv)
 		}
 		entry = elf->e_entry;
 	} 
-	else 
-	{
+	else {
 		fprintf(stderr, "Not a valid ELF executable for this architecture\n");
 		return ENOELF;	// must be an orc
 	}
