@@ -37,11 +37,14 @@ __MEM_FN_TRAITS(&& noexcept, false_type, true_type)
 	{
 		T* __my_object;
 		constexpr static T* __get_ptr(T& __r) noexcept { return std::addressof(__r); }
+		template<typename U> consteval static bool __can_wrap() noexcept { return requires { requires(std::is_pointer_v<decltype(__get_ptr(std::declval<U>()))>); }; }
+		template<typename U> struct __is_wrappable : std::bool_constant<__can_wrap<U>()> {};
+		template<typename U> struct __not_same : std::negation<std::is_same<reference_wrapper, typename std::__remove_cv_t<U>::type>> {};
 		static void __get_ptr(T&&) = delete;
 	public:
 		typedef T type;
-		template<typename U, typename = decltype(reference_wrapper::__get_ptr(std::declval<U>()))> requires(!std::is_same_v<reference_wrapper, typename std::__remove_cv_t<U>::type>)
-		constexpr reference_wrapper(U&& __uref) noexcept(noexcept(reference_wrapper::__get_ptr(std::declval<U>()))) : __my_object(reference_wrapper::__get_ptr(std::forward<U>(__uref))){}
+		template<satisfies_all<__is_wrappable, __not_same> U>
+		constexpr reference_wrapper(U&& __uref) noexcept(noexcept(__get_ptr(std::declval<U>()))) : __my_object(__get_ptr(std::forward<U>(__uref))) {}
 		constexpr reference_wrapper(reference_wrapper const&)				= default;
 		constexpr reference_wrapper& operator=(reference_wrapper const&)	= default;
 		constexpr operator T&() const noexcept { return this->get(); }

@@ -1,5 +1,18 @@
 #ifndef __HEAP_ALLOC
 #define __HEAP_ALLOC
+/**
+ * OoOS uses a three-stage heap allocation mechanism for managing memory blocks in kernel- and user-space.
+ * The first stage is a bitmap allocator that is statically allocated at startup. It allocates regions of pages.
+ * A region allocated from the first stage will be sized to a power of 2 in pages (no fewer than 4 pages), or to a nonzero multiple of 512 pages.
+ * The second stage is a linked-list tag allocator that divides regions allocated by the first stage into blocks of arbitrary size and alignment.
+ * Allocations in kernel-space, other than for page tables (see allocate_pt()) and MMIO/DMA blocks (see allocate_dma()) use the second stage directly.
+ * The third stage is a block pool allocation scheme which itself uses heap-allocated structures. Each process in userspace has its own frame tag.
+ * That structure delegates calls to the second stage in order to allocate (potentially physically non-contiguous) blocks of memory for processes.
+ * Those are in turn mapped to virtual addresses, either as-requested (i.e. mmap) or in increasing order (i.e. sbrk) to build a process' memory space.
+ * The functions are matched by stage: memory allocated in a given stage should be freed by the deallocation function matching that stage.
+ * Other than the special DMA hooks, each stage has exactly one deallocation function and two or more allocation functions.
+ * Module frames, which maintain a special managed block structure to prevent memory leaks in case of a module error, are considered part of stage 2.
+ */
 #include <libk_decls.h>
 #include <vector>
 #ifndef MAX_BLOCK_EXP
@@ -38,6 +51,7 @@ constexpr addr_t mmap_min_addr		= 0x500000LA;
 constexpr size_t block_index_range	= max_exponent - min_exponent;
 constexpr size_t max_block_index	= block_index_range - 1Z;
 constexpr addr_t sysres_base		= 0xFFFF800000000000LA;
+// Describes a memory block in stage 2.
 struct block_tag
 {
 	uint64_t magic			= block_magic;
@@ -87,18 +101,24 @@ private:
 	spinlock_t __my_mutex;
 public:
 	constexpr kframe_tag()	= default;
-	void insert_block(block_tag* blk, int idx) noexcept;
-	void remove_block(block_tag* blk) noexcept;
+	//	Second-stage allocation. Invoked by kernel-space malloc() and new/new[] calls.
 	addr_t allocate(size_t size, size_t align = 0UZ) noexcept;
+	//	Second-stage deallocation. Invoked by kernel-space free() and delete/delete[] calls.
 	void deallocate(addr_t ptr, size_t align = 0UZ) noexcept;
+	//	Second-stage allocation for POD/trivally-copyable data types. Invoked by kernel-space realloc() calls and internally by some allocators.
 	addr_t reallocate(addr_t ptr, size_t size, size_t align = 0UZ) noexcept;
+	//	Second-stage allocation for arrays. Invoked by kernel-space calloc() calls; as specified by the C++ standard, new[] does not use this.
 	addr_t array_allocate(size_t num, size_t size) noexcept;
+	//	The functions below are used by the above code, as well as by the allocator tag used by modules (which is somewhat more complex).
+	/*------------------------------------------------------*/
 	block_tag* create_tag(size_t size, size_t align) noexcept;
 	block_tag* melt_left(block_tag* tag) noexcept;
 	block_tag* melt_right(block_tag* tag) noexcept;
 	block_tag* find_tag(addr_t ptr, size_t align) noexcept;
 	block_tag* get_for_allocation(size_t size, size_t align) noexcept;
 	void release_block(block_tag* tag) noexcept;
+	void insert_block(block_tag* blk, int idx) noexcept;
+	void remove_block(block_tag* blk) noexcept;
 private:
 	void __lock();
 	void __unlock();
@@ -113,6 +133,7 @@ struct kframe_exports
 	dealloc_fn deallocate;
 	realloc_fn reallocate;
 };
+// Describes a memory block in stage 3.
 struct block_descriptor
 {
 	addr_t physical_start;
@@ -189,6 +210,25 @@ enum block_size : uint32_t
 	S04		=	 4 * page_size
 };
 #define BS2BI(i) i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i ==	S16 ? I4 : (i ==	S32 ? I3 : (i ==	S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))
+// Describes a 512-page region in stage 1.
+typedef struct status_byte
+{
+	uint8_t the_byte;
+private:
+	constexpr bool __has(uint8_t i) const noexcept { return (the_byte & i) == 0; }
+ public:
+	constexpr bool all_free() const noexcept { return the_byte == 0; }
+	constexpr bool has_free(block_idx i) const noexcept { return __has(i); }
+	constexpr bool all_used() const noexcept { return the_byte == 0xFF; }
+	constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
+	constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
+	constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
+	constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i == S16 ? I4 : (i == S32 ? I3 : (i == S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))); }
+	constexpr operator bool() const noexcept { return !all_used(); }
+	constexpr bool operator!() const noexcept { return all_used(); }
+	constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
+	constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
+} gb_status[512];
 /*
  *	Each 512-page region of physical memory is divided into the following blocks:
  *	[256P] B0: |< 000 - 255 >|
@@ -224,24 +264,6 @@ enum block_size : uint32_t
  *			Kernel workers and module code will likewise see only identity-mapped memory. In order to facilitate access to userspace pointers,
  *			userspace frames will store pointers to their page tables that can be used to translate those pointers when in syscalls.
  */
-typedef struct status_byte
-{
-	uint8_t the_byte;
-private:
-	constexpr bool __has(uint8_t i) const noexcept { return (the_byte & i) == 0; }
- public:
-	constexpr bool all_free() const noexcept { return the_byte == 0; }
-	constexpr bool has_free(block_idx i) const noexcept { return __has(i); }
-	constexpr bool all_used() const noexcept { return the_byte == 0xFF; }
-	constexpr void set_used(block_idx i) noexcept { the_byte |= i; }
-	constexpr void set_free(block_idx i) noexcept { the_byte &= ~i; }
-	constexpr bool operator[](block_idx i) const noexcept { return has_free(i); }
-	constexpr bool operator[](block_size i) const noexcept { if(i == S04) return __has(I7) || __has(I6); return __has(i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i == S16 ? I4 : (i == S32 ? I3 : (i == S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))); }
-	constexpr operator bool() const noexcept { return !all_used(); }
-	constexpr bool operator!() const noexcept { return all_used(); }
-	constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
-	constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
-} gb_status[512];
 class kernel_memory_mgr
 {
 	spinlock_t __heap_mutex{};					// Calls to kernel allocations lock this mutex to prevent comodification
@@ -249,7 +271,7 @@ class kernel_memory_mgr
 	gb_status* const __status_bytes;			// Array of 512-byte arrays
 	size_t const __num_status_bytes;			// Length of said array
 	uintptr_t const __kernel_heap_begin;		// Convenience pointer to the end of above array
-	uintptr_t __watermark;					// Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
+	uintptr_t __watermark;						// Updated when a block is allocated or released; provides a guess as to where to start searching for blocks
 	addr_t __suspended_cr3{};					// Saved cr3 value for a frame suspended in order to access kernel paging structures
 	uframe_tag* __active_frame{};				// Tag for the frame currently being modified, if any
 	static kernel_memory_mgr* __instance;
@@ -275,7 +297,9 @@ public:
 	constexpr uintptr_t open_wm() const { return __watermark; }
 	static void init_instance(mmap_t* mmap);
 	static kernel_memory_mgr& get();
+	// Computes the actual size that will be allocated for a page-aligned block if its address is start.
 	static size_t aligned_size(addr_t start, size_t requested);
+	// Computes the actual size that will be allocated for a DMA block, accounting for alignment and mapping constraints.
 	static size_t dma_size(size_t requested);
 	static void suspend_user_frame();
 	static void resume_user_frame();
@@ -286,19 +310,35 @@ public:
 	kernel_memory_mgr(kernel_memory_mgr&&) = delete;
 	kernel_memory_mgr& operator=(kernel_memory_mgr const&) = delete;
 	kernel_memory_mgr& operator=(kernel_memory_mgr&&) = delete;
+	// Helpers for mapping memory and handling which frame is being modified at a given time.
+	/*----------------------------------------------------------------------*/
+	// Sets ft as the active frame, i.e. the frame to be modified by mapping and third-stage allocation and deallocation functions.
 	void enter_frame(uframe_tag* ft) noexcept;
+	// Translates addr as from a virtual address in the current active frame to a physical address.
 	uintptr_t frame_translate(addr_t addr);
+	// Sets the active frame to a null pointer; frame-dependent functions will fail until another frame is entered.
 	void exit_frame() noexcept;
+	// Behaves as for(block_descriptor const& bd : blocks) map_to_current_frame(bd);
 	void map_to_current_frame(std::vector<block_descriptor> const& blocks);
+	// Maps the block as specified by its physical and virtual address fields and permission flags.
 	void map_to_current_frame(block_descriptor const& block);
+	// Ensures the kernel is mapped (as ring 0 accessible only) to a given frame (specified in the form of that frame's PML4 table pointer).
 	addr_t copy_kernel_mappings(paging_table target);
+	// Identity-maps the given address (usually one specified by a device, e.g. in a PCI base address register) with flags for DMA use.
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
+	// First-stage allocation; allocates a region sized to a power of 2 (at least 4), or a multiple of 512, in pages.
 	__nointerrupts __noinline addr_t allocate_kernel_block(size_t sz) noexcept;
+	// Third-stage allocation; allocates a block sized in pages and maps it to the active frame at the given starting address and with the given permissions.
 	__nointerrupts __noinline addr_t allocate_user_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true) noexcept;
+	// First-stage deallocation.
 	__nointerrupts __noinline void deallocate_block(addr_t base, size_t sz, bool should_unmap = false) noexcept;
+	// Third-stage deallocation.
 	__nointerrupts __noinline void deallocate_user_block(addr_t base, size_t sz, size_t align, bool should_unmap) noexcept;
+	// First-stage allocation; allocates a region for use as a page table.
 	__nointerrupts paging_table allocate_pt() noexcept;
+	// Special allocation; allocates a region with page flags for DMA.
 	__nointerrupts addr_t allocate_dma(size_t sz, bool prefetchable) noexcept;
+	// Special deallocation that matches allocate_dma.
 	__nointerrupts void deallocate_dma(addr_t addr, size_t sz) noexcept;
 };
 #define kmm kernel_memory_mgr::get()

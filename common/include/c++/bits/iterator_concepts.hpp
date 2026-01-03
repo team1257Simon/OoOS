@@ -218,6 +218,7 @@ namespace std
 	template<typename FT, typename... ITs> requires(indirectly_readable<ITs> && ...) && invocable<FT, iter_reference_t<ITs>...> using indirect_result_t = invoke_result_t<FT, iter_reference_t<ITs>...>;
 	template<indirectly_readable IT, indirectly_regular_unary_invocable<IT> PT> struct projected { using value_type = remove_cvref_t<indirect_result_t<PT&, IT>>; indirect_result_t<PT&, IT> operator*() const; };
 	template<weakly_incrementable IT, typename PT> struct incrementable_traits<projected<IT, PT>> { using difference_type = iter_difference_t<IT>; };
+	template<indirectly_readable IT, indirectly_regular_unary_invocable<IT> PT> using projected_value_t = remove_cvref_t<invoke_result_t<PT&, iter_value_t<IT>&>>;
 	template<typename I, typename O> concept indirectly_movable = indirectly_readable<I> && indirectly_writable<O, iter_rvalue_reference_t<I>>;
 	template<typename I, typename O> concept indirectly_movable_storable = indirectly_movable<I, O> && indirectly_writable<O, iter_value_t<I>> && movable<iter_value_t<I>> && constructible_from<iter_value_t<I>, iter_rvalue_reference_t<I>> && assignable_from<iter_value_t<I>&, iter_rvalue_reference_t<I>>;
 	template<typename I, typename O> concept indirectly_copyable = indirectly_readable<I> && indirectly_writable<O, iter_reference_t<I>>;
@@ -265,6 +266,7 @@ namespace std
 		template<__cust_beginnable T> constexpr auto __begin(T& __t) { if constexpr(is_array_v<T>) return __t + 0; else if constexpr(__member_begin<T&>) return __t.begin(); else return begin(__t); }
 	}
 	namespace __detail { template<typename T> using __range_iter_t = decltype(ranges::__cust_access::__begin(declval<T&>())); }
+	
 #pragma region nonstandard useful concepts and typedefs
 	extension template<typename IT, typename T2> concept matching_input_iterator = input_iterator<IT> && __detail::__points_to<IT, T2>;
 	extension template<typename IT, typename T2> concept matching_forward_iterator = forward_iterator<IT> && __detail::__points_to<IT, T2>;

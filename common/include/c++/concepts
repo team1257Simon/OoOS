@@ -81,6 +81,20 @@ namespace std
 	extension template<class A, typename T> concept __allocator_object	= is_default_constructible_v<A> && requires(std::remove_cvref_t<A>& a) { { a.allocate(declval<size_t>()) } -> same_as<T*>; a.deallocate(declval<T*>(), declval<size_t>()); };
 	struct __somesuch{};
 	extension template<class A, typename T> concept allocator_object	= __allocator_object<A, T> && __allocator_object<typename A::template rebind<__somesuch>::other, __somesuch>;
+	template<typename T, template<typename> class C>
+	struct __trait_substitution
+	{
+		typedef C<T> __sub_t;
+		constexpr static bool __evaluate() noexcept requires(std::convertible_to<decltype(__sub_t::value), bool>) { return __sub_t::value; }
+		constexpr static bool __evaluate() noexcept { return false; }
+		typedef bool_constant<__evaluate()> type;
+	};
+	template<typename T, template<typename> class C> using __trait_substitution_t			= typename __trait_substitution<T, C>::type;
+	template<typename T, template<typename> class C> concept satisfies						= __trait_substitution_t<T, C>::value;
+	template<typename T, template<typename...> class O, template<typename> class ... Cs>
+	using __multi_trait_substitution														= O<__trait_substitution_t<T, Cs>...>;
+	template<typename T, template<typename> class ... Cs> concept satisfies_all				= __multi_trait_substitution<T, __and_, Cs ...>::value;
+	template<typename T, template<typename> class ... Cs> concept satisfies_any				= __multi_trait_substitution<T, __or_, Cs ...>::value;
 #pragma endregion
 }
 #endif

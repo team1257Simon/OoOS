@@ -515,6 +515,13 @@ namespace std
 			template<typename ... Args> constexpr dangling(Args&& ...) noexcept {}
 		};
 		template<range RT> using borrowed_iterator_t = conditional_t<borrowed_range<RT>, iterator_t<RT>, dangling>;
+		template<range RT, typename AT = std::allocator<uint8_t>>
+		struct elements_of
+		{
+			[[no_unique_address]] RT range;
+			[[no_unique_address]] AT allocator	= AT();
+		};
+		template<range RT, typename AT = std::allocator<uint8_t>> elements_of(RT&&, AT = AT()) -> elements_of<RT&&, AT>;
 	}
 }
 #endif

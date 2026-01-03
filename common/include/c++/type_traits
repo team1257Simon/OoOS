@@ -272,6 +272,7 @@ namespace std
 	template<> struct __make_unsigned<int> { using __type = unsigned int; };
 	template<> struct __make_unsigned<long> { using __type = unsigned long; };
 	template<> struct __make_unsigned<long long> { using __type = unsigned long long; };
+	template<> struct __make_unsigned<__int128> { using __type = unsigned __int128; };
 	template<typename T, bool II = is_integral<T>::value, bool IE = __is_enum(T)> class __make_unsigned_selector;
 	template<typename T> class __make_unsigned_selector<T, true, false> { using __unsigned_type = typename __make_unsigned<__remove_cv_t<T>>::__type; public: using __type = typename __match_cv_qualifiers<T, __unsigned_type>::__type; };
 	class __make_unsigned_selector_base
@@ -283,7 +284,7 @@ namespace std
 		template<size_t S, typename UI1, typename...UIs> struct __select<S, __list<UI1, UIs...>, true> { using __type = UI1; };
 		template<size_t S, typename UI1, typename...UIs> struct __select<S, __list<UI1, UIs...>, false> : __select<S, __list<UIs...>> {};
 	};
-	template<typename T> class __make_unsigned_selector<T, false, true> : __make_unsigned_selector_base { using UIs = __list<unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long>; using __unsigned_type = typename __select<sizeof(T), UIs>::__type; public: using __type = typename __match_cv_qualifiers<T, __unsigned_type>::__type; };
+	template<typename T> class __make_unsigned_selector<T, false, true> : __make_unsigned_selector_base { using UIs = __list<unsigned char, unsigned short, unsigned int, unsigned long, unsigned long long, unsigned __int128>; using __unsigned_type = typename __select<sizeof(T), UIs>::__type; public: using __type = typename __match_cv_qualifiers<T, __unsigned_type>::__type; };
 	template<> struct __make_unsigned<wchar_t> { using __type = typename __make_unsigned_selector<wchar_t, false, true>::__type; };
 	template<typename T> struct make_unsigned { using type = typename __make_unsigned_selector<T>::__type; };
 	template<> struct make_unsigned<bool>;

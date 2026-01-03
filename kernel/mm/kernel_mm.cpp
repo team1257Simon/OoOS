@@ -381,14 +381,22 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
 	size_t 		total_mem			= mmap->total_memory;
 	addr_t		sb_addr				= addr_t(__end).plus(sizeof(kframe_tag));
 	size_t		num_status_bytes	= div_round_up(mmap->total_memory, gigabyte);
-	uintptr_t	heap				= sb_addr.plus(num_status_bytes * sizeof(gb_status));
-	//	The structure that contains the information regarding the kernel's data structures is positioned immediately after the kernel itself.
-	//	This is then immediately followed after by the allocation bitmap for physical memory locations.
-	//	All available memory with an address higher than that of the end of the bitmap is considered part of the kernel heap.
-	//	Allocated page blocks come from the kernel heap, which then can be divided into smaller blocks for individual structures.
-	//	Process page frames also allocate from the kernel heap. A separate data structure tracks allocations to userspace.
-	//	This also includes the metatada, such as page tables, used to manage the process page frame.
-	//	The KMM instance itself is a singleton object that holds pointers to these dynamically-sized structures.
+	addr_t		heap_addr			= sb_addr.plus(num_status_bytes * sizeof(gb_status));
+	uintptr_t	heap				= heap_addr == heap_addr.page_aligned() ? heap_addr.plus(page_size) : heap_addr.next_page_aligned();
+	/**
+	 *	The structure that contains the information regarding the kernel's data structures is positioned immediately after the kernel itself.
+	 *	This is then immediately followed after by the allocation bitmap for physical memory locations.
+	 *	The bitmap is allocated to be able to track the total amount of RAM on the machine; its size is extended such that its end is page-aligned.
+	 *	All available memory with an address higher than that of the end of the bitmap is considered part of the kernel heap.
+	 *	Allocated page blocks come from the kernel heap, which then can be divided into smaller blocks for individual structures.
+	 *	The starting address of a block will actually be 64 bytes (the size of a block tag) lower than the address of the tracked region.
+	 *	This is to reduce the amount of memory that must be wasted to preserve alignment constraints.
+	 *	All blocks so-allocated are offset this way, so the subtracted address will still be the end (exclusive) of the previous region.
+	 *	The offset is also reversed when the block is released to calculate the "tracked" location for the region.
+	 *	Process page frames also allocate from the kernel heap. A separate data structure tracks allocations to userspace.
+	 *	This also includes the metatada, such as page tables, used to manage the process page frame.
+	 *	The KMM instance itself is a singleton object that holds pointers to these dynamically-sized structures.
+	 */
 	__kernel_frame_tag				= new(__end) kframe_tag();
 	__instance						= new(__kmm_data) kernel_memory_mgr(new(sb_addr) gb_status[num_status_bytes](), num_status_bytes, heap);
 	//	Any memory that is not part of conventional memory is not usable by the heap allocator.
@@ -452,7 +460,8 @@ addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t al
 {
 	addr_t pml4			= __active_frame ? __active_frame->pml4 : get_cr3();
 	__userlock();
-	size_t rsz			= aligned_size(start, sz); // allocate to the end of page so the userspace doesn't see kernel data structures
+	// allocate to the end of page so the userspace doesn't see kernel data structures
+	size_t rsz			= aligned_size(start, sz);
 	addr_t result		= __kernel_frame_tag->allocate(rsz, align);
 	if(!start) start	= result;
 	if(result && !__map_user_pages(start.trunc(std::max(align, page_size)), result, div_round_up(rsz, page_size), pml4, write, execute)) {
@@ -507,13 +516,14 @@ paging_table kernel_memory_mgr::allocate_pt() noexcept
 addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz) noexcept
 {
 	__lock();
-	addr_t result(__find_and_claim(sz));
+	addr_t result(__find_and_claim(sz) - sizeof(block_tag));
 	__watermark	= std::max(result.full, __watermark);
 	__unlock();
 	return result;
 }
 void kernel_memory_mgr::deallocate_block(addr_t base, size_t sz, bool should_unmap) noexcept
 {
+	base			= base.plus(sizeof(block_tag)).page_aligned();
 	uintptr_t phys	= frame_translate(base);
 	addr_t pml4		= __active_frame ? __active_frame->pml4 : nullptr;
 	if(__unlikely(!phys)) return;
@@ -748,7 +758,8 @@ block_tag* block_tag::split()
 }
 bool uframe_tag::shift_extent(ptrdiff_t amount)
 {
-	if(__unlikely(!amount)) return true; // nothing to do, vacuous success; sbrk(0) is useful to get the initial value of the break/extent
+	// nothing to do (vacuous success); sbrk(0) is useful to get the initial value of the break/extent
+	if(__unlikely(!amount)) return true;
 	typedef std::vector<block_descriptor>::reverse_iterator r_it;
 	if(amount < 0)
 	{
