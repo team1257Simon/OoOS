@@ -156,7 +156,7 @@ namespace std
 			if(__unlikely(mode.in && mode.out)) return pos_type(off_type(0));
 			return pos_type(result);
 		}
-		template <char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
+		template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
 		dynamic_duplex_streambuf<CT, TT, AT>::~dynamic_duplex_streambuf()
 		{
 			if(this->__in_region.__begin)
@@ -164,7 +164,7 @@ namespace std
 			if(this->__out_region.__begin)
 				__allocator.deallocate(this->__out_region.__begin, this->__out_region.__capacity());
 		}
-		template <char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
+		template<char_type CT, char_traits_type<CT> TT, allocator_object<CT> AT>
 		void std::ext::dynamic_duplex_streambuf<CT, TT, AT>::reset(ios_base::openmode which)
 		{
 			if(which.in)

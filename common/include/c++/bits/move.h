@@ -17,5 +17,13 @@ namespace std
 	template<__can_swap T> constexpr inline void swap(T& a, T& b) noexcept(__and_v<is_nothrow_move_assignable<T>, is_nothrow_constructible<T>>) { T __tmp = move(a); a = move(b); b = move(__tmp); }
 	template<__defined_swap T> constexpr inline void swap(T& a, T& b) noexcept(__nothrow_defined_swap<T>::value) { a.swap(b); }
 	template<typename TT, bit_castable<TT> FT> constexpr TT bit_cast(FT __ft) noexcept(__nothrow_bit_castable<TT, FT>::value) { return __builtin_bit_cast(TT, __ft); }
+	template<typename T, typename U> struct __like_impl; // T must be a reference and U an lvalue reference
+	template<typename T, typename U> struct __like_impl<T&, U&> { using type = U&; };
+	template<typename T, typename U> struct __like_impl<const T&, U&> { using type = U const&; };
+	template<typename T, typename U> struct __like_impl<T&&, U&> { using type = U&&; };
+	template<typename T, typename U> struct __like_impl<const T&&, U&> { using type = const U&&; };
+	template<typename T, typename U> using __like_t = typename __like_impl<T&&, U&>::type;
+	template<typename T, typename U> [[nodiscard, gnu::always_inline]] constexpr __like_t<T, U> forward_like(U&& u) noexcept { return static_cast<__like_t<T, U>>(u); }
+	template<typename T> constexpr T& backward(T&& t) { return static_cast<T&>(t); } // Opposite of std::forward :)
 }
 #endif

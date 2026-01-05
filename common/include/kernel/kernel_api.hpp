@@ -583,14 +583,131 @@ namespace ooos
 	};
 	struct netdev_api_helper : public netdev_helper
 	{
-		virtual bool construct_transfer_buffers() = 0;
-		virtual protocol_arp& get_arp() noexcept = 0;
-		virtual protocol_ethernet& get_ethernet() noexcept = 0;
-		virtual std::ext::resettable_queue<netstack_buffer>& get_transfer_buffers() noexcept = 0;
-		virtual ~netdev_api_helper() = default;
+		virtual bool construct_transfer_buffers()												= 0;
+		virtual protocol_arp& get_arp() noexcept												= 0;
+		virtual protocol_ethernet& get_ethernet() noexcept										= 0;
+		virtual std::ext::resettable_queue<netstack_buffer>& get_transfer_buffers() noexcept	= 0;
+		virtual ~netdev_api_helper()															= default;
 		inline netdev_api_helper(mac_t const& mac) : netdev_helper(mac) {}
 	};
 	template<typename T, std::convertible_to<T> ... Us> constexpr std::array<T, sizeof...(Us)> make_array(Us ... vals) { return std::array<T, sizeof...(Us)>{ static_cast<T>(vals)... }; }
+	struct generic_device_message_data
+	{
+		void* data;
+		size_t size;
+		std::align_val_t align;
+		std::ext::type_erasure type;
+	};
+	class generic_device_message
+	{
+		generic_device_message_data __data;
+		inline void __reset() noexcept
+		{
+			if(__data.data) operator delete(__data.data, __data.size, __data.align);
+			__data.data		= nullptr;
+			__data.size		= 0UZ;
+			__data.align	= std::align_val_t();
+			__data.type		= std::ext::get_erasure<nullptr_t>();
+		}
+		template<typename T>
+		static inline size_t __szck(size_t n)
+		{
+			if(sizeof(T) > n)
+				throw std::invalid_argument("[DEV_MSG] invalid size argument");
+			return n;
+		}
+	protected:
+		template<trivial_copy T>
+		constexpr generic_device_message(T&& t) :
+			__data
+			{
+				.data	= new T(std::move(t)),
+				.size	= sizeof(T),
+				.align	= static_cast<std::align_val_t>(alignof(T)),
+				.type	= std::ext::get_erasure<T>()
+			} 
+		{}
+		template<trivial_copy T, typename ... Args> requires(std::constructible_from<T, Args...>)
+		constexpr generic_device_message(std::in_place_type_t<T>, Args&& ... args) :
+			__data
+			{
+				.data	= new T(std::forward<Args>(args)...),
+				.size	= sizeof(T),
+				.align	= static_cast<std::align_val_t>(alignof(T)),
+				.type	= std::ext::get_erasure<T>()
+			}
+		{}
+		template<trivial_copy T>
+		constexpr generic_device_message(size_t bytes, T&& t) :
+			__data
+			{
+				.data	= new(operator new(__szck<T>(bytes), static_cast<std::align_val_t>(alignof(T)))) T(std::move(t)),
+				.size	= bytes,
+				.align	= static_cast<std::align_val_t>(alignof(T)),
+				.type	= std::ext::get_erasure<T>()
+			}
+		{}
+		template<trivial_copy T, typename ... Args> requires(std::constructible_from<T, Args...>)
+		constexpr generic_device_message(size_t bytes, std::in_place_type_t<T>, Args&& ... args) :
+			__data
+			{
+				.data	= new(operator new(__szck<T>(bytes), static_cast<std::align_val_t>(alignof(T)))) T(std::forward<Args>(args)...),
+				.size	= bytes,
+				.align	= static_cast<std::align_val_t>(alignof(T)),
+				.type	= std::ext::get_erasure<T>()
+			}
+		{}
+	public:
+		constexpr size_t size() const noexcept { return __data.size; }
+		constexpr char* begin() noexcept { return static_cast<char*>(__data.data); }
+		constexpr char* end() noexcept { return begin() + __data.size; }
+		constexpr const char* begin() const noexcept { return static_cast<const char*>(__data.data); }
+		constexpr const char* end() const noexcept { return begin() + __data.size; }
+		constexpr char* data() const noexcept { return static_cast<char*>(__data.data); }
+		inline ~generic_device_message() noexcept { if(__data.data) operator delete(__data.data, __data.size, __data.align); }
+		template<typename T> T* as() noexcept { return __data.type.template cast_to<T>(__data.data); }
+		template<typename T> T const* as() const noexcept { return __data.type.template cast_to<T>(__data.data); }
+		inline generic_device_message(generic_device_message&& that) : __data(that.__data) { that.__reset(); }
+		inline generic_device_message(generic_device_message const& that) :
+			__data
+			{
+				.data	= array_copy<char>(static_cast<char*>(operator new(that.__data.size, that.__data.align)), static_cast<const char*>(that.__data.data), that.__data.size),
+				.size	= that.__data.size,
+				.align	= that.__data.align,
+				.type	= that.__data.type
+			}
+		{}
+		inline generic_device_message& operator=(generic_device_message&& that)
+		{
+			this->__reset();
+			this->__data	= that.__data;
+			that.__reset();
+			return *this;
+		}
+		inline generic_device_message& operator=(generic_device_message const& that)
+		{
+			this->__reset();
+			this->__data = generic_device_message_data
+			{
+				.data	= array_copy<char>(static_cast<char*>(operator new(that.__data.size, that.__data.align)), static_cast<const char*>(that.__data.data), that.__data.size),
+				.size	= that.__data.size,
+				.align	= that.__data.align,
+				.type	= that.__data.type
+			};
+			return *this;
+		}
+	};
+	template<trivial_copy T>
+	struct device_message : public generic_device_message
+	{
+		inline device_message(T&& t) : generic_device_message(std::move(t)) {}
+		inline device_message(size_t bytes, T&& t) : generic_device_message(bytes, std::move(t)) {}
+		template<typename ... Args> requires(std::constructible_from<T, Args...>)
+		inline device_message(Args&& ... args) : generic_device_message(std::in_place_type<T>, std::forward<Args>(args)...) {}
+		template<typename ... Args> requires(std::constructible_from<T, Args...>)
+		inline device_message(size_t bytes, std::in_place_t, Args&& ... args) : generic_device_message(bytes, std::in_place_type<T>, std::forward<Args>(args)...) {}
+		template<typename ST> inline std::__like_t<ST, T> operator->(this ST&& self) { return std::forward_like<ST, T>(*(self.template as<T>())); }
+	};
 }
 namespace std
 {

@@ -45,20 +45,56 @@ namespace std
 			constexpr float __current_load() const noexcept { return __load(0UZ); }
 			constexpr bool __need_rehash(size_type added) const noexcept { return __bucket_count < 2UZ || __load(added) >= __max_load; }
 			constexpr size_type __next_bucket_ct(size_type added) const noexcept { return max(5UZ, __bucket_count) * (1UZ + static_cast<unsigned int>(__builtin_ceilf(__load(added) / __max_load))); }
-			constexpr __buckets_ptr __allocate_buckets(size_type n) { __buckets_ptr result = allocator<__bucket>().allocate(n); array_zero(result, n); return result; }
 			constexpr size_type __size() const noexcept { return __element_count; }
 			constexpr size_type __range(size_type idx) const noexcept { return idx % __bucket_count; }
 			constexpr size_type __range(size_type idx, size_type max) const noexcept { if(__unlikely(!max)) return 0UZ; return idx % max; }
-			constexpr void __reset() noexcept { __root.__next = nullptr; __after_root_idx = 0UZ; __element_count = 0UZ; __bucket_count = 1UZ; __singularity = nullptr; __my_buckets = std::addressof(__singularity); }
 			constexpr void __deallocate_buckets() { if(!__is_singularity()) { allocator<__bucket>().deallocate(__my_buckets, __bucket_count); } }
-			constexpr void __init_buckets(size_type n) { if(__unlikely(n < 2UZ)) { __my_buckets = addressof(__singularity); __singularity = nullptr; } else { __my_buckets = __allocate_buckets(n); } }
 			constexpr void __insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n);
 			constexpr void __remove_first_at(__buckets_ptr buckets, size_type idx, __base_ptr n_next, size_type next_bucket);
 			constexpr void __insert_at(size_type idx, __base_ptr n) { __insert_at(__my_buckets, idx, n); }
 			constexpr void __remove_first_at(size_type idx, __base_ptr n_next, size_type next_bucket) { __remove_first_at(__my_buckets, idx, n_next, next_bucket); }
-			constexpr void __move_assign(__hashtable_base&& that) noexcept { this->__root.__next = that.__root.__next; this->__element_count = that.__element_count; this->__bucket_count = that.__bucket_count; this->__after_root_idx = that.__after_root_idx; this->__my_buckets = that.__my_buckets; that.__reset(); }
-			constexpr __hashtable_base(size_type ct) : __bucket_count(ct) { __init_buckets(ct); }
-			constexpr __hashtable_base(__hashtable_base&& that) noexcept : __root(that.__root), __element_count(that.__element_count), __bucket_count(that.__bucket_count), __after_root_idx(that.__after_root_idx), __my_buckets(that.__my_buckets) { that.__reset(); }
+			constexpr __hashtable_base(size_type ct) : __bucket_count(ct) { this->__init_buckets(ct); }
+			constexpr __buckets_ptr __allocate_buckets(size_type n)
+			{
+				__buckets_ptr result	= allocator<__bucket>().allocate(n);
+				array_zero(result, n);
+				return result;
+			}
+			constexpr void __reset() noexcept
+			{
+				__root.__next		= nullptr;
+				__after_root_idx	= 0UZ;
+				__element_count		= 0UZ;
+				__bucket_count		= 1UZ;
+				__singularity		= nullptr;
+				__my_buckets		= std::addressof(__singularity);
+			}
+			constexpr void __init_buckets(size_type n)
+			{
+				if(__unlikely(n < 2UZ))
+				{
+					__my_buckets	= addressof(__singularity);
+					__singularity	= nullptr;
+					return;
+				}
+				__my_buckets		= __allocate_buckets(n);
+			}
+			constexpr void __move_assign(__hashtable_base&& that) noexcept
+			{
+				this->__root.__next		= that.__root.__next;
+				this->__element_count	= that.__element_count;
+				this->__bucket_count	= that.__bucket_count;
+				this->__after_root_idx	= that.__after_root_idx;
+				this->__my_buckets		= that.__my_buckets;
+				that.__reset();
+			}
+			constexpr __hashtable_base(__hashtable_base&& that) noexcept :
+				__root				{ that.__root },
+				__element_count		{ that.__element_count },
+				__bucket_count		{ that.__bucket_count },
+				__after_root_idx	{ that.__after_root_idx },
+				__my_buckets		{ that.__my_buckets }
+									{ that.__reset(); }
 		};
 		constexpr void __hashtable_base::__insert_at(__buckets_ptr buckets, size_type idx, __base_ptr n)
 		{
@@ -187,53 +223,154 @@ namespace std
 			constexpr size_type __index(key_type const& k) const { return this->__range(__hash_code(k)); }
 			constexpr size_type __index(value_type const& v) const requires(!std::is_same_v<key_type const&, value_type const&>) { return this->__range(__hash_code(v)); }
 			constexpr __node_ptr __allocate_node() { __node_ptr n = this->allocate(1UZ); if consteval { construct_at(n); } return n; }
-			template<typename ... Args> requires(constructible_from<value_type, Args...>) constexpr __node_ptr __create_node(Args&& ... args) { __node_ptr n = __allocate_node(); construct_at(n->__ptr(), forward<Args>(args)...); return n; }
-			constexpr void __destroy_node(__node_ptr n) { if constexpr(!std::is_trivially_destructible_v<value_type>) n->__ref().~value_type() ; this->deallocate(n, 1UZ); }
 			constexpr __node_ptr __begin() noexcept { return static_cast<__node_ptr>(this->__root.__next); }
 			constexpr __const_node_ptr __begin() const noexcept { return static_cast<__const_node_ptr>(this->__root.__next); }
 			constexpr __node_ptr __advance_chain(__base_ptr chain) noexcept { return chain ? static_cast<__node_ptr>(chain->__next) : nullptr; }
 			constexpr __const_node_ptr __advance_chain(__const_base_ptr chain) const noexcept { return chain ? static_cast<__const_node_ptr>(chain->__next) : nullptr; }
-			constexpr __node_ptr __begin(size_type idx) noexcept { return __advance_chain(this->__my_buckets[idx]); }
-			constexpr __const_node_ptr __begin(size_type idx) const noexcept { return __advance_chain(this->__my_buckets[idx]); }
-			constexpr __node_ptr __end(size_type idx) noexcept { __node_ptr n; for(n = __begin(idx); n && __index(n) == idx; n = __advance_chain(n)); return n; }
-			constexpr __const_node_ptr __end(size_type idx) const noexcept { __const_node_ptr n; for(n = __begin(idx); n && __index(n) == idx; n = __advance_chain(n)); return n; }
-			constexpr __base_ptr __find_before(key_type const& what) { size_type idx = __index(what); __base_ptr prev = this->__my_buckets[idx]; for(__node_ptr n = __advance_chain(prev); n && idx == __index(n); prev = n, n = n->__get_next()) { if(__is_equal(what, __key_of(n))) return prev; } return nullptr; }
-			constexpr __const_base_ptr __find_before(key_type const& what) const { size_type idx = __index(what); __const_base_ptr prev = this->__my_buckets[idx]; for(__const_node_ptr n = __advance_chain(prev); n && idx == __index(n); prev = n, n = n->__get_next()) { if(__is_equal(what, __key_of(n))) return prev; } return nullptr; }
-			constexpr __base_ptr __get_before(size_type idx, __const_node_ptr n) { __base_ptr prev = this->__my_buckets[idx]; for(__node_ptr p = __advance_chain(prev); p && idx == __index(p); prev = p, p = p->__get_next()) { if(n == p) return prev; } return nullptr; }
-			constexpr __const_base_ptr __get_before(size_type idx, __const_node_ptr n) const { __const_base_ptr prev = this->__my_buckets[idx]; for(__const_node_ptr p = __advance_chain(prev); p && idx == __index(p); prev = p, p = p->__get_next()) { if(n == p) return prev; } return nullptr; }
-			constexpr __base_ptr __get_before(__node_ptr n) { return __get_before(__index(n), n); }
-			constexpr __const_base_ptr __get_before(__const_node_ptr n) const { return __get_before(__index(n), n); }
-			constexpr __node_ptr __find(key_type const& what) { return __advance_chain(__find_before(what)); }
-			constexpr __const_node_ptr __find(key_type const& what) const { return __advance_chain(__find_before(what)); }
-			constexpr bool __contains(key_type const& what) const { return __find(what) != nullptr; }
+			constexpr __node_ptr __begin(size_type idx) noexcept { return this->__advance_chain(this->__my_buckets[idx]); }
+			constexpr __const_node_ptr __begin(size_type idx) const noexcept { return this->__advance_chain(this->__my_buckets[idx]); }
+			constexpr __base_ptr __get_before(__node_ptr n) { return this->__get_before(__index(n), n); }
+			constexpr __const_base_ptr __get_before(__const_node_ptr n) const { return this->__get_before(this->__index(n), n); }
+			constexpr __node_ptr __find(key_type const& what) { return this->__advance_chain(this->__find_before(what)); }
+			constexpr __const_node_ptr __find(key_type const& what) const { return this->__advance_chain(this->__find_before(what)); }
+			constexpr bool __contains(key_type const& what) const { return this->__find(what) != nullptr; }
 			constexpr void __run_rehash(size_type target_count);
-			constexpr iterator __insert_node(size_type hash, __base_ptr n, size_type added) { if(this->__need_rehash(added)) { __run_rehash(this->__next_bucket_ct(added)); } this->__insert_at(this->__range(hash), n); this->__element_count++; return iterator(n); }
 			constexpr iterator __erase_node(size_type idx, __base_ptr prev, __node_ptr n);
-			constexpr pair<iterator, bool> __insert_node(__node_ptr n, size_type added = 1UZ) { if(__node_ptr p = __find(__key_of(n))) { __destroy_node(n); return make_pair(iterator(p), false); } return make_pair(__insert_node(__hash_code(n), n, added), true); }
-			constexpr iterator __insert(__node_ptr n, size_type added = 1UZ) { return __insert_node(__hash_code(n), n, added); }
-			constexpr pair<iterator, bool> __insert(value_type const& val) requires(copy_constructible<value_type>) { return __insert_node(__create_node(val)); }
-			constexpr pair<iterator, bool> __insert(value_type&& val) requires(move_constructible<value_type>) { return __insert_node(__create_node(move(val))); }
-			template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>) constexpr void __insert(IT first, ST last) { size_type n = static_cast<size_type>(distance(first, last)); for(size_type i = 0; i < n; i++, ++first) { __insert_node(__create_node(*first), static_cast<size_type>(n - i)); } }
-			constexpr void __insert(initializer_list<value_type> ini) requires(copy_constructible<value_type>) { __insert(ini.begin(), ini.end()); }
-			template<typename ... Args> requires(constructible_from<value_type, Args...>) constexpr pair<iterator, bool> __emplace(Args&& ... args) { return __insert_node(__create_node(forward<Args>(args)...)); }
-			constexpr iterator __erase(const_iterator what) { __base_ptr prev = __get_before(__index(what.get_node()), what.get_node()); __node_ptr n = __advance_chain(prev); return __erase_node(__index(n), prev, n); }
-			constexpr size_type __erase(key_type const& what) { __base_ptr prev = __find_before(what); if(__node_ptr n = __advance_chain(prev)) { __erase_node(__index(n), prev, n); return 1UZ; } return 0UZ; }
-			constexpr iterator __before(iterator what) { if(__base_ptr p = __get_before(what.get_node()); p != std::addressof(this->__root)) return iterator(p); else return iterator(nullptr); }
-			constexpr const_iterator __before(const_iterator what) const { if(__const_base_ptr p = __get_before(what.get_node()); p != std::addressof(this->__root)) return const_iterator(p); else return const_iterator(nullptr); }
+			constexpr iterator __insert(__node_ptr n, size_type added = 1UZ) { return this->__insert_node(__hash_code(n), n, added); }
+			constexpr pair<iterator, bool> __insert(value_type const& val) requires(copy_constructible<value_type>) { return this->__insert_node(this->__create_node(val)); }
+			constexpr pair<iterator, bool> __insert(value_type&& val) requires(move_constructible<value_type>) { return this->__insert_node(this->__create_node(move(val))); }
+			constexpr void __insert(initializer_list<value_type> ini) requires(copy_constructible<value_type>) { this->__insert(ini.begin(), ini.end()); }
+			template<typename ... Args> requires(constructible_from<value_type, Args...>)
+			constexpr pair<iterator, bool> __emplace(Args&& ... args) { return this->__insert_node(this->__create_node(forward<Args>(args)...)); }
 			constexpr float __get_max_load() const noexcept { return this->__max_load; }
 			constexpr void __set_max_load(float val) noexcept { this->__max_load = val; }
+			constexpr void __insert_all(__hashtable const& that) { this->__insert(const_iterator(that.__begin()), const_iterator(nullptr)); }
 			constexpr size_type __target_count_at_least(size_type cnt) const noexcept { return max(cnt, static_cast<size_type>(__builtin_ceilf(this->__element_count / this->__max_load))); }
-			constexpr void __deallocate_nodes() { __node_ptr n = __begin(); for(__node_ptr s = __advance_chain(n); n; n = s, s = __advance_chain(s)) __destroy_node(n); }
 			constexpr __hashtable(size_type ct) : __base(ct), __node_alloc() {}
 			constexpr __hashtable() : __base(8UZ), __node_alloc() {}
-			constexpr __hashtable(initializer_list<value_type> ini) requires(copy_constructible<value_type>) : __hashtable(ini.size()) { __insert(ini); }
-			template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>) constexpr __hashtable(IT first, ST last) : __hashtable(static_cast<size_type>(distance(first, last))) { __insert(first, last); }
+			constexpr __hashtable(initializer_list<value_type> ini) requires(copy_constructible<value_type>) : __hashtable(ini.size()) { this->__insert(ini); }
+			template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>)
+			constexpr __hashtable(IT first, ST last) : __hashtable(static_cast<size_type>(distance(first, last))) { this->__insert(first, last); }
 			constexpr __hashtable(__hashtable&& that) : __base(std::move(that)), __node_alloc(std::forward<__node_alloc>(that)) {}
-			constexpr __hashtable(__hashtable const& that) : __base(that.__size()), __node_alloc(that) { this->__insert(const_iterator(that.__begin()), const_iterator(nullptr)); }
+			constexpr __hashtable(__hashtable const& that) : __base(that.__size()), __node_alloc(that) { this->__insert_all(that); }
 			constexpr ~__hashtable() { __deallocate_nodes(); __deallocate_buckets(); }
 			constexpr size_type __size() const noexcept { return this->__element_count; }
 			constexpr void __rehash_to_size(size_type target) { __run_rehash(__target_count_at_least(target)); }
 			constexpr void __reserve(size_type target) { __rehash_to_size(static_cast<size_type>(__builtin_ceilf(target / this->__max_load))); }
+			template<typename ... Args> requires(constructible_from<value_type, Args...>)
+			constexpr __node_ptr __create_node(Args&& ... args)
+			{
+				__node_ptr n = this->__allocate_node();
+				construct_at(n->__ptr(), forward<Args>(args)...);
+				return n;
+			}
+			constexpr void __destroy_node(__node_ptr n)
+			{
+				if constexpr(!std::is_trivially_destructible_v<value_type>)
+					n->__ref().~value_type();
+				this->deallocate(n, 1UZ);
+			}
+			constexpr __node_ptr __end(size_type idx) noexcept
+			{
+				__node_ptr n;
+				for(n = this->__begin(idx); n && this->__index(n) == idx; n = this->__advance_chain(n));
+				return n;
+			}
+			constexpr __const_node_ptr __end(size_type idx) const noexcept
+			{
+				__const_node_ptr n;
+				for(n = this->__begin(idx); n && this->__index(n) == idx; n = this->__advance_chain(n));
+				return n;
+			}
+			constexpr __base_ptr __find_before(key_type const& what)
+			{
+				size_type idx		= this->__index(what);
+				__base_ptr prev		= this->__my_buckets[idx];
+				for(__node_ptr n	= this->__advance_chain(prev); n && idx == this->__index(n); prev = n, n = n->__get_next()) 
+					if(__is_equal(what, __key_of(n)))
+						return prev;
+				return nullptr;
+			}
+			constexpr __const_base_ptr __find_before(key_type const& what) const
+			{
+				size_type idx			= this->__index(what);
+				__const_base_ptr prev	= this->__my_buckets[idx];
+				for(__const_node_ptr n	= this->__advance_chain(prev); n && idx == this->__index(n); prev = n, n = n->__get_next())
+					if(__is_equal(what, __key_of(n)))
+						return prev;
+				return nullptr;
+			}
+			constexpr __base_ptr __get_before(size_type idx, __const_node_ptr n)
+			{
+				__base_ptr prev		= this->__my_buckets[idx];
+				for(__node_ptr p	= this->__advance_chain(prev); p && idx == this->__index(p); prev = p, p = p->__get_next())
+					if(n == p) return prev;
+				return nullptr;
+			}
+			constexpr __const_base_ptr __get_before(size_type idx, __const_node_ptr n) const
+			{
+				__const_base_ptr prev	= this->__my_buckets[idx];
+				for(__const_node_ptr p	= this->__advance_chain(prev); p && idx == this->__index(p); prev = p, p = p->__get_next())
+					if(n == p) return prev;
+				return nullptr;
+			}
+			constexpr iterator __insert_node(size_type hash, __base_ptr n, size_type added)
+			{
+				if(this->__need_rehash(added)) 
+					__run_rehash(this->__next_bucket_ct(added));
+				this->__insert_at(this->__range(hash), n);
+				this->__element_count++;
+				return iterator(n);
+			}
+			constexpr pair<iterator, bool> __insert_node(__node_ptr n, size_type added = 1UZ)
+			{
+				__node_ptr p = this->__find(__key_of(n));
+				if(p) {
+					this->__destroy_node(n);
+					return make_pair(iterator(p), false);
+				}
+				return make_pair(this->__insert_node(__hash_code(n), n, added), true);
+			}
+			template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>)
+			constexpr void __insert(IT first, ST last)
+			{
+				size_type n		= static_cast<size_type>(distance(first, last));
+				for(size_type i	= 0UZ; i < n; i++, ++first)
+					this->__insert_node(this->__create_node(*first), static_cast<size_type>(n - i));
+			}
+			constexpr iterator __erase(const_iterator what)
+			{
+				__base_ptr prev	= this->__get_before(this->__index(what.get_node()), what.get_node());
+				__node_ptr n	= this->__advance_chain(prev);
+				return this->__erase_node(this->__index(n), prev, n);
+			}
+			constexpr size_type __erase(key_type const& what)
+			{
+				__base_ptr prev	= this->__find_before(what);
+				if(__node_ptr n	= this->__advance_chain(prev)) {
+					this->__erase_node(this->__index(n), prev, n);
+					return 1UZ;
+				}
+				return 0UZ;
+			}
+			constexpr iterator __before(iterator what)
+			{
+				if(__base_ptr p = this->__get_before(what.get_node()); p != std::addressof(this->__root))
+					return iterator(p);
+				else return iterator(nullptr);
+			}
+			constexpr const_iterator __before(const_iterator what) const
+			{
+				if(__const_base_ptr p = this->__get_before(what.get_node()); p != std::addressof(this->__root))
+					return const_iterator(p);
+				else return const_iterator(nullptr);
+			}
+			constexpr void __deallocate_nodes()
+			{
+				__node_ptr n = this->__begin();
+				for(__node_ptr s = this->__advance_chain(n); n; n = s, s = this->__advance_chain(s))
+					this->__destroy_node(n);
+			}
 			constexpr void __clear()
 			{
 				__deallocate_nodes();

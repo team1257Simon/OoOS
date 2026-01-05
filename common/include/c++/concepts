@@ -93,8 +93,13 @@ namespace std
 	template<typename T, template<typename> class C> concept satisfies						= __trait_substitution_t<T, C>::value;
 	template<typename T, template<typename...> class O, template<typename> class ... Cs>
 	using __multi_trait_substitution														= O<__trait_substitution_t<T, Cs>...>;
-	template<typename T, template<typename> class ... Cs> concept satisfies_all				= __multi_trait_substitution<T, __and_, Cs ...>::value;
-	template<typename T, template<typename> class ... Cs> concept satisfies_any				= __multi_trait_substitution<T, __or_, Cs ...>::value;
+	template<typename T, template<typename> class ... Cs> concept satisfies_all				= __multi_trait_substitution<T, __and_, Cs...>::value;
+	template<typename T, template<typename> class ... Cs> concept satisfies_any				= __multi_trait_substitution<T, __or_, Cs...>::value;
+	template<typename TT, typename FT> concept convertible_from								= convertible_to<FT, TT>;
+	template<template<typename> class CB, template<typename...> class O, typename ... Ts>
+	using __multi_type_substitution															= O<__trait_substitution<Ts, CB>...>;
+	template<template<typename> class C, typename ... Ts> concept all_satisfy				= __multi_type_substitution<C, __and_, Ts...>::value;
+	template<template<typename> class C, typename ... Ts> concept any_satisfy				= __multi_type_substitution<C, __or_, Ts...>::value;
 #pragma endregion
 }
 #endif

@@ -5,7 +5,7 @@
 #include <concepts>
 namespace std
 {
-	template< class... Ts > class tuple;
+	template<class ... Ts> class tuple;
 	template<typename T>
 	struct __is_empty_non_tuple : is_empty<T> {};
 	template<typename E0, typename... ETs> struct __is_empty_non_tuple<tuple<E0, ETs...>> : false_type {};
@@ -112,7 +112,8 @@ namespace std
 		constexpr tuple& operator=(tuple&& that) noexcept(__nothrow_assignable<ETs...>()) requires(__assignable<ETs const&...>()) { this->__assign(std::move(that)); return *this; }
 		constexpr void swap(tuple& that) { this->__swap(that); }
 	};
-	template<> class tuple<>
+	template<>
+	class tuple<>
 	{
 	public:
 		void swap(tuple&) noexcept {}

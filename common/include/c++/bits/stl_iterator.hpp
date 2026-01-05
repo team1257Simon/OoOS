@@ -90,6 +90,124 @@ namespace std
 	template<__detail::__dereferenceable IT> struct deref { typedef decltype(*declval<IT>()) type; };
 	template<__detail::__dereferenceable IT> using deref_t			= typename deref<IT>::type;
 	template<indirectly_readable IT> using iter_const_reference_t	= common_reference_t<const iter_value_t<IT>&&, iter_reference_t<IT>>;
+	namespace __detail
+	{
+		template<typename IT> struct __counted_iter_value_type {};
+		template<indirectly_readable IT> struct __counted_iter_value_type<IT> { using value_type = iter_value_t<IT>; };
+		template<typename IT> struct __counted_iter_concept{};
+		template<typename IT> requires(requires { typename IT::iterator_concept; }) struct __counted_iter_concept<IT> { using iterator_concept = typename IT::iterator_concept; };
+		template<typename IT> struct __counted_iter_cat {};
+		template<typename IT> requires(requires { typename IT::iterator_category; }) struct __counted_iter_cat<IT> { using iterator_category = typename IT::iterator_category; };
+	}
+	template<input_or_output_iterator IT>
+	class counted_iterator : public __detail::__counted_iter_value_type<IT>, public __detail::__counted_iter_concept<IT>, public __detail::__counted_iter_cat<IT>
+	{
+		IT __curr{};
+		iter_difference_t<IT> __len{};
+	public:
+		using iterator_type = IT;
+		using difference_type = iter_difference_t<IT>;
+		constexpr counted_iterator() requires(default_initializable<IT>) = default;
+		constexpr counted_iterator(IT __i, iter_difference_t<IT> n) : __curr(std::move(__i)), __len(n) { __libk_assert(n >= 0); }
+		template<typename JT> requires(convertible_to<JT const&, IT>)
+		constexpr counted_iterator(counted_iterator<JT> const& that) : __curr(that.__curr), __len(that.__len) {}
+		template<typename JT> requires(assignable_from<IT&, JT const&>)
+		constexpr counted_iterator& operator=(counted_iterator<JT> const& that)
+		{
+			this->__curr	= that.__curr;
+			this->__len		= that.__len;
+			return *this;
+		}
+		[[nodiscard]] constexpr IT const& base() const& noexcept { return __curr; }
+		[[nodiscard]] constexpr IT base()&& noexcept(is_nothrow_move_constructible_v<IT>) { return std::move(__curr); }
+		[[nodiscard]] constexpr iter_difference_t<IT> count() const noexcept { return __len; }
+		[[nodiscard]] constexpr decltype(auto) operator*()
+		noexcept(noexcept(*__curr)) {
+			__libk_assert(__len > 0);
+			return *__curr;
+		}
+		[[nodiscard]] constexpr decltype(auto) operator*() const
+		noexcept(noexcept(*__curr))
+		requires(__detail::__dereferenceable<const IT>) {
+			__libk_assert(__len > 0);
+			return *__curr;
+		}
+		[[nodiscard]] constexpr auto operator->() const noexcept requires(contiguous_iterator<IT>) { return std::to_address(__curr); }
+		constexpr counted_iterator& operator++()
+		{
+			__libk_assert(__len > 0);
+			++__curr;
+			--__len;
+			return *this;
+		}
+		constexpr decltype(auto) operator++(int)
+		{
+			__libk_assert(__len > 0);
+			--__len;
+			try { return __curr++; }
+			catch(...) {
+				++__len;
+				throw;
+			}
+		}
+		constexpr counted_iterator operator++(int) requires forward_iterator<IT>
+		{
+			auto __tmp	= *this;
+			++*this;
+			return __tmp;
+		}
+		constexpr counted_iterator& operator--() requires(bidirectional_iterator<IT>)
+		{
+			--__curr;
+			++__len;
+			return *this;
+		}
+		constexpr counted_iterator operator--(int) requires(bidirectional_iterator<IT>)
+		{
+			auto __tmp	= *this;
+			--*this;
+			return __tmp;
+		}
+		[[nodiscard]] constexpr counted_iterator operator+(iter_difference_t<IT> n) const
+		requires(random_access_iterator<IT>) { return counted_iterator(__curr + n, __len - n); }
+		[[nodiscard]] friend constexpr counted_iterator operator+(iter_difference_t<IT> n, counted_iterator const& i)
+		requires(random_access_iterator<IT>) { return i + n; }
+		constexpr counted_iterator& operator+=(iter_difference_t<IT> n)
+		requires(random_access_iterator<IT>)
+		{
+			__libk_assert(n <= __len);
+			__curr	+= n;
+			__len	-= n;
+			return *this;
+		}
+		[[nodiscard]] constexpr counted_iterator operator-(iter_difference_t<IT> n) const
+		requires(random_access_iterator<IT>) { return counted_iterator(__curr - n, __len + n); }
+		template<common_with<IT> JT>
+		[[nodiscard]] friend constexpr iter_difference_t<JT> operator-(counted_iterator const& __this, counted_iterator<JT> const& __that) noexcept { return __that.__len - __this.__len; }
+		[[nodiscard]] friend constexpr iter_difference_t<IT> operator-(counted_iterator const& __this, default_sentinel_t) noexcept { return -__this.__len; }
+		[[nodiscard]] friend constexpr iter_difference_t<IT> operator-(default_sentinel_t, counted_iterator const& __that) noexcept { return __that.__len; }
+		constexpr counted_iterator& operator-=(iter_difference_t<IT> n)
+		requires(random_access_iterator<IT>)
+		{
+			__libk_assert(-n <= __len);
+			__curr	-= n;
+			__len	+= n;
+			return *this;
+		}
+		[[nodiscard]] constexpr decltype(auto) operator[](iter_difference_t<IT> n) const
+		noexcept(noexcept(__curr[n]))
+		requires(random_access_iterator<IT>) {
+			__libk_assert(n < __len);
+			return __curr[n];
+		}
+		template<common_with<IT> JT>
+		[[nodiscard]] friend constexpr bool operator==(counted_iterator const& __this, counted_iterator<JT> const& __that) noexcept { return __this.__len == __that.__len; }
+		[[nodiscard]] friend constexpr bool operator==(counted_iterator const& __this, default_sentinel_t) noexcept { return __this.__len == 0; }
+		template<common_with<IT> JT>
+		[[nodiscard]] friend constexpr strong_ordering operator<=>(counted_iterator const& __this, counted_iterator<JT> const& __that) noexcept { return __that.__len <=> __this.__len; }
+	private:
+		template<input_or_output_iterator JT> friend class counted_iterator;
+	};
 	template<input_iterator IT> class basic_const_iterator;
 	namespace __detail
 	{

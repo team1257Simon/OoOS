@@ -89,7 +89,7 @@ namespace std
 			}
 			return pos_type(off_type(this->__size()));
 		}
-		template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
+		template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
 		std::streamsize dynamic_streambuf<CT, TT, AT>::xsgetn(char_type* s, std::streamsize n)
 		{
 			std::streamsize l = std::min(n, std::streamsize(this->egptr() - this->gptr()));
@@ -99,7 +99,7 @@ namespace std
 			if(l) this->on_modify();
 			return l;
 		}
-		template <std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
+		template<std::char_type CT, std::char_traits_type<CT> TT, std::allocator_object<CT> AT>
 		std::streamsize dynamic_streambuf<CT, TT, AT>::xsputn(char_type const* s, std::streamsize n)
 		{
 			std::streamsize l   = std::min(n, std::streamsize(this->epptr() - this->pptr()));

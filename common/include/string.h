@@ -24,7 +24,9 @@ char* strstr(const char* haystack, const char* needle);
 char* strchr(const char* str, int chr);
 char* strnchr(const char* str, size_t n, int chr);
 void* memchr(const void* mem, int chr, size_t n);
+void* wmemchr(const void* mem, wchar_t chr, size_t n);
 #ifdef __cplusplus
+__extension__ void* u16memchr(const void* mem, char16_t chr, size_t n);
 }
 #endif
 #endif

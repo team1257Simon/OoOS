@@ -7,6 +7,8 @@
 	.global memcpy
 	.global memset
 	.global memchr
+	.global	wmemchr
+	.global	u16memchr
 	.global __errno
 	.global __rdseed
 	.global get_flags
@@ -16,6 +18,8 @@
 	.type	memcpy,		@function
 	.type	memset,		@function
 	.type	memchr,		@function
+	.type	wmemchr,	@function
+	.type	u16memchr,	@function
 	.type	__errno,	@function
 	.type	__rdseed,	@function
 	.type	get_flags,	@function
@@ -192,6 +196,30 @@ memchr:
 2:
 	ret
 	.size	memchr,		.-memchr
+wmemchr:
+	movq	%rdx, 		%rcx
+	movq	%rsi, 		%rax
+	repne	scasl
+	jne		1f
+	leaq	-1(%rdi),	%rax
+	jmp		2f
+1:
+	xorq	%rax,		%rax
+2:
+	ret
+	.size	wmemchr,	.-wmemchr
+u16memchr:
+	movq	%rdx, 		%rcx
+	movq	%rsi, 		%rax
+	repne	scasw
+	jne		1f
+	leaq	-1(%rdi),	%rax
+	jmp		2f
+1:
+	xorq	%rax,		%rax
+2:
+	ret
+	.size	u16memchr,	.-u16memchr
 __errno:
 	movq	$errno,		%rax
 	ret

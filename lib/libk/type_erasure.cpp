@@ -91,7 +91,7 @@ namespace std
 			if(cthis && cthat) return __is_derived_from(cthat, cthis);
 			return false;
 		}
-		void* type_erasure::cast_inferred(void* obj) const
+		void* type_erasure::cast_reflective(void* obj) const
 		{
 			if(__unlikely(!obj)) return nullptr;
 			type_info const* inferred_type	= __extract_type(obj);

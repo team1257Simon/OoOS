@@ -85,8 +85,7 @@ namespace ooos
 		inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
 		inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
 		template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
-		template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { isr_actor actor(std::forward<FT>(handler), this->__allocated_mm); __api_hooks->on_irq(irq, std::forward<isr_actor>(actor), this); }
-		inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)()) { if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn)) { __api_hooks = api; __allocated_mm = mm; __fini_fn = fini; __relocate_type_info(); __save_init_jb(); } }
+		template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { __api_hooks->on_irq(irq, std::move(isr_actor(std::forward<FT>(handler), this->__allocated_mm)), this); }
 		friend void module_takedown(abstract_module_base* mod);
 		inline void put_ctx(cxxabi_abort& abort_handler) { abort_handler.eh_ctx = std::addressof(__eh_ctx); }
 		inline jmp_buf& ctx_jmp() { return __eh_ctx.handler_ctx; }
@@ -96,9 +95,30 @@ namespace ooos
 		inline size_t asprintf(const char** strp, const char* fmt, ...);
 		inline size_t logf(const char* fmt, ...);
 		inline block_io_provider_module* as_blockdev();
-		template<typename T, size_t A = alignof(T)> inline T* allocate_array(size_t num) { return array_zero(static_cast<T*>(allocate_buffer(num * sizeof(T), A)), num); }
-		template<typename T, size_t A = alignof(T)> inline T* resize_array(T* orig, size_t old_size, size_t target_size) { return static_cast<T*>(resize_buffer(orig, old_size * sizeof(T), target_size * sizeof(T), A)); }
 		template<typename T> inline void release_array(T* arr) { this->release_buffer(arr, alignof(T)); }
+		template<typename T, size_t A = alignof(T)>
+		inline T* allocate_array(size_t num) { return array_zero(static_cast<T*>(allocate_buffer(num * sizeof(T), A)), num); }
+		template<trivial_copy T, size_t A = alignof(T)>
+		inline T* resize_array(T* orig, size_t old_size, size_t target_size) { return static_cast<T*>(resize_buffer(orig, old_size * sizeof(T), target_size * sizeof(T), A)); }
+		template<nontrivial_copy T, size_t A = alignof(T)>
+		inline T* resize_array(T* orig, size_t old_size, size_t target_size)
+		{
+			T* result	= allocate_array<T>(target_size);
+			copy_or_move(result, orig, std::min(old_size, target_size));
+			release_buffer(orig, A);
+			return result;
+		}
+		inline void setup(kernel_api* api, kmod_mm* mm, void (*fini)())
+		{
+			if(api && mm && fini && !(__api_hooks || __allocated_mm || __fini_fn))
+			{
+				__api_hooks		= api;
+				__allocated_mm	= mm;
+				__fini_fn		= fini;
+				__relocate_type_info();
+				__save_init_jb();
+			}
+		}
 	};
 	template<typename T>
 	struct module_mm_allocator
@@ -123,13 +143,13 @@ namespace ooos
 		[[gnu::always_inline]] inline void_pointer __allocate_n(size_type n) const
 		{
 			if(__unlikely(!n)) return nullptr;
-			if(__opt_module) return __opt_module->allocate_buffer(n * __size_val, __align_val);
+			if(__opt_module) return __opt_module->allocate_array<value_type>(n);
 			else return operator new(__size_val, __std_align_val);
 		}
 		[[gnu::always_inline]] inline void __deallocate(pointer p, size_type n) const
 		{
 			if(__unlikely(!n || !p)) return;
-			if(__opt_module) __opt_module->release_buffer(p, n * __size_val);
+			if(__opt_module) __opt_module->release_array(p);
 			else operator delete(p, n * __size_val, __std_align_val);
 		}
 		[[gnu::always_inline]] inline pointer __allocate(size_type n) const
@@ -163,7 +183,7 @@ namespace ooos
 		return result;
 	}
 	void module_takedown(abstract_module_base* mod);
-	template<typename T, typename ... Args>
+	template<std::derived_from<abstract_module_base> T, typename ... Args> requires(std::constructible_from<T, Args...>)
 	abstract_module_base* setup_instance(void* addr, kernel_api* api, kframe_tag** frame_tag, kframe_exports* kframe_fns, void (*init)(), void (*fini)(), cxxabi_abort& abort_handler, Args&& ... args)
 	{
 		if(addr && api && frame_tag && kframe_fns && fini)

@@ -24,10 +24,11 @@ namespace std
 		using typename __base::const_pointer;
 		using typename __base::const_reference;
 		constexpr hash_set(size_type bucket_ct) : __base(bucket_ct) {}
+		template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>)
+		constexpr hash_set(IT first, ST last) : __base(first, last) {}
 		constexpr hash_set()							= default;
 		constexpr hash_set(hash_set const&)				= default;
 		constexpr hash_set(hash_set&&)					= default;
-		template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>) constexpr hash_set(IT first, ST last) : __base(first, last) {}
 		constexpr hash_set& operator=(hash_set const&)	= default;
 		constexpr hash_set& operator=(hash_set&&)		= default;
 		constexpr allocator_type get_allocator() const noexcept { return allocator_type(this); }

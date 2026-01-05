@@ -338,16 +338,19 @@ typedef struct { volatile short : 16; } empty_word;
 typedef struct { volatile int : 32; } empty_dword;
 typedef struct { volatile long : 64; } empty_qword;
 struct force_header_data_dword { uint32_t header_data_hi; };
-struct event_data_qword { uint64_t event_data; };
-union [[gnu::may_alias]] trb_data_ptr
+struct event_data_qword { char event_data[sizeof(qword)]; };
+union __pack [[gnu::may_alias]] trb_data_ptr
 {
-	addr_t ptr;
 	struct __pack
 	{
+		typedef p2align_mask<4UZ> mask;
 		bool dequeue_cycle_state	: 1;
 		stream_contex_type sct		: 3;
 		uintptr_t hi_ptr			: 60;
-	};
+		constexpr operator addr_t() const noexcept { return std::bit_cast<addr_t>(*this).trunc(1UZ << 4); }
+		constexpr decltype(auto) operator=(addr_t p) noexcept { return mask_assign(*this, p.full); }
+	} data_ptr;
+	char immediate_data[sizeof(uintptr_t)];
 };
 struct __pack force_header_trb_data
 {
