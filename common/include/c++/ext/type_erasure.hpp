@@ -15,22 +15,27 @@ namespace std
 		 */
 		class type_erasure : public type_index
 		{
+			template<typename T> struct __can_cast_ptr : false_type {};
+			template<std::__detail::__dereferenceable T> struct __can_cast_ptr<T> : bool_constant<is_object_v<std::remove_cvref_t<decltype(*std::declval<T>())>>>{};
+			template<satisfies<__can_cast_ptr> T> using __ptr_val_t = std::remove_cvref_t<std::iter_reference_t<T>>;
 		public:
-			type_erasure(type_info const& i);
+			constexpr type_erasure(type_info const& i) : type_index(i) {}
 			constexpr type_erasure() noexcept : type_index() {}
 			constexpr type_info const& get_type_info() const { return *info; }
-			bool is_derived_from(type_info const& that) const;
-			bool derives(type_info const& that) const;
-			void* cast_to(void* obj, type_info const& ti) const;
-			void* cast_from(void* obj, type_erasure const& that) const;
-			void* cast_reflective(void* obj) const;
-			template<typename T> T* cast_to(void* obj) { return static_cast<T*>(cast_to(obj, typeid(T))); }
-			template<typename T> T const* cast_to(const void* obj) { return static_cast<T const*>(cast_to(const_cast<void*>(obj), typeid(T))); }
-			template<typename T> void* cast(T& t);
-			template<object T> requires(!is_array_v<T>) void* cast(T& t) { return cast_from(addressof(t), typeid(t)); }
-			template<typename T> requires(!object<T> || is_array_v<T>) void* cast(T& t) { if(typeid(T) == *info) { return addressof(t); } return nullptr; }
-			template<typename T> bool matches(T const& t) { if(*info == typeid(t)) return true; return type_erasure(typeid(t)).is_derived_from(*info); }
-			friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) { return __this.info == __that.info; }
+			bool is_derived_from(type_info const& that) const noexcept;
+			bool derives(type_info const& that) const noexcept;
+			void* cast_to(void* obj, type_info const& ti) const noexcept;
+			void* cast_from(void* obj, type_erasure const& that) const noexcept;
+			void* cast(void* obj) const noexcept;
+			template<typename T> requires(!is_pointer_v<T>) void* cast(T& t) const noexcept { return cast_from(addressof(t), typeid(t)); }
+			template<satisfies<__can_cast_ptr> T> void* cast(T t) const noexcept { return cast_from(std::to_address(t), typeid(__ptr_val_t<T>)); }
+			template<typename T> T* cast_to(void* obj) const noexcept { return static_cast<T*>(cast_to(obj, typeid(T))); }
+			template<typename T> T const* cast_to(const void* obj) const noexcept { return static_cast<T const*>(cast_to(const_cast<void*>(obj), typeid(T))); }
+			template<typename T> bool matches() const noexcept { return type_erasure(typeid(T)).is_derived_from(*info); }
+			template<typename T> bool matches(T const& t) const noexcept { return type_erasure(typeid(t)).is_derived_from(*info); }
+			friend constexpr bool operator==(type_erasure const& __this, type_erasure const& __that) noexcept { return __this.info == __that.info; }
+			friend constexpr bool operator==(type_erasure const& __this, type_info const& __that) noexcept { return __this.info == std::addressof(__that); }
+			friend constexpr bool operator==(type_info const& __this, type_erasure const& __that) noexcept { return std::addressof(__this) == __that.info; }
 		};
 		template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
 		/**
@@ -44,7 +49,7 @@ namespace std
 		T* reflective_cast(void* ptr)
 		{
 			type_erasure erasure	= type_erasure(typeid(T));
-			void* result			= erasure.cast_reflective(ptr);
+			void* result			= erasure.cast(ptr);
 			return static_cast<T*>(result);
 		}
 		/**
@@ -53,7 +58,7 @@ namespace std
 		 * If passed a null pointer, it returns typeid(nullptr).
 		 * On a failure (because the passed pointer is not polymorphic), it returns typeid(void).
 		 */
-		type_info const& extract_typeid(void*);
+		type_info const& extract_typeid(void*) noexcept;
 	}
 }
 #endif

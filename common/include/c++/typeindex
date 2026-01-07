@@ -9,7 +9,7 @@ namespace std
 	protected:
 		type_info const* info;
 	public:
-		type_index(type_info const& i);
+		constexpr type_index(type_info const& i) : info(std::addressof(i)) {}
 		constexpr type_index() noexcept : info(addressof(typeid(void))) {}
 		const char* name() const;
 		size_t hash_code() const;

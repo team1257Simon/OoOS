@@ -52,7 +52,7 @@ constexpr size_t block_index_range	= max_exponent - min_exponent;
 constexpr size_t max_block_index	= block_index_range - 1Z;
 constexpr addr_t sysres_base		= 0xFFFF800000000000LA;
 // Describes a memory block in stage 2.
-struct block_tag
+struct __pack block_tag
 {
 	uint64_t magic			= block_magic;
 	size_t block_size;
@@ -91,7 +91,8 @@ struct block_tag
 	constexpr bool is_free() const noexcept { return this->index >= 0 && !this->held_size; }
 	constexpr bool is_split() const noexcept { return left_split || right_split; }
 	block_tag* split();
-} __pack;
+};
+//	This structure implements stage 2 in the kernel proper. The structure that implements stage 2 in modules inherits from this as well.
 struct kframe_tag
 {
 	uint64_t magic			= kframe_magic;
@@ -123,6 +124,7 @@ private:
 	void __lock();
 	void __unlock();
 };
+//	Because modules don't link directly against the kernel, we need to pass in pointers to these functions at runtime.
 struct kframe_exports
 {
 	typedef addr_t (kframe_tag::*alloc_fn)(size_t, size_t);
@@ -149,6 +151,7 @@ constexpr bool operator==(block_descriptor const& __this, block_descriptor const
 			&& __this.virtual_start	== __that.virtual_start
 			&& __this.size			== __that.size;
 }
+//	This structure implements stage 3, and unlike the other structures is not a singleton in any sense from the kernel's perspective.
 struct uframe_tag
 {
 	uint64_t magic;
@@ -186,6 +189,7 @@ public:
 	block_descriptor* add_block(size_t sz, addr_t start, size_t align = 0UZ, bool write = true, bool execute = true, bool allow_global_shared = false);
 	addr_t translate(addr_t addr);
 };
+// Enumerates block indices by their position in a given byte representing a region (see status_byte).
 enum block_idx : uint8_t
 {
 	I0	= 0x01,
@@ -198,6 +202,7 @@ enum block_idx : uint8_t
 	I7	= 0x80,
 	ALL = 0xFF
 };
+// Enumerates the size of a block; these are themselves multiples of the size of one page.
 enum block_size : uint32_t
 {
 	S512	=  512 * page_size,
@@ -210,7 +215,19 @@ enum block_size : uint32_t
 	S04		=	 4 * page_size
 };
 #define BS2BI(i) i == S04 ? (I6 | I7) : (i == S08 ? I5 : (i ==	S16 ? I4 : (i ==	S32 ? I3 : (i ==	S64 ? I2 : (i == S128 ? I1 : (i == S256 ? I0 : ALL))))))
-// Describes a 512-page region in stage 1.
+/**
+ *	Describes a 512-page region of physical memory in stage 1.
+ *	Each region is divided into the following blocks:
+ *	[256P] B0: |< 000 - 255 >|
+ *	[128P] B1: |< 256 - 383 >|
+ *	[064P] B2: |< 383 - 447 >|
+ *	[032P] B3: |< 448 - 479 >|
+ *	[016P] B4: |< 480 - 495 >|
+ *	[008P] B5: |< 496 - 503 >|
+ *	[004P] B6: |< 504 - 507 >|
+ *	[004P] B7: |< 508 - 511 >|
+ *	In addition, a region can be allocated in its entirety as a 512-page block.
+ */
 typedef struct status_byte
 {
 	uint8_t the_byte;
@@ -229,24 +246,15 @@ private:
 	constexpr static unsigned int gb_of(uintptr_t addr) { return addr / gigabyte; }
 	constexpr static unsigned int sb_of(uintptr_t addr) { return (addr / region_size) % 512; }
 } gb_status[512];
-/*
- *	Each 512-page region of physical memory is divided into the following blocks:
- *	[256P] B0: |< 000 - 255 >|
- *	[128P] B1: |< 256 - 383 >|
- *	[064P] B2: |< 383 - 447 >|
- *	[032P] B3: |< 448 - 479 >|
- *	[016P] B4: |< 480 - 495 >|
- *	[008P] B5: |< 496 - 503 >|
- *	[004P] B6: |< 504 - 507 >|
- *	[004P] B7: |< 508 - 511 >|
- *	In addition, a region can be allocated in its entirety as a 512-page block.
- *	Blocks are assigned as follows:
+/**
+ *	Implements stage 1, as well as some other miscellaneous memory-management, mapping, and bookkeeping functions.
+ *	Notes on the allocation procedure:
  *		1. When memory is requested (i.e. a frame needs additional blocks), the amount of memory requested is used to determine the block size to allocate.
  *			- If the requested block is larger than 256 pages but smaller than 512 pages, a full 512-page region is allocated.
  *			- If the requested block is larger than 512 pages, a set of physically-contiguous 512-page regions is allocated as a single block.
  *			- In all other cases, the requested amount (in pages) will be rounded up to the next power of 2, to a minimum of 4, and used as the size of the block.
- *			-- Any successful block allocation will therefore allocate at least 16 kilobytes of memory as a single contiguous block.
- *			-- Blocks are then divided by the kernel frame (either the main kernel's or that of the relevant module) to satisfy individual allocation requests.
+ * 			- Any successful block allocation will therefore allocate at least 16 kilobytes of memory as a single contiguous block.
+ *			- Blocks are then divided by the kernel frame (either the main kernel's or that of the relevant module) to satisfy individual allocation requests.
  *		2. Physical addresses are assigned in order low-to-high, globally, from regions of conventional memory.
  *			- When a block is allocated, a watermark pointer serving as a hint for searches is set to equal the end of that block.
  *			- When a page block is released, the watermark pointer is updated to reflect the newly-available address if it is lower.
@@ -259,10 +267,11 @@ private:
  *			- Page table entries generated after startup (such as for process page frames) will come from the kernel heap.
  *		4. Virtual addresses are assigned in order low-to-high per userspace page frame. Each page frame tracks its own address-mapping watermark.
  *			- Because of the extreme size of the address space, it should not be necessary to track released virtual addresses.
- *			Instead, blocks that are released from the frame are unmapped, and if they are reallocated later their virtual address will likely change.
- *		5. The bootloader will have identity-mapped all available memory to the kernel's page tables. The kernel therefore operates in a fully identity-mapped space.
- *			Kernel workers and module code will likewise see only identity-mapped memory. In order to facilitate access to userspace pointers,
- *			userspace frames will store pointers to their page tables that can be used to translate those pointers when in syscalls.
+ *			- Instead, blocks that are released from the frame are unmapped, and if they are reallocated later their virtual address will likely change.
+ *		5. The bootloader will have identity-mapped all available memory to the kernel's page tables.
+ *			- The kernel therefore operates in a fully identity-mapped space.
+ *			- Kernel workers and module code will likewise see only identity-mapped memory.
+ *			- In order to facilitate access to userspace pointers, userspace frames will store pointers to their page tables that can be used to translate those pointers when in syscalls.
  */
 class kernel_memory_mgr
 {
@@ -326,6 +335,9 @@ public:
 	addr_t copy_kernel_mappings(paging_table target);
 	// Identity-maps the given address (usually one specified by a device, e.g. in a PCI base address register) with flags for DMA use.
 	addr_t map_dma(uintptr_t addr, size_t sz, bool prefetchable);
+	// Stage 1 allocation hooks. All of these are currently attribute(nointerrupts) to ensure stability, but this might not strictly be needed (TBD).
+	// Note: attribute(nointerrupts) is implemented in the ooos plugin for GCC; building the kernel without that plugin will issue several warnings.
+	/*----------------------------------------------------------------------*/
 	// First-stage allocation; allocates a region sized to a power of 2 (at least 4), or a multiple of 512, in pages.
 	__nointerrupts __noinline addr_t allocate_kernel_block(size_t sz) noexcept;
 	// Third-stage allocation; allocates a block sized in pages and maps it to the active frame at the given starting address and with the given permissions.

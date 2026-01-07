@@ -6,18 +6,8 @@
 #include <tuple>
 namespace std
 {
-	template<typename T> struct default_delete
-	{ 
-		constexpr void operator()(T* ptr) const {
-			if constexpr(!std::is_trivially_destructible_v<T>)
-				ptr->~T();
-			operator delete(ptr, static_cast<std::align_val_t>(alignof(T)));
-		} 
-	};
-	template<typename T> struct default_delete<T[]> { 
-		static_assert(std::is_trivially_destructible_v<T>, "nontrivial destructors unsupported for array unique_ptr");
-		constexpr void operator()(T ptr[]) const { operator delete[](ptr, static_cast<std::align_val_t>(alignof(T))); }
-	};
+	template<typename T> struct default_delete { constexpr void operator()(T* ptr) const { delete ptr; } };
+	template<typename T> struct default_delete<T[]> { constexpr void operator()(T ptr[]) const { delete[] ptr; } };
 	namespace __detail
 	{
 		template<typename FT, typename T> concept __ptr_accept_ftor		= (!std::is_array_v<T> && requires(FT ft) { ft(declval<T*>()); }) || (std::is_unbounded_array_v<T> && requires(FT ft) { ft(declval<T>()); });
@@ -84,8 +74,8 @@ namespace std
 		constexpr unique_ptr& operator=(unique_ptr&& that) noexcept { reset(that.release()); __deleter() = std::move(that.__deleter()); return *this; }
 		constexpr ~unique_ptr() noexcept { __delete_if_present(); }
 		constexpr void swap(unique_ptr& that) noexcept { __ptr_impl.swap(that.__ptr_impl); }
-		constexpr typename add_lvalue_reference<element_type>::type operator*() const { return *__ptr(); }
-		constexpr pointer operator->() const noexcept { return __ptr(); }
+		constexpr auto operator*() const requires(is_object_v<T>) { return *__ptr(); }
+		constexpr pointer operator->() const noexcept requires(is_object_v<T>) { return __ptr(); }
 	};
 	template<typename T, __detail::__ptr_accept_ftor<T[]> DT>
 	class unique_ptr<T[], DT>

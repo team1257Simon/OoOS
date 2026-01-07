@@ -6,7 +6,7 @@ struct vtable_header
 	ptrdiff_t					leaf_offset;	/** Offset of the leaf (full/primary) object. */
 	const __class_type_info*	type;			/** Type of the object. */
 };
-static std::type_info const* __extract_type(void* obj)
+static std::type_info const* __extract_type(void* obj) noexcept
 {
 	if(__unlikely(!obj)) return std::addressof(typeid(nullptr));
 	// treat obj as void**
@@ -25,35 +25,29 @@ static std::type_info const* __extract_type(void* obj)
 	vtable_header const& leaf_header		= leaf_vpointer.minus(sizeof(vtable_header)).deref<vtable_header const>();
 	return leaf_header.type;
 }
-static void* __extract_leaf(void* obj)
+static void* __extract_leaf(void* obj) noexcept
 {
 	// this will be called after the function above, meaning we've already checked this pointer
 	vtable_header const& target_header		= addr_t(obj).deref<addr_t>().minus(sizeof(vtable_header)).deref<vtable_header const>();
 	return addr_t(obj).plus(target_header.leaf_offset);
 }
-static bool __is_derived_from(__class_type_info const* __type, __class_type_info const* __base)
+static bool __is_derived_from(__class_type_info const* __type, __class_type_info const* __base) noexcept
 {
 	if(__type == __base) return true;
 	if(__type && __base)
 	{
 		if(__si_class_type_info const* sti = dynamic_cast<__si_class_type_info const*>(__type))
-		{
-			if(sti->__base_type == __base)
-				return true;
 			return __is_derived_from(sti->__base_type, __base);
-		}
 		else if(__vmi_class_type_info const* vti = dynamic_cast<__vmi_class_type_info const*>(__type))
 		{
-			for(unsigned int i = 0; i < vti->__base_count; i++)
-				if(vti->__base_info[i].__base_type == __base)
-					return true;
-				else if(__is_derived_from(vti->__base_info[i].__base_type, __base))
+			for(unsigned int i = 0U; i < vti->__base_count; i++)
+				if(__is_derived_from(vti->__base_info[i].__base_type, __base))
 					return true;
 		}
 	}
 	return false;
 }
-static void* __reflective_cast(std::type_info const& from, std::type_info const& to, void* obj)
+static void* __reflective_cast(std::type_info const& from, std::type_info const& to, void* obj) noexcept
 {
 	if(__unlikely(!obj)) return nullptr;
 	if(from == to || (dynamic_cast<__fundamental_type_info const*>(addressof(from)) && dynamic_cast<__fundamental_type_info const*>(addressof(to)))) return obj;
@@ -74,31 +68,32 @@ namespace std
 {
 	namespace ext
 	{
-		type_erasure::type_erasure(type_info const& i) : type_index(i) {}
-		void* type_erasure::cast_to(void* obj, type_info const& ti) const { return __reflective_cast(*info, ti, obj); }
-		void* type_erasure::cast_from(void* obj, type_erasure const& that) const { return that.cast_to(obj, *info); }
-		bool type_erasure::is_derived_from(type_info const& that) const
+		void* type_erasure::cast_to(void* obj, type_info const& ti) const noexcept { return __reflective_cast(*info, ti, obj); }
+		void* type_erasure::cast_from(void* obj, type_erasure const& that) const noexcept { return that.cast_to(obj, *info); }
+		bool type_erasure::is_derived_from(type_info const& that) const noexcept
 		{
+			if(info == std::addressof(that)) return true;
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthis, cthat);
 			return false;
 		}
-		bool type_erasure::derives(type_info const& that) const
+		bool type_erasure::derives(type_info const& that) const noexcept
 		{
+			if(info == std::addressof(that)) return true;
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthat, cthis);
 			return false;
 		}
-		void* type_erasure::cast_reflective(void* obj) const
+		void* type_erasure::cast(void* obj) const noexcept
 		{
 			if(__unlikely(!obj)) return nullptr;
 			type_info const* inferred_type	= __extract_type(obj);
 			if(__unlikely(!inferred_type)) return nullptr;
 			return __reflective_cast(*inferred_type, *info, __extract_leaf(obj));
 		}
-		type_info const& extract_typeid(void* obj)
+		type_info const& extract_typeid(void* obj) noexcept
 		{
 			type_info const* poly	= __extract_type(obj);
 			if(poly) return *poly;
