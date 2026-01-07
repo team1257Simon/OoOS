@@ -8,9 +8,9 @@ typedef task_pl_queue::const_iterator task_citerator;
 typedef task_pl_queue::iterator task_iterator;
 struct scheduler_times
 {
-	unsigned int tick_rate;
-	unsigned int cycle_divisor;
-	std::atomic<unsigned> tick_cycles;
+	unsigned int counts_per_irq;
+	unsigned int counts_per_tick;
+	std::atomic<unsigned> counter;
 	cpu_timer_stopwatch timestamp_stopwatch;
 	void init();
 	bool tick();
@@ -40,14 +40,14 @@ void scheduler_times::init()
 	uint32_t timer_frequency		= cpuid(0x15U, 0).ecx;
 	if(!timer_frequency)
 		timer_frequency				= cpuid(0x16U, 0).ecx;
-	cycle_divisor					= timer_frequency;
-	tick_rate						= magnitude(timer_frequency);
+	counts_per_tick					= timer_frequency;
+	counts_per_irq					= magnitude(timer_frequency);
 }
 bool scheduler_times::tick()
 {
-	tick_cycles		+= tick_rate;
-	bool result		= (tick_cycles >= cycle_divisor);
-	tick_cycles		= tick_cycles % cycle_divisor;
+	counter		+= counts_per_irq;
+	bool result	= (counter >= counts_per_tick);
+	counter		= counter % counts_per_tick;
 	return result;
 }
 kthread_ptr kthread_of(task_t* task_base)
@@ -261,7 +261,7 @@ bool scheduler::init() noexcept
 	catch(std::exception& e) { return panic(e.what()), false; }
 	task_change_flag.store(false);
 	sched_times.init();
-	__deferred_actions.ticks_per_ms	= (1.Q / static_cast<__float128>(sched_times.cycle_divisor)) * sched_times.tick_rate;
+	__deferred_actions.ticks_per_ms	= (1.Q / static_cast<__float128>(sched_times.counts_per_tick)) * sched_times.counts_per_irq;
 	interrupt_table::add_irq_handler(0, std::move([this]() -> void
 	{
 		if(__running)

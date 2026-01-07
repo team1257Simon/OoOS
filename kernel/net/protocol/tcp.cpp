@@ -287,7 +287,8 @@ int tcp_port_handler::rx_initial(tcp_packet& p)
 		ack_packet->fields.ack_flag						= true;
 		ack_packet->fields.syn_flag						= true;
 		ack_packet->compute_tcp_checksum();
-		if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+		int err											= tx_send_next();
+		if(__unlikely(err)) return err;
 		connection_state								= SYN_RECEIVED;
 	}
 	catch(std::bad_alloc&) { return -ENOMEM; }
@@ -325,7 +326,8 @@ int tcp_port_handler::rx_establish(tcp_packet& p)
 			ack_packet->fields.ack_flag					= true;
 			ack_packet->fields.syn_flag					= true;
 			ack_packet->compute_tcp_checksum();
-			if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+			int err										= tx_send_next();
+			if(__unlikely(err)) return err;
 			connection_state							= ESTABLISHED;
 		}
 	}
@@ -373,7 +375,9 @@ int tcp_port_handler::rx_accept_payload(tcp_packet& p)
 			if(!connection_info.receive_commit_sequence) connection_info.receive_commit_sequence = i->first;
 			if(i->second->fields.push_flag) rx_commit();
 		}
-		if(int err = tx_ack(); __unlikely(err != 0)) return err;
+		int err	= tx_ack(); 
+		if(__unlikely(err)) return err;
+		// TBD: do we need to add anything here?
 		return 0;
 	}
 	catch(std::bad_alloc&) { return -ENOMEM; }
@@ -406,7 +410,8 @@ int tcp_port_handler::tx_reset(uint32_t use_seq)
 	i->second->source_port			= local_port;
 	i->second->destination_addr		= connection_info.remote_host;
 	i->second->destination_port		= connection_info.remote_port;
-	if(int err = next->transmit(i->second); __unlikely(err != 0)) return err;
+	int err							= next->transmit(i->second);
+	if(__unlikely(err)) return err;
 	// TODO: we might need to retransmit the correct sequence...add that here if applicable
 	return 0;
 }
@@ -415,7 +420,9 @@ int tcp_port_handler::tx_ack()
 	tcp_packet& ack_packet		= create_packet(0UZ);
 	ack_packet->fields.ack_flag	= true;
 	ack_packet->compute_tcp_checksum();
-	if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+	int err						= tx_send_next();
+	if(__unlikely(err)) return err;
+	// TBD: do we need to add anything here?
 	return 0;
 }
 int tcp_port_handler::tx_begin_close()
@@ -424,14 +431,16 @@ int tcp_port_handler::tx_begin_close()
 	fin_packet->fields.ack_flag		= true;
 	fin_packet->fields.finish_flag	= true;
 	fin_packet->compute_tcp_checksum();
-	if(int err = tx_send_next(); __unlikely(err != 0)) return err;
-	connection_state = tcp_connection_state::FIN_WAIT_1;
+	int err							= tx_send_next();
+	if(__unlikely(err)) return err;
+	connection_state				= tcp_connection_state::FIN_WAIT_1;
 	return 0;
 }
 int tcp_port_handler::tx_simultaneous_close()
 {
-	if(int err = tx_ack(); __unlikely(err != 0)) return err;
-	connection_state = tcp_connection_state::CLOSING;
+	int err				= tx_ack();
+	if(__unlikely(err)) return err;
+	connection_state	= tcp_connection_state::CLOSING;
 	return 0;
 }
 int tcp_port_handler::set_await_close()
@@ -450,6 +459,8 @@ int tcp_port_handler::tx_send_data()
 	pkt->fields.ack_flag	= true;
 	pkt->fields.push_flag	= true;
 	pkt->compute_tcp_checksum();
-	if(int err = tx_send_next(); __unlikely(err != 0)) return err;
+	int err					= tx_send_next();
+	if(__unlikely(err)) return err;
+	// TBD: do we need to add anything here?
 	return 0;
 }

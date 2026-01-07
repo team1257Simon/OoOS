@@ -695,36 +695,18 @@ namespace ooos
 		constexpr T& operator*() const noexcept { return *static_cast<T*>(this->get_ptr()); }
 		template<trivial_copy U> requires(__can_attempt_cast<U>()) U* cast_to() const noexcept { return this->type().template cast_to<U>(this->get_ptr()); }
 	};
-	template<trivial_copy T> struct message_type_t { constexpr explicit message_type_t() = default; };
-	template<trivial_copy T> constexpr inline message_type_t<T> message_type{};
 	struct abstract_connectable_device
 	{
 		virtual void put_msg(generic_device_message const& msg)			= 0;
 		virtual std::optional<generic_device_message> poll_msg()		= 0;
+		virtual bool is_ready()											= 0;
+		virtual void reset()											= 0;
 		struct provider
 		{
 			virtual void on_connect(abstract_connectable_device*)		= 0;
 			virtual void on_disconnect(abstract_connectable_device*)	= 0;
 			virtual abstract_connectable_device* get(unsigned id)		= 0;
 		};
-		template<typename FT> requires(std::is_invocable_v<FT, generic_device_message const&>)
-		bool poll(FT&& callback_fn)
-		{
-			std::optional<generic_device_message> result	= poll_msg();
-			if(!result.has_value()) return false;
-			std::invoke(callback_fn, result.value());
-			return true;
-		}
-		template<trivial_copy MT, typename FT> requires(std::is_invocable_v<FT, device_message<MT> const&>)
-		bool poll(message_type_t<MT>, FT&& callback_fn)
-		{
-			std::optional<generic_device_message> result	= poll_msg();
-			if(!result.has_value()) return false;
-			device_message<MT>* typed_result				= result->template as<MT>();
-			if(!typed_result) return false;
-			std::invoke(callback_fn, *typed_result);
-			return true;
-		}
 	};
 }
 namespace std

@@ -1,9 +1,9 @@
 #ifndef __REALTIME_CLOCK
 #define __REALTIME_CLOCK
 #include <sys/time.h>
+#ifdef __cplusplus
 #include <isr_table.hpp>
 #include <atomic>
-#ifdef __cplusplus
 extern "C"
 {
 #endif

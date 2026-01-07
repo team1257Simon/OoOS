@@ -2,41 +2,29 @@
 #include <arch/cpu_time.hpp>
 #include <arch/hpet_amd64.hpp>
 #include <arch/idt_amd64.h>
-#include <arch/keyboard.hpp>
 #include <arch/pci_device_list.hpp>
 #include <bits/icxxabi.h>
 #include <fs/ext.hpp>
 #include <fs/delegate_hda.hpp>
 #include <fs/ramfs.hpp>
 #include <fs/sysfs.hpp>
-#include <net/protocol/arp.hpp>
 #include <net/protocol/dhcp.hpp>
 #include <net/netdev_module.hpp>
-#include <sched/scheduler.hpp>
-#include <sched/task_ctx.hpp>
 #include <sched/task_list.hpp>
-#include <sched/worker.hpp>
 #include <sched/worker_list.hpp>
-#include <util/circular_queue.hpp>
-#include <util/multiarray.hpp>
 #include <algorithm>
 #include <device_registry.hpp>
 #include <direct_text_render.hpp>
-#include <elf64_exec.hpp>
-#include <elf64_shared.hpp>
 #include <frame_manager.hpp>
 #include <gfx_image.hpp>
 #include <kdebug.hpp>
-#include <kernel_mm.hpp>
-#include <kernel_api.hpp>
-#include <map>
 #include <module_loader.hpp>
-#include <typeinfo>
 #include <ow-crypt.h>
 #include <prog_manager.hpp>
 #include <rtc.h>
 #include <shared_object_map.hpp>
 #include <stdlib.h>
+#include <typeinfo>
 #include <users.hpp>
 sysinfo_t* sysinfo;
 static direct_text_render startup_tty;
@@ -557,7 +545,7 @@ static const char* codes[] =
 };
 constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
 {
-	if(get_gs_base<task_t>() != std::addressof(kproc)) return;
+	if(get_gs_base<task_t>()->frame_ptr.deref<uint64_t>() != kframe_magic) return;
 	if(idx < 0x20)
 	{
 		direct_write(codes[idx]);

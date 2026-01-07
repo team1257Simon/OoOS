@@ -3,6 +3,11 @@
 #include <libk_decls.h>
 namespace ooos
 {
+	// Codes for non-character keys: modifiers (shift, alt, etc.), Fn keys, cursor control (arrow keys, home, end, etc.), and multimedia keys.
+	// The values are arranged into pseudo-codepages that would correspond to the nonexistent pages 18 through 32 in unicode.
+	// Because they exceed the highest possible value of a unicode character, it is possible to distinguish them from character codes in a packet.
+	// The underlying type is wchar_t, but the actual code is only 21 bits wide (the number of bits required to encode a wide character).
+	// The remaining 11 bits of the 32-bit integer will be used to store state information in the event packet; see keyboard_event.
 	enum class keycode : wchar_t
 	{
 		KC_MAX_CHAR     = 0x10FFFFU,        // Anything greater than this is a special key, an escape byte, or an unknown scan
@@ -68,10 +73,12 @@ namespace ooos
 		KC_SEQ_UNKNOWN  = 0x1E0000U,        // Placeholder for an unrecognized scan sequence; the first 2 scancodes received will be a little-endian word in the low 16 bits
 		KC_UNKNOWN      = 0x1F0000U,        // Placeholder for an unrecognized single-byte scan; the scancode will be in the lowest 8 bits
 		KC_EXT_UNKNOWN  = 0x1FE000U,        // Placeholder for an unrecognized escaped scan; the unrecognized byte (i.e. after the escape byte) will be in the lowest 8 bits
-		// Note: Multimedia keys are not present on all keyboards. I am also uncertain as to the mappings' consistency, hence the use of generic numbers.
+		// Note: Multimedia keys are not present on all keyboards. 
+		// I am also uncertain as to the mappings' consistency, hence the use of generic numbers.
 		// The mappings given are the ones mentioned on OSDev Wiki.
 	};
 	// State-vector for the special modifier keys (shift, alt, etc.) on the keyboard.
+	// The format matches that of the modifier byte in USB keyboards.
 	struct __pack keyboard_vstate
 	{
 		bool left_ctrl		: 1	= false;
@@ -87,6 +94,10 @@ namespace ooos
 		constexpr bool shift() const noexcept	{ return left_shift	|| right_shift; }
 		constexpr bool gui() const noexcept		{ return left_gui	|| right_gui; }
 	};
+	// Packet structure for a single event that contains information about the key pressed/released and the keyboard state at the time of the event.
+	// In a stream format, these can be read as 32-bit unsigned integers.
+	// As a view, they can also be read as either wide characters or keycode values.
+	// This will discard the metadata bits, so it can be used (for instance) to display keyboard inputs as text.
 	struct __pack keyboard_event
 	{
 		// The unicode codepoint of the character, if any, or the keycode for a special key (arrow keys, shift, caps lock, Fn keys, etc.).
@@ -98,7 +109,7 @@ namespace ooos
 		bool kv_numpad      : 1		= false;
 		// If this bit is set, the key generated multiple scancodes (other than escape bytes; e.g. BREAK or PAUSE in sets 1 and 2).
 		bool kv_multiscan   : 1		= false;
-		// The state of the keyboard BEFORE the event — for example, if the key is right shift and the event is a key up, the right shift bit will still be set.
+		// The state of the keyboard BEFORE the event — for example, if the event is key-up right shift, the right shift bit will still be set.
 		// In prototype packets (the ones in the decode tables), the value will instead be an XOR mask to compute the state following the event.
 		keyboard_vstate kv_vstate;
 		// Extracting the character value from the packet requires some special handling to avoid accidental bit-field sign-extension.

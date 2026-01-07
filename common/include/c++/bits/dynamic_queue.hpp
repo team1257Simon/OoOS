@@ -100,7 +100,6 @@ namespace std::__impl
 		}
 		/**
 		 * Called whenever elements are pushed to or popped from the queue.
-		 * As with dynamic_buffer, the setn/sete/bumpn/bumpe functions do not call this function.
 		 * Inheritors can override to add functionality that needs to be invoked whenever the set's elements are modified, such as trimming stale elements.
 		 * The default implementation does nothing.
 		 */

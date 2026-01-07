@@ -6,6 +6,7 @@ void apic::eoi() volatile { if(__apic_mem) __apic_mem->eoi.value = 0U; } // writ
 bool apic::init() volatile
 {
     madt_t* madt					= static_cast<madt_t*>(find_system_table("APIC"));
+	// Before anything, make sure there's an APIC at all
     if(__unlikely(!madt)) return false;
     uintptr_t physical_base			= madt->local_apic_physical_address;
     uintptr_t ioapic_physical_base	= 0UZ;
@@ -13,6 +14,7 @@ bool apic::init() volatile
     size_t table_size				= madt->header.length - (8 + sizeof(acpi_header));
     addr_t table_ptr(madt->record_data);
     madt_record_header* h;
+	// First, make sure we have the right address in memory for the APIC
     for(size_t i	= 0UZ; i < table_size; i += h->length)
     {
         h			= table_ptr.plus(i);
@@ -45,10 +47,14 @@ bool apic::init() volatile
             break;
         }
     }
+	// There's a default value that's given in the specification; if nothing in the MADT says otherwise, that's the address to use.
     if(!ioapic_physical_base)
 		ioapic_physical_base			= ioapic_default_physical_base;
     addr_t the_apic						= kmm.map_dma(physical_base, sizeof(apic_map), false);
     addr_t the_ioapic					= kmm.map_dma(ioapic_physical_base, sizeof(ioapic), false);
+	// APIC timer interrupts can be configured based on the frequency of the CPU bus clock.
+	// The value can be read from a couple of places, and it's normally given in MHz.
+	// In any case, the divisor used to time IRQ 0 can be used to normalize the frequency of that interrupt to measure in KHz.
     uint32_t frequency					= cpuid(0x15U, 0U).ecx;
     if(!frequency) frequency			= cpuid(0x16U, 0U).ecx;
     uint32_t count_target				= magnitude(frequency) * 1000;

@@ -317,27 +317,27 @@ namespace ooos
 	template<io_buffer_ok T>
 	bool io_module_base<T>::put(input_type t)
 	{
-		if(__unlikely(!out.remaining() && !overflow(static_cast<size_type>(1)))) return false;
+		if(__unlikely(!out.remaining() && !overflow(static_cast<size_type>(1UZ)))) return false;
 		out.put(t);
 		return true;
 	}
 	template<io_buffer_ok T>
 	typename io_module_base<T>::size_type io_module_base<T>::seek(int direction, difference_type where, uint8_t ioflags)
 	{
-		if(ioflags & 0x04)
+		if(ioflags & 0x04UC)
 			out.seek(direction, where);
-		if(ioflags & 0x08)
+		if(ioflags & 0x08UC)
 			in.seek(direction, where);
-		return out.size() * (ioflags & 0x04 ? 1 : 0) + in.size() * (ioflags & 0x08 ? 1 : 0);
+		return out.size() * (ioflags & 0x04UC ? 1UZ : 0UZ) + in.size() * (ioflags & 0x08UC ? 1UZ : 0UZ);
 	}
 	template<io_buffer_ok T>
 	typename io_module_base<T>::size_type io_module_base<T>::seek(size_type where, uint8_t ioflags)
 	{
-		if(ioflags & 0x04)
+		if(ioflags & 0x04UC)
 			out.seek(where);
-		if(ioflags & 0x08)
+		if(ioflags & 0x08UC)
 			in.seek(where);
-		return out.size() * (ioflags & 0x04 ? 1 : 0) + in.size() * (ioflags & 0x08 ? 1 : 0);
+		return out.size() * (ioflags & 0x04UC ? 1UZ : 0UZ) + in.size() * (ioflags & 0x08UC ? 1UZ : 0UZ);
 	}
 }
 #endif

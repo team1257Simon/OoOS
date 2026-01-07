@@ -1,6 +1,5 @@
 #include <rtc.h>
 #include <arch/arch_amd64.h>
-#include <isr_table.hpp>
 rtc rtc::__instance{}; 
 constexpr static uint16_t bcd_conv(uint16_t bcd) { return ((bcd & 0xF0US) >> 1) + ((bcd & 0xF0US) >> 3) + (bcd & 0x0FUS); }
 constexpr static uint8_t read_rtc_register_dyn(byte r) { byte prev = inbw(command_rtc); outbw(command_rtc, (prev & 0x80UC) | r); return inb(data_rtc); }
