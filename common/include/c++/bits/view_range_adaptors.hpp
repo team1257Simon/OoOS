@@ -1,9 +1,12 @@
 #ifndef __STD_VIEWS
 #define __STD_VIEWS
 /**
- * The various std::ranges and std::views structs.
+ * The various std::ranges adaptors live here. Their std::views counterparts are smaller and live in <ranges>.
  * Much of this is paraphrased from the gnu libstdc++ version, but not all of it (license in the project root directory to save space).
- * TODO: take, take_while, drop, drop_while, and all of the structures after join in the g++ library header other than ranges::to
+ * Still a WIP on implementing most of the adaptors.
+ * TODO:	split, lazy_split, common, reverse, elements, zip, zip_transform, adjacent, 
+ * 			adjacent_transform, chunk, slide, chunk_by, join_with, repeat, stride, cartesian_product,
+ * 			as_rvalue, enumerate, as_const, concat, cache_latest, and to_input
  */
 #include <bits/ranges_util.hpp>
 #include <bits/bind_back.hpp>
@@ -13,11 +16,49 @@ namespace std
 {
 	namespace ranges
 	{
+		template<object T>
+		class empty_view : public view_interface<empty_view<T>>
+		{
+		public:
+			constexpr static T* begin() noexcept { return nullptr; }
+			constexpr static T* end() noexcept { return nullptr; }
+			constexpr static T* data() noexcept { return nullptr; }
+			constexpr static size_t size() noexcept { return 0UZ; }
+			constexpr static bool empty() noexcept { return true; }
+		};
+		template<typename T> constexpr inline bool enable_borrowed_range<empty_view<T>> = true;
 		namespace __detail
 		{
 			template<typename T, int DSC> struct __absent{};
 			template<bool PB, typename T, int DSC = 0> using __maybe_present_t	= conditional_t<PB, T, __absent<T, DSC>>;
 			template<bool CB, typename T> using __maybe_const_t					= conditional_t<CB, const T, T>;
+			template<typename WIT>
+			constexpr auto __to_signed_lke(WIT w) noexcept
+			{
+				if constexpr(!integral<WIT>)
+					return iter_difference_t<WIT>();
+				else if constexpr(sizeof(iter_difference_t<WIT>) > sizeof(WIT))
+					return iter_difference_t<WIT>(w);
+				return static_cast<make_signed_t<WIT>>(w);
+			}
+			template<typename WIT> using __iota_diff_t = decltype(__to_signed_like(declval<WIT>()));
+			template<typename IT>
+			concept __decrementable = incrementable<IT> && requires(IT i) {
+				{ --i } -> same_as<IT&>;
+				{ i-- } -> same_as<IT>;
+			};
+			template<typename IT>
+			concept __advanceable = __decrementable<IT> && totally_ordered<IT> && requires(IT i, const IT j, const __iota_diff_t<IT> n)
+			{
+				{ i += n } -> same_as<IT&>;
+				{ i -= n } -> same_as<IT&>;
+				IT(j + n);
+				IT(n + j);
+				IT(j - n);
+				{ j - j } -> convertible_to<__iota_diff_t<IT>>;
+			};
+			template<typename WIT> struct __iota_view_iter_cat{};
+			template<incrementable WIT> struct __iota_view_iter_cat<WIT> { typedef input_iterator_tag iterator_category; };
 		}
 		namespace views
 		{
@@ -288,14 +329,14 @@ namespace std
 			{
 			private:
 				using CT = typename iterator_traits<iterator_t<RT>>::iterator_category;
-				static auto __iter_cat()
+				static auto __cat()
 				{
 					if constexpr(derived_from<CT, bidirectional_iterator_tag>) return bidirectional_iterator_tag();
 					else if constexpr(derived_from<CT, forward_iterator_tag>) return forward_iterator_tag();
 					else return CT();
 				}
 			public:
-				typedef decltype(__iter_cat()) iterator_category;
+				typedef decltype(__cat()) iterator_category;
 			};
 			template<typename> struct __non_propagating_cache{};
 			template<object T>
@@ -365,7 +406,164 @@ namespace std
 				constexpr void __set(RT& r, iterator_t<RT> const& i) { __libk_assert(!this->__has_value()); __pos = i - ranges::begin(r); }
 			};
 			template<typename CT, typename RT> concept __toable = requires{ requires(!input_range<CT> || convertible_to<range_reference_t<RT>, range_value_t<CT>>); };
+			template<typename WIT, typename BT>
+			concept __iotable = (!__detail::__is_integer_like<WIT> || !__detail::__is_integer_like<BT> || (__detail::__is_signed_integer_like<WIT> == __detail::__is_signed_integer_like<BT>));
 		}
+		template<move_constructible T> requires(is_object_v<T>)
+		class single_view : public view_interface<single_view<T>>
+		{
+			[[no_unique_address]] __detail::__box<T> __val;
+		public:
+			single_view() requires(default_initializable<T>) = default;
+			constexpr explicit single_view(T&& t) noexcept(is_nothrow_move_constructible_v<T>) : __val(std::move(t)) {}
+			template<typename ... Args> requires(constructible_from<T, Args...>)
+			constexpr explicit single_view(in_place_t, Args&& ... args) noexcept(is_nothrow_constructible_v<T, Args...>) : __val(in_place, std::forward<Args>(args)...) {}
+			constexpr T* data() noexcept { return __val.operator->(); }
+			constexpr T const* data() const noexcept { return __val.operator->(); }
+			constexpr T* begin() noexcept { return data(); }
+			constexpr T const* begin() const noexcept { return data(); }
+			constexpr T* end() noexcept { return data() + 1Z; }
+			constexpr T const* end() const noexcept { return data() + 1Z; }
+			constexpr static size_t size() noexcept { return 1UZ; }
+			constexpr static bool empty() noexcept { return false; }
+		};
+		template<typename T> single_view(T) -> single_view<T>;
+		template<weakly_incrementable WIT, semiregular BT = unreachable_sentinel_t> 
+		requires(std::__detail::__weakly_eq_cmp_with<WIT, BT> && copyable<WIT>)
+		class iota_view : public view_interface<iota_view<WIT, BT>>
+		{
+			struct __sentinel;
+			struct __iterator : __detail::__iota_view_iter_cat<WIT>
+			{
+				typedef WIT value_type;
+				typedef __detail::__iota_diff_t<WIT> difference_type;
+			private:
+				consteval static auto __concept()
+				{
+					using namespace __detail;
+					if constexpr(__advanceable<WIT>) return random_access_iterator_tag();
+					else if constexpr(__decrementable<WIT>) return bidirectional_iterator_tag();
+					else if constexpr(incrementable<WIT>) return forward_iterator_tag();
+					else return input_iterator_tag();
+				}
+				WIT __val{};
+			public:
+				typedef decltype(__concept()) iterator_concept;
+				__iterator() requires(default_initializable<WIT>) = default;
+				constexpr explicit __iterator(WIT w) : __val(w) {}
+				constexpr WIT operator*() const noexcept(is_nothrow_constructible_v<WIT>) { return __val; }
+				constexpr __iterator& operator++() { ++__val; return *this; }
+				constexpr __iterator& operator--() requires(__detail::__decrementable<WIT>) { --__val; return *this; }
+				constexpr void operator++(int) { ++*this; }
+				constexpr __iterator operator++(int) requires(incrementable<WIT>)
+				{
+					auto i = *this;
+					++*this;
+					return i;
+				}
+				constexpr __iterator operator--(int) requires(__detail::__decrementable<WIT>)
+				{
+					auto i = *this;
+					--*this;
+					return i;
+				}
+				constexpr __iterator& operator+=(difference_type n) requires(__detail::__advanceable<WIT>)
+				{
+					if constexpr(__detail::__is_integer_like<WIT> && !__detail::__is_signed_integer_like<WIT>)
+					{
+						if(n >= difference_type(0))
+							__val += static_cast<WIT>(n);
+						else __val -= static_cast<WIT>(-n);
+					}
+					else __val += n;
+					return *this;
+				}
+				constexpr __iterator& operator-=(difference_type n) requires(__detail::__advanceable<WIT>)
+				{
+					if constexpr(__detail::__is_integer_like<WIT> && !__detail::__is_signed_integer_like<WIT>)
+					{
+						if(n >= difference_type(0))
+							__val -= static_cast<WIT>(n);
+						else __val += static_cast<WIT>(-n);
+					}
+					else __val -= n;
+					return *this;
+				}
+				constexpr WIT operator[](difference_type n) const requires(__detail::__advanceable<WIT>) { return WIT(__val + n); }
+				friend constexpr bool operator==(__iterator const& __this, __iterator const& __that) requires(equality_comparable<WIT>) { return __this.__val == __that.__val; }
+				friend constexpr bool operator<(__iterator const& __this, __iterator const& __that) requires(totally_ordered<WIT>) { return __this.__val < __that.__val; }
+				friend constexpr bool operator>(__iterator const& __this, __iterator const& __that) requires(totally_ordered<WIT>) { return __this.__val > __that.__val; }
+				friend constexpr bool operator<=(__iterator const& __this, __iterator const& __that) requires(totally_ordered<WIT>) { return !(__this > __that); }
+				friend constexpr bool operator>=(__iterator const& __this, __iterator const& __that) requires(totally_ordered<WIT>) { return !(__this < __that); }
+				friend constexpr auto operator<=>(__iterator const& __this, __iterator const& __that) requires(totally_ordered<WIT> && three_way_comparable<WIT>) { return __this.__val <=> __that.__val; }
+				friend constexpr __iterator operator+(__iterator i, difference_type n) requires(__detail::__advanceable<WIT>) { i += n; return i; }
+				friend constexpr __iterator operator+(difference_type n, __iterator i) requires(__detail::__advanceable<WIT>) { return i + n; }
+				friend constexpr __iterator operator-(__iterator i, difference_type n) requires(__detail::__advanceable<WIT>) { i -= n; return i; }
+				friend constexpr difference_type operator-(__iterator const& __this, __iterator const& __that) requires(__detail::__advanceable<WIT>)
+				{
+					if constexpr(__detail::__is_integer_like<WIT>)
+					{
+						if constexpr(__detail::__is_signed_integer_like<WIT>) return difference_type(difference_type(__this.__val) - difference_type(__that.__val));
+						else
+						{
+							if(__that.__val > __this.__val)
+								return difference_type(-difference_type(__that.__val - __this.__val));
+							else return difference_type(__this.__val - __that.__val);
+						}
+					}
+					else return __this.__val - __that.__val;
+				}
+				friend iota_view;
+				friend __sentinel;
+			};
+			struct __sentinel
+			{
+			private:
+				BT __val{};
+				constexpr bool __eq(__iterator const& that) const { return this->__val == that.__val; }
+				constexpr auto __diff(__iterator const& that) const { return this->__val - that.__val; }
+			public:
+				__sentinel() = default;
+				constexpr explicit __sentinel(BT b) : __val(b) {}
+				friend constexpr bool operator==(__iterator const& __this, __sentinel const& __that) { return __that.__eq(__this); }
+				friend constexpr bool operator==(__sentinel const& __this, __iterator const& __that) { return __this.__eq(__that); }
+				friend constexpr iter_difference_t<WIT> operator-(__iterator const& __this, __sentinel const& __that) requires(sized_sentinel_for<BT, WIT>) { return -__that.__diff(__this); }
+				friend constexpr iter_difference_t<WIT> operator-(__sentinel const& __this, __iterator const& __that) requires(sized_sentinel_for<BT, WIT>) { return __this.__diff(__that); }
+				friend iota_view;
+			};
+			WIT __base{};
+			[[no_unique_address]] BT __bound{};
+			consteval static bool __sizeable() noexcept { return (integral<WIT> && integral<BT>) || (same_as<WIT, BT> && __detail::__advanceable<WIT>) || sized_sentinel_for<BT, WIT>; }
+		public:
+			iota_view() requires(default_initializable<WIT>) = default;
+			constexpr explicit iota_view(WIT v) : __base(v) {}
+			constexpr explicit iota_view(type_identity_t<WIT> v, type_identity_t<BT> b) : __base(v), __bound(b) { if constexpr(totally_ordered_with<WIT, BT>) __libk_assert(v <= b); }
+			constexpr explicit iota_view(__iterator a, __iterator z) requires(same_as<WIT, BT>) : iota_view(a.__val, z.__val) {}
+			constexpr explicit iota_view(__iterator a, unreachable_sentinel_t z) requires(same_as<BT, unreachable_sentinel_t>) : iota_view(a.__val, z) {}
+			constexpr explicit iota_view(__iterator a, __sentinel z) requires(!same_as<WIT, BT> && !same_as<BT, unreachable_sentinel_t>) : iota_view(a.__val, z.__val) {}
+			constexpr __iterator begin() const { return __iterator(__base); }
+			constexpr __iterator end() const requires(same_as<WIT, BT>) { return __iterator(__bound); }
+			constexpr bool empty() const { return __base == __bound; }
+			constexpr auto end() const
+			{
+				if constexpr(same_as<BT, unreachable_sentinel_t>)
+					return unreachable_sentinel;
+				else return __sentinel(__bound);
+			}
+			constexpr auto size() const requires(__sizeable())
+			{
+				if constexpr(integral<WIT> && integral<BT>) {
+					typedef make_unsigned_t<decltype(__bound - __base)> uresult;
+					return static_cast<uresult>(__bound) - static_cast<uresult>(__base);
+				}
+				else
+				{
+					typedef decltype(__bound - __base) sresult;
+					typedef conditional_t<is_integral_v<sresult>, make_unsigned_t<sresult>, sresult> uresult;
+					return static_cast<uresult>(__bound - __base);
+				}
+			}
+		};
 		template<input_range RT, indirect_unary_predicate<iterator_t<RT>> QT> requires(view<RT> && is_object_v<QT>)
 		class filter_view : public view_interface<filter_view<RT, QT>>
 		{
@@ -765,43 +963,187 @@ namespace std
 				else return __sentinel<__detail::__simple_view<VT>>(this);
 			}
 		};
+		template<view VT>
+		class take_view : public view_interface<take_view<VT>>
+		{
+			template<bool CB> using __iterator = counted_iterator<iterator_t<__detail::__maybe_const_t<CB, VT>>>;
+			template<bool CB>
+			struct __sentinel
+			{
+			private:
+				using __base = __detail::__maybe_const_t<CB, VT>;
+				sentinel_t<__base> __val{};
+			public:
+				__sentinel() = default;
+				constexpr explicit __sentinel(sentinel_t<__base> s) : __val(s) {}
+				constexpr __sentinel(__sentinel<!CB> s) requires(CB && convertible_to<sentinel_t<VT>, sentinel_t<__base>>) : __val(std::move(s.__val)) {}
+				constexpr sentinel_t<__base> base() const { return __val; }
+				friend constexpr bool operator==(__iterator<CB> const& __that, __sentinel const& __this) { return !__that.count() || __this.__val == __that.base(); }
+				template<bool DB = !CB> requires(sentinel_for<sentinel_t<__base>, iterator_t<__detail::__maybe_const_t<DB, VT>>>)
+				friend constexpr bool operator==(__iterator<DB> const& __that, __sentinel const& __this) { return !__that.count() || __this.__val == __that.base(); }
+				friend __sentinel<!CB>;
+			};
+			VT __base{};
+			range_difference_t<VT> __count{};
+		public:
+			take_view() requires(default_initializable<VT>) = default;
+			constexpr explicit take_view(VT v, range_difference_t<VT> n) : __base(std::move(v)), __count(std::move(n)) {}
+			constexpr VT base() const& requires(copy_constructible<VT>) { return __base; }
+			constexpr VT base()&& { return std::move(__base); }
+			constexpr auto size() requires(sized_range<VT>) {
+				auto n	= ranges::size(__base);
+				return std::min(n, static_cast<decltype(n)>(__count));
+			}
+			constexpr auto size() const requires(sized_range<VT const>) {
+				auto n	= ranges::size(__base);
+				return std::min(n, static_cast<decltype(n)>(__count));
+			}
+			constexpr auto begin() requires(!__detail::__simple_view<VT>)
+			{
+				if constexpr(sized_range<VT>)
+				{
+					if constexpr(random_access_range<VT>) return ranges::begin(__base);
+					else {
+						auto n = this->size();
+						return counted_iterator(ranges::begin(__base), n);
+					}
+				}
+				else return counted_iterator(ranges::begin(__base), __count);
+			}
+			constexpr auto begin() const requires(range<VT const>)
+			{
+				if constexpr(sized_range<VT const>)
+				{
+					if constexpr(random_access_range<VT const>) return ranges::begin(__base);
+					else {
+						auto n = this->size();
+						return counted_iterator(ranges::begin(__base), n);
+					}
+				}
+				else return counted_iterator(ranges::begin(__base), __count);
+			}
+			constexpr auto end() requires(!__detail::__simple_view<VT>)
+			{
+				if constexpr(sized_range<VT>)
+				{
+					if constexpr(random_access_range<VT>)
+						return ranges::begin(__base) + this->size();
+					else return default_sentinel;
+				}
+				else return __sentinel<false>(ranges::end(__base));
+			}
+			constexpr auto end() const requires(range<VT const>)
+			{
+				if constexpr(sized_range<VT const>)
+				{
+					if constexpr(random_access_range<VT const>)
+						return ranges::begin(__base) + this->size();
+					else return default_sentinel;
+				}
+				else return __sentinel<true>(ranges::end(__base));
+			}
+		};
+		template<view VT, typename QT> requires(input_range<VT> && object<QT> && indirect_unary_predicate<const QT, iterator_t<VT>>)
+		class take_while_view : public view_interface<take_while_view<VT, QT>>
+		{
+			template<bool CB>
+			struct __sentinel
+			{
+			private:
+				using __base = __detail::__maybe_const_t<CB, VT>;
+				sentinel_t<__base> __val{};
+				QT const* __pred{};
+			public:
+				__sentinel() = default;
+				constexpr explicit __sentinel(sentinel_t<__base> v, QT const* pred) : __val(v), __pred(pred) {}
+				constexpr sentinel_t<__base> base() const { return __val; }
+				friend constexpr bool operator==(iterator_t<__base> const&  __this, __sentinel const& __that) { return __this == __that.__val || !std::__invoke(*__that.__pred, *__this); }
+				template<bool DB = !CB> requires(sentinel_for<sentinel_t<__base>, iterator_t<__detail::__maybe_const_t<DB, VT>>>)
+				friend constexpr bool operator==(iterator_t<__base> const& __this, __sentinel const& __that) { return __this == __that.__val || !std::__invoke(*__that.__pred, *__this); }
+				friend __sentinel<!CB>;
+			};
+			VT __base{};
+			[[no_unique_address]] __detail::__box<QT> __pred;
+		public:
+			take_while_view() requires(default_initializable<VT> && default_initializable<QT>) = default;
+			constexpr explicit take_while_view(VT base, QT pred) : __base(std::move(base)), __pred(std::move(pred)) {}
+			constexpr VT base() const& requires(copy_constructible<VT>) { return __base; }
+			constexpr VT base()&& { return std::move(__base); }
+			constexpr QT const& pred() const { return *__pred; }
+			constexpr auto begin() requires(!__detail::__simple_view<VT>) { return ranges::begin(__base); }
+			constexpr auto begin() const requires(range<VT const> && indirect_unary_predicate<QT const, iterator_t<VT const>>) { return ranges::begin(__base); }
+			constexpr auto end() requires(!__detail::__simple_view<VT>) { return __sentinel<false>(ranges::end(__base), std::addressof(*__pred)); }
+			constexpr auto end() const requires(range<VT const> && indirect_unary_predicate<QT const, iterator_t<VT const>>) { return __sentinel<true>(ranges::end(__base), std::addressof(*__pred)); }
+		};
+		template<view VT>
+		class drop_view : public view_interface<drop_view<VT>>
+		{
+			constexpr static bool __cache_begin = !(__detail::__simple_view<VT> && random_access_range<VT const> && sized_range<VT const>);
+			VT __base{};
+			range_difference_t<VT> __count{};
+			[[no_unique_address]] __detail::__maybe_present_t<__cache_begin, __detail::__cached_position<VT>> __cached_begin;
+		public:
+			drop_view() requires(default_initializable<VT>) = default;
+			constexpr auto begin() requires(__cache_begin)
+			{
+				if(__cached_begin.__has_value())
+					return __cached_begin.__get(__base);
+				auto i = ranges::next(ranges::begin(__base), __count, ranges::end(__base));
+				__cached_begin.__set(__base, i);
+				return i;
+			}
+			constexpr auto begin() const requires(random_access_range<VT> && sized_range<VT>) { return ranges::begin(__base) + ranges::min(ranges::distance(__base), __count); }
+			constexpr auto end() requires(!__detail::__simple_view<VT>) { return ranges::end(__base); }
+			constexpr auto end() const requires(range<VT const>) { return ranges::end(__base); }
+			constexpr auto size() requires(sized_range<VT>)
+			{
+				constexpr auto sz	= ranges::size(__base);
+				constexpr auto c	= static_cast<decltype(sz)>(__count);
+				return sz < c ? 0 : sz - c;
+			}
+			constexpr auto size() const requires(sized_range<VT const>)
+			{
+				constexpr auto sz	= ranges::size(__base);
+				constexpr auto c	= static_cast<decltype(sz)>(__count);
+				return sz < c ? 0 : sz - c;
+			}
+		};
+		template<view VT, typename QT> requires(input_range<VT> && object<QT> && indirect_unary_predicate<const QT, iterator_t<VT>>)
+		class drop_while_view : public view_interface<drop_while_view<VT, QT>>
+		{
+			VT __base{};
+			[[no_unique_address]] __detail::__box<QT> __pred;
+			[[no_unique_address]] __detail::__cached_position<VT> __cached_begin;
+		public:
+			drop_while_view() requires(default_initializable<VT> && default_initializable<QT>) = default;
+			constexpr explicit drop_while_view(VT v, QT pred) : __base(std::move(v)), __pred(std::move(pred)) {}
+			constexpr VT base() const& requires(copy_constructible<VT>) { return __base; }
+			constexpr VT base()&& { return std::move(__base); }
+			constexpr QT const& pred() const { return *__pred; }
+			constexpr auto end() { return ranges::end(__base); }
+			constexpr auto begin()
+			{
+				if(__cached_begin.__has_value())
+					return __cached_begin.__get(__base);
+				__libk_assert(__pred.has_value());
+				auto i = ranges::find_if_not(ranges::begin(__base), ranges::end(__base), std::cref(*__pred));
+				__cached_begin.__set(__base, i);
+				return i;
+			}
+		};
+		template<typename WIT, typename BT> requires(__detail::__iotable<WIT, BT>) iota_view(WIT, BT) -> iota_view<WIT, BT>;
 		template<typename RT, typename QT> filter_view(RT&&, QT) -> filter_view<views::all_t<RT>, QT>;
 		template<typename RT, typename FT> transform_view(RT&&, FT) -> transform_view<views::all_t<RT>, FT>;
 		template<typename RT> explicit join_view(RT&&) -> join_view<views::all_t<RT>>;
-		namespace views
-		{
-			namespace __detail
-			{
-				template<typename RT, typename QT> concept __filter_viewable = requires { filter_view(std::declval<RT>(), std::declval<QT>()); };
-				template<typename RT, typename FT> concept __transform_viewable = requires { transform_view(std::declval<RT>(), std::declval<FT>()); };
-				template<typename RT> concept __join_viewable = requires { join_view<all_t<RT>>(std::declval<RT>()); };
-			}
-			struct __filter : __adaptor::__range_adaptor<__filter>
-			{
-				constexpr static int __arity					= 2;
-				constexpr static bool __has_simple_extra_args	= true;
-				template<viewable_range RT, typename QT> requires(__detail::__filter_viewable<RT, QT>)
-				[[nodiscard]] constexpr auto operator()(RT&& r, QT&& pred) const { return filter_view(std::forward<RT>(r), std::forward<QT>(pred)); }
-				using __adaptor::__range_adaptor<__filter>::operator();
-			};
-			struct __transform : __adaptor::__range_adaptor<__transform>
-			{
-				constexpr static int __arity					= 2;
-				constexpr static bool __has_simple_extra_args	= true;
-				template<viewable_range RT, typename FT> requires(__detail::__transform_viewable<RT, FT>)
-				[[nodiscard]] constexpr auto operator()(RT&& r, FT&& f) const { return transform_view(std::forward<RT>(r), std::forward<FT>(f)); }
-				using __adaptor::__range_adaptor<__transform>::operator();
-			};
-			struct __join : __adaptor::__range_adaptor_closure<__join>
-			{
-				constexpr static bool __has_simple_call_op	= true;
-				template<viewable_range RT> requires(__detail::__join_viewable<RT>)
-				[[nodiscard]] constexpr auto operator()(RT&& r) const { return join_view<all_t<RT>>(std::forward<RT>(r)); }
-			};
-			constexpr inline __filter filter{};
-			constexpr inline __transform transform{};
-			constexpr inline __join join{};
-		}
+		template<typename RT> take_view(RT&&, range_difference_t<RT>) -> take_view<views::all_t<RT>>;
+		template<typename RT, typename QT> take_while_view(RT&&, QT) -> take_while_view<views::all_t<RT>, QT>;
+		template<typename RT> drop_view(RT&&, range_difference_t<RT>) -> drop_view<views::all_t<RT>>;
+		template<typename RT, typename QT> drop_while_view(RT&&, QT) -> drop_while_view<views::all_t<RT>, QT>;
+		template<typename WIT, typename BT> constexpr inline bool enable_borrowed_range<iota_view<WIT, BT>> = true;
+		template<typename VT> constexpr inline bool enable_borrowed_range<take_view<VT>> = enable_borrowed_range<VT>;
+		template<typename VT, typename QT> constexpr inline bool enable_borrowed_range<take_while_view<VT, QT>> = enable_borrowed_range<VT>;
+		template<typename VT> constexpr inline bool enable_borrowed_range<drop_view<VT>> = enable_borrowed_range<VT>;
+		template<typename VT, typename QT> constexpr inline bool enable_borrowed_range<drop_while_view<VT, QT>> = enable_borrowed_range<VT>;
 		namespace __detail
 		{
 			template<typename CT, typename RT, typename ... Args>
@@ -847,7 +1189,7 @@ namespace std
 			{
 				static_assert(input_range<range_reference_t<RT>>);
 				typedef range_value_t<CT> cval;
-				return ranges::to<CT>(ref_view(r) | views::transform([]<typename ET>(ET&& e) -> cval { return ranges::to<cval>(std::forward<ET>(e)); }), std::forward<Args>(args)...);
+				return ranges::to<CT>(transform_view(ref_view(r), []<typename ET>(ET&& e) -> cval { return ranges::to<cval>(std::forward<ET>(e)); }), std::forward<Args>(args)...);
 			}
 		}
 		namespace __detail

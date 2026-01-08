@@ -1,5 +1,164 @@
 #ifndef __STD_RANGES
 #define __STD_RANGES
 #include <bits/view_range_adaptors.hpp>
-namespace std { namespace views = ranges::views; }
+#include <string_view>
+#include <span>
+namespace std
+{
+	namespace ranges
+	{
+		namespace views
+		{
+			namespace __detail
+			{
+				template<typename> constexpr inline bool __is_empty_view = false;
+				template<typename> constexpr inline bool __is_basic_string_view = false;
+				template<typename> constexpr inline bool __is_iota_view = false;
+				template<typename T> constexpr inline bool __is_empty_view<empty_view<T>> = true;
+				using ranges::__detail::__is_subrange;
+				using std::__detail::__is_span;
+				template<typename T> concept __special_range = (__is_span<T> || __is_basic_string_view<T> || __is_iota_view<T> || __is_subrange<T>);
+				template<typename CT, typename TT> constexpr inline bool __is_basic_string_view<basic_string_view<CT, TT>> = true;
+				template<typename WIT, typename BT> constexpr inline bool __is_iota_view<iota_view<WIT, BT>> = true;
+				template<typename T> concept __single_viewable = requires { single_view<decay_t<T>>(std::declval<T>()); };
+				template<typename ... Args> concept __iota_viewable = requires { iota_view(std::declval<Args>()...); };
+				template<typename RT, typename QT> concept __filter_viewable = requires { filter_view(std::declval<RT>(), std::declval<QT>()); };
+				template<typename RT, typename FT> concept __transform_viewable = requires { transform_view(std::declval<RT>(), std::declval<FT>()); };
+				template<typename RT> concept __join_viewable = requires { join_view<all_t<RT>>(std::declval<RT>()); };
+				template<typename RT, typename DT> concept __take_viewable = requires { take_view(std::declval<RT>(), std::declval<DT>()); };
+				template<typename RT, typename QT> concept __take_while_viewable = requires { take_while_view(std::declval<RT>(), std::declval<QT>()); };
+				template<typename RT, typename DT> concept __drop_viewable = requires { drop_view(std::declval<RT>(), std::declval<DT>()); };
+				template<typename RT, typename QT> concept __drop_while_viewable = requires { drop_while_view(std::declval<RT>(), std::declval<QT>()); };
+			}
+			struct __single
+			{
+				template<__detail::__single_viewable T>
+				[[nodiscard]] constexpr auto operator()(T&& t) const
+				noexcept(noexcept(single_view<decay_t<T>>(std::forward<T>(t)))) { return single_view<decay_t<T>>(std::forward<T>(t)); }
+			};
+			struct __iota
+			{
+				template<__detail::__iota_viewable T>
+				[[nodiscard]] constexpr auto operator()(T&& t) const { return iota_view(std::forward<T>(t)); }
+				template<typename T, typename U> requires(__detail::__iota_viewable<T, U>)
+				[[nodiscard]] constexpr auto operator()(T&& t, U&& u) const { return iota_view(std::forward<T>(t), std::forward<U>(u)); }
+			};
+			struct __indices {
+				template<ranges::__detail::__is_integer_like T> requires(__detail::__iota_viewable<T>)
+				[[nodiscard]] constexpr auto operator()(T t) const noexcept { return __iota()(T(), t); }
+			};
+			struct __filter : __adaptor::__range_adaptor<__filter>
+			{
+				constexpr static int __arity					= 2;
+				constexpr static bool __has_simple_extra_args	= true;
+				template<viewable_range RT, typename QT> requires(__detail::__filter_viewable<RT, QT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r, QT&& pred) const { return filter_view(std::forward<RT>(r), std::forward<QT>(pred)); }
+				using __adaptor::__range_adaptor<__filter>::operator();
+			};
+			struct __transform : __adaptor::__range_adaptor<__transform>
+			{
+				constexpr static int __arity					= 2;
+				constexpr static bool __has_simple_extra_args	= true;
+				template<viewable_range RT, typename FT> requires(__detail::__transform_viewable<RT, FT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r, FT&& f) const { return transform_view(std::forward<RT>(r), std::forward<FT>(f)); }
+				using __adaptor::__range_adaptor<__transform>::operator();
+			};
+			struct __take : __adaptor::__range_adaptor<__take>
+			{
+				constexpr static int __arity = 2;
+				template<typename T> constexpr static bool __has_simple_extra_args = ranges::__detail::__is_integer_like<T>;
+				template<viewable_range RT, typename DT = range_difference_t<RT>> requires(__detail::__take_viewable<RT, DT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r, type_identity_t<DT> n) const
+				{
+					using T = remove_cvref_t<RT>;
+					if constexpr(__detail::__is_empty_view<T>) return T();
+					else if constexpr(__is_optional_v<T> && view<T>)
+						return n ? std::forward<RT>(r) : T();
+					else if constexpr(random_access_range<T> && sized_range<T> && __detail::__special_range<T>)
+					{
+						n		= std::min<DT>(ranges::distance(r), n);
+						auto a	= ranges::begin(r);
+						auto z	= a + n;
+						if constexpr(__detail::__is_span<T>) return span<typename T::element_type>(a, z);
+						else if constexpr(__detail::__is_basic_string_view<T>) return T(a, z);
+						else if constexpr(__detail::__is_subrange<T>) return subrange<iterator_t<T>>(a, z);
+						else return iota_view(*a, *z);
+					}
+					// TODO: repeat_view
+					else return take_view(std::forward<RT>(r), n);
+				}
+				using __adaptor::__range_adaptor<__take>::operator();
+			};
+			struct __drop : __adaptor::__range_adaptor<__drop>
+			{
+				constexpr static int __arity = 2;
+				template<typename T> constexpr static bool __has_simple_extra_args = __take::__has_simple_extra_args<T>;
+				template<viewable_range RT, typename DT = range_difference_t<RT>> requires(__detail::__drop_viewable<RT, DT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r, type_identity_t<DT> n) const
+				{
+					using T = remove_cvref_t<RT>;
+					if constexpr(__detail::__is_empty_view<T>) return T();
+					else if constexpr(__is_optional_v<T> && view<T>)
+						return n ? T() : std::forward<RT>(r);
+					else if constexpr(random_access_range<T> && sized_range<T> && __detail::__special_range<T>)
+					{
+						n		= std::min<DT>(ranges::distance(r), n);
+						auto a	= ranges::begin(r) + n;
+						auto z	= ranges::end(r);
+						if constexpr(__detail::__is_span<T>) return span<typename T::element_type>(a, z);
+						else if constexpr(__detail::__is_subrange<T>)
+						{
+							if constexpr(T::__store_size)
+							{
+								auto m = ranges::distance(r) - n;
+								typedef decltype(m) sresult;
+								typedef conditional_t<is_integral_v<sresult>, make_unsigned_t<sresult>, sresult> uresult;
+								return T(a, z, static_cast<uresult>(m));
+							}
+							else return T(a, z);
+						}
+						else return T(a, z);
+					}
+					// TODO: repeat_view
+					else return drop_view(std::forward<RT>(r), n);
+				}
+				using __adaptor::__range_adaptor<__drop>::operator();
+			};
+			struct __take_while : __adaptor::__range_adaptor<__take_while>
+			{
+				constexpr static int __arity = 2;
+				constexpr static bool __has_simple_extra_args = true;
+				template<viewable_range RT, typename QT> requires(__detail::__take_while_viewable<RT, QT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r, QT&& pred) const { return take_while_view(std::forward<RT>(r), std::forward<QT>(pred)); }
+				using __adaptor::__range_adaptor<__take_while>::operator();
+			};
+			struct __drop_while : __adaptor::__range_adaptor<__drop_while>
+			{
+				constexpr static int __arity = 2;
+				constexpr static bool __has_simple_extra_args = true;
+				template<viewable_range RT, typename QT> requires(__detail::__drop_while_viewable<RT, QT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r, QT&& pred) const { return drop_while_view(std::forward<RT>(r), std::forward<QT>(pred)); }
+				using __adaptor::__range_adaptor<__drop_while>::operator();
+			};
+			struct __join : __adaptor::__range_adaptor_closure<__join>
+			{
+				constexpr static bool __has_simple_call_op	= true;
+				template<viewable_range RT> requires(__detail::__join_viewable<RT>)
+				[[nodiscard]] constexpr auto operator()(RT&& r) const { return join_view<all_t<RT>>(std::forward<RT>(r)); }
+			};
+			template<typename T> constexpr inline empty_view<T> empty{};
+			constexpr inline __single single{};
+			constexpr inline __iota iota{};
+			constexpr inline __indices indices{};
+			constexpr inline __filter filter{};
+			constexpr inline __transform transform{};
+			constexpr inline __join join{};
+			constexpr inline __take take{};
+			constexpr inline __drop drop{};
+			constexpr inline __take_while take_while{};
+			constexpr inline __drop_while drop_while{};
+		}
+	} 
+	namespace views = ranges::views;
+}
 #endif

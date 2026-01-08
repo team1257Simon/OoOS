@@ -186,5 +186,9 @@ namespace std
 	vector(IT, IT, AT = AT()) -> vector<VT, AT>;
 	template<ranges::input_range RT, typename VT = ranges::range_value_t<RT>, allocator_object<VT> AT = allocator<VT>>
 	vector(RT&&, AT = AT()) -> vector<VT, AT>;
+	template<typename T, allocator_object<T> A = allocator<T>>
+	vector(size_t, T const&, A = A()) -> vector<T, A>;
+	template<typename A, typename T = typename A::value_type> requires(allocator_object<A, T>)
+	vector(A const&) -> vector<T, A>;
 }
 #endif

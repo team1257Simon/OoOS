@@ -49,7 +49,9 @@ namespace std
 	{
 		using ret_t = decltype(comp(*first1, *first2));
 		bool x1, x2;
-		for(x1 = (first1 == last1), x2 = (first2 == last2); !x1 && !x2; x1 = (++first1 == last1), x2 = (++first2 == last2)) if(ret_t c = comp(*first1, *first2); c != std::strong_ordering::equal) return c;
+		for(x1 = (first1 == last1), x2 = (first2 == last2); !x1 && !x2; x1 = (++first1 == last1), x2 = (++first2 == last2))
+			if(ret_t c = comp(*first1, *first2); c != std::strong_ordering::equal)
+				return c;
 		return !x1 ? std::strong_ordering::greater : !x2 ? std::strong_ordering::less : std::strong_ordering::equal;
 	}
 	template<typename T, typename U, matching_input_iterator<T> IT, matching_input_iterator<U> JT> constexpr auto lexicographical_compare_three_way(IT first1, IT last1, JT first2, JT last2) { return lexicographical_compare_three_way(first1, last1, first2, last2, std::compare_three_way{}); }

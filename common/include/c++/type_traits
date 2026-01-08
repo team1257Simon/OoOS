@@ -298,6 +298,7 @@ namespace std
 	template<> struct __make_signed<unsigned int> { using __type = signed int; };
 	template<> struct __make_signed<unsigned long> { using __type = signed long; };
 	template<> struct __make_signed<unsigned long long> { using __type = signed long long; };
+	template<> struct __make_signed<unsigned __int128> { using __type = signed __int128; };
 	template<typename T, bool II = is_integral<T>::value, bool IE = __is_enum(T)> class __make_signed_selector;
 	template<typename T> class __make_signed_selector<T, true, false> { using __signed_type = typename __make_signed<__remove_cv_t<T>>::__type; public: using __type = typename __match_cv_qualifiers<T, __signed_type>::__type; };
 	template<typename T> class __make_signed_selector<T, false, true> { using __unsigned_type = typename __make_unsigned_selector<T>::__type; public: using __type = typename __make_signed_selector<__unsigned_type>::__type; };

@@ -441,7 +441,7 @@ namespace std::__impl
 		constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __my_data(alloc, __clamp_diff(start, end))
 		{
 			__size_type n	= __clamp_diff(start, end);
-			if constexpr(requires{ std::max(start, end); })
+			if constexpr(totally_ordered<IT>)
 				__transfer(__beg(), start, std::max(start, end));
 			else __transfer(__beg(), start, end);
 			__setc(n);
@@ -564,7 +564,7 @@ namespace std::__impl
 		if consteval { array_init(where, start, end); }
 		else
 		{
-			if constexpr(requires { end > start; })
+			if constexpr(totally_ordered<IT>)
 				if(__unlikely(!(end > start))) return;
 			if constexpr(contiguous_iterator<IT>)
 				array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end)));
@@ -626,7 +626,7 @@ namespace std::__impl
 	template<matching_input_iterator<T> IT>
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__append_elements(IT start_it, IT end_it)
 	{
-		if constexpr(requires{ end_it > start_it; })
+		if constexpr(totally_ordered<IT>)
 			if(__unlikely(!(end_it > start_it)))
 				return nullptr;
 		__size_type rem	= __rem();

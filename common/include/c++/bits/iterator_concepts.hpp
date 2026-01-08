@@ -33,10 +33,10 @@ namespace std
 				template<typename T> struct __result { using type = iter_reference_t<T>; };
 				template<typename T> requires(__adl_imove<T>) struct __result<T> { using type = decltype(iter_move(declval<T>())); };
 				template<typename T> requires(!__adl_imove<T> && is_lvalue_reference_v<iter_reference_t<T>>) struct __result<T> { using type = remove_reference_t<iter_reference_t<T>>&&; };
-				template<typename T> static constexpr bool _is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(declval<T>())); else return noexcept(*declval<T>()); }
+				template<typename T> static constexpr bool __is_noexcept() { if constexpr (__adl_imove<T>) return noexcept(iter_move(declval<T>())); else return noexcept(*declval<T>()); }
 			public:
 				template<std::__detail::__dereferenceable T> using __type = typename __result<T>::type;
-				template<std::__detail::__dereferenceable T> constexpr __type<T> operator()(T&& __e) const noexcept(_is_noexcept<T>()) { if constexpr (__adl_imove<T>) return iter_move(static_cast<T&&>(__e)); else if constexpr (is_lvalue_reference_v<iter_reference_t<T>>) return static_cast<__type<T>>(*__e); else return *__e; }
+				template<std::__detail::__dereferenceable T> constexpr __type<T> operator()(T&& __e) const noexcept(__is_noexcept<T>()) { if constexpr (__adl_imove<T>) return iter_move(static_cast<T&&>(__e)); else if constexpr (is_lvalue_reference_v<iter_reference_t<T>>) return static_cast<__type<T>>(*__e); else return *__e; }
 			};
 		}
 		inline namespace __cust { inline constexpr __cust_imove::__imove iter_move{}; }
@@ -179,6 +179,8 @@ namespace std
 	};
 	namespace ranges::__detail
 	{
+		// These types implement integer widths one bit wider than the maximum size (in this case, __int128).
+		// Because the kernel is working in linear memory, numbers this wide will never be necessary, so I don't expect to implement them.
 		class __max_diff_type;
 		class __max_size_type;
 		template<typename T> concept __is_signed_int128			= same_as<T, __int128>;
@@ -235,10 +237,10 @@ namespace std
 			struct __iter_swap
 			{
 			private:
-				template<typename T, typename U> static constexpr bool _is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(declval<T>(), declval<U>())); else if constexpr(indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*declval<T>(), *declval<U>())); else return noexcept(*declval<T>() = __iter_exchange_move(declval<U>(), declval<T>())); }
+				template<typename T, typename U> static constexpr bool __is_noexcept() { if constexpr (__adl_iswap<T, U>) return noexcept(iter_swap(declval<T>(), declval<U>())); else if constexpr(indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) return noexcept(ranges::swap(*declval<T>(), *declval<U>())); else return noexcept(*declval<T>() = __iter_exchange_move(declval<U>(), declval<T>())); }
 			public:
 				template<typename T, typename U> requires __adl_iswap<T, U> || (indirectly_readable<remove_reference_t<T>> && indirectly_readable<remove_reference_t<U>> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) || (indirectly_movable_storable<T, U> && indirectly_movable_storable<U, T>)
-				constexpr void operator()(T&& __e1, U&& __e2) const noexcept(_is_noexcept<T, U>()) { if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2)); else if constexpr(indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2); else *__e1 = __iter_exchange_move(__e2, __e1); }
+				constexpr void operator()(T&& __e1, U&& __e2) const noexcept(__is_noexcept<T, U>()) { if constexpr (__adl_iswap<T, U>) iter_swap(static_cast<T&&>(__e1), static_cast<U&&>(__e2)); else if constexpr(indirectly_readable<T> && indirectly_readable<U> && swappable_with<iter_reference_t<T>, iter_reference_t<U>>) ranges::swap(*__e1, *__e2); else *__e1 = __iter_exchange_move(__e2, __e1); }
 			};
 		}
 		inline namespace __cust { inline constexpr __cust_iswap::__iter_swap iter_swap{}; }

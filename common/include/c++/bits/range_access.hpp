@@ -177,7 +177,7 @@ namespace std
 					else
 					{
 						typedef decltype(__end{}(t) - __begin{}(t)) diff;
-						typedef make_unsigned_t<diff> udiff;
+						typedef conditional_t<is_integral_v<diff>, make_unsigned_t<diff>, diff> udiff;
 						return static_cast<udiff>(__end{}(t) - __begin{}(t));
 					}
 				}
@@ -187,8 +187,9 @@ namespace std
 				template<__valid_size T> constexpr auto operator()(T&& t) const noexcept(noexcept(__size{}(declval<T&>())))
 				{
 					auto sz = __size{}(t);
-					typedef make_signed_t<decltype(__size{}(t))> sresult;
-					if constexpr(sizeof(sresult) < sizeof(ptrdiff_t)) return static_cast<ptrdiff_t>(sz);
+					typedef decltype(sz) uresult;
+					typedef conditional_t<is_integral_v<uresult>, make_signed_t<uresult>, uresult> sresult;
+					if constexpr(is_integral_v<uresult> && sizeof(sresult) < sizeof(ptrdiff_t)) return static_cast<ptrdiff_t>(sz);
 					else return static_cast<sresult>(sz);
 				}
 			};

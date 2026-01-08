@@ -89,6 +89,7 @@ namespace std
 		requires(K == subrange_kind::sized || !sized_sentinel_for<ST, IT>)
 		class subrange : public view_interface<subrange<IT, ST, K>>
 		{
+			friend struct views::__drop;
 			constexpr static bool __store_size	= (K == subrange_kind::sized && !sized_sentinel_for<ST, IT>);
 			IT __beg							= IT();
 			[[no_unique_address]] ST __end		= ST();
@@ -201,6 +202,8 @@ namespace std
 		template<range RT> using borrowed_subrange_t = conditional_t<borrowed_range<RT>, subrange<iterator_t<RT>>, dangling>;
 		namespace __detail
 		{
+			template<typename> constexpr inline bool __is_subrange = false;
+			template<typename IT, typename ST, subrange_kind K> constexpr inline bool __is_subrange<subrange<IT, ST, K>> = true;
 			template<typename T> using __memchr_searchable	= __and_<__or_<is_integral<T>, is_enum<T>>, bool_constant<sizeof(T) == sizeof(char)>>;
 			template<input_iterator IT, sentinel_for<IT> ST> using __contiguous_sized = bool_constant<contiguous_iterator<IT> && sized_sentinel_for<ST, IT>>;
 			template<input_iterator IT, sentinel_for<IT> ST, typename PT, typename VT>
