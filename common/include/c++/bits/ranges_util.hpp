@@ -375,7 +375,7 @@ namespace std
 		public:
 			template<not_self<ref_view> T> requires(convertible_to<T, RT&> && requires { __fun(declval<T>()); })
 			constexpr ref_view(T&& t)
-			noexcept(noexcept(static_cast<RT&>(std::declval<T>()))) : __range(std::addressof(static_Cast<RT&>(std::forward<T>(t)))) {}
+			noexcept(noexcept(static_cast<RT&>(std::declval<T>()))) : __range(std::addressof(static_cast<RT&>(std::forward<T>(t)))) {}
 			constexpr RT& base() const { return *__range; }
 			constexpr iterator_t<RT> begin() const { return ranges::begin(*__range); }
 			constexpr sentinel_t<RT> end() const { return ranges::end(*__range); }

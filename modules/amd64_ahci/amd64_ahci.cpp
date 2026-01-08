@@ -323,7 +323,7 @@ void ahci_port::__cmd_issue(utticket slot)
 	dword st;
 	const char* msg;
 	int status				= 0;
-	for(time_t i = 0; i < max_long_spin && __port_data_busy(std::addressof(__port)); i++)
+	for(time_t i = 0UL; i < max_long_spin && __port_data_busy(std::addressof(__port)); i++)
 	{
 		barrier();
 		st					= __port.i_state;
@@ -347,7 +347,7 @@ void ahci_port::__build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, ad
 	qword addr						= buffer.full;
 	size_t final_count				= (sector_count % (bpe_max / block_size())) * block_size();
 	barrier();
-	for(uint16_t i = 0; i < cmd.prdt_length; i++, addr += bpe_max, barrier())
+	for(uint16_t i = 0US; i < cmd.prdt_length; i++, addr += bpe_max, barrier())
 	{
 		new(std::addressof(cmd.command_table->prdt_entries[i])) hba_prdt_entry
 		{
@@ -358,7 +358,7 @@ void ahci_port::__build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, ad
 		};
 	}
 	qword start(dest_start);
-	new(static_cast<void*>(cmd.command_table->cmd_fis)) fis_reg_h2d
+	new(cmd.command_table->cmd_fis) fis_reg_h2d
 	{
 		.type		= reg_h2d,
 		.ctype		= true,
@@ -383,7 +383,7 @@ bool ahci_port::io_busy() const
 ahci_port::stticket ahci_port::read(void* dest, uintptr_t src_start, size_t sector_count)
 {
 	if(__unlikely(io_busy())) return -1;
-	stticket slot = __find_cmd_slot();
+	stticket slot		= __find_cmd_slot();
 	if(__unlikely(slot < 0)) return slot;
 	barrier();
 	hba_cmd_header* cmd	= new(std::addressof(__port.command_list[slot])) hba_cmd_header
@@ -447,7 +447,7 @@ void ahci_port::identify(identify_data* out)
 		.interrupt_on_completion	= !ooos::get_element<3>(amd64_ahci::__cfg),
 	};
 	barrier();
-	new(static_cast<void*>(cmd->command_table->cmd_fis)) fis_reg_h2d
+	new(cmd->command_table->cmd_fis) fis_reg_h2d
 	{
 		.type		= reg_h2d,
 		.ctype		= true,

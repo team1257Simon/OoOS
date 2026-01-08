@@ -40,6 +40,7 @@ __MEM_FN_TRAITS(&& noexcept, false_type, true_type)
 		template<typename U> consteval static bool __can_wrap() noexcept { return requires { requires(std::is_pointer_v<decltype(__get_ptr(std::declval<U>()))>); }; }
 		template<typename U> struct __is_wrappable : std::bool_constant<__can_wrap<U>()> {};
 		template<typename U> struct __not_same : std::negation<std::is_same<reference_wrapper, typename std::__remove_cv_t<U>::type>> {};
+		template<typename U> requires(!std::is_class_v<U> && !std::is_union_v<U>) struct __not_same<U> : true_type {};
 		static void __get_ptr(T&&) = delete;
 	public:
 		typedef T type;

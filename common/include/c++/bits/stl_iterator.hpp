@@ -182,8 +182,8 @@ namespace std
 		}
 		[[nodiscard]] constexpr counted_iterator operator-(iter_difference_t<IT> n) const
 		requires(random_access_iterator<IT>) { return counted_iterator(__curr - n, __len + n); }
-		template<common_with<IT> JT>
-		[[nodiscard]] friend constexpr iter_difference_t<JT> operator-(counted_iterator const& __this, counted_iterator<JT> const& __that) noexcept { return __that.__len - __this.__len; }
+		template<common_with<IT> JT> [[nodiscard]]
+		friend constexpr iter_difference_t<JT> operator-(counted_iterator const& __this, counted_iterator<JT> const& __that) noexcept { return __that.__len - __this.__len; }
 		[[nodiscard]] friend constexpr iter_difference_t<IT> operator-(counted_iterator const& __this, default_sentinel_t) noexcept { return -__this.__len; }
 		[[nodiscard]] friend constexpr iter_difference_t<IT> operator-(default_sentinel_t, counted_iterator const& __that) noexcept { return __that.__len; }
 		constexpr counted_iterator& operator-=(iter_difference_t<IT> n)
@@ -390,21 +390,22 @@ namespace __impl
 		typedef typename __traits::pointer				pointer;
 		typedef typename __traits::reference			reference;
 		using iterator_concept	= std::__detail::__iter_concept<IT>;
-		__attribute__((__always_inline__)) constexpr IT const& base() const noexcept { return current; }
-		__attribute__((__always_inline__)) constexpr __iterator() noexcept : current(IT()) {}
-		__attribute__((__always_inline__)) constexpr explicit __iterator(IT const& __i) noexcept : current(__i) {}
-		template<typename JT> requires(std::is_convertible_v<JT, IT>) [[__gnu__::__always_inline__]] constexpr __iterator(__iterator<JT, CT> const& that) noexcept : current(that.base()) {}
-		__attribute__((__always_inline__)) constexpr reference operator*() const noexcept { return *current; }
-		__attribute__((__always_inline__)) constexpr pointer operator->() const noexcept { return current; }
-		__attribute__((__always_inline__)) constexpr reference operator[](difference_type __n) const noexcept { return current[__n]; }
-		__attribute__((__always_inline__)) constexpr __iterator& operator++() noexcept { ++current; return *this; }
-		__attribute__((__always_inline__)) constexpr __iterator operator++(int) noexcept { return __iterator(current++); }
-		__attribute__((__always_inline__)) constexpr __iterator& operator--() noexcept { --current; return *this; }
-		__attribute__((__always_inline__)) constexpr __iterator operator--(int) noexcept { return __iterator(current--); }
-		__attribute__((__always_inline__)) constexpr __iterator& operator+=(difference_type __n) noexcept { current += __n; return *this; }
-		__attribute__((__always_inline__)) constexpr __iterator& operator-=(difference_type __n) noexcept { current -= __n; return *this; }
-		__attribute__((__always_inline__)) constexpr __iterator operator+(difference_type __n) const noexcept { return __iterator(current + __n); }
-		__attribute__((__always_inline__)) constexpr __iterator operator-(difference_type __n) const noexcept { return __iterator(current - __n); }
+		attribute(always_inline) constexpr IT const& base() const noexcept { return current; }
+		attribute(always_inline) constexpr __iterator() noexcept : current(IT()) {}
+		attribute(always_inline) constexpr explicit __iterator(IT const& __i) noexcept : current(__i) {}
+		template<typename JT> requires(std::is_convertible_v<JT, IT>) attribute(always_inline)
+		constexpr __iterator(__iterator<JT, CT> const& that) noexcept : current(that.base()) {}
+		attribute(always_inline) constexpr reference operator*() const noexcept { return *current; }
+		attribute(always_inline) constexpr pointer operator->() const noexcept { return current; }
+		attribute(always_inline) constexpr reference operator[](difference_type __n) const noexcept { return current[__n]; }
+		attribute(always_inline) constexpr __iterator& operator++() noexcept { ++current; return *this; }
+		attribute(always_inline) constexpr __iterator operator++(int) noexcept { return __iterator(current++); }
+		attribute(always_inline) constexpr __iterator& operator--() noexcept { --current; return *this; }
+		attribute(always_inline) constexpr __iterator operator--(int) noexcept { return __iterator(current--); }
+		attribute(always_inline) constexpr __iterator& operator+=(difference_type __n) noexcept { current += __n; return *this; }
+		attribute(always_inline) constexpr __iterator& operator-=(difference_type __n) noexcept { current -= __n; return *this; }
+		attribute(always_inline) constexpr __iterator operator+(difference_type __n) const noexcept { return __iterator(current + __n); }
+		attribute(always_inline) constexpr __iterator operator-(difference_type __n) const noexcept { return __iterator(current - __n); }
 	};
 	template<typename IT, typename JT, typename CT> constexpr bool operator==(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept { return __this.base() == __that.base(); }
 	template<typename IT, typename JT, typename CT> constexpr std::__detail::__synth3way_t<IT, JT> operator<=>(__iterator<IT, CT> const& __this, __iterator<JT, CT> const& __that) noexcept(noexcept(std::__detail::__synth3way(__this.base(), __that.base()))) { return std::__detail::__synth3way(__this.base(), __that.base()); }
@@ -438,11 +439,12 @@ namespace __impl
 		template<std::same_as<typename CT::pointer> JT> constexpr explicit __dereference_to_advance_iterator(__dereference_to_advance_iterator<JT, CT, AT> const& that) noexcept : begin(that.begin), current(that.current), end(that.end), __adv(that.__adv) {}
 		constexpr reference operator*() const noexcept { return *current; }
 		constexpr pointer operator->() const noexcept { return current; }
-		constexpr __dereference_to_advance_iterator& operator++() noexcept { if(current != end) { current = __adv(begin, *current, end); } return *this; }
-		constexpr __dereference_to_advance_iterator operator++(int) noexcept { pointer old = current; if(current != end) { current = __adv(begin, *current, end); } return __dereference_to_advance_iterator(begin, old, end); }
-		constexpr __dereference_to_advance_iterator next() const noexcept { return __dereference_to_advance_iterator{ begin, __adv(begin, *current, end), end }; }
+		constexpr __dereference_to_advance_iterator& operator++() noexcept { if(current != end) current = __adv(begin, *current, end); return *this; }
+		constexpr __dereference_to_advance_iterator operator++(int) noexcept { pointer old = current; ++*this; return __dereference_to_advance_iterator(begin, old, end); }
+		constexpr __dereference_to_advance_iterator next() const noexcept { return __dereference_to_advance_iterator(begin, __adv(begin, *current, end), end); }
 		constexpr bool __is_equal(__dereference_to_advance_iterator const& that) const noexcept { return this->begin == that.begin && this->current == that.current && this->end == that.end; }
-		constexpr deref_type offs() const noexcept requires requires{ static_cast<deref_type>(std::declval<difference_type>()); } { return static_cast<deref_type>(current - begin); }
+		constexpr deref_type offs() const noexcept
+		requires(std::explicitly_convertible_to<difference_type, deref_type>) { return static_cast<deref_type>(current - begin); }
 	};
 	extension template<__dereference_to_advance_capable IT, __dereference_to_advance_capable JT, typename CT, __deref_advance_transfer<IT> AT, __deref_advance_transfer<JT> BT>
 	constexpr std::__detail::__synth3way_t<IT, JT> operator<=>(__dereference_to_advance_iterator<IT, CT, AT> const& __this, __dereference_to_advance_iterator<JT, CT, BT> const& __that) noexcept(noexcept(std::__detail::__synth3way(__this.base(), __that.base()))) { return std::__detail::__synth3way(__this.base(), __that.base()); }

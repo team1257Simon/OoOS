@@ -223,34 +223,25 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 	switch(dyn_entries[i].d_tag)
 	{
 	case DT_INIT:
-		init_fn			= dyn_entries[i].d_ptr;
+		init_fn								= dyn_entries[i].d_ptr;
 		break;
 	case DT_FINI:
-		fini_fn			= dyn_entries[i].d_ptr;
+		fini_fn								= dyn_entries[i].d_ptr;
 		break;
 	case DT_INIT_ARRAY:
-		init_array_ptr	= dyn_entries[i].d_ptr;
+		init_array_ptr						= dyn_entries[i].d_ptr;
 		break;
 	case DT_FINI_ARRAY:
-		fini_array_ptr	= dyn_entries[i].d_ptr;
+		fini_array_ptr						= dyn_entries[i].d_ptr;
 		break;
 	case DT_INIT_ARRAYSZ:
-		init_array_size	= (dyn_entries[i].d_val / sizeof(addr_t));
+		init_array_size						= (dyn_entries[i].d_val / sizeof(addr_t));
 		break;
 	case DT_FINI_ARRAYSZ:
-		fini_array_size	= (dyn_entries[i].d_val / sizeof(addr_t));
-		break;
-	case DT_NEEDED:
-		dependencies.emplace_back(symstrtab[dyn_entries[i].d_val]);
+		fini_array_size						= (dyn_entries[i].d_val / sizeof(addr_t));
 		break;
 	case DT_RUNPATH:
-		ld_paths		= std::move(std::ext::split(std::forward<std::string>(symstrtab[dyn_entries[i].d_val]), ':'));
-		break;
-	case DT_FLAGS:
-		process_flags(static_cast<elf_dyn_flags>(dyn_entries[i].d_val));
-		break;
-	case DT_FLAGS_1:
-		process_flags(static_cast<elf_dyn_flags_1>(dyn_entries[i].d_val));
+		ld_paths							= std::move(std::ext::split(std::forward<std::string>(symstrtab[dyn_entries[i].d_val]), ':'));
 		break;
 	case DT_JMPREL:
 		plt_rela_offs						= dyn_entries[i].d_ptr;
@@ -266,6 +257,15 @@ void elf64_dynamic_object::process_dyn_entry(size_t i)
 		break;
 	case DT_VERNEEDNUM:
 		symbol_index.verneed.verneed_num	= dyn_entries[i].d_val;
+		break;
+	case DT_NEEDED:
+		dependencies.emplace_back(symstrtab[dyn_entries[i].d_val]);
+		break;
+	case DT_FLAGS:
+		process_flags(static_cast<elf_dyn_flags>(dyn_entries[i].d_val));
+		break;
+	case DT_FLAGS_1:
+		process_flags(static_cast<elf_dyn_flags_1>(dyn_entries[i].d_val));
 		break;
 	default:
 		break;
@@ -332,16 +332,16 @@ void elf64_dynamic_object::process_dynamic()
 			uint32_t* og_hvals		= addr_t(og_buckets).plus(h->nbucket * sizeof(uint32_t));
 			new(std::addressof(symbol_index.htbl)) elf64_gnu_htbl
 			{
-					.header
-					{
-						.nbucket	{ h->nbucket },
-						.symndx		{ h->symndx },
-						.maskwords	{ h->maskwords },
-						.shift2		{ h->shift2 }
-					},
-					.bloom_filter_words	{ og_filter, og_filter + h->maskwords },
-					.buckets			{ og_buckets, og_buckets + h->nbucket },
-					.hash_value_array	{ og_hvals, og_hvals + n_hvals }
+				.header
+				{
+					.nbucket		{ h->nbucket },
+					.symndx			{ h->symndx },
+					.maskwords		{ h->maskwords },
+					.shift2			{ h->shift2 }
+				},
+				.bloom_filter_words	{ og_filter, og_filter + h->maskwords },
+				.buckets			{ og_buckets, og_buckets + h->nbucket },
+				.hash_value_array	{ og_hvals, og_hvals + n_hvals }
 			};
 		}
 		else process_dyn_entry(i);

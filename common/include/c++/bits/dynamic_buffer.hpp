@@ -5,18 +5,29 @@
  */
 #ifndef __DYN_BUFFER
 #define __DYN_BUFFER
-#include <memory>
-#include <limits>
 #include <bits/stl_algobase.hpp>
 #include <bits/stl_iterator.hpp>
-#include <libk_decls.h>
+#include <memory>
+#include <limits>
 #include <initializer_list>
 #ifndef TARGET_SSO_SIZE
 #define TARGET_SSO_SIZE 32UZ
 #endif
 namespace std::__impl
 {
-	template<input_iterator IT> constexpr size_t __clamp_diff(IT s, IT e) noexcept { return static_cast<size_t>(std::distance(s, std::max(s, e))); }
+	template<input_iterator IT>
+	constexpr size_t __clamp_diff(IT s, IT e) noexcept
+	{
+		if constexpr(requires{ std::distance(s, std::max(s, e)); }) 
+			return static_cast<size_t>(std::distance(s, std::max(s, e)));
+		else
+		{
+			size_t i = 0UZ;
+			while(s != e)
+				++s, ++i;
+			return i;
+		}
+	}
 	template<typename T> concept __can_sso = std::default_initializable<T> && std::is_trivially_copyable_v<T> && (std::is_move_assignable_v<T> || std::move_constructible<T>) && std::is_trivially_destructible_v<T>;
 	template<typename C, typename A> concept __container_type = requires(C const& cclref, C& clref, C&& crref, A& aref)
 	{
@@ -430,7 +441,9 @@ namespace std::__impl
 		constexpr __dynamic_buffer(IT start, IT end, A const& alloc) : __my_data(alloc, __clamp_diff(start, end))
 		{
 			__size_type n	= __clamp_diff(start, end);
-			__transfer(__beg(), start, std::max(start, end));
+			if constexpr(requires{ std::max(start, end); })
+				__transfer(__beg(), start, std::max(start, end));
+			else __transfer(__beg(), start, end);
 			__setc(n);
 		}
 		constexpr void __trim_buffer()
@@ -551,7 +564,8 @@ namespace std::__impl
 		if consteval { array_init(where, start, end); }
 		else
 		{
-			if(__unlikely(!(end > start))) return;
+			if constexpr(requires { end > start; })
+				if(__unlikely(!(end > start))) return;
 			if constexpr(contiguous_iterator<IT>)
 				array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end)));
 			else for(IT i = start; i != end; i++, where++)
@@ -612,8 +626,9 @@ namespace std::__impl
 	template<matching_input_iterator<T> IT>
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__append_elements(IT start_it, IT end_it)
 	{
-		if consteval {}
-		else { if(__unlikely(!(end_it > start_it))) return __cur(); }
+		if constexpr(requires{ end_it > start_it; })
+			if(__unlikely(!(end_it > start_it)))
+				return nullptr;
 		__size_type rem	= __rem();
 		__size_type num	= distance(start_it, end_it);
 		__size_type bsz	= __size();

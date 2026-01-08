@@ -1,4 +1,5 @@
 #include <elf64_index.hpp>
+#include <ranges>
 constexpr static gnu_string_hash __gnu_hash{};
 constexpr static size_t bloom_bits	= static_cast<int>(sizeof(uint64_t) * __CHAR_BIT__);
 elf64_sym const* elf64_dynsym_index::operator[](std::string const& str) const
@@ -66,8 +67,6 @@ void elf64_version_index::build(addr_t verdef_section, elf64_string_table const&
 bool elf64_version_index::check(elf64_sym_version const& ver) const
 {
 	if(__unlikely(ver.base_or_weak)) return true;
-	for(elf64_sym_version const& def : definitions)
-		if(def == ver)
-			return true;
-	return false;
+	auto match = [&ver](elf64_sym_version const& v) -> bool { return ver == v; };
+	return !std::ranges::empty(definitions | std::views::filter(match));
 }

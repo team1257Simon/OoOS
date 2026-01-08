@@ -239,14 +239,15 @@ std::streamsize ext_file_vnode::on_overflow(std::streamsize n)
 	size_t bs		= parent_fs->block_size();
 	size_t needed	= div_round_up(n, bs);
 	size_t ccap		= __capacity();
-	if(disk_block* blk = parent_fs->claim_blocks(this, needed); __builtin_expect(blk != nullptr, true))
+	disk_block* blk = parent_fs->claim_blocks(this, needed);
+	if(blk) [[likely]]
 	{
-		if(__builtin_expect(!expand_buffer(bs * blk->chain_len, n), false)) return 0;
+		if(__unlikely(!expand_buffer(bs * blk->chain_len, n))) return 0UZ;
 		array_zero(__get_ptr(ccap), bs * blk->chain_len);
 		return bs * blk->chain_len;
 	}
 	panic("[FS/EXT4] no blocks");
-	return 0;
+	return 0UZ;
 }
 bool ext_file_vnode::on_open()
 {
@@ -256,22 +257,23 @@ bool ext_file_vnode::on_open()
 		if(__beg()) __rst();
 		else
 		{
-			if(!__grow_buffer_exact(extents.total_extent * parent_fs->block_size())) return false;
+			if(__unlikely(!__grow_buffer_exact(extents.total_extent * parent_fs->block_size()))) return false;
 			if(extents.total_extent)
 			{
 				update_block_ptrs();
 				for(disk_block& db : block_data)
-					if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; }
+					if(__unlikely(!parent_fs->read_block(db)))
+						return panic("[FS/EXT4] block read failed"), false;
 			}
 		}
 		return (__initialized	= true);
 	}
-	if(!init_extents()) return false;
+	if(__unlikely(!init_extents())) return false;
 	if(extents.total_extent)
 	{
-		if(!__grow_buffer_exact(extents.total_extent * parent_fs->block_size())) return false;
+		if(__unlikely(!__grow_buffer_exact(extents.total_extent * parent_fs->block_size()))) return false;
 		update_block_ptrs();
-		for(disk_block& db : block_data) if(!parent_fs->read_block(db)) { panic("[FS/EXT4] block read failed"); return false; }
+		for(disk_block& db : block_data) if(!parent_fs->read_block(db)) return panic("[FS/EXT4] block read failed"), false;
 		qword timestamp					= sys_time(nullptr);
 		on_disk_node->accessed_time		= timestamp.lo;
 		on_disk_node->access_time_hi	= (timestamp.hi.hi.hi >> 4) & 0x03;
@@ -286,41 +288,36 @@ bool ext_directory_vnode::on_open()
 	if(__unlikely(!init_extents())) return false;
 	if(__unlikely(!__grow_buffer_exact(extents.total_extent * bs))) return panic("[FS/EXT4] failed to allocate buffer for directory data"), false;
 	update_block_ptrs();
-	for(size_t i = 0UZ; i < block_data.size(); i++)
-	{
-		if(!parent_fs->read_block(block_data[i]))
-		{
-			std::string errstr = "[FS/EXT4] read failed on directory block " + std::to_string(block_data[i].block_number);
-			panic(errstr.c_str());
-			return false;
-		}
-	}
+	for(disk_block& b : block_data)
+		if(!parent_fs->read_block(b))
+			return xpanic("[FS/EXT4] read failed on directory block " + std::to_string(b.block_number)), false;
 	return (__initialized	= __parse_entries(bs));
 }
 tnode* ext_directory_vnode::__resolve_link_r(ext_vnode* vn, std::set<vnode*>& checked_elements)
 {
-	std::string separator = parent_fs->get_path_separator();
+	std::string separator	= parent_fs->get_path_separator();
 	if(vn->on_disk_node->block_info.ext4_extent.header.magic == ext_extent_magic)
 	{
 		if(!vn->on_open()) throw std::runtime_error("[FS/EXT4] symlink inode read failed");
-		size_t n		= vn->count();
-		tnode* result	= nullptr;
-		char* buff		= ch_alloc.allocate(n);
+		size_t n			= vn->count();
+		tnode* result		= nullptr;
+		char* buff			= ch_alloc.allocate(n);
 		if(vn->sgetn(buff, n))
 		{
 			std::string xlink_str(buff, std::strnlen(buff, 255UZ));
 			if(std::strncmp(buff, separator.c_str(), separator.size()))
-				result	= parent_fs->resolve_symlink(this, xlink_str, checked_elements);	// relative
-			else result	= parent_fs->resolve_symlink(nullptr, buff, checked_elements);		// absolute
+				result		= parent_fs->resolve_symlink(this, xlink_str, checked_elements);	// relative
+			else result		= parent_fs->resolve_symlink(nullptr, buff, checked_elements);		// absolute
 		}
 		ch_alloc.deallocate(buff, n);
 		if(!result) throw std::runtime_error("[FS/EXT4] bad symlink");
 		return result;
 	}
-	char* link_str		= vn->on_disk_node->block_info.link_target;
+	char* link_str				= vn->on_disk_node->block_info.link_target;
 	std::string xlink_str(link_str, std::strnlen(link_str, 60UZ));
-	if(tnode* result	= parent_fs->resolve_symlink(std::strncmp(link_str, separator.c_str(), separator.size()) ? this : nullptr, xlink_str, checked_elements))
-		return result;
+	ext_directory_vnode* from	= std::strncmp(link_str, separator.c_str(), separator.size()) ? this : nullptr;
+	tnode* result				= parent_fs->resolve_symlink(from, xlink_str, checked_elements);
+	if(result) return result;
 	throw std::runtime_error("[FS/EXT4] bad symlink");
 }
 tnode* ext_directory_vnode::find(std::string const& name)
@@ -352,28 +349,29 @@ tnode* ext_directory_vnode::find_r(std::string const& name, std::set<vnode*>& ch
 }
 std::streamsize ext_directory_vnode::on_overflow(std::streamsize n)
 {
-	size_t bs			= parent_fs->block_size();
-	if(disk_block* blk	= parent_fs->claim_blocks(this); __builtin_expect(blk != nullptr, true))
+	size_t bs		= parent_fs->block_size();
+	disk_block* blk	= parent_fs->claim_blocks(this);
+	if(blk) [[likely]]
 	{
 		if(__unlikely(!expand_buffer(bs))) return 0UZ;
 		// the data pointer of returned block should point at the newly added space
 		__setc(blk->data_buffer);
 		array_zero(__cur(), bs);
 		ext_dir_entry* dirent	= __current_ent();
-		size_t rem				= static_cast<size_t>(bs - n - 12Z);
+		ext_dir_entry* next		= addr_t(__cur()).plus(n);
 		dirent->entry_size		= n;
-		reinterpret_cast<ext_dir_entry*>(__cur() + n)->entry_size	= rem;
+		next->entry_size		= static_cast<size_t>(bs - n - 12Z);
 		return bs;
 	}
-	return 0;
+	return 0UZ;
 }
 bool ext_directory_vnode::__seek_available_entry(size_t needed_len)
 {
 	while(__cur() < __max())
 	{
 		ext_dir_entry* dirent	= __current_ent();
-		if(!dirent->inode_idx && dirent->entry_size >= needed_len) return true; // already-usable entry
-		else if(unused_dirent_space(*dirent) >= needed_len) return false; // have to divide the entry
+		if(!dirent->inode_idx && dirent->entry_size >= needed_len) return true;	// already-usable entry
+		else if(unused_dirent_space(*dirent) >= needed_len) return false;		// have to divide the entry
 		__bumpc(dirent->entry_size);
 	}
 	__setc(__max());
@@ -396,13 +394,13 @@ void ext_directory_vnode::__write_dir_entry(ext_vnode_base* evnode, ext_dirent_t
 }
 bool ext_directory_vnode::add_dir_entry(ext_vnode_base* evnode, ext_dirent_type type, const char* nm, size_t name_len)
 {
-	size_t needed_len = up_to_nearest(name_len + 8, 4);
+	size_t needed_len					= up_to_nearest(name_len + 8UZ, 4UZ);
 	if(!__seek_available_entry(needed_len))
 	{
 		if(__cur() < __max())
 		{
 			ext_dir_entry* dirent		= __current_ent();
-			size_t nsz					= up_to_nearest(dirent->name_len + 8UL, 4UZ);
+			size_t nsz					= up_to_nearest(dirent->name_len + 8UZ, 4UZ);
 			size_t rem					= dirent->entry_size - nsz;
 			dirent->entry_size			= nsz;
 			mark_write(dirent);
@@ -419,7 +417,7 @@ bool ext_directory_vnode::add_dir_entry(ext_vnode_base* evnode, ext_dirent_type 
 	{
 		tnode* tn	= directory_tnodes.emplace(fnode, nm).first.base();
 		size_t i	= block_of_data_ptr(tell());
-		__dir_index.insert_or_assign(tn, std::move(dirent_idx{ .block_num = static_cast<uint32_t>(i), .block_offs = static_cast<uint32_t>(tell() % parent_fs->block_size()) }) );
+		__dir_index.insert_or_assign(tn, dirent_idx(static_cast<uint32_t>(i), static_cast<uint32_t>(tell() % parent_fs->block_size())));
 	}
 	return fsync();
 }
@@ -434,11 +432,14 @@ bool ext_directory_vnode::link(tnode* original, std::string const& target)
 }
 bool ext_directory_vnode::unlink(std::string const& name)
 {
-	bool success				= false;
-	size_t bs					= parent_fs->block_size();
-	if(tnode_dir::iterator i 	= directory_tnodes.find(name); i != directory_tnodes.end())
+	typedef std::map<tnode*, dirent_idx>::iterator di_iterator;
+	bool success					= false;
+	size_t bs						= parent_fs->block_size();
+	tnode_dir::iterator i 			= directory_tnodes.find(name);
+	if(i != directory_tnodes.end())
 	{
-		if(std::map<tnode*, dirent_idx>::iterator j = __dir_index.find(i.base()); j != __dir_index.end())
+		di_iterator j				= __dir_index.find(i.base());
+		if(j != __dir_index.end())
 		{
 			__setc(__beg() + j->second.block_num * bs + j->second.block_offs);
 			ext_dir_entry* dirent	= __current_ent();
@@ -447,13 +448,13 @@ bool ext_directory_vnode::unlink(std::string const& name)
 			dirent->inode_idx		= 0U;
 			dirent->type_ind		= 0UC;
 			char* cblk				= __current_block_start();
-			ext_dir_tail* tail		= new(static_cast<void*>(cblk + bs - 12Z)) ext_dir_tail(0U);
+			ext_dir_tail* tail		= new(cblk + bs - 12Z) ext_dir_tail(0U);
 			uint32_t csum			= crc32c(parent_fs->get_uuid_csum(), cblk, bs);
 			tail->csum				= csum;
 			mark_write(dirent);
 			__dir_index.erase(j);
-			if(ext_vnode* vn		= dynamic_cast<ext_vnode*>(i->ptr())) { vn->on_disk_node->referencing_dirents--; success = vn->update_inode() && fsync(); }
-			else success			= fsync();
+			ext_vnode* vn			= dynamic_cast<ext_vnode*>(i->ptr());
+			success					= (vn ? (vn->on_disk_node->referencing_dirents--, vn->update_inode()) : true) && fsync();
 		}
 	}
 	return success;
@@ -463,7 +464,7 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
 	// a directory in ext is essentially another file consisting of a series of directory entries, which correspond pretty much exactly with the tnodes we've already been using.
 	try
 	{
-		for(size_t i = 0; i < extents.total_extent; i++)
+		for(size_t i = 0UZ; i < extents.total_extent; i++)
 		{
 			char* current_pos		= __beg() + bs * i;
 			ext_dir_entry* dirent;
@@ -471,8 +472,8 @@ bool ext_directory_vnode::__parse_entries(size_t bs)
 			{
 				dirent				= reinterpret_cast<ext_dir_entry*>(current_pos + n);
 				if(!dirent->inode_idx) break;
-				tnode* tn			= directory_tnodes.emplace(parent_fs->dirent_to_vnode(dirent), std::move(std::string(dirent->name, dirent->name_len))).first.base();
-				__dir_index.insert_or_assign(tn, std::move(dirent_idx{ .block_num = static_cast<uint32_t>(i), .block_offs = static_cast<uint32_t>(n) }));
+				tnode* tn			= directory_tnodes.emplace(parent_fs->dirent_to_vnode(dirent), std::string(dirent->name, dirent->name_len)).first.base();
+				__dir_index.insert_or_assign(tn, dirent_idx(static_cast<uint32_t>(i), static_cast<uint32_t>(n)));
 				if(ext_vnode* vn	= dynamic_cast<ext_vnode*>(tn->ptr()))
 				{
 					if(vn->on_disk_node->extra_flags & EAGER_LOAD)
@@ -495,9 +496,9 @@ bool ext_directory_vnode::init_dir_blank(ext_directory_vnode* parent)
 	size_t bs			= parent_fs->block_size();
 	extents.has_init	= true;
 	disk_block* db		= parent_fs->claim_blocks(this);
-	if(__builtin_expect(db != nullptr, true))
+	if(db) [[likely]]
 	{
-		if(!expand_buffer(bs * db->chain_len)) return false;
+		if(__unlikely(!expand_buffer(bs * db->chain_len))) return false;
 		__setc(0UZ);
 		ext_dir_entry* dirent	= __current_ent();
 		dirent->entry_size		= 12US;

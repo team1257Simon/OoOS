@@ -42,24 +42,24 @@ namespace std
 			constexpr const_reference next() const { return *(this->__qcur()); }
 			constexpr reference back() { return *(this->__end() - 1); }
 			constexpr const_reference back() const { return *(this->__end() - 1); }
-			constexpr iterator begin() { return iterator(this->__qbeg()); }
-			constexpr const_iterator cbegin() const { return const_iterator(this->__qbeg()); }
-			constexpr const_iterator begin() const { return cbegin(); }
-			extension constexpr iterator current() { return iterator(this->__qcur()); }
-			extension constexpr const_iterator ccurrent() const { return const_iterator(this->__qcur()); }
-			extension constexpr const_iterator current() const { return ccurrent(); }
-			constexpr iterator end() { return iterator(this->__end()); }
-			constexpr const_iterator cend() const { return const_iterator(this->__end()); }
-			constexpr const_iterator end() const { return cend(); }
-			constexpr reverse_iterator rbegin() { return reverse_iterator(end()); }
-			constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
-			constexpr const_reverse_iterator rbegin() const { return crbegin(); }
-			extension constexpr reverse_iterator rcurrent() { return reverse_iterator(ccurrent()); }
-			extension constexpr const_reverse_iterator crcurrent() const { return const_reverse_iterator(ccurrent()); }
-			extension constexpr const_reverse_iterator rcurrent() const { return crcurrent(); }
-			constexpr reverse_iterator rend() { return reverse_iterator(begin()); }
-			constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
-			constexpr const_reverse_iterator rend() const { return crend(); }
+			constexpr iterator begin() noexcept { return iterator(this->__qbeg()); }
+			constexpr const_iterator cbegin() const noexcept { return const_iterator(this->__qbeg()); }
+			constexpr const_iterator begin() const noexcept { return cbegin(); }
+			extension constexpr iterator current() noexcept { return iterator(this->__qcur()); }
+			extension constexpr const_iterator ccurrent() const noexcept { return const_iterator(this->__qcur()); }
+			extension constexpr const_iterator current() const noexcept { return ccurrent(); }
+			constexpr iterator end() noexcept { return iterator(this->__end()); }
+			constexpr const_iterator cend() const noexcept { return const_iterator(this->__end()); }
+			constexpr const_iterator end() const noexcept { return cend(); }
+			constexpr reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
+			constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
+			constexpr const_reverse_iterator rbegin() const noexcept { return crbegin(); }
+			extension constexpr reverse_iterator rcurrent() noexcept { return reverse_iterator(ccurrent()); }
+			extension constexpr const_reverse_iterator crcurrent() const noexcept { return const_reverse_iterator(ccurrent()); }
+			extension constexpr const_reverse_iterator rcurrent() const noexcept { return crcurrent(); }
+			constexpr reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
+			constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
+			constexpr const_reverse_iterator rend() const noexcept { return crend(); }
 			constexpr void push(value_type const& value) { this->__push_elements(value, 1UL); }
 			constexpr void push(value_type&& value) { this->__push_elements(move(value), 1UL); }
 			constexpr void swap(resettable_queue& that) noexcept { this->__qswap(that); }

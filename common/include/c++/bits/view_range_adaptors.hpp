@@ -5,8 +5,8 @@
  * Much of this is paraphrased from the gnu libstdc++ version, but not all of it (license in the project root directory to save space).
  * TODO: take, take_while, drop, drop_while, and all of the structures after join in the g++ library header other than ranges::to
  */
-#include <bits/bind_back.hpp>
 #include <bits/ranges_util.hpp>
+#include <bits/bind_back.hpp>
 #include <bits/refwrap.hpp>
 #include <optional>
 namespace std
@@ -49,7 +49,7 @@ namespace std
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wc++23-extensions"
 					template<typename ST, typename RT> requires(__adaptor_invocable<AT, RT, __like_t<ST, Args>...>)
-					constexpr auto operator()(this ST&& self, RT&& r) { return __binder::__call(forward_like<ST, __partial_adaptor>(self).__bind, std::forward<RT>(r)); }
+					constexpr auto operator()(this ST&& self, RT&& r) { return __binder::__call(__like_t<ST, __partial_adaptor>(self).__bind, std::forward<RT>(r)); }
 					#pragma GCC diagnostic pop
 				};
 				template<typename AT, typename ... Args>
@@ -59,7 +59,7 @@ namespace std
 					typedef __bind_back_expr<AT, Args...> __binder;
 					[[no_unique_address]] __binder __bind;
 					template<typename ... Ts> constexpr __partial_adaptor(int, Ts&& ... args) : __bind(0, AT(), forward<Ts>(args)...) {}
-					template<typename ST, typename RT> requires(__adaptor_invocable<AT, RT, __like_t<ST, Args>...>)
+					template<typename RT> requires(__adaptor_invocable<AT, RT, Args const&...>)
 					constexpr auto operator()(RT&& r) const { return __binder::__call(__bind, std::forward<RT>(r)); }
 					constexpr static bool __has_simple_call_op = true;
 				};
@@ -73,7 +73,7 @@ namespace std
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wc++23-extensions"
 					template<typename ST, typename RT> requires(__pipe_invocable<__like_t<ST, T>, __like_t<ST, U>, RT>)
-					constexpr auto operator()(this ST&& self, RT&& r) { return (forward_like<ST, __pipe>(self).t(forward_like<ST, __pipe>(self).u(std::forward<RT>(r)))); }
+					constexpr auto operator()(this ST&& self, RT&& r) { return (__like_t<ST, __pipe>(self).t(__like_t<ST, __pipe>(self).u(std::forward<RT>(r)))); }
 					#pragma GCC diagnostic pop
 				};
 				template<typename T, typename U>
@@ -487,7 +487,7 @@ namespace std
 				typedef range_difference_t<__cbase> difference_type;
 				__iterator() requires(default_initializable<__base_iter>) = default;
 				constexpr __iterator(__func_handle f, __base_iter i) : __curr(std::move(i)), __fn(f) {}
-				constexpr __iterator(__parent p, __base_iter i) : __curr(std::move(i)), __fn(*p->__fn) {}
+				constexpr __iterator(__parent* p, __base_iter i) : __curr(std::move(i)), __fn(*p->__fn) {}
 				constexpr __iterator(__iterator<!CB> i) requires(CB && convertible_to<iterator_t<RT>, __base_iter>) : __curr(std::move(i.__curr)), __fn(i.__fn) {}
 				constexpr __base_iter& base() const& noexcept { return __curr; }
 				constexpr __base_iter&& base()&& noexcept { return std::move(__curr); }
@@ -843,9 +843,12 @@ namespace std
 					return c;
 				}
 			}
-			static_assert(input_range<range_reference_t<RT>>);
-			typedef range_value_t<CT> cval;
-			return ranges::to<CT>(ref_view(r) | views::transform([]<typename ET>(ET&& e) -> cval { return ranges::to<cval>(std::forward<ET>(e)); }), std::forward<Args>(args)...);
+			else
+			{
+				static_assert(input_range<range_reference_t<RT>>);
+				typedef range_value_t<CT> cval;
+				return ranges::to<CT>(ref_view(r) | views::transform([]<typename ET>(ET&& e) -> cval { return ranges::to<cval>(std::forward<ET>(e)); }), std::forward<Args>(args)...);
+			}
 		}
 		namespace __detail
 		{
@@ -858,7 +861,7 @@ namespace std
 					typedef range_value_t<RT> value_type;
 					typedef range_difference_t<RT> difference_type;
 					typedef range_reference_t<RT> reference;
-					typedef decltype(std::addressof(std::declval<range_reference_t<RT>>())) pointer;
+					typedef value_type* pointer;
 					reference operator*() const;
 					pointer operator->() const;
 					__fake_input_iterator& operator++();
@@ -909,6 +912,20 @@ namespace std
 			static_assert(!is_const_v<CT> && !is_volatile_v<CT>);
 			static_assert(is_class_v<CT> || is_union_v<CT>);
 			typedef views::__adaptor::__partial_adaptor<__detail::__to<CT>, decay_t<Args>...> result_type;
+			return result_type(0, std::forward<Args>(args)...);
+		}
+		namespace __detail
+		{
+			
+			template<template<typename...> typename CT>
+			struct __tmpl_to {
+				template<typename RT, typename ... Args> requires(requires{ ranges::to<CT>(std::declval<RT>(), std::declval<Args>()...); })
+				constexpr auto operator()(RT&& r, Args&& ... args) const { return ranges::to<CT>(std::forward<RT>(r), std::forward<Args>(args)...); }
+			};
+		}
+		template<template<typename...> class CT, typename ... Args>
+		[[nodiscard]] constexpr auto to(Args&& ... args) {
+			typedef views::__adaptor::__partial_adaptor<__detail::__tmpl_to<CT>, std::decay_t<Args>...> result_type;
 			return result_type(0, std::forward<Args>(args)...);
 		}
 	}

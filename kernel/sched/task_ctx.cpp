@@ -676,12 +676,12 @@ void task_ctx::init_thread_0()
 		if(!src || !dest) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 		array_copy<uint8_t>(dest, src, task_struct.tls_size);
 	}
-	addr_t real					= frame.translate(tls_block_end);
+	addr_t real						= frame.translate(tls_block_end);
 	if(!real) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	thread_t* thread_0			= new(real) thread_t
+	thread_t* thread_0				= new(real) thread_t
 	{
-		.self					= tls_block_end,
-		.saved_regs				= task_struct.saved_regs,
+		.self						= tls_block_end,
+		.saved_regs					= task_struct.saved_regs,
 		.ctl_info
 		{
 			{
@@ -698,18 +698,18 @@ void task_ctx::init_thread_0()
 				.wait_time_delta	= 0UL,
 			}
 		},
-		.stack_size				= stack_allocated_size,
-		.stack_base				= allocated_stack,
-		.tls_start				= tls_block_start
+		.stack_size					= stack_allocated_size,
+		.stack_base					= allocated_stack,
+		.tls_start					= tls_block_start
 	};
 	init_fx(thread_0->fxsv);
 	thread_ptr_by_id.insert(std::make_pair(0U, thread_0));
 	dyn_thread.instantiate(*thread_0);
-	next_assigned_thread_id 	= 1U;
-	task_struct.thread_ptr		= tls_block_end;
+	next_assigned_thread_id 		= 1U;
+	task_struct.thread_ptr			= tls_block_end;
 	write_thread_ptr(thread_0->self);
 	sch.retrothread(header(), thread_0);
-	thread_0->ctl_info.state	= thread_state::RUNNING;
+	thread_0->ctl_info.state		= thread_state::RUNNING;
 }
 void task_ctx::thread_switch(pid_t to_thread)
 {
@@ -824,7 +824,7 @@ void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 			dyn_thread.takedown(*thread);
 			// The memory remains a part of the process; both the thread ID and the memory used for the TLS and thread struct can be reused later if needed
 			inactive_threads.push_back(thread);
-			next_assigned_thread_id		= thread_id;
+			next_assigned_thread_id	= thread_id;
 		}
 		else if(thread->ctl_info.reset) (*thread->ctl_info.reset)(thread->ctl_info.callback_handle);
 	}
@@ -865,22 +865,22 @@ thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_r
 		if(!src || !dest) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 		array_copy<uint8_t>(dest, src, task_struct.tls_size);
 	}
-	addr_t real_thread			= frame.translate(block_end);
+	addr_t real_thread				= frame.translate(block_end);
 	if(!real_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	uint32_t id 				= next_assigned_thread_id;
+	uint32_t id 					= next_assigned_thread_id;
 	next_assigned_thread_id++;
-	thread_t* new_thread		= new(real_thread) thread_t
+	thread_t* new_thread			= new(real_thread) thread_t
 	{
-		.self					= block_end,
-		.saved_regs				= copy_all_regs ? template_thread.saved_regs : regstate_t
+		.self						= block_end,
+		.saved_regs					= copy_all_regs ? template_thread.saved_regs : regstate_t
 		{
-			.cr3				= template_thread.saved_regs.cr3,
-			.rflags				= ini_flags,
-			.ds					= template_thread.saved_regs.ds,
-			.ss					= template_thread.saved_regs.ss,
-			.cs					= template_thread.saved_regs.cs
+			.cr3					= template_thread.saved_regs.cr3,
+			.rflags					= ini_flags,
+			.ds						= template_thread.saved_regs.ds,
+			.ss						= template_thread.saved_regs.ss,
+			.cs						= template_thread.saved_regs.cs
 		},
-		.fxsv					= template_thread.fxsv,
+		.fxsv						= template_thread.fxsv,
 		.ctl_info
 		{
 			{
@@ -897,12 +897,12 @@ thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_r
 				.wait_time_delta	= 0UL
 			}
 		},
-		.stack_size				= stack_target_size,
-		.stack_base				= stack_begin,
-		.tls_start				= block_start
+		.stack_size					= stack_target_size,
+		.stack_base					= stack_begin,
+		.tls_start					= block_start
 	};
-	new_thread->saved_regs.rsp	= stack_begin.plus(template_thread.saved_regs.rsp - template_thread.stack_base);
-	new_thread->saved_regs.rbp	= stack_begin.plus(template_thread.saved_regs.rbp - template_thread.stack_base);
+	new_thread->saved_regs.rsp		= stack_begin.plus(template_thread.saved_regs.rsp - template_thread.stack_base);
+	new_thread->saved_regs.rbp		= stack_begin.plus(template_thread.saved_regs.rbp - template_thread.stack_base);
 	if(copy_all_regs)
 	{
 		addr_t real_stack			= frame.translate(new_thread->stack_base);

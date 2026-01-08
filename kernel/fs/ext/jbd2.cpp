@@ -171,19 +171,19 @@ uint32_t jbd2::calculate_sb_checksum()
 }
 bool jbd2::on_open()
 {
-	if(has_init) return true;
-	if(!init_extents()) return false;
+	if(__unlikely(has_init)) return true;	// unlikely vacuous case
+	if(__unlikely(!init_extents())) return false;
 	size_t bs			= parent_fs->block_size();
 	size_t s_req		= extents.total_extent * bs;
-	if(!__grow_buffer_exact(s_req)) { panic("[FS/EXT4/JBD2] failed to allocate buffer"); return false; }
+	if(__unlikely(!__grow_buffer_exact(s_req))) return panic("[FS/EXT4/JBD2] failed to allocate buffer"), false;
 	update_block_ptrs();
-	if(!ddread()) return false;
+	if(__unlikely(!ddread())) return false;
 	__bumpc(bs);
 	sb						= reinterpret_cast<jbd2_superblock*>(block_data[0].data_buffer);
 	if(sb->header.magic		!= jbd2_magic)
 	{
 		uintptr_t num		= sb->header.magic;
-		std::string errstr	= "[FS/EXT4/JBD2] superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(reinterpret_cast<void*>(num));
+		std::string errstr	= "[FS/EXT4/JBD2] superblock invalid; expected magic number of 0x99B3030C but found magic number of " + std::to_string(num, std::ext::hex);
 		panic(errstr.c_str());
 		return false;
 	}

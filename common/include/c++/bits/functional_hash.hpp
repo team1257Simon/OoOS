@@ -1,6 +1,5 @@
 #ifndef __FUNCTIONAL_HASH
 #define __FUNCTIONAL_HASH
-#include <bits/move.h>
 #include <string>
 namespace std
 {

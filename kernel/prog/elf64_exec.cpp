@@ -1,7 +1,7 @@
 #include <elf64_exec.hpp>
 #include <frame_manager.hpp>
 #include <stdexcept>
-constexpr std::allocator<const char*> strptr_alloc{};
+constexpr static std::allocator<const char*> strptr_alloc{};
 constexpr static size_t min_blk_sz = S04;
 elf64_program_descriptor const& elf64_executable::describe() const noexcept { return program_descriptor; }
 void elf64_executable::frame_enter() { kmm.enter_frame(frame_tag); }
@@ -55,11 +55,11 @@ elf64_executable::elf64_executable(elf64_executable const& that) : elf64_object(
 	frame_tag			{ that.frame_tag },
 	program_descriptor	{ that.program_descriptor }
 	{
-		program_descriptor.object_handle = this;
+		program_descriptor.object_handle	= this;
 		if(program_descriptor.ld_path)
 		{
-			const char** old			= program_descriptor.ld_path;
-			program_descriptor.ld_path	= strptr_alloc.allocate(program_descriptor.ld_path_count);
+			const char** old				= program_descriptor.ld_path;
+			program_descriptor.ld_path		= strptr_alloc.allocate(program_descriptor.ld_path_count);
 			array_copy(program_descriptor.ld_path, old, program_descriptor.ld_path_count);
 		}
 	}
@@ -80,7 +80,8 @@ void elf64_executable::process_headers()
 	{
 		elf64_phdr const& h = phdr(n);
 		uintptr_t addr		= h.p_vaddr;
-		if(is_tls(h)) {
+		if(is_tls(h))
+		{
 			tls_seg			= n;
 			tls_align		= h.p_align;
 			continue;

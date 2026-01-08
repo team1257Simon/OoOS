@@ -58,7 +58,7 @@ void elf64_kernel_object::process_headers()
 		extent		= addr_t(tls_off).plus(tls_size).next_page_aligned();
 	}
 	load_align		= static_cast<std::align_val_t>(needed_align);
-	load_base		= ::operator new(extent, load_align);
+	load_base		= operator new(extent, load_align);
 	tls_base		= load_base.plus(tls_off);
 }
 bool elf64_kernel_object::load_segments()

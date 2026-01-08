@@ -1,0 +1,5 @@
+#ifndef __STD_RANGES
+#define __STD_RANGES
+#include <bits/view_range_adaptors.hpp>
+namespace std { namespace views = ranges::views; }
+#endif

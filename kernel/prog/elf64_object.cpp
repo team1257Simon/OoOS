@@ -2,6 +2,7 @@
 #include <libk_decls.h>
 #include <stdlib.h>
 #include <kernel_mm.hpp>
+#include <ranges>
 #include <stdexcept>
 constexpr static std::allocator<char> ch_alloc{};
 constexpr static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
@@ -121,17 +122,20 @@ bool elf64_object::xload()
 }
 std::vector<block_descriptor> elf64_object::segment_blocks() const
 {
-	std::vector<block_descriptor> result(num_seg_descriptors);
-	for(size_t i = 0UZ; i < num_seg_descriptors; i++)
+	auto nonzero_size = [](program_segment_descriptor const& s) -> bool { return s.size; };
+	auto seg_to_block = [](program_segment_descriptor const& s) -> block_descriptor
 	{
-		if(segments[i].size)
+		return block_descriptor
 		{
-			size_t align		= segments[i].seg_align;
-			elf_segment_prot pr = segments[i].perms;
-			result.emplace_back(segments[i].absolute_addr.trunc(align), segments[i].virtual_addr.trunc(align), segments[i].size, segments[i].seg_align, is_write(pr), is_exec(pr));
-		}
-	}
-	return result;
+			.physical_start	= s.absolute_addr.trunc(s.seg_align),
+			.virtual_start	= s.virtual_addr.trunc(s.seg_align),
+			.size			= s.size,
+			.align			= s.seg_align,
+			.write			= is_write(s.perms),
+			.execute		= is_exec(s.perms)
+		};
+	};
+	return segments | std::views::filter(nonzero_size) | std::views::transform(seg_to_block) | std::ranges::to<std::vector>();
 }
 // Copy and move constructors are nontrivial. Executables and the like delete the copy constructor and can inherit the move constructor (dynamic objects will have to extend the nontrivial constructors)
 elf64_object::elf64_object(elf64_object const& that) :
@@ -183,7 +187,7 @@ elf64_object::elf64_object(elf64_object&& that) :
 }
 void elf64_object::on_copy(uframe_tag* new_frame)
 {
-	if(__unlikely(!new_frame)) { throw std::invalid_argument("[PRG] frame tag must not be null"); }
+	if(!new_frame) throw std::invalid_argument("[PRG] frame tag must not be null");
 	set_frame(new_frame);
 	for(size_t i = 0UZ; i < num_seg_descriptors; i++)
 	{

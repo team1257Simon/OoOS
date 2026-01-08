@@ -12,6 +12,7 @@ namespace std
 		std::tuple<BArgs...> __my_bound_args;
 		template<typename T, size_t ... Is, typename ... CArgs> constexpr static decltype(auto) __call(T&& g, index_sequence<Is...>, CArgs&&... args) { return std::__invoke(std::forward<T>(g).__my_functor, std::get<Is>(std::forward<T>(g).__my_bound_args)..., std::forward<CArgs>(args)...); }
 	public:
+		template<typename T, typename ... CArgs> constexpr static decltype(auto) __call(T&& g, CArgs&&... args) { return __call(std::forward<T>(g), __bound_indices(), std::forward<CArgs>(args)...); }
 		template<typename GT, typename ... Args> requires(sizeof...(Args) == sizeof...(BArgs) && std::convertible_to<GT, FT>) constexpr explicit __bind_front_expr(int, GT&& gt, Args&&... args) noexcept(__and_v<is_nothrow_constructible<FT, GT>, is_nothrow_constructible<BArgs, Args>...>) : __my_functor(std::forward<GT>(gt)), __my_bound_args(std::forward<Args>(args)...) {}
 		constexpr __bind_front_expr(__bind_front_expr const&) = default;
 		constexpr __bind_front_expr(__bind_front_expr&&) = default;

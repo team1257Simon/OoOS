@@ -73,24 +73,24 @@ namespace std
 		constexpr basic_string& operator=(basic_string&& that) { this->__move_assign(std::move(that)); return *this; }
 		constexpr reference at(size_type i) { return this->__get(i); }
 		constexpr const_reference at(size_type i) const { return this->__get(i); }
-		constexpr reference operator[](size_type i) { return this->__get(i); }
-		constexpr const_reference operator[](size_type i) const { return this->__get(i); }
+		constexpr reference operator[](size_type i) noexcept { return this->__get(i); }
+		constexpr const_reference operator[](size_type i) const noexcept { return this->__get(i); }
 		constexpr reference front() { return this->__get(0); }
 		constexpr const_reference front() const { return this->__get(0); }
 		constexpr reference back() { return this->__get_last(); }
 		constexpr const_reference back() const { return this->__get_last(); }
-		constexpr iterator begin() { return iterator(this->__beg()); }
-		constexpr const_iterator cbegin() const { return const_iterator(this->__beg()); }
-		constexpr const_iterator begin() const { return cbegin(); }
-		constexpr iterator end() { return iterator(this->__cur()); }
-		constexpr const_iterator cend() const { return const_iterator(this->__cur()); }
-		constexpr const_iterator end() const { return cend(); }
-		constexpr reverse_iterator rbegin() { return reverse_iterator(end()); }
-		constexpr const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
-		constexpr const_reverse_iterator rbegin() const { return crbegin(); }
-		constexpr reverse_iterator rend() { return reverse_iterator(begin()); }
-		constexpr const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
-		constexpr const_reverse_iterator rend() const { return crend(); }
+		constexpr iterator begin() noexcept { return iterator(this->__beg()); }
+		constexpr const_iterator cbegin() const noexcept { return const_iterator(this->__beg()); }
+		constexpr const_iterator begin() const noexcept { return cbegin(); }
+		constexpr iterator end() noexcept { return iterator(this->__cur()); }
+		constexpr const_iterator cend() const noexcept { return const_iterator(this->__cur()); }
+		constexpr const_iterator end() const noexcept { return cend(); }
+		constexpr reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
+		constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
+		constexpr const_reverse_iterator rbegin() const noexcept { return crbegin(); }
+		constexpr reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
+		constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
+		constexpr const_reverse_iterator rend() const noexcept { return crend(); }
 		constexpr bool empty() const noexcept { return this->__size() == 0; }
 		constexpr void reserve(size_type count) { if(count > this->__capacity()) this->__grow_buffer(size_type(count - this->__capacity())); }
 		constexpr void shrink_to_fit() { this->__trim_buffer(); }

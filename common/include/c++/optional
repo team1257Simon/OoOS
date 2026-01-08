@@ -219,6 +219,7 @@ namespace std
 		constexpr bool __is_present() const noexcept { return __payload.__present; }
 		constexpr T& __get() noexcept { return __payload.__get(); }
 		constexpr T const& __get() const noexcept { return __payload.__get(); }
+		constexpr void __reset() noexcept { __payload.__reset(); }
 	};
 	template<__valid_optional T>
 	class optional : private __optional_base<T>, private __opt_enable_members<T>
