@@ -75,7 +75,7 @@ namespace ooos
 		template<no_args_invoke FT, typename RT = decltype((std::declval<FT&&>())())> constexpr RT __invoke_f(FT&& f) { if constexpr(!std::is_void_v<RT>) { return (std::forward<FT>(f))(); } else { (std::forward<FT>(f))(); } }
 		template<typename VT, __callable<VT> FT> constexpr void __invoke_v(FT&& f, VT&& v) { std::forward<FT>(f)(std::forward<VT>(v)); }
 		template<__simple_swappable T> constexpr void __swap(T& a, T& b) noexcept(std::is_nothrow_move_assignable_v<T> && std::is_nothrow_move_constructible_v<T>) { T tmp = std::move(a); a = std::move(b); b = std::move(tmp); }
-		template<typename T> concept __can_inherit = (std::is_class_v<T> || std::is_union_v<T>) && !std::is_final_v<T>;
+		template<typename T> concept __can_inherit = std::is_class_v<T> && !std::is_final_v<T>;
 		template<typename T, typename ... Us> concept __not_in = !(sizeof...(Us)) || !(std::is_same_v<T, Us> || ...);
 		template<typename...> struct __no_repeats_helper;
 		template<> struct __no_repeats_helper<> : std::true_type {};
@@ -84,7 +84,12 @@ namespace ooos
 		struct __no_repeats_helper<T, Us ...> : std::__and_<std::bool_constant<__not_in<T, Us...>>, __no_repeats_helper<Us...>> {};
 		template<typename ... Ts> concept __non_repeating = __no_repeats_helper<Ts...>::value;
 		template<typename ... Ts> concept __can_inherit_all = __non_repeating<Ts...> && (__can_inherit<Ts> && ...);
+		template<typename, typename U> struct __qualify_like { typedef std::remove_cvref_t<U> type; };
+		template<typename T, typename U> struct __qualify_like<T const, U> { typedef std::remove_cvref_t<U> const type; };
+		template<typename T, typename U> struct __qualify_like<T volatile, U> { typedef std::remove_cvref_t<U> volatile type; };
+		template<typename T, typename U> struct __qualify_like<T const volatile, U> { typedef volatile std::remove_cvref_t<T> const type; };
 	}
+	template<typename T, typename U> using like_qualified_pointer				= std::add_pointer_t<typename __internal::__qualify_like<T, U>::type>;
 	template<template<typename> class C, typename ... Ts> requires(__internal::__can_inherit_all<C<Ts>...>) struct repeated_template : C<Ts> ... {};
 	template<typename T> concept wrappable_actor 								= no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
 	template<typename T> concept boolable 										= requires(T t) { t ? true : false; };
@@ -96,24 +101,25 @@ namespace ooos
 	template<__internal::__has_value_type IT> using dereference_value_t 		= typename __internal::__use_value_type<IT>::type;
 	template<typename T> using in_value 										= typename __internal::__single_buffer_value<T>::const_type;
 	template<typename T> using out_value 										= typename __internal::__single_buffer_value<T>::type;
-	template<typename IT> concept incrementable_iterator 						= __internal::__has_value_type<IT> && __internal::__has_difference_type<IT>;
+	template<typename IT> concept incrementable_iterator 						= std::input_or_output_iterator<IT> && std::incrementable<IT>;
 	template<incrementable_iterator IT>
-	struct simple_iterator
+	struct simple_iterator : public std::iterator_traits<IT>
 	{
+		using typename std::iterator_traits<IT>::value_type;
+		using typename std::iterator_traits<IT>::difference_type;
+		using typename std::iterator_traits<IT>::reference;
+		using typename std::iterator_traits<IT>::pointer;
+		using typename std::iterator_traits<IT>::iterator_concept;
+		using typename std::iterator_traits<IT>::iterator_category;
 	protected:
 		IT current;
-	public:
-		typedef dereference_value_t<IT> value_type;
-		typedef iterator_difference_t<IT> difference_type;
-		typedef std::add_lvalue_reference_t<value_type> reference;
-		typedef std::add_pointer_t<value_type> pointer;
-	protected:
 		typedef decltype(std::declval<difference_type>() <=> std::declval<difference_type>()) order_type;
 	public:
 		constexpr IT const& base() const noexcept { return current; }
-		constexpr simple_iterator() noexcept : current() {}
-		constexpr explicit simple_iterator(IT const& i) noexcept : current(i) {}
-		template<typename JT> requires(maybe_const_value_iterator<IT, dereference_value_t<JT>>) constexpr simple_iterator(simple_iterator<JT> const& that) noexcept : current{ that.base() } {}
+		simple_iterator() noexcept requires(std::default_initializable<IT>) = default;
+		constexpr explicit simple_iterator(IT i) noexcept(std::is_nothrow_constructible_v<IT, IT>) : current(i) {}
+		template<std::not_self<IT> JT> requires(std::is_constructible_v<IT, JT const&>)
+		constexpr simple_iterator(simple_iterator<JT> const& that) noexcept : current(that) {}
 		constexpr reference operator*() const noexcept { return *current; }
 		constexpr pointer operator->() const noexcept { return current; }
 		constexpr reference operator[](difference_type n) const noexcept { return *(current + n); }
@@ -298,6 +304,8 @@ namespace ooos
 		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod)											= 0;
 		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) 											= 0;
 		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) 												= 0;
+		virtual bool export_type_info(std::type_info const& ti)																			= 0;
+		virtual bool import_type_info(std::type_info const& ti)																			= 0;
 	protected:
 		virtual void register_type_info(std::type_info const* ti) 																		= 0;
 		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) 	= 0;
@@ -602,6 +610,82 @@ namespace ooos
 		virtual ~netdev_api_helper()															= default;
 		inline netdev_api_helper(mac_t const& mac) : netdev_helper(mac) {}
 	};
+	template<trivial_copy T, std::allocator_object<T> A = std::allocator<T>>
+	class simple_buffer : protected std::__impl::__dynamic_buffer<T, A, false>
+	{
+		typedef std::__impl::__dynamic_buffer<T, A, false> __base;
+		friend class std::vector<T, A>;
+	public:
+		typedef typename __base::__value_type value_type;
+		typedef typename __base::__allocator_type allocator_type;
+		typedef typename __base::__size_type size_type;
+		typedef typename __base::__difference_type difference_type;
+		typedef typename __base::__reference reference;
+		typedef typename __base::__const_reference const_reference;
+		typedef typename __base::__pointer pointer;
+		typedef typename __base::__const_pointer const_pointer;
+		typedef simple_iterator<pointer> iterator;
+		typedef std::const_iterator<iterator> const_iterator;
+		typedef std::reverse_iterator<iterator> reverse_iterator;
+		typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+	private:
+		consteval static bool __nt_move_assign() noexcept { return std::is_nothrow_move_assignable_v<allocator_type> || !std::__has_move_propagate<allocator_type>; }
+	public:
+		constexpr explicit simple_buffer() noexcept(noexcept(allocator_type())) : __base() {}
+		constexpr explicit simple_buffer(allocator_type const& alloc) noexcept(noexcept(allocator_type(alloc))) : __base(alloc) {}
+		constexpr simple_buffer(size_type count, allocator_type const& alloc = allocator_type()) : __base(count, alloc) {}
+		constexpr simple_buffer(size_type count, const_reference val, allocator_type const& alloc = allocator_type()) : __base(count, val, alloc) {}
+		constexpr simple_buffer(simple_buffer const& that) : __base(that) {}
+		constexpr simple_buffer(simple_buffer&& that) noexcept(std::is_nothrow_move_constructible_v<allocator_type>) : __base(std::forward<__base>(that)) {}
+		template<trivial_copy U, typename ... Args> requires(std::is_integral_v<T> && std::constructible_from<U, Args...>)
+		constexpr simple_buffer(allocator_type const& alloc, std::in_place_type_t<U>, Args&& ... args);
+		template<trivial_copy U, typename ... Args> requires(std::is_integral_v<T> && std::constructible_from<U, Args...>)
+		constexpr simple_buffer(std::in_place_type_t<U> tag, Args&& ... args) : simple_buffer(allocator_type(), tag, std::forward<Args>(args)...) {}
+		constexpr simple_buffer& operator=(simple_buffer const& that) { this->__copy_assign(that); return *this; }
+		constexpr simple_buffer& operator=(simple_buffer&& that) noexcept(__nt_move_assign()) { this->__move_assign(std::forward<__base>(that)); return *this; }
+		constexpr void swap(simple_buffer& that) noexcept { this->__swap(that); }
+		constexpr void swap(std::vector<T, A>& that) noexcept { that.swap_like(*this); }
+		constexpr pointer data() noexcept { return this->__beg(); }
+		constexpr const_pointer data() const noexcept { return this->__beg(); }
+		constexpr allocator_type get_allocator() const noexcept { return this->__get_alloc(); }
+		constexpr iterator begin() noexcept { return iterator(this->__beg()); }
+		constexpr const_iterator cbegin() const noexcept { return const_iterator(this->__beg()); }
+		constexpr const_iterator begin() const noexcept { return cbegin(); }
+		constexpr iterator end() noexcept { return iterator(this->__cur()); }
+		constexpr const_iterator cend() const noexcept { return const_iterator(this->__cur()); }
+		constexpr const_iterator end() const noexcept { return cend(); }
+		constexpr reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
+		constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(cend()); }
+		constexpr const_reverse_iterator rbegin() const noexcept { return crbegin(); }
+		constexpr reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
+		constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(cbegin()); }
+		constexpr const_reverse_iterator rend() const noexcept { return crend(); }
+		constexpr size_type size() const noexcept { return this->__size(); }
+		constexpr size_type capacity() const noexcept { return this->__capacity(); }
+		constexpr bool empty() const noexcept { return !this->size(); }
+		constexpr void clear() noexcept(noexcept(this->__destroy())) { this->__destroy(); }
+		constexpr size_type write(const_pointer src, size_type n) { return static_cast<size_type>(std::max(this->__append_elements(src, src + n) - this->__beg(), 0Z)); }
+		constexpr iterator push(const_reference val) { return iterator(this->__append_element(val)); }
+		template<trivial_copy U, typename ... Args> requires(std::is_integral_v<T> && std::constructible_from<U, Args...>) constexpr U& emplace(Args&& ... args);
+	};
+	template<trivial_copy T, std::allocator_object<T> A>
+	template<trivial_copy U, typename ... Args> requires(std::is_integral_v<T> && std::constructible_from<U, Args...>)
+	constexpr simple_buffer<T, A>::simple_buffer(allocator_type const& alloc, std::in_place_type_t<U>, Args&& ... args) : __base(sizeof(U) / sizeof(T), alloc) {
+		if(!empty()) {
+			new(data()) U(std::forward<Args>(args)...);
+			this->__setc(sizeof(U) / sizeof(T));
+		}
+	}
+	template<trivial_copy T, std::allocator_object<T> A>
+	template<trivial_copy U, typename ... Args> requires(std::is_integral_v<T> && std::constructible_from<U, Args...>)
+	constexpr U& simple_buffer<T, A>::emplace(Args&& ... args)
+	{
+		this->__destroy();
+		this->__grow_buffer_exact(sizeof(U) / sizeof(T));
+		U* result	= new(this->data()) U(std::forward<Args>(args)...);
+		this->__setc(sizeof(U) / sizeof(T));
+		return *result;
+	}
 	template<typename T, std::convertible_to<T> ... Us> constexpr std::array<T, sizeof...(Us)> make_array(Us ... vals) { return std::array<T, sizeof...(Us)>{ static_cast<T>(vals)... }; }
 	namespace __internal
 	{
@@ -695,18 +779,35 @@ namespace ooos
 		constexpr T& operator*() const noexcept { return *static_cast<T*>(this->get_ptr()); }
 		template<trivial_copy U> requires(__can_attempt_cast<U>()) U* cast_to() const noexcept { return this->type().template cast_to<U>(this->get_ptr()); }
 	};
+	//	Abstract base for devices connected via protocols like USB.
 	struct abstract_connectable_device
 	{
-		virtual void put_msg(generic_device_message const& msg)			= 0;
-		virtual std::optional<generic_device_message> poll_msg()		= 0;
-		virtual bool is_ready()											= 0;
-		virtual void reset()											= 0;
+		//	Interface for passing messages to and from the device. This will be provided by the hub driver.
+		struct interface
+		{
+			//	Hook for host-to-device transfers.
+			virtual void put_msg(generic_device_message const& msg)			= 0;
+			//	Hook for device-to-host transfers.
+			virtual std::optional<generic_device_message> poll_msg()		= 0;
+			//	Hook to reset the device.
+			virtual void reset()											= 0;
+		};
+		//	Represents the device hub and/or host controller.
 		struct provider
 		{
-			virtual void on_connect(abstract_connectable_device*)		= 0;
-			virtual void on_disconnect(abstract_connectable_device*)	= 0;
-			virtual abstract_connectable_device* get(unsigned id)		= 0;
+			//	Gets a pointer to the device at the given slot ID. If the ID is out of range (i.e. no such slot exists), returns a null pointer.
+			virtual abstract_connectable_device* operator[](size_t id)						= 0;
+			//	If the device pointed to by dev is part of this hub/controller, returns its slot; otherwise returns std::nullopt.
+			virtual std::optional<size_t> index_of(abstract_connectable_device* dev) const	= 0;
+			//	Queries the number of slots on the hub/controller.
+			virtual size_t size() const														= 0;
 		};
+		//	Counts the total number of interfaces to the device (e.g. USB endpoints).
+		virtual size_t interface_count() const		= 0;
+		//	Gets a pointer to the hub/controller to which the device is connected.
+		virtual provider* parent() const			= 0;
+		//	Gets a pointer to the interface at the given index for the device. If the ID is out of range, returns a null pointer.
+		virtual interface* operator[](size_t idx)	= 0;
 	};
 }
 namespace std

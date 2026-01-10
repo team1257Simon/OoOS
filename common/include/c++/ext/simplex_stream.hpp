@@ -40,9 +40,16 @@ namespace std
 			typedef typename std::ranges::range_value_t<ORT> value_type;
 			typedef std::add_pointer_t<std::add_const_t<value_type>> const_pointer;
 		protected:
+			typedef std::remove_reference_t<IRT> in_region_type;
+			typedef std::remove_reference_t<ORT> out_region_type;
 			std::pair<IRT, ORT> regions;
 			size_type out_pos;
 		public:
+			template<typename JRT, typename PRT> requires(std::constructible_from<std::pair<IRT, ORT>, JRT, PRT>)
+			constexpr simplex_stream(JRT&& in, PRT&& out) noexcept(std::is_nothrow_constructible_v<std::pair<IRT, ORT>, JRT, PRT>) :
+				regions(std::forward<JRT>(in), std::forward<PRT>(out)),
+				out_pos()
+			{}
 			constexpr simplex_stream(size_type s1, size_type s2) requires(std::constructible_from<IRT, size_type> && std::constructible_from<ORT, size_type>) :
 				regions(std::piecewise_construct, std::tuple<size_type>(s1), std::tuple<size_type>(s2)),
 				out_pos()
@@ -119,7 +126,7 @@ namespace std
 			}
 			constexpr void __shift(size_type where)
 			{
-				ORT shifted(this->__get_pos(where), std::ranges::end(regions.second));
+				out_region_type shifted(this->__get_pos(where), std::ranges::end(regions.second));
 				regions.second	= std::move(shifted);
 				out_pos			-= where;
 			}

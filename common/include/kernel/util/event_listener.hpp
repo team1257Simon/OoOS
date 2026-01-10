@@ -13,6 +13,7 @@ namespace ooos
 		template<typename ET>
 		struct __listener_base
 		{
+			constexpr static bool __simple_invoke	= std::is_trivially_copyable_v<ET> || std::is_reference_v<ET>;
 			template<typename T> requires(std::is_object_v<std::decay_t<T>> && !std::__detail::__boolean_testable<std::decay_t<T>>) constexpr static bool not_empty(T const&) { return true; }
 			template<typename T> requires(std::is_object_v<std::decay_t<T>> && std::__detail::__boolean_testable<std::decay_t<T>>) constexpr static bool not_empty(T const& t) { return t ? true : false; }
 			template<typename T> requires(!std::is_object_v<std::decay_t<T>>) constexpr static bool not_empty(T t) { return isr_actor_base::not_empty(t); }
@@ -71,11 +72,14 @@ namespace ooos
 		constexpr operator bool() const noexcept { return !this->__empty(); }
 		constexpr event_listener() noexcept = default;
 		constexpr ~event_listener() noexcept = default;
+	private:
+		typedef __internal::__listener_base<ET> __base;
+	public:
 		template<__internal::__callable<ET> FT> requires(!std::is_same_v<event_listener, std::decay_t<FT>>)
-		constexpr event_listener(FT&& f) : __internal::__listener_base<ET>()
+		constexpr event_listener(FT&& f) : __base()
 		{
-			typedef typename __internal::__listener_base<ET>::__manager<std::decay_t<FT>> __mgr;
-			if(__internal::__listener_base<ET>::not_empty(f))
+			typedef typename __base::__manager<std::decay_t<FT>> __mgr;
+			if(__base::not_empty(f))
 			{
 				__mgr::__create(this->__my_listener, std::forward<FT>(f));
 				this->__my_manager	= std::addressof(__mgr::__action);
@@ -83,11 +87,11 @@ namespace ooos
 			}
 		}
 		template<typename DT, __internal::__callable<DT> FT> requires(__internal::__explicitly_convertible<ET, DT>)
-		constexpr event_listener(parameter_type_t<DT>, FT&& f) : __internal::__listener_base<ET>()
+		constexpr event_listener(parameter_type_t<DT>, FT&& f) : __base()
 		{
 			typedef __internal::__conversion_bind<ET, DT, std::decay_t<FT>> __cvt;
-			typedef typename __internal::__listener_base<ET>::__manager<std::decay_t<__cvt>> __mgr;
-			if(__internal::__listener_base<ET>::not_empty(f))
+			typedef typename __base::__manager<std::decay_t<__cvt>> __mgr;
+			if(__base::not_empty(f))
 			{
 				__cvt c(std::forward<FT>(f));
 				__mgr::__create(this->__my_listener, std::move(c));
@@ -95,7 +99,7 @@ namespace ooos
 				this->__my_invoke	= std::addressof(__mgr::__invoke);
 			}
 		}
-		constexpr event_listener(event_listener&& that) : __internal::__listener_base<ET>()
+		constexpr event_listener(event_listener&& that) : __base()
 		{
 			if(!that.__empty())
 			{
@@ -115,7 +119,7 @@ namespace ooos
 		}
 		constexpr event_listener& operator=(event_listener&& that) { event_listener(std::move(that)).swap(*this); return *this; }
 		constexpr void operator()(ET&& e) const { if(this->__my_invoke) this->__my_invoke(this->__my_listener, std::forward<ET>(e)); }
-		constexpr void operator()(ET e) const requires(std::is_trivially_copyable_v<ET>) { if(this->__my_invoke) this->__my_invoke(this->__my_listener, std::forward<ET>(e)); }
+		constexpr void operator()(ET e) const requires(__base::__simple_invoke) { if(this->__my_invoke) this->__my_invoke(this->__my_listener, std::forward<ET>(e)); }
 		constexpr std::type_info const& target_type() const noexcept
 		{
 			if(this->__my_manager)

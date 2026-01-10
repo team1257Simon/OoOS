@@ -1,6 +1,7 @@
 #ifndef __KMOD
 #define __KMOD
 #include <kernel_api.hpp>
+#include <optional>
 #include <errno.h>
 /**
  * EXPORT_MODULE(T, Args...)
@@ -35,7 +36,8 @@
 		[[noreturn]] void abort() { __abort_handler.terminate(); }																										\
 		[[noreturn]] void __cxa_pure_virtual() { __abort_handler.pure_virt(); }																							\
 	}
-#pragma endregion
+#define always_provide(type, ...) inline virtual bool export_provided_types() final override { return provide_types<type __VA_OPT__(, __VA_ARGS__)>(); }
+#define always_require(type, ...) inline virtual bool import_required_types() final override { return require_types<type __VA_OPT__(, __VA_ARGS__)>(); }
 class elf64_kernel_object;
 namespace ooos
 {
@@ -49,11 +51,16 @@ namespace ooos
 	 * The former will be called after the constructor for the module's class returns, and the latter will be called before any destructors in the module file.
 	 * If a module encounters an error that needs to be handled by the kernel (e.g. by unloading the module), the raise_error method should be used.
 	 * This can pass an error code and an error message to the kernel handlers.
-	 * Uncaught exceptions in module code will use this method as well, but such unexpected errors will lead to a kernel abort.
+	 * Uncaught exceptions in module code will use this method as well, but such unexpected errors will lead to a kernel abort by default.
 	 * Module objects are singletons and should be designed as such.
 	 * If the module class constructor takes arguments, those should be passed to the EXPORT_MODULE macro above.
 	 * Global constructors will be invoked before the module's constructor, but by necessity the typeinfo fix-ups will not have occurred by then.
 	 * Certain abstract subclasses within the kernel extend this base, allowing specific types of modules to more easily export functionality to the kernel.
+	 * Modules can export RTTI to other modules through the kernel API as well. Exported types must be class, struct, or union types.
+	 * A module cannot export a type that is already registered, e.g. by another module or the kernel proper.
+	 * Modules may also import RTTI via the kernel API; if a type is exported by another module, that other module must be loaded first.
+	 * The RTTI import/export system allows modules to use polymorphic types, dynamic_cast, and type_erasure.
+	 * The system is WIP, but eventually the plan is to add a dependency list so that modules can declare other modules that must be loaded before them.
 	 */
 	class abstract_module_base
 	{
@@ -65,9 +72,18 @@ namespace ooos
 		friend class ::elf64_kernel_object;
 		inline void __relocate_type_info() { __api_hooks->relocate_type_info(this, std::addressof(typeid(ABI_NAMESPACE::__si_class_type_info)), std::addressof(typeid(ABI_NAMESPACE::__vmi_class_type_info))); }
 		inline void __save_init_jb() { __saved_jb[0] = __eh_ctx.handler_ctx[0]; }
+	protected:
+		inline bool export_type(std::type_info const& ti) { return __api_hooks->export_type_info(ti); }
+		inline bool import_type(std::type_info const& ti) { return __api_hooks->import_type_info(ti); }
+		template<typename ... Ts> requires((std::is_class_v<Ts> || std::is_union_v<Ts>) && ...)
+		bool provide_types() { return (export_type(typeid(Ts)) && ...); }
+		template<typename ... Ts> requires((std::is_class_v<Ts> || std::is_union_v<Ts>) && ...)
+		bool require_types() { return (import_type(typeid(Ts)) && ...); }
 	public:
 		virtual bool initialize() 	= 0;
 		virtual void finalize() 	= 0;
+		inline virtual bool export_provided_types() { return true; }
+		inline virtual bool import_required_types() { return true; }
 		inline virtual generic_config_table& get_config() { return empty_config; }
 		inline abstract_module_base* tie_api_mm(kernel_api* api, kmod_mm* mm) { if(!__api_hooks && !__allocated_mm && api && mm) { __api_hooks = api; __allocated_mm = mm; } return this; }
 		inline void* allocate_dma(size_t size, bool prefetchable) { return __api_hooks->allocate_dma(size, prefetchable); }
@@ -76,6 +92,7 @@ namespace ooos
 		inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) try { return __allocated_mm->mem_resize(orig, old_size, target_size, align); } catch(...) { this->raise_error("bad_alloc", -ENOMEM); }
 		inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
 		inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, size); }
+		inline auto make_dma_deleter() noexcept { return std::bind_front(&abstract_module_base::release_dma, this); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if) { return __api_hooks->find_pci_device(device_class, subclass, prog_if); }
 		inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
@@ -119,6 +136,13 @@ namespace ooos
 				__save_init_jb();
 			}
 		}
+	};
+	class dma_deleter
+	{
+		decltype(std::declval<ooos::abstract_module_base*>()->make_dma_deleter()) __fn;
+	public:
+		constexpr dma_deleter(abstract_module_base& mod) noexcept : __fn(mod.make_dma_deleter()) {}
+		constexpr void operator()(void* ptr, size_t n) const noexcept { __fn(ptr, n); }
 	};
 	template<typename T>
 	struct module_mm_allocator
@@ -173,6 +197,9 @@ namespace ooos
 	template<std::derived_from<abstract_module_base> MT> constexpr MT*& local_instance_ptr();
 	template<std::derived_from<abstract_module_base> MT> constexpr MT& instance() { return *local_instance_ptr<MT>(); }
 	struct block_io_provider_module : abstract_module_base, abstract_block_device::provider{};
+	struct abstract_hub_module_base : abstract_module_base, abstract_connectable_device::provider{};
+	template<trivial_copy BMT, std::derived_from<BMT> ... SMTs> requires(std::is_class_v<BMT> || std::is_union_v<BMT>)
+	struct abstract_hub_module : abstract_hub_module_base { virtual bool export_provided_types() final override { return provide_types<BMT, SMTs...>(); } };
 	inline block_io_provider_module* abstract_module_base::as_blockdev() { return dynamic_cast<block_io_provider_module*>(this); }
 	inline size_t abstract_module_base::asprintf(const char** strp, const char* fmt, ...)
 	{
@@ -195,6 +222,7 @@ namespace ooos
 				(*init)();
 				T* result 				= new(addr) T(std::forward<Args>(args)...);
 				result->setup(api, mm, fini);
+				if(__unlikely(!result->import_required_types() || !result->export_provided_types())) return nullptr;
 				result->put_ctx(abort_handler);
 				local_instance_ptr<T>()	= result;
 				return result;

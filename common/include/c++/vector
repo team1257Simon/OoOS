@@ -26,7 +26,7 @@ namespace std
 		constexpr static bool __nt_alloc() noexcept { return noexcept(declval<allocator_type>().allocate(declval<size_type>())); }
 		constexpr static bool __nt_move_assign() noexcept { return is_nothrow_move_assignable_v<allocator_type> || !__has_move_propagate<allocator_type>; }
 		constexpr static bool __nt_copy_assign() noexcept { return __nt_alloc() && (is_nothrow_copy_assignable_v<allocator_type> || !__has_copy_propagate<allocator_type>); }
-		constexpr static bool __nt_move_construct() noexcept { return is_nothrow_copy_constructible_v<allocator_type>; }
+		constexpr static bool __nt_move_construct() noexcept { return is_nothrow_move_constructible_v<allocator_type>; }
 		constexpr static bool __nt_copy_construct() noexcept { return __nt_alloc() && is_nothrow_copy_constructible_v<allocator_type>; }
 		constexpr static bool __nt_assign_elem() noexcept { return is_nothrow_copy_assignable_v<value_type>; }
 		template<typename ... Args> requires(constructible_from<T, Args...>)
@@ -90,6 +90,7 @@ namespace std
 		template<std::matching_input_iterator<value_type> IT> constexpr void push_back(IT start, IT end) noexcept(__nt_alloc() && __nt_assign_elem()) { this->__append_elements(start, end); }
 		constexpr void pop_back() { this->__erase_at_end(1UZ); }
 		constexpr void swap(vector& that) noexcept { this->__swap(that); }
+		extension constexpr void swap_like(__base& that) noexcept { this->__swap(that); }
 		extension constexpr operator bool() const noexcept { return this->__beg() != nullptr; }
 		extension constexpr void size(size_type count) requires(is_default_constructible_v<value_type>);
 	};

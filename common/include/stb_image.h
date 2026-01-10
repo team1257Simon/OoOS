@@ -493,6 +493,7 @@ STBIDEF int   stbi_zlib_decode_noheader_buffer(char *obuffer, int olen, const ch
 #ifdef __cplusplus
 }
 #endif
+#define STBI_ASSERT(x)
 //
 //
 ////   end header file   /////////////////////////////////////////////////////

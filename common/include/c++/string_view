@@ -49,6 +49,8 @@ namespace std
 		constexpr basic_string_view(const_pointer str) noexcept : __str(str), __len(traits_type::length(str)) {}
 		template<matching_input_iterator<value_type> IT1, matching_input_iterator<value_type> IT2>
 		constexpr basic_string_view(IT1 start, IT2 end) noexcept : __str(std::to_address(start)), __len(static_cast<size_t>(end - start)) {}
+		template<ranges::view VT> requires(ranges::sized_range<VT>)
+		constexpr basic_string_view(VT const& v) noexcept : basic_string_view(ranges::begin(v), ranges::begin(v) + ranges::size(v)) {}
 		constexpr basic_string_view(basic_string_view const&) noexcept = default;
 		constexpr basic_string_view& operator=(basic_string_view const&) noexcept = default;
 		[[nodiscard]] constexpr const_pointer data() const noexcept { return __str; }

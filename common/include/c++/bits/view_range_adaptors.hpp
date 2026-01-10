@@ -90,7 +90,7 @@ namespace std
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wc++23-extensions"
 					template<typename ST, typename RT> requires(__adaptor_invocable<AT, RT, __like_t<ST, Args>...>)
-					constexpr auto operator()(this ST&& self, RT&& r) { return __binder::__call(__like_t<ST, __partial_adaptor>(self).__bind, std::forward<RT>(r)); }
+					constexpr auto operator()(this ST&& self, RT&& r) { return __binder::__call(forward_like<ST>(self).__bind, std::forward<RT>(r)); }
 					#pragma GCC diagnostic pop
 				};
 				template<typename AT, typename ... Args>
@@ -114,7 +114,7 @@ namespace std
 					#pragma GCC diagnostic push
 					#pragma GCC diagnostic ignored "-Wc++23-extensions"
 					template<typename ST, typename RT> requires(__pipe_invocable<__like_t<ST, T>, __like_t<ST, U>, RT>)
-					constexpr auto operator()(this ST&& self, RT&& r) { return (__like_t<ST, __pipe>(self).t(__like_t<ST, __pipe>(self).u(std::forward<RT>(r)))); }
+					constexpr auto operator()(this ST&& self, RT&& r) { return (forward_like<ST>(self).t(forward_like<ST>(self).u(std::forward<RT>(r)))); }
 					#pragma GCC diagnostic pop
 				};
 				template<typename T, typename U>
@@ -883,9 +883,9 @@ namespace std
 				requires(__req_bidir)
 				{
 					if(__outer_pos	== ranges::end(__parent->__base))
-						__inner_pos	= ranges::end(std::backward(*--__outer_pos));
-					while(__get_inner()	== ranges::begin(std::backward(*--__outer_pos)))
-						__get_inner()	= ranges::end(std::backward(*--__outer_pos));
+						__inner_pos	= ranges::end(std::unmove(*--__outer_pos));
+					while(__get_inner()	== ranges::begin(std::unmove(*--__outer_pos)))
+						__get_inner()	= ranges::end(std::unmove(*--__outer_pos));
 					--__get_inner();
 					return *this;
 				}

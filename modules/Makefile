@@ -53,7 +53,6 @@ $(SUBDIRS):
 	$(MAKE) -C $@
 clean:
 	rm -rf $(OBJ_BASE_DIR) || true
-	rm -rf $(ASMT_DIR) || true
 	for dir in $(SUBDIRS); do \
 		cd $$dir; \
 		$(MAKE) clean ; \
@@ -62,3 +61,5 @@ clean:
 asmtest:
 	cd amd64_serial && $(MAKE) asmtest
 	cd amd64_ahci	&& $(MAKE) asmtest
+	cd e1000e		&& $(MAKE) asmtest
+	cd xhci			&& $(MAKE) asmtest

@@ -6,6 +6,7 @@ struct vtable_header
 	ptrdiff_t					leaf_offset;	/** Offset of the leaf (full/primary) object. */
 	const __class_type_info*	type;			/** Type of the object. */
 };
+static bool __is_primitive(std::type_info const& t) noexcept { return dynamic_cast<__fundamental_type_info const*>(addressof(t)); }
 static std::type_info const* __extract_type(void* obj) noexcept
 {
 	if(__unlikely(!obj)) return std::addressof(typeid(nullptr));
@@ -33,7 +34,7 @@ static void* __extract_leaf(void* obj) noexcept
 }
 static bool __is_derived_from(__class_type_info const* __type, __class_type_info const* __base) noexcept
 {
-	if(__type == __base) return true;
+	if(__type == __base || __type->__type_name == __base->__type_name) return true;
 	if(__type && __base)
 	{
 		if(__si_class_type_info const* sti = dynamic_cast<__si_class_type_info const*>(__type))
@@ -50,7 +51,7 @@ static bool __is_derived_from(__class_type_info const* __type, __class_type_info
 static void* __reflective_cast(std::type_info const& from, std::type_info const& to, void* obj) noexcept
 {
 	if(__unlikely(!obj)) return nullptr;
-	if(from == to || (dynamic_cast<__fundamental_type_info const*>(addressof(from)) && dynamic_cast<__fundamental_type_info const*>(addressof(to)))) return obj;
+	if(from == to || (__is_primitive(from) && __is_primitive(to))) return obj;
 	__class_type_info const* cfrom	= dynamic_cast<__class_type_info const*>(addressof(from));
 	__class_type_info const* cto	= dynamic_cast<__class_type_info const*>(addressof(to));
 	if(cfrom && cto)
@@ -72,7 +73,7 @@ namespace std
 		void* type_erasure::cast_from(void* obj, type_erasure const& that) const noexcept { return that.cast_to(obj, *info); }
 		bool type_erasure::is_derived_from(type_info const& that) const noexcept
 		{
-			if(info == std::addressof(that)) return true;
+			if(info == addressof(that)) return true;
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthis, cthat);
@@ -80,7 +81,7 @@ namespace std
 		}
 		bool type_erasure::derives(type_info const& that) const noexcept
 		{
-			if(info == std::addressof(that)) return true;
+			if(info == addressof(that)) return true;
 			__class_type_info const* cthis	= dynamic_cast<__class_type_info const*>(info);
 			__class_type_info const* cthat	= dynamic_cast<__class_type_info const*>(addressof(that));
 			if(cthis && cthat) return __is_derived_from(cthat, cthis);

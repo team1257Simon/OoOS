@@ -9,25 +9,6 @@
 #include <stdlib.h>
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
 using namespace ABI_NAMESPACE;
-struct vtable_header
-{
-	/** Offset of the leaf object. */
-	ptrdiff_t			leaf_offset;
-	/** Type of the object. */
-	__class_type_info*	type;
-};
-static __si_class_type_info* meta_dyncast_si(std::type_info* ti, __class_type_info const* local_si)
-{
-	vtable_header* vt			= addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
-	__class_type_info* ti_meta	= vt->type;
-	return static_cast<__si_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_si));
-}
-static __vmi_class_type_info* meta_dyncast_vmi(std::type_info* ti, __class_type_info const* local_vmi)
-{
-	vtable_header* vt			= addr_t(ti).deref<addr_t>().minus(sizeof(vtable_header));
-	__class_type_info* ti_meta	= vt->type;
-	return static_cast<__vmi_class_type_info*>(ti_meta->cast_to(addr_t(ti).plus(vt->leaf_offset), local_vmi));
-}
 namespace ooos
 {
 	pid_t active_pid() noexcept { return scheduler::active_pid(); }
@@ -39,6 +20,12 @@ namespace ooos
 		typedef std::hash_set<std::type_info const*, const char*, std::elf64_gnu_hash, std::ext::lexical_equals<char>, std::allocator<std::type_info const*>, get_name> __base;
 	public:
 		type_info_map() : __base(64UZ) {}
+		std::type_info const* get_generic(const char* key) const
+		{
+			const_iterator result = find(key);
+			if(result != end()) return *result;
+			return nullptr;
+		}
 		__class_type_info const* operator[](const char* key) const
 		{
 			const_iterator result = find(key);
@@ -130,11 +117,34 @@ namespace ooos
 		virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
 		virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
 		virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
-		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override { this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))), local_si, local_vmi); }
 		virtual uintptr_t vtranslate(void* addr) noexcept override { return translate_vaddr(addr); }
 		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override {
 			try { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
 			catch(...) { owner->raise_error("out of memory", -ENOMEM); }
+		}
+		virtual bool export_type_info(std::type_info const& ti) override
+		{
+			//	Only class types that aren't already registered can be exported to other modules.
+			if(__unlikely(kernel_type_info.contains(ti.__type_name) || !dynamic_cast<__class_type_info const*>(std::addressof(ti)))) return false;
+			register_type_info(std::addressof(ti));
+			return true;
+		}
+		virtual bool import_type_info(std::type_info const& ti) override
+		{
+			std::type_info const* kernel_ti				= kernel_type_info.get_generic(ti.__type_name);
+			if(__unlikely(!kernel_ti)) return false;
+			const_cast<std::type_info&>(ti).__type_name	= kernel_ti->__type_name;
+			return true;
+		}
+		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) override
+		{
+			std::type_info const* kernel_si						= std::addressof(typeid(__si_class_type_info));
+			std::type_info const* kernel_vmi					= std::addressof(typeid(__vmi_class_type_info));
+			const_cast<std::type_info*>(local_si)->__type_name	= kernel_si->__type_name;
+			const_cast<std::type_info*>(local_vmi)->__type_name	= kernel_vmi->__type_name;
+			__class_type_info* local_class_meta					= const_cast<__class_type_info*>(dynamic_cast<__si_class_type_info const&>(*local_si).__base_type);
+			local_class_meta->__type_name						= typeid(__class_type_info).__type_name;
+			this->__relocate_ti_r(const_cast<std::type_info*>(std::addressof(typeid(*mod))));
 		}
 		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod) override
 		{ 
@@ -188,29 +198,29 @@ namespace ooos
 				.reallocate		= &kframe_tag::reallocate
 			};
 		}
-		void __relocate_si_r(__si_class_type_info* ti, std::type_info const* local_si, std::type_info const* local_vmi)
+		void __relocate_si_r(__si_class_type_info* ti)
 		{
 			__class_type_info* base			= const_cast<__class_type_info*>(ti->__base_type);
 			__class_type_info const* equiv	= kernel_type_info[base->__type_name];
-			if(!equiv) this->__relocate_ti_r(base, local_si, local_vmi);
+			if(!equiv) this->__relocate_ti_r(base);
 			else ti->__base_type			= equiv;
 		}
-		void __relocate_vmi_r(__base_class_type_info* bases, size_t num_bases, std::type_info const* local_si, std::type_info const* local_vmi)
+		void __relocate_vmi_r(__base_class_type_info* bases, size_t num_bases)
 		{
 			for(size_t i = 0UZ; i < num_bases; i++)
 			{
 				__class_type_info* base			= const_cast<__class_type_info*>(bases[i].__base_type);
 				__class_type_info const* equiv	= kernel_type_info[base->__type_name];
-				if(!equiv) this->__relocate_ti_r(base, local_si, local_vmi);
+				if(!equiv) this->__relocate_ti_r(base);
 				else bases[i].__base_type		= equiv;
 			}
 		}
-		void __relocate_ti_r(std::type_info* ti, std::type_info const* local_si, std::type_info const* local_vmi)
+		void __relocate_ti_r(std::type_info* ti)
 		{
-			if(__si_class_type_info* si			= meta_dyncast_si(ti, addr_t(local_si)))
-				__relocate_si_r(si, local_si, local_vmi);
-			else if(__vmi_class_type_info* vmi	= meta_dyncast_vmi(ti, addr_t(local_vmi)))
-				__relocate_vmi_r(vmi->__base_info, vmi->__base_count, local_si, local_vmi);
+			if(__si_class_type_info* si			= dynamic_cast<__si_class_type_info*>(ti))
+				__relocate_si_r(si);
+			else if(__vmi_class_type_info* vmi	= dynamic_cast<__vmi_class_type_info*>(ti))
+				__relocate_vmi_r(vmi->__base_info, vmi->__base_count);
 		}
 	} __api_impl{};
 	void register_type(std::type_info const& ti) { __api_impl.register_type_info(std::addressof(ti)); }
@@ -275,6 +285,10 @@ namespace ooos
 		register_type(typeid(block_io_provider_module));
 		register_type(typeid(abstract_netdev));
 		register_type(typeid(abstract_netdev_module));
+		register_type(typeid(abstract_connectable_device));
+		register_type(typeid(abstract_connectable_device::interface));
+		register_type(typeid(abstract_connectable_device::provider));
+		register_type(typeid(abstract_hub_module_base));
 	}
 	void module_takedown(abstract_module_base* mod)
 	{

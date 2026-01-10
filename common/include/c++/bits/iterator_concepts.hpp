@@ -11,7 +11,7 @@ namespace std
 	struct random_access_iterator_tag;
 	struct contiguous_iterator_tag;
 	template<typename IT> struct iterator_traits;
-	template<typename T> requires is_object_v<T> struct iterator_traits<T*>;
+	template<typename T> requires(is_object_v<T>) struct iterator_traits<T*>;
 	template<typename IT, typename> struct __iterator_traits;
 	namespace __detail
 	{

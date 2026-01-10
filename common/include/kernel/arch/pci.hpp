@@ -147,11 +147,11 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 {
 	pci_capability_id id;
 	uint8_t next;			// offset from the start of the config space to the next capabilities register
-	volatile union
+	volatile union __pack
 	{
-		struct
+		struct __pack
 		{
-			struct
+			struct __pack
 			{
 				uint8_t version		: 3;
 				bool				: 2;
@@ -160,8 +160,8 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 				bool d1_suppport	: 1;
 				bool d2_support		: 1;
 				uint8_t pme_support : 5;
-			} __pack capabilities;
-			struct
+			} capabilities;
+			struct __pack
 			{
 				uint8_t power_state	: 2;
 				bool				: 6;
@@ -169,65 +169,65 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 				uint8_t data_select	: 4;
 				uint8_t data_scale	: 2;
 				bool pme_status		: 1;
-			} __pack ctl_status;
+			} ctl_status;
 			uint8_t bridge_support_extensions;
 			uint8_t data;
-		} __pack power_management;
-		struct
+		} power_management;
+		struct __pack
 		{
-			struct
+			struct __pack
 			{
 				bool msi_enable					: 1;
 				uint8_t multi_message_capable	: 3;
 				uint8_t multi_message_enable	: 3;
 				bool x64_capable				: 1;
 				bool							: 8;
-			} __pack message_control;
+			} message_control;
 			uint32_t message_address;
 			uint16_t message_data;
 			short								: 16;
 			uint32_t mask_bits;
 			uint32_t pending_bits;
-		} __pack msi_32;
-		struct
+		} msi_32;
+		struct __pack
 		{
-			struct
+			struct __pack
 			{
 				bool msi_enable					: 1;
 				uint8_t multi_message_capable	: 3;
 				uint8_t multi_message_enable	: 3;
 				bool x64_capable				: 1;
 				bool							: 8;
-			} __pack message_control;
+			} message_control;
 			uint64_t message_address;
 			uint16_t message_data;
 			short								: 16;
 			uint32_t mask_bits;
 			uint32_t pending_bits;
-		} __pack msi_64;
-		struct
+		} msi_64;
+		struct __pack
 		{
-			struct
+			struct __pack
 			{
 				uint16_t table_size	: 11;
 				bool				: 3;
 				bool function_mask	: 1;
 				bool msix_enable	: 1;
-			} __pack message_control;
+			} message_control;
 			pci_msix_bir table_offset;
 			pci_msix_bir pending_bit_array_offset;
-		} __pack msix;
-		struct
+		} msix;
+		struct __pack
 		{
-			struct
+			struct __pack
 			{
 				uint8_t version						: 4;
 				uint8_t dev_port_type				: 4;
 				bool slot_implemented				: 1;
 				uint8_t interrupt_message_number	: 5;
 				bool								: 2;
-			} __pack;
-			struct
+			};
+			struct __pack
 			{
 				bool								: 4;
 				uint8_t slot_limit_scale			: 2;
@@ -241,15 +241,21 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 				bool extended_tag_field				: 1;
 				uint8_t phantom_function			: 2;
 				uint8_t max_tlp_payload				: 3;
-			} __pack;
-			struct
+			};
+			struct __pack
 			{
 				uint32_t capability;
 				uint16_t control;
 				uint16_t status;
-			} __pack device_specific_capabilities;
-		} __pack pcie_device_capability;
-	} __pack;
+			} device_specific_capabilities;
+		} pcie_device_capability;
+	};
+};
+struct __pack msix_table_entry
+{
+	uintptr_t msg_addr;
+	uint32_t msg_data;
+	uint32_t mask_bit;	// only the lowest bit should be modified
 };
 struct __pack pci_config_ptr
 {

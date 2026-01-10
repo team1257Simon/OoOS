@@ -153,9 +153,9 @@ namespace std
 				{ __end{}(__t) } -> sized_sentinel_for<decltype(__begin{}(__t))>;
 				{ __end{}(__t) - __begin{}(__t) } -> integral;
 			};
-			template<typename T> concept __member_size = requires(T& __t) { { __decay_copy(__t.size()) } -> __detail::__is_integer_like; };
-			template<typename T> concept __adl_size = requires(T& __t) { { __decay_copy(size(__t)) } -> __detail::__is_integer_like; };
-			template<typename T> concept __valid_size = is_bounded_array_v<remove_reference_t<T>> || __member_size<T> || __adl_size<T> || __sentinel_size<T>;
+			template<typename T> concept __member_size	= requires(T& __t) { { __decay_copy(__t.size()) } -> __detail::__is_integer_like; };
+			template<typename T> concept __adl_size		= requires(T& __t) { { __decay_copy(size(__t)) } -> __detail::__is_integer_like; };
+			template<typename T> concept __valid_size	= is_bounded_array_v<remove_reference_t<T>> || __member_size<T> || __adl_size<T> || __sentinel_size<T>;
 			struct __size
 			{
 			private:

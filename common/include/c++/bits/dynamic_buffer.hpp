@@ -113,7 +113,7 @@ namespace std::__impl
 			that.__reset();
 		}
 		template<allocator_object<__value_type> A>
-		constexpr void __destroy(A& alloc)
+		constexpr void __destroy(A& alloc) noexcept(std::is_nothrow_destructible_v<__value_type> && noexcept(alloc.deallocate(__begin, __cap)))
 		{
 			if consteval { if(!__begin) return; }
 			else { if(__unlikely(!__begin)) return; }
@@ -252,7 +252,7 @@ namespace std::__impl
 			}
 		}
 		template<allocator_object<__value_type> A>
-		constexpr void __destroy(A& a)
+		constexpr void __destroy(A& a) noexcept(noexcept(a.deallocate(__begin, __allocated_size)))
 		{
 			if(!__is_local())
 				a.deallocate(__begin, __allocated_size);
@@ -306,7 +306,7 @@ namespace std::__impl
 		constexpr __buffer_container(__buffer_container const& that, A const& a) : A(a), C(that) {}
 		constexpr __buffer_container(__buffer_container&& that, A const& a) : A(a), C(std::forward<C>(that)) {}
 		constexpr void __create(__size_type cap) { C::__create(*this, cap); }
-		constexpr void __destroy() { C::__destroy(*this); }
+		constexpr void __destroy() noexcept(noexcept(std::declval<C>().__destroy(std::declval<A&>()))) { C::__destroy(*this); }
 		constexpr void __resize(__size_type ncur, __size_type ncap) { C::__resize(*this, ncur, ncap); }
 		constexpr __buffer_container& operator=(__buffer_container const& that)
 		{
@@ -535,7 +535,7 @@ namespace std::__impl
 			else { __backtrack(how_many); __zero(__cur(), how_many); }
 			return __cur();
 		}
-		constexpr void __destroy() {
+		constexpr void __destroy() noexcept(noexcept(__my_data.__destroy())) {
 			if(this->__beg())
 				__my_data.__destroy();
 		}

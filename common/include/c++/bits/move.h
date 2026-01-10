@@ -24,6 +24,8 @@ namespace std
 	template<typename T, typename U> struct __like_impl<const T&&, U&> { using type = const U&&; };
 	template<typename T, typename U> using __like_t = typename __like_impl<T&&, U&>::type;
 	template<typename T, typename U> [[nodiscard, gnu::always_inline]] constexpr __like_t<T, U> forward_like(U&& u) noexcept { return static_cast<__like_t<T, U>>(u); }
-	template<typename T> constexpr T& backward(T&& t) { return static_cast<T&>(t); } // Opposite of std::forward :)
+	template<typename T> constexpr typename remove_reference<T>::type& unmove(T&& t) { return static_cast<typename remove_reference<T>::type&>(t); } // Opposite of std::move :)
+	template<typename T> constexpr T& backward(typename remove_reference<T>::type& t) { return static_cast<T&>(t); }	// opposite of std::forward :)
+	template<typename T> constexpr T& backward(typename remove_reference<T>::type&& t) { return static_cast<T&>(t); }	// opposite of std::forward :)
 }
 #endif

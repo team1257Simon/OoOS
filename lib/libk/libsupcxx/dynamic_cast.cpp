@@ -9,7 +9,7 @@
  *
  * 2. Redistributions in binary form must reproduce the above copyright notice,
  *		this list of conditions and the following disclaimer in the documentation
- *		and/or other materials provided with the distribution.
+ *		and/or that materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
  * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -59,41 +59,48 @@ bool __pbase_type_info::__do_catch(std::type_info const* ex_type, void** excepti
 	if(*__pointee == typeid(void)) return true;
 	return __pointee->__do_catch(ptr_type->__pointee, exception_object, outer);
 }
-bool __class_type_info::__do_upcast(const __class_type_info *target, void** thrown_object) const
+bool __class_type_info::__do_upcast(const __class_type_info* that, void** thrown_object) const
 {
-	return this == target;
+	return that && this->__type_name == that->__type_name;
 }
-void* __class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
+void* __class_type_info::cast_to(void* obj, const struct __class_type_info* that) const
 {
-	if(this == other)
+	if(!that)
+		return nullptr;
+	if(this->__type_name == that->__type_name)
 		return obj;
 	else
 		return nullptr;
 }
-void* __si_class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
+void* __si_class_type_info::cast_to(void* obj, const struct __class_type_info* that) const
 {
-	if(this == other)
+	if(!that)
+		return nullptr;
+	if(this->__type_name == that->__type_name)
 		return obj;
 	else
-		return __base_type->cast_to(obj, other);
+		return __base_type->cast_to(obj, that);
 }
-bool __si_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
+bool __si_class_type_info::__do_upcast(const __class_type_info* that, void** thrown_object) const
 {
-	if(this == target)
+	if(!that)
+		return false;
+	if(this->__type_name == that->__type_name)
 		return true;
 	else
-		return __base_type->__do_upcast(target, thrown_object);
+		return __base_type->__do_upcast(that, thrown_object);
 }
-void* __vmi_class_type_info::cast_to(void* obj, const struct __class_type_info* other) const
+void* __vmi_class_type_info::cast_to(void* obj, const struct __class_type_info* that) const
 {
-	if(__do_upcast(other, &obj))
+	if(__do_upcast(that, std::addressof(obj)))
 		return obj;
 	else
 		return nullptr;
 }
-bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** thrown_object) const
+bool __vmi_class_type_info::__do_upcast(const __class_type_info* that, void** thrown_object) const
 {
-	if(this == target) return true;
+	if(!that) return false;
+	if(this->__type_name == that->__type_name) return true;
 	for(unsigned int i = 0U; i < __base_count; i++)
 	{
 		const __base_class_type_info* info		= std::addressof(__base_info[i]);
@@ -115,7 +122,7 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info* target, void** 
 			offset			= *off;
 		}
 		void* cast			= ADD_TO_PTR(obj, offset);
-		if(info->__base_type == target || (info->__base_type->__do_upcast(target, std::addressof(cast))))
+		if(info->__base_type->__type_name == that->__type_name || (info->__base_type->__do_upcast(that, std::addressof(cast))))
 		{
 			*thrown_object	= cast;
 			return true;
