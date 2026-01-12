@@ -1,6 +1,7 @@
 #ifndef __KMOD
 #define __KMOD
 #include <kernel_api.hpp>
+#include <span>
 #include <optional>
 #include <errno.h>
 /**
@@ -14,7 +15,7 @@
  * Doing so allows the kernel to use dynamic_cast to upcast the module class into something more specific, e.g. block_io_provider_module or io_module_base<char>.
  */
 #define EXPORT_MODULE(module_class, ...)																																\
-	static char __instance[sizeof(module_class)];																														\
+	static char __instance[sizeof(module_class)] __align(alignof(module_class));																														\
 	static ooos::cxxabi_abort __abort_handler;																															\
 	namespace ooos																																						\
 	{																																									\
@@ -91,8 +92,7 @@ namespace ooos
 		inline void* allocate_buffer(size_t size, size_t align) try { return __allocated_mm->mem_allocate(size, align); } catch(...) { this->raise_error("bad_alloc", -ENOMEM); }
 		inline void* resize_buffer(void* orig, size_t old_size, size_t target_size, size_t align) try { return __allocated_mm->mem_resize(orig, old_size, target_size, align); } catch(...) { this->raise_error("bad_alloc", -ENOMEM); }
 		inline void release_buffer(void* ptr, size_t align) { __allocated_mm->mem_release(ptr, align); }
-		inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, size); }
-		inline auto make_dma_deleter() noexcept { return std::bind_front(&abstract_module_base::release_dma, this); }
+		inline void release_dma(void* ptr, size_t size) { __api_hooks->release_dma(ptr, __api_hooks->dma_size(size)); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) { return __api_hooks->find_pci_device(device_class, subclass); }
 		inline pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if) { return __api_hooks->find_pci_device(device_class, subclass, prog_if); }
 		inline void* acpi_get_table(const char* label) { return __api_hooks->acpi_get_table(label); }
@@ -137,12 +137,43 @@ namespace ooos
 			}
 		}
 	};
-	class dma_deleter
+	template<typename T>
+	class managed_dma_span : public std::span<T>
 	{
-		decltype(std::declval<ooos::abstract_module_base*>()->make_dma_deleter()) __fn;
+		typedef std::span<T> __base;
+		std::reference_wrapper<abstract_module_base> __mod;
+		__base& __upcast() { return *static_cast<__base*>(this); }
+		void __reset() noexcept { __upcast() = __base(); }
+		managed_dma_span& __set(T* ptr, size_t n) noexcept
+		{
+			destroy();
+			__upcast()	= __base(ptr, n);
+			return *this;
+		}
 	public:
-		constexpr dma_deleter(abstract_module_base& mod) noexcept : __fn(mod.make_dma_deleter()) {}
-		constexpr void operator()(void* ptr, size_t n) const noexcept { __fn(ptr, n); }
+		managed_dma_span(abstract_module_base& mod) noexcept : __base(), __mod(std::ref(mod)) {}
+		managed_dma_span(abstract_module_base& mod, size_t n, bool prefetch) : __base(static_cast<T*>(mod.allocate_dma(n, prefetch)), n), __mod(std::ref(mod)) {}
+		~managed_dma_span() { this->destroy(); }
+		managed_dma_span(managed_dma_span&& that) noexcept : __base(static_cast<__base&>(that)), __mod(that.__mod) { that.__reset(); }
+		void destroy()
+		{
+			if(__base::data())
+				__mod.get().release_dma(__base::data(), __base::size_bytes());
+			__reset();
+		}
+		managed_dma_span& operator=(managed_dma_span&& that) noexcept
+		{
+			this->destroy();
+			this->__upcast()	= that.__upcast();
+			that.__reset();
+			return *this;
+		}
+		managed_dma_span& create(size_t n, bool prefetch)
+		{
+			size_t bytes	= n * sizeof(T);
+			T* ptr			= static_cast<T*>(__mod.get().allocate_dma(bytes, prefetch));
+			return __set(ptr, n);
+		}
 	};
 	template<typename T>
 	struct module_mm_allocator

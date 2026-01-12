@@ -11,8 +11,12 @@ namespace __impl
 		__aligned_buffer(std::nullptr_t) {}
 		constexpr void* __get_addr() noexcept { return static_cast<void*>(std::addressof(__my_storage)); }
 		constexpr const void* __get_addr() const noexcept { return static_cast<const void*>(std::addressof(__my_storage)); }
+		constexpr volatile void* __get_addr() volatile noexcept { return static_cast<volatile void*>(std::addressof(__my_storage)); }
+		constexpr const volatile void* __get_addr() const volatile noexcept { return static_cast<const volatile void*>(std::addressof(__my_storage)); }
 		constexpr T* __get_ptr() noexcept { return static_cast<T*>(__get_addr()); }
 		constexpr T const* __get_ptr() const noexcept { return static_cast<T const*>(__get_addr()); }
+		constexpr T volatile* __get_ptr() volatile noexcept { return static_cast<T volatile*>(__get_addr()); }
+		constexpr T const volatile* __get_ptr() const volatile noexcept { return static_cast<T const volatile*>(__get_addr()); }
 	};
 }
 #endif

@@ -567,9 +567,22 @@ namespace std::__impl
 			if constexpr(totally_ordered<IT>)
 				if(__unlikely(!(end > start))) return;
 			if constexpr(contiguous_iterator<IT>)
-				array_copy(where, addressof(*start), static_cast<size_t>(distance(start, end)));
-			else for(IT i = start; i != end; i++, where++)
-				*where = *i;
+				if constexpr(!std::is_same_v<remove_reference_t<decltype(*start)>, std::remove_cvref_t<decltype(*start)>>)
+					array_copy(where, std::to_address(start), static_cast<size_t>(distance(start, end)));
+				else copy_or_move(where, std::to_address(start), static_cast<size_t>(distance(start, end)));
+			else
+			{
+				for(IT i	= start; i != end; i++, where++)
+				{
+					if constexpr(std::is_move_assignable_v<__value_type> && std::is_same_v<remove_reference_t<decltype(*start)>, std::remove_cvref_t<decltype(*start)>>)
+						*where	= std::move(*i);
+					else if constexpr(std::is_move_constructible_v<__value_type> && std::is_same_v<remove_reference_t<decltype(*start)>, std::remove_cvref_t<decltype(*start)>>)
+						new(where) __value_type(std::move(*i));
+					else if constexpr(std::is_copy_assignable_v<__value_type>)
+						*where	= *i;
+					else new(where) __value_type(*i);
+				}
+			}
 		}
 	}
 	template<typename T, allocator_object<T> A, bool NTS>

@@ -77,8 +77,8 @@ distclean:
 $(OUT_IMG): $(ATTR_PLUGIN) $(BUILD_DIR) create_image.sh $(SUBDIRS)
 	sh create_image.sh $@ $(BUILD_DIR) $(IMAGE_FILE_DIR)
 asmtest: $(ATTR_PLUGIN)
-	cd kernel && $(MAKE) asmtest
 	cd modules && $(MAKE) asmtest
+	cd kernel && $(MAKE) asmtest
 	cd lib && $(MAKE) asmtest
 asmtest_kernel: $(ATTR_PLUGIN)
 	cd kernel && $(MAKE) asmtest

@@ -1,10 +1,10 @@
 #include "amd64_ahci.hpp"
-amd64_ahci::config_type amd64_ahci::__cfg	= ahci_config();
 static const char* last_msg_str				= nullptr;
 constexpr size_t cl_offs_base				= 32UZ * sizeof(hba_cmd_header);
 constexpr size_t fis_offs_base				= 32UZ * cl_offs_base;
 constexpr size_t table_offs_base			= fis_offs_base + 32UZ * sizeof(hba_fis);
 template<ooos::condition_callable FT> static inline bool await_completion(time_t max_spin, FT&& ft);
+amd64_ahci::config_type amd64_ahci::__cfg(ahci_config());
 static inline ahci_device check_type(hba_port const& p);
 static inline size_t __cap_size(size_t a, size_t b) { return a < b ? a : b; }
 static inline size_t __at_least(size_t s, size_t minsz) { return s > minsz ? s : minsz; }

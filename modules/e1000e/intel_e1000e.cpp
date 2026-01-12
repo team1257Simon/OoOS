@@ -26,7 +26,7 @@ static inline bool await_completion(time_t max_spin, FT&& ft)
 			return true;
 	return ft();
 }
-ie1000e::config_type ie1000e::cfg	= e1000e_config();
+ie1000e::config_type ie1000e::cfg(e1000e_config());
 ooos::generic_config_table& ie1000e::get_config() { return cfg.generic; }
 size_t ie1000e::rx_limit() const noexcept { return ooos::get_element<2>(cfg); }
 size_t ie1000e::tx_limit() const noexcept { return ooos::get_element<1>(cfg); }

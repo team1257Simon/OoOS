@@ -247,7 +247,9 @@ namespace ooos
 		struct {
 			xhci_endpoint_context in;
 			xhci_endpoint_context out;
+			constexpr xhci_endpoint_context& operator[](bool b) noexcept { return b ? out : in; }
 		} ep[15];
+		constexpr xhci_endpoint_context& operator[](uint8_t i) noexcept { return !i ? ep0 : ep[(i - 1SC) / 2][!(i % 2)]; }
 	};
 	struct __pack xhci_stream_context
 	{
@@ -270,16 +272,19 @@ namespace ooos
 	};
 	struct force_header_data_dword { uint32_t header_data_hi; };
 	struct event_data_qword { char event_data[sizeof(qword)]; };
-	union __pack [[gnu::may_alias]] trb_data_ptr
+	struct __pack trb_data_ptr
 	{
-		struct __pack
+		union __pack [[gnu::may_alias]]
 		{
-			bool dequeue_cycle_state	: 1;
-			stream_contex_type sct		: 3;
-			uintptr_t hi_ptr			: 60;
-			maskable_addr(4);
-		} data_ptr;
-		char immediate_data[sizeof(uintptr_t)];
+			struct __pack
+			{
+				bool dequeue_cycle_state	: 1;
+				stream_contex_type sct		: 3;
+				uintptr_t hi_ptr			: 60;
+				maskable_addr(4);
+			} data_ptr;
+			char immediate_data[sizeof(uintptr_t)]{};
+		};
 	};
 	struct __pack force_header_trb_data
 	{
@@ -632,7 +637,7 @@ namespace ooos
 			int							: 23;
 		} config;
 		uint32_t rsvd2[241];
-		xhci_hc_port port_set_1[256];
+		xhci_hc_port port_registers[256];
 	};
 	struct xhci_interrupter_register
 	{
@@ -725,13 +730,68 @@ namespace ooos
 		);
 	}
 	typedef decltype(xhci_config()) xhci_config_type;
-	class xhci_trb_ring_segment : public std::span<xhci_generic_trb>
+	class xhci_device_slot;
+	typedef managed_dma_span<xhci_generic_trb> trb_ring_segment;
+	class xhci_device_endpoint : public abstract_connectable_device::interface
 	{
-		dma_deleter __delete;
-		typedef std::span<xhci_generic_trb> __base;
+		xhci_device_slot& __parent;
+		xhci_endpoint_context& __ctx;
+		std::vector<trb_ring_segment> __transfer_ring;
+		std::span<xhci_generic_trb>::iterator __dequeue_pos;
+		std::span<xhci_generic_trb>::iterator __enqueue_pos;
+		uint8_t __idx;
 	public:
-		xhci_trb_ring_segment(abstract_module_base& mod, xhci_config_type const& cfg);
-		~xhci_trb_ring_segment();
+		xhci_device_endpoint(xhci_device_slot& slot, uint8_t idx);
+		virtual void put_msg(generic_device_message const& msg) override;
+		virtual std::optional<generic_device_message> poll_msg() override;
+		virtual void reset() override;
+	};
+	class xhci_host_controller;
+	class xhci_device_slot : public abstract_connectable_device
+	{
+		friend class xhci_device_endpoint;
+		friend class xhci_host_controller;
+		xhci_host_controller& __parent;
+		xhci_hc_port& __port;
+		xhci_device_context& __ctx;
+		xhci_doorbell& __doorbell;
+		std::array<xhci_device_endpoint, 31UZ> __endpoints;
+		dword __active_endpoints;	// bit n -> __endpoints[n - 1] active (1) or inactive (0); bit 0 -> device connected (1) or not (0)
+		uint8_t __idx;
+	public:
+		xhci_device_slot(xhci_host_controller& ctl, uint8_t idx);
+		virtual size_t interface_count() const override;
+		virtual abstract_connectable_device::provider* parent() override;
+		virtual abstract_connectable_device::interface* operator[](size_t idx) override;
+	};
+	class xhci_host_controller : public usb_host_controller_module
+	{
+		friend class xhci_device_slot;
+		friend class xhci_device_endpoint;
+		pci_config_space* __hc_dev;
+		managed_dma_span<xhci_device_context> __dev_ctx_array;
+		xhci_capability_registers* __hc_caps	= nullptr;
+		xhci_hc_mem* __hc_mem					= nullptr;
+		xchi_hc_runtime_mem* __hc_rt_mem		= nullptr;
+		xhci_doorbell* __doorbells				= nullptr;
+		addr_t __ptr_array_dma_block			= nullptr;
+		size_t __ptr_array_dma_size				= 0UZ;
+		addr_t __scratchpad_block				= nullptr;
+		size_t __scratchpad_size				= 0UZ;
+		std::vector<xhci_device_slot> __slots{};
+		std::vector<trb_ring_segment> __cmd_ring{};
+		std::vector<trb_ring_segment> __event_ring{};
+		static xhci_config_type __cfg;
+		void __handle_irq();
+	public:
+		xhci_host_controller(pci_config_space* pci);
+		virtual bool initialize() override;
+		virtual void finalize() override;
+		virtual generic_config_table& get_config() override;
+		virtual abstract_connectable_device* operator[](size_t id) override;
+		virtual std::optional<size_t> index_of(abstract_connectable_device* dev) const override;
+		virtual size_t size() const	override;
+		bool add_segment(std::vector<trb_ring_segment>& rint);
 	};
 }
 #endif

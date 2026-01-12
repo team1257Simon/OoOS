@@ -288,6 +288,7 @@ namespace ooos
 		virtual void* allocate_dma(size_t size, bool prefetchable) 																		= 0;
 		virtual void release_dma(void* ptr, size_t size) 																				= 0;
 		virtual void* map_dma(uintptr_t addr, size_t sz, bool prefetchable)																= 0;
+		virtual size_t dma_size(size_t requested)																						= 0;
 		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) 												= 0;
 		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if)								= 0;
 		virtual void* acpi_get_table(const char* label) 																				= 0;
@@ -805,7 +806,7 @@ namespace ooos
 		//	Counts the total number of interfaces to the device (e.g. USB endpoints).
 		virtual size_t interface_count() const		= 0;
 		//	Gets a pointer to the hub/controller to which the device is connected.
-		virtual provider* parent() const			= 0;
+		virtual provider* parent()					= 0;
 		//	Gets a pointer to the interface at the given index for the device. If the ID is out of range, returns a null pointer.
 		virtual interface* operator[](size_t idx)	= 0;
 	};

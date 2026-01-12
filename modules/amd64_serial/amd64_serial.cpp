@@ -1,5 +1,5 @@
 #include "amd64_serial.hpp"
-amd64_serial::config_type amd64_serial::__cfg = serial_config();
+amd64_serial::config_type amd64_serial::__cfg(serial_config());
 static bool serial_empty_transmit(word p) { line_status_byte b = inb(p); return b.transmitter_buffer_empty; }
 static bool serial_have_input(word p) { line_status_byte b = inb(p); return b.data_ready; }
 amd64_serial::size_type amd64_serial::avail() const { return __input_pos > in.cur ? static_cast<size_type>(__input_pos - in.cur) : 0UZ; }

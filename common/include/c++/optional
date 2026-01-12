@@ -36,7 +36,7 @@ namespace std
 			template<typename ... Args> constexpr __storage(in_place_t, Args&& ... args) : __value(forward<Args>(args)...) {}
 			template<typename V, typename ... Args> constexpr __storage(initializer_list<V> ini, Args&& ... args) : __value(ini, forward<Args>(args)...) {}
 			template<typename FT, typename AT> constexpr __storage(__optional_ftor<FT> fn, AT&& arg) : __value(__invoke(fn.fn, forward<AT>(arg))) {}
-			constexpr ~__storage() requires(is_trivially_destructible_v<U>) {}
+			constexpr ~__storage() requires(!is_trivially_destructible_v<U>) {}
 			~__storage()							= default;
 			__storage(__storage const&)				= default;
 			__storage(__storage&&)					= default;
