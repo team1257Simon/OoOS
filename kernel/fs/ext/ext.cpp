@@ -210,7 +210,7 @@ void extfs::initialize()
 		if(dw_cs.lo != cs) throw std::runtime_error("[FS/EXT4] checksum calculated value of " + std::to_string(dw_cs.lo, std::ext::hex) + " did not match expected " + std::to_string(cs, std::ext::hex));
 		blk_group_descs[i].group_checksum	= cs;
 	}
-	std::construct_at(std::addressof(fs_journal), this, sb->journal_inode);
+	std::construct_at(std::addressof(fs_journal), this, dword(sb->journal_inode));
 	if(!fs_journal.on_open()) throw std::runtime_error("[FS/EXT4] journal init failed");
 	ext_directory_vnode* rdnode = dir_nodes.emplace(this, 2U, next_fd++).first.base();
 	if(!rdnode->on_open()) throw std::runtime_error("[FS/EXT4] root dir init failed");
