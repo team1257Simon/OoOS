@@ -1,10 +1,12 @@
-#include <net/netdev_module.hpp>
-#include <kernel_mm.hpp>
 #include <arch/pci_device_list.hpp>
+#include <bits/hash_set.hpp>
+#include <ext/delegate_ptr.hpp>
+#include <fs/sysfs.hpp>
+#include <net/netdev_module.hpp>
+#include <sched/scheduler.hpp>
 #include <device_registry.hpp>
 #include <isr_table.hpp>
-#include <bits/hash_set.hpp>
-#include <sched/scheduler.hpp>
+#include <kernel_mm.hpp>
 #include <stdexcept>
 #include <stdlib.h>
 extern "C" size_t kvasprintf(char** restrict strp, const char* restrict fmt, va_list args);
@@ -101,7 +103,8 @@ namespace ooos
 	}
 	static struct : kernel_api
 	{
-		kernel_memory_mgr* mm	= std::addressof(kmm);
+		kernel_memory_mgr* mm						= std::addressof(kmm);
+		std::ext::delegate_ptr<sysfs> sysfs_impl	= nullptr;
 		type_info_map kernel_type_info;
 		pci_device_list* pci;
 		virtual void* allocate_dma(size_t size, bool prefetchable) override { return mm->allocate_dma(size, prefetchable); }
@@ -114,13 +117,13 @@ namespace ooos
 		virtual kmod_mm* create_mm() override { return new kmod_mm_impl(); }
 		virtual void destroy_mm(kmod_mm* mod_mm) override { if(mod_mm) delete mod_mm; }
 		virtual void log(std::type_info const& from, const char* message) override { xklog("[" + std::ext::demangle(from) + "]: " + message); }
-		virtual void remove_actors(abstract_module_base* owner) override { interrupt_table::deregister_owner(owner); }
+		virtual void remove_actors(abstract_module_base* owner) override { interrupt_table::deregister_owner(dynamic_cast<void*>(owner)); }
 		virtual uint32_t register_device(dev_stream<char>* stream, device_type type) override { return dreg.add(stream, type); }
 		virtual bool deregister_device(dev_stream<char>* stream) override { return dreg.remove(stream); }
 		virtual void register_type_info(std::type_info const* ti) override { kernel_type_info.insert(ti); }
 		virtual uintptr_t vtranslate(void* addr) noexcept override { return translate_vaddr(addr); }
 		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) override {
-			try { interrupt_table::add_irq_handler(owner, irq, std::forward<isr_actor>(handler)); }
+			try { interrupt_table::add_irq_handler(dynamic_cast<void*>(owner), irq, std::forward<isr_actor>(handler)); }
 			catch(...) { owner->raise_error("out of memory", -ENOMEM); }
 		}
 		virtual bool export_type_info(std::type_info const& ti) override
@@ -181,7 +184,7 @@ namespace ooos
 				free(result);
 				return count;
 			}
-			catch(...) { panic("no memory"); return 0UZ; }
+			catch(...) { return panic("[KAPI] no memory"), 0UZ; }
 		}
 		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) override
 		{
@@ -198,6 +201,87 @@ namespace ooos
 				.deallocate	 	= &kframe_tag::deallocate,
 				.reallocate		= &kframe_tag::reallocate
 			};
+		}
+		virtual bool msi(abstract_module_base* owner, std::array<isr_actor, 7>&& handlers, msi32_t volatile& reg, msi_trigger_mode mode) override
+		{
+			using namespace interrupt_table;
+			uint8_t count								= 0UC;
+			while(count <= 7 && handlers[count]) count++;
+			if(count > 1UC && !reg.message_control.multi_message_capable) return panic("[KAPI] cannot use multi-MSI on unsupported device"), false;
+			msi_info* result							= allocate_msi_vectors(dynamic_cast<void*>(owner), count, reg.message_address, reg.message_data, mode);
+			if(__unlikely(!result)) return panic("[KAPI] failed to allocate MSI vectors"), false;
+			reg.message_control.multi_message_enable	= count;
+			reg.message_address							= qword(result[0].msg_addr_value).lo;
+			reg.message_data							= result[0].msg_data_value;
+			for(uint8_t i = 0UC; i < count; i++)
+			result[i].callback							= std::move(handlers[i]);
+			return true;
+		}
+		virtual bool msi(abstract_module_base* owner, std::array<isr_actor, 7>&& handlers, msi64_t volatile& reg, msi_trigger_mode mode) override
+		{
+			using namespace interrupt_table;
+			uint8_t count								= 0UC;
+			while(count <= 7 && handlers[count]) count++;
+			if(count > 1UC && !reg.message_control.multi_message_capable) return panic("[KAPI] cannot use multi-MSI on unsupported device"), false;
+			msi_info* result							= allocate_msi_vectors(dynamic_cast<void*>(owner), count, reg.message_address, reg.message_data, mode);
+			if(__unlikely(!result)) return panic("[KAPI] failed to allocate MSI vectors"), false;
+			reg.message_control.multi_message_enable	= count;
+			reg.message_address							= result[0].msg_addr_value;
+			reg.message_data							= result[0].msg_data_value;
+			for(uint8_t i = 0UC; i < count; i++)
+			result[i].callback							= std::move(handlers[i]);
+			return true;
+		}
+		virtual bool extended_msi(abstract_module_base* owner, isr_actor&& handler, msix_t volatile& reg, msi_trigger_mode mode) override
+		{
+			using namespace interrupt_table;
+			msi_info* result	= allocate_msi_vector(dynamic_cast<void*>(owner), std::move(handler), reg.msg_addr, dword(reg.msg_data).lo, mode);
+			if(__unlikely(!result)) return panic("[KAPI] failed to allocate MSIX vector"), false;
+			reg.msg_addr		= result->msg_addr_value;
+			reg.msg_data		= result->msg_data_value;
+			return true;
+		}
+		virtual int save_config(abstract_module_base* mod) override
+		{
+			if(__unlikely(!this->__get_sysfs_delegate())) return ENOSYS;
+			generic_config_table& cfg	= mod->get_config();
+			if(__unlikely(!cfg.size())) return 0;	// vacuous success case
+			typedef std::optional<sysfs_object_handle<generic_config_table>> opt_cfg_handle;
+			try
+			{
+				std::string cfg_name		= std::string(typeid(*mod).name()) + "::config";
+				opt_cfg_handle existing_cfg	= sysfs_impl->find<generic_config_table>(cfg_name);
+				if(!existing_cfg) sysfs_impl->create(cfg_name, cfg);
+				else if(__builtin_memcmp(existing_cfg->base(), std::addressof(cfg), cfg.size()))
+					*existing_cfg			= cfg;
+				else existing_cfg->release();	//	only write if the values are different; if they are the same, save time and don't write anything
+				return 0;
+			}
+			catch(std::runtime_error& e) { return panic(e.what()), ENOSPC; }
+			catch(std::bad_alloc&) { return ENOMEM; }
+			catch(std::logic_error& e) { return panic(e.what()), EINVAL; }
+		}
+		virtual int load_config(abstract_module_base* mod) override
+		{
+			if(__unlikely(!this->__get_sysfs_delegate())) return ENOSYS;
+			generic_config_table& cfg	= mod->get_config();
+			if(__unlikely(!cfg.size())) return 0;	// vacuous success case
+			typedef std::optional<sysfs_object_handle<const generic_config_table>> opt_cfg_handle;
+			try
+			{
+				std::string cfg_name					= std::string(typeid(*mod).name()) + "::config";
+				opt_cfg_handle existing_cfg				= sysfs_impl->find<const generic_config_table>(cfg_name);
+				if(existing_cfg.has_value())
+				{
+					generic_config_table const* saved	= std::to_address(existing_cfg.value());
+					if(__unlikely(saved->size() != cfg.size())) return panic("[KAPI] config table size mismatch"), E2BIG;
+					array_copy<char>(addr_t(std::addressof(cfg.params)), addr_t(std::addressof(saved->params)), saved->size());
+				}
+				//	If there is no config to load then the default value is used; this is not an error
+				return 0;
+			}
+			catch(std::bad_alloc&) { return ENOMEM; }
+			catch(std::logic_error& e) { return panic(e.what()), EINVAL; }
 		}
 		void __relocate_si_r(__si_class_type_info* ti)
 		{
@@ -222,6 +306,12 @@ namespace ooos
 				__relocate_si_r(si);
 			else if(__vmi_class_type_info* vmi	= dynamic_cast<__vmi_class_type_info*>(ti))
 				__relocate_vmi_r(vmi->__base_info, vmi->__base_count);
+		}
+		bool __get_sysfs_delegate()
+		{
+			if(sysfs_impl) return true;
+			sysfs_impl	= std::ext::latest;
+			return static_cast<bool>(sysfs_impl);
 		}
 	} __api_impl{};
 	void register_type(std::type_info const& ti) { __api_impl.register_type_info(std::addressof(ti)); }

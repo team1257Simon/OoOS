@@ -277,6 +277,7 @@ namespace ooos
 		}
 		isr_actor& operator=(isr_actor const& that) { isr_actor(that).swap(*this); return *this; }
 		isr_actor& operator=(isr_actor&& that) { isr_actor(std::move(that)).swap(*this); return *this; }
+		isr_actor& operator=(nullptr_t) noexcept { isr_actor().swap(*this); return *this; }
 		constexpr void operator()() { if(!__empty()) __my_invoke(__my_actor); }
 		constexpr std::type_info const& target_type() const noexcept { if(__my_manager) { functor_store tmp_store; __my_manager(tmp_store, __my_actor, __my_alloc, get_type_info); if(std::type_info const* result = tmp_store.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
 	};
@@ -285,31 +286,36 @@ namespace ooos
 	struct kernel_api
 	{
 		friend class abstract_module_base;
-		virtual void* allocate_dma(size_t size, bool prefetchable) 																		= 0;
-		virtual void release_dma(void* ptr, size_t size) 																				= 0;
-		virtual void* map_dma(uintptr_t addr, size_t sz, bool prefetchable)																= 0;
-		virtual size_t dma_size(size_t requested)																						= 0;
-		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) 												= 0;
-		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if)								= 0;
-		virtual void* acpi_get_table(const char* label) 																				= 0;
-		virtual uintptr_t vtranslate(void* addr) noexcept																				= 0;
-		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) 												= 0;
-		virtual void remove_actors(abstract_module_base* owner) 																		= 0;
-		virtual kmod_mm* create_mm() 																									= 0;
-		virtual void destroy_mm(kmod_mm* mm) 																							= 0;
-		virtual void log(std::type_info const& from, const char* message) 																= 0;
-		virtual uint32_t register_device(dev_stream<char>* stream, device_type type) 													= 0;
-		virtual bool deregister_device(dev_stream<char>* stream) 																		= 0;
-		virtual void init_memory_fns(kframe_exports* ptrs) 																				= 0;
-		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) 											= 0;
-		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod)											= 0;
-		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) 											= 0;
-		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) 												= 0;
-		virtual bool export_type_info(std::type_info const& ti)																			= 0;
-		virtual bool import_type_info(std::type_info const& ti)																			= 0;
+		virtual void* allocate_dma(size_t size, bool prefetchable) 																			= 0;
+		virtual void release_dma(void* ptr, size_t size) 																					= 0;
+		virtual void* map_dma(uintptr_t addr, size_t sz, bool prefetchable)																	= 0;
+		virtual size_t dma_size(size_t requested)																							= 0;
+		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass) 													= 0;
+		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if)									= 0;
+		virtual void* acpi_get_table(const char* label) 																					= 0;
+		virtual uintptr_t vtranslate(void* addr) noexcept																					= 0;
+		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) 													= 0;
+		virtual void remove_actors(abstract_module_base* owner) 																			= 0;
+		virtual kmod_mm* create_mm() 																										= 0;
+		virtual void destroy_mm(kmod_mm* mm) 																								= 0;
+		virtual void log(std::type_info const& from, const char* message) 																	= 0;
+		virtual uint32_t register_device(dev_stream<char>* stream, device_type type)	 													= 0;
+		virtual bool deregister_device(dev_stream<char>* stream) 																			= 0;
+		virtual void init_memory_fns(kframe_exports* ptrs) 																					= 0;
+		[[noreturn]] virtual void ctx_raise(module_eh_ctx& ctx, const char* msg, int status) 												= 0;
+		[[nodiscard]] virtual netdev_api_helper* create_net_helper(abstract_netdev_module& mod)												= 0;
+		virtual size_t vformat(kmod_mm* mm, const char* fmt, const char*& out, va_list args) 												= 0;
+		virtual size_t vlogf(std::type_info const& from, const char* fmt, va_list args) 													= 0;
+		virtual bool export_type_info(std::type_info const& ti)																				= 0;
+		virtual bool import_type_info(std::type_info const& ti)																				= 0;
+		virtual bool msi(abstract_module_base* owner, std::array<isr_actor, 7>&& handlers, msi32_t volatile& reg, msi_trigger_mode mode)	= 0;
+		virtual bool msi(abstract_module_base* owner, std::array<isr_actor, 7>&& handlers, msi64_t volatile& reg, msi_trigger_mode mode)	= 0;
+		virtual bool extended_msi(abstract_module_base* owner, isr_actor&& handler, msix_t volatile& reg, msi_trigger_mode mode)			= 0;
+		virtual int save_config(abstract_module_base* mod)																					= 0;
+		virtual int load_config(abstract_module_base* mod)																					= 0;
 	protected:
-		virtual void register_type_info(std::type_info const* ti) 																		= 0;
-		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) 	= 0;
+		virtual void register_type_info(std::type_info const* ti) 																			= 0;
+		virtual void relocate_type_info(abstract_module_base* mod, std::type_info const* local_si, std::type_info const* local_vmi) 		= 0;
 	};
 	kernel_api* get_api_instance();
 	void init_api();
@@ -435,6 +441,8 @@ namespace ooos
 	{
 		typedef config_iterator iterator;
 		typedef config_const_iterator const_iterator;
+		typedef std::true_type is_open_coded;
+		typedef std::true_type can_memcpy;
 		size_t size_bytes;
 		generic_config_parameter params[];
 		constexpr iterator begin() noexcept { return iterator(params); }
@@ -443,6 +451,8 @@ namespace ooos
 		constexpr iterator end() noexcept { return iterator(static_cast<generic_config_parameter*>(static_cast<void*>(static_cast<char*>(static_cast<void*>(params)) + size_bytes))); }
 		constexpr const_iterator cend() const noexcept { return const_iterator(static_cast<generic_config_parameter const*>(static_cast<const void*>(static_cast<const char*>(static_cast<const void*>(params)) + size_bytes))); }
 		constexpr const_iterator end() const noexcept { return cend(); }
+		constexpr size_t size() const noexcept { return size_bytes; }
+		constexpr bool empty() const noexcept { return !size_bytes; }
 	};
 	inline generic_config_table empty_config{ .size_bytes{}, .params{} };
 	namespace __internal
@@ -687,6 +697,14 @@ namespace ooos
 		this->__setc(sizeof(U) / sizeof(T));
 		return *result;
 	}
+	template<condition_callable FT>
+	constexpr bool await_completion(time_t max_spin, FT&& ft)
+	{
+		for(time_t spin = 0UZ; spin < max_spin; spin++)
+			if(ft())
+				return true;
+		return ft();
+	}
 	template<typename T, std::convertible_to<T> ... Us> constexpr std::array<T, sizeof...(Us)> make_array(Us ... vals) { return std::array<T, sizeof...(Us)>{ static_cast<T>(vals)... }; }
 	namespace __internal
 	{
@@ -786,12 +804,23 @@ namespace ooos
 		//	Interface for passing messages to and from the device. This will be provided by the hub driver.
 		struct interface
 		{
+			//	These match the encodings for endpoint types used by XHCI.
+			enum class type : uint8_t
+			{
+				H2D_SYNC		= 1UC,
+				H2D_BULK		= 2UC,
+				H2D_NOTIFY		= 3UC,
+				CONTROL			= 4UC,
+				D2H_SYNC		= 5UC,
+				D2H_BULK		= 6UC,
+				D2H_NOTIFY		= 7UC,
+			};
 			//	Hook for host-to-device transfers.
 			virtual void put_msg(generic_device_message const& msg)			= 0;
 			//	Hook for device-to-host transfers.
 			virtual std::optional<generic_device_message> poll_msg()		= 0;
-			//	Hook to reset the device.
-			virtual void reset()											= 0;
+			//	Identify the direction and transfer type of the interface.
+			virtual type interface_type() const								= 0;
 		};
 		//	Represents the device hub and/or host controller.
 		struct provider
@@ -809,6 +838,7 @@ namespace ooos
 		virtual provider* parent()					= 0;
 		//	Gets a pointer to the interface at the given index for the device. If the ID is out of range, returns a null pointer.
 		virtual interface* operator[](size_t idx)	= 0;
+		using enum interface::type;
 	};
 }
 namespace std

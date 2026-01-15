@@ -882,8 +882,8 @@ namespace std
 				constexpr __iterator& operator--()
 				requires(__req_bidir)
 				{
-					if(__outer_pos	== ranges::end(__parent->__base))
-						__inner_pos	= ranges::end(std::unmove(*--__outer_pos));
+					if(__outer_pos == ranges::end(__parent->__base))
+						__inner_pos		= ranges::end(std::unmove(*--__outer_pos));
 					while(__get_inner()	== ranges::begin(std::unmove(*--__outer_pos)))
 						__get_inner()	= ranges::end(std::unmove(*--__outer_pos));
 					--__get_inner();

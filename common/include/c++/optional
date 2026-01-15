@@ -347,10 +347,10 @@ namespace std
 		constexpr T const& operator*() const& noexcept { __libk_assert(this->__is_present()); return this->__get(); }
 		constexpr T&& operator*()&& noexcept { __libk_assert(this->__is_present()); return move(this->__get()); }
 		constexpr T const&& operator*() const&& noexcept { __libk_assert(this->__is_present()); return move(this->__get()); }
-		constexpr T& value()& { if(this->__is_present()) return this->__get(); else __throw_bad_optional_access(); }
-		constexpr T const& value() const& { if(this->__is_present()) return this->__get(); else __throw_bad_optional_access(); }
-		constexpr T&& value()&& { if(this->__is_present()) return move(this->__get()); else __throw_bad_optional_access(); }
-		constexpr T const&& value() const&& { if(this->__is_present()) return move(this->__get()); else __throw_bad_optional_access(); }
+		constexpr T& value()& { if(this->__is_present()) return this->__get(); else __throw_bad_optional_access(); __builtin_unreachable(); }
+		constexpr T const& value() const& { if(this->__is_present()) return this->__get(); else __throw_bad_optional_access(); __builtin_unreachable(); }
+		constexpr T&& value()&& { if(this->__is_present()) return move(this->__get()); else __throw_bad_optional_access(); __builtin_unreachable(); }
+		constexpr T const&& value() const&& { if(this->__is_present()) return move(this->__get()); else __throw_bad_optional_access(); __builtin_unreachable(); }
 		template<typename U = remove_cv_t<T>> requires(is_convertible_v<T const&, remove_cv_t<T>> && is_convertible_v<U, remove_cv_t<T>>)
 		constexpr remove_cv_t<T> value_or(U&& u) const&
 		{

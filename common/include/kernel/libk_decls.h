@@ -276,12 +276,11 @@ constexpr uint16_t crc16_table_val(uint16_t i)
 	return res ^ BV;
 }
 template<typename T, typename I>
-concept maskable = requires
+concept maskable = requires(T t)
 {
-	typename T::mask;
 	requires(std::integral<I>);
 	{ T::mask::value } -> std::convertible_to<I>;
-	{ std::bit_cast<I>(std::declval<T>()) } -> std::same_as<I>;
+	std::bit_cast<I>(t);
 };
 template<std::integral I, I MV> constexpr I mask_weave(I a, I b) noexcept { return static_cast<I>((a & MV) | (b & ~MV)); }
 template<std::integral I, maskable<I> T>
@@ -289,6 +288,13 @@ constexpr T& mask_assign(T& t, I val)
 {
 	I t_as_i	= std::bit_cast<I>(t);
 	addr_t(std::addressof(t)).assign(mask_weave<I, T::mask::value>(t_as_i, val));
+	return t;
+}
+template<maskable<uintptr_t> T>
+constexpr T& mask_assign(T& t, addr_t val)
+{
+	uintptr_t p	= std::bit_cast<uintptr_t>(t);
+	addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, T::mask::value>(p, val));
 	return t;
 }
 #if defined(__KERNEL__) || defined(__LIBK__)

@@ -247,6 +247,7 @@ namespace std
 			constexpr void __insert_all(__hashtable const& that) { this->__insert(const_iterator(that.__begin()), const_iterator(nullptr)); }
 			constexpr size_type __target_count_at_least(size_type cnt) const noexcept { return max(cnt, static_cast<size_type>(__builtin_ceilf(this->__element_count / this->__max_load))); }
 			constexpr __hashtable(size_type ct) : __base(ct), __node_alloc() {}
+			constexpr __hashtable(size_type ct, allocator_type const& that) : __base(ct), __node_alloc(that) {}
 			constexpr __hashtable() : __base(8UZ), __node_alloc() {}
 			constexpr __hashtable(initializer_list<value_type> ini) requires(copy_constructible<value_type>) : __hashtable(ini.size()) { this->__insert(ini); }
 			template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>)

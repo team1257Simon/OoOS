@@ -21,6 +21,8 @@ namespace std
 {
 	namespace ext
 	{
+		struct latest_t { constexpr explicit latest_t() noexcept = default; };
+		constexpr inline latest_t latest{};
 		// Any action that must be performed on acquiring or releasing a delegate pointer, such as modifying a semaphore
 		typedef function<void(void*)> delegate_callback;
 		class bad_delegate_deref : public std::exception
@@ -113,6 +115,7 @@ namespace std
 				size_t __last_idx{};
 				void __erase_at_index(size_t idx);
 				size_t __target_idx();
+				size_t __latest_idx() noexcept;
 				__generic_ptr_container(delegate_callback acq, delegate_callback rel, __node_alloc_ftor alloc, __node_dealloc_ftor dealloc);
 				__generic_ptr_container(__node_alloc_ftor alloc, __node_dealloc_ftor dealloc);
 				inline void* __addr() { return this; }
@@ -120,6 +123,7 @@ namespace std
 			template<typename T>
 			struct __object_type_managed_ptrs : __generic_ptr_container
 			{
+				size_t latest_idx() { return this->__latest_idx(); }
 				template<typename ... Args> requires(constructible_from<T, Args...>)
 				size_t add_new(Args&& ... args)
 				{
@@ -141,11 +145,24 @@ namespace std
 					at(result)		= new((*__alloc_node)()) __managed_object_node<T>(result, __destroy_node, __acquire_fn, __release_fn, t);
 					return result;
 				}
-				__managed_object_node<T>& operator[](size_t idx) &
+				__managed_object_node<T>& operator[](size_t idx)& requires(!std::is_default_constructible_v<T>)
 				{
-					if(idx > size()) throw std::out_of_range("[UTIL/DPTR] no such index");
+					if(idx >= size()) throw std::out_of_range("[UTIL/DPTR] no such index");
 					if(void* ptr = at(idx)) return *static_cast<__managed_object_node<T>*>(ptr);
 					throw std::logic_error("[UTIL/DPTR] that index is no longer valid");
+				}
+				__managed_object_node<T>& operator[](size_t& idx)& requires(std::is_default_constructible_v<T>)
+				{
+					if(idx >= size())
+					{
+						idx			= add_new();
+						void* ptr	= at(idx);
+						return *static_cast<__managed_object_node<T>*>(ptr);
+					}
+					if(void* ptr	= at(idx)) return *static_cast<__managed_object_node<T>*>(ptr);
+					__managed_object_node<T>* result	= new((*__alloc_node)()) __managed_object_node<T>(idx,  __destroy_node, __acquire_fn, __release_fn);
+					at(idx)								= result;
+					return *result;
 				}
 			};
 			typedef std::unordered_map<std::type_info const*, __generic_ptr_container>::iterator __container_iterator;
@@ -179,7 +196,7 @@ namespace std
 				__dealloc_ftor d				= std::addressof(__alloc_mgr<T>::__deallocate);
 				__delegate_ptr_mgr_inst.emplace(piecewise_construct, std::forward_as_tuple(ti_ptr), std::forward_as_tuple(std::move(acq), std::move(rel), a, d));
 			}
-			template<typename T> __managed_object_node<T>& __get(size_t idx) { return __get_ptrs<T>()[idx]; }
+			template<typename T> __managed_object_node<T>& __get(size_t& idx) { return __get_ptrs<T>()[idx]; }
 			template<typename T> 
 			class __delegate_ptr_impl
 			{
@@ -189,7 +206,7 @@ namespace std
 			public:
 				constexpr static size_t nxptr	= static_cast<size_t>(-1Z);
 			protected:
-				__delegate_ptr_impl(size_t node_idx) : __idx(node_idx), __node(std::addressof(__get<T>(node_idx).__acquire())) {}
+				__delegate_ptr_impl(size_t node_idx) : __idx(node_idx), __node(node_idx == nxptr ? nullptr : std::addressof(__get<T>(__idx).__acquire())) {}
 				__delegate_ptr_impl(__delegate_ptr_impl&& that) : __idx(that.__idx), __node(that.__node) { that.__node = nullptr; }
 				constexpr __delegate_ptr_impl(nullptr_t) noexcept : __idx(nxptr), __node(nullptr) {}
 				void __destroy() { if(__node) __node->__release(); this->__node = nullptr; }
@@ -206,14 +223,14 @@ namespace std
 					this->__destroy();
 					this->__idx		= that.__idx;
 					this->__node	= that.__node;
-					that.__node		= nullptr; 
+					that.__node		= nullptr;
 				}
 				template<typename ... Args> requires(constructible_from<T, Args...>)
 				void __emplace(Args&& ... args)
 				{
 					this->__destroy();
 					this->__idx		= __impl::__get_ptrs<T>().add_new(std::forward<Args>(args)...);
-					this->__node	= std::addressof(__get<T>(__idx).__acquire());
+					this->__node	= std::addressof(__get<T>(this->__idx).__acquire());
 				}
 				constexpr void __swap(__delegate_ptr_impl& that) noexcept {
 					std::swap(this->__node, that.__node);
@@ -239,6 +256,7 @@ namespace std
 			using __base::nxptr;
 			constexpr delegate_ptr(nullptr_t) noexcept : __base(nullptr) {}
 			delegate_ptr(size_t id) : __base(id) {}
+			delegate_ptr(latest_t) : __base(__impl::__get_ptrs<T>().latest_idx()) {}
 			delegate_ptr(T&& t) requires(move_constructible<T>) : __base(__impl::__get_ptrs<T>().add(std::move(t))) {}
 			delegate_ptr(T const& t) requires(copy_constructible<T>) : __base(__impl::__get_ptrs<T>().add(t)) {}
 			delegate_ptr(delegate_ptr const& that) : __base(that.get_id()) {}
@@ -247,9 +265,12 @@ namespace std
 			delegate_ptr& operator=(delegate_ptr const& that) { __base::__assign(that); return *this; }
 			delegate_ptr& operator=(delegate_ptr&& that) { __base::__assign(std::move(that)); return *this; }
 			delegate_ptr& operator=(nullptr_t) { __base::__destroy(); return *this; }
+			delegate_ptr& operator=(size_t id) { if(id == nxptr) __base::__destroy(); else __base::__assign(delegate_ptr(id)); return *this; }
+			delegate_ptr& operator=(latest_t) { return (*this = __impl::__get_ptrs<T>().latest_idx()); }
 			constexpr void swap(delegate_ptr& that) noexcept { __base::__swap(that); }
 			template<typename ... Args> requires(constructible_from<T, Args...>) delegate_ptr& emplace(Args&& ... args) { __base::__emplace(std::forward<Args>(args)...); return *this; }
 			void release() { __base::__destroy(); }
+			constexpr bool operator==(nullptr_t) const noexcept { return !*this; }
 			// Registers any action that must be performed on a per-reference basis with regard to a given object when acquiring or releasing a delegate pointer.
 			static void on_acquire_release(delegate_callback&& acq, delegate_callback&& rel) { __impl::__register_acq_rel_fns<T>(std::move(acq), std::move(rel)); }
 			friend constexpr strong_ordering operator<=>(delegate_ptr const& __this, delegate_ptr const& __that) noexcept { return __this.__idx <=> __that.__idx; }

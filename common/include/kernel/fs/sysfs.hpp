@@ -16,6 +16,7 @@
 #include <sys/errno.h>
 #include <typeindex>
 #include <unordered_map>
+#include <optional>
 // This template declaration is long enough that using a macro saves a significant amount of space.
 #define sysfs_htbl_template template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
 constexpr uint32_t sysfs_magic                  = 0xA11C0DED;
@@ -193,6 +194,21 @@ struct sysfs_backup_filenames
 	char extents_backup_file_name[16];
 	char directory_backup_file_name[16];
 };
+template<typename T>
+concept sized_open_coded = requires(T const& t)
+{
+	{ t.size() } -> std::integral;
+	typename T::is_open_coded;
+	requires(static_cast<bool>(T::is_open_coded::value));
+};
+template<typename T>
+concept can_write_as_bytes = std::is_object_v<T> && !std::is_const_v<T> && (trivial_copy<T> || requires
+{
+	requires(static_cast<bool>(T::can_memcpy::value));
+	requires(std::is_trivially_destructible_v<T>);
+	requires(std::is_standard_layout_v<T>);
+});
+template<typename T> struct sysfs_object_handle;
 class sysfs
 {
 	filesystem& __backend;
@@ -232,7 +248,18 @@ public:
 	std::pair<sysfs_extent_branch*, size_t> next_available_extent_entry(size_t from_idx);
 	uint32_t mknod(std::string const& name, sysfs_object_type type);
 	sysfs_vnode& open(uint32_t ino);
+	template<typename T> requires(can_write_as_bytes<T>) sysfs_object_handle<T> create(std::string const& name, T const& value);
+	template<typename T> std::optional<sysfs_object_handle<T>> find(std::string const& name);
 };
+template<typename T> concept nothrow_size = !sized_open_coded<T> || noexcept(std::declval<T const&>().size());
+template<typename T>
+constexpr static size_t size_of(T const& t) noexcept(nothrow_size<T>)
+{
+	if constexpr(sized_open_coded<T>)
+		return t.size();
+	else return sizeof(T);
+}
+
 /**
  * Represents a non-owning reference to an object stored in the sysfs.
  * The handle can be used to read and modify the object.
@@ -245,23 +272,74 @@ template<typename T>
 struct sysfs_object_handle
 {
 	sysfs_vnode& object_node;
+	bool released;
 	typedef T value_type;
 	typedef T* pointer;
 	typedef T const* const_pointer;
 	typedef T& reference;
 	typedef T const& const_reference;
-	sysfs_object_handle(sysfs_vnode& n) : object_node(n) { if(!object_node.expand_to_size(sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); object_node.pubsync(); }
-	sysfs_object_handle(sysfs_vnode& n, T const& t) requires(std::is_trivially_copy_constructible_v<T>) : object_node(n) { if(!object_node.sputn(reinterpret_cast<const char*>(std::addressof(t)), sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); object_node.pubsync(); }
+	static_assert(std::is_object_v<T>);
+	sysfs_object_handle(sysfs_vnode& n) : object_node(n), released(false) { if(!object_node.expand_to_size(sizeof(T))) throw std::runtime_error("[sysfs] no space in object file"); object_node.pubsync(); }
+	sysfs_object_handle(sysfs_vnode& n, T const& t) requires(can_write_as_bytes<T>) : object_node(n), released(false) { if(!object_node.sputn(reinterpret_cast<const char*>(std::addressof(t)), size_of(t))) throw std::runtime_error("[sysfs] no space in object file"); object_node.pubsync(); }
 	sysfs_object_handle(sysfs& parent, uint32_t ino) : sysfs_object_handle(parent.open(ino)) {}
-	sysfs_object_handle(sysfs_object_handle const& that) : object_node(that.object_node) {}
-	sysfs_object_handle(sysfs_object_handle&& that) : object_node(that.object_node) {}
+	sysfs_object_handle(sysfs_object_handle const& that) : object_node(that.object_node), released(false) {}
+	sysfs_object_handle(sysfs_object_handle&& that) : object_node(that.object_node), released(false) { that.release(); }
 	reference operator*() & { return *static_cast<pointer>(object_node.raw_data()); }
 	const_reference operator*() const& { return *static_cast<const_pointer>(object_node.raw_data()); }
 	pointer operator->() & { return static_cast<pointer>(object_node.raw_data()); }
 	const_pointer operator->() const& { return static_cast<const_pointer>(object_node.raw_data()); }
-	void commit_object() { object_node.commit(sizeof(T)); object_node.pubsync(); }
-	~sysfs_object_handle() { commit_object(); object_node.sync_parent(); }
+	pointer base() { return static_cast<pointer>(object_node.raw_data()); }
+	const_pointer base() const { return static_cast<const_pointer>(object_node.raw_data()); }
+	void release() noexcept { released	= true; }
+	sysfs_object_handle& operator=(T const& that)
+	{
+		if constexpr(!sized_open_coded<T>)
+			**this	= that;
+		else
+		{
+			static_assert(can_write_as_bytes<T>);
+			object_node.pubseekpos(std::streampos(0), std::ios_base::out);
+			if(!object_node.sputn(reinterpret_cast<const char*>(std::addressof(that)), size_of(that))) throw std::runtime_error("[sysfs] no space in object file");
+		}
+		return *this;
+	}
+	void commit_object() { object_node.commit(size_of(*base())); object_node.pubsync(); }
+	~sysfs_object_handle() { if(!released) { commit_object(); object_node.sync_parent(); } }
 };
+template<typename T>
+struct sysfs_object_handle<const T>
+{
+	sysfs_vnode& object_node;
+	typedef const T value_type;
+	typedef T const* pointer;
+	typedef T const* const_pointer;
+	typedef T const& reference;
+	typedef T const& const_reference;
+	static_assert(std::is_object_v<T>);
+	sysfs_object_handle(sysfs& parent, uint32_t ino) : sysfs_object_handle(parent.open(ino)) {}
+	sysfs_object_handle(sysfs_object_handle const& that) : object_node(that.object_node) {}
+	sysfs_object_handle(sysfs_object_handle&& that) : object_node(that.object_node) {}
+	sysfs_object_handle(sysfs_object_handle<T> const& that) : object_node(that.object_node) {}
+	sysfs_object_handle(sysfs_object_handle<T>&& that) : object_node(that.object_node) {}
+	const_reference operator*() const { return *static_cast<const_pointer>(object_node.raw_data()); }
+	const_pointer operator->() const { return static_cast<const_pointer>(object_node.raw_data()); }
+	const_pointer base() const { return static_cast<const_pointer>(object_node.raw_data()); }
+};
+template<typename T> requires(can_write_as_bytes<T>)
+sysfs_object_handle<T> sysfs::create(std::string const& name, T const& value)
+{
+	uint32_t ino	= add_inode();
+	sysfs_object_handle<T> result(open(ino), value);
+	dir_add_object(name, ino);
+	return result;
+}
+template<typename T>
+std::optional<sysfs_object_handle<T>> sysfs::find(std::string const& name)
+{
+	uint32_t result	= find_node(name);
+	if(result) return std::optional<sysfs_object_handle<T>>(std::in_place, *this, result);
+	return std::nullopt;
+}
 /**
  * Tabulated data in sysfs is stored in hashtables.
  * These take up two objects: one containing the table's pointers and the other containing the actual data.

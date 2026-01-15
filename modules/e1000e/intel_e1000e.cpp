@@ -18,14 +18,7 @@ static inline uint16_t get_io_bar(pci_config_space* device)
 				return static_cast<uint16_t>(device->header_0x0.bar[i] & 0xFFFCUS);
 	return 0;
 }
-template<ooos::condition_callable FT>
-static inline bool await_completion(time_t max_spin, FT&& ft)
-{
-	for(time_t spin = 0UZ; spin < max_spin; spin++)
-		if(ft())
-			return true;
-	return ft();
-}
+using ooos::await_completion;
 ie1000e::config_type ie1000e::cfg(e1000e_config());
 ooos::generic_config_table& ie1000e::get_config() { return cfg.generic; }
 size_t ie1000e::rx_limit() const noexcept { return ooos::get_element<2>(cfg); }

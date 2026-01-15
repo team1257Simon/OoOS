@@ -251,12 +251,14 @@ struct attribute(packed, aligned(4)) pci_capabilities_register
 		} pcie_device_capability;
 	};
 };
-struct __pack msix_table_entry
+struct __pack msix_t
 {
-	uintptr_t msg_addr;
+	uintptr_t msg_addr;	// lowest 2 bits are 0
 	uint32_t msg_data;
 	uint32_t mask_bit;	// only the lowest bit should be modified
 };
+typedef decltype(std::declval<pci_capabilities_register&>().msi_32) msi32_t;
+typedef decltype(std::declval<pci_capabilities_register&>().msi_64) msi64_t;
 struct __pack pci_config_ptr
 {
 	pci_config_space* config_start;
@@ -280,6 +282,12 @@ struct bar_desc
 	bool is_prefetchable;
 	addr_t base_value;
 	size_t base_size;
+};
+enum class msi_trigger_mode : uint8_t
+{
+	EDGE		= 0UC,
+	LEVEL_LOW	= 2UC,
+	LEVEL_HIGH	= 3UC
 };
 inline bar_desc compute_bar_info(pci_config_space volatile& dev, int i)
 {

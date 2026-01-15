@@ -3,6 +3,7 @@
 #include <kernel_api.hpp>
 #include <span>
 #include <optional>
+#include <unordered_map>
 #include <errno.h>
 /**
  * EXPORT_MODULE(T, Args...)
@@ -101,20 +102,24 @@ namespace ooos
 		inline uint32_t register_device(dev_stream<char>* stream, device_type type) { return __api_hooks->register_device(stream, type); }
 		inline bool deregister_device(dev_stream<char>* stream) { return __api_hooks->deregister_device(stream); }
 		inline void log(const char* msg) { __api_hooks->log(typeid(*this), msg); }
-		template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
-		template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { __api_hooks->on_irq(irq, std::move(isr_actor(std::forward<FT>(handler), this->__allocated_mm)), this); }
 		friend void module_takedown(abstract_module_base* mod);
 		inline void put_ctx(cxxabi_abort& abort_handler) { abort_handler.eh_ctx = std::addressof(__eh_ctx); }
 		inline jmp_buf& ctx_jmp() { return __eh_ctx.handler_ctx; }
 		inline const char* ctx_msg() { return __eh_ctx.msg; }
 		inline int ctx_status() { return __eh_ctx.status; }
 		inline void ctx_end() { __eh_ctx.handler_ctx[0] = __saved_jb[0]; }
+		inline int load_config() { return __api_hooks->load_config(this); }
+		inline int save_config() { return __api_hooks->save_config(this); }
 		inline size_t asprintf(const char** strp, const char* fmt, ...);
 		inline size_t logf(const char* fmt, ...);
 		inline block_io_provider_module* as_blockdev();
+		template<io_buffer_ok T> inline dev_stream<T>* as_device() { return dynamic_cast<dev_stream<T>*>(this); }
+		template<wrappable_actor FT> inline void on_irq(uint8_t irq, FT&& handler) { __api_hooks->on_irq(irq, std::move(isr_actor(std::forward<FT>(handler), this->__allocated_mm)), this); }
 		template<typename T> inline void release_array(T* arr) { this->release_buffer(arr, alignof(T)); }
 		template<typename T, size_t A = alignof(T)>
 		inline T* allocate_array(size_t num) { return array_zero(static_cast<T*>(allocate_buffer(num * sizeof(T), A)), num); }
+		template<wrappable_actor FT>
+		inline bool register_msi(msix_t volatile& reg, FT&& handler, msi_trigger_mode mode = msi_trigger_mode::EDGE) { return __api_hooks->extended_msi(this, isr_actor(std::forward<FT>(handler), this->__allocated_mm), reg, mode); }
 		template<trivial_copy T, size_t A = alignof(T)>
 		inline T* resize_array(T* orig, size_t old_size, size_t target_size) { return static_cast<T*>(resize_buffer(orig, old_size * sizeof(T), target_size * sizeof(T), A)); }
 		template<nontrivial_copy T, size_t A = alignof(T)>
@@ -136,6 +141,34 @@ namespace ooos
 				__save_init_jb();
 			}
 		}
+		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
+		inline bool register_msi(msi32_t volatile& reg, FTs&& ... handlers)
+		{
+			typedef std::array<isr_actor, 7> msi_array;
+			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
+			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, msi_trigger_mode::EDGE);
+		}
+		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
+		inline bool register_msi(msi32_t volatile& reg, msi_trigger_mode mode, FTs&& ... handlers)
+		{
+			typedef std::array<isr_actor, 7> msi_array;
+			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
+			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, mode);
+		}
+		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
+		inline bool register_msi(msi64_t volatile& reg, FTs&& ... handlers)
+		{
+			typedef std::array<isr_actor, 7> msi_array;
+			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
+			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, msi_trigger_mode::EDGE);
+		}
+		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
+		inline bool register_msi(msi64_t volatile& reg, msi_trigger_mode mode, FTs&& ... handlers)
+		{
+			typedef std::array<isr_actor, 7> msi_array;
+			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
+			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, mode);
+		}
 	};
 	template<typename T>
 	class managed_dma_span : public std::span<T>
@@ -144,6 +177,7 @@ namespace ooos
 		std::reference_wrapper<abstract_module_base> __mod;
 		__base& __upcast() { return *static_cast<__base*>(this); }
 		void __reset() noexcept { __upcast() = __base(); }
+		static T* __allocate(abstract_module_base& mod, size_t n, bool prefetch) { return array_zero<T>(addr_t(mod.allocate_dma(n * sizeof(T), prefetch)), n); }
 		managed_dma_span& __set(T* ptr, size_t n) noexcept
 		{
 			destroy();
@@ -152,9 +186,10 @@ namespace ooos
 		}
 	public:
 		managed_dma_span(abstract_module_base& mod) noexcept : __base(), __mod(std::ref(mod)) {}
-		managed_dma_span(abstract_module_base& mod, size_t n, bool prefetch) : __base(static_cast<T*>(mod.allocate_dma(n, prefetch)), n), __mod(std::ref(mod)) {}
+		managed_dma_span(abstract_module_base& mod, size_t n, bool prefetch) : __base(__allocate(mod, n, prefetch), n), __mod(std::ref(mod)) {}
+		managed_dma_span(managed_dma_span&& that) noexcept : __base(std::backward<__base>(that)), __mod(that.__mod) { that.__reset(); }
 		~managed_dma_span() { this->destroy(); }
-		managed_dma_span(managed_dma_span&& that) noexcept : __base(static_cast<__base&>(that)), __mod(that.__mod) { that.__reset(); }
+		managed_dma_span& create(size_t n, bool prefetch) { return __set(__allocate(__mod, n, prefetch), n); }
 		void destroy()
 		{
 			if(__base::data())
@@ -167,12 +202,6 @@ namespace ooos
 			this->__upcast()	= that.__upcast();
 			that.__reset();
 			return *this;
-		}
-		managed_dma_span& create(size_t n, bool prefetch)
-		{
-			size_t bytes	= n * sizeof(T);
-			T* ptr			= static_cast<T*>(__mod.get().allocate_dma(bytes, prefetch));
-			return __set(ptr, n);
 		}
 	};
 	template<typename T>
@@ -225,6 +254,8 @@ namespace ooos
 		[[nodiscard]] [[gnu::always_inline]] inline pointer allocate(size_type n) const { return this->__allocate(n); }
 		[[gnu::always_inline]] inline void deallocate(pointer p, size_type n) const { this->__deallocate(p, n); }
 	};
+	template<typename T> using mod_mm_vec = std::vector<T, module_mm_allocator<T>>;
+	template<typename KT, typename MT, typename HT = std::hash<KT>, typename ET = std::equal_to<void>> using mod_mm_map = std::unordered_map<KT, MT, HT, ET, module_mm_allocator<std::pair<const KT, MT>>>;
 	template<std::derived_from<abstract_module_base> MT> constexpr MT*& local_instance_ptr();
 	template<std::derived_from<abstract_module_base> MT> constexpr MT& instance() { return *local_instance_ptr<MT>(); }
 	struct block_io_provider_module : abstract_module_base, abstract_block_device::provider{};

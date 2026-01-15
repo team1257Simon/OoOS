@@ -373,7 +373,7 @@ void hpet_tests()
 	}
 	else panic("hpet init failed");
 }
-constexpr static sysfs_backup_filenames test_backup_filenames
+constinit static sysfs_backup_filenames test_backup_filenames
 {
 	.data_backup_file_name      { "objects.bak" },
 	.index_backup_file_name     { "index.bak" },

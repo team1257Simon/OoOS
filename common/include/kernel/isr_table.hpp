@@ -7,11 +7,20 @@
 #include <vector>
 typedef std::ext::nothrow_function<> irq_callback;
 typedef std::ext::nothrow_function<byte, qword> interrupt_callback;
+struct msi_info
+{
+	uintptr_t msg_addr_value;
+	void* owner;
+	uint16_t msg_data_value;
+	ooos::isr_actor callback;
+};
 namespace interrupt_table
 {
 	__nointerrupts bool add_irq_handler(byte idx, irq_callback&& handler) noexcept;
 	__nointerrupts bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept;
 	__nointerrupts void deregister_owner(void* owner) noexcept;
 	__nointerrupts void add_interrupt_callback(interrupt_callback&& cb) noexcept;
+	__nointerrupts msi_info* allocate_msi_vector(void* owner, ooos::isr_actor&& handler, qword current_msi_addr, word current_msi_data, msi_trigger_mode mode) noexcept;
+	__nointerrupts msi_info* allocate_msi_vectors(void* owner, uint8_t count, qword current_msi_addr_field, word current_msi_data_field, msi_trigger_mode mode) noexcept;
 }
 #endif

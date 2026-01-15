@@ -27,6 +27,7 @@ namespace std
 		constexpr pair<iterator, bool> __insert_or_assign(__node_ptr n);
 	public:
 		constexpr hash_map(size_type bucket_ct) : __base(bucket_ct) {}
+		constexpr hash_map(size_type bucket_ct, allocator_type const& alloc) : __base(bucket_ct, alloc) {}
 		template<input_iterator IT, sentinel_for<IT> ST> requires(constructible_from<value_type, iter_reference_t<IT>>)
 		constexpr hash_map(IT first, ST last) : __base(first, last) {}
 		constexpr hash_map()							= default;

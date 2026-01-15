@@ -1,6 +1,7 @@
 #include <libk_decls.h>
 #include <arch/idt_amd64.h>
 #include <arch/apic.hpp>
+#include <util/bitmap.hpp>
 #include <unordered_map>
 #include <isr_table.hpp>
 #include <kernel_mm.hpp>
@@ -10,10 +11,38 @@
 std::array<std::unordered_map<void*, ooos::isr_actor>, 16UZ> __managed_handlers{};
 std::array<std::vector<irq_callback>, 16UZ> __handler_tables{};
 std::vector<interrupt_callback> __registered_callbacks{};
+std::array<msi_info, 256UZ - 48UZ> __msi_handlers{};
+static uint64_t msi_vec_alloc_bitmap[4] { 0xFFFFFFFFFFFFUL, 0UL, 0UL, 0UL };
 extern volatile apic bsp_lapic;
+struct __pack msi_addr_reg
+{
+	bool				: 2;
+	bool dst_mode		: 1;
+	bool redir_hint		: 1;
+	bool				: 8;
+	uint8_t dst_id		: 8;
+	uint16_t hi_bits	: 12;
+};
+enum class msi_delivery_mode : uint8_t
+{
+	FIXED	= 0UC,
+	LOWEST	= 1UC,
+	SMI		= 2UC,
+	NMI		= 4UC,
+	INIT	= 5UC,
+	EXTERN	= 7UC,
+};
+struct __pack msi_data_reg
+{
+	uint8_t vec;
+	msi_delivery_mode delivery_mode	: 3;
+	bool							: 3;
+	msi_trigger_mode trigger_mode	: 2;
+};
 namespace interrupt_table
 {
     spinlock_t __itable_mutex;
+	uint8_t irq_range			= 0x30UC;
     void __lock() { lock(std::addressof(__itable_mutex)); }
     void __unlock() { release(std::addressof(__itable_mutex)); }
 	void deregister_owner(void* owner) noexcept
@@ -22,6 +51,16 @@ namespace interrupt_table
 		{
 			__lock();
 			for(std::unordered_map<void*, ooos::isr_actor>& m : __managed_handlers) m.erase(owner);
+			for(msi_info& msi : __msi_handlers)
+			{
+				if(msi.owner == owner)
+				{
+					uint8_t vec		= dword(msi.msg_data_value).lo.lo;
+					msi.callback	= nullptr;
+					msi.owner		= nullptr;
+					bitmap_clear_bit(msi_vec_alloc_bitmap, vec);
+				}
+			}
 			__unlock();
 		}
 	}
@@ -74,10 +113,59 @@ namespace interrupt_table
 			abort();
 		}
 	}
+	msi_info* allocate_msi_vector(void* owner, ooos::isr_actor&& handler, qword current_msi_addr_field, word current_msi_data_field, msi_trigger_mode mode) noexcept
+	{
+		off_t ivec			= bitmap_scan_single_zero(msi_vec_alloc_bitmap, 4UZ);
+		if(__unlikely(ivec < 0Z)) return nullptr;
+		__lock();
+		bitmap_set_bit(msi_vec_alloc_bitmap, ivec);
+		uint8_t vec			= static_cast<uint8_t>(ivec);
+		msi_addr_reg addr	= std::bit_cast<msi_addr_reg>(current_msi_addr_field.lo);
+		msi_data_reg data	= std::bit_cast<msi_data_reg>(current_msi_data_field);
+		addr.hi_bits		= 0xFFEUS;
+		data.delivery_mode	= msi_delivery_mode::FIXED;
+		data.trigger_mode	= mode;
+		data.vec			= vec;
+		msi_info* result	= new(std::addressof(__msi_handlers[vec - 0x30UC])) msi_info
+		{
+			.msg_addr_value	= qword(std::bit_cast<uint32_t>(addr), 0U),
+			.owner			= owner,
+			.msg_data_value	= std::bit_cast<uint16_t>(data),
+			.callback		= std::move(handler)
+		};
+		__unlock();
+		return result;
+	}
+	msi_info* allocate_msi_vectors(void* owner, uint8_t count, qword current_msi_addr_field, word current_msi_data_field, msi_trigger_mode mode) noexcept
+	{
+		off_t ivec			= bitmap_scan_chain_zeroes(msi_vec_alloc_bitmap, 4UZ, count);
+		if(__unlikely(ivec < 0Z)) return nullptr;
+		__lock();
+		bitmap_set_chain_bits(msi_vec_alloc_bitmap, ivec, count);
+		msi_addr_reg addr	= std::bit_cast<msi_addr_reg>(current_msi_addr_field.lo);
+		msi_data_reg data	= std::bit_cast<msi_data_reg>(current_msi_data_field);
+		addr.hi_bits		= 0xFFEUS;
+		data.delivery_mode	= msi_delivery_mode::FIXED;
+		data.trigger_mode	= mode;
+		uint8_t vec			= static_cast<uint8_t>(ivec);
+		uint8_t pos			= vec - 0x30UC;
+		for(uint8_t i		= 0UC; i < count; i++)
+		{
+			data.vec		= vec + i;
+			new(std::addressof(__msi_handlers[pos + i])) msi_info
+			{
+				.msg_addr_value	= qword(std::bit_cast<uint32_t>(addr), 0U),
+				.owner			= owner,
+				.msg_data_value	= std::bit_cast<uint16_t>(data)
+			};
+		}
+		__unlock();
+		return std::addressof(__msi_handlers[pos]);
+	}
 }
 inline void pic_eoi(byte irq)
 {
-    if(bsp_lapic.valid()) { bsp_lapic.eoi(); return; }
+    if(bsp_lapic.valid()) return bsp_lapic.eoi();
     if(irq > 7) outb(command_pic2, sig_pic_eoi);
     outb(command_pic1, sig_pic_eoi);
 }
@@ -129,6 +217,14 @@ extern "C"
             kfx_load();
             kernel_memory_mgr::resume_user_frame();
         }
+		else if(idx >= 0x30UC && __msi_handlers[idx - 0x30UC].callback)
+		{
+            kernel_memory_mgr::suspend_user_frame();
+            kfx_save();
+			__msi_handlers[idx - 0x30UC].callback();
+            kfx_load();
+            kernel_memory_mgr::resume_user_frame();
+		}
         else
         {
             kernel_memory_mgr::suspend_user_frame();

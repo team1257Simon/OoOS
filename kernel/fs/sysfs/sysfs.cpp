@@ -200,7 +200,7 @@ uint32_t sysfs::find_node(std::string const& name)
 {
 	std::unordered_map<std::string, uint32_t>::iterator result = __directory_map.find(name);
 	if(result != __directory_map.end()) return result->second;
-	return 0;
+	return 0U;
 }
 void sysfs::init_blank(sysfs_backup_filenames const& bak)
 {

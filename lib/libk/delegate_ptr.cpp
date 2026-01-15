@@ -7,6 +7,14 @@ namespace std
 		namespace __impl
 		{
 			unordered_map<const type_info*, __generic_ptr_container> __delegate_ptr_mgr_inst(256);
+			size_t __generic_ptr_container::__latest_idx() noexcept
+			{
+				if(!empty()) [[likely]]
+					for(ssize_t i = size() - 1Z; i >= 0Z; i--)
+						if(at(i) != nullptr)
+							return static_cast<size_t>(i);
+				return static_cast<size_t>(-1Z);
+			}
 			size_t __generic_ptr_container::__target_idx()
 			{
 				if(__last_idx)

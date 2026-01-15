@@ -46,13 +46,13 @@ namespace std
 		static constexpr pointer pointer_to(__make_not_void<element_type>& __r) noexcept { return std::addressof(__r); }
 	};
 	template<typename T> concept __can_ref	= requires { std::declval<T&>(); };
-	template<typename T> concept __is_ptr = __can_ref<decltype(*std::declval<T>())>;
-	template<typename PT> concept __has_base = requires(PT const& p) { { p.base() } -> __is_ptr; };
+	template<typename T> concept __is_ptr_like = __can_ref<decltype(*std::declval<T>())>;
+	template<typename PT> concept __has_base = requires(PT const& p) { { p.base() } -> __is_ptr_like; };
 	template<typename PT, typename T> using __ptr_rebind = typename pointer_traits<PT>::template rebind<T>;
 	template<typename T> constexpr T* __to_address(T* __ptr) noexcept { static_assert(!std::is_function<T>::value, "not a function pointer"); return __ptr; }
-	template<typename PT> constexpr auto __to_address(const PT& __ptr) noexcept -> decltype(std::pointer_traits<PT>::to_address(__ptr)) { return std::pointer_traits<PT>::to_address(__ptr); }
-	template<typename PT, typename ... None> constexpr auto __to_address(const PT& __ptr, None ...) noexcept { if constexpr(__has_base<PT>) return __to_address(__ptr.base()); return std::addressof(*__ptr); }
+	template<typename PT> constexpr auto __to_address(PT const& __ptr) noexcept -> decltype(std::pointer_traits<PT>::to_address(__ptr)) { return std::pointer_traits<PT>::to_address(__ptr); }
+	template<typename PT, typename ... None> constexpr auto __to_address(PT const& __ptr, None ...) noexcept { if constexpr(__has_base<PT>) return __to_address(__ptr.base()); return std::addressof(*__ptr); }
 	template<typename T>  constexpr T* to_address(T* __ptr) noexcept { return std::__to_address(__ptr); }
-	template<typename PT> constexpr auto to_address(const PT& __ptr) noexcept { return std::__to_address(__ptr); }
+	template<typename PT> constexpr auto to_address(PT const& __ptr) noexcept { return std::__to_address(__ptr); }
 }
 #endif

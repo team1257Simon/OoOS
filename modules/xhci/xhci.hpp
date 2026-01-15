@@ -4,12 +4,13 @@
 #include <arch/pci.hpp>
 #include <arch/usb_abstract.hpp>
 #include <bits/unique_ptr.hpp>
+#include <util/event_listener.hpp>
 constexpr uint8_t devclass_sb	= 0x0CUC;
 constexpr uint8_t subclass_usb	= 0x03UC;
 constexpr uint8_t progif_xhci	= 0x30UC;
 #define maskable_addr(P2VAL)																										\
 	constexpr operator addr_t() const noexcept { return addr_t(std::bit_cast<uintptr_t>(*this) & ~p2align_mask<P2VAL>::value); }	\
-	constexpr auto& operator=(addr_t p) noexcept { return mask_assign(*this, p.full); }												\
+	constexpr decltype(auto) operator=(addr_t p) volatile noexcept { return mask_assign(*this, p); }								\
 	typedef p2align_mask<P2VAL> mask
 namespace ooos
 {
@@ -75,7 +76,8 @@ namespace ooos
 		SCT_SSA_32			= 4UC,
 		SCT_SSA_64			= 5UC,
 		SCT_SSA_128			= 6UC,
-		SCT_SSA_256			= 7UC
+		SCT_SSA_256			= 7UC,
+		SCT_NOT_STREAM		= 0UC,
 	};
 	enum class trb_type : uint8_t
 	{
@@ -181,14 +183,30 @@ namespace ooos
 		GREEN	= 2UC,
 		// 3 is undefined
 	};
+	enum class xhci_extended_protocol_code : uint8_t
+	{
+		USB_LEGACY				= 1UC,
+		SUPPORTED_PROTOCOL		= 2UC,
+		EXTENDED_POWER_MGMT		= 3UC,
+		IO_VIRTUALIZATION		= 4UC,
+		MSG_INTERRUPT			= 5UC,
+		LOCAL_MEMORY			= 6UC,
+		USB_DEBUG				= 10UC,
+		EXTENDED_MSG_INTERRUPT	= 17UC,
+	};
+	enum class xhci_protocol_version_code : uint16_t
+	{
+		USB2_0	= 0x0200US,
+		USB3_0	= 0x0300US,
+		USB3_1	= 0x0310US,
+		USB3_2	= 0x0320US,
+	};
 	struct __pack xhci_dequeue_link
 	{
-		typedef p2align_mask<4UZ> mask;
 		bool dequeue_cycle_state	: 1;
 		stream_contex_type sct		: 3;	// only valid in stream contexts; otherwise, must be 0
 		uint64_t dequeue_ptr		: 60;
-		constexpr operator addr_t() const noexcept { return addr_t(std::bit_cast<uintptr_t>(*this) & ~mask::value); }
-		constexpr xhci_dequeue_link& operator=(addr_t p) noexcept { return mask_assign(*this, p.full); }
+		maskable_addr(4);
 	};
 	struct __pack xhci_slot_context
 	{
@@ -223,7 +241,7 @@ namespace ooos
 		endpoint_state state			: 3;
 		bool							: 5;
 		uint8_t mult					: 2;	// maximum number of bursts within an interval supported; actual value is 1 higher
-		uint8_t max_primary_streams		: 5;
+		uint8_t max_primary_streams		: 5;	// this number is an exponent, i.e. the size of the primary array is 2^(x + 1) where x is this value
 		bool linear_stream_array		: 1;
 		uint8_t interval;
 		uint8_t max_esit_payload_hi;			// max endpoint service time interval payload, high-order 8 bits
@@ -243,13 +261,8 @@ namespace ooos
 	struct attribute(aligned(64)) xhci_device_context
 	{
 		xhci_slot_context slot_context;
-		xhci_endpoint_context ep0;
-		struct {
-			xhci_endpoint_context in;
-			xhci_endpoint_context out;
-			constexpr xhci_endpoint_context& operator[](bool b) noexcept { return b ? out : in; }
-		} ep[15];
-		constexpr xhci_endpoint_context& operator[](uint8_t i) noexcept { return !i ? ep0 : ep[(i - 1SC) / 2][!(i % 2)]; }
+		xhci_endpoint_context ep[31];
+		constexpr xhci_endpoint_context& operator[](uint8_t i) noexcept { return ep[i]; }
 	};
 	struct __pack xhci_stream_context
 	{
@@ -313,7 +326,7 @@ namespace ooos
 	struct __pack transfer_trb_dw2
 	{
 		uint32_t trb_transfer_length	: 17;	// bytes to send or size of receive buffer
-		uint8_t td_size_tbc				: 5;	// td size or transfer burst count
+		uint8_t tds_or_tbc				: 5;	// td size or transfer burst count
 		uint16_t interrupter_target		: 10;
 	};
 	struct __pack transfer_event_trb_dw2 {
@@ -340,14 +353,9 @@ namespace ooos
 	struct __pack cmd_trb_dw2
 	{
 		uint16_t				: 16;
-		union __pack [[gnu::may_alias]]
-		{
-			empty_byte empty{};
+		union __pack [[gnu::may_alias]] {
+			empty_word empty{};
 			uint16_t stream_id;
-			struct __pack {
-				bool							: 6;
-				uint16_t vf_interrupter_target	: 10;
-			};
 		};
 	};
 	struct __pack other_trb_dw2 {
@@ -431,7 +439,8 @@ namespace ooos
 		uint32_t data_low[3];
 		struct __pack
 		{
-			uint16_t		: 10;
+			bool cycle		: 1;
+			uint16_t		: 9;
 			trb_type value	: 6;
 			constexpr operator trb_type() const noexcept { return value; }
 			constexpr auto& operator=(trb_type t) noexcept { value = t; return *this; }
@@ -610,9 +619,10 @@ namespace ooos
 			bool save_state_status			: 1;
 			bool restore_state_status		: 1;
 			bool state_sr_error				: 1;	// state save/restore error
-			bool controller_not_ready		: 1;	// do not write controller registers other than status until this is 1
+			bool controller_not_ready		: 1;	// do not write controller registers other than status if this is 1
 			bool host_controller_error		: 1;
 			int								: 19;
+			inline bool ready() volatile noexcept { return !controller_not_ready; }
 		} status;
 		uint32_t max_pagesize;
 		uint32_t rsvd0[2];
@@ -650,7 +660,7 @@ namespace ooos
 		uint16_t moderation_interval;
 		uint16_t moderation_counter;
 		uint16_t segment_table_size;	// size in entries
-		uint16_t rsvdp[3];
+		uint16_t rsvdp[3];				// no touch!
 		struct __pack
 		{
 			bool				: 6;
@@ -711,7 +721,7 @@ namespace ooos
 	typedef xhci_cmd_trb<other_cmd_trb_dw3hi> xhci_stop_endpoint_cmd_trb;
 	typedef xhci_cmd_trb<other_cmd_trb_dw3hi, trb_data_ptr> xhci_set_dequeue_ptr_cmd_trb;
 	typedef xhci_cmd_trb<other_cmd_trb_dw3hi> xhci_reset_device_cmd_trb;
-	typedef xhci_cmd_trb<force_event_cmd_trb_dw3hi, trb_data_ptr> xhci_force_event_cmd_trb;
+	typedef xhci_cmd_trb<force_event_cmd_trb_dw3hi, trb_data_ptr, other_trb_dw2> xhci_force_event_cmd_trb;	// for virtualization; the interrupter target is a virtual value on the targeted virtual function
 	typedef xhci_cmd_trb<other_cmd_trb_dw3hi> xhci_negotiate_bandwidth_cmd_trb;
 	typedef xhci_cmd_trb<set_latency_tolerance_cmd_trb_dw3hi> xhci_set_latency_tolerance_cmd_trb;
 	typedef xhci_cmd_trb<get_port_bandwidth_cmd_trb_dw3hi, trb_data_ptr> xhci_get_port_bandwidth_cmd_trb;
@@ -723,28 +733,154 @@ namespace ooos
 	{
 		return ooos::create_config
 		(
-			ooos::parameter("max_slots_enabled",	255UC),
-			ooos::parameter("trb_segment_length",	4096UZ),
-			ooos::parameter("imod_interval",		4000US),
-			ooos::parameter("trb_use_prefetch", 	true)
+			ooos::parameter("max_slots_enabled",		255UC),
+			ooos::parameter("trb_segment_length",		1024US),
+			ooos::parameter("imod_interval",			4000US),
+			ooos::parameter("trb_use_prefetch", 		true),
+			ooos::parameter("max_spin",					static_cast<time_t>(10000000UL)),
+			ooos::parameter("max_event_ring_segments",	128US)
 		);
 	}
 	typedef decltype(xhci_config()) xhci_config_type;
 	class xhci_device_slot;
 	typedef managed_dma_span<xhci_generic_trb> trb_ring_segment;
+	template<typename T>
+	struct xhci_segmented_array
+	{
+		class ring_pointer
+		{
+			typedef managed_dma_span<T>::difference_type difference_type;
+			std::reference_wrapper<mod_mm_vec<managed_dma_span<T>>> __segments;
+			size_t __segment_idx;
+			managed_dma_span<T>::iterator __current_pos;
+			friend xhci_segmented_array;
+			constexpr mod_mm_vec<managed_dma_span<T>>& __segs() noexcept { return __segments; }
+			constexpr mod_mm_vec<managed_dma_span<T>> const& __segs() const noexcept { return __segments; }
+			constexpr managed_dma_span<T>& __seg() noexcept { return __segs()[__segment_idx]; }
+			constexpr managed_dma_span<T> const& __seg() const noexcept { return __segs()[__segment_idx]; }
+			constexpr bool __has_next_segment() const noexcept { return __segment_idx + 1UZ < __segs().size(); }
+			constexpr bool __equal(ring_pointer const& that) const noexcept { return std::addressof(this->__seg()) == std::addressof(that.__seg()) && this->__current_pos == that.__current_pos; }
+			constexpr bool __same_ring_as(ring_pointer const& that) const noexcept { return this->__segments.ptr() == that.__segments.ptr(); }
+			constexpr std::strong_ordering __compare_seg_or_pos(ring_pointer const& that) const noexcept { return this->__segment_idx == that.__segment_idx ? this->__current_pos <=> that.__current_pos : this->__segment_idx <=> that.__segment_idx; }
+			constexpr void __to_begin() noexcept { if(__segs().size() > __segment_idx) __current_pos = __seg().begin(); }
+			constexpr void __reset() noexcept { __segment_idx = 0UZ; this->__to_begin(); }
+			constexpr void __adjust(difference_type n) noexcept
+			{
+				if(n < 0Z)
+				{
+					difference_type diff		= __current_pos - __seg().begin();
+					n							*= -1Z;
+					if(n > diff)
+					{
+						if(__segment_idx)
+						{
+							difference_type rem	= diff - n;
+							--__segment_idx;
+							__current_pos		= (__seg().rbegin() + rem).base();
+						}
+						else __current_pos		= __seg().begin();
+					}
+					else __current_pos			-= n;
+				}
+				else
+				{
+					if(!(__current_pos + n < __seg().end())) 
+					{
+						if(__has_next_segment())
+						{
+							difference_type rem	= __seg().end() - __current_pos;
+							++__segment_idx;
+							__current_pos		= __seg().begin() + (n - rem);
+						}
+						else __current_pos		= __seg().end();
+					}
+					else __current_pos			+= n;
+				}
+			}
+		public:
+			constexpr explicit ring_pointer(xhci_segmented_array& parent) noexcept : __segments(std::ref(parent.segments)), __segment_idx(), __current_pos() { this->__to_begin(); }
+			ring_pointer(ring_pointer const&)				= default;
+			ring_pointer(ring_pointer&&)					= default;
+			ring_pointer& operator=(ring_pointer const&)	= default;
+			ring_pointer& operator=(ring_pointer&&)			= default;
+			constexpr xhci_generic_trb& operator*() const noexcept { return *__current_pos; }
+			constexpr xhci_generic_trb* operator->() const noexcept { return std::to_address(__current_pos); }
+			constexpr xhci_generic_trb* base() const noexcept { return __current_pos.base(); }
+			constexpr managed_dma_span<T>::iterator bound() const noexcept { return __seg().empty() ? managed_dma_span<T>::iterator() : __seg().end() - 1Z; }
+			constexpr ring_pointer& operator++() noexcept { return __adjust(1Z), *this; }
+			constexpr ring_pointer& operator--() noexcept { return __adjust(-1Z), *this; }
+			constexpr ring_pointer& operator+=(difference_type n) noexcept { return __adjust(n), *this; }
+			constexpr ring_pointer& operator-=(difference_type n) noexcept { return __adjust(-n), *this; }
+			constexpr ring_pointer operator+(difference_type n) const noexcept { return (ring_pointer(*this) += n); }
+			constexpr ring_pointer operator-(difference_type n) const noexcept { return (ring_pointer(*this) -= n); }
+			constexpr ring_pointer operator++(int) noexcept { ring_pointer that(*this); __adjust(1Z); return that; }
+			constexpr ring_pointer operator--(int) noexcept { ring_pointer that(*this); __adjust(-1Z); return that; }
+			constexpr operator bool() noexcept { return __current_pos.base() != nullptr; }
+			friend constexpr bool operator==(ring_pointer const& __this, ring_pointer const& __that) noexcept { return __this.__equal(__that); }
+			friend constexpr bool operator==(ring_pointer const& __this, managed_dma_span<T>::iterator const& __that) noexcept { return __this.__current_pos == __that; }
+			friend constexpr bool operator==(managed_dma_span<T>::iterator const& __this, ring_pointer const& __that) noexcept { return __this == __that.__current_pos; }
+			friend constexpr std::partial_ordering operator<=>(ring_pointer const& __this, ring_pointer const& __that) noexcept { return __this.__same_ring_as(__that) ? __this.__compare_seg_or_pos(__that) : std::partial_ordering::unordered; }
+		};
+		mod_mm_vec<managed_dma_span<T>> segments;
+		constexpr xhci_segmented_array() noexcept : segments() {}
+		constexpr xhci_segmented_array(abstract_module_base* mod) noexcept : segments(mod) {}
+		constexpr xhci_segmented_array(mod_mm_vec<managed_dma_span<T>>&& vec) noexcept : segments(std::move(vec)) {}
+		constexpr void init_ptr(ring_pointer& p) noexcept { p.__to_begin(); }
+		constexpr void reset_ptr(ring_pointer& p) noexcept { p.__reset(); }
+		constexpr managed_dma_span<T>::iterator ring_end() const noexcept { return segments.back().end(); }
+	};
+	struct xhci_trb_ring : public xhci_segmented_array<xhci_generic_trb>
+	{
+		ring_pointer enqueue;
+		ring_pointer dequeue;
+		constexpr xhci_trb_ring() noexcept : xhci_segmented_array<xhci_generic_trb>(), enqueue(*this), dequeue(*this) {}
+		constexpr xhci_trb_ring(abstract_module_base* mod) noexcept : xhci_segmented_array<xhci_generic_trb>(mod), enqueue(*this), dequeue(*this) {}
+		constexpr xhci_trb_ring(mod_mm_vec<trb_ring_segment>&& vec) noexcept : xhci_segmented_array<xhci_generic_trb>(std::move(vec)), enqueue(*this), dequeue(*this) {}
+		constexpr void init_ptrs() noexcept { init_ptr(enqueue); init_ptr(dequeue); }
+	};
+	struct xhci_stream_set
+	{
+		struct stream_array;
+		struct array_entry
+		{
+			bool target_secondary;
+			uint8_t idx_bits;
+			union array_entry_target
+			{
+				std::reference_wrapper<xhci_trb_ring> trb_ring;
+				std::reference_wrapper<stream_array> secondary_array;
+				constexpr array_entry_target(stream_array& secondary) noexcept : secondary_array(std::ref(secondary)) {}
+				constexpr array_entry_target(xhci_trb_ring ring) noexcept : trb_ring(std::ref(ring)) {}
+			} target;
+			constexpr array_entry(stream_array& secondary, uint8_t idx) noexcept : target_secondary(true), idx_bits(idx), target(secondary) {}
+			constexpr array_entry(xhci_trb_ring& ring, uint8_t idx) noexcept : target_secondary(false), idx_bits(idx), target(ring) {}
+		};
+		struct stream_array : public xhci_segmented_array<xhci_stream_context>
+		{
+			mod_mm_vec<array_entry> entries;
+			constexpr stream_array() noexcept : xhci_segmented_array<xhci_stream_context>(), entries() {}
+			constexpr stream_array(abstract_module_base* mod) noexcept : xhci_segmented_array<xhci_stream_context>(mod), entries(mod) {}
+		} primary_array;
+		mod_mm_map<uint8_t, stream_array> secondary_arrays;
+		mod_mm_map<uint16_t, xhci_trb_ring> trb_rings;
+		constexpr xhci_stream_set() : primary_array(), secondary_arrays(256UZ), trb_rings(1024UZ) {}
+		constexpr xhci_stream_set(abstract_module_base* mod) : primary_array(mod), secondary_arrays(256UZ, mod), trb_rings(1024UZ, mod) {}
+	};
 	class xhci_device_endpoint : public abstract_connectable_device::interface
 	{
 		xhci_device_slot& __parent;
 		xhci_endpoint_context& __ctx;
-		std::vector<trb_ring_segment> __transfer_ring;
-		std::span<xhci_generic_trb>::iterator __dequeue_pos;
-		std::span<xhci_generic_trb>::iterator __enqueue_pos;
+		std::optional<xhci_stream_set> __streams;
+		std::optional<xhci_trb_ring> __transfer_trb;
 		uint8_t __idx;
+		void __ring_doorbell(uint16_t stream_id = 0US);
 	public:
 		xhci_device_endpoint(xhci_device_slot& slot, uint8_t idx);
 		virtual void put_msg(generic_device_message const& msg) override;
 		virtual std::optional<generic_device_message> poll_msg() override;
-		virtual void reset() override;
+		virtual type interface_type() const override;
+		constexpr bool active() const noexcept { return __streams || __transfer_trb; }
+		constexpr operator bool() const noexcept { return active(); }
 	};
 	class xhci_host_controller;
 	class xhci_device_slot : public abstract_connectable_device
@@ -756,33 +892,52 @@ namespace ooos
 		xhci_device_context& __ctx;
 		xhci_doorbell& __doorbell;
 		std::array<xhci_device_endpoint, 31UZ> __endpoints;
-		dword __active_endpoints;	// bit n -> __endpoints[n - 1] active (1) or inactive (0); bit 0 -> device connected (1) or not (0)
+		size_t __active_endpoints;	// number of active endpoints for fast reference
 		uint8_t __idx;
+		typedef std::make_integer_sequence<uint8_t, 31UC> __ep_seq;
+		static std::array<xhci_device_endpoint, 31UZ> __create_array(xhci_device_slot& slot);
+		static xhci_device_endpoint __create_ep(xhci_device_slot& slot, uint8_t i);
 	public:
 		xhci_device_slot(xhci_host_controller& ctl, uint8_t idx);
 		virtual size_t interface_count() const override;
 		virtual abstract_connectable_device::provider* parent() override;
 		virtual abstract_connectable_device::interface* operator[](size_t idx) override;
 	};
+	struct xhci_event_handler
+	{
+		xhci_host_controller& parent;
+		xhci_interrupter_register& interrupter;
+		std::span<xhci_event_ring_segment_table_entry> event_ring_segment_table;
+		xhci_trb_ring event_ring;
+		event_listener<xhci_generic_trb&> handler;
+		bool cycle_state;
+		template<typename ... Args> requires(std::constructible_from<event_listener<xhci_generic_trb&>, Args...>)
+		inline xhci_event_handler(xhci_host_controller& ctl, uint8_t idx, Args&& ... args);
+		xhci_event_handler& init_state();
+		inline void set_enabled(bool enabled) noexcept { interrupter.interrupt_enable = enabled; }
+		void operator()();
+		void add_new_segment();
+
+	};
 	class xhci_host_controller : public usb_host_controller_module
 	{
 		friend class xhci_device_slot;
 		friend class xhci_device_endpoint;
+		friend struct xhci_event_handler;
 		pci_config_space* __hc_dev;
 		managed_dma_span<xhci_device_context> __dev_ctx_array;
 		xhci_capability_registers* __hc_caps	= nullptr;
 		xhci_hc_mem* __hc_mem					= nullptr;
 		xchi_hc_runtime_mem* __hc_rt_mem		= nullptr;
-		xhci_doorbell* __doorbells				= nullptr;
-		addr_t __ptr_array_dma_block			= nullptr;
-		size_t __ptr_array_dma_size				= 0UZ;
-		addr_t __scratchpad_block				= nullptr;
-		size_t __scratchpad_size				= 0UZ;
-		std::vector<xhci_device_slot> __slots{};
-		std::vector<trb_ring_segment> __cmd_ring{};
-		std::vector<trb_ring_segment> __event_ring{};
+		xhci_doorbell* doorbells				= nullptr;
+		managed_dma_span<addr_t> __ctx_and_sp_ptrs;
+		managed_dma_span<char> __scratchpads;
+		managed_dma_span<xhci_event_ring_segment_table_entry> __event_ring_segment_tables;
+		mod_mm_vec<xhci_device_slot> __slots;
+		mod_mm_vec<xhci_event_handler> __handlers;
+		xhci_trb_ring __cmd_ring;
 		static xhci_config_type __cfg;
-		void __handle_irq();
+		bool __configure_interrupters();
 	public:
 		xhci_host_controller(pci_config_space* pci);
 		virtual bool initialize() override;
@@ -791,7 +946,18 @@ namespace ooos
 		virtual abstract_connectable_device* operator[](size_t id) override;
 		virtual std::optional<size_t> index_of(abstract_connectable_device* dev) const override;
 		virtual size_t size() const	override;
-		bool add_segment(std::vector<trb_ring_segment>& rint);
+		bool add_segment(mod_mm_vec<trb_ring_segment>& ring);
+		mod_mm_vec<trb_ring_segment> create_ring(size_t n_segments = 1UZ);
+		std::span<xhci_event_ring_segment_table_entry> erst_sub(uint8_t idx);
 	};
+	template<typename ... Args> requires(std::constructible_from<event_listener<xhci_generic_trb&>, Args...>)
+	inline xhci_event_handler::xhci_event_handler(xhci_host_controller& ctl, uint8_t idx, Args&& ... args) :
+		parent(ctl),
+		interrupter(parent.__hc_rt_mem->interrupters[idx]),
+		event_ring_segment_table(parent.erst_sub(idx)),
+		event_ring(parent.create_ring()),
+		handler(std::forward<Args>(args)...),
+		cycle_state(false)
+	{}
 }
 #endif
