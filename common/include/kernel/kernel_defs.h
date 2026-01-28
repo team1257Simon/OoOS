@@ -826,43 +826,72 @@ typedef struct __mmap
 } __pack mmap_t;
 typedef void (attribute(sysv_abi) *kernel_entry_fn)(sysinfo_t*, mmap_t*);
 #ifdef __cplusplus
-typedef struct __byte
+template<typename IT> struct __int_size_helper{};
+template<typename IT> requires(sizeof(IT) == 1) struct __int_size_helper<IT> { typedef uint8_t type; };
+template<typename IT> requires(sizeof(IT) == 2) struct __int_size_helper<IT> { typedef uint16_t type; };
+template<typename IT> requires(sizeof(IT) == 4) struct __int_size_helper<IT> { typedef uint32_t type; };
+template<typename IT> requires(sizeof(IT) == 8) struct __int_size_helper<IT> { typedef uint64_t type; };
+template<typename IT> requires(sizeof(IT) == 16) struct __int_size_helper<IT> { typedef __int128 type; };
+template<typename IT>
+class bit_reference
+{
+	typedef typename __int_size_helper<IT>::type __int;
+	IT* __ptr;
+	size_t __bit;
+	constexpr static __int __mask(size_t n) noexcept { return static_cast<__int>(1 << n); }
+	constexpr static __int __get(IT const& i) noexcept { return __builtin_bit_cast(__int, i); }
+	constexpr static void __set(IT& i, size_t n) noexcept { i = __builtin_bit_cast(IT, __get(i) | __mask(n)); }
+	constexpr static void __toggle(IT& i, size_t n) noexcept { i = __builtin_bit_cast(IT, __get(i) ^ __mask(n)); }
+	constexpr static void __clear(IT& i, size_t n) noexcept { i = __builtin_bit_cast(IT, __get(i) & ~__mask(n)); }
+	constexpr static bool __test(IT const& i, size_t n) noexcept { return static_cast<bool>(__get(i) & __mask(i)); }
+	constexpr void __put(bool b) noexcept { if(b) __set(*__ptr, __bit); else __clear(*__ptr, __bit); }
+public:
+	constexpr bit_reference(IT& i, size_t n) noexcept : __ptr(std::addressof(i)), __bit(n) {}
+	constexpr operator bool() const noexcept { return __test(*__ptr, __bit); }
+	constexpr bit_reference& operator=(bool b) noexcept { __put(b); return *this; }
+	constexpr bit_reference& operator&=(bool b) noexcept { if(!b) __clear(*__ptr, __bit); return *this; }
+	constexpr bit_reference& operator|=(bool b) noexcept { if(b) __set(*__ptr, __bit); return *this; }
+	constexpr bit_reference& operator^=(bool b) noexcept { if(b) __toggle(*__ptr, __bit); return *this; }
+};
+template<typename IT, std::integral JT> bit_reference(IT&, JT) -> bit_reference<IT>;
+typedef struct __s_u8
 {
 	uint8_t full{};
 	constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return (value ? 1 : 0) << bit; }
-	constexpr __byte(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
-	constexpr __byte(uint8_t i) noexcept : full(i) {}
-	template<convertible_other<uint8_t> IT> constexpr __byte(IT it) noexcept : __byte(static_cast<uint8_t>(it)) {}
-	constexpr __byte() noexcept = default;
-	constexpr __byte(__byte const&) noexcept = default;
-	constexpr __byte(__byte&&) noexcept = default;
-	constexpr __byte& operator=(__byte const&) noexcept = default;
-	constexpr __byte& operator=(__byte&&) noexcept = default;
-	constexpr ~__byte() noexcept = default;
+	constexpr __s_u8(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
+	constexpr __s_u8(uint8_t i) noexcept : full(i) {}
+	template<convertible_other<uint8_t> IT> constexpr __s_u8(IT it) noexcept : __s_u8(static_cast<uint8_t>(it)) {}
+	constexpr __s_u8() noexcept = default;
+	constexpr __s_u8(__s_u8 const&) noexcept = default;
+	constexpr __s_u8(__s_u8&&) noexcept = default;
+	constexpr __s_u8& operator=(__s_u8 const&) noexcept = default;
+	constexpr __s_u8& operator=(__s_u8&&) noexcept = default;
+	constexpr ~__s_u8() noexcept = default;
 	constexpr operator uint8_t() const noexcept { return full; }
+	constexpr auto operator[](uint8_t i) noexcept { return bit_reference(*this, i); }
 	constexpr bool operator[](uint8_t i) const noexcept { return full & (1 << i); }
-	constexpr __byte& operator|=(__byte const& that) noexcept { return *this = (*this | that); }
-	constexpr __byte& operator&=(__byte const& that) noexcept { return *this = (*this & that); }
-	constexpr __byte& operator+=(__byte const& that) noexcept { return *this = (*this + that); }
-	constexpr __byte& operator-=(__byte const& that) noexcept { return *this = (*this - that); }
-	constexpr __byte& operator*=(__byte const& that) noexcept { return *this = (*this * that); }
-	constexpr __byte& operator/=(__byte const& that) noexcept { return *this = (*this / that); }
-	constexpr __byte& operator>>=(int that) noexcept { return *this = (*this >> that); }
-	constexpr __byte& operator<<=(int that) noexcept { return *this = (*this << that); }
-	constexpr __byte& operator++() noexcept { full++; return *this; }
-	constexpr __byte operator++(int) noexcept { __byte that(*this); full++; return that; }
-	constexpr __byte& operator--() noexcept { full--; return *this; }
-	constexpr __byte operator--(int) noexcept { __byte that(*this); full--; return that; }
+	constexpr __s_u8& operator|=(__s_u8 const& that) noexcept { return *this = (*this | that); }
+	constexpr __s_u8& operator&=(__s_u8 const& that) noexcept { return *this = (*this & that); }
+	constexpr __s_u8& operator+=(__s_u8 const& that) noexcept { return *this = (*this + that); }
+	constexpr __s_u8& operator-=(__s_u8 const& that) noexcept { return *this = (*this - that); }
+	constexpr __s_u8& operator*=(__s_u8 const& that) noexcept { return *this = (*this * that); }
+	constexpr __s_u8& operator/=(__s_u8 const& that) noexcept { return *this = (*this / that); }
+	constexpr __s_u8& operator>>=(int that) noexcept { return *this = (*this >> that); }
+	constexpr __s_u8& operator<<=(int that) noexcept { return *this = (*this << that); }
+	constexpr __s_u8& operator++() noexcept { full++; return *this; }
+	constexpr __s_u8 operator++(int) noexcept { __s_u8 that(*this); full++; return that; }
+	constexpr __s_u8& operator--() noexcept { full--; return *this; }
+	constexpr __s_u8 operator--(int) noexcept { __s_u8 that(*this); full--; return that; }
 	constexpr bool bts(int i) volatile noexcept { return __sync_fetch_and_or(std::addressof(full), 1 << i); }
 	constexpr bool btr(int i) volatile noexcept { return __sync_fetch_and_and(std::addressof(full), ~(1 << i)); }
 	constexpr bool btc(int i) volatile noexcept { return __sync_fetch_and_xor(std::addressof(full), 1 << i); }
-} __pack byte;
+} __pack __u8;
 typedef struct __s_le16
 {
-	__byte lo;
-	__byte hi;
+	__s_u8 lo;
+	__s_u8 hi;
 	constexpr __s_le16() noexcept = default;
-	constexpr __s_le16(byte l, byte h) noexcept : lo(l), hi(h) {}
+	constexpr __s_le16(__u8 l, __u8 h) noexcept : lo(l), hi(h) {}
 	constexpr __s_le16(const uint8_t bytes[2]) noexcept : lo(bytes[0]), hi(bytes[1]) {}
 	constexpr __s_le16(uint16_t value) noexcept { *this = __builtin_bit_cast(__s_le16, value); }
 	template<convertible_other<uint16_t> IT> constexpr __s_le16(IT it) noexcept : __s_le16(static_cast<uint16_t>(it)) {}
@@ -884,6 +913,7 @@ typedef struct __s_le16
 	constexpr __s_le16 operator++(int) noexcept { __s_le16 that(*this); ++(*this); return that; }
 	constexpr __s_le16& operator--() noexcept { uint16_t that = *this; --that; return (*this = that); }
 	constexpr __s_le16 operator--(int) noexcept { __s_le16 that(*this); --(*this); return that; }
+	constexpr auto operator[](uint8_t i) noexcept { return bit_reference(*this, i); }
 	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint16_t, *this) & (static_cast<uint16_t>(1) << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 8 ? hi : lo).bts(i % 8); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 8 ? hi : lo).btr(i % 8); }
@@ -916,6 +946,7 @@ typedef struct __s_le32
 	constexpr __s_le32 operator++(int) noexcept { __s_le32 that(*this); ++(*this); return that; }
 	constexpr __s_le32& operator--() noexcept { uint32_t that = *this; --that; return (*this = that); }
 	constexpr __s_le32 operator--(int) noexcept { __s_le32 that(*this); --(*this); return that; }
+	constexpr auto operator[](uint8_t i) noexcept { return bit_reference(*this, i); }
 	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint32_t, *this) & (1U << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 16 ? hi : lo).bts(i % 16); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 16 ? hi : lo).btr(i % 16); }
@@ -948,15 +979,17 @@ typedef struct __s_le64
 	constexpr __s_le64 operator++(int) noexcept { __s_le64 that(*this); ++(*this); return that; }
 	constexpr __s_le64& operator--() noexcept { uint64_t that = *this; --that; return (*this = that); }
 	constexpr __s_le64 operator--(int) noexcept { __s_le64 that(*this); --(*this); return that; }
+	constexpr auto operator[](uint8_t i) noexcept { return bit_reference(*this, i); }
 	constexpr bool operator[](uint8_t i) const noexcept { return static_cast<bool>(__builtin_bit_cast(const uint64_t, *this) & (1UL << i)); }
 	constexpr bool bts(int i) volatile noexcept { return (i >= 32 ? hi : lo).bts(i % 32); }
 	constexpr bool btr(int i) volatile noexcept { return (i >= 32 ? hi : lo).btr(i % 32); }
 	constexpr bool btc(int i) volatile noexcept { return (i >= 32 ? hi : lo).btc(i % 32); }
 } __pack __le64;
+typedef __u8 u8;
 typedef __le16 word;
 typedef __le32 dword;
 typedef __le64 qword;
-template<typename T> concept integral_structure = std::integral<T> || std::convertible_to<T, byte> || std::convertible_to<T, word> || std::convertible_to<T, dword> || std::convertible_to<T, qword>;
+template<typename T> concept integral_structure = std::integral<T> || std::convertible_to<T, u8> || std::convertible_to<T, word> || std::convertible_to<T, dword> || std::convertible_to<T, qword>;
 template<typename T> concept loose_integral		= integral_structure<std::remove_cvref_t<T>>;
 /**
  * These structures are for use with drivers that require working with numbers in big endian (amd64 is little endian).
@@ -1044,7 +1077,7 @@ constexpr addr_t operator""LA(unsigned long long i) noexcept { return addr_t(sta
 #include <sys/types.h>
 #pragma GCC diagnostic pop
 #else
-typedef uint8_t byte;
+typedef uint8_t u8;
 typedef uint16_t word;
 typedef uint32_t dword;
 typedef uint64_t qword;

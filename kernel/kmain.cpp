@@ -68,7 +68,7 @@ void xdirect_writeln(std::string const& str) { direct_writeln(str.c_str()); }
 void xklog(std::string const& str) { klog(str.c_str()); }
 static int __xdigits(uintptr_t num) { return num ? div_round_up((sizeof(uintptr_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; }
 static void __dbg_num(uintptr_t num, size_t lenmax) { if(!num) { direct_write("0"); return; } for(size_t i = lenmax + 1; i > 1; i--, num >>= 4) { dbgbuf[i] = digits[num & 0xF]; } dbgbuf[lenmax + 2] = 0; direct_write(dbgbuf); }
-constexpr static bool has_ecode(byte idx) { return (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC; }
+constexpr static bool has_ecode(u8 idx) { return (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC; }
 static void delegate_ptr_cb_sysfs(void* ptr) { static_cast<sysfs*>(ptr)->sync(); }
 static void descr_pt(partition_table const& pt)
 {
@@ -433,7 +433,7 @@ void circular_queue_tests()
 	char buffer[2]{ 0, 0 };
 	for(char c = 'a'; c < 'h'; c++ /* he said the thing! */) test_queue.push(c);
 	size_t l = test_queue.length();
-	for(size_t i = 0; i < l - 3; i++)
+	for(size_t i = 0UZ; i < l - 3; i++)
 	{
 		buffer[0] = test_queue.pop();
 		direct_write(buffer);
@@ -444,7 +444,7 @@ void circular_queue_tests()
 	for(char c = 'a'; c < 'j'; c++ /* oh, that's why they call it that. */) test_queue.push(c);
 	test_queue.bump(4UZ);
 	l = test_queue.length();
-	for(size_t i = 0; i < l; i++)
+	for(size_t i = 0UZ; i < l; i++)
 	{
 		buffer[0] = test_queue.pop();
 		direct_write(buffer);
@@ -543,7 +543,7 @@ static const char* codes[] =
 	"#SX [Security Exception]",
 	"[RESERVED INTERRUPT 0x1F]"
 };
-constexpr auto test_dbg_callback = [](byte idx, qword ecode) -> void
+constexpr auto test_dbg_callback = [](u8 idx, qword ecode) -> void
 {
 	if(get_gs_base<task_t>()->frame_ptr.deref<uint64_t>() != kframe_magic) return;
 	if(idx < 0x20)

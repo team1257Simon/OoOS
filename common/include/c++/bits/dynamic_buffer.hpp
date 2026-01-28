@@ -431,6 +431,10 @@ namespace std::__impl
 		constexpr void __assign_ptrs(__container const& c) noexcept { __my_data.__copy_ptrs(c); }
 		constexpr void __move_assign(__dynamic_buffer&& that) { this->__my_data	= std::move(that.__my_data); }
 		constexpr bool __grow_buffer_exact(__size_type added);
+		constexpr void __destroy() noexcept(noexcept(__my_data.__destroy())) {
+			if(this->__beg())
+				__my_data.__destroy();
+		}
 		constexpr __dynamic_buffer(initializer_list<T> const& __ils, A const& alloc) : __my_data(alloc, __ils.size())
 		{
 			for(size_t i = 0UZ; i < __ils.size(); i++)
@@ -470,6 +474,7 @@ namespace std::__impl
 			if(count > __capacity())
 			{
 				if consteval { __grow_buffer(count - __capacity()); }
+				//	__builtin_expect will not work for consteval
 				else { if(__unlikely(!__grow_buffer(count - __capacity()))) return nullptr; }
 			}
 			__set(__beg(), t, count);
@@ -483,6 +488,7 @@ namespace std::__impl
 			if(count > __capacity())
 			{
 				if consteval { __grow_buffer(count - __capacity()); }
+				//	__builtin_expect will not work for consteval
 				else { if(__unlikely(!__grow_buffer(count - __capacity()))) return nullptr; }
 			}
 			__copy(__beg(), start, count);
@@ -502,6 +508,7 @@ namespace std::__impl
 			if(!(__max() > __cur() + count))
 			{
 				if consteval { __grow_buffer(static_cast<__size_type>(count - __rem())); }
+				//	__builtin_expect will not work for consteval
 				else { if(__unlikely(!__grow_buffer(static_cast<__size_type>(count - __rem())))) return nullptr; }
 			}
 			__size_type tsz		= bsz + count;
@@ -516,6 +523,7 @@ namespace std::__impl
 			if(!(__max() > __cur()))
 			{
 				if consteval { __grow_buffer(1UZ); }
+				//	__builtin_expect will not work for consteval
 				else { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; }
 			}
 			construct_at(__get_ptr(bsz), t);
@@ -535,15 +543,11 @@ namespace std::__impl
 			else { __backtrack(how_many); __zero(__cur(), how_many); }
 			return __cur();
 		}
-		constexpr void __destroy() noexcept(noexcept(__my_data.__destroy())) {
-			if(this->__beg())
-				__my_data.__destroy();
-		}
 		constexpr void __copy_assign(__dynamic_buffer const& that)
 		{
 			__destroy();
 			if consteval { if(!that.__beg()) return; }
-			else{ if(__unlikely(!that.__beg())) return; }
+			else { if(__unlikely(!that.__beg())) return; }
 			if constexpr(__has_copy_propagate<__allocator_type>)
 				*static_cast<__allocator_type*>(std::addressof(this->__my_data)) = that.__get_alloc();
 			__allocate_storage(that.__capacity());
@@ -648,6 +652,7 @@ namespace std::__impl
 		if((!__beg() || num > rem))
 		{
 			if consteval { __grow_buffer(num - rem); }
+			//	__builtin_expect will not work for consteval
 			else { if(__unlikely(!__grow_buffer(num - rem))) return nullptr; }
 		}
 		__transfer(__get_ptr(bsz), start_it, end_it);
@@ -659,9 +664,8 @@ namespace std::__impl
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer
 	__dynamic_buffer<T, A, NTS>::__insert_elements(__const_pointer pos, IT start_ptr, IT end_ptr)
 	{
-		if consteval {}
-		else { if(__unlikely(__out_of_range(pos))) return nullptr; }
-		__pointer ncpos				= __get_ptr(__diff(pos));
+		if !consteval { if(__unlikely(__out_of_range(pos))) return nullptr; }
+		__pointer ncpos			= __get_ptr(__diff(pos));
 		__size_type range_size	= distance(start_ptr, end_ptr);
 		__size_type offs		= __diff(pos);
 		bool prepending			= (pos < __cur());
@@ -709,8 +713,7 @@ namespace std::__impl
 	requires(constructible_from<T, Args...>)
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__emplace_element(__const_pointer pos, Args&& ... args)
 	{
-		if consteval {}
-		else { if(__unlikely(pos < this->__beg())) return nullptr; }
+		if !consteval { if(__unlikely(pos < this->__beg())) return nullptr; }
 		if(pos >= __max()) return __emplace_at_end(forward<Args>(args)...);
 		__size_type start_pos	= __diff(pos);
 		__size_type rem			= __ediff(pos);
@@ -731,6 +734,7 @@ namespace std::__impl
 		if(__size() == __capacity())
 		{
 			if consteval { __grow_buffer(1UZ); }
+			//	__builtin_expect will not work for consteval
 			else { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; }
 		}
 		__pointer p	= construct_at(__cur(), forward<Args>(args)...);
@@ -740,8 +744,7 @@ namespace std::__impl
 	template<typename T, allocator_object<T> A, bool NTS>
 	constexpr typename __dynamic_buffer<T, A, NTS>::__pointer __dynamic_buffer<T, A, NTS>::__erase_range(__const_pointer start, __const_pointer end)
 	{
-		if consteval {}
-		else { if(__unlikely(__out_of_range(start, end))) return nullptr; }
+		if !consteval { if(__unlikely(__out_of_range(start, end))) return nullptr; }
 		__size_type how_many	= end - start;
 		__size_type rem			= __ediff(end);
 		__size_type start_pos	= __diff(start);

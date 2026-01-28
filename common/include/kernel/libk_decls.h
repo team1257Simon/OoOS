@@ -297,6 +297,42 @@ constexpr T& mask_assign(T& t, addr_t val)
 	addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, T::mask::value>(p, val));
 	return t;
 }
+template<typename T, template<typename> class C, bool B> struct __maybe_apply { typedef std::conditional_t<B, C<T>, T> type; };
+template<typename T, template<typename> class C, bool B> using __maybe_apply_t = typename __maybe_apply<T, C, B>::type;
+template<typename T, bool B> using maybe_const_t = __maybe_apply_t<T, std::add_const_t, B>;
+template<typename T, bool B> using maybe_volatile_t = __maybe_apply_t<T, std::add_volatile_t, B>;
+template<typename T, typename U> using copy_cv_t = maybe_volatile_t<maybe_const_t<std::remove_cv_t<U>, std::is_const_v<T>>, std::is_volatile_v<T>>;
+template<typename T, typename U> using copy_cvref_t = copy_cv_t<T, std::__like_t<std::remove_cv_t<T>, U>>;
+namespace std
+{
+	enum class byte : unsigned char {};
+	template<typename IT> struct __byte_op_result{};
+	template<std::integral IT> struct __byte_op_result<IT> { typedef byte type; typedef byte operand; };
+	template<std::integral IT> struct __byte_op_result<const IT> : __byte_op_result<IT> {};
+	template<std::integral IT> struct __byte_op_result<volatile IT> : __byte_op_result<IT> {};
+	template<std::integral IT> struct __byte_op_result<const volatile IT> : __byte_op_result<IT> {};
+	template<typename IT> requires(std::same_as<word, std::remove_cvref_t<IT>>) struct __byte_op_result<IT> { typedef byte type; typedef copy_cv_t<IT, uint16_t> operand; };
+	template<typename IT> requires(std::same_as<dword, std::remove_cvref_t<IT>>) struct __byte_op_result<IT> { typedef byte type; typedef copy_cv_t<IT, uint32_t> operand; };
+	template<typename IT> requires(std::same_as<qword, std::remove_cvref_t<IT>>) struct __byte_op_result<IT> { typedef byte type; typedef copy_cv_t<IT, uint64_t> operand; };
+	template<typename IT> requires(std::same_as<__be16, std::remove_cvref_t<IT>>) struct __byte_op_result<IT> : __byte_op_result<copy_cvref_t<IT, word>> {};
+	template<typename IT> requires(std::same_as<__be32, std::remove_cvref_t<IT>>) struct __byte_op_result<IT> : __byte_op_result<copy_cvref_t<IT, dword>> {};
+	template<typename IT> requires(std::same_as<__be64, std::remove_cvref_t<IT>>) struct __byte_op_result<IT> : __byte_op_result<copy_cvref_t<IT, qword>> {};
+	template<typename IT> using __byte_result_t		= typename __byte_op_result<IT>::type;
+	template<typename IT> using __byte_operand_t	= typename __byte_op_result<IT>::operand;
+	template<typename IT> [[__gnu__::__always_inline__]] constexpr __byte_operand_t<IT> __op_cast(std::type_identity_t<IT> i) noexcept { return static_cast<__byte_operand_t<IT>>(i); }
+	template<typename IT> [[__gnu__::__always_inline__]] constexpr __byte_result_t<IT> operator>>(byte b, IT shift) noexcept { return static_cast<byte>(static_cast<unsigned char>(static_cast<unsigned char>(b) >> __op_cast<IT>(shift))); }
+	template<typename IT> [[__gnu__::__always_inline__]] constexpr __byte_result_t<IT> operator<<(byte b, IT shift) noexcept { return static_cast<byte>(static_cast<unsigned char>(static_cast<unsigned char>(b) << __op_cast<IT>(shift))); }
+	template<typename IT> [[__gnu__::__always_inline__]] constexpr __byte_result_t<IT>& operator>>=(byte& b, IT shift) noexcept { return (b = b >> shift); }
+	template<typename IT> [[__gnu__::__always_inline__]] constexpr __byte_result_t<IT>& operator<<=(byte& b, IT shift) noexcept { return (b = b << shift); }
+	[[__gnu__::__always_inline__]] constexpr byte operator|(byte a, byte b) noexcept { return static_cast<byte>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
+	[[__gnu__::__always_inline__]] constexpr byte operator&(byte a, byte b) noexcept { return static_cast<byte>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); }
+	[[__gnu__::__always_inline__]] constexpr byte operator^(byte a, byte b) noexcept { return static_cast<byte>(static_cast<uint8_t>(a) ^ static_cast<uint8_t>(b)); }
+	[[__gnu__::__always_inline__]] constexpr byte& operator|=(byte& a, byte b) noexcept { return (a = a | b); }
+	[[__gnu__::__always_inline__]] constexpr byte& operator&=(byte& a, byte b) noexcept { return (a = a & b); }
+	[[__gnu__::__always_inline__]] constexpr byte& operator^=(byte& a, byte b) noexcept { return (a = a ^ b); }
+	[[__gnu__::__always_inline__]] constexpr byte operator~(byte b) noexcept { return static_cast<byte>(static_cast<uint8_t>(~static_cast<unsigned>(b))); }
+	template<typename IT> [[__gnu__::__always_inline__]] constexpr IT to_integer(__byte_result_t<IT> b) noexcept { return IT(static_cast<__byte_operand_t<IT>>(b)); }
+}
 #if defined(__KERNEL__) || defined(__LIBK__)
 template<typename T> inline uint32_t crc32c(T const& t) { return crc32c_x86_3way(~0U, addr_t(std::addressof(t)), sizeof(T)); }
 template<typename T> inline uint32_t crc32c(uint32_t start, T const& t) { return crc32c_x86_3way(start, addr_t(std::addressof(t)), sizeof(T)); }

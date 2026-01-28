@@ -151,6 +151,6 @@ struct protocol_tcp : abstract_protocol_handler
 	ipv4_config& ipconfig;
 	isn_gen generate_isn;
 	protocol_tcp(protocol_ipv4* n);
-	virtual std::type_info const& packet_type() const override;
+	virtual std::type_info const& packet_type() const final override;
 };
 #endif

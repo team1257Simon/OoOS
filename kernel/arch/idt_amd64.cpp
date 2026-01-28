@@ -64,7 +64,7 @@ namespace interrupt_table
 			__unlock();
 		}
 	}
-	bool add_irq_handler(void* owner, byte idx, ooos::isr_actor&& handler) noexcept
+	bool add_irq_handler(void* owner, u8 idx, ooos::isr_actor&& handler) noexcept
 	{
 		if(__unlikely(!handler)) { klog("[ISR] W: bad callback functor"); }
 		else try
@@ -84,7 +84,7 @@ namespace interrupt_table
 		}
 		return false;
 	}
-	bool add_irq_handler(byte idx, irq_callback&& handler) noexcept
+	bool add_irq_handler(u8 idx, irq_callback&& handler) noexcept
 	{
 		if(__unlikely(!handler)) { klog("[ISR] W: bad callback functor"); }
 		else try
@@ -163,7 +163,7 @@ namespace interrupt_table
 		return std::addressof(__msi_handlers[pos]);
 	}
 }
-inline void pic_eoi(byte irq)
+inline void pic_eoi(u8 irq)
 {
     if(bsp_lapic.valid()) return bsp_lapic.eoi();
     if(irq > 7) outb(command_pic2, sig_pic_eoi);
@@ -202,7 +202,7 @@ extern "C"
         bool is_err			= (idx == 0x08UC || (idx > 0x09UC && idx < 0x0FUC) || idx == 0x11UC || idx == 0x15UC || idx == 0x1DUC || idx == 0x1EUC);
         if(idx > 0x19UC && idx < 0x30UC)
         {
-            byte irq		= static_cast<uint8_t>(idx - 0x20UC);
+            u8 irq		= static_cast<uint8_t>(idx - 0x20UC);
             kernel_memory_mgr::suspend_user_frame();
             kfx_save();
         	if(irq == 8UC)

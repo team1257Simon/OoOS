@@ -39,7 +39,7 @@ extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_p
 extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, mac_t&&, mac_t&&, net16&&, net32&&, net32&&);
 extern template abstract_packet<arpv4_packet>::abstract_packet(size_t, std::in_place_type_t<arpv4_packet>, mac_t const&, mac_t const&, net16 const&, net32 const&, net32 const&);
 #endif
-struct protocol_arp : abstract_protocol_handler, abstract_ip_resolver
+struct protocol_arp final : abstract_protocol_handler, abstract_ip_resolver
 {
 	protocol_arp(protocol_ethernet* eth);
 	virtual ~protocol_arp();

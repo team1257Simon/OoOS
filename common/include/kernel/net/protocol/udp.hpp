@@ -14,7 +14,7 @@ struct __pack udp_header : ipv4_standard_header
 	bool verify_udp_csum() const;
 };
 struct protocol_udp;
-struct generic_udp_handler : abstract_protocol_handler
+struct generic_udp_handler final : abstract_protocol_handler
 {
 	std::function<int(abstract_packet_base&)> acceptor;
 	generic_udp_handler(protocol_udp* n, std::function<int(abstract_packet_base&)>&& f);
@@ -28,7 +28,7 @@ extern template class abstract_packet<udp_header>;
 extern template abstract_packet<udp_header>::abstract_packet(ipv4_standard_header&&);
 typedef abstract_packet<udp_header> udp_packet;
 #endif
-struct protocol_udp : abstract_protocol_handler
+struct protocol_udp final : abstract_protocol_handler
 {
 	udp_port_map ports;
 	ipv4_config& ipconfig;

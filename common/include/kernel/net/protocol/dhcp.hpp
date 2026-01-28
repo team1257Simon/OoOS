@@ -157,7 +157,7 @@ extern template abstract_packet<dhcp_packet>::abstract_packet(udp_header const&)
 extern template abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet&&);
 extern template abstract_packet<dhcp_packet>::abstract_packet(dhcp_packet const&);
 #endif
-struct protocol_dhcp : abstract_protocol_handler
+struct protocol_dhcp final : abstract_protocol_handler
 {
 	ipv4_config& ipconfig;
 	abstract_ip_resolver& ipresolve;

@@ -267,9 +267,8 @@ bool scheduler::init() noexcept
 		if(__running)
 			if(sched_times.tick())
 				on_tick();
-		
 	}));
-	interrupt_table::add_interrupt_callback([this](byte idx, qword) -> void
+	interrupt_table::add_interrupt_callback([this](u8 idx, qword) -> void
 	{
 		if(idx < 0x20UC)
 		{

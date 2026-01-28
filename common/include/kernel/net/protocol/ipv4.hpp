@@ -121,7 +121,7 @@ extern template abstract_packet<ipv4_header<IHL20B>>::abstract_packet(size_t, st
 #endif
 typedef protocol_handler_map<ipv4_transport_protocol> transport_map;
 typedef std::hash_set<ipv4_addr, uint32_t, cast_t<uint32_t, size_t>, equals_t, std::allocator<ipv4_addr>, cast_t<ipv4_addr, uint32_t>> ipv4_addr_set;
-struct protocol_ipv4 : abstract_protocol_handler
+struct protocol_ipv4 final : abstract_protocol_handler
 {
 	transport_map transports;
 	ipv4_config client_config;

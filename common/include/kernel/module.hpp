@@ -110,6 +110,7 @@ namespace ooos
 		inline void ctx_end() { __eh_ctx.handler_ctx[0] = __saved_jb[0]; }
 		inline int load_config() { return __api_hooks->load_config(this); }
 		inline int save_config() { return __api_hooks->save_config(this); }
+		inline std::pair<std::optional<sysfstream>, int> sysfs_open(const char* name, bool create = true) { return __api_hooks->sysfs_open(name, create); }
 		inline size_t asprintf(const char** strp, const char* fmt, ...);
 		inline size_t logf(const char* fmt, ...);
 		inline block_io_provider_module* as_blockdev();

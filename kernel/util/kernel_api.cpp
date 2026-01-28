@@ -126,6 +126,26 @@ namespace ooos
 			try { interrupt_table::add_irq_handler(dynamic_cast<void*>(owner), irq, std::forward<isr_actor>(handler)); }
 			catch(...) { owner->raise_error("out of memory", -ENOMEM); }
 		}
+		virtual std::pair<std::optional<sysfstream>, int> sysfs_open(const char* name, bool create) noexcept override
+		{
+			if(__unlikely(!this->__get_sysfs_delegate())) return std::pair<std::optional<sysfstream>, int>(std::nullopt, ENOSYS); 
+			try
+			{
+				uint32_t ino	= sysfs_impl->find_node(name);
+				if(!ino)
+				{
+					//	Note: the errno component of the pair is for unexpected errors rather than not-found results
+					if(!create)
+						return std::pair<std::optional<sysfstream>, int>(std::nullopt, 0);
+					ino			= sysfs_impl->mknod(name, sysfs_object_type::GENERAL_CONFIG);
+				}
+				sysfs_vnode& n	= sysfs_impl->open(ino);
+				n.pubseekpos(0Z);
+				return std::make_pair(std::optional<sysfstream>(std::in_place, n), 0);
+			}
+			catch(std::bad_alloc&) { return std::pair<std::optional<sysfstream>, int>(std::nullopt, ENOMEM); }
+			catch(std::exception& e) { return panic(e.what()), std::pair<std::optional<sysfstream>, int>(std::nullopt, EINVAL); }
+		}
 		virtual bool export_type_info(std::type_info const& ti) override
 		{
 			//	Only class types that aren't already registered can be exported to other modules.
@@ -358,6 +378,43 @@ namespace ooos
 				kmm.deallocate_block(tag, tag->block_size, false);
 			}
 		}
+	}
+	int sysfstream::read(void* dst, size_t n)
+	{
+		size_t actual	= node.sgetn(static_cast<char*>(dst), n);
+		if(__unlikely(!actual)) return ENOMEM;
+		if(__unlikely(actual < n)) return -1;	// general code to indicate less data than expected
+		return 0;
+	}
+	int sysfstream::write(const void* src, size_t n)
+	{
+		try
+		{
+			size_t actual	= node.sputn(static_cast<const char*>(src), n);
+			if(__unlikely(actual < n)) return ENOSPC;
+			dirty			= true;
+			return 0;
+		}
+		catch(std::bad_alloc&) { return ENOMEM; }
+	}
+	int sysfstream::seekpos(std::streampos where)
+	{
+		std::streampos result	= node.pubseekpos(where);
+		if(__unlikely(result < 0)) return ERANGE;
+		return 0;
+	}
+	int sysfstream::seekoff(std::streamoff off, std::ios_base::seekdir way)
+	{
+		std::streampos result	= node.pubseekoff(off, way);
+		if(__unlikely(result < 0)) return ERANGE;
+		return 0;
+	}
+	sysfstream::~sysfstream()
+	{
+		if(!dirty) return;
+		node.commit(node.count());
+		node.pubsync();
+		node.sync_parent();
 	}
 	kernel_api* get_api_instance()
 	{

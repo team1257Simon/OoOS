@@ -73,7 +73,8 @@ namespace std
 			__present	= false;
 			__payload.__value.~__stored_type();
 		}
-		constexpr void __reset() noexcept {
+		constexpr void __reset() noexcept
+		{
 			if(__present)
 				__destruct();
 			// according to the wizards that wrote GCC's libstdc++, this apparently helps code generation

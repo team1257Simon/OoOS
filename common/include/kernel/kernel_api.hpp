@@ -10,6 +10,7 @@
 #include <bits/stl_queue.hpp>
 struct kframe_tag;
 struct kframe_exports;
+struct sysfs_vnode;
 #ifndef __HAVE_ALIGNED_REALLOCATE
 namespace std::__detail { [[nodiscard]] [[gnu::externally_visible]] void* __aligned_reallocate(void* ptr, size_t n, size_t align); }
 #define __HAVE_ALIGNED_REALLOCATE
@@ -281,6 +282,18 @@ namespace ooos
 		constexpr void operator()() { if(!__empty()) __my_invoke(__my_actor); }
 		constexpr std::type_info const& target_type() const noexcept { if(__my_manager) { functor_store tmp_store; __my_manager(tmp_store, __my_actor, __my_alloc, get_type_info); if(std::type_info const* result = tmp_store.cast<std::type_info const*>()) return *result; } return typeid(nullptr); }
 	};
+	struct sysfstream
+	{
+		sysfs_vnode& node;
+		virtual int write(const void* src, size_t n);
+		virtual int read(void* dst, size_t n);
+		virtual int seekpos(std::streampos where);
+		virtual int seekoff(std::streamoff off, std::ios_base::seekdir way);
+		virtual ~sysfstream();
+		constexpr sysfstream(sysfs_vnode& n) noexcept : node(n) {}
+	private:
+		bool dirty	= false;
+	};
 	struct netdev_api_helper;
 	class abstract_netdev_module;
 	struct kernel_api
@@ -294,6 +307,7 @@ namespace ooos
 		virtual pci_config_space* find_pci_device(uint8_t device_class, uint8_t subclass, uint8_t prog_if)									= 0;
 		virtual void* acpi_get_table(const char* label) 																					= 0;
 		virtual uintptr_t vtranslate(void* addr) noexcept																					= 0;
+		virtual std::pair<std::optional<sysfstream>, int> sysfs_open(const char* name, bool create) noexcept								= 0;
 		virtual void on_irq(uint8_t irq, isr_actor&& handler, abstract_module_base* owner) 													= 0;
 		virtual void remove_actors(abstract_module_base* owner) 																			= 0;
 		virtual kmod_mm* create_mm() 																										= 0;
@@ -796,8 +810,23 @@ namespace ooos
 		constexpr device_message(size_t added_size, Args&& ... args) : generic_device_message(added_size, std::in_place_type<T>, std::forward<Args>(args)...) {}
 		constexpr T* operator->() const noexcept { return static_cast<T*>(this->get_ptr()); }
 		constexpr T& operator*() const noexcept { return *static_cast<T*>(this->get_ptr()); }
+		constexpr T* base() const noexcept { return static_cast<T*>(this->get_ptr()); }
 		template<trivial_copy U> requires(__can_attempt_cast<U>()) U* cast_to() const noexcept { return this->type().template cast_to<U>(this->get_ptr()); }
 	};
+	template<typename FT, trivial_copy T, typename ... BArgs> requires(std::default_initializable<T>)
+	class bound_message_buffer_functor
+	{
+		device_message<T> __msg_buf;
+		std::__bind_front_expr<FT, BArgs...> __fn;
+	public:
+		constexpr T* base() const noexcept { return __msg_buf.base(); }
+		template<typename GT, typename ... Args> requires(sizeof...(Args) == sizeof...(BArgs) && std::convertible_to<GT, FT>)
+		constexpr explicit bound_message_buffer_functor(GT&& fn, Args&& ... args) : __msg_buf(), __fn(std::bind_front(std::forward<GT>(fn), std::forward<Args>(args)...)) {}
+		template<typename ... CArgs>
+		constexpr decltype(auto) operator()(CArgs&& ... args) const { return __fn(*__msg_buf, std::forward<CArgs>(args)...); }
+	};
+	template<trivial_copy T, typename FT, typename ... Args>
+	constexpr bound_message_buffer_functor<FT, T, Args...> bind_for_message(std::in_place_type_t<T>, FT&& fn, Args&& ... args) {}
 	//	Abstract base for devices connected via protocols like USB.
 	struct abstract_connectable_device
 	{
@@ -807,6 +836,7 @@ namespace ooos
 			//	These match the encodings for endpoint types used by XHCI.
 			enum class type : uint8_t
 			{
+				NONE			= 0UC,
 				H2D_SYNC		= 1UC,
 				H2D_BULK		= 2UC,
 				H2D_NOTIFY		= 3UC,

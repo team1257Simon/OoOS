@@ -34,17 +34,17 @@ namespace ooos
 	};
 	enum class usb_setup_request_code : uint8_t
 	{
-		RC_GET_STATUS			= 0UC,
-		RC_CLEAR_FEATURE		= 1UC,
-		RC_SET_FEATURE			= 3UC,
-		RC_SET_ADDRESS			= 5UC,
-		RC_GET_DESCRIPTOR		= 6UC,
-		RC_SET_DESCRIPTOR		= 7UC,
-		RC_GET_CONFIGURATION	= 8UC,
-		RC_SET_CONFIGURATION	= 9UC,
-		RC_GET_INTERFACE		= 10UC,
-		RC_SET_INTERFACE		= 11UC,
-		RC_SYNCH_FRAME			= 12UC,
+		GET_STATUS			= 0UC,
+		CLEAR_FEATURE		= 1UC,
+		SET_FEATURE			= 3UC,
+		SET_ADDRESS			= 5UC,
+		GET_DESCRIPTOR		= 6UC,
+		SET_DESCRIPTOR		= 7UC,
+		GET_CONFIGURATION	= 8UC,
+		SET_CONFIGURATION	= 9UC,
+		GET_INTERFACE		= 10UC,
+		SET_INTERFACE		= 11UC,
+		SYNCH_FRAME			= 12UC,
 	};
 	enum class usb_transfer_type : uint8_t
 	{
@@ -62,9 +62,9 @@ namespace ooos
 	};
 	enum class usb_request_type : uint8_t
 	{
-		RT_STANDARD	= 0UC,
-		RT_CLASS	= 1UC,
-		RT_VENDOR	= 2UC,
+		STANDARD	= 0UC,
+		CLASS	= 1UC,
+		VENDOR	= 2UC,
 	};
 	enum class usb_transfer_direction : bool
 	{
@@ -211,7 +211,7 @@ namespace ooos
 		HID_VENDOR_DEFINED_3	=	0xF8FFUS,
 		HID_VENDOR_DEFINED_4	=	0xFCFFUS,
 	};
-	struct usb_descriptor_base {
+	struct __align(64) usb_descriptor_base {
 		uint8_t length;
 		usb_descriptor_type type;
 	};
@@ -223,6 +223,7 @@ namespace ooos
 		uint8_t length;
 		usb_descriptor_type type;
 		T desc_data[/* (length - 2) / sizeof(T) */];
+		constexpr size_t size_bytes() const noexcept { return length; }
 		constexpr size_t size() const noexcept { return static_cast<size_t>(length - 2Z) / sizeof(T); }
 		constexpr T* begin() noexcept { return desc_data; }
 		constexpr T const* begin() const noexcept { return desc_data; }
@@ -338,7 +339,7 @@ namespace ooos
 		usb_setup_request_code request_code;
 		union __pack [[gnu::may_alias]] usb_setup_value_field
 		{
-			empty_word empty_value{};
+			empty_word empty_value;
 			usb_descriptor_request_value descriptor_request;
 			usb_device_address_value device_address;
 			usb_config_request_value config_request;

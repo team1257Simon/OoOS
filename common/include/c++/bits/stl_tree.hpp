@@ -12,7 +12,7 @@
 #include <bits/aligned_buffer.hpp>
 namespace std
 {
-	template<typename CT, typename T, typename U = T> concept __valid_comparator = is_default_constructible_v<CT> && requires { { declval<CT>()(declval<T>(), declval<U>()) } -> __detail::__boolean_testable; { declval<CT>()(declval<U>(), declval<T>()) } -> __detail::__boolean_testable; };
+	template<typename CT, typename T, typename U = T> concept __valid_comparator = is_default_constructible_v<CT> && predicate<CT, T, U> && predicate<CT, U, T>;
 	template<typename U, typename KT, typename CT, typename VT> concept __tree_searchable	= __valid_comparator<CT, VT, U> || is_convertible_v<U, KT>;
 	// Couldn't not make the Les Mis reference
 	enum node_color
@@ -29,6 +29,7 @@ namespace std
 		// two hops this time
 		// cha-cha now y'all
 	};
+	constexpr node_direction operator~(node_direction d) { return d == LEFT ? RIGHT : LEFT; }
 	struct __node_base
 	{
 		typedef __node_base* __pointer;
@@ -92,7 +93,6 @@ namespace std
 	struct __tree_base
 	{
 		// This node's parent is the root node; its left is the min node; its right is the max node
-
 		struct __trunk_node : __node_base, A
 		{
 			constexpr void __on_assign() noexcept { if(this->__my_parent) this->__my_parent->__my_parent = this; }
@@ -131,12 +131,16 @@ namespace std
 			}
 		} __trunk;
 		size_t __count;
+		constexpr __tree_base() noexcept(noexcept(A())) :  __trunk(), __count() {}
+		constexpr __tree_base(__tree_base&& that) noexcept : __trunk(std::move(that.__trunk)), __count(that.__count) { that.__count = 0UZ; }
+		constexpr __tree_base(__tree_base const& that) noexcept : __trunk(that.__trunk), __count(that.__count) {}
+		constexpr __tree_base& operator=(__tree_base const& that) noexcept { this->__copy(that); return *this; }
+		constexpr __tree_base& operator=(__tree_base&& that) noexcept { this->__move(std::move(that)); return *this; }
+		constexpr ~__tree_base() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
 		constexpr void __reset() noexcept {
 			__trunk.__reset();
 			__count	= 0UZ;
 		}
-		constexpr __tree_base() noexcept(noexcept(A())) :  __trunk(), __count() {}
-		constexpr ~__tree_base() { if(__trunk.__my_parent) __trunk.__my_parent->__my_parent = nullptr; }
 		constexpr void __copy(__tree_base const& that) noexcept {
 			__trunk				= that.__trunk;
 			__count				= that.__count;
@@ -156,10 +160,6 @@ namespace std
 			that.__copy(tmp);
 			tmp.__reset();
 		}
-		constexpr __tree_base(__tree_base&& that) noexcept : __trunk(std::move(that.__trunk)), __count(that.__count) { that.__count = 0UZ; }
-		constexpr __tree_base(__tree_base const& that) noexcept : __trunk(that.__trunk), __count(that.__count) {}
-		constexpr __tree_base& operator=(__tree_base const& that) noexcept { __copy(that); return *this; }
-		constexpr __tree_base& operator=(__tree_base&& that) noexcept { __move(std::move(that)); return *this; }
 	};
 	template<typename T>
 	struct __node : public __node_base
@@ -216,7 +216,7 @@ namespace std
 	public:
 		constexpr __tree_const_iterator() noexcept : __my_node() {}
 		constexpr explicit __tree_const_iterator(__base_ptr x) noexcept : __my_node(x) {}
-		constexpr __tree_const_iterator(__iterator_type const& i) noexcept : __my_node{ i.get_node() } {}
+		constexpr __tree_const_iterator(__iterator_type const& i) noexcept : __my_node(i.get_node()) {}
 		extension constexpr __node_ptr get_node() const noexcept { return static_cast<__node_ptr>(__my_node); }
 		constexpr pointer base() const noexcept { return get_node()->__get_ptr(); }
 		constexpr pointer operator->() const noexcept { return base(); }
@@ -269,10 +269,6 @@ namespace std
 		constexpr static __link __right_of(__link x) noexcept { return static_cast<__link>(x->__my_right); }
 		constexpr static __const_link __left_of(__const_link x) noexcept { return static_cast<__const_link>(x->__my_left); }
 		constexpr static __const_link __right_of(__const_link x) noexcept { return static_cast<__const_link>(x->__my_right); }
-		constexpr static __b_ptr __mini(__b_ptr x) noexcept { return __node_base::__min(x); }
-		constexpr static __b_ptr __maxi(__b_ptr x) noexcept { return __node_base::__max(x); }
-		constexpr static __cb_ptr __mini(__cb_ptr x) noexcept { return __node_base::__min(x); }
-		constexpr static __cb_ptr __maxi(__cb_ptr x) noexcept { return __node_base::__max(x); }
 		constexpr bool __compare(__b_ptr p, __b_ptr q) { return CP()(static_cast<__link>(p)->__get_ref(), static_cast<__link>(q)->__get_ref()); }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_r(__cb_ptr p, U const& u) const { return CP()(static_cast<__const_link>(p)->__get_ref(), u); }
 		template<typename U> requires(__valid_comparator<CP, T, U>) constexpr bool __compare_l(U const& u, __cb_ptr p) const { return CP()(u, static_cast<__const_link>(p)->__get_ref()); }

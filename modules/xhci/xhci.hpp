@@ -81,47 +81,47 @@ namespace ooos
 	};
 	enum class trb_type : uint8_t
 	{
-		TRB_NORMAL						= 1UC,
-		TRB_SETUP						= 2UC,
-		TRB_DATA						= 3UC,
-		TRB_STATUS						= 4UC,
-		TRB_ISOCH						= 5UC,
-		TRB_LINK						= 6UC,
-		TRB_EVENT_DATA					= 7UC,
-		TRB_NOOP						= 8UC,
-		TRB_ENABLE_SLOT_CMD				= 9UC,
-		TRB_DISABLE_SLOT_CMD			= 10UC,
-		TRB_ADDRESS_DEVICE_CMD			= 11UC,
-		TRB_CONFIGIRE_ENDPOINT_CMD		= 12UC,
-		TRB_EVALUATE_CONTEXT_CMD		= 13UC,
-		TRB_RESET_ENDPOINT_CMD			= 14UC,
-		TRB_STOP_ENDPOINT_CMD			= 15UC,
-		TRB_SET_DEQUEUE_PTR_CMD			= 16UC,
-		TRB_RESET_DEVICE_CMD			= 17UC,
-		TRB_FORCE_EVENT_CMD				= 18UC,
-		TRB_NEGOTIATE_BANDWIDTH_CMD		= 19UC,
-		TRB_SET_LATENCY_TOLERANCE_CMD	= 20UC,
-		TRB_GET_PORT_BANDWIDTH_CMD		= 21UC,
-		TRB_FORCE_HEADER_CMD			= 22UC,
-		TRB_NOOP_CMD					= 23UC,
-		TRB_GET_EXTENDED_PROPERTY_CMD	= 24UC,
-		TRB_SET_EXTENDED_PROPERTY_CMD	= 25UC,
-		TRB_TRANSFER_EVENT				= 32UC,
-		TRB_COMMAND_COMPLETION_EVENT	= 33UC,
-		TRB_PORT_STATUS_CHANGE_EVENT	= 34UC,
-		TRB_BANDWIDTH_REQUEST_EVENT		= 35UC,
-		TRB_DOORBELL_EVENT				= 36UC,
-		TRB_HOST_CONTROLLER_EVENT		= 37UC,
-		TRB_DEVICE_NOTIFICATION_EVENT	= 38UC,
-		TRB_MFINDEX_WRAP_EVENT			= 39UC,
-		TRB_VENDOR_MIN					= 48UC,
-		TRB_VENDOR_MAX					= 63UC,
+		NORMAL						= 1UC,
+		SETUP						= 2UC,
+		DATA						= 3UC,
+		STATUS						= 4UC,
+		ISOCH						= 5UC,
+		LINK						= 6UC,
+		EVENT_DATA					= 7UC,
+		NOOP						= 8UC,
+		ENABLE_SLOT_CMD				= 9UC,
+		DISABLE_SLOT_CMD			= 10UC,
+		ADDRESS_DEVICE_CMD			= 11UC,
+		CONFIGIRE_ENDPOINT_CMD		= 12UC,
+		EVALUATE_CONTEXT_CMD		= 13UC,
+		RESET_ENDPOINT_CMD			= 14UC,
+		STOP_ENDPOINT_CMD			= 15UC,
+		SET_DEQUEUE_PTR_CMD			= 16UC,
+		RESET_DEVICE_CMD			= 17UC,
+		FORCE_EVENT_CMD				= 18UC,
+		NEGOTIATE_BANDWIDTH_CMD		= 19UC,
+		SET_LATENCY_TOLERANCE_CMD	= 20UC,
+		GET_PORT_BANDWIDTH_CMD		= 21UC,
+		FORCE_HEADER_CMD			= 22UC,
+		NOOP_CMD					= 23UC,
+		GET_EXTENDED_PROPERTY_CMD	= 24UC,
+		SET_EXTENDED_PROPERTY_CMD	= 25UC,
+		TRANSFER_EVENT				= 32UC,
+		COMMAND_COMPLETION_EVENT	= 33UC,
+		PORT_STATUS_CHANGE_EVENT	= 34UC,
+		BANDWIDTH_REQUEST_EVENT		= 35UC,
+		DOORBELL_EVENT				= 36UC,
+		HOST_CONTROLLER_EVENT		= 37UC,
+		DEVICE_NOTIFICATION_EVENT	= 38UC,
+		MFINDEX_WRAP_EVENT			= 39UC,
+		VENDOR_MIN					= 48UC,
+		VENDOR_MAX					= 63UC,
 	};
 	enum class control_transfer_type : uint8_t
 	{
-		CTT_NO_DATA_STAGE				= 0UC,
-		CTT_OUT_DATA_STAGE				= 2UC,
-		CTT_IN_DATA_STAGE				= 3UC,
+		NO_DATA_STAGE				= 0UC,
+		OUT_DATA_STAGE				= 2UC,
+		IN_DATA_STAGE				= 3UC,
 	};
 	enum class test_mode : uint8_t
 	{
@@ -140,7 +140,7 @@ namespace ooos
 		CC_BUFFER_ERROR					= 2UC,
 		CC_BABBLE						= 3UC,
 		CC_TXN_ERROR					= 4UC,
-		CC_TRB_ERROR					= 5UC,
+		CC_ERROR					= 5UC,
 		CC_STALL						= 6UC,
 		CC_RSRC_ERROR					= 7UC,
 		CC_BANDWIDTH_ERROR				= 8UC,
@@ -183,7 +183,7 @@ namespace ooos
 		GREEN	= 2UC,
 		// 3 is undefined
 	};
-	enum class xhci_extended_protocol_code : uint8_t
+	enum class xhci_extended_capability_code : uint8_t
 	{
 		USB_LEGACY				= 1UC,
 		SUPPORTED_PROTOCOL		= 2UC,
@@ -200,6 +200,19 @@ namespace ooos
 		USB3_0	= 0x0300US,
 		USB3_1	= 0x0310US,
 		USB3_2	= 0x0320US,
+	};
+	enum class xhci_protocol_speed_exponent : uint8_t
+	{
+		BITS		= 0UC,
+		KILOBITS	= 1UC,
+		MEGABITS	= 2UC,
+		GIGABITS	= 3UC,
+	};
+	enum class xhci_protocol_speed_type : uint8_t
+	{
+		SYMMETRIC		= 0UC,
+		ASYMMETRIC_RX	= 2UC,
+		ASYMMETRIC_TX	= 3UC,
 	};
 	struct __pack xhci_dequeue_link
 	{
@@ -271,17 +284,18 @@ namespace ooos
 		uint8_t							: 8;
 		uint32_t						: 32;
 	};
-	struct __pack xhci_input_control_context
+	struct attribute(aligned(64)) xhci_input_context
 	{
 		dword drop_flags;	// note: d0 and d1 are reserved
 		dword add_flags;
-		uint64_t 						: 64;
-		uint64_t						: 64;
-		uint32_t						: 32;
-		uint8_t confifguration_value;
+		uint32_t rsvdz[5];
+		uint8_t configuration_value;
 		uint8_t interface_number;
 		uint8_t alternate_setting;
-		uint8_t							: 8;
+		uint8_t rsvd0;
+		xhci_slot_context slot_context;
+		xhci_endpoint_context ep[31];
+		constexpr xhci_endpoint_context& operator[](uint8_t i) noexcept { return ep[i]; }
 	};
 	struct force_header_data_dword { uint32_t header_data_hi; };
 	struct event_data_qword { char event_data[sizeof(qword)]; };
@@ -298,6 +312,7 @@ namespace ooos
 			} data_ptr;
 			char immediate_data[sizeof(uintptr_t)]{};
 		};
+		constexpr static decltype(data_ptr) of(addr_t p) noexcept { return std::bit_cast<decltype(data_ptr)>(p); }
 	};
 	struct __pack force_header_trb_data
 	{
@@ -511,6 +526,7 @@ namespace ooos
 		constexpr addr_t operational_registers() const noexcept { return addr_t(this).plus(capability_length); }
 		constexpr addr_t runtime_registers() const noexcept { return addr_t(this).plus(runtime_registers_offset); }
 		constexpr addr_t doorbell_registers() const noexcept { return addr_t(this).plus(doorbell_offset); }
+		constexpr addr_t extended_capabilities() const noexcept { return addr_t(this).plus(extended_capabilities_offset); }
 	};
 	struct __pack usb3_pmsc
 	{
@@ -693,6 +709,55 @@ namespace ooos
 		uint16_t ring_segment_size;
 		uint16_t rsvd0[3];
 	};
+	struct xhci_extended_capability_base
+	{
+		xhci_extended_capability_code code;
+		uint8_t next;
+		xhci_extended_capability_base* get_next() const noexcept { return next ? addr_t(this).plus(next) : nullptr; }
+	};
+	struct xhci_protocol_speed_id
+	{
+		uint8_t id_value						: 4;
+		xhci_protocol_speed_exponent exponent	: 2;
+		xhci_protocol_speed_type type			: 2;
+		bool full_duplex						: 1;
+		bool									: 5;
+		bool super_speed_plus					: 1;
+		bool									: 1;
+		uint16_t mantissa;
+		constexpr uint64_t calc_bitrate() const
+		{
+			switch(exponent)
+			{
+				case xhci_protocol_speed_exponent::BITS:
+					return mantissa;
+				case xhci_protocol_speed_exponent::KILOBITS:
+					return static_cast<uint64_t>(mantissa) * 1000UL;
+				case xhci_protocol_speed_exponent::MEGABITS:
+					return static_cast<uint64_t>(mantissa) * 1000000UL;
+				case xhci_protocol_speed_exponent::GIGABITS:
+				default:
+					return static_cast<uint64_t>(mantissa) * 1000000000UL;
+			}
+		}
+	};
+	struct xhci_supported_protocol : xhci_extended_capability_base
+	{
+		xhci_protocol_version_code version;
+		char name_str[4];
+		uint8_t port_offset;
+		uint8_t port_count;
+		struct __pack
+		{
+			bool							: 8;
+			bool soft_error_count_capable	: 1;
+			uint8_t hub_depth				: 3;
+			uint8_t protocol_speed_id_count	: 4;
+			uint8_t protocol_slot_type		: 5;
+			int								: 27;
+		};
+		xhci_protocol_speed_id speed_ids[];
+	};
 	template<qword_size Q0, dword_size D2, word_size D3H> struct xhci_trb : Q0, D2, xhci_trb_type_and_flags, D3H {};
 	template<word_size D3H, qword_size Q0 = trb_data_ptr, dword_size D2 = transfer_trb_dw2> using xhci_transfer_trb		= xhci_trb<Q0, D2, D3H>;
 	template<qword_size Q0, dword_size D2 = event_trb_dw2, word_size D3H = other_event_trb_dw3hi> using xhci_event_trb	= xhci_trb<Q0, D2, D3H>;
@@ -729,6 +794,31 @@ namespace ooos
 	typedef xhci_cmd_trb<extended_property_cmd_trb_dw3hi, empty_qword, extended_property_cmd_trb_dw2> xhci_extended_property_cmd;	// both get and set use this
 	typedef xhci_trb<trb_data_ptr, other_trb_dw2, empty_word> xhci_link_trb;
 	typedef xhci_trb<event_data_qword, other_trb_dw2, empty_word> xhci_event_data_trb;
+	struct xhci_port_range
+	{
+		uint8_t first;
+		uint8_t last;
+		struct contains
+		{
+			constexpr contains() noexcept = default;
+			constexpr bool operator()(xhci_port_range const& r, uint8_t i) const noexcept { return i <= r.last && i >= r.first; }
+			constexpr bool operator()(uint8_t i, xhci_port_range const& r) const noexcept { return i <= r.last && i >= r.first; }
+		};
+	};
+	struct xhci_port_protocol : xhci_port_range
+	{
+		uint8_t protocol_slot_type;
+		uint8_t hub_depth;
+		bool soft_error_count_capable;
+		mod_mm_vec<xhci_protocol_speed_id> speed_ids;
+		inline xhci_port_protocol(xhci_supported_protocol const& sp, abstract_module_base* mod) :
+			xhci_port_range(sp.port_offset, sp.port_offset + sp.port_count),
+			protocol_slot_type(sp.protocol_slot_type),
+			hub_depth(sp.hub_depth),
+			soft_error_count_capable(sp.soft_error_count_capable),
+			speed_ids(sp.speed_ids, sp.speed_ids + sp.protocol_speed_id_count, mod)
+		{}
+	};
 	constexpr auto xhci_config()
 	{
 		return ooos::create_config
@@ -831,12 +921,17 @@ namespace ooos
 	};
 	struct xhci_trb_ring : public xhci_segmented_array<xhci_generic_trb>
 	{
-		ring_pointer enqueue;
-		ring_pointer dequeue;
-		constexpr xhci_trb_ring() noexcept : xhci_segmented_array<xhci_generic_trb>(), enqueue(*this), dequeue(*this) {}
-		constexpr xhci_trb_ring(abstract_module_base* mod) noexcept : xhci_segmented_array<xhci_generic_trb>(mod), enqueue(*this), dequeue(*this) {}
-		constexpr xhci_trb_ring(mod_mm_vec<trb_ring_segment>&& vec) noexcept : xhci_segmented_array<xhci_generic_trb>(std::move(vec)), enqueue(*this), dequeue(*this) {}
-		constexpr void init_ptrs() noexcept { init_ptr(enqueue); init_ptr(dequeue); }
+		ring_pointer enqueue_ptr;
+		ring_pointer dequeue_ptr;
+		bool cycle_state;
+		constexpr xhci_trb_ring() noexcept : xhci_segmented_array<xhci_generic_trb>(), enqueue_ptr(*this), dequeue_ptr(*this), cycle_state(false) {}
+		constexpr xhci_trb_ring(abstract_module_base* mod) noexcept : xhci_segmented_array<xhci_generic_trb>(mod), enqueue_ptr(*this), dequeue_ptr(*this), cycle_state(false) {}
+		constexpr xhci_trb_ring(mod_mm_vec<trb_ring_segment>&& vec) noexcept : xhci_segmented_array<xhci_generic_trb>(std::move(vec)), enqueue_ptr(*this), dequeue_ptr(*this), cycle_state(false) {}
+		constexpr void init_ptrs() noexcept { init_ptr(enqueue_ptr); init_ptr(dequeue_ptr); }
+		constexpr void on_loop() noexcept { reset_ptr(enqueue_ptr); cycle_state ^= true; }
+		constexpr void set_cycle_bit(bool value) noexcept { cycle_state = value; }
+		void advance_enq() noexcept;
+		void advance_deq() noexcept;
 	};
 	struct xhci_stream_set
 	{
@@ -866,43 +961,61 @@ namespace ooos
 		constexpr xhci_stream_set() : primary_array(), secondary_arrays(256UZ), trb_rings(1024UZ) {}
 		constexpr xhci_stream_set(abstract_module_base* mod) : primary_array(mod), secondary_arrays(256UZ, mod), trb_rings(1024UZ, mod) {}
 	};
-	class xhci_device_endpoint : public abstract_connectable_device::interface
+	struct xhci_device_endpoint : public abstract_connectable_device::interface
 	{
-		xhci_device_slot& __parent;
-		xhci_endpoint_context& __ctx;
-		std::optional<xhci_stream_set> __streams;
-		std::optional<xhci_trb_ring> __transfer_trb;
-		uint8_t __idx;
-		void __ring_doorbell(uint16_t stream_id = 0US);
-	public:
+		xhci_device_slot& parent;
+		xhci_endpoint_context& ctx;
+		std::optional<xhci_stream_set> streams;
+		std::optional<xhci_trb_ring> transfer_trb_ring;
+		uint8_t idx;
 		xhci_device_endpoint(xhci_device_slot& slot, uint8_t idx);
 		virtual void put_msg(generic_device_message const& msg) override;
 		virtual std::optional<generic_device_message> poll_msg() override;
 		virtual type interface_type() const override;
-		constexpr bool active() const noexcept { return __streams || __transfer_trb; }
+		void ring_doorbell(uint16_t stream_id = 0US);
+		constexpr bool active() const noexcept { return streams || transfer_trb_ring; }
 		constexpr operator bool() const noexcept { return active(); }
 	};
 	class xhci_host_controller;
 	class xhci_device_slot : public abstract_connectable_device
 	{
-		friend class xhci_device_endpoint;
-		friend class xhci_host_controller;
 		xhci_host_controller& __parent;
-		xhci_hc_port& __port;
 		xhci_device_context& __ctx;
+		xhci_input_context& __input_ctx;
 		xhci_doorbell& __doorbell;
+		std::reference_wrapper<xhci_hc_port> __port;
 		std::array<xhci_device_endpoint, 31UZ> __endpoints;
-		size_t __active_endpoints;	// number of active endpoints for fast reference
-		uint8_t __idx;
+		uint8_t __idx;	// note: this value will be 1-indexed rather than 0-indexed; a slot id of 0 is returned by the xhc if there is an error
 		typedef std::make_integer_sequence<uint8_t, 31UC> __ep_seq;
 		static std::array<xhci_device_endpoint, 31UZ> __create_array(xhci_device_slot& slot);
 		static xhci_device_endpoint __create_ep(xhci_device_slot& slot, uint8_t i);
+		void __address_device_cb(xhci_completion_event_trb& e, uint64_t dev_bitrate);
+		void __pre_discover_endpoints(uint16_t ep0_default_max_packet);
+		void __pre_discover_endpoints_cb(usb_device_descriptor const& desc, xhci_transfer_event_trb& e);
+		void __discover_endpoints();
 	public:
 		xhci_device_slot(xhci_host_controller& ctl, uint8_t idx);
 		virtual size_t interface_count() const override;
 		virtual abstract_connectable_device::provider* parent() override;
 		virtual abstract_connectable_device::interface* operator[](size_t idx) override;
+		void enable(uint8_t port_idx);
+		void disable();
+		inline void assign_port(uint8_t idx);
+		inline xhci_endpoint_context& get_ep(size_t idx) { return __ctx[idx]; }
+		inline void ring_doorbell(uint8_t idx, uint16_t stream_id) { __doorbell = xhci_doorbell(idx, 0UC, stream_id); }
+		inline xhci_host_controller& xhc() { return __parent; }
+		constexpr xhci_hc_port& port() const noexcept { return __port; }
+		constexpr bool is_on_port(xhci_hc_port const& p) const noexcept { return std::addressof(p) == std::addressof(port()); }
+		constexpr uint8_t id() const noexcept { return __idx; }
 	};
+	struct transfer_event_origin
+	{
+		uint8_t slot;
+		uint8_t endpoint;
+		struct to_word { constexpr size_t operator()(transfer_event_origin const& value) const noexcept; };
+	};
+	constexpr bool operator==(transfer_event_origin const& __this, transfer_event_origin const& __that) noexcept { return std::bit_cast<uint16_t>(__this) == std::bit_cast<uint16_t>(__that); }
+	constexpr size_t transfer_event_origin::to_word::operator()(transfer_event_origin const& value) const noexcept { return std::bit_cast<uint16_t>(value); }
 	struct xhci_event_handler
 	{
 		xhci_host_controller& parent;
@@ -910,35 +1023,41 @@ namespace ooos
 		std::span<xhci_event_ring_segment_table_entry> event_ring_segment_table;
 		xhci_trb_ring event_ring;
 		event_listener<xhci_generic_trb&> handler;
-		bool cycle_state;
 		template<typename ... Args> requires(std::constructible_from<event_listener<xhci_generic_trb&>, Args...>)
 		inline xhci_event_handler(xhci_host_controller& ctl, uint8_t idx, Args&& ... args);
 		xhci_event_handler& init_state();
 		inline void set_enabled(bool enabled) noexcept { interrupter.interrupt_enable = enabled; }
 		void operator()();
 		void add_new_segment();
-
 	};
 	class xhci_host_controller : public usb_host_controller_module
 	{
-		friend class xhci_device_slot;
-		friend class xhci_device_endpoint;
-		friend struct xhci_event_handler;
 		pci_config_space* __hc_dev;
 		managed_dma_span<xhci_device_context> __dev_ctx_array;
+		managed_dma_span<xhci_input_context> __input_ctx_array;
 		xhci_capability_registers* __hc_caps	= nullptr;
 		xhci_hc_mem* __hc_mem					= nullptr;
 		xchi_hc_runtime_mem* __hc_rt_mem		= nullptr;
-		xhci_doorbell* doorbells				= nullptr;
+		xhci_doorbell* __doorbells				= nullptr;
 		managed_dma_span<addr_t> __ctx_and_sp_ptrs;
 		managed_dma_span<char> __scratchpads;
 		managed_dma_span<xhci_event_ring_segment_table_entry> __event_ring_segment_tables;
 		mod_mm_vec<xhci_device_slot> __slots;
 		mod_mm_vec<xhci_event_handler> __handlers;
-		xhci_trb_ring __cmd_ring;
+		mod_mm_vec<xhci_port_protocol> __port_protocols;
 		static xhci_config_type __cfg;
 		bool __configure_interrupters();
+		void __handle_port_status_change(xhci_port_status_change_event_trb& e);
+		void __handle_hc_event(xhci_host_controller_event_trb& e);
+		void __handle_db_event(xhci_doorbell_event_trb& e);
+		void __handle_mfindex_event(xhci_mfindex_wrap_event_trb& e);
+		void __handle_completion_event(xhci_completion_event_trb& e);
+		void __enable_slot_cb(xhci_completion_event_trb& e, uint8_t port_id);
+		void __disable_slot_cb(xhci_completion_event_trb&, xhci_device_slot& s);
 	public:
+		mod_mm_map<void*, event_listener<xhci_completion_event_trb&>> cmd_callbacks;
+		mod_mm_map<transfer_event_origin, event_listener<xhci_transfer_event_trb&>, transfer_event_origin::to_word> transfer_callbacks;
+		xhci_trb_ring cmd_ring;
 		xhci_host_controller(pci_config_space* pci);
 		virtual bool initialize() override;
 		virtual void finalize() override;
@@ -949,15 +1068,25 @@ namespace ooos
 		bool add_segment(mod_mm_vec<trb_ring_segment>& ring);
 		mod_mm_vec<trb_ring_segment> create_ring(size_t n_segments = 1UZ);
 		std::span<xhci_event_ring_segment_table_entry> erst_sub(uint8_t idx);
+		inline std::reference_wrapper<xhci_hc_port> get_port(uint8_t idx) { return std::ref(__hc_mem->port_registers[idx]); }
+		inline xhci_doorbell& get_db(uint8_t slot_idx) { return __doorbells[slot_idx + 1]; /* 0 is the host controller's doorbell */ }
+		inline xhci_doorbell& hc_db() { return __doorbells[0]; }
+		inline xhci_device_context& get_slot(uint8_t idx) { return __dev_ctx_array[idx]; }
+		inline xhci_input_context& get_input_slot(uint8_t idx) { return __input_ctx_array[idx]; }
+		inline xhci_interrupter_register& get_interrupter(uint8_t idx) { return __hc_rt_mem->interrupters[idx]; }
+		inline mod_mm_vec<xhci_port_protocol>::iterator protocol_for(uint8_t port) { return std::ranges::find_if(__port_protocols, std::bind_front(xhci_port_range::contains(), port)); }
+		inline bool check(mod_mm_vec<xhci_port_protocol>::iterator i) const { return i != __port_protocols.end(); }
+		static inline uint16_t imod_interval() { return get_element<2>(__cfg); }
+		static inline time_t max_wait_time() { return get_element<4>(__cfg); }
 	};
+	inline void xhci_device_slot::assign_port(uint8_t idx) { __port = __parent.get_port(idx); }
 	template<typename ... Args> requires(std::constructible_from<event_listener<xhci_generic_trb&>, Args...>)
 	inline xhci_event_handler::xhci_event_handler(xhci_host_controller& ctl, uint8_t idx, Args&& ... args) :
 		parent(ctl),
-		interrupter(parent.__hc_rt_mem->interrupters[idx]),
+		interrupter(parent.get_interrupter(idx)),
 		event_ring_segment_table(parent.erst_sub(idx)),
 		event_ring(parent.create_ring()),
-		handler(std::forward<Args>(args)...),
-		cycle_state(false)
+		handler(std::forward<Args>(args)...)
 	{}
 }
 #endif

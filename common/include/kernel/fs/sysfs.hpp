@@ -16,7 +16,7 @@
 #include <sys/errno.h>
 #include <typeindex>
 #include <unordered_map>
-#include <optional>
+#include <ranges>
 // This template declaration is long enough that using a macro saves a significant amount of space.
 #define sysfs_htbl_template template<typename KT, typename VT, std::__detail::__key_extract<KT, VT> XT, std::__detail::__hash_ftor<KT> HT, std::__detail::__predicate<KT> ET>
 constexpr uint32_t sysfs_magic                  = 0xA11C0DED;
@@ -195,14 +195,15 @@ struct sysfs_backup_filenames
 	char directory_backup_file_name[16];
 };
 template<typename T>
-concept sized_open_coded = requires(T const& t)
+concept sized_open_coded = std::ranges::sized_range<T> || requires(T const& t)
 {
 	{ t.size() } -> std::integral;
 	typename T::is_open_coded;
 	requires(static_cast<bool>(T::is_open_coded::value));
 };
+template<typename T> concept trivial_copy_range = std::ranges::sized_range<T> && trivial_copy<std::ranges::range_value_t<T>>;
 template<typename T>
-concept can_write_as_bytes = std::is_object_v<T> && !std::is_const_v<T> && (trivial_copy<T> || requires
+concept can_write_as_bytes = std::is_object_v<T> && !std::is_const_v<T> && (trivial_copy<T> || trivial_copy_range<T> || requires
 {
 	requires(static_cast<bool>(T::can_memcpy::value));
 	requires(std::is_trivially_destructible_v<T>);
@@ -259,7 +260,6 @@ constexpr static size_t size_of(T const& t) noexcept(nothrow_size<T>)
 		return t.size();
 	else return sizeof(T);
 }
-
 /**
  * Represents a non-owning reference to an object stored in the sysfs.
  * The handle can be used to read and modify the object.
@@ -324,6 +324,41 @@ struct sysfs_object_handle<const T>
 	const_reference operator*() const { return *static_cast<const_pointer>(object_node.raw_data()); }
 	const_pointer operator->() const { return static_cast<const_pointer>(object_node.raw_data()); }
 	const_pointer base() const { return static_cast<const_pointer>(object_node.raw_data()); }
+};
+template<std::ranges::contiguous_range RT>
+struct sysfs_object_handle<RT>
+{
+	sysfs_vnode& object_node;
+	[[no_unique_address]] std::conditional_t<std::is_const_v<RT>, std::true_type, bool> released;
+	typedef copy_cv_t<RT, std::ranges::range_value_t<RT>> value_type;
+	typedef value_type* pointer;
+	typedef std::add_const_t<value_type>* const_pointer;
+	typedef value_type& reference;
+	typedef std::add_const_t<value_type>& const_reference;
+private:
+	typedef std::remove_cvref_t<RT> const& __crange;
+	void __write(__crange that) requires(can_write_as_bytes<value_type>)
+	{
+		const void* ptr	= std::ranges::data(that);
+		size_t size		= std::ranges::size(that);
+		object_node.pubseekpos(std::streampos(0), std::ios_base::out);
+		if(!object_node.sputn(static_cast<const char*>(ptr), size)) throw std::runtime_error("[sysfs] no space in object file");
+	}
+public:
+	sysfs_object_handle(sysfs& parent, uint32_t ino) : object_node(parent.open(ino)), released() {}
+	sysfs_object_handle(sysfs_vnode& n, __crange that) requires(can_write_as_bytes<value_type>) : object_node(n), released() { __write(that); }
+	sysfs_object_handle(sysfs_object_handle const& that) : object_node(that.object_node), released() {}
+	sysfs_object_handle(sysfs_object_handle&& that) : object_node(that.object_node), released() {}
+	reference operator*() & { return *static_cast<pointer>(object_node.raw_data()); }
+	const_reference operator*() const& { return *static_cast<const_pointer>(object_node.raw_data()); }
+	pointer operator->() & { return static_cast<pointer>(object_node.raw_data()); }
+	const_pointer operator->() const& { return static_cast<const_pointer>(object_node.raw_data()); }
+	pointer base() { return static_cast<pointer>(object_node.raw_data()); }
+	const_pointer base() const { return static_cast<const_pointer>(object_node.raw_data()); }
+	size_t size() const noexcept { return object_node.count(); }
+	void release() requires(!std::is_const_v<RT>) { released = true; }
+	sysfs_object_handle& operator=(__crange that) requires(!std::is_const_v<RT> && can_write_as_bytes<value_type>) { return __write(that), *this; }
+	~sysfs_object_handle() { if(!released) { object_node.commit(object_node.count()); object_node.pubsync(); object_node.sync_parent(); } }
 };
 template<typename T> requires(can_write_as_bytes<T>)
 sysfs_object_handle<T> sysfs::create(std::string const& name, T const& value)

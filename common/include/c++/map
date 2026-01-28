@@ -16,6 +16,10 @@ namespace std
 		constexpr bool operator()(T const& t, pair<const T, U> p) const { return c(t, p.first); }
 		constexpr bool operator()(pair<const T, U> a, pair<const T, U> b) const { return c(a.first, b.first); }
 		constexpr bool operator()(T const& a, T const& b) const { return c(a, b); }
+		template<typename V> requires(__valid_comparator<T, U>) constexpr bool operator()(T const& a, V const& b) const { return c(a, b); }
+		template<typename V> requires(__valid_comparator<T, U>) constexpr bool operator()(pair<T const, U> a, V const& b) const { return c(a.first, b); }
+		template<typename V> requires(__valid_comparator<T, U>) constexpr bool operator()(V const& a, T const& b) const { return c(a, b); }
+		template<typename V> requires(__valid_comparator<T, U>) constexpr bool operator()(V const& a, pair<T const, U> b) const { return c(a, b.first); }
 	};
 	template<typename KT, typename VT, __valid_comparator<KT> CT = less<KT>, allocator_object<pair<const KT, VT>> AT = allocator<pair<const KT, VT>>>
 	class map : public __rb_tree<pair<const KT, VT>, __key_compare<KT, VT, CT>, AT>

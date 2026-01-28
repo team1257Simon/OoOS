@@ -64,6 +64,14 @@ namespace ooos
 			constexpr ~__listener_base() { if(__my_manager) __my_manager(__my_listener, __my_listener, destroy); }
 		};
 	};
+	/**
+	 * Simple std::function-like wrapper for callable types with closures of the form [](ET) -> void.
+	 * It has the following salient differences from std::function<void(ET)>:
+	 * 	- Invoking an empty listener will do nothing rather than throw an exception.
+	 * 	- It has a pass-by-value overload for trivially-copyable argument types.
+	 *  - It allows non-copyable functors, and is itself non-copyable (but it is movable and swappable).
+	 *  - It can be bound to a functor that model invocable<DT> for some DT that models (requires { static_cast<ET>(std::declval<DT>()); }).
+	 */
 	template<typename ET> struct event_listener;
 	namespace __internal { template<typename ET, typename FT> concept __wrappable_cb = __callable<FT, ET> && !std::is_same_v<FT, event_listener<ET>>; }
 	template<typename ET>

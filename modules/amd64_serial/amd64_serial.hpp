@@ -57,10 +57,10 @@ typedef struct __line_ctl
 	bool break_enable				: 1;
 	bool divisor_latch_access		: 1;
 	constexpr __line_ctl(data_len_t len, bool extend_sb, parity_bit_t pb, bool enable_break, bool dla) noexcept : data_len(len), extend_stop_bit(extend_sb), parity_bit(pb), break_enable(enable_break), divisor_latch_access(dla) {}
-	constexpr __line_ctl(byte i) noexcept : __line_ctl(data_len_t(i & 0x03UC), i[2], parity_bit_t((i & 0x38) >> 3), i[6], i[7]) {}
+	constexpr __line_ctl(u8 i) noexcept : __line_ctl(data_len_t(i & 0x03UC), i[2], parity_bit_t((i & 0x38) >> 3), i[6], i[7]) {}
 	constexpr __line_ctl() noexcept = default;
 	constexpr operator uint8_t() const noexcept {
-		if consteval { return byte(false, false, extend_stop_bit, false, false, false, break_enable, divisor_latch_access) | data_len | (parity_bit << 3); }
+		if consteval { return u8(false, false, extend_stop_bit, false, false, false, break_enable, divisor_latch_access) | data_len | (parity_bit << 3); }
 		return __builtin_bit_cast(uint8_t, *this);
 	}
 } __pack line_ctl_byte;
@@ -74,10 +74,10 @@ typedef struct __ier_reg
 	bool modem_status			: 1;
 	bool						: 4;
 	constexpr __ier_reg(bool rcv, bool tbe, bool ls, bool ms) noexcept : receive_data(rcv), transmit_buffer_empty(tbe), receiver_line_status(ls), modem_status(ms) {}
-	constexpr __ier_reg(byte i) noexcept : __ier_reg(i[0], i[1], i[2], i[3]) {}
+	constexpr __ier_reg(u8 i) noexcept : __ier_reg(i[0], i[1], i[2], i[3]) {}
 	constexpr __ier_reg() noexcept = default;
 	constexpr operator uint8_t() const noexcept {
-		if consteval { return byte(receive_data, transmit_buffer_empty, receiver_line_status, modem_status, false, false, false, false); }
+		if consteval { return u8(receive_data, transmit_buffer_empty, receiver_line_status, modem_status, false, false, false, false); }
 		return __builtin_bit_cast(uint8_t, *this);
 	}
 } __pack serial_ier;
@@ -91,10 +91,10 @@ typedef struct __modem_ctl
 	bool loopback_enable	: 1; // Enable Loopback-Test Mode
 	bool					: 3;
 	constexpr __modem_ctl(bool dtr, bool rts, bool out1, bool out2, bool loop) noexcept : dtr_enable(dtr), rts_enable(rts), out1_enable(out1), out2_enable(out2), loopback_enable(loop) {}
-	constexpr __modem_ctl(byte i) noexcept : __modem_ctl(i[0], i[1], i[2], i[3], i[4]) {}
+	constexpr __modem_ctl(u8 i) noexcept : __modem_ctl(i[0], i[1], i[2], i[3], i[4]) {}
 	constexpr __modem_ctl() noexcept = default;
 	constexpr operator uint8_t() const noexcept {
-		if consteval { return byte(dtr_enable, rts_enable, out1_enable, out2_enable, loopback_enable, false, false, false); }
+		if consteval { return u8(dtr_enable, rts_enable, out1_enable, out2_enable, loopback_enable, false, false, false); }
 		return __builtin_bit_cast(uint8_t, *this);
 	}
 } __pack modem_ctl_byte;
@@ -107,9 +107,9 @@ typedef struct __fifo_ctl_reg
 	bool								: 2;
 	enum trigger_level_t trigger_level	: 2;
 	constexpr __fifo_ctl_reg(bool irq, bool clt, bool clr, bool timeout, trigger_level_t buf) noexcept : enable(irq), clear_transmit_buffer(clt), clear_receive_buffer(clr), dma_sel(timeout), trigger_level(buf) {}
-	constexpr __fifo_ctl_reg(byte i) noexcept : __fifo_ctl_reg(i[0], i[1], i[2], i[3], trigger_level_t((i & 0xC0UC) >> 6)) {}
+	constexpr __fifo_ctl_reg(u8 i) noexcept : __fifo_ctl_reg(i[0], i[1], i[2], i[3], trigger_level_t((i & 0xC0UC) >> 6)) {}
 	constexpr operator uint8_t() const noexcept {
-		if consteval { return byte((trigger_level << 6) | byte(enable, clear_transmit_buffer, clear_receive_buffer, dma_sel, false, false, false, false)); }
+		if consteval { return u8((trigger_level << 6) | u8(enable, clear_transmit_buffer, clear_receive_buffer, dma_sel, false, false, false, false)); }
 		return __builtin_bit_cast(uint8_t, *this);
 	}
 } __pack fifo_ctl_byte;
@@ -121,9 +121,9 @@ typedef struct __iir_reg
 	bool								: 2;
 	enum buffer_state_t buffer_state	: 2;
 	constexpr __iir_reg(bool irq, irq_state_t state, bool timeout, buffer_state_t buf) noexcept : irq_pending(irq), irq_state(state), timeout_pending(timeout), buffer_state(buf) {}
-	constexpr __iir_reg(byte i) noexcept : __iir_reg(i[0], irq_state_t((i & 0x06UC) >> 1), i[3], buffer_state_t((i & 0xC0UC) >> 6)) {}
+	constexpr __iir_reg(u8 i) noexcept : __iir_reg(i[0], irq_state_t((i & 0x06UC) >> 1), i[3], buffer_state_t((i & 0xC0UC) >> 6)) {}
 	constexpr operator uint8_t() const noexcept {
-		if consteval { return byte(irq_pending, false, false, timeout_pending, false, false, false, false) | (buffer_state << 6) | (irq_state << 1); }
+		if consteval { return u8(irq_pending, false, false, timeout_pending, false, false, false, false) | (buffer_state << 6) | (irq_state << 1); }
 		return __builtin_bit_cast(uint8_t, *this);
 	}
 } __pack serial_iir;
@@ -147,7 +147,7 @@ typedef struct __line_status_reg
 		tranmitter_idle				{ ti },
 		impending_error				{ ie }
 									{}
-	constexpr __line_status_reg(byte i) noexcept :
+	constexpr __line_status_reg(u8 i) noexcept :
 		data_ready					{ i[0] },
 		overrun_error				{ i[1] },
 		parity_error				{ i[2] },
@@ -158,8 +158,8 @@ typedef struct __line_status_reg
 		impending_error				{ i[7] }
 									{}
 	constexpr __line_status_reg() noexcept = default;
-	constexpr operator byte() const noexcept {
-		if consteval { return byte(data_ready, overrun_error, parity_error, framing_error, break_indicator, transmitter_buffer_empty, tranmitter_idle, impending_error); }
+	constexpr operator u8() const noexcept {
+		if consteval { return u8(data_ready, overrun_error, parity_error, framing_error, break_indicator, transmitter_buffer_empty, tranmitter_idle, impending_error); }
 		return __builtin_bit_cast(uint8_t, *this);
 	}
 } __pack line_status_byte;
