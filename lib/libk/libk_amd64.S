@@ -192,7 +192,7 @@ memchr:
 	leaq	-1(%rdi),	%rax
 	jmp		2f
 1:
-	xorq	%rax,		%rax
+	xorl	%eax,		%eax
 2:
 	ret
 	.size	memchr,		.-memchr
@@ -204,7 +204,7 @@ wmemchr:
 	leaq	-1(%rdi),	%rax
 	jmp		2f
 1:
-	xorq	%rax,		%rax
+	xorl	%eax,		%eax
 2:
 	ret
 	.size	wmemchr,	.-wmemchr
@@ -216,7 +216,7 @@ u16memchr:
 	leaq	-1(%rdi),	%rax
 	jmp		2f
 1:
-	xorq	%rax,		%rax
+	xorl	%eax,		%eax
 2:
 	ret
 	.size	u16memchr,	.-u16memchr
@@ -226,7 +226,7 @@ __errno:
 	.size	__errno,	.-__errno
 __rdseed:
 	rdseed		%rax
-	cmovncq	%rdi,	%rax
+	cmovncq		%rdi,	%rax
 	ret
 	.size	__rdseed,	.-__rdseed
 get_flags:

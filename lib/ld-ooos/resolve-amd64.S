@@ -19,6 +19,6 @@ resolve:
 	movq	$6,				last_error_action(%rip)
 	negq	%rax
 	movq	%rax,			%rdi
-	xorq	%rax,			%rax
+	xorl	%eax,			%eax
 	syscall
 	.size	resolve,		.-resolve

@@ -198,7 +198,7 @@ memchr:
 	leaq	-1(%rdi),	%rax
 	jmp		2f
 1:
-	xorq	%rax,		%rax
+	xorl	%eax,		%eax
 2:
 	ret
 	.size	memchr,			.-memchr
@@ -208,7 +208,7 @@ __errno:
 	.size	__errno,		.-__errno
 // for now this will just always return null
 getenv:
-	xorq		%rax,		%rax
+	xorl		%eax,		%eax
 	ret
 	.size		getenv,		.-getenv
 // setjmp and longjmp taken from newlib, under the same license as in the legal.md

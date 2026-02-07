@@ -23,7 +23,7 @@ _start:
 	call	module_init
 	jmp		2f
 1:
-	xorq	%rax,						%rax
+	xorl	%eax,						%eax
 2:
 	leave
 	ret

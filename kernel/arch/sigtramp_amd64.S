@@ -26,7 +26,7 @@ sigtramp_return:
 	.size	sigtramp_return,	.-sigtramp_return
     .p2align 4
 signal_exit:
-    xorq	%rax,				%rax
+    xorl	%eax,				%eax
     syscall
 	.size	signal_exit,		.-signal_exit
     .align	4096

@@ -87,7 +87,7 @@ user_entry:
 	syscall_state_restore
 	movq		%gs:T_OFFS(cr3),		%rax
 	movq		%rax,					%cr3
-	xorq		%rax,					%rax
+	xorl		%eax,					%eax
 	sysretq
 	.size		user_entry,			 .-user_entry
 kernel_reentry:

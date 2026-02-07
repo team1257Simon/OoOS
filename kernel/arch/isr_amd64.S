@@ -196,9 +196,9 @@ isr_trampoline:
 	.size		isr_trampoline,		.-isr_trampoline
 test_fault:
 	// Classic "divide by zero" fault to test the handler established in kmain
-	xorq		%rcx,			%rcx
-	movq		$1,				%rax
-	divq		%rcx
+	xorl		%ecx,			%ecx
+	movl		$1,				%eax
+	divl		%ecx
 	ret
 	.size		test_fault,		.-test_fault
 	.type		debug_stop,		@function
