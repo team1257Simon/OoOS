@@ -438,7 +438,7 @@ directory_vnode* extfs::mkdirnode(directory_vnode* parent, std::string const& na
 		ext_directory_vnode& exparent	= dynamic_cast<ext_directory_vnode&>(*parent);
 		if(exparent.add_dir_entry(vnode, dti_dir, name.data(), name.size()))
 		{
-			if(!vnode->init_dir_blank(std::addressof(exparent))) { panic("[FS/EXT4] failed to initialize directory"); return nullptr; }
+			if(!vnode->init_dir_blank(std::addressof(exparent))) return panic("[FS/EXT4] failed to initialize directory"), nullptr;
 			if(vnode->fsync()) return vnode;
 			else panic("[FS/EXT4] failed to persist directory node");
 		}
@@ -676,7 +676,7 @@ bool extfs::persist(ext_vnode* n)
 	}
 	auto dirty_filter						= [](disk_block& b) -> bool { return b.dirty; };
 	std::vector<disk_block> dirty_metadata	= n->cached_metadata | std::views::filter(dirty_filter) | std::ranges::to<std::vector>();
-	if(dirty_metadata.empty()) return true;	// vacuous truth if nothing to do
+	if(dirty_metadata.empty()) return true;	// vacuous success if nothing to do
 	for(disk_block& mdb : n->cached_metadata)
 		mdb.dirty							= false;
 	return fs_journal.create_txn(dirty_metadata) && persist_sb();

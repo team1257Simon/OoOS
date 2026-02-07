@@ -9,7 +9,7 @@ fat32_filebuf::fat32_filebuf(std::vector<uint32_t>&& covered_clusters, fat32_fil
 std::streamsize fat32_filebuf::unread_size()
 {
 	if(__next_cluster_idx < __my_clusters.size())
-		return (static_cast<size_t>(__my_clusters.size() - (__next_cluster_idx + 1Z)) * __parent->parent_fs->block_size()) + 1UL; /* The minimum nuber of bytes remaining, if there are any unread clusters, is 1 (for a cluster with only 1 written byte) */
+		return (static_cast<size_t>(__my_clusters.size() - (__next_cluster_idx + 1Z)) * __parent->parent_fs->block_size()) + 1UL; /* The minimum number of bytes remaining, if there are any unread clusters, is 1 (for a cluster with only 1 written byte) */
 	else return 0UL;
 }
 int fat32_filebuf::write_dev()

@@ -92,12 +92,12 @@ void elf64_executable::process_headers()
 		frame_extent		= std::max(frame_extent, addr_t(addr + h.p_memsz));
 	}
 	frame_base				= frame_base.page_aligned();
-	stack_base				= frame_extent.next_page_aligned();
-	frame_extent			= stack_base.plus(stack_size).next_page_aligned();
 	if(tls_seg) {
 		tls_base			= frame_extent.alignup(tls_align);
 		frame_extent		= tls_base.plus(phdr(tls_seg).p_memsz).next_page_aligned();
 	}
+	stack_base				= frame_extent.next_page_aligned();
+	frame_extent			= stack_base.plus(stack_size).next_page_aligned();
 }
 bool elf64_executable::load_segments()
 {

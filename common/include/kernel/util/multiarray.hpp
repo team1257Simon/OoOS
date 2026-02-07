@@ -213,7 +213,7 @@ namespace ooos
 		return result_type
 		{
 			// Calling the conversion operator on any inputs that are structs with an operator unsigned long or similar prevents creating copies unnecessarily.
-			// We can't use std::forward here because the inputs might be const-qualified.
+			// We can't use std::forward here because that wouldn't call said operator.
 			static_cast<size_t>(ns)...
 		};
 	}
@@ -292,22 +292,22 @@ namespace ooos
 		size_t count			= rank / 2;
 		for(size_t i			= 0UZ; i < count; i++)
 		{
-			size_t xpos 			= i * 2UZ;
-			size_t ypos				= xpos + 1UZ;
-			result[xpos] 			= 1UZ;
-			result[ypos] 			= dimensions[xpos];
-			if(i) result[ypos]		*= dimensions[xpos - 2];
-			for(size_t j = 0; j < i; j++)
+			size_t xpos 		= i * 2UZ;
+			size_t ypos			= xpos + 1UZ;
+			result[xpos] 		= 1UZ;
+			result[ypos] 		= dimensions[xpos];
+			if(i) result[ypos]	*= dimensions[xpos - 2];
+			for(size_t j		= 0UZ; j < i; j++)
 			{
-				size_t jpos			= j * 2;
-				result[jpos++]		*= dimensions[xpos];
-				result[jpos] 		*= dimensions[xpos];
-				result[jpos] 		*= dimensions[ypos];
+				size_t jpos		= j * 2;
+				result[jpos++]	*= dimensions[xpos];
+				result[jpos] 	*= dimensions[xpos];
+				result[jpos] 	*= dimensions[ypos];
 			}
 		}
 		return result;
 	}
-	template <typename T, size_t R>
+	template<typename T, size_t R>
 	template<size_t S>
 	constexpr scale_vector<S>&& multiarray<T, R>::__check_bounds(scale_vector<S>&& v) const
 	{

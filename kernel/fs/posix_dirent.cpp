@@ -43,7 +43,7 @@ static directory_buffer* create_dir_buffer(addr_t vaddr, uframe_tag* tag, direct
 			.d_type		{ type },
 			.d_name		{}
 		};
-		__builtin_memcpy(ent->d_name, name, name_len);
+		array_copy(ent->d_name, name, name_len);
 		ent->d_name[name_len]	= '\0';
 		cur						+= sizeof(dirent);
 	}

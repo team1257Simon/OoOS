@@ -364,9 +364,9 @@ namespace ooos
 			}
 		}
 	}
-	void xhci_host_controller::__handle_hc_event(xhci_host_controller_event_trb& e) {}
-	void xhci_host_controller::__handle_db_event(xhci_doorbell_event_trb& e) {}
-	void xhci_host_controller::__handle_mfindex_event(xhci_mfindex_wrap_event_trb& e) {}
+	void xhci_host_controller::__handle_hc_event(xhci_host_controller_event_trb& e) { /** TODO */ }
+	void xhci_host_controller::__handle_db_event(xhci_doorbell_event_trb& e) { /** TODO */ }
+	void xhci_host_controller::__handle_mfindex_event(xhci_mfindex_wrap_event_trb& e) { /** TODO */ }
 	void xhci_host_controller::__handle_completion_event(xhci_completion_event_trb& e)
 	{
 		addr_t trb_ptr	= e.data_ptr;
