@@ -167,13 +167,13 @@ std::pair<sysfs_extent_branch*, size_t> sysfs::next_available_extent_entry(size_
 	sysfs_extent_branch& br = get_extent_branch(from_idx);
 	if(!br.depth)
 	{
-		for(size_t i = 0; i < sysfs_extent_branch::num_entries; i++)
+		for(size_t i = 0UZ; i < sysfs_extent_branch::num_entries; i++)
 			if(!br.entries[i].start)
 				return std::pair(std::addressof(br), i);
 		return std::pair(nullptr, 0UZ);
 	}
 	if(!br.entries[0].start) return std::pair(std::addressof(br), 0UZ);
-	for(size_t i = 1; i < sysfs_extent_branch::num_entries; i++)
+	for(size_t i = 1UZ; i < sysfs_extent_branch::num_entries; i++)
 	{
 		if(!br.entries[i].start)
 		{

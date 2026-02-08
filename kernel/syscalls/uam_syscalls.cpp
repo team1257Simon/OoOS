@@ -92,7 +92,7 @@ extern "C"
 			permission_flag cperms		= current->capabilities.system_permissions;
 			if(!(cperms & impersonate_any_gid))
 			{
-				for(size_t i = 0; i < user_groups_array_len; i++)
+				for(size_t i = 0UZ; i < user_groups_array_len; i++)
 					if(current->credentials.groups[i] == id)
 						goto success;
 				return -EPERM;
