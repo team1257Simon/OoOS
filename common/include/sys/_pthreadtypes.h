@@ -37,14 +37,11 @@ struct ooos_pthread_ctl
 		unsigned char cancel_type					: 1;
 		const unsigned char callback_reset_type		: 1;
 	};
-	struct
-	{
-		pthread_spinlock_t thread_mutex;
-		pthread_t thread_id;
-		private_data_qword wait_time_info;
-		private_data_qword callback_reset_info;
-		void* const callback_handle;
-	};
+	pthread_spinlock_t thread_mutex;
+	pthread_t thread_id;
+	private_data_qword wait_time_info;
+	private_data_qword callback_reset_info;
+	void* const callback_handle;
 };
 #ifdef __cplusplus
 }

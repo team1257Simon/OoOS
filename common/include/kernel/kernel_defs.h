@@ -843,7 +843,7 @@ class bit_reference
 	constexpr static void __set(IT& i, size_t n) noexcept { i = __builtin_bit_cast(IT, __get(i) | __mask(n)); }
 	constexpr static void __toggle(IT& i, size_t n) noexcept { i = __builtin_bit_cast(IT, __get(i) ^ __mask(n)); }
 	constexpr static void __clear(IT& i, size_t n) noexcept { i = __builtin_bit_cast(IT, __get(i) & ~__mask(n)); }
-	constexpr static bool __test(IT const& i, size_t n) noexcept { return static_cast<bool>(__get(i) & __mask(i)); }
+	constexpr static bool __test(IT const& i, size_t n) noexcept { return static_cast<bool>(__get(i) & __mask(n)); }
 	constexpr void __put(bool b) noexcept { if(b) __set(*__ptr, __bit); else __clear(*__ptr, __bit); }
 public:
 	constexpr bit_reference(IT& i, size_t n) noexcept : __ptr(std::addressof(i)), __bit(n) {}

@@ -397,6 +397,8 @@ namespace std
 			constexpr owning_view(RT&& r) noexcept(is_nothrow_move_constructible_v<RT>) : __range(std::move(r)) {}
 			owning_view(owning_view&&) = default;
 			owning_view(owning_view const&) = default;
+			owning_view& operator=(owning_view&&) = default;
+			owning_view& operator=(owning_view const&) = default;
 			constexpr RT& base()& noexcept { return __range; }
 			constexpr RT const& base() const& noexcept { return __range; }
 			constexpr RT&& base()&& noexcept { return move(__range); }

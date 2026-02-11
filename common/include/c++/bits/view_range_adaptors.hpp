@@ -69,7 +69,7 @@ namespace std
 				template<typename DT> struct __range_adaptor_closure;
 				template<typename T, typename U> requires(!std::is_same_v<T, __range_adaptor_closure<U>>)
 				void __is_adaptor_closure_helper(T const&, __range_adaptor_closure<U> const&); // not defined
-				template<typename T> concept __is_adaptor_closure = requires(T t) { __adaptor::__is_adaptor_closure_helper(t, t); };
+				template<typename T> concept __is_adaptor_closure = requires(T const& t) { __adaptor::__is_adaptor_closure_helper(t, t); };
 				template<typename T, typename U, typename R> concept __pipe_invocable = requires { std::declval<T>()(std::declval<U>()(std::declval<R>())); };
 				template<typename ST, typename RT> requires(__is_adaptor_closure<ST> && __adaptor_invocable<ST, RT>) constexpr auto operator|(RT&& r, ST&& s);
 				template<typename T, typename U> requires(__is_adaptor_closure<T> && __is_adaptor_closure<U>) constexpr auto operator|(T&& t, U&& u);

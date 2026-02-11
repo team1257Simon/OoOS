@@ -29,7 +29,7 @@ namespace std
 	template<typename T> concept destructible = is_nothrow_destructible_v<T>;
 	template<typename T, typename... Args> concept constructible_from = destructible<T> && is_constructible_v<T, Args...>;
 	template<typename T> concept default_initializable = constructible_from<T> && requires { T{}; (void) ::new T; };
-	template<typename T> concept move_constructible = constructible_from<T, T> && convertible_to<T, T>;
+	template<typename T> concept move_constructible = destructible<T> && is_move_constructible_v<T>;
 	template<typename T> concept copy_constructible = move_constructible<T> && constructible_from<T, T&> && convertible_to<T&, T> && constructible_from<T, const T&> && convertible_to<const T&, T> && constructible_from<T, const T> && convertible_to<const T, T>;
 	namespace ranges
 	{
@@ -40,16 +40,37 @@ namespace std
 			struct __swap
 			{
 			private:
-				template<typename T, typename U> static constexpr bool __s_noexcept() { if constexpr (__adl_swap<T, U>) return noexcept(swap(std::declval<T>(), std::declval<U>())); else return is_nothrow_move_constructible_v<remove_reference_t<T>> && is_nothrow_move_assignable_v<remove_reference_t<T>>; }
+				template<typename T, typename U> static constexpr bool __s_noexcept() { if constexpr(__adl_swap<T, U>) return noexcept(swap(std::declval<T>(), std::declval<U>())); else return is_nothrow_move_constructible_v<remove_reference_t<T>> && is_nothrow_move_assignable_v<remove_reference_t<T>>; }
 			public:
-				template<typename T, typename U> requires __adl_swap<T, U> || (same_as<T, U> && is_lvalue_reference_v<T> && move_constructible<remove_reference_t<T>> && assignable_from<T, remove_reference_t<T>>) constexpr void operator()(T&& __t, U&& __u) const noexcept(__s_noexcept<T, U>()) { if constexpr (__adl_swap<T, U>) swap(static_cast<T&&>(__t), static_cast<U&&>(__u)); else { auto __tmp = static_cast<remove_reference_t<T>&&>(__t); __t = static_cast<remove_reference_t<T>&&>(__u); __u = static_cast<remove_reference_t<T>&&>(__tmp); } }
-				template<typename T, typename U, size_t N> requires requires(const __swap& __swap, T& __e1, U& __e2) { __swap(__e1, __e2); } constexpr void operator()(T (&__e1)[N], U (&__e2)[N]) const noexcept(noexcept(std::declval<const __swap&>()(*__e1, *__e2))) { for (size_t __n = 0; __n < N; ++__n) (*this)(__e1[__n], __e2[__n]); }
+				template<typename T, typename U> requires((__adl_swap<T, U>) || (same_as<T, U> && is_lvalue_reference_v<T> && move_constructible<remove_reference_t<T>> && is_move_assignable_v<remove_reference_t<T>>))
+				constexpr void operator()(T&& __t, U&& __u) const noexcept(__s_noexcept<T, U>())
+				{
+					if constexpr(__adl_swap<T, U>) swap(static_cast<T&&>(__t), static_cast<U&&>(__u));
+					else
+					{
+						auto __tmp	= static_cast<remove_reference_t<T>&&>(__t);
+						__t			= static_cast<remove_reference_t<T>&&>(__u);
+						__u			= static_cast<remove_reference_t<T>&&>(__tmp);
+					}
+				}
+				template<typename T, typename U, size_t N> requires(requires(__swap const& __s, T& __e1, U& __e2) { __s(__e1, __e2); })
+				constexpr void operator()(T (&__e1)[N], U (&__e2)[N]) const
+				noexcept(noexcept(std::declval<const __swap&>()(*__e1, *__e2))) {
+					for(size_t __n = 0UZ; __n < N; ++__n)
+						(*this)(__e1[__n], __e2[__n]);
+				}
 			};
 		}
 		inline namespace __cust { inline constexpr __cust_swap::__swap swap{}; }
 	}
-	template<typename T> concept swappable = requires(T& __a, T& __b) { ranges::swap(__a, __b); };
-	template<typename T, typename U> concept swappable_with = common_reference_with<T, U> && requires(T&& __t, U&& __u) { ranges::swap(static_cast<T&&>(__t), static_cast<T&&>(__t)); ranges::swap(static_cast<U&&>(__u), static_cast<U&&>(__u)); ranges::swap(static_cast<T&&>(__t), static_cast<U&&>(__u)); ranges::swap(static_cast<U&&>(__u), static_cast<T&&>(__t)); };
+	template<typename T> concept swappable = requires { ranges::swap(declval<T&>(), declval<T&>()); };
+	template<typename T, typename U> concept swappable_with = common_reference_with<T, U> && requires(T&& __t, U&& __u)
+	{
+		ranges::swap(static_cast<T&&>(__t), static_cast<T&&>(__t));
+		ranges::swap(static_cast<U&&>(__u), static_cast<U&&>(__u));
+		ranges::swap(static_cast<T&&>(__t), static_cast<U&&>(__u));
+		ranges::swap(static_cast<U&&>(__u), static_cast<T&&>(__t));
+	};
 	template<typename T> concept movable = is_object_v<T> && move_constructible<T> && assignable_from<T&, T> && swappable<T>;
 	template<typename T> concept copyable = copy_constructible<T> && movable<T> && assignable_from<T&, T&> && assignable_from<T&, const T&> && assignable_from<T&, const T>;
 	template<typename T> concept semiregular = copyable<T> && default_initializable<T>;
