@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <typeinfo>
 #include <users.hpp>
-#include <util/member_tuple.hpp>
 sysinfo_t* sysinfo;
 static direct_text_render startup_tty;
 static device_stream* com;
