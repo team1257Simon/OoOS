@@ -5,6 +5,78 @@ namespace ooos
 	using std::ranges::distance;
 	using std::views::filter;
 	using std::bind_front;
+	template<typename ... Args> requires(std::constructible_from<event_listener<xhci_generic_trb&>, Args...>)
+	inline xhci_event_handler::xhci_event_handler(xhci_host_controller& ctl, uint8_t idx, Args&& ... args) :
+		parent(ctl),
+		interrupter(parent.get_interrupter(idx)),
+		event_ring_segment_table(parent.erst_sub(idx)),
+		event_ring(parent.create_ring()),
+		handler(std::forward<Args>(args)...)
+	{}
+	template<typename DT, typename FT, typename ... Args>
+	void xhci_device_slot::__request_descriptor(uint8_t idx, uint16_t length, std::in_place_type_t<DT>, FT&& callback, Args&& ... addedArgs)
+	{
+		transfer_event_origin origin(__idx, 0UC);
+		size_t total_size		= length;
+		size_t added_size		= (total_size > sizeof(DT) ? static_cast<size_t>(total_size - sizeof(DT)) : 0UZ);
+		xhci_trb_ring& transfer = *__endpoints[0].transfer_trb_ring;
+		bool cycle_bit			= transfer.cycle_state;
+		auto fn					= bind_for_message(add_size<DT>(added_size), std::forward<FT>(callback), std::forward<Args>(addedArgs)...);
+		new(std::to_address(transfer.enqueue_ptr)) xhci_setup_trb
+		{
+			{
+				.direction					= usb_transfer_direction::D2H,
+				.request_type				= usb_request_type::STANDARD,
+				.recipient					= usb_request_target::DEVICE,
+				.request_code				= usb_setup_request_code::GET_DESCRIPTOR,
+				.value_field				= { .descriptor_request { .descriptor_index { idx }, .desc_type { descriptor_type_of<DT>::value } } },
+				.length						= length,
+			},
+			{
+				.trb_transfer_length		= length,
+				.tds_or_tbc					= 0UC,	// this is the only TRB in this TD
+				.interrupter_target			= 1US,	// transfer events go to ring 1
+			},
+			{
+				.cycle						= cycle_bit,
+				.is_immediate				= true,
+				.type						= trb_type::SETUP
+			},
+			{ .transfer_type				= control_transfer_type::IN_DATA_STAGE }
+		};
+		transfer.advance_enq();
+		cycle_bit							= transfer.cycle_state;
+		new(std::to_address(transfer.enqueue_ptr)) xhci_data_trb
+		{
+			{ .data_ptr						= trb_data_ptr::of(fn.base()) },
+			{
+				.trb_transfer_length		= 8UC,
+				.tds_or_tbc					= 0UC,
+				.interrupter_target			= 1US,
+			},
+			{
+				.cycle						= cycle_bit,
+				.type						= trb_type::DATA
+			},
+			{ .data_direction				= true }
+		};
+		transfer.advance_enq();
+		cycle_bit							= transfer.cycle_state;
+		new(std::to_address(transfer.enqueue_ptr)) xhci_status_trb
+		{
+			{},
+			{ .interrupter_target			= 1US },
+			{
+				.cycle						= cycle_bit,
+				.interrupt_on_completion	= true,
+				.type						= trb_type::STATUS,
+			},
+			{ .data_direction				= false }
+		};
+		transfer.advance_enq();
+		__parent.transfer_callbacks.emplace(std::piecewise_construct, std::make_tuple(origin), std::forward_as_tuple(std::move(fn)));
+		__doorbell							= xhci_doorbell(1UC, 0UC, 0US);
+	}
 	xhci_config_type xhci_host_controller::__cfg(xhci_config());
 	xhci_device_endpoint xhci_device_slot::__create_ep(xhci_device_slot& slot, uint8_t i) { return xhci_device_endpoint(slot, i); }
 	void xhci_host_controller::__disable_slot_cb(xhci_completion_event_trb&, xhci_device_slot& s) { s.disable(); }
@@ -16,7 +88,7 @@ namespace ooos
 	void xhci_device_endpoint::ring_doorbell(uint16_t stream_id) { parent.ring_doorbell(idx, stream_id); }
 	void xhci_device_endpoint::put_msg(generic_device_message const& msg) { /* TODO */ }
 	std::optional<generic_device_message> xhci_device_endpoint::poll_msg() { return std::nullopt; /* TODO */ }
-	abstract_connectable_device::interface::type xhci_device_endpoint::interface_type() const { return active() ? static_cast<type>(ctx.type) : type::NONE; }
+	abstract_connectable_device::endpoint::type xhci_device_endpoint::endpoint_type() const { return active() ? static_cast<type>(ctx.type) : type::NONE; }
 	xhci_host_controller::xhci_host_controller(pci_config_space* pci) :
 		__hc_dev(pci),
 		__dev_ctx_array(*this),
@@ -36,7 +108,8 @@ namespace ooos
 		ctx(slot.get_ep(idx)),
 		streams(std::nullopt),
 		transfer_trb_ring(std::nullopt),
-		idx(idx)
+		idx(idx),
+		current_endpoint()
 	{}
 	xhci_device_slot::xhci_device_slot(xhci_host_controller& ctl, uint8_t idx) :
 		__parent(ctl),
@@ -45,9 +118,11 @@ namespace ooos
 		__doorbell(ctl.get_db(idx)),
 		__port(std::ref(ctl.get_port(0UC))),	// initially just use the port at index 0; when the device is connected we will reassign
 		__endpoints(__create_array(*this)),
-		__idx(idx + 1UC)
+		__idx(idx + 1UC),
+		__current_device(),
+		__dev_configs(std::addressof(ctl))
 	{}
-	abstract_connectable_device::interface* xhci_device_slot::operator[](size_t idx)
+	abstract_connectable_device::endpoint* xhci_device_slot::operator[](size_t idx)
 	{
 		if(__unlikely(idx >= 31UZ) || !__endpoints[idx])
 			return nullptr;
@@ -245,10 +320,13 @@ namespace ooos
 				xhci_transfer_event_trb& event	= reinterpret_cast<xhci_transfer_event_trb&>(e);
 				transfer_event_origin origin(event.slot_id, event.endpoint_id);
 				if(transfer_callbacks.contains(origin))
-					transfer_callbacks[origin](event);
-				else if(event.code != completion_code::CC_SUCCESS)
-					logf("E: xHC returned error code %i", event.code);	// TODO: probably more than this for error code handling
-				transfer_callbacks.erase(origin);
+				{
+					event_listener<ooos::xhci_transfer_event_trb&> callback(std::move(transfer_callbacks[origin]));
+					transfer_callbacks.erase(origin);	// These callbacks can be tail-recursive, so we will need to pop them right away 
+					callback(event);
+				}
+				// TODO: probably more than this for error code handling
+				else if(event.code != completion_code::CC_SUCCESS) logf("E: xHC returned error code %i", event.code);
 			}
 		};
 		auto handler2	= [this](xhci_generic_trb& e) -> void { /* TODO: secondary interrupter 2 */ };
@@ -393,11 +471,79 @@ namespace ooos
 		}
 		else logf("E: xHC returned error code %hhi", e.code);	// TODO: probably more than this for error code handling
 	}
-	void xhci_device_slot::__discover_endpoints() { /** TODO */ }
-	void xhci_device_slot::__pre_discover_endpoints(uint16_t ep0_default_max_pkt)
+	void xhci_device_endpoint::reconfigure(usb_endpoint_info const& i)
 	{
+		new(std::addressof(current_endpoint)) usb_endpoint_info(i);
+		ctx.type	= get_type(i);
+		//	TODO
+	}
+	void xhci_device_slot::__configure_device()
+	{
+		//	For now, we'll just assume the first configuration and interface to be the defaults.
+		//	Probably going to want to change that later.
+		for(usb_endpoint_info const& ep : __dev_configs.front().interfaces.front().endpoints)
+			__endpoints[endpoint_idx(ep)].reconfigure(ep);
+		//	TODO: send configuration commands, etc
+	}
+	void xhci_device_slot::__fetch_config(uint8_t i)
+	{
+		constexpr uint16_t base_len	= static_cast<uint16_t>(offsetof(usb_configuration_descriptor, interfaces));
+		//	First we need to figure out how many bytes we actually need to fetch
+		__request_descriptor(i, base_len, std::in_place_type<usb_configuration_descriptor>, &xhci_device_slot::__fetch_config_full, this, i);
+	}
+	void xhci_device_slot::__fetch_config_full(uint8_t i, usb_configuration_descriptor const& part, xhci_transfer_event_trb& e)
+	{
+		//	This time we can fetch the whole thing
+		if(e.code == CC_SUCCESS) [[likely]]
+			__request_descriptor(i, part.total_bytes, std::in_place_type<usb_configuration_descriptor>, &xhci_device_slot::__fetch_config_cb, this, i);
+		else
+		{
+			__parent.logf("E: xHC returned error code %hhi when fetching configuration descriptor", e.code);	// TODO: probably more than this for error code handling
+			__endpoints[0].transfer_trb_ring.reset();
+			__reset_device_descriptor();
+			__dev_configs.clear();
+		}
+	}
+	void xhci_device_slot::__fetch_config_cb(uint8_t i, usb_configuration_descriptor const& desc, xhci_transfer_event_trb& e)
+	{
+		if(__unlikely(e.code != CC_SUCCESS))
+		{
+			__parent.logf("E: xHC returned error code %hhi when fetching configuration descriptor", e.code);	// TODO: probably more than this for error code handling
+			__endpoints[0].transfer_trb_ring.reset();
+			__reset_device_descriptor();
+			__dev_configs.clear();
+		}
+		else
+		{
+			__dev_configs.push_back(build(desc));
+			//	If there are more configurations, we have to do all this again for the next descriptor
+			if(++i < __current_device.num_configurations) __fetch_config(i);
+			else __configure_device();
+		}
+	}
+	void xhci_device_slot::__describe_device(usb_device_descriptor const& desc, xhci_transfer_event_trb& e)
+	{
+		if(__unlikely(e.code != CC_SUCCESS))
+		{
+			__parent.logf("E: xHC returned error code %hhi when fetching device descriptor", e.code);	// TODO: probably more than this for error code handling
+			__endpoints[0].transfer_trb_ring.reset();
+			__reset_device_descriptor();
+			__dev_configs.clear();
+		}
+		else
+		{
+			new(std::addressof(__current_device)) usb_device_info(desc);
+			__dev_configs.reserve(desc.num_configurations);
+			__fetch_config(0UC);
+		}
+	}
+	void xhci_device_slot::__pre_describe_device(uint16_t ep0_default_max_pkt)
+	{
+		constexpr auto tag	= std::in_place_type<usb_device_descriptor>;
+		constexpr auto next	= &xhci_device_slot::__describe_device;
 		//	If the value is already set, we don't need to change anything, so go right to the next step
-		if(__ctx[0].max_packet_size == ep0_default_max_pkt) __discover_endpoints();
+		if(__ctx[0].max_packet_size == ep0_default_max_pkt)
+			__request_descriptor(std::in_place_type<usb_device_descriptor>, next, this);
 		else
 		{
 			__input_ctx[0].max_packet_size		= ep0_default_max_pkt;
@@ -415,84 +561,26 @@ namespace ooos
 				{ .slot_id						= __idx }
 			};
 			__parent.cmd_ring.advance_enq();
-			__parent.cmd_callbacks.insert(std::make_pair(trb, [this](xhci_completion_event_trb&) -> void { __discover_endpoints(); }));
+			__parent.cmd_callbacks.insert(std::make_pair(trb, [this](xhci_completion_event_trb&) { __request_descriptor(tag, next, this); }));
 			__parent.hc_db()					= xhci_doorbell();
 		}
 	}
-	void xhci_device_slot::__pre_discover_endpoints_cb(usb_device_descriptor const& desc, xhci_transfer_event_trb& e)
+	void xhci_device_slot::__pre_describe_device_cb(usb_device_descriptor const& desc, xhci_transfer_event_trb& e)
 	{
 		if(e.code == completion_code::CC_SUCCESS)
-			return __pre_discover_endpoints(desc.ep0_max_packet_size);
+			return __pre_describe_device(desc.ep0_max_packet_size);
 		__parent.logf("E: xHC returned error code %hhi", e.code);	// TODO: probably more than this for error code handling
 		__endpoints[0].transfer_trb_ring.reset();
+		__dev_configs.clear();
 	}
 	void xhci_device_slot::__address_device_cb(xhci_completion_event_trb& e, uint64_t dev_bitrate)
 	{
 		constexpr uint64_t br_highspeed	= 480000000UL;
 		constexpr uint64_t br_lowspeed	= 1500000UL;
 		if(dev_bitrate < br_highspeed && dev_bitrate > br_lowspeed)
-		{
-			transfer_event_origin origin(__idx, 0UC);
-			xhci_trb_ring& transfer = *__endpoints[0].transfer_trb_ring;
-			bool cycle_bit			= transfer.cycle_state;
-			auto fn					= bind_for_message(std::in_place_type<usb_device_descriptor>, &xhci_device_slot::__pre_discover_endpoints_cb, this);
-			new(std::to_address(transfer.enqueue_ptr)) xhci_setup_trb
-			{
-				{
-					.direction					= usb_transfer_direction::D2H,
-					.request_type				= usb_request_type::STANDARD,
-					.recipient					= usb_request_target::DEVICE,
-					.request_code				= usb_setup_request_code::GET_DESCRIPTOR,
-					.value_field				= { .descriptor_request { .desc_type { usb_descriptor_type::DDT_DEVICE } } },
-					.length						= 8UC,
-				},
-				{
-					.trb_transfer_length		= 8UC,
-					.tds_or_tbc					= 0UC,	// this is the only TRB in this TD
-					.interrupter_target			= 1US,	// transfer events go to ring 1
-				},
-				{
-					.cycle						= cycle_bit,
-					.is_immediate				= true,
-					.type						= trb_type::SETUP
-				},
-				{ .transfer_type				= control_transfer_type::IN_DATA_STAGE }
-			};
-			transfer.advance_enq();
-			cycle_bit							= transfer.cycle_state;
-			new(std::to_address(transfer.enqueue_ptr)) xhci_data_trb
-			{
-				{ .data_ptr						= trb_data_ptr::of(fn.base()) },
-				{
-					.trb_transfer_length		= 8UC,
-					.tds_or_tbc					= 0UC,
-					.interrupter_target			= 1US,
-				},
-				{
-					.cycle						= cycle_bit,
-					.type						= trb_type::DATA
-				},
-				{ .data_direction				= true }
-			};
-			transfer.advance_enq();
-			cycle_bit							= transfer.cycle_state;
-			new(std::to_address(transfer.enqueue_ptr)) xhci_status_trb
-			{
-				{},
-				{ .interrupter_target			= 1US },
-				{
-					.cycle						= cycle_bit,
-					.interrupt_on_completion	= true,
-					.type						= trb_type::STATUS,
-				},
-				{ .data_direction				= false }
-			};
-			transfer.advance_enq();
-			__parent.transfer_callbacks.emplace(std::piecewise_construct, std::make_tuple(origin), std::forward_as_tuple(std::move(fn)));
-			__doorbell							= xhci_doorbell(1UC, 0UC, 0US);
-		}
+			__request_descriptor(0UC, 8US, std::in_place_type<usb_device_descriptor>, &xhci_device_slot::__pre_describe_device_cb, this);
 		//	All roads lead to Rome, but for full-speed devices there's extra work we can skip if the device is low-, high-, or super-speed
-		else __pre_discover_endpoints(dev_bitrate > br_highspeed ? 512US : dev_bitrate > br_lowspeed ? 64US : 8US);
+		else __pre_describe_device(dev_bitrate > br_highspeed ? 512US : dev_bitrate > br_lowspeed ? 64US : 8US);
 	}
 	void xhci_device_slot::enable(uint8_t port_idx)
 	{
@@ -548,6 +636,8 @@ namespace ooos
 			e.streams.reset();
 			e.transfer_trb_ring.reset();
 		}
+		__reset_device_descriptor();
+		__dev_configs.clear();
 	}
 }
 typedef ooos::xhci_host_controller xhci_host_controller;

@@ -434,7 +434,7 @@ namespace ooos
 		register_type(typeid(abstract_netdev));
 		register_type(typeid(abstract_netdev_module));
 		register_type(typeid(abstract_connectable_device));
-		register_type(typeid(abstract_connectable_device::interface));
+		register_type(typeid(abstract_connectable_device::endpoint));
 		register_type(typeid(abstract_connectable_device::provider));
 		register_type(typeid(abstract_hub_module_base));
 	}

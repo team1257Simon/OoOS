@@ -140,7 +140,7 @@ namespace ooos
 		CC_BUFFER_ERROR					= 2UC,
 		CC_BABBLE						= 3UC,
 		CC_TXN_ERROR					= 4UC,
-		CC_ERROR					= 5UC,
+		CC_ERROR						= 5UC,
 		CC_STALL						= 6UC,
 		CC_RSRC_ERROR					= 7UC,
 		CC_BANDWIDTH_ERROR				= 8UC,
@@ -961,21 +961,32 @@ namespace ooos
 		constexpr xhci_stream_set() : primary_array(), secondary_arrays(256UZ), trb_rings(1024UZ) {}
 		constexpr xhci_stream_set(abstract_module_base* mod) : primary_array(mod), secondary_arrays(256UZ, mod), trb_rings(1024UZ, mod) {}
 	};
-	struct xhci_device_endpoint : public abstract_connectable_device::interface
+	struct xhci_device_endpoint : public abstract_connectable_device::endpoint
 	{
 		xhci_device_slot& parent;
 		xhci_endpoint_context& ctx;
 		std::optional<xhci_stream_set> streams;
 		std::optional<xhci_trb_ring> transfer_trb_ring;
 		uint8_t idx;
+		usb_endpoint_info current_endpoint;
 		xhci_device_endpoint(xhci_device_slot& slot, uint8_t idx);
 		virtual void put_msg(generic_device_message const& msg) override;
 		virtual std::optional<generic_device_message> poll_msg() override;
-		virtual type interface_type() const override;
+		virtual type endpoint_type() const override;
 		void ring_doorbell(uint16_t stream_id = 0US);
+		void reconfigure(usb_endpoint_info const& i);
 		constexpr bool active() const noexcept { return streams || transfer_trb_ring; }
 		constexpr operator bool() const noexcept { return active(); }
 	};
+	//	The index in the context array for a given endpoint is 2n-1 for OUT endpoints and 2n for IN endpoints where n is the endpoint number.
+	//	Note that endpoint 0 is bidirectional and is at index in that array; these indices do not include the slot context structure.
+	constexpr uint8_t endpoint_idx(usb_endpoint_info const& i) { return static_cast<uint8_t>(i.endpoint_number * 2UC - 1UC) + static_cast<uint8_t>(i.direction); }
+	constexpr endpoint_type get_type(usb_endpoint_info const& i)
+	{
+		if(i.transfer_type == usb_transfer_type::CONTROL)
+			return endpoint_type::EPT_CONTROL;
+		else return static_cast<endpoint_type>(static_cast<uint8_t>(i.transfer_type) | (static_cast<uint8_t>(i.direction) << 3));
+	}
 	class xhci_host_controller;
 	class xhci_device_slot : public abstract_connectable_device
 	{
@@ -986,18 +997,33 @@ namespace ooos
 		std::reference_wrapper<xhci_hc_port> __port;
 		std::array<xhci_device_endpoint, 31UZ> __endpoints;
 		uint8_t __idx;	// note: this value will be 1-indexed rather than 0-indexed; a slot id of 0 is returned by the xhc if there is an error
+		usb_device_info __current_device;
+		mod_mm_vec<usb_configuration> __dev_configs;
 		typedef std::make_integer_sequence<uint8_t, 31UC> __ep_seq;
 		static std::array<xhci_device_endpoint, 31UZ> __create_array(xhci_device_slot& slot);
 		static xhci_device_endpoint __create_ep(xhci_device_slot& slot, uint8_t i);
 		void __address_device_cb(xhci_completion_event_trb& e, uint64_t dev_bitrate);
-		void __pre_discover_endpoints(uint16_t ep0_default_max_packet);
-		void __pre_discover_endpoints_cb(usb_device_descriptor const& desc, xhci_transfer_event_trb& e);
-		void __discover_endpoints();
+		void __pre_describe_device(uint16_t ep0_default_max_packet);
+		void __pre_describe_device_cb(usb_device_descriptor const& desc, xhci_transfer_event_trb& e);
+		void __describe_device(usb_device_descriptor const& desc, xhci_transfer_event_trb& e);
+		void __fetch_config(uint8_t i);
+		void __fetch_config_full(uint8_t i, usb_configuration_descriptor const& part, xhci_transfer_event_trb& e);
+		void __fetch_config_cb(uint8_t i, usb_configuration_descriptor const& desc, xhci_transfer_event_trb& e);
+		void __configure_device();
+		constexpr void __reset_device_descriptor() noexcept { new(std::addressof(__current_device)) usb_device_info(); }
+		template<typename DT, typename FT, typename ... Args>
+		void __request_descriptor(uint8_t idx, uint16_t length, std::in_place_type_t<DT>, FT&& callback, Args&& ... addedArgs);
+		template<typename DT, typename FT, typename ... Args>
+		void __request_descriptor(uint8_t idx, std::in_place_type_t<DT>, FT&& callback, Args&& ... addedArgs) { this->__request_descriptor(idx, static_cast<uint16_t>(sizeof(DT)), tag, std::forward<FT>(callback), std::forward<Args>(addedArgs)...);  }
+		template<typename DT, typename FT, typename ... Args>
+		void __request_descriptor(uint16_t length, std::in_place_type_t<DT> tag, FT&& callback, Args&& ... addedArgs) { this->__request_descriptor(0UC, length, tag, std::forward<Args>(addedArgs)...); }
+		template<typename DT, typename FT, typename ... Args>
+		void __request_descriptor(std::in_place_type_t<DT> tag, FT&& callback, Args&& ... addedArgs) { this->__request_descriptor(static_cast<uint16_t>(sizeof(DT)), tag, std::forward<FT>(callback), std::forward<Args>(addedArgs)...); }
 	public:
 		xhci_device_slot(xhci_host_controller& ctl, uint8_t idx);
 		virtual size_t interface_count() const override;
 		virtual abstract_connectable_device::provider* parent() override;
-		virtual abstract_connectable_device::interface* operator[](size_t idx) override;
+		virtual abstract_connectable_device::endpoint* operator[](size_t idx) override;
 		void enable(uint8_t port_idx);
 		void disable();
 		inline void assign_port(uint8_t idx);
@@ -1080,13 +1106,5 @@ namespace ooos
 		static inline time_t max_wait_time() { return get_element<4>(__cfg); }
 	};
 	inline void xhci_device_slot::assign_port(uint8_t idx) { __port = __parent.get_port(idx); }
-	template<typename ... Args> requires(std::constructible_from<event_listener<xhci_generic_trb&>, Args...>)
-	inline xhci_event_handler::xhci_event_handler(xhci_host_controller& ctl, uint8_t idx, Args&& ... args) :
-		parent(ctl),
-		interrupter(parent.get_interrupter(idx)),
-		event_ring_segment_table(parent.erst_sub(idx)),
-		event_ring(parent.create_ring()),
-		handler(std::forward<Args>(args)...)
-	{}
 }
 #endif

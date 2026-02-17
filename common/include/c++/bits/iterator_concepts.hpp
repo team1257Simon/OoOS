@@ -192,7 +192,7 @@ namespace std
 		template<typename T> concept __is_signed_integer_like	= signed_integral<T> || __is_signed_int128<T> || same_as<T, __max_diff_type>;
 	}
 	namespace __detail { using ranges::__detail::__is_signed_integer_like; }
-	template<typename IT> concept weakly_incrementable = movable<IT> && requires(IT __i) { typename iter_difference_t<IT>; requires __detail::__is_signed_integer_like<iter_difference_t<IT>>; { ++__i } -> same_as<IT&>; __i++; };
+	template<typename IT> concept weakly_incrementable = movable<IT> && requires(IT __i) { typename iter_difference_t<IT>; requires(__detail::__is_signed_integer_like<iter_difference_t<IT>>); { ++__i } -> same_as<IT&>; __i++; };
 	template<typename IT> concept incrementable = regular<IT> && weakly_incrementable<IT> && requires(IT __i) { { __i++ } -> same_as<IT>; };
 	template<typename IT> concept input_or_output_iterator = requires(IT __i) { { *__i } -> __detail::__can_reference; } && weakly_incrementable<IT>;
 	template<typename ST, typename IT> concept sentinel_for = semiregular<ST> && input_or_output_iterator<IT> && __detail::__weakly_eq_cmp_with<ST, IT>;

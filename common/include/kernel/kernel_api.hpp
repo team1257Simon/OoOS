@@ -4,7 +4,8 @@
 #include <fs/dev_stream.hpp>
 #include <arch/pci.hpp>
 #include <typeinfo>
-#include <optional>
+#include <meta>
+#include <ranges>
 #include <net/protocol/arp.hpp>
 #include <bits/unique_ptr.hpp>
 #include <bits/stl_queue.hpp>
@@ -20,6 +21,7 @@ namespace ooos
 	class abstract_module_base;
 	class isr_actor;
 	struct module_eh_ctx;
+#pragma region utility structures
 	template<typename T> concept no_args_invoke					= requires(T t) { t(); };
 	template<typename T, typename R> concept no_args_supplier	= no_args_invoke<T> && requires(T t) { { t() } -> std::convertible_to<R>; };
 	namespace __internal
@@ -85,12 +87,13 @@ namespace ooos
 		struct __no_repeats_helper<T, Us ...> : std::__and_<std::bool_constant<__not_in<T, Us...>>, __no_repeats_helper<Us...>> {};
 		template<typename ... Ts> concept __non_repeating = __no_repeats_helper<Ts...>::value;
 		template<typename ... Ts> concept __can_inherit_all = __non_repeating<Ts...> && (__can_inherit<Ts> && ...);
-		template<typename, typename U> struct __qualify_like { typedef std::remove_cvref_t<U> type; };
-		template<typename T, typename U> struct __qualify_like<T const, U> { typedef std::remove_cvref_t<U> const type; };
-		template<typename T, typename U> struct __qualify_like<T volatile, U> { typedef std::remove_cvref_t<U> volatile type; };
-		template<typename T, typename U> struct __qualify_like<T const volatile, U> { typedef volatile std::remove_cvref_t<T> const type; };
+		template<typename, typename U> struct __qualify_like { typedef std::remove_cv_t<U> type; };
+		template<typename T, typename U> struct __qualify_like<T const, U> { typedef std::add_const_t<std::remove_volatile_t<U>> type; };
+		template<typename T, typename U> struct __qualify_like<T volatile, U> { typedef std::add_volatile_t<std::remove_const_t<U>> type; };
+		template<typename T, typename U> struct __qualify_like<T const volatile, U> { typedef std::add_cv_t<U> type; };
+		template<typename T, typename U> requires(std::is_reference_v<T>) struct __qualify_like<T, U> : __qualify_like<std::remove_reference_t<T>, U> {};
 	}
-	template<typename T, typename U> using like_qualified_pointer				= std::add_pointer_t<typename __internal::__qualify_like<T, U>::type>;
+	template<typename T, typename U> using like_pointer_t						= std::add_pointer_t<typename __internal::__qualify_like<T, U>::type>;
 	template<template<typename> class C, typename ... Ts> requires(__internal::__can_inherit_all<C<Ts>...>) struct repeated_template : C<Ts> ... {};
 	template<typename T> concept wrappable_actor 								= no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
 	template<typename T> concept boolable 										= requires(T t) { t ? true : false; };
@@ -103,6 +106,14 @@ namespace ooos
 	template<typename T> using in_value 										= typename __internal::__single_buffer_value<T>::const_type;
 	template<typename T> using out_value 										= typename __internal::__single_buffer_value<T>::type;
 	template<typename IT> concept incrementable_iterator 						= std::input_or_output_iterator<IT> && std::incrementable<IT>;
+	template<typename T>
+	struct add_size_t
+	{
+		size_t value;
+		constexpr explicit add_size_t(size_t val) noexcept : value(val) {}
+		constexpr operator size_t() const noexcept { return value; }
+	};
+	template<typename T> constexpr add_size_t<T> add_size(size_t val) noexcept { return add_size_t<T>(val); }
 	template<incrementable_iterator IT>
 	struct simple_iterator : public std::iterator_traits<IT>
 	{
@@ -135,6 +146,37 @@ namespace ooos
 		friend constexpr order_type operator<=>(simple_iterator const& __this, simple_iterator const& that) noexcept { return (__this.current - that.current) <=> static_cast<difference_type>(0); }
 		friend constexpr bool operator==(simple_iterator const& __this, simple_iterator const& that) noexcept { return __this.current == that.current; }
 	};
+	#ifdef __have_reflection
+	#define annotated(annotation) [[=annotation]]
+	template<auto EV> requires(std::is_enum_v<decltype(EV)>)
+	struct enum_annotation : std::integral_constant<decltype(EV), EV>
+	{
+		using typename std::integral_constant<decltype(EV), EV>::value_type;
+		using std::integral_constant<decltype(EV), EV>::value;
+		consteval static bool matches(std::meta::info i) { return std::meta::extract<value_type>(i) == value; }
+		consteval static bool is_present(std::meta::info i) { return !std::ranges::empty(std::meta::annotations_of(i) | std::views::filter(matches)); }
+	};
+	enum class anonymous_ordinal
+	{
+		_1,	_2,	_3,
+		_4,	_5,	_6,
+		_7,	_8,	_9,
+	};
+	template<typename T, anonymous_ordinal I>
+	struct anonymous_member_object
+	{
+		consteval static std::meta::info __get()
+		{
+			for(std::meta::info i : std::meta::members_of(^^T, std::meta::access_context::current()) | std::views::filter(enum_annotation<I>::is_present))
+				return i;
+			return std::meta::info();
+		}
+		using type = typename [: __get() :];
+	};
+	#else
+	#define annotated(annotation)
+	#endif
+#pragma endregion
 	struct kmod_mm
 	{
 		virtual void* mem_allocate(size_t size, size_t align) 								= 0;
@@ -481,6 +523,7 @@ namespace ooos
 			constexpr __config_entry_base(config_parameter<T>&& p) : __param(std::move(p)) {}
 			constexpr static T& __get(__config_entry_base& t) { return t.__param.value; }
 			constexpr static T const& __get(__config_entry_base const& t) noexcept { return t.__param.value; }
+			constexpr static T&& __get(__config_entry_base&& t) noexcept { return std::move(t.__param.value); }
 			constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.__param.value_size; }
 		};
 		template<size_t I, __can_be_parameter_type T>
@@ -492,6 +535,7 @@ namespace ooos
 			constexpr __config_entry_base(config_parameter<T>&& p) : T(std::move(p.value)), name(p.name), value_size(p.value_size) {}
 			constexpr static T& __get(__config_entry_base& t) noexcept { return t; }
 			constexpr static T const& __get(__config_entry_base const& t) noexcept { return t; }
+			constexpr static T&& __get(__config_entry_base&& t) noexcept { return std::move(t); }
 			constexpr static size_t __size(__config_entry_base const& t) noexcept { return t.value_size; }
 		};
 		template<size_t I, __can_be_parameter_type T>
@@ -502,6 +546,7 @@ namespace ooos
 			constexpr static size_t __size_value = sizeof(config_parameter<T>);
 			constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
 			constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
+			constexpr static T&& __get(__config_table_impl&& t) noexcept { return std::move(__base::__get(std::move(t))); }
 			constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t); }
 			constexpr __config_table_impl(config_parameter<T>&& p) : __base(std::move(p)) {}
 		};
@@ -515,11 +560,13 @@ namespace ooos
 			typedef __config_entry_base<I, T> __base;
 			constexpr static T& __get(__config_table_impl& t) noexcept { return __base::__get(t); }
 			constexpr static T const& __get(__config_table_impl const& t) noexcept { return __base::__get(t); }
+			constexpr static T&& __get(__config_table_impl&& t) noexcept { return std::move(__base::__get(std::move(t))); }
 			constexpr static size_t __size(__config_table_impl const& t) noexcept { return __base::__size(t) + __next::__size(t); }
 			constexpr __config_table_impl(config_parameter<T>&& tparam, config_parameter<Us>&&... uparams) : __base(std::move(tparam)), __next(std::forward<config_parameter<Us>>(uparams)...) {}
 		};
 		template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T& __get(__config_table_impl<I, T, Us...>& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
 		template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T const& __get(__config_table_impl<I, T, Us...> const& t) noexcept { return __config_table_impl<I, T, Us...>::__get(t); }
+		template<size_t I, __can_be_parameter_type T, __can_be_parameter_type ... Us> constexpr T&& __get(__config_table_impl<I, T, Us...>&& t) noexcept { return std::move(__config_table_impl<I, T, Us...>::__get(std::move(t))); }
 		template<__internal::__can_be_parameter_type ... Ts> constexpr size_t __size(__config_table_impl<0UZ, Ts...> const& t) { return __config_table_impl<0UZ, Ts...>::__size(t); }
 	}
 	template<__internal::__can_be_parameter_type ... Ts>
@@ -529,6 +576,10 @@ namespace ooos
 		size_t size_bytes;
 		parameter_types parameters;
 		constexpr void compute_size() noexcept { size_bytes = __internal::__size(parameters); }
+	private:
+		template<typename ST, size_t ... Is> constexpr auto __get_all_helper(this ST&& self, std::index_sequence<Is ...>) { return std::make_tuple(__internal::__get<Is>(std::forward_like<ST>(self.parameters))...); }
+	public:
+		template<typename ST> constexpr auto get_all(this ST&& self) { return std::forward_like<ST>(self).__get_all_helper(std::make_index_sequence<sizeof...(Ts)>()); }
 	};
 	template<__internal::__can_be_parameter_type ... Ts>
 	union [[gnu::may_alias]] module_config
@@ -536,6 +587,7 @@ namespace ooos
 		generic_config_table generic;
 		module_config_table<Ts...> actual;
 		constexpr module_config& compute_size_value() noexcept { actual.compute_size(); return *this; }
+		template<typename ST> constexpr auto to_tuple(this ST&& self) { return std::forward_like<ST>(self.actual).get_all(); }
 	};
 	template<__internal::__can_be_parameter_type ... Ts> constexpr module_config<Ts...> create_config(config_parameter<Ts>&& ... params) { return module_config<Ts...>{ .actual{ .parameters{ std::forward<config_parameter<Ts>>(params)... } } }.compute_size_value(); }
 	template<size_t I, __internal::__can_be_parameter_type ... Ts> using element_type_t = typename __internal::__nth_pack_param<I, module_config_table<Ts...>>::type;
@@ -822,16 +874,21 @@ namespace ooos
 		constexpr T* base() const noexcept { return __msg_buf.base(); }
 		template<typename GT, typename ... Args> requires(sizeof...(Args) == sizeof...(BArgs) && std::convertible_to<GT, FT>)
 		constexpr explicit bound_message_buffer_functor(GT&& fn, Args&& ... args) : __msg_buf(), __fn(std::bind_front(std::forward<GT>(fn), std::forward<Args>(args)...)) {}
+		template<typename GT, typename ... Args> requires(sizeof...(Args) == sizeof...(BArgs) && std::convertible_to<GT, FT>)
+		constexpr explicit bound_message_buffer_functor(size_t added_size, GT&& fn, Args&& ... args) : __msg_buf(added_size), __fn(std::bind_front(std::forward<GT>(fn), std::forward<Args>(args)...)) {}
 		template<typename ... CArgs>
 		constexpr decltype(auto) operator()(CArgs&& ... args) const { return __fn(*__msg_buf, std::forward<CArgs>(args)...); }
 	};
 	template<trivial_copy T, typename FT, typename ... Args>
-	constexpr bound_message_buffer_functor<FT, T, Args...> bind_for_message(std::in_place_type_t<T>, FT&& fn, Args&& ... args) {}
+	constexpr bound_message_buffer_functor<FT, T, Args...> bind_for_message(std::in_place_type_t<T>, FT&& fn, Args&& ... args) { return bound_message_buffer_functor<FT, T, Args...>(std::forward<FT>(fn), std::forward<Args>(args)...); }
+	
+	template<trivial_copy T, typename FT, typename ... Args>
+	constexpr bound_message_buffer_functor<FT, T, Args...> bind_for_message(add_size_t<T> added, FT&& fn, Args&& ... args) { return bound_message_buffer_functor<FT, T, Args...>(added, std::forward<FT>(fn), std::forward<Args>(args)...); }
 	//	Abstract base for devices connected via protocols like USB.
 	struct abstract_connectable_device
 	{
-		//	Interface for passing messages to and from the device. This will be provided by the hub driver.
-		struct interface
+		//	Endpoint for passing messages to and from the device. This will be provided by the hub driver.
+		struct endpoint
 		{
 			//	These match the encodings for endpoint types used by XHCI.
 			enum class type : uint8_t
@@ -847,10 +904,10 @@ namespace ooos
 			};
 			//	Hook for host-to-device transfers.
 			virtual void put_msg(generic_device_message const& msg)			= 0;
-			//	Hook for device-to-host transfers.
+			//	Non-async hook for device-to-host transfers.
 			virtual std::optional<generic_device_message> poll_msg()		= 0;
-			//	Identify the direction and transfer type of the interface.
-			virtual type interface_type() const								= 0;
+			//	Identify the direction and transfer type of the endpoint.
+			virtual type endpoint_type() const								= 0;
 		};
 		//	Represents the device hub and/or host controller.
 		struct provider
@@ -866,9 +923,9 @@ namespace ooos
 		virtual size_t interface_count() const		= 0;
 		//	Gets a pointer to the hub/controller to which the device is connected.
 		virtual provider* parent()					= 0;
-		//	Gets a pointer to the interface at the given index for the device. If the ID is out of range, returns a null pointer.
-		virtual interface* operator[](size_t idx)	= 0;
-		using enum interface::type;
+		//	Gets a pointer to the endpoint at the given index for the device. If the ID is out of range, returns a null pointer.
+		virtual endpoint* operator[](size_t idx)	= 0;
+		using enum endpoint::type;
 	};
 }
 namespace std

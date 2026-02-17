@@ -23,6 +23,7 @@ namespace std
 		typedef std::reverse_iterator<iterator> reverse_iterator;
 		typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 	private:
+		template<typename U, std::allocator_object<U> B> friend class vector;
 		constexpr static bool __nt_alloc() noexcept { return noexcept(declval<allocator_type>().allocate(declval<size_type>())); }
 		constexpr static bool __nt_move_assign() noexcept { return is_nothrow_move_assignable_v<allocator_type> || !__has_move_propagate<allocator_type>; }
 		constexpr static bool __nt_copy_assign() noexcept { return __nt_alloc() && (is_nothrow_copy_assignable_v<allocator_type> || !__has_copy_propagate<allocator_type>); }
@@ -43,6 +44,7 @@ namespace std
 		noexcept(__nt_copy_construct() && noexcept(ranges::begin(r)) && noexcept(ranges::end(r))) : vector(ranges::begin(r), ranges::end(r), alloc) {}
 		constexpr vector(vector const& that) noexcept(__nt_copy_construct()) : __base(that) {}
 		constexpr vector(vector&& that) noexcept(__nt_move_construct()) : __base(forward<__base>(that)) {}
+		template<not_self<A> B> constexpr vector(vector<T, B>&& that, allocator_type const& alloc = allocator_type()) noexcept(__nt_move_construct()) : __base(move(that), alloc) {}
 		constexpr vector(vector const& that, allocator_type const& alloc) noexcept(__nt_copy_construct()) : __base(that, alloc) {}
 		constexpr vector(vector&& that, allocator_type const& alloc) noexcept(__nt_move_construct()) : __base(forward<__base>(that), alloc) {}
 		constexpr vector(initializer_list<T> init, allocator_type const& alloc = allocator_type()) noexcept(__nt_copy_construct()) : __base(init, alloc) {}

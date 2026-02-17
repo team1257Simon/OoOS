@@ -8,27 +8,27 @@ constexpr word command_pic1		=	0x20UC;		/* IO base address for master PIC*/
 constexpr word command_pic2		=	0xA0UC;		/* IO base address for slave PIC */
 constexpr word data_pic1		=	0x21UC;		/* IO data address for master PIC*/
 constexpr word data_pic2		=	0xA1UC;		/* IO data address for slave PIC */
-constexpr u8 icw1_icw4		=	0x01UC;		/* Indicates that ICW4 will be present */
+constexpr u8 icw1_icw4			=	0x01UC;		/* Indicates that ICW4 will be present */
 constexpr u8 icw1_single		=	0x02UC;		/* Single (cascade) mode */
 constexpr u8 icw1_interval_4	=	0x04UC;		/* Call address interval 4 (8) */
-constexpr u8 icw1_edge		=	0x08UC;		/* Level triggered (edge) mode */
-constexpr u8 icw1_init		=	0x10UC;		/* Initialization - required! */
-constexpr u8 icw4_8086_mode	=	0x01UC;		/* 8086/88 (MCS-80/85) mode */
-constexpr u8 icw4_auto_eoi	=	0x02UC;		/* Auto (normal) EOI */
-constexpr u8 icw4_mode_slv	=	0x08UC;		/* Buffered mode/slave */
-constexpr u8 icw4_mode_mst	=	0x0CUC;		/* Buffered mode/master */
-constexpr u8 icw4_sfnm		=	0x10UC;		/* Special fully nested (not) */
+constexpr u8 icw1_edge			=	0x08UC;		/* Level triggered (edge) mode */
+constexpr u8 icw1_init			=	0x10UC;		/* Initialization - required! */
+constexpr u8 icw4_8086_mode		=	0x01UC;		/* 8086/88 (MCS-80/85) mode */
+constexpr u8 icw4_auto_eoi		=	0x02UC;		/* Auto (normal) EOI */
+constexpr u8 icw4_mode_slv		=	0x08UC;		/* Buffered mode/slave */
+constexpr u8 icw4_mode_mst		=	0x0CUC;		/* Buffered mode/master */
+constexpr u8 icw4_sfnm			=	0x10UC;		/* Special fully nested (not) */
 constexpr u8 sig_read_irr		=	0x0AUC;		/* OCW3 irq ready next CMD read */
 constexpr u8 sig_read_isr		=	0x0BUC;		/* OCW3 irq service next CMD read */
 constexpr word command_keybd	=	0x64UC;		/* IO base address for keyboard controller */
 constexpr word data_keybd		=	0x60UC;		/* IO data address for keyboard controller */
 constexpr word command_rtc		=	0x70UC;		/* IO base address for the CMOS realtime clock */
 constexpr word data_rtc			=	0x71UC;		/* IO data address for the CMOS realtime clock */
-constexpr u8 sig_keybd_ping	=	0xEEUC;		/* The keyboard should respond with an equal byte */
-constexpr u8 sig_keybd_rst	=	0xFFUC;		/* Use this to reset the keyboard, for instance at startup to ensure no stale data */
+constexpr u8 sig_keybd_ping		=	0xEEUC;		/* The keyboard should respond with an equal byte */
+constexpr u8 sig_keybd_rst		=	0xFFUC;		/* Use this to reset the keyboard, for instance at startup to ensure no stale data */
 constexpr u8 sig_keybd_enable	=	0xF4UC;		/* Send to enable the keyboard. This must be used after any reset is performed */
-constexpr u8 sig_keybd_ack	=	0xFAUC;
-constexpr u8 sig_keybd_nack	=	0xFEUC;
+constexpr u8 sig_keybd_ack		=	0xFAUC;
+constexpr u8 sig_keybd_nack		=	0xFEUC;
 extern "C"
 {
 #endif
@@ -96,15 +96,15 @@ constexpr u8 kb_ping() { kb_put(sig_keybd_ping); return kb_get(); }
 constexpr u8 kb_reset() { do { kb_put(sig_keybd_rst); kb_get(); } while (kb_ping() != sig_keybd_ping); kb_put(sig_keybd_enable); return kb_get(); }
 template<uint32_t R> constexpr qword read_msr() { dword lo, hi; asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(R) : "memory"); return qword(lo, hi); }
 template<uint32_t R> constexpr void write_msr(qword value) { asm volatile("wrmsr" :: "a"(value.lo), "d"(value.hi), "c"(R) : "memory"); }
-constexpr dword kernel_gs_base	= 0xC0000102;
-constexpr dword ia32_efer		= 0xC0000080;
-constexpr dword ia32_star		= 0xC0000081;
-constexpr dword lstar			= 0xC0000082;
-constexpr dword cstar			= 0xC0000083;
-constexpr dword sfmask		 	= 0xC0000084;
-constexpr dword ia32_apic_base	= 0x0000001B;
-constexpr dword apic_base_bsp	= 0x00000100;
-constexpr dword apic_enable		= 0x00000800;
+constexpr dword kernel_gs_base	= 0xC0000102U;
+constexpr dword ia32_efer		= 0xC0000080U;
+constexpr dword ia32_star		= 0xC0000081U;
+constexpr dword lstar			= 0xC0000082U;
+constexpr dword cstar			= 0xC0000083U;
+constexpr dword sfmask		 	= 0xC0000084U;
+constexpr dword ia32_apic_base	= 0x0000001BU;
+constexpr dword apic_base_bsp	= 0x00000100U;
+constexpr dword apic_enable		= 0x00000800U;
 constexpr void set_kernel_gs_base(addr_t value) { write_msr<kernel_gs_base>(value.full); }
 constexpr void init_syscall_msrs(addr_t syscall_target, qword flag_mask, word pl0_segbase, word pl3_segbase) { qword star = syscall_target.full; star.hi.lo = pl0_segbase; star.hi.hi = pl3_segbase; qword stbase = syscall_target.full; write_msr<ia32_star>(star); write_msr<cstar>(stbase); write_msr<lstar>(stbase); write_msr<sfmask>(flag_mask); qword efer = read_msr<ia32_efer>(); efer |= 1; write_msr<ia32_efer>(efer); }
 #endif

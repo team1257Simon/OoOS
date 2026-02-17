@@ -305,6 +305,7 @@ namespace std::__impl
 		constexpr __buffer_container(__buffer_container const& that) noexcept(std::is_nothrow_copy_constructible_v<A>) : A(that), C(that) {}
 		constexpr __buffer_container(__buffer_container const& that, A const& a) : A(a), C(that) {}
 		constexpr __buffer_container(__buffer_container&& that, A const& a) : A(a), C(std::forward<C>(that)) {}
+		template<not_self<A> B> constexpr __buffer_container(__buffer_container<B, C>&& that, A const& a) : A(a), C(std::forward<C>(that)) {}
 		constexpr void __create(__size_type cap) { C::__create(*this, cap); }
 		constexpr void __destroy() noexcept(noexcept(std::declval<C>().__destroy(std::declval<A&>()))) { C::__destroy(*this); }
 		constexpr void __resize(__size_type ncur, __size_type ncap) { C::__resize(*this, ncur, ncap); }
@@ -422,7 +423,8 @@ namespace std::__impl
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), that.__cur(), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer const& that, __size_type start, __size_type count, A const& alloc) : __dynamic_buffer(that.__get_ptr(start), __pmin(that.__get_ptr(start + count), that.__cur()), alloc) {}
 		constexpr __dynamic_buffer(__dynamic_buffer&& that) noexcept(noexcept(__container(move(that.__my_data)))) : __my_data(move(that.__my_data)) {}
-		constexpr  __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) noexcept(noexcept(__container(alloc))) : __my_data(move(that.__my_data), alloc) {}
+		constexpr __dynamic_buffer(__dynamic_buffer&& that, A const& alloc) noexcept(noexcept(__container(alloc))) : __my_data(move(that.__my_data), alloc) {}
+		template<not_self<A> B> constexpr __dynamic_buffer(__dynamic_buffer<T, B, NTS>&& that, A const& alloc) noexcept(noexcept(__container(alloc))) : __my_data(move(that.__my_data), alloc) {}
 		constexpr ~__dynamic_buffer() { this->__destroy(); }
 		constexpr __dynamic_buffer& operator=(__dynamic_buffer const& that) { this->__copy_assign(that); return *this; }
 		constexpr __dynamic_buffer& operator=(__dynamic_buffer&& that) { this->__move_assign(move(that)); return *this; }

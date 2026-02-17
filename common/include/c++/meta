@@ -19,12 +19,12 @@
 // <http://www.gnu.org/licenses/>.
 #ifndef __STD_META
 #define __STD_META
-#if (__cplusplus > 202302L) && (__cpp_impl_reflection >= 202506L)
 #include <optional>
-#include <source_location>
 #include <span>
 #include <string_view>
 #include <vector>
+#if (__cplusplus > 202302L) && (__cpp_impl_reflection >= 202506L)
+#include <source_location>
 #define __have_reflection 1
 namespace std
 {

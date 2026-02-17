@@ -5,10 +5,10 @@
 #include <util/event_listener.hpp>
 namespace ooos
 {	
-	typedef struct { volatile bool : 8; } empty_byte;
-	typedef struct { volatile short : 16; } empty_word;
-	typedef struct { volatile int : 32; } empty_dword;
-	typedef struct { volatile long : 64; } empty_qword;
+	typedef struct { volatile bool	: 8; } empty_byte;
+	typedef struct { volatile short	: 16; } empty_word;
+	typedef struct { volatile int	: 32; } empty_dword;
+	typedef struct { volatile long	: 64; } empty_qword;
 	enum class usb_descriptor_type : uint8_t
 	{
 		DDT_DEVICE				= 1UC,
@@ -20,6 +20,7 @@ namespace ooos
 		DDT_OTHER_SPEED_CONFIG	= 7UC,
 		DDT_INTERFACE_POWER		= 8UC
 	};
+	template<usb_descriptor_type ETV> using descriptor_type_t	= std::integral_constant<usb_descriptor_type, ETV>;
 	enum class usb_test_selector : uint8_t
 	{
 		TEST_J				= 0x01UC,
@@ -63,8 +64,8 @@ namespace ooos
 	enum class usb_request_type : uint8_t
 	{
 		STANDARD	= 0UC,
-		CLASS	= 1UC,
-		VENDOR	= 2UC,
+		CLASS		= 1UC,
+		VENDOR		= 2UC,
 	};
 	enum class usb_transfer_direction : bool
 	{
@@ -211,18 +212,26 @@ namespace ooos
 		HID_VENDOR_DEFINED_3	=	0xF8FFUS,
 		HID_VENDOR_DEFINED_4	=	0xFCFFUS,
 	};
-	struct __align(64) usb_descriptor_base {
-		uint8_t length;
-		usb_descriptor_type type;
-	};
-	template<typename T> struct usb_descriptor;
-	template<__internal::__can_inherit T> struct usb_descriptor<T> : usb_descriptor_base, T {};
-	template<typename T> requires(std::is_integral_v<T> || std::is_enum_v<T>)
-	struct usb_descriptor<T[]>
+	struct usb_descriptor_base
 	{
 		uint8_t length;
 		usb_descriptor_type type;
+		template<typename ST> constexpr like_pointer_t<ST, std::remove_reference_t<ST>> next(this ST&&) { return addr_t(this).plus(length); }
+	};
+	template<typename T> struct usb_descriptor;
+	template<__internal::__can_inherit T> requires(requires { typename T::descriptor_type_cst; })
+	struct __pack usb_descriptor<T> : usb_descriptor_base, T {
+		typedef typename T::descriptor_type_cst descriptor_type;
+		constexpr bool matching_type() const noexcept { return descriptor_type::value == this->type; }
+	};
+	template<typename T> requires(std::is_integral_v<T> || std::is_enum_v<T>)
+	struct __pack usb_descriptor<T[]>
+	{
+		typedef descriptor_type_t<usb_descriptor_type::DDT_STRING> descriptor_type;
+		uint8_t length;
+		usb_descriptor_type type;
 		T desc_data[/* (length - 2) / sizeof(T) */];
+		constexpr bool matching_type() const noexcept { return descriptor_type::value == this->type; }
 		constexpr size_t size_bytes() const noexcept { return length; }
 		constexpr size_t size() const noexcept { return static_cast<size_t>(length - 2Z) / sizeof(T); }
 		constexpr T* begin() noexcept { return desc_data; }
@@ -231,8 +240,9 @@ namespace ooos
 		constexpr T const* end() const noexcept { return desc_data + size(); }
 		constexpr bool empty() const noexcept { return !length; }
 	};
-	struct usb_device_desc_data
+	struct __pack usb_device_info
 	{
+		typedef descriptor_type_t<usb_descriptor_type::DDT_DEVICE> descriptor_type_cst;
 		uint16_t usb_spec_version_bcd;	// BCD encoding of the version of USB to which this device complies
 		uint8_t class_code;
 		uint8_t subclass_code;
@@ -242,11 +252,14 @@ namespace ooos
 		uint16_t product_id;
 		uint16_t device_release_bcd;	// BCD encoding of the device's release number
 		uint8_t manufacturer_string_idx;
+		uint8_t product_string_idx;
 		uint8_t serial_string_idx;
 		uint8_t num_configurations;		// number of possible configurations
 	};
-	struct usb_device_qualifier_desc_data
+	typedef usb_descriptor<usb_device_info> /* input buffers must be aligned to 64 bytes */ __align(64) usb_device_descriptor;
+	struct __pack usb_device_qualifier_info
 	{
+		typedef descriptor_type_t<usb_descriptor_type::DDT_DEVICE_QUALIFIER> descriptor_type_cst;
 		uint16_t usb_spec_version_bcd;	// BCD encoding of the version of USB to which this device complies (at the alternate speed)
 		uint8_t class_code;
 		uint8_t subclass_code;
@@ -255,33 +268,10 @@ namespace ooos
 		uint8_t num_configurations;		// number of possible configurations (at the alternate speed)
 		uint8_t rsvd0;
 	};
-	struct usb_configuration_desc_data
+	typedef usb_descriptor<usb_device_qualifier_info> __align(64) usb_device_qualifier_descriptor;
+	struct __pack usb_endpoint_info
 	{
-		uint16_t total_bytes;			// total length of all the descriptors returned from this request
-		uint8_t num_interfaces;			// number of interfaces supported by this configuration
-		uint8_t config_id;				// use this value as an argument in set_configuration to assign the config described by this descriptor to the device
-		uint8_t string_desc_idx;		// index of a string descriptor describing this configuration
-		struct __pack
-		{
-			bool 				: 5;
-			bool remote_wakeup	: 1;	// whether the device supports remote wakeup
-			bool self_powered	: 1;	// whether the device has a local power source
-			bool rsvd1			: 1;	// reserved; set to 1 for historical reasons
-		};
-		uint8_t max_power;				// expressed in increments of 2mA
-	};
-	struct usb_interface_desc_data
-	{
-		uint8_t interface_id;
-		uint8_t alternate_setting_id;	// value used to select the settings described by this descriptor for the interface (zero means it is the default)
-		uint8_t num_endpoints;			// number of endpoints used by the interface, not including endpoint 0
-		uint8_t class_code;
-		uint8_t subclass_code;
-		uint8_t protocol_code;
-		uint8_t string_desc_idx;		// index of a string descriptor describing this interface
-	};
-	struct usb_endpoint_desc_data
-	{
+		typedef descriptor_type_t<usb_descriptor_type::DDT_ENDPOINT> descriptor_type_cst;
 		struct __pack
 		{
 			uint8_t endpoint_number				: 4;
@@ -303,6 +293,39 @@ namespace ooos
 		};
 		uint8_t polling_interval;
 	};
+	typedef usb_descriptor<usb_endpoint_info> /** Returned in a group and therefore no need to align */ usb_endpoint_descriptor;
+	struct __pack usb_interface_info
+	{
+		typedef descriptor_type_t<usb_descriptor_type::DDT_INTERFACE> descriptor_type_cst;
+		uint8_t interface_id;
+		uint8_t alternate_setting_id;			// value used to select the settings described by this descriptor for the interface (zero means it is the default)
+		uint8_t num_endpoints;					// number of endpoints used by the interface, not including endpoint 0
+		uint8_t class_code;
+		uint8_t subclass_code;
+		uint8_t protocol_code;
+		uint8_t string_desc_idx;				// index of a string descriptor describing this interface
+		usb_endpoint_descriptor endpoints[];	// anywhere from zero to fifteen endpoint descriptors will follow
+	};
+	typedef usb_descriptor<usb_interface_info> /** Returned in a group and therefore no need to align */ usb_interface_descriptor;
+	struct __pack usb_configuration_info
+	{
+		typedef descriptor_type_t<usb_descriptor_type::DDT_CONFIGURATION> descriptor_type_cst;
+		uint16_t total_bytes;					// total length of all the descriptors returned from this request
+		uint8_t num_interfaces;					// number of interfaces supported by this configuration
+		uint8_t config_id;						// use this value as an argument in set_configuration to assign the config described by this descriptor to the device
+		uint8_t string_desc_idx;				// index of a string descriptor describing this configuration
+		struct __pack
+		{
+			bool 				: 5;
+			bool remote_wakeup	: 1;			// whether the device supports remote wakeup
+			bool self_powered	: 1;			// whether the device has a local power source
+			bool 				: 1;			// reserved; set to 1 for historical reasons
+		} attributes;
+		uint8_t max_power;						// expressed in increments of 2mA
+		usb_interface_descriptor interfaces[];	// one or more interface descriptors, with their associated endpoint descriptors
+	};
+	typedef usb_descriptor<usb_configuration_info> __align(64) usb_configuration_descriptor;
+	typedef decltype(std::declval<usb_configuration_info>().attributes) config_attributes;
 	struct usb_descriptor_request_value
 	{
 		uint8_t descriptor_index;
@@ -366,13 +389,9 @@ namespace ooos
 		} index_field;
 		uint16_t length;
 	};
-	typedef usb_descriptor<usb_device_desc_data> usb_device_descriptor;
-	typedef usb_descriptor<usb_device_qualifier_desc_data> usb_device_qualifier_descriptor;
-	typedef usb_descriptor<usb_configuration_desc_data> usb_configuration_descriptor;
-	typedef usb_descriptor<usb_interface_desc_data> usb_interface_descriptor;
-	typedef usb_descriptor<usb_endpoint_desc_data> usb_endpoint_descriptor;
-	typedef usb_descriptor<usb_lang_id[]> usb_langid_support_descriptor;					// requested as string descriptor 0
-	typedef usb_descriptor<char16_t[]> usb_string_descriptor;
+	typedef usb_descriptor<usb_lang_id[]> __align(64) usb_langid_support_descriptor;					// requested as string descriptor 0
+	typedef usb_descriptor<char16_t[]> __align(64) usb_string_descriptor;
+	template<typename T> using descriptor_type_of = typename T::descriptor_type;
 	struct __pack usb_message_base
 	{
 		uint16_t total_message_size;				// size of the overall message structure (not the data to be sent, but rather this object)
@@ -397,5 +416,109 @@ namespace ooos
 		std::ranges::ref_view<buffer_type> data_buffer;
 	};
 	typedef abstract_hub_module<usb_message_base, usb_control_message, usb_rw_message> usb_host_controller_module;
+	template<typename T>
+	struct usb_descriptor_iterator
+	{
+		typedef std::forward_iterator_tag iterator_concept;
+		typedef usb_descriptor<T> value_type;
+		typedef value_type const& reference;
+		typedef value_type const* pointer;
+		typedef ptrdiff_t difference_type;
+		private:
+			pointer __current;
+			size_t __length;
+			difference_type __diff(usb_descriptor_iterator const& that) const noexcept { return this->__length - that.__length; }
+			void __advance() noexcept
+			{
+				if(__unlikely(!__current || !__length)) return;	// safety measure to avoid a fault
+				do __current	= __current->next(); while(!__current->matching_type());
+				__length--;
+			}
+		public:
+			constexpr usb_descriptor_iterator() noexcept = default;
+			constexpr usb_descriptor_iterator(pointer ptr, size_t n) noexcept : __current(ptr), __length(n) {}
+			constexpr pointer base() const noexcept { return __current; }
+			constexpr pointer operator->() const noexcept { return __current; }
+			constexpr reference operator*() const noexcept { return *__current; }
+			constexpr usb_descriptor_iterator& operator++() noexcept { return this->__advance(), *this; }
+			constexpr difference_type operator-(usb_descriptor_iterator const& that) const noexcept { return this->__diff(that); }
+			constexpr bool operator==(usb_descriptor_iterator const& that) const noexcept { return this->__current == that.__current; }
+			constexpr bool operator==(std::default_sentinel_t) const noexcept { return !this->__length; }
+			constexpr std::strong_ordering operator<=>(usb_descriptor_iterator const& that) const noexcept { return this->__current <=> that.__current; }
+			constexpr usb_descriptor_iterator operator++(int) noexcept
+			{
+				usb_descriptor_iterator that(*this);
+				this->__advance();
+				return that;
+			}
+	};
+	class usb_config_interfaces
+	{
+		usb_configuration_descriptor const* __desc_ptr;
+	public:
+		typedef usb_descriptor_iterator<usb_interface_info> iterator;
+		constexpr usb_config_interfaces() noexcept = default;
+		constexpr usb_config_interfaces(usb_configuration_descriptor const& desc) noexcept : __desc_ptr(std::addressof(desc)) {}
+		constexpr iterator begin() const noexcept { return iterator(__desc_ptr->interfaces, __desc_ptr->num_interfaces); }
+		constexpr auto end() const noexcept { return std::default_sentinel; }
+		constexpr size_t size() const noexcept { return __desc_ptr->num_interfaces; }
+		constexpr size_t size_bytes() const noexcept { return __desc_ptr->total_bytes; }
+		constexpr usb_configuration_descriptor const& base() const noexcept { return *__desc_ptr; }
+	};
+	class usb_interface_endpoints
+	{
+		usb_interface_descriptor const* __desc_ptr;
+	public:
+		typedef usb_descriptor_iterator<usb_endpoint_info> iterator;
+		constexpr usb_interface_endpoints() noexcept = default;
+		constexpr usb_interface_endpoints(usb_interface_descriptor const& desc) noexcept : __desc_ptr(std::addressof(desc)) {}
+		constexpr iterator begin() const noexcept { return iterator(__desc_ptr->endpoints, __desc_ptr->num_endpoints); }
+		constexpr auto end() const noexcept { return std::default_sentinel; }
+		constexpr size_t size() const noexcept { return __desc_ptr->num_endpoints; }
+		constexpr usb_interface_descriptor const& base() const noexcept { return *__desc_ptr; }
+	};
+	constexpr usb_endpoint_info to_base(usb_endpoint_descriptor const& d) noexcept { return static_cast<usb_endpoint_info>(d); }
+	struct usb_interface
+	{
+		uint8_t interface_id;
+		uint8_t alternate_setting_id;
+		uint8_t class_code;
+		uint8_t subclass_code;
+		uint8_t protocol_code;
+		uint8_t string_desc_idx;
+		mod_mm_vec<usb_endpoint_info> endpoints;
+	};
+	constexpr usb_interface build_one(usb_descriptor<usb_interface_info> const& desc)
+	{
+		return usb_interface
+		{
+			.interface_id			{ desc.interface_id },
+			.alternate_setting_id	{ desc.alternate_setting_id },
+			.class_code				{ desc.class_code },
+			.subclass_code			{ desc.subclass_code },
+			.protocol_code			{ desc.protocol_code },
+			.string_desc_idx		{ desc.string_desc_idx },
+			.endpoints				{ std::ranges::transform_view(usb_interface_endpoints(desc), to_base) }
+		};
+	}
+	struct usb_configuration
+	{
+		uint8_t config_id;
+		uint8_t string_desc_idx;
+		config_attributes attributes;
+		uint8_t max_power;
+		mod_mm_vec<usb_interface> interfaces;
+	};
+	constexpr usb_configuration build(usb_configuration_descriptor const& desc)
+	{
+		return usb_configuration
+		{
+			.config_id			{ desc.config_id },
+			.string_desc_idx	{ desc.string_desc_idx },
+			.attributes			{ desc.attributes },
+			.max_power			{ desc.max_power },
+			.interfaces			{ std::ranges::transform_view(usb_config_interfaces(desc), build_one) }
+		};
+	}
 }
 #endif

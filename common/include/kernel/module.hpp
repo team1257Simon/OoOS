@@ -16,7 +16,7 @@
  * Doing so allows the kernel to use dynamic_cast to upcast the module class into something more specific, e.g. block_io_provider_module or io_module_base<char>.
  */
 #define EXPORT_MODULE(module_class, ...)																																\
-	static char __instance[sizeof(module_class)] __align(alignof(module_class));																														\
+	static char __instance[sizeof(module_class)] __align(alignof(module_class));																						\
 	static ooos::cxxabi_abort __abort_handler;																															\
 	namespace ooos																																						\
 	{																																									\
@@ -45,7 +45,7 @@ namespace ooos
 {
 	struct block_io_provider_module;
 	extern kernel_api* api_global;
-	extern ooos::abstract_module_base* module_instance() noexcept;
+	[[gnu::returns_nonnull]] extern ooos::abstract_module_base* module_instance() noexcept;
 	/**
 	 * Base class for all module objects.
 	 * This is an abstract class which hooks in various parts of the kernel that module code might need to use.
@@ -224,18 +224,18 @@ namespace ooos
 		constexpr static size_type __size_val				= sizeof(value_type);
 		constexpr static align_type __align_val				= alignof(value_type);
 		constexpr static std::align_val_t __std_align_val	= static_cast<std::align_val_t>(__align_val);
-		abstract_module_base* __opt_module;
+		mutable abstract_module_base* __opt_module;
 		[[gnu::always_inline]] inline void_pointer __allocate_n(size_type n) const
 		{
 			if(__unlikely(!n)) return nullptr;
-			if(__opt_module) return __opt_module->allocate_array<value_type>(n);
-			else return operator new(__size_val, __std_align_val);
+			if(!__opt_module) __opt_module	= module_instance();
+			return __opt_module->allocate_array<value_type>(n);
 		}
 		[[gnu::always_inline]] inline void __deallocate(pointer p, size_type n) const
 		{
 			if(__unlikely(!n || !p)) return;
-			if(__opt_module) __opt_module->release_array(p);
-			else operator delete(p, n * __size_val, __std_align_val);
+			if(!__opt_module) __opt_module	= module_instance();
+			__opt_module->release_array(p);
 		}
 		[[gnu::always_inline]] inline pointer __allocate(size_type n) const
 		{
