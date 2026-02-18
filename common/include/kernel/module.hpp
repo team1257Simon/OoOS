@@ -187,6 +187,7 @@ namespace ooos
 		}
 	public:
 		managed_dma_span(abstract_module_base& mod) noexcept : __base(), __mod(std::ref(mod)) {}
+		managed_dma_span() : managed_dma_span(*module_instance()) {}
 		managed_dma_span(abstract_module_base& mod, size_t n, bool prefetch) : __base(__allocate(mod, n, prefetch), n), __mod(std::ref(mod)) {}
 		managed_dma_span(managed_dma_span&& that) noexcept : __base(std::backward<__base>(that)), __mod(that.__mod) { that.__reset(); }
 		~managed_dma_span() { this->destroy(); }
@@ -220,6 +221,7 @@ namespace ooos
 		typedef decltype(alignof(value_type)) align_type;
 		typedef decltype(std::declval<pointer>() - std::declval<pointer>()) difference_type;
 		template<typename U> struct rebind { typedef module_mm_allocator<U> other; };
+		template<typename U> friend struct module_mm_allocator;
 	private:
 		constexpr static size_type __size_val				= sizeof(value_type);
 		constexpr static align_type __align_val				= alignof(value_type);

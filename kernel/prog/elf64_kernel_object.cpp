@@ -31,7 +31,7 @@ void elf64_kernel_object::unload_pre_init()
 		if(module_object->__allocated_mm) module_object->__api_hooks->destroy_mm(module_object->__allocated_mm);
 		module_object	= nullptr;
 	}
-	if(load_base) ::operator delete(load_base, load_align);
+	if(load_base) operator delete(load_base, load_align);
 	load_base			= nullptr;
 }
 void elf64_kernel_object::process_headers()

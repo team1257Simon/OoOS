@@ -917,14 +917,14 @@ namespace ooos
 			//	If the device pointed to by dev is part of this hub/controller, returns its slot; otherwise returns std::nullopt.
 			virtual std::optional<size_t> index_of(abstract_connectable_device* dev) const	= 0;
 			//	Queries the number of slots on the hub/controller.
-			virtual size_t size() const														= 0;
+			virtual size_t size() const	noexcept											= 0;
 		};
 		//	Counts the total number of interfaces to the device (e.g. USB endpoints).
-		virtual size_t interface_count() const		= 0;
+		virtual size_t interface_count() const noexcept	= 0;
 		//	Gets a pointer to the hub/controller to which the device is connected.
-		virtual provider* parent()					= 0;
+		virtual provider* parent()						= 0;
 		//	Gets a pointer to the endpoint at the given index for the device. If the ID is out of range, returns a null pointer.
-		virtual endpoint* operator[](size_t idx)	= 0;
+		virtual endpoint* operator[](size_t idx)		= 0;
 		using enum endpoint::type;
 	};
 }

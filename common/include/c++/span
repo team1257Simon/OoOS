@@ -113,9 +113,9 @@ namespace std
 		[[nodiscard]] constexpr const_iterator cbegin() const noexcept { return const_iterator(__my_ptr); }
 		[[nodiscard]] constexpr iterator end() const noexcept { return iterator(__my_ptr + size()); }
 		[[nodiscard]] constexpr const_iterator cend() const noexcept { return const_iterator(__my_ptr + size()); }
-		[[nodiscard]] constexpr reverse_iterator rbegin() const noexcept { return const_reverse_iterator(this->end()); }
+		[[nodiscard]] constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator(this->end()); }
 		[[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(this->cend()); }
-		[[nodiscard]] constexpr reverse_iterator rend() const noexcept { return const_reverse_iterator(this->begin()); }
+		[[nodiscard]] constexpr reverse_iterator rend() const noexcept { return reverse_iterator(this->begin()); }
 		[[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return const_reverse_iterator(this->cbegin()); }
 		template<size_t M>
 		[[nodiscard]] constexpr span<element_type, M> first() const noexcept

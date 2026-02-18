@@ -9,6 +9,7 @@ namespace ooos
 	typedef struct { volatile short	: 16; } empty_word;
 	typedef struct { volatile int	: 32; } empty_dword;
 	typedef struct { volatile long	: 64; } empty_qword;
+	struct __align(64) aligned64{};
 	enum class usb_descriptor_type : uint8_t
 	{
 		DDT_DEVICE				= 1UC,
@@ -216,7 +217,7 @@ namespace ooos
 	{
 		uint8_t length;
 		usb_descriptor_type type;
-		template<typename ST> constexpr like_pointer_t<ST, std::remove_reference_t<ST>> next(this ST&&) { return addr_t(this).plus(length); }
+		template<typename ST> constexpr like_pointer_t<ST, std::remove_reference_t<ST>> next(this ST&& self) { return addr_t(self).plus(self.length); }
 	};
 	template<typename T> struct usb_descriptor;
 	template<__internal::__can_inherit T> requires(requires { typename T::descriptor_type_cst; })
@@ -256,7 +257,7 @@ namespace ooos
 		uint8_t serial_string_idx;
 		uint8_t num_configurations;		// number of possible configurations
 	};
-	typedef usb_descriptor<usb_device_info> /* input buffers must be aligned to 64 bytes */ __align(64) usb_device_descriptor;
+	typedef usb_descriptor<usb_device_info> /* input buffers must be aligned to 64 bytes */ usb_device_descriptor alignas(aligned64);
 	struct __pack usb_device_qualifier_info
 	{
 		typedef descriptor_type_t<usb_descriptor_type::DDT_DEVICE_QUALIFIER> descriptor_type_cst;
@@ -268,7 +269,7 @@ namespace ooos
 		uint8_t num_configurations;		// number of possible configurations (at the alternate speed)
 		uint8_t rsvd0;
 	};
-	typedef usb_descriptor<usb_device_qualifier_info> __align(64) usb_device_qualifier_descriptor;
+	typedef usb_descriptor<usb_device_qualifier_info> usb_device_qualifier_descriptor alignas(aligned64);
 	struct __pack usb_endpoint_info
 	{
 		typedef descriptor_type_t<usb_descriptor_type::DDT_ENDPOINT> descriptor_type_cst;
@@ -324,7 +325,7 @@ namespace ooos
 		uint8_t max_power;						// expressed in increments of 2mA
 		usb_interface_descriptor interfaces[];	// one or more interface descriptors, with their associated endpoint descriptors
 	};
-	typedef usb_descriptor<usb_configuration_info> __align(64) usb_configuration_descriptor;
+	typedef usb_descriptor<usb_configuration_info> usb_configuration_descriptor alignas(aligned64);
 	typedef decltype(std::declval<usb_configuration_info>().attributes) config_attributes;
 	struct usb_descriptor_request_value
 	{
@@ -520,5 +521,17 @@ namespace ooos
 			.interfaces			{ std::ranges::transform_view(usb_config_interfaces(desc), build_one) }
 		};
 	}
+	struct usb_device_class_info
+	{
+		uint8_t class_code;
+		uint8_t subclass_code;
+		uint8_t protocol_code;
+	};
+	struct abstract_usb_device : public abstract_connectable_device
+	{
+		virtual std::span<usb_configuration const> configurations() const noexcept = 0;
+		virtual void use_configuration(std::span<usb_configuration const>::iterator cfg, size_t interface_id) = 0;
+		virtual usb_device_class_info device_class() const noexcept = 0;
+	};
 }
 #endif

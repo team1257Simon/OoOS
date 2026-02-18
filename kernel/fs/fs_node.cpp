@@ -10,7 +10,7 @@ uint64_t vnode::cid() const noexcept { return real_id; }
 uint64_t vnode::created_time() const noexcept { return create_time; }
 uint64_t vnode::modified_time() const noexcept { return modif_time; }
 bool vnode::rename(std::string const& n) { concrete_name = n; return true; }
-const char *vnode::name() const { return concrete_name.c_str(); }
+const char* vnode::name() const { return concrete_name.c_str(); }
 bool vnode::is_file() const noexcept { return false; }
 bool vnode::is_directory() const noexcept { return false; }
 bool vnode::is_device() const noexcept { return false; }
