@@ -46,7 +46,7 @@ namespace std
 		constexpr size_type max_size() const noexcept { return this->__max_capacity(); }
 		constexpr size_type capacity() const noexcept { return this->__capacity(); }
 		constexpr allocator_type get_allocator() const noexcept { return this->__get_alloc(); }
-		constexpr explicit basic_string(allocator_type const& alloc) noexcept : __base(alloc) {}
+		constexpr explicit basic_string(allocator_type const& alloc) noexcept(is_nothrow_copy_constructible_v<AT>) : __base(alloc) {}
 		constexpr basic_string() noexcept(noexcept(allocator_type())) : basic_string(allocator_type()) {}
 		constexpr basic_string(size_type count, allocator_type const& alloc = allocator_type()) : __base(count + 1UZ, alloc) { this->__setc(0UZ); }
 		constexpr basic_string(size_type count, const_reference value, allocator_type const& alloc);
@@ -61,8 +61,8 @@ namespace std
 		constexpr basic_string(const_pointer str) : basic_string(str, allocator_type()) {}
 		constexpr basic_string(basic_string const& that, allocator_type const& alloc) : basic_string(that.data(), that.size(), alloc) {}
 		constexpr basic_string(basic_string const& that) : basic_string(that, that.__get_alloc()) {}
-		constexpr basic_string(basic_string&& that, allocator_type const& alloc) : __base(forward<__base>(that), alloc) {}
-		constexpr basic_string(basic_string&& that) : __base(forward<__base>(that)) {}
+		constexpr basic_string(basic_string&& that, allocator_type const& alloc) noexcept(is_nothrow_copy_constructible_v<AT>) : __base(forward<__base>(that), alloc) {}
+		constexpr basic_string(basic_string&& that) noexcept(is_nothrow_move_constructible_v<AT>) : __base(forward<__base>(that)) {}
 		constexpr basic_string(basic_string const& that, size_type pos, allocator_type const& alloc) : basic_string(that.c_str() + pos, that.__cur(), alloc) {}
 		constexpr basic_string(basic_string const& that, size_type pos) : basic_string(that, pos, that.__get_alloc()) {}
 		constexpr basic_string(basic_string const& that, size_type pos, size_type count, allocator_type const& alloc) : basic_string(that.c_str() + pos, that.c_str() + pos + count, alloc) {}

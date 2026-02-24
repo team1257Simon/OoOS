@@ -11,7 +11,7 @@ namespace std
 	#define __libk_assert(cond)					\
 	do {										\
 		if(is_constant_evaluated() && !(cond))	\
-		__libk_assert_fail();					\
+			__libk_assert_fail();				\
 	} while(false)
 }
 extern "C"
@@ -119,10 +119,10 @@ template<nontrivial_copy T>
 constexpr T* array_copy(T* dest, T const* src, std::size_t n)
 noexcept(nothrow_copy<T>)
 {
-	T* p			= dest;
+	T* p				= dest;
 	if constexpr(std::is_copy_assignable_v<T>)
 		for(size_t i	= 0UZ; i < n; i++, p++)
-			*p		= src[i];
+			*p			= src[i];
 	else for(size_t i	= 0UZ; i < n; i++, p++) std::construct_at(p, src[i]);
 	return dest;
 }
@@ -130,7 +130,7 @@ template<trivial_copy T> requires(std::larger<T, uint64_t>)
 constexpr T* array_fill(T* dest, T const& value, std::size_t n) noexcept
 {
 	T* ptr			= dest;
-	for(size_t i	= 0UZ; i < n; i++, ptr++)	new(ptr) T(value);
+	for(size_t i	= 0UZ; i < n; i++, ptr++)	std::construct_at(ptr, value);
 	return dest;
 }
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>)
@@ -154,7 +154,7 @@ constexpr T* array_init(T* dest, T const* src, size_t n)
 			dest[i]		= src[i];
 		return dest;
 	}
-	return array_copy(dest, src, n);
+	else { return array_copy(dest, src, n); }
 }
 template<typename T, typename IT>
 requires(std::is_assignable_v<T&, decltype(*std::declval<IT>())>)
@@ -186,7 +186,7 @@ template<integral_structure I, integral_structure J>
 constexpr typename arithmetic_result<I, I>::product_type raise_power(I base, J power)
 {
 	if(power < static_cast<J>(2)) return power ? base : static_cast<I>(1);
-	I srt	= raise_power(base, static_cast<J>(power >> 1));
+	I srt	= raise_power(base, static_cast<J>(power / 2));
 	return static_cast<I>(srt * srt * (power % 2 ? base : 1));
 }
 template<nontrivial_move T>
@@ -222,27 +222,37 @@ constexpr uint16_t day_of_year(uint8_t month, uint16_t day, bool leap)
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>)
 constexpr T* array_zero(T* dest, std::size_t n) noexcept
 {
-	if consteval { for(std::size_t i = 0; i < n; i++) { dest[i]	= T(); } return dest; }
-    if constexpr(std::is_default_constructible_v<T> && !std::integral<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
-    else if constexpr(sizeof(T) == 8) array_fill(dest, 0UL, n);
-    else if constexpr(sizeof(T) == 4) array_fill(dest, 0U, n);
-    else if constexpr(sizeof(T) == 2) array_fill(dest, 0US, n);
-    else array_fill(dest, 0UC, n * sizeof(T));
+	if consteval { for(std::size_t i = 0UZ; i < n; i++) { dest[i]	= T(); } }
+	else
+	{
+		if constexpr(std::is_default_constructible_v<T> && !std::integral<T>)
+			for(std::size_t i = 0UZ; i < n; i++)
+				std::construct_at(std::addressof(dest[i]));
+		else if constexpr(sizeof(T) == 8) array_fill(dest, 0UL, n);
+		else if constexpr(sizeof(T) == 4) array_fill(dest, 0U, n);
+		else if constexpr(sizeof(T) == 2) array_fill(dest, 0US, n);
+		else array_fill(dest, 0UC, n * sizeof(T));
+	}
 	return dest;
 }
 template<trivial_copy T> requires(std::larger<T, uint64_t>)
 constexpr T* array_zero(T* dest, std::size_t n) noexcept
 {
-	if consteval { for(std::size_t i = 0; i < n; i++) { dest[i]	= T(); } return dest; }
-    if constexpr(std::is_default_constructible_v<T>) for(std::size_t i = 0; i < n; i++) { std::construct_at(std::addressof(dest[i])); }
-    else if constexpr(sizeof(T) % 8 == 0) array_fill(dest, 0UL, n * sizeof(T) / 8);
-    else if constexpr(sizeof(T) % 4 == 0) array_fill(dest, 0U, n * sizeof(T) / 4);
-    else if constexpr(sizeof(T) % 2 == 0) array_fill(dest, 0US, n * sizeof(T) / 2);
-    else array_fill(dest, 0UC, n * sizeof(T));
+	if consteval { for(std::size_t i = 0UZ; i < n; i++) { dest[i]	= T(); } }
+	else
+	{
+		if constexpr(std::is_default_constructible_v<T>)
+			for(std::size_t i = 0UZ; i < n; i++)
+				std::construct_at(std::addressof(dest[i]));
+		else if constexpr(sizeof(T) % 8 == 0) array_fill(dest, 0UL, n * sizeof(T) / 8);
+		else if constexpr(sizeof(T) % 4 == 0) array_fill(dest, 0U, n * sizeof(T) / 4);
+		else if constexpr(sizeof(T) % 2 == 0) array_fill(dest, 0US, n * sizeof(T) / 2);
+		else array_fill(dest, 0UC, n * sizeof(T));
+	}
 	return dest;
 }
 template<typename T>
-constexpr T* atomic_copy(T* dest, T const* src, size_t n) noexcept(noexcept(array_copy(dest, src, n)))
+constexpr T* nointerrupts_copy(T* dest, T const* src, size_t n) noexcept(noexcept(array_copy(dest, src, n)))
 {
     push_cli();
     array_copy(dest, src, n);
@@ -271,7 +281,7 @@ constexpr uint16_t crc16_table_val(uint16_t i)
 		bool b		= ((res ^ c) % 2) != 0US;
 		c			>>= 1;
 		res			>>= 1;
-		if(b) res ^= PV;
+		if(b) res	^= PV;
 	}
 	return res ^ BV;
 }
@@ -294,9 +304,28 @@ template<maskable<uintptr_t> T>
 constexpr T& mask_assign(T& t, addr_t val)
 {
 	uintptr_t p	= std::bit_cast<uintptr_t>(t);
-	addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, T::mask::value>(p, val));
+	addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, T::mask::value>(p, val.full));
 	return t;
 }
+template<typename T, size_t N> requires(requires(T t) { std::bit_cast<uintptr_t>(t); })
+struct maskable_addr
+{
+	typedef p2align_mask<N> mask;
+	constexpr T& operator=(addr_t val) noexcept
+	{
+		static_assert(std::derived_from<T, maskable_addr<T, N>>);
+		T& t		= static_cast<T&>(*this);
+		uintptr_t p	= std::bit_cast<uintptr_t>(t);
+		addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, mask::value>(p, val.full));
+		return t;
+	}
+	constexpr operator uintptr_t() const noexcept
+	{
+		static_assert(std::derived_from<T, maskable_addr<T, N>>);
+		T& t		= static_cast<T&>(*this);
+		return std::bit_cast<uintptr_t>(t) & ~mask::value;
+	}
+};
 template<typename T, template<typename> class C, bool B> struct __maybe_apply { typedef std::conditional_t<B, C<T>, T> type; };
 template<typename T, template<typename> class C, bool B> using __maybe_apply_t = typename __maybe_apply<T, C, B>::type;
 template<typename T, bool B> using maybe_const_t = __maybe_apply_t<T, std::add_const_t, B>;

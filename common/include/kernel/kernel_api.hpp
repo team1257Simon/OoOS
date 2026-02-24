@@ -92,8 +92,12 @@ namespace ooos
 		template<typename T, typename U> struct __qualify_like<T volatile, U> { typedef std::add_volatile_t<std::remove_const_t<U>> type; };
 		template<typename T, typename U> struct __qualify_like<T const volatile, U> { typedef std::add_cv_t<U> type; };
 		template<typename T, typename U> requires(std::is_reference_v<T>) struct __qualify_like<T, U> : __qualify_like<std::remove_reference_t<T>, U> {};
+		template<typename> struct __member_type{};
+		template<typename T, typename M> struct __member_type<M T::*>{ typedef M type; };
+		using namespace std::ranges::__detail;
 	}
 	template<typename T, typename U> using like_pointer_t						= std::add_pointer_t<typename __internal::__qualify_like<T, U>::type>;
+	template<auto V> using auto_constant										= std::integral_constant<decltype(V), V>;
 	template<template<typename> class C, typename ... Ts> requires(__internal::__can_inherit_all<C<Ts>...>) struct repeated_template : C<Ts> ... {};
 	template<typename T> concept wrappable_actor 								= no_args_invoke<T> && !std::is_same_v<isr_actor, T>;
 	template<typename T> concept boolable 										= requires(T t) { t ? true : false; };
@@ -173,9 +177,101 @@ namespace ooos
 		}
 		using type = typename [: __get() :];
 	};
+	namespace __internal
+	{
+		template<typename T>
+		consteval bool __is_open_coded()
+		{
+			for(std::meta::info i : std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()))
+				if(std::meta::is_unbounded_array_type(std::meta::type_of(i)))
+					return true;
+			return false;
+		}
+		template<typename T> concept __open_coded	= __is_open_coded<T>();
+		template<__open_coded T>
+		consteval std::meta::info __unbounded_array_member()
+		{
+			for(std::meta::info i : std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()))
+				if(std::meta::is_unbounded_array_type(std::meta::type_of(i)))
+					return std::meta::type_of(i);
+			return std::meta::info();
+		}
+		template<typename T, typename M> using __make_member_ptr	= M(T::*);
+		template<__open_coded T> using __unbounded_member_type		= typename [: __unbounded_array_member<T>() :];
+		template<__open_coded T> using __unbounded_member_ptr		= __make_member_ptr<T, __unbounded_member_type<T>>;
+		template<__open_coded T>
+		consteval auto __get_unbounded_member()
+		{
+			for(std::meta::info i : std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::current()))
+        		if(std::meta::is_unbounded_array_type(std::meta::type_of(i)))
+					return std::meta::extract<__unbounded_member_ptr<T>>(i);
+		}
+	}
+	template<typename T> concept open_coded					= __internal::__open_coded<T>;
+	template<open_coded T> using unbounded_member_of		= __internal::__unbounded_member_type<T>;
+	template<open_coded T> using unbounded_member_pointer_t	= std::integral_constant<__internal::__unbounded_member_ptr<T>, __internal::__get_unbounded_member<T>()>;
 	#else
 	#define annotated(annotation)
+	template<typename T>
+	concept open_coded										= requires
+	{
+		typename T::unbounded_member;
+		requires(std::is_member_object_pointer_v<typename T::unbounded_member::value_type>);
+		requires(std::is_unbounded_array_v<typename __internal::__member_type<typename T::unbounded_member::value_type>::type>);
+		static_cast<typename T::unbounded_member::value_type>(std::declval<typename T::unbounded_member>());
+	};
+	template<open_coded T> using unbounded_member_of		= typename __internal::__member_type<typename T::unbounded_member::value_type>::type;
+	template<open_coded T> using unbounded_member_pointer_t	= typename T::unbounded_member;
 	#endif
+	template<open_coded T> using unbounded_member_element	= std::remove_extent_t<unbounded_member_of<T>>;
+	template<typename T> requires(open_coded<std::remove_cvref_t<T>>) 
+	using unbounded_element_pointer							= like_pointer_t<T, unbounded_member_element<std::remove_cvref_t<T>>>;
+	template<typename T> requires(open_coded<std::remove_cvref_t<T>>)
+	using unbounded_element_reference						= decltype(*std::declval<unbounded_element_pointer<T>>());
+	template<typename T> concept explicitly_sized			= requires(T t) { { t.size_bytes() } -> std::unsigned_integral; };
+	template<typename T> concept open_coded_iterable		= open_coded<T> && (open_coded<unbounded_member_element<T>> == explicitly_sized<unbounded_member_element<T>>);
+	template<open_coded_iterable CT>
+	struct open_coded_iterator
+	{
+		typedef unbounded_member_element<CT> value_type;
+		typedef unbounded_element_pointer<CT> pointer;
+		typedef unbounded_element_reference<CT> reference;
+		typedef ptrdiff_t difference_type;
+		typedef std::conditional_t<open_coded<value_type>, std::forward_iterator_tag, std::contiguous_iterator_tag> iterator_concept;
+		typedef std::conditional_t<open_coded<value_type>, std::forward_iterator_tag, std::random_access_iterator_tag> iterator_category;
+	private:
+		constexpr static pointer __next(pointer p) noexcept requires(open_coded<value_type>) { return addr_t(p).plus(p->size_bytes()); }
+		pointer __current;
+	public:
+		constexpr open_coded_iterator() noexcept = default;
+		constexpr explicit open_coded_iterator(pointer p) noexcept : __current(p) {}
+		constexpr explicit open_coded_iterator(CT& obj) noexcept : __current(std::addressof(((obj).*(unbounded_member_pointer_t<CT>::value))[0])) {}
+		constexpr pointer base() const noexcept { return __current; }
+		constexpr pointer operator->() const noexcept { return __current; }
+		constexpr reference operator*() const noexcept { return *__current; }
+		constexpr reference operator[](size_t n) const noexcept requires(!open_coded<value_type>) { return __current[n]; }
+		friend constexpr bool operator==(open_coded_iterator const& a, open_coded_iterator const& b) noexcept { return a.__current == b.__current; }
+		constexpr open_coded_iterator& operator--() noexcept requires(!open_coded<value_type>) { --__current; return *this; }
+		constexpr open_coded_iterator operator--(int) noexcept requires(!open_coded<value_type>)
+		{
+			open_coded_iterator that(*this);
+			--*this;
+			return that;
+		}
+		constexpr open_coded_iterator& operator++() noexcept
+		{
+			if constexpr(open_coded<value_type>)
+				__current	= __next(__current);
+			else __current++;
+			return *this;
+		}
+		constexpr open_coded_iterator operator++(int) noexcept
+		{
+			open_coded_iterator that(*this);
+			++*this;
+			return that;
+		}
+	};
 #pragma endregion
 	struct kmod_mm
 	{
@@ -806,21 +902,21 @@ namespace ooos
 		constexpr static addr_t __create(size_t addsz, Args&& ... args) { return std::construct_at(__open_alloc<T>(sizeof(T) + addsz, align_of<T>()), std::forward<Args>(args)...); }
 		constexpr static uint8_t* __clone(uint8_t* ptr, size_t size, std::align_val_t al) { return array_copy(__open_alloc<uint8_t>(size, al), ptr, size); }
 	protected:
-		template<trivial_copy T> requires(std::move_constructible<T>)
-		constexpr generic_device_message(T&& t, size_t addsz = 0UZ) :
-			__data(__create(addsz, std::move(t)), __deleter(align_of<T>())),
+		template<trivial_copy T> requires(std::default_initializable<T>)
+		constexpr generic_device_message(std::in_place_type_t<T>, size_t addsz = 0UZ) :
+			__data(__create<T>(addsz), __deleter(align_of<T>())),
 			__size(sizeof(T) + addsz),
 			__type(typeid(T))
 		{}
-		template<trivial_copy T, typename ... Args> requires(std::constructible_from<T, Args...>)
-		constexpr generic_device_message(std::in_place_type_t<T>, Args&& ... args) :
-			__data(__create(0UZ, std::forward<Args>(args)...), __deleter(align_of<T>())),
-			__size(sizeof(T)),
+		template<trivial_copy T, size_t N> requires(std::default_initializable<T>)
+		constexpr generic_device_message(std::integral_constant<size_t, N>, std::in_place_type_t<T>, size_t addsz = 0UZ) :
+			__data(__create<T>(addsz), __deleter(align_to<N>())),
+			__size(sizeof(T) + addsz),
 			__type(typeid(T))
 		{}
-		template<trivial_copy T, typename ... Args> requires(std::constructible_from<T, Args...>)
-		constexpr generic_device_message(size_t addsz, std::in_place_type_t<T>, Args&& ... args) :
-			__data(__create(addsz, std::forward<Args>(args)...), __deleter(align_of<T>())),
+		template<trivial_copy T>
+		constexpr generic_device_message(T&& t, size_t addsz = 0UZ) :
+			__data(__create<T>(addsz, std::move(t)), __deleter(align_of<T>())),
 			__size(sizeof(T) + addsz),
 			__type(typeid(T))
 		{}
@@ -854,36 +950,34 @@ namespace ooos
 		template<trivial_copy U> constexpr static bool __can_attempt_cast() noexcept { return std::derived_from<T, U> || std::derived_from<U, T>; }
 	public:
 		constexpr device_message() requires(std::default_initializable<T>) : generic_device_message(std::in_place_type<T>) {}
-		constexpr device_message(T&& t) requires(std::move_constructible<T>) : generic_device_message(std::move(t)) {}
-		constexpr device_message(T&& t, size_t added_size) requires(std::move_constructible<T>) : generic_device_message(std::move(t), added_size) {}
-		template<typename ... Args> requires(std::constructible_from<T, Args...>)
-		constexpr device_message(std::in_place_t, Args&& ... args) :  generic_device_message(std::in_place_type<T>, std::forward<Args>(args)...) {}
-		template<typename ... Args> requires(std::constructible_from<T, Args...>)
-		constexpr device_message(size_t added_size, Args&& ... args) : generic_device_message(added_size, std::in_place_type<T>, std::forward<Args>(args)...) {}
+		constexpr device_message(size_t added_size) requires(std::default_initializable<T> && !std::is_same_v<T, size_t>) : generic_device_message(std::in_place_type<T>, added_size) {}
+		template<size_t N> requires(std::default_initializable<T>)
+		constexpr device_message(std::integral_constant<size_t, N> align) : generic_device_message(align, std::in_place_type<T>) {}
+		template<size_t N> requires(std::default_initializable<T>)
+		constexpr device_message(std::integral_constant<size_t, N> align, size_t added_size) : generic_device_message(align, std::in_place_type<T>, added_size) {}
+		constexpr device_message(T&& t) : generic_device_message(std::move(t)) {}
+		constexpr device_message(T&& t, size_t added_size) : generic_device_message(std::move(t), added_size) {}
 		constexpr T* operator->() const noexcept { return static_cast<T*>(this->get_ptr()); }
 		constexpr T& operator*() const noexcept { return *static_cast<T*>(this->get_ptr()); }
 		constexpr T* base() const noexcept { return static_cast<T*>(this->get_ptr()); }
 		template<trivial_copy U> requires(__can_attempt_cast<U>()) U* cast_to() const noexcept { return this->type().template cast_to<U>(this->get_ptr()); }
 	};
-	template<typename FT, trivial_copy T, typename ... BArgs> requires(std::default_initializable<T>)
-	class bound_message_buffer_functor
+	template<typename T, std::invocable<T&&> FT> requires(std::default_initializable<std::remove_cvref_t<T>> && trivial_copy<std::remove_cvref_t<T>>)
+	struct bound_message_functor
 	{
-		device_message<T> __msg_buf;
-		std::__bind_front_expr<FT, BArgs...> __fn;
-	public:
-		constexpr T* base() const noexcept { return __msg_buf.base(); }
-		template<typename GT, typename ... Args> requires(sizeof...(Args) == sizeof...(BArgs) && std::convertible_to<GT, FT>)
-		constexpr explicit bound_message_buffer_functor(GT&& fn, Args&& ... args) : __msg_buf(), __fn(std::bind_front(std::forward<GT>(fn), std::forward<Args>(args)...)) {}
-		template<typename GT, typename ... Args> requires(sizeof...(Args) == sizeof...(BArgs) && std::convertible_to<GT, FT>)
-		constexpr explicit bound_message_buffer_functor(size_t added_size, GT&& fn, Args&& ... args) : __msg_buf(added_size), __fn(std::bind_front(std::forward<GT>(fn), std::forward<Args>(args)...)) {}
-		template<typename ... CArgs>
-		constexpr decltype(auto) operator()(CArgs&& ... args) const { return __fn(*__msg_buf, std::forward<CArgs>(args)...); }
+		using func_type = std::decay_t<FT>;
+		func_type functor;
+		device_message<std::remove_cvref_t<T>> message;
+		constexpr void operator()() noexcept(std::is_nothrow_invocable_v<func_type, T&&>) { functor(std::forward<T>(*message)); }
 	};
-	template<trivial_copy T, typename FT, typename ... Args>
-	constexpr bound_message_buffer_functor<FT, T, Args...> bind_for_message(std::in_place_type_t<T>, FT&& fn, Args&& ... args) { return bound_message_buffer_functor<FT, T, Args...>(std::forward<FT>(fn), std::forward<Args>(args)...); }
-	
-	template<trivial_copy T, typename FT, typename ... Args>
-	constexpr bound_message_buffer_functor<FT, T, Args...> bind_for_message(add_size_t<T> added, FT&& fn, Args&& ... args) { return bound_message_buffer_functor<FT, T, Args...>(added, std::forward<FT>(fn), std::forward<Args>(args)...); }
+	template<typename T, typename FT>
+	constexpr auto bind_for_message(FT&& functor) { return bound_message_functor<T, FT>(std::forward<FT>(functor), device_message<std::remove_cvref_t<T>>()); }
+	template<typename T, typename FT>
+	constexpr auto bind_for_message(FT&& functor, size_t added_size) { return bound_message_functor<T, FT>(std::forward<FT>(functor), device_message<std::remove_cvref_t<T>>(added_size)); }
+	template<typename T, size_t A, typename FT>
+	constexpr auto bind_for_message(FT&& functor, std::integral_constant<size_t, A> align) { return bound_message_functor<T, FT>(std::forward<FT>(functor), device_message<std::remove_cvref_t<T>>(align)); }
+	template<typename T, size_t A, typename FT>
+	constexpr auto bind_for_message(FT&& functor, size_t added_size, std::integral_constant<size_t, A> align) { return bound_message_functor<T, FT>(std::forward<FT>(functor), device_message<std::remove_cvref_t<T>>(align, added_size)); }
 	//	Abstract base for devices connected via protocols like USB.
 	struct abstract_connectable_device
 	{

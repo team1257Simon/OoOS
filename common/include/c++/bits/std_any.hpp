@@ -20,16 +20,20 @@ namespace std
 		void (*__dealloc_fn)(void*);
 		ext::type_erasure __object_type;
 		constexpr void __destroy_if_present() { if(__ptr && __dealloc_fn) (*__dealloc_fn)(__ptr); }
-		template<__non_void T> T const* __cast_to_type() const
+		template<__non_void T>
+		T const* __cast_to_type() const
 		{
 			if(!__ptr) return nullptr;
 			ext::type_erasure e	= ext::get_erasure<T>();
+			if(__object_type == e) return static_cast<T const*>(__ptr);
 			return static_cast<T const*>(e.cast_from(__ptr, __object_type));
 		}
-		template<__non_void T> T* __cast_to_type()
+		template<__non_void T>
+		T* __cast_to_type()
 		{
 			if(!__ptr) return nullptr;
 			ext::type_erasure e	= ext::get_erasure<T>();
+			if(__object_type == e) return static_cast<T*>(__ptr);
 			return static_cast<T*>(e.cast_from(__ptr, __object_type));
 		}
 	public:
@@ -99,7 +103,8 @@ namespace std
 			that.reset();
 			return *this;
 		}
-		template<__decay_copy_constructible T> any& operator=(T&& t)
+		template<__decay_copy_constructible T>
+		any& operator=(T&& t)
 		{
 			__destroy_if_present();
 			__ptr			= __alloc<T>::__create(move(t));
@@ -107,7 +112,8 @@ namespace std
 			__dealloc_fn	= __alloc<T>::__deallocate;
 			__object_type	= ext::get_erasure<T>();
 		}
-		template<__decay_copy_constructible T, typename ... Args> requires constructible_from<T, Args...> decay_t<T>& emplace(Args&& ... args)
+		template<__decay_copy_constructible T, typename ... Args> requires(constructible_from<T, Args...>)
+		decay_t<T>& emplace(Args&& ... args)
 		{
 			__destroy_if_present();
 			__ptr			= __alloc<T>::__create(forward<Args>(args)...);
@@ -122,6 +128,6 @@ namespace std
 		extension constexpr ext::type_erasure const& erasure() const noexcept { return __object_type; }
 	};
 	template<typename T> T* any_cast(any* a) noexcept { return a->__cast_to_type<T>(); }
-	template<typename T> T const* any_cast(any const* a) noexcept  { return a->__cast_to_type<T>(); }
+	template<typename T> T const* any_cast(any const* a) noexcept { return a->__cast_to_type<T>(); }
 }
 #endif

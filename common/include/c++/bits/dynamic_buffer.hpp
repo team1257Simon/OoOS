@@ -519,7 +519,7 @@ namespace std::__impl
 			__setc(tsz);
 			return __cur();
 		}
-		constexpr __pointer __append_element(T const& t)
+		constexpr __pointer __append_element(T const& t) requires(std::is_copy_constructible_v<T>)
 		{
 			__size_type bsz		= __size();
 			if(!(__max() > __cur()))
@@ -529,6 +529,19 @@ namespace std::__impl
 				else { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; }
 			}
 			construct_at(__get_ptr(bsz), t);
+			__setc(bsz + 1UZ);
+			return __cur();
+		}
+		constexpr __pointer __append_element(T&& t) requires(std::is_move_constructible_v<T>)
+		{
+			__size_type bsz		= __size();
+			if(!(__max() > __cur()))
+			{
+				if consteval { __grow_buffer(1UZ); }
+				//	__builtin_expect will not work for consteval
+				else { if(__unlikely(!__grow_buffer(1UZ))) return nullptr; }
+			}
+			construct_at(__get_ptr(bsz), std::move(t));
 			__setc(bsz + 1UZ);
 			return __cur();
 		}
@@ -578,14 +591,14 @@ namespace std::__impl
 				else copy_or_move(where, std::to_address(start), static_cast<size_t>(distance(start, end)));
 			else
 			{
-				for(IT i	= start; i != end; i++, where++)
+				for(IT i	= start; i != end; ++i, where++)
 				{
 					if constexpr(std::is_move_assignable_v<__value_type> && std::is_same_v<remove_reference_t<decltype(*start)>, std::remove_cvref_t<decltype(*start)>>)
 						*where	= std::move(*i);
-					else if constexpr(std::is_move_constructible_v<__value_type> && std::is_same_v<remove_reference_t<decltype(*start)>, std::remove_cvref_t<decltype(*start)>>)
-						new(where) __value_type(std::move(*i));
 					else if constexpr(std::is_copy_assignable_v<__value_type>)
 						*where	= *i;
+					else if constexpr(std::is_move_constructible_v<__value_type> && std::is_same_v<remove_reference_t<decltype(*start)>, std::remove_cvref_t<decltype(*start)>>)
+						new(where) __value_type(std::move(*i));
 					else new(where) __value_type(*i);
 				}
 			}
@@ -708,7 +721,6 @@ namespace std::__impl
 			__setc(osz + range_size);
 		}
 		return __get_ptr(offs);
-		
 	}
 	template<typename T, allocator_object<T> A, bool NTS>
 	template<typename ... Args>

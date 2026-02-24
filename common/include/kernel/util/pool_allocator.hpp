@@ -100,7 +100,7 @@ namespace ooos
 		pool_allocator() : __blocks() {}
 		pool_allocator(pool_allocator const&)							= default;
 		pool_allocator(pool_allocator&&) noexcept						= default;
-		pool_allocator& operator=(pool_allocator&& that) noexcept		= default;
+		pool_allocator& operator=(pool_allocator&&) noexcept			= default;
 		pool_allocator& operator=(pool_allocator const& that) { if(__builtin_expect(!(this->__blocks == that.__blocks), true)) { this->__blocks = that.__blocks; } return *this; }
 		template<typename U, size_t B> requires(!std::is_same_v<T, U> || (A != B)) pool_allocator(pool_allocator<U, B> const& that) : __blocks() {}
 		constexpr void swap(pool_allocator& that) noexcept { this->__blocks.__swap(that.__blocks); }

@@ -65,13 +65,13 @@ static search_result full_search(elf64_dynamic_object* obj, task_ctx* task, cons
 			weak_value	= result_pair.second;
 		}
 	}
-	search_result res						= full_search(task, name);
+	search_result res	= full_search(task, name);
 	// TODO: check symbol versioning
 	if(have_weak && !res.second)
 	{
 		if(!res.first)
 			res.first	= weak_value;
-		res.second	= true;
+		res.second		= true;
 	}
 	return res;
 }

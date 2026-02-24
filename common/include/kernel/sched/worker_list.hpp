@@ -9,8 +9,7 @@ namespace ooos
 	{
 		using __base = std::set<worker>;
 		pid_t __upid() const noexcept;
-		constexpr static std::align_val_t __stk_algn = static_cast<std::align_val_t>(PAGESIZE);
-		constexpr static std::alignval_allocator<char, __stk_algn> __stk_alloc{};
+		constexpr static std::alignval_allocator<char, PAGESIZE> __stk_alloc{};
 	public:
 		static worker_list instance;
 		using __base::iterator;

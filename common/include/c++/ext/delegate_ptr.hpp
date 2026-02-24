@@ -207,7 +207,7 @@ namespace std
 				constexpr static size_t nxptr	= static_cast<size_t>(-1Z);
 			protected:
 				__delegate_ptr_impl(size_t node_idx) : __idx(node_idx), __node(node_idx == nxptr ? nullptr : std::addressof(__get<T>(__idx).__acquire())) {}
-				__delegate_ptr_impl(__delegate_ptr_impl&& that) : __idx(that.__idx), __node(that.__node) { that.__node = nullptr; }
+				__delegate_ptr_impl(__delegate_ptr_impl&& that) noexcept : __idx(that.__idx), __node(that.__node) { that.__node = nullptr; }
 				constexpr __delegate_ptr_impl(nullptr_t) noexcept : __idx(nxptr), __node(nullptr) {}
 				void __destroy() { if(__node) __node->__release(); this->__node = nullptr; }
 				void __require_nonnull() const { if(!__node) __throw_bad_delegate_deref(); }
@@ -260,7 +260,7 @@ namespace std
 			delegate_ptr(T&& t) requires(move_constructible<T>) : __base(__impl::__get_ptrs<T>().add(std::move(t))) {}
 			delegate_ptr(T const& t) requires(copy_constructible<T>) : __base(__impl::__get_ptrs<T>().add(t)) {}
 			delegate_ptr(delegate_ptr const& that) : __base(that.get_id()) {}
-			delegate_ptr(delegate_ptr&& that) : __base(std::move(that)) {}
+			delegate_ptr(delegate_ptr&& that) noexcept : __base(std::move(that)) {}
 			template<typename ... Args> requires(constructible_from<T, Args...>) delegate_ptr(Args&& ... args) : __base(__impl::__get_ptrs<T>().add_new(std::forward<Args>(args)...)) {}
 			delegate_ptr& operator=(delegate_ptr const& that) { __base::__assign(that); return *this; }
 			delegate_ptr& operator=(delegate_ptr&& that) { __base::__assign(std::move(that)); return *this; }

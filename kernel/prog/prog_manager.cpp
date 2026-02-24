@@ -4,9 +4,11 @@ static std::alignas_allocator<char, elf64_ehdr> elf_alloc{};
 prog_manager prog_manager::__instance{};
 prog_manager::prog_manager() : __static_base(), __dynamic_base() {}
 prog_manager& prog_manager::get_instance() { return __instance; }
-constexpr static elf64_phdr const& phdr(elf64_ehdr const& ehdr, size_t i) {
+constexpr static elf64_phdr const& phdr(elf64_ehdr const& ehdr, size_t i)
+{
+	addr_t base(std::addressof(ehdr));
 	size_t ph_off = ehdr.e_phoff + i * ehdr.e_phentsize;
-	return addr_t(std::addressof(ehdr)).plus(ph_off).deref<elf64_phdr>();
+	return base.plus(ph_off).deref<elf64_phdr>();
 }
 static size_t find_dyn(elf64_ehdr const& ehdr)
 {
@@ -17,8 +19,8 @@ static size_t find_dyn(elf64_ehdr const& ehdr)
 }
 static bool is_pic_exec(elf64_dyn* dyn_entries, size_t n)
 {
-	for(size_t i = 0UZ; i < n; i++)
-		if(dyn_entries[i].d_tag == DT_FLAGS_1 && (dyn_entries[i].d_val & DF_1_PIE))
+	for(elf64_dyn const& d : std::span(dyn_entries, n))
+		if(d.d_tag == DT_FLAGS_1 && (d.d_val & DF_1_PIE))
 			return true;
 	return false;
 }

@@ -1,0 +1,385 @@
+#ifndef __EXPECTED
+#define __EXPECTED
+#include <bits/std_expect.hpp>
+#include <bits/invoke.hpp>
+#include <initializer_list>
+namespace std
+{
+	template<typename ET>
+	class unexpected
+	{
+		static_assert(__detail::__can_unexpect<ET>);
+		ET __err;
+	public:
+		constexpr unexpected(unexpected const&)				= default;
+		constexpr unexpected(unexpected&&)					= default;
+		constexpr unexpected& operator=(unexpected const&)	= default;
+		constexpr unexpected& operator=(unexpected&&)		= default;
+		template<typename DT = ET> requires(!same_as<remove_cvref_t<DT>, unexpected> && !__detail::__is_tag<DT> && is_constructible_v<ET, DT>)
+		constexpr explicit unexpected(DT&& err) noexcept(is_nothrow_constructible_v<ET, DT>) : __err(std::forward<DT>(err)) {}
+		template<typename ... Args> requires(is_constructible_v<ET, Args...>)
+		constexpr explicit unexpected(in_place_t, Args&& ... args) noexcept(is_nothrow_constructible_v<ET, Args...>) : __err(std::forward<Args>(args)...) {}
+		template<typename T, typename ... Args> requires(is_constructible_v<ET, std::initializer_list<T>&, Args...>)
+		constexpr explicit unexpected(in_place_t, std::initializer_list<T> ils, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<ET, std::initializer_list<T>&, Args...>) : __err(ils, std::forward<Args>(args)...) {}
+		template<typename ST> constexpr std::__like_t<ST, ET> error(this ST&& self) noexcept { return std::forward_like<ST>(self.__err); }
+		constexpr void swap(unexpected& that) noexcept(is_nothrow_swappable_v<ET>) requires(is_swappable_v<ET>) { std::swap(this->__err, that.__err); }
+		friend constexpr void swap(unexpected& __this, unexpected& __that) noexcept(is_nothrow_swappable_v<ET>) requires(is_swappable_v<ET>) { __this.swap(__that); }
+		template<typename DT> friend constexpr bool operator==(unexpected const& __this, unexpected<DT> const& __that) { return __this.__err == __that.error(); }
+	};
+	template<typename VT, typename ET>
+	class expected
+	{
+		static_assert(__detail::__can_expect<VT>);
+		static_assert(__detail::__can_unexpect<ET>);
+		template<typename, typename> friend class expected;
+		union {
+			std::remove_cv_t<VT> __value;
+			ET __err;
+		};
+		bool __has_value;
+		typedef __detail::__in_place_inv __ip_inv;
+		typedef __detail::__unexpect_inv __ux_inv;
+		template<typename WT, typename DT> constexpr static bool __explicit_conv	= __or_v<__not_<is_convertible<WT, VT>>, __not_<is_convertible<DT, ET>>>;
+		template<typename WT, typename DT, typename UT = unexpected<ET>, typename	= remove_cv_t<VT>>
+		constexpr static bool __cons_from_expected									= __or_v
+		<
+			is_constructible<VT, expected<WT, DT>&>,
+			is_constructible<VT, expected<WT, DT>>,
+			is_constructible<VT, expected<WT, DT> const&>,
+			is_constructible<VT, expected<WT, DT> const>,
+			is_convertible<expected<WT, DT>&, VT>,
+			is_convertible<expected<WT, DT>, VT>,
+			is_convertible<expected<WT, DT> const&, VT>,
+			is_convertible<expected<WT, DT> const, VT>,
+			is_constructible<UT, expected<WT, DT>&>,
+			is_constructible<UT, expected<WT, DT>>,
+			is_constructible<UT, expected<WT, DT> const&>,
+			is_constructible<UT, expected<WT, DT> const>
+		>;
+		template<typename WT, typename DT, typename UT>
+		constexpr static bool __cons_from_expected<WT, DT, UT, bool>				= __or_v
+		<
+			is_constructible<UT, expected<WT, DT>&>,
+			is_constructible<UT, expected<WT, DT>>,
+			is_constructible<UT, expected<WT, DT> const&>,
+			is_constructible<UT, expected<WT, DT> const>
+		>;
+		template<typename T> constexpr static bool __same_val						= is_same_v<typename T::value_type, VT>;
+		template<typename T> constexpr static bool __same_err						= is_same_v<typename T::error_type, ET>;
+		consteval static bool __nt_copy_construct() { return is_nothrow_copy_constructible_v<VT> && is_nothrow_copy_constructible_v<ET>; }
+		consteval static bool __nt_move_construct() { return is_nothrow_move_constructible_v<VT> && is_nothrow_move_constructible_v<ET>; }
+		consteval static bool __can_assign() { return is_nothrow_move_constructible_v<VT> || is_nothrow_move_constructible_v<ET>; }
+		consteval static bool __nt_copy_assign() { return __nt_copy_construct() && is_nothrow_copy_assignable_v<VT> && is_nothrow_copy_assignable_v<ET>; }
+		consteval static bool __nt_move_assign() { return __nt_move_construct() && is_nothrow_move_assignable_v<VT> && is_nothrow_move_assignable_v<ET>; }
+		consteval static bool __copy_construct() { return is_copy_constructible_v<VT> && is_copy_constructible_v<ET>; }
+		consteval static bool __move_construct() { return is_move_constructible_v<VT> && is_move_constructible_v<ET>; }
+		consteval static bool __can_swap() { return __can_assign() && __move_construct() && is_swappable_v<VT> && is_swappable_v<ET>; }
+		consteval static bool __nt_swap() { return __nt_move_construct() && is_nothrow_swappable_v<VT> && is_nothrow_swappable_v<ET>; }
+		template<typename WT> consteval static bool __nt_copy_alternate() { return is_nothrow_copy_constructible_v<VT> && is_nothrow_convertible_v<WT, VT>; }
+		template<typename WT> consteval static bool __nt_move_alternate() { return is_nothrow_move_constructible_v<VT> && is_nothrow_convertible_v<WT, VT>; }
+		template<typename WT> consteval static bool __other_construct() { return is_constructible_v<VT, WT> && !is_same_v<remove_cvref_t<WT>, expected> && __detail::__not_constructing_bool_from_expected<VT, WT> && !__detail::__unexpected_type<WT>; }
+		template<typename WT> consteval static bool __other_assign() { return (__can_assign() || is_nothrow_constructible_v<VT, WT>) && is_constructible_v<VT, WT> && is_assignable_v<VT&, WT> && !is_same_v<remove_cvref_t<WT>, expected> && !__detail::__unexpected_type<WT>; }
+		template<typename DT> consteval static bool __err_assign() { return (__can_assign() || is_nothrow_constructible_v<ET, DT>) && is_constructible_v<ET, DT> && is_assignable_v<ET&, DT>; }
+		template<typename WT, typename DT> consteval static bool __copy_other() { return is_constructible_v<VT, WT const&> && is_constructible_v<ET, DT const&> && !__cons_from_expected<WT, DT>; }
+		template<typename WT, typename DT> consteval static bool __move_other() { return is_constructible_v<VT, WT> && is_constructible_v<ET, DT> && !__cons_from_expected<WT, DT>; }
+		template<typename WT, typename DT> consteval static bool __nt_copy_other() { return is_nothrow_constructible_v<VT, WT const&> && is_nothrow_constructible_v<ET, DT const&>; }
+		template<typename WT, typename DT> consteval static bool __nt_move_other() { return is_nothrow_constructible_v<VT, WT> && is_nothrow_constructible_v<ET, DT>; }
+		consteval static bool __can_copy_assign() { return __can_assign() && __copy_construct() && is_copy_assignable_v<VT> && is_copy_assignable_v<ET>; }
+		consteval static bool __can_move_assign() { return __can_assign() && __move_construct() && is_move_assignable_v<VT> && is_move_assignable_v<ET>; }
+		consteval static bool __nontrivial_copy() { return __copy_construct() && !(is_trivially_copy_constructible_v<VT> && is_trivially_copy_constructible_v<ET>); }
+		consteval static bool __nontrivial_move() { return __move_construct() && !(is_trivially_move_constructible_v<VT> && is_trivially_move_constructible_v<ET>); }
+		template<typename FT> constexpr explicit expected(__ip_inv, FT&& f) : __value(std::forward<FT>(f)()), __has_value(true) {}
+		template<typename FT> constexpr explicit expected(__ux_inv, FT&& f) : __err(std::forward<FT>(f)()), __has_value(false) {}
+		template<typename WT>
+		constexpr void __assign_val(WT&& val)
+		{
+			if(__has_value) __value	= std::forward<WT>(val);
+			else {
+				__detail::__reinit(std::addressof(__value), std::addressof(__err), std::forward<WT>(val));
+				__has_value	= true;
+			}
+		}
+		template<typename DT>
+		constexpr void __assign_err(DT&& err)
+		{
+			if(__has_value) {
+				__detail::__reinit(std::addressof(__err), std::addressof(__value), std::forward<DT>(err));
+				__has_value	= false;
+			}
+			else __err	= std::forward<DT>(err);
+		}
+		constexpr void __swap_val_err(expected& that) noexcept(is_nothrow_move_constructible_v<VT> && is_nothrow_move_constructible_v<ET>)
+		{
+			if constexpr(is_nothrow_move_constructible_v<ET>)
+			{
+				__detail::__reverse_guard<ET> guard(that.__err);
+				std::construct_at(std::addressof(that.__value), std::move(this->__value));
+				that.__has_value	= true;
+				std::destroy_at(std::addressof(this->__value));
+				std::construct_at(std::addressof(this->__err), guard.release());
+				this->__has_value	= false;
+			}
+			else
+			{
+				__detail::__reverse_guard<VT> guard(this->__value);
+				std::construct_at(std::addressof(this->__err), std::move(that.__err));
+				this->__has_value	= false;
+				std::destroy_at(std::addressof(that.__err));
+				std::construct_at(std::addressof(that.__value), guard.release());
+				that.__has_value	= true;
+			}
+		}
+	public:
+		typedef VT value_type;
+		typedef ET error_type;
+		typedef unexpected<ET> unexpected_type;
+		template<typename WT> using rebind	= expected<WT, error_type>;
+		constexpr expected() noexcept(is_nothrow_default_constructible_v<VT>) requires(is_default_constructible_v<VT>) : __value(), __has_value(true) {}
+		expected(expected const&)				= default;
+		expected(expected&&)					= default;
+		constexpr ~expected()					= default;
+		expected& operator=(expected const&)	= delete;
+		template<typename ST> constexpr auto operator->(this ST&& self) noexcept { return std::addressof(self.__value); }
+		template<typename ST> constexpr __like_t<ST, VT> operator*(this ST&& self) noexcept { return std::forward_like<ST>(self.__value); }
+		constexpr explicit operator bool() const noexcept { return __has_value; }
+		constexpr bool has_value() const noexcept { return __has_value; }
+		friend constexpr void swap(expected& __this, expected& __that) noexcept(__nt_swap()) requires(__can_swap()) { __this.swap(__that); }
+		template<typename ST> constexpr __like_t<ST, ET> error(this ST&& self) noexcept { return std::forward_like<ST>(self.__err); }
+		template<__detail::__can_expect WT> requires(__other_construct<WT>()) explicit(!is_convertible_v<WT, VT>)
+		constexpr expected(WT&& val) noexcept(is_nothrow_constructible_v<VT, WT>) : __value(std::forward<WT>(val)), __has_value(true) {}
+		template<typename DT = ET> requires(is_constructible_v<ET, DT const&>) explicit(!is_convertible_v<DT const&, ET>)
+		constexpr expected(unexpected<DT> const& u) noexcept(is_nothrow_constructible_v<ET, DT const&>) : __err(u.error()), __has_value(false) {}
+		template<typename DT = ET> requires(is_constructible_v<ET, DT>) explicit(!is_convertible_v<DT, ET>)
+		constexpr expected(unexpected<DT>&& u) noexcept(is_nothrow_constructible_v<ET, DT>) : __err(std::move(u.error())), __has_value(false) {}
+		template<typename ... Args> requires(is_constructible_v<VT, Args...>)
+		constexpr explicit expected(in_place_t, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<VT, Args...>) : __value(std::forward<Args>(args)...), __has_value(true) {}
+		template<typename ... Args> requires(is_constructible_v<ET, Args...>)
+		constexpr explicit expected(unexpect_t, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<ET, Args...>) : __err(std::forward<Args>(args)...), __has_value(false) {}
+		template<typename T, typename ... Args> requires(is_constructible_v<VT, initializer_list<T>&, Args...>)
+		constexpr explicit expected(in_place_t, initializer_list<T> ils, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<VT, initializer_list<T>&, Args...>) : __value(ils, std::forward<Args>(args)...), __has_value(true) {}
+		template<typename T, typename ... Args> requires(is_constructible_v<ET, initializer_list<T>&, Args...>)
+		constexpr explicit expected(unexpect_t, initializer_list<T> ils, Args&& ... args)
+		noexcept(is_nothrow_constructible_v<ET, initializer_list<T>&, Args...>) : __err(ils, std::forward<Args>(args)...), __has_value(false) {}
+		constexpr expected(expected const& that)
+		noexcept(__nt_copy_construct())
+		requires(__nontrivial_copy()) : __has_value(that.__has_value)
+		{
+			if(__has_value)
+				std::construct_at(std::addressof(__value), that.__value);
+			else std::construct_at(std::addressof(__err), that.__err);
+		}
+		constexpr expected(expected&& that)
+		noexcept(__nt_move_construct())
+		requires(__nontrivial_move()) : __has_value(that.__has_value)
+		{
+			if(__has_value)
+				std::construct_at(std::addressof(__value), std::move(that.__value));
+			else std::construct_at(std::addressof(__err), std::move(that.__err));
+		}
+		template<typename WT, typename DT> requires(__copy_other<WT, DT>())
+		constexpr explicit(__explicit_conv<WT const&, DT const&>) expected(expected<WT, DT> const& that)
+		noexcept(__nt_copy_other<WT, DT>()) : __has_value(that.__has_value)
+		{
+			if(__has_value)
+				std::construct_at(std::addressof(__value), that.__value);
+			else std::construct_at(std::addressof(__err), that.__err);
+		}
+		template<typename WT, typename DT> requires(__move_other<WT, DT>())
+		constexpr explicit(__explicit_conv<WT, DT>) expected(expected<WT, DT>&& that)
+		noexcept(__nt_move_other<WT, DT>()) : __has_value(that.__has_value)
+		{
+			if(__has_value)
+				std::construct_at(std::addressof(__value), std::move(that.__value));
+			else std::construct_at(std::addressof(__err), std::move(that.__err));
+		}
+		constexpr ~expected() requires(!is_trivially_destructible_v<VT> || !is_trivially_destructible_v<ET>)
+		{
+			if(__has_value)
+				std::destroy_at(std::addressof(__value));
+			else std::destroy_at(std::addressof(__err));
+		}
+		constexpr expected& operator=(expected const& that)
+		noexcept(__nt_copy_assign())
+		requires(__can_copy_assign())
+		{
+			if(that.__has_value)
+				this->__assign_val(that.__value);
+			else this->__assign_err(that.__err);
+			return *this;
+		}
+		constexpr expected& operator=(expected&& that)
+		noexcept(__nt_move_assign())
+		requires(__can_move_assign())
+		{
+			if(that.__has_value)
+				this->__assign_val(std::move(that.__value));
+			else this->__assign_err(std::move(that.__err));
+			return *this;
+		}
+		template<typename WT = remove_cv_t<VT>> requires(__other_assign<WT>())
+		constexpr expected& operator=(WT&& that) {
+			this->__assign_val(std::forward<WT>(that));
+			return *this;
+		}
+		template<typename DT> requires(__err_assign<DT const&>())
+		constexpr expected& operator=(unexpected<DT> const& that) {
+			this->__assign_err(that.error());
+			return *this;
+		}
+		template<typename DT> requires(__err_assign<DT>())
+		constexpr expected& operator=(unexpected<DT>&& that) {
+			this->__assign_err(std::move(that).error());
+			return *this;
+		}
+		template<typename ... Args> requires(is_nothrow_constructible_v<VT, Args...>)
+		constexpr VT& emplace(Args&& ... args) noexcept
+		{
+			if(__has_value) std::destroy_at(std::addressof(__value));
+			else {
+				std::destroy_at(std::addressof(__err));
+				__has_value	= true;
+			}
+			std::construct_at(std::addressof(__value), std::forward<Args>(args)...);
+			return __value;
+		}
+		template<typename T, typename ... Args> requires(is_nothrow_constructible_v<VT, initializer_list<T>&, Args...>)
+		constexpr VT& emplace(initializer_list<T> ils, Args&& ... args) noexcept
+		{
+			if(__has_value) std::destroy_at(std::addressof(__value));
+			else {
+				std::destroy_at(std::addressof(__err));
+				__has_value	= true;
+			}
+			std::construct_at(std::addressof(__value), ils, std::forward<Args>(args)...);
+			return __value;
+		}
+		constexpr void swap(expected& that) noexcept(__nt_swap()) requires(__can_swap())
+		{
+			if(this->__has_value)
+			{
+				if(that.__has_value)
+					std::swap(this->__value, that.__value);
+				else this->__swap_val_err(that);
+			}
+			else
+			{
+				if(that.__has_value)
+					that.__swap_val_err(*this);
+				else std::swap(this->__err, that.__err);
+			}
+		}
+		template<typename ST>
+		constexpr __like_t<ST, VT> value(this ST&& self)
+		{
+			static_assert(is_constructible_v<ET, __like_t<ST, ET>>);
+			if(self.__has_value) [[likely]]
+				return std::forward_like<ST>(self.__value);
+			throw bad_expected_access<ET>(std::forward_like<ST>(self.__err));
+		}
+		template<typename WT = remove_cv_t<VT>>
+		constexpr remove_cv_t<VT> value_or(WT&& alt) const&
+		noexcept(__nt_copy_alternate<WT>())
+		{
+			typedef remove_cv_t<VT> XT;
+			static_assert(is_convertible_v<VT const&, XT> && is_convertible_v<WT, XT>);
+			if(__has_value) return __value;
+			else return std::forward<WT>(alt);
+		}
+		template<typename WT = remove_cv_t<VT>>
+		constexpr remove_cv_t<VT> value_or(WT&& alt) &&
+		noexcept(__nt_move_alternate<WT>())
+		{
+			typedef remove_cv_t<VT> XT;
+			static_assert(is_convertible_v<VT, XT> && is_convertible_v<WT, XT>);
+			if(__has_value) return std::move(__value);
+			else return std::forward<WT>(alt);
+		}
+		template<typename DT = ET>
+		constexpr ET error_or(DT&& err) const&
+		{
+			static_assert(is_copy_constructible_v<ET>);
+			static_assert(is_convertible_v<DT, ET>);
+			if(__has_value)
+				return std::forward<DT>(err);
+			else return __err;
+		}
+		template<typename DT = ET>
+		constexpr ET error_or(DT&& err)&&
+		{
+			static_assert(is_move_constructible_v<ET>);
+			static_assert(is_convertible_v<DT, ET>);
+			if(__has_value)
+				return std::forward<DT>(err);
+			else return std::move(__err);
+		}
+		template<typename ST, typename FT> requires(is_constructible_v<ET, __like_t<ST, ET>>)
+		constexpr auto and_then(this ST&& self, FT&& f)
+		{
+			typedef typename __detail::__result<FT, __like_t<ST, VT>>::type WT;
+			static_assert(__detail::__expected_type<WT> && is_same_v<typename WT::error_type, ET>);
+			if(self.has_value())
+				return std::__invoke(std::forward<FT>(f), std::forward_like<ST>(self.__value));
+			else return WT(unexpect, std::forward_like<ST>(self.__err));
+		}
+		template<typename ST, typename FT> requires(is_constructible_v<VT, __like_t<ST, VT>>)
+		constexpr auto or_else(this ST&& self, FT&& f)
+		{
+			typedef typename __detail::__result<FT, __like_t<ST, ET>>::type DT;
+			static_assert(__detail::__expected_type<DT> && is_same_v<typename DT::value_type, VT>);
+			if(self.has_value())
+				return DT(in_place, std::forward_like<ST>(self.__value));
+			else return std::__invoke(std::forward<FT>(f), std::forward_like<ST>(self.__err));
+		}
+		template<typename ST, typename FT> requires(is_constructible_v<ET, __like_t<ST, ET>>)
+		constexpr auto transform(this ST&& self, FT&& f)
+		{
+			typedef typename __detail::__transform_result<FT, __like_t<ST, VT>>::type WT;
+			typedef expected<WT, ET> result;
+			if(self.has_value())
+				return result(__in_place_inv(), [&]() { return std::__invoke(std::forward<FT>(f), std::forward_like<ST>(self.__value)); });
+			else return result(unexpect, std::forward_like<ST>(self.__err));
+		}
+		template<typename ST, typename FT> requires(is_constructible_v<VT, __like_t<ST, VT>>)
+		constexpr auto transform_error(this ST&& self, FT&& f)
+		{
+			typedef typename __detail::__transform_result<FT, __like_t<ST, ET>>::type DT;
+			typedef expected<VT, DT> result;
+			if(self.has_value())
+				return result(in_place, std::forward_like<ST>(self.__value));
+			else return result(__unexpect_inv(), [&]() { return std::__invoke(std::forward<FT>(f), std::forward_like<ST>(self.__err)); });
+		}
+		template<typename WT, typename DT> requires(!is_void_v<WT> && __detail::__cross_comparable<VT, WT> && __detail::__cross_comparable<ET, DT>)
+		constexpr bool operator==(expected<WT, DT> const& that)
+		noexcept(__detail::__nt_cross_comparable<VT, WT> && __detail::__nt_cross_comparable<ET, DT>)
+		{
+			if(this->__has_value == that.has_value())
+			{
+				if(this->__has_value)
+					return *(*this) == *that;
+				else return this->error() == that.error();
+			}
+			else return false;
+		}
+		template<typename DT> requires(__detail::__cross_comparable<ET, DT>)
+		constexpr bool operator==(unexpected<DT> const& that) noexcept(__detail::__nt_cross_comparable<ET, DT>)
+		{
+			if(this->has_value())
+				return false;
+			else return this->error() == that.error();
+		}
+		template<typename WT, same_as<VT> UT> requires(!__detail::__expected_type<WT> && __detail::__cross_comparable<VT, WT>)
+		friend constexpr bool operator==(expected<UT, ET> const& __this, WT const& __that) noexcept(__detail::__nt_cross_comparable<UT, WT>)
+		{
+			if(__this.has_value())
+				return *__this == __that;
+			else return false;
+		}
+	};
+	template<typename ET> unexpected(ET) -> unexpected<decay_t<ET>>;
+	// TODO: void partial specialization
+}
+#endif

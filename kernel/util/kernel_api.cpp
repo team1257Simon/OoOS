@@ -448,4 +448,5 @@ namespace ooos
 			if(mod->__allocated_mm) mod->__api_hooks->destroy_mm(mod->__allocated_mm);
 		}
 	}
+	abstract_module_base* module_instance() noexcept { return nullptr; }
 }

@@ -24,26 +24,28 @@ namespace std
 	};
 	template<typename AT, typename U> using __alloc_rebind = typename __allocator_traits_base::template __rebind<AT, U>::other;
 	template<typename T, std::size_t A = alignof(T)>
-	struct __base_allocator
+	struct __aligned_new_allocator
 	{
-		constexpr static std::size_t __align_val    = A;
-		constexpr static std::size_t __size_val     = sizeof(T);
-		constexpr __base_allocator() noexcept		= default;
-		constexpr __base_allocator(__base_allocator const&) noexcept = default;
-		constexpr ~__base_allocator()				= default;
-		template<class U> constexpr __base_allocator(__base_allocator<U, alignof(U)> const&) noexcept {}
+		constexpr static std::size_t __align_val    								= A;
+		constexpr static std::size_t __size_val     								= sizeof(T);
+		constexpr __aligned_new_allocator() noexcept								= default;
+		constexpr __aligned_new_allocator(__aligned_new_allocator const&) noexcept	= default;
+		constexpr __aligned_new_allocator(__aligned_new_allocator&&) noexcept		= default;
+		constexpr ~__aligned_new_allocator() noexcept								= default;
+		template<class U> constexpr __aligned_new_allocator(__aligned_new_allocator<U, alignof(U)> const&) noexcept {}
 		[[nodiscard]] [[gnu::always_inline]] constexpr T* __allocate(std::size_t n) const
 		{
-			if(!n) return nullptr;
+			if(!n) [[unlikely]] return nullptr;
 			if constexpr(std::is_default_constructible_v<T>)
 				if consteval { return new T[n]; }
-			std::size_t total = n * __size_val;
-			if consteval { return static_cast<T*>(::operator new[](total, static_cast<std::align_val_t>(__align_val))); }
-			return static_cast<T*>(__builtin_memset(::operator new[](total, static_cast<std::align_val_t>(__align_val)), 0, total));
+			std::size_t total	= n * __size_val;
+			void* ptr			= operator new[](total, static_cast<std::align_val_t>(__align_val));
+			if consteval { return static_cast<T*>(ptr); }
+			else { return static_cast<T*>(__builtin_memset(ptr, 0, total)); }
 		}
 		[[gnu::always_inline]] constexpr void __deallocate(T* ptr, std::size_t n) const {
 			if consteval { delete[] ptr; }
-			else { ::operator delete[](ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
+			else { operator delete[](ptr, n * __size_val, static_cast<std::align_val_t>(__align_val)); }
 		}
 	};
 	namespace __detail
@@ -55,7 +57,7 @@ namespace std
 		template<typename T, typename ... Args> concept __dynamic_constructible = std::constructible_from<T, Args...> && (__non_array<T> || __zero_size<Args...>);
 	}
 	template<typename T>
-	struct allocator : __base_allocator<T>
+	struct allocator : __aligned_new_allocator<T>
 	{
 		typedef T value_type;
 		typedef T* pointer;
@@ -67,7 +69,8 @@ namespace std
 		typedef decltype(sizeof(T)) size_type;
 		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
 		constexpr allocator() noexcept = default;
-		constexpr allocator(allocator const&) noexcept = default;
+		constexpr allocator(allocator const&) noexcept	= default;
+		constexpr allocator(allocator&&) noexcept		= default;
 		template<typename U> constexpr allocator(allocator<U> const&) noexcept {};
 		constexpr ~allocator() noexcept = default;
 		[[nodiscard]] constexpr pointer allocate(size_type count) const { return this->__allocate(count); }
@@ -75,7 +78,7 @@ namespace std
 	};
 	template<typename T, typename U> constexpr bool operator==(allocator<T> const&, allocator<U> const&) noexcept { return true; }
 	extension template<typename T, typename U> 
-	struct alignas_allocator : __base_allocator<T, alignof(U)> 
+	struct alignas_allocator : __aligned_new_allocator<T, alignof(U)> 
 	{
 		typedef T value_type;
 		typedef T* pointer;
@@ -86,32 +89,34 @@ namespace std
 		typedef false_type propagate_on_container_move_assignment;
 		typedef decltype(sizeof(T)) size_type;
 		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
-		constexpr alignas_allocator() noexcept = default;
-		constexpr alignas_allocator(alignas_allocator const&) noexcept = default;
+		constexpr alignas_allocator() noexcept							= default;
+		constexpr alignas_allocator(alignas_allocator const&) noexcept	= default;
+		constexpr alignas_allocator(alignas_allocator&&) noexcept		= default;
 		template<typename V, typename W = U> constexpr alignas_allocator(alignas_allocator<V, W> const&) noexcept {};
 		constexpr ~alignas_allocator() noexcept = default;
 		[[nodiscard]] constexpr pointer allocate(size_type count) const { return this->__allocate(count); }
 		constexpr void deallocate(pointer ptr, size_type count) const { this->__deallocate(ptr, count); }
 	};
-	extension template<typename T, std::align_val_t A>
-	struct alignval_allocator
+	extension template<typename T, size_t A>
+	struct alignval_allocator : __aligned_new_allocator<T, A>
 	{
+		
 		typedef T value_type;
 		typedef T* pointer;
 		typedef typename std::pointer_traits<pointer>::rebind<const value_type> const_pointer;
 		typedef typename std::pointer_traits<pointer>::rebind<void> void_pointer;
 		typedef typename std::pointer_traits<pointer>::rebind<const void> const_void_pointer;
+		template<typename U, size_t B = A> struct rebind { typedef std::alignval_allocator<U, B> other; };
+		typedef false_type propagate_on_container_move_assignment;
 		typedef decltype(sizeof(T)) size_type;
 		typedef decltype(declval<pointer>() - declval<pointer>()) difference_type;
-		template<typename U> struct rebind { typedef alignval_allocator<U, A> other; };
-	private:
-		constexpr static size_type __size_val		= sizeof(T);
-		constexpr static std::align_val_t __align	= A;
-	public:
-		constexpr alignval_allocator() noexcept		= default;
-		constexpr ~alignval_allocator() noexcept	= default;
-		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { if(!n) return nullptr; size_type total = n * __size_val; return static_cast<pointer>(__builtin_memset(::operator new[](total, __align), 0, total)); }
-		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { if(p) ::operator delete[](p, n * __size_val, __align); }
+		constexpr alignval_allocator() noexcept							= default;
+		constexpr alignval_allocator(alignval_allocator const&) noexcept	= default;
+		constexpr alignval_allocator(alignval_allocator&&) noexcept		= default;
+		template<typename U, size_t B = A> constexpr alignval_allocator(alignval_allocator<U, B> const&) noexcept {};
+		constexpr ~alignval_allocator() noexcept = default;
+		[[nodiscard]] constexpr pointer allocate(size_type count) const { return this->__allocate(count); }
+		constexpr void deallocate(pointer ptr, size_type count) const { this->__deallocate(ptr, count); }
 	};
 	template<typename A> concept __defined_move_prop		= requires { typename A::propagate_on_container_move_assignment; { A::propagate_on_container_move_assignment::value ? 1 : 0 }; };
 	template<typename A> concept __defined_copy_prop		= requires { typename A::propagate_on_container_copy_assignment; { A::propagate_on_container_copy_assignment::value ? 1 : 0 }; };
@@ -163,7 +168,7 @@ namespace std
 		}
 		else
 		{
-			if(__builtin_expect(!array, false)) return alloc.allocate(ncount);
+			if(!array) [[unlikely]] return alloc.allocate(ncount);
 			if constexpr(requires { { alloc.resize(array, ocount, ncount) } -> std::same_as<T*>; }) return alloc.resize(array, ocount, ncount);
 			if constexpr(!std::is_trivially_destructible_v<T>)
 			{

@@ -18,7 +18,7 @@ bool tcp_header::seq_chk(uint32_t seq) const noexcept { return net32(seq) == seq
 bool tcp_header::ack_chk(uint32_t ack) const noexcept { return net32(ack) == ack_number; }
 bool tcp_header::is_simple_ack() const noexcept { return fields.ack_flag && !(fields.finish_flag || fields.push_flag || fields.syn_flag) && !has_data(); }
 bool tcp_header::peer_chk(tcp_connection_info const& connection_info) const noexcept { return src_chk(connection_info.remote_host, connection_info.remote_port) && (ack_chk(connection_info.next_send_sequence) || ack_chk(connection_info.last_send_sequence)) && seq_chk(connection_info.next_receive_sequence); }
-protocol_tcp::protocol_tcp(protocol_ipv4 *n) : abstract_protocol_handler(n), ipconfig(n->client_config), generate_isn() {}
+protocol_tcp::protocol_tcp(protocol_ipv4* n) : abstract_protocol_handler(n), ipconfig(n->client_config), generate_isn() {}
 std::type_info const& protocol_tcp::packet_type() const { return typeid(tcp_header); }
 std::type_info const& tcp_port_handler::packet_type() const { return typeid(tcp_header); }
 sequence_map::iterator tcp_port_handler::rx_add_packet(tcp_packet& p) { return receive_packets.emplace(std::piecewise_construct, std::forward_as_tuple(p->sequence_number), std::forward_as_tuple(std::move(p))).first; }

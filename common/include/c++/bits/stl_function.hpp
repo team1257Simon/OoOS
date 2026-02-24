@@ -194,8 +194,8 @@ namespace std
 	template<typename FT, typename ST = __function_guide_t<FT, decltype(&FT::operator())>> function(FT) -> function<ST>;
 	namespace ext
 	{
-		template<typename FT, typename TT> concept __explicitly_convertible_to = requires { static_cast<TT>(declval<FT>()); };
-		template<typename FT, typename TT> requires __explicitly_convertible_to<FT, TT> struct static_cast_t { constexpr TT operator()(FT ft) const noexcept { return static_cast<TT>(ft); } };
+		template<typename FT, typename TT> concept __explicitly_convertible_to = requires(FT ft) { static_cast<TT>(ft); };
+		template<typename FT, typename TT> requires(__explicitly_convertible_to<FT, TT>) struct static_cast_t { constexpr TT operator()(FT ft) const noexcept { return static_cast<TT>(ft); } };
 		template<typename CT, typename MT>
 		struct field_access
 		{

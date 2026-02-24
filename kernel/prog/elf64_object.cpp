@@ -73,9 +73,12 @@ bool elf64_object::load() noexcept
 }
 off_t elf64_object::segment_index(size_t offset) const
 {
-	for(size_t i = 0UZ; i < num_seg_descriptors; i++)
-		if(static_cast<uintptr_t>(segments[i].obj_offset) <= offset && offset < static_cast<uintptr_t>(segments[i].obj_offset + segments[i].size))
+	for(size_t i = 0UZ; program_segment_descriptor const& segment : segments)
+	{
+		if(static_cast<uintptr_t>(segment.obj_offset) <= offset && offset < static_cast<uintptr_t>(segment.obj_offset + segment.size))
 			return static_cast<off_t>(i);
+		i++;
+	}
 	return -1Z;
 }
 elf64_object::elf64_object(file_vnode* n) : elf64_object(n->data(), n->size())
@@ -189,10 +192,10 @@ void elf64_object::on_copy(uframe_tag* new_frame)
 {
 	if(!new_frame) throw std::invalid_argument("[PRG] frame tag must not be null");
 	set_frame(new_frame);
-	for(size_t i = 0UZ; i < num_seg_descriptors; i++)
+	for(program_segment_descriptor& segment : segments)
 	{
-		if(!segments[i].absolute_addr || !segments[i].size) continue;
-		segments[i].absolute_addr	= new_frame->translate(segments[i].virtual_addr);
-		if(!segments[i].absolute_addr) throw std::runtime_error("[PRG] cannot change frame before copying blocks");
+		if(!segment.absolute_addr || !segment.size) continue;
+		segment.absolute_addr	= new_frame->translate(segment.virtual_addr);
+		if(!segment.absolute_addr) throw std::runtime_error("[PRG] cannot change frame before copying blocks");
 	}
 }

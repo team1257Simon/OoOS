@@ -208,11 +208,12 @@ namespace ooos
 		ASYMMETRIC_RX	= 2UC,
 		ASYMMETRIC_TX	= 3UC,
 	};
-	struct __pack xhci_dequeue_link
+	struct __pack xhci_dequeue_link : public maskable_addr<xhci_dequeue_link, 4UZ>
 	{
 		bool dequeue_cycle_state	: 1;
 		stream_contex_type sct		: 3;	// only valid in stream contexts; otherwise, must be 0
 		uint64_t dequeue_ptr		: 60;
+		constexpr static xhci_dequeue_link of(addr_t addr) noexcept { return std::bit_cast<xhci_dequeue_link>(addr); }
 	};
 	struct __pack xhci_slot_context
 	{
@@ -296,7 +297,7 @@ namespace ooos
 	{
 		union __pack [[gnu::may_alias]]
 		{
-			struct __pack
+			struct __pack ptr : public maskable_addr<ptr, 4UZ>
 			{
 				bool dequeue_cycle_state	: 1;
 				stream_contex_type sct		: 3;
@@ -304,7 +305,7 @@ namespace ooos
 			} data_ptr;
 			char immediate_data[sizeof(uintptr_t)]{};
 		};
-		constexpr static decltype(data_ptr) of(addr_t p) noexcept { return std::bit_cast<decltype(data_ptr)>(p); }
+		constexpr static ptr of(addr_t addr) noexcept { return std::bit_cast<ptr>(addr); }
 	};
 	struct __pack force_header_trb_data
 	{
@@ -444,81 +445,18 @@ namespace ooos
 	struct xhci_generic_trb
 	{
 		uint32_t data_low[3];
-		struct __pack
+		struct __pack type_field
 		{
 			bool cycle		: 1;
 			uint16_t		: 9;
 			trb_type value	: 6;
+			constexpr type_field() noexcept = default;
+			constexpr type_field(trb_type t) noexcept : value(t) {}
+			constexpr type_field(bool c, trb_type t) noexcept : cycle(c), value(t) {}
 			constexpr operator trb_type() const noexcept { return value; }
-			constexpr auto& operator=(trb_type t) noexcept { value = t; return *this; }
+			constexpr type_field& operator=(trb_type t) noexcept { return value = t, *this; }
 		} type;
 		uint16_t data_hi;
-	};
-	struct xhci_capability_registers
-	{
-		uint8_t capability_length;
-		uint8_t rsvd0;
-		uint16_t version_number;
-		struct __pack
-		{
-			uint8_t max_slots;
-			uint16_t max_interrupters;
-			uint8_t max_ports;
-		};
-		struct __pack
-		{
-			uint8_t isochronous_scheduling_threshold	: 4;
-			uint8_t event_ring_segment_table_max_shift2	: 4;	// ERST entries count must be at most (1 << ERSTMax)
-			short										: 13;
-			uint8_t max_scratchpad_buffers_hi			: 5;
-			bool scratchpad_restore						: 1;
-			uint8_t max_scratchpad_buffers_lo			: 5;
-		};
-		struct __pack
-		{
-			uint8_t u1_exit_latency;
-			uint8_t rsvd1;
-			uint16_t u2_exit_latency;
-		};
-		struct __pack
-		{
-			bool x64_addresses						: 1;
-			bool bandwidth_negotiation				: 1;
-			bool context_size_64					: 1;
-			bool port_power_control					: 1;
-			bool port_indicators					: 1;
-			bool controller_soft_reset				: 1;
-			bool latency_tolerance_messaging		: 1;
-			bool no_secondary_sid					: 1;
-			bool parse_all_event_data				: 1;
-			bool stopped_short_packet				: 1;
-			bool stopped_edtla						: 1;
-			bool contiguous_frame_id				: 1;
-			uint8_t max_primary_stream_array_size	: 4;
-			uint16_t extended_capabilities_offset;
-		};
-		uint32_t doorbell_offset;
-		uint32_t runtime_registers_offset;
-		struct __pack
-		{
-			bool u3_entry					: 1;
-			bool cmc						: 1;	// configure endpoint max exit latency too large capability
-			bool force_save_context			: 1;
-			bool compliance_transition		: 1;
-			bool large_esit_payload			: 1;
-			bool config_info_support		: 1;
-			bool extended_tbc				: 1;
-			bool extended_tbc_status		: 1;
-			bool get_set_extended_property	: 1;
-			bool vtio						: 1;	// virtualization-based trusted I/O
-			int								: 20;
-		};
-		uint32_t vtio_offset;
-		uint8_t rsvd2[];
-		constexpr addr_t operational_registers() const noexcept { return addr_t(this).plus(capability_length); }
-		constexpr addr_t runtime_registers() const noexcept { return addr_t(this).plus(runtime_registers_offset); }
-		constexpr addr_t doorbell_registers() const noexcept { return addr_t(this).plus(doorbell_offset); }
-		constexpr addr_t extended_capabilities() const noexcept { return addr_t(this).plus(extended_capabilities_offset); }
 	};
 	struct __pack usb3_pmsc
 	{
@@ -680,7 +618,7 @@ namespace ooos
 			uintptr_t addr						: 60;
 		} event_ring_dequeue_base;
 	};
-	struct xchi_hc_runtime_mem
+	struct xhci_hc_runtime_mem
 	{
 		uint32_t microframe_index;
 		uint32_t rsvd0[7];
@@ -692,17 +630,83 @@ namespace ooos
 		uint8_t rsvd0;
 		uint16_t db_stream_id;
 	};
-	struct xhci_event_ring_segment_table_entry
-	{
-		addr_t ring_segment_base_addr;
-		uint16_t ring_segment_size;
-		uint16_t rsvd0[3];
-	};
 	struct xhci_extended_capability_base
 	{
 		xhci_extended_capability_code code;
 		uint8_t next;
 		xhci_extended_capability_base* get_next() const noexcept { return next ? addr_t(this).plus(next) : nullptr; }
+	};
+	struct xhci_capability_registers
+	{
+		uint8_t capability_length;
+		uint8_t rsvd0;
+		uint16_t version_number;
+		struct __pack
+		{
+			uint8_t max_slots;
+			uint16_t max_interrupters;
+			uint8_t max_ports;
+		};
+		struct __pack
+		{
+			uint8_t isochronous_scheduling_threshold	: 4;
+			uint8_t event_ring_segment_table_max_shift2	: 4;	// ERST entries count must be at most (1 << ERSTMax)
+			short										: 13;
+			uint8_t max_scratchpad_buffers_hi			: 5;
+			bool scratchpad_restore						: 1;
+			uint8_t max_scratchpad_buffers_lo			: 5;
+		};
+		struct __pack
+		{
+			uint8_t u1_exit_latency;
+			uint8_t rsvd1;
+			uint16_t u2_exit_latency;
+		};
+		struct __pack
+		{
+			bool x64_addresses						: 1;
+			bool bandwidth_negotiation				: 1;
+			bool context_size_64					: 1;
+			bool port_power_control					: 1;
+			bool port_indicators					: 1;
+			bool controller_soft_reset				: 1;
+			bool latency_tolerance_messaging		: 1;
+			bool no_secondary_sid					: 1;
+			bool parse_all_event_data				: 1;
+			bool stopped_short_packet				: 1;
+			bool stopped_edtla						: 1;
+			bool contiguous_frame_id				: 1;
+			uint8_t max_primary_stream_array_size	: 4;
+			uint16_t extended_capabilities_offset;
+		};
+		uint32_t doorbell_offset;
+		uint32_t runtime_registers_offset;
+		struct __pack
+		{
+			bool u3_entry					: 1;
+			bool cmc						: 1;	// configure endpoint max exit latency too large capability
+			bool force_save_context			: 1;
+			bool compliance_transition		: 1;
+			bool large_esit_payload			: 1;
+			bool config_info_support		: 1;
+			bool extended_tbc				: 1;
+			bool extended_tbc_status		: 1;
+			bool get_set_extended_property	: 1;
+			bool vtio						: 1;	// virtualization-based trusted I/O
+			int								: 20;
+		};
+		uint32_t vtio_offset;
+		uint8_t rsvd2[];
+		constexpr xhci_hc_mem* operational_registers() const noexcept { return addr_t(this).plus(capability_length); }
+		constexpr xhci_hc_runtime_mem* runtime_registers() const noexcept { return addr_t(this).plus(runtime_registers_offset); }
+		constexpr xhci_doorbell* doorbell_registers() const noexcept { return addr_t(this).plus(doorbell_offset); }
+		constexpr xhci_extended_capability_base* extended_capabilities() const noexcept { return addr_t(this).plus(extended_capabilities_offset); }
+	};
+	struct xhci_event_ring_segment_table_entry
+	{
+		addr_t ring_segment_base_addr;
+		uint16_t ring_segment_size;
+		uint16_t rsvd0[3];
 	};
 	struct xhci_protocol_speed_id
 	{

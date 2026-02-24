@@ -738,7 +738,7 @@ addr_t kframe_tag::reallocate(addr_t ptr, size_t size, size_t align) noexcept
 		return tag->actual_start();
 	}
 	addr_t result			= allocate(size, align);
-	if(result) { atomic_copy<uint8_t>(result, ptr, tag->held_size > size ? size : tag->held_size); }
+	if(result) { nointerrupts_copy<uint8_t>(result, ptr, tag->held_size > size ? size : tag->held_size); }
 	deallocate(ptr, align);
 	return result;
 }

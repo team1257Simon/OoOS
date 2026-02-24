@@ -45,7 +45,11 @@ namespace ooos
 {
 	struct block_io_provider_module;
 	extern kernel_api* api_global;
-	[[gnu::returns_nonnull]] extern ooos::abstract_module_base* module_instance() noexcept;
+	/**
+	 * If called within a module, returns a pointer to the module.
+	 * If called within the kernel itself, returns a null pointer.
+	 */
+	extern ooos::abstract_module_base* module_instance() noexcept;
 	/**
 	 * Base class for all module objects.
 	 * This is an abstract class which hooks in various parts of the kernel that module code might need to use.
@@ -226,36 +230,49 @@ namespace ooos
 		constexpr static size_type __size_val				= sizeof(value_type);
 		constexpr static align_type __align_val				= alignof(value_type);
 		constexpr static std::align_val_t __std_align_val	= static_cast<std::align_val_t>(__align_val);
-		mutable abstract_module_base* __opt_module;
+		abstract_module_base* __opt_module;
 		[[gnu::always_inline]] inline void_pointer __allocate_n(size_type n) const
 		{
 			if(__unlikely(!n)) return nullptr;
-			if(!__opt_module) __opt_module	= module_instance();
-			return __opt_module->allocate_array<value_type>(n);
+			if(__opt_module) return __opt_module->allocate_array<value_type>(n);
+			else return operator new[](__size_val, __std_align_val);
 		}
-		[[gnu::always_inline]] inline void __deallocate(pointer p, size_type n) const
+		[[gnu::always_inline]] constexpr void __deallocate(pointer p, size_type n) const
 		{
-			if(__unlikely(!n || !p)) return;
-			if(!__opt_module) __opt_module	= module_instance();
-			__opt_module->release_array(p);
+			if consteval { delete[] p; }
+			else
+			{
+				if(__unlikely(!n || !p)) return;
+				if(__opt_module) __opt_module->release_array(p);
+				else operator delete[](p, n * __size_val, __std_align_val);
+			}
 		}
-		[[gnu::always_inline]] inline pointer __allocate(size_type n) const
+		[[gnu::always_inline]] constexpr pointer __allocate(size_type n) const
 		{
-			pointer result	= static_cast<pointer>(this->__allocate_n(n));
-			if(result) array_zero(result, n);
-			return result;
+			if consteval
+			{
+				if constexpr(std::default_initializable<T>)
+					return new T[n];
+				else return static_cast<pointer>(operator new[](__size_val, __std_align_val));
+			}
+			else
+			{
+				pointer result	= static_cast<pointer>(this->__allocate_n(n));
+				if(result) array_zero(result, n);
+				return result;
+			}
 		}
 	public:
-		constexpr module_mm_allocator() noexcept = default;
 		constexpr ~module_mm_allocator() noexcept = default;
+		constexpr module_mm_allocator() noexcept : __opt_module() { if !consteval { this->__opt_module = module_instance(); } }
 		constexpr module_mm_allocator(abstract_module_base* mod) noexcept : __opt_module(mod) {}
 		constexpr module_mm_allocator(module_mm_allocator const&) noexcept = default;
 		constexpr module_mm_allocator(module_mm_allocator&&) noexcept = default;
 		constexpr module_mm_allocator& operator=(module_mm_allocator const&) = default;
 		constexpr module_mm_allocator& operator=(module_mm_allocator&&) = default;
 		template<typename U> constexpr module_mm_allocator(module_mm_allocator<U> const& that) noexcept : __opt_module(that.__opt_module) {}
-		[[nodiscard]] [[gnu::always_inline]] inline pointer allocate(size_type n) const { return this->__allocate(n); }
-		[[gnu::always_inline]] inline void deallocate(pointer p, size_type n) const { this->__deallocate(p, n); }
+		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { return this->__allocate(n); }
+		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { this->__deallocate(p, n); }
 	};
 	template<typename T> using mod_mm_vec = std::vector<T, module_mm_allocator<T>>;
 	template<typename KT, typename MT, typename HT = std::hash<KT>, typename ET = std::equal_to<void>> using mod_mm_map = std::unordered_map<KT, MT, HT, ET, module_mm_allocator<std::pair<const KT, MT>>>;

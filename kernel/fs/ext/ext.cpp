@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <ranges>
 using std::addressof;
-constexpr static std::alignval_allocator<char, std::align_val_t(physical_block_size)> buff_alloc{};
+constexpr static std::alignval_allocator<char, physical_block_size> buff_alloc{};
 constexpr static std::allocator<ext_superblock> sb_alloc{};
 constexpr static std::allocator<block_group_descriptor> bg_alloc{};
 constexpr static uint16_t isize_val = sizeof(ext_inode) - offsetof(ext_inode, extra_isize);
