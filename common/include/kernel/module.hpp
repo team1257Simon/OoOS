@@ -151,28 +151,28 @@ namespace ooos
 		{
 			typedef std::array<isr_actor, 7> msi_array;
 			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
-			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, msi_trigger_mode::EDGE);
+			return __api_hooks->msi(this, msi_array(ctor(std::forward<FTs>(handlers))...), reg, msi_trigger_mode::EDGE);
 		}
 		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
 		inline bool register_msi(msi32_t volatile& reg, msi_trigger_mode mode, FTs&& ... handlers)
 		{
 			typedef std::array<isr_actor, 7> msi_array;
 			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
-			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, mode);
+			return __api_hooks->msi(this, msi_array(ctor(std::forward<FTs>(handlers))...), reg, mode);
 		}
 		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
 		inline bool register_msi(msi64_t volatile& reg, FTs&& ... handlers)
 		{
 			typedef std::array<isr_actor, 7> msi_array;
 			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
-			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, msi_trigger_mode::EDGE);
+			return __api_hooks->msi(this, msi_array(ctor(std::forward<FTs>(handlers))...), reg, msi_trigger_mode::EDGE);
 		}
 		template<wrappable_actor ... FTs> requires(sizeof...(FTs) < 8)
 		inline bool register_msi(msi64_t volatile& reg, msi_trigger_mode mode, FTs&& ... handlers)
 		{
 			typedef std::array<isr_actor, 7> msi_array;
 			auto ctor = [&]<wrappable_actor FT>(FT&& f) { return isr_actor(std::forward<FT>(f), this->__allocated_mm); };
-			return __api_hooks->msi(this, msi_array{ ctor(std::forward<FTs>(handlers))... }, reg, mode);
+			return __api_hooks->msi(this, msi_array(ctor(std::forward<FTs>(handlers))...), reg, mode);
 		}
 	};
 	template<typename T>
@@ -211,7 +211,7 @@ namespace ooos
 		}
 	};
 	template<typename T>
-	struct module_mm_allocator
+	struct module_allocator
 	{
 		typedef T value_type;
 		typedef T* pointer;
@@ -224,8 +224,8 @@ namespace ooos
 		typedef decltype(sizeof(value_type)) size_type;
 		typedef decltype(alignof(value_type)) align_type;
 		typedef decltype(std::declval<pointer>() - std::declval<pointer>()) difference_type;
-		template<typename U> struct rebind { typedef module_mm_allocator<U> other; };
-		template<typename U> friend struct module_mm_allocator;
+		template<typename U> struct rebind { typedef module_allocator<U> other; };
+		template<typename U> friend struct module_allocator;
 	private:
 		constexpr static size_type __size_val				= sizeof(value_type);
 		constexpr static align_type __align_val				= alignof(value_type);
@@ -263,25 +263,22 @@ namespace ooos
 			}
 		}
 	public:
-		constexpr ~module_mm_allocator() noexcept = default;
-		constexpr module_mm_allocator() noexcept : __opt_module() { if !consteval { this->__opt_module = module_instance(); } }
-		constexpr module_mm_allocator(abstract_module_base* mod) noexcept : __opt_module(mod) {}
-		constexpr module_mm_allocator(module_mm_allocator const&) noexcept = default;
-		constexpr module_mm_allocator(module_mm_allocator&&) noexcept = default;
-		constexpr module_mm_allocator& operator=(module_mm_allocator const&) = default;
-		constexpr module_mm_allocator& operator=(module_mm_allocator&&) = default;
-		template<typename U> constexpr module_mm_allocator(module_mm_allocator<U> const& that) noexcept : __opt_module(that.__opt_module) {}
+		constexpr ~module_allocator() noexcept = default;
+		constexpr module_allocator() noexcept : __opt_module() { if !consteval { this->__opt_module = module_instance(); } }
+		constexpr module_allocator(abstract_module_base* mod) noexcept : __opt_module(mod) {}
+		constexpr module_allocator(module_allocator const&) noexcept = default;
+		constexpr module_allocator(module_allocator&&) noexcept = default;
+		constexpr module_allocator& operator=(module_allocator const&) = default;
+		constexpr module_allocator& operator=(module_allocator&&) = default;
+		template<typename U> constexpr module_allocator(module_allocator<U> const& that) noexcept : __opt_module(that.__opt_module) {}
 		[[nodiscard]] [[gnu::always_inline]] constexpr pointer allocate(size_type n) const { return this->__allocate(n); }
 		[[gnu::always_inline]] constexpr void deallocate(pointer p, size_type n) const { this->__deallocate(p, n); }
 	};
-	template<typename T> using mod_mm_vec = std::vector<T, module_mm_allocator<T>>;
-	template<typename KT, typename MT, typename HT = std::hash<KT>, typename ET = std::equal_to<void>> using mod_mm_map = std::unordered_map<KT, MT, HT, ET, module_mm_allocator<std::pair<const KT, MT>>>;
+	template<typename T> using module_vector = std::vector<T, module_allocator<T>>;
+	template<typename KT, typename MT, typename HT = std::hash<KT>, typename ET = std::equal_to<void>> using module_hashmap = std::unordered_map<KT, MT, HT, ET, module_allocator<std::pair<const KT, MT>>>;
 	template<std::derived_from<abstract_module_base> MT> constexpr MT*& local_instance_ptr();
 	template<std::derived_from<abstract_module_base> MT> constexpr MT& instance() { return *local_instance_ptr<MT>(); }
 	struct block_io_provider_module : abstract_module_base, abstract_block_device::provider{};
-	struct abstract_hub_module_base : abstract_module_base, abstract_connectable_device::provider{};
-	template<trivial_copy BMT, std::derived_from<BMT> ... SMTs> requires(std::is_class_v<BMT> || std::is_union_v<BMT>)
-	struct abstract_hub_module : abstract_hub_module_base { virtual bool export_provided_types() final override { return provide_types<BMT, SMTs...>(); } };
 	inline block_io_provider_module* abstract_module_base::as_blockdev() { return dynamic_cast<block_io_provider_module*>(this); }
 	inline size_t abstract_module_base::asprintf(const char** strp, const char* fmt, ...)
 	{

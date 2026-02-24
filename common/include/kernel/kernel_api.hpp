@@ -978,49 +978,6 @@ namespace ooos
 	constexpr auto bind_for_message(FT&& functor, std::integral_constant<size_t, A> align) { return bound_message_functor<T, FT>(std::forward<FT>(functor), device_message<std::remove_cvref_t<T>>(align)); }
 	template<typename T, size_t A, typename FT>
 	constexpr auto bind_for_message(FT&& functor, size_t added_size, std::integral_constant<size_t, A> align) { return bound_message_functor<T, FT>(std::forward<FT>(functor), device_message<std::remove_cvref_t<T>>(align, added_size)); }
-	//	Abstract base for devices connected via protocols like USB.
-	struct abstract_connectable_device
-	{
-		//	Endpoint for passing messages to and from the device. This will be provided by the hub driver.
-		struct endpoint
-		{
-			//	These match the encodings for endpoint types used by XHCI.
-			enum class type : uint8_t
-			{
-				NONE			= 0UC,
-				H2D_SYNC		= 1UC,
-				H2D_BULK		= 2UC,
-				H2D_NOTIFY		= 3UC,
-				CONTROL			= 4UC,
-				D2H_SYNC		= 5UC,
-				D2H_BULK		= 6UC,
-				D2H_NOTIFY		= 7UC,
-			};
-			//	Hook for host-to-device transfers.
-			virtual void put_msg(generic_device_message const& msg)			= 0;
-			//	Non-async hook for device-to-host transfers.
-			virtual std::optional<generic_device_message> poll_msg()		= 0;
-			//	Identify the direction and transfer type of the endpoint.
-			virtual type endpoint_type() const								= 0;
-		};
-		//	Represents the device hub and/or host controller.
-		struct provider
-		{
-			//	Gets a pointer to the device at the given slot ID. If the ID is out of range (i.e. no such slot exists), returns a null pointer.
-			virtual abstract_connectable_device* operator[](size_t id)						= 0;
-			//	If the device pointed to by dev is part of this hub/controller, returns its slot; otherwise returns std::nullopt.
-			virtual std::optional<size_t> index_of(abstract_connectable_device* dev) const	= 0;
-			//	Queries the number of slots on the hub/controller.
-			virtual size_t size() const	noexcept											= 0;
-		};
-		//	Counts the total number of interfaces to the device (e.g. USB endpoints).
-		virtual size_t interface_count() const noexcept	= 0;
-		//	Gets a pointer to the hub/controller to which the device is connected.
-		virtual provider* parent()						= 0;
-		//	Gets a pointer to the endpoint at the given index for the device. If the ID is out of range, returns a null pointer.
-		virtual endpoint* operator[](size_t idx)		= 0;
-		using enum endpoint::type;
-	};
 }
 namespace std
 {

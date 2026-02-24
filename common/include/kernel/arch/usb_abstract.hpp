@@ -1,9 +1,6 @@
 #ifndef __USB_ABSTRACT
 #define __USB_ABSTRACT
 #include <module.hpp>
-#include <expected>
-#include <ranges>
-#include <util/event_listener.hpp>
 namespace ooos
 {	
 	typedef struct { volatile bool	: 8; } empty_byte;
@@ -380,24 +377,14 @@ namespace ooos
 	typedef decltype(usb_endpoint_descriptor::attributes) usb_endpoint_attributes;
 	typedef decltype(usb_endpoint_descriptor::packet_info) usb_endpoint_packet_info;
 	typedef decltype(usb_configuration_descriptor::attributes) usb_configuration_attributes;
-	struct usb_device_endpoint
+	struct usb_endpoint_info
 	{
 		usb_endpoint_addr endpoint_addr;
 		usb_endpoint_attributes attributes;
 		usb_endpoint_packet_info packet_info;
 		uint8_t polling_interval;
-		constexpr static usb_device_endpoint of(usb_endpoint_descriptor const& d)
-		{
-			return usb_device_endpoint
-			{
-				.endpoint_addr		{ d.endpoint_addr },
-				.attributes			{ d.attributes },
-				.packet_info		{ d.packet_info },
-				.polling_interval	{ d.polling_interval }
-			};
-		}
 	};
-	struct usb_device_interface
+	struct usb_interface_info
 	{
 		uint8_t interface_id;
 		uint8_t alternate_setting_id;
@@ -405,58 +392,15 @@ namespace ooos
 		uint8_t subclass_code;
 		uint8_t protocol_code;
 		uint8_t string_desc_idx;
-		mod_mm_vec<usb_device_endpoint> endpoints;
+		module_vector<usb_endpoint_info> endpoints;
 	};
-	struct usb_device_configuration
+	struct usb_configuration_info
 	{
 		uint8_t config_id;
 		uint8_t string_desc_idx;
 		usb_configuration_attributes attributes;
 		uint8_t max_power;
-		mod_mm_vec<usb_device_interface> interfaces;
-		constexpr static std::expected<usb_device_configuration, const char*> build(usb_configuration_descriptor const& desc)
-		{
-			addr_t bound	= addr_t(std::addressof(desc)).plus(desc.total_bytes);
-			usb_device_configuration result
-			{
-				.config_id			{ desc.config_id },
-				.string_desc_idx	{ desc.string_desc_idx },
-				.attributes			{ desc.attributes },
-				.max_power			{ desc.max_power },
-			};
-			result.interfaces.reserve(desc.num_interfaces);
-			addr_t pos(desc.interfaces);
-			for(uint8_t i = 0UC; i < desc.num_interfaces; i++)
-			{
-				usb_interface_descriptor* idesc;
-				do {
-					idesc	= pos;
-					pos		+= idesc->length;
-					if(pos >= bound) [[unlikely]] return std::unexpected("[USB] device returned an invalid descriptor");
-				} while(!idesc->matching_type());
-				usb_device_interface interface
-				{
-					.interface_id			{ idesc->interface_id },
-					.alternate_setting_id	{ idesc->alternate_setting_id },
-					.class_code				{ idesc->class_code },
-					.subclass_code			{ idesc->subclass_code },
-					.string_desc_idx		{ idesc->string_desc_idx },
-				};
-				interface.endpoints.reserve(idesc->num_endpoints);
-				for(uint8_t j = 0UC; j < idesc->num_endpoints; j++)
-				{
-					usb_endpoint_descriptor* edesc;
-					do {
-						edesc	= pos;
-						pos		+= edesc->length;
-						if(pos >= bound) [[unlikely]] return std::unexpected("[USB] device returned an invalid descriptor");
-					} while(!edesc->matching_type());
-					interface.endpoints.push_back(usb_device_endpoint::of(*edesc));
-				}
-				result.interfaces.push_back(std::move(interface));
-			}
-			return std::move(result);
-		}
+		module_vector<usb_interface_info> interfaces;
 	};
 }
 #endif

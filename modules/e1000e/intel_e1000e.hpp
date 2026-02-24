@@ -468,7 +468,7 @@ constexpr uint8_t device_subclass_e1000e	= 0UC;
 template<typename T>
 struct e1000e_ring
 {
-	ooos::module_mm_allocator<T> alloc;
+	ooos::module_allocator<T> alloc;
 	T* descriptors;
 	T* max_descriptor;
 	uint32_t head_descriptor;
