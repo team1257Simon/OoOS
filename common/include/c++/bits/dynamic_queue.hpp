@@ -182,7 +182,7 @@ namespace std::__impl
 		constexpr __dynamic_queue() noexcept(noexcept(__allocator_type())) = default;
 		constexpr __dynamic_queue(__size_type sz, __allocator_type alloc = __allocator_type()) : __qallocator(alloc), __my_queue_data(__qallocator.allocate(sz), sz) {}
 		constexpr __dynamic_queue(__dynamic_queue const& that) : __qallocator(that.__qallocator), __my_queue_data(that.__my_queue_data) {}
-		constexpr __dynamic_queue(__dynamic_queue&& that) noexcept(is_nothrow_move_constructible_v<A>) : __qallocator(that.__qallocator), __my_queue_data(move(that.__my_queue_data)) {}
+		constexpr __dynamic_queue(__dynamic_queue&& that) : __qallocator(that.__qallocator), __my_queue_data(move(that.__my_queue_data)) {}
 		constexpr ~__dynamic_queue() { __qdestroy(); }
 		constexpr __dynamic_queue& operator=(__dynamic_queue&& that) { __qdestroy(); __q_move_assign(move(that)); return *this; }
 		constexpr __dynamic_queue& operator=(__dynamic_queue const& that) { __qdestroy(); __q_copy_assign(that); return *this; }

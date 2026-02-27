@@ -209,7 +209,7 @@ namespace std
 			template<matching_input_iterator<T> IT> constexpr __dynamic_list(IT start, IT end) : __base() { for(IT i = start; i != end; ++i) { this->__create_before(addressof(this->__tail), *i); } }
 			constexpr __dynamic_list(initializer_list<value_type> ilist) : __dynamic_list(ilist.begin(), ilist.end()) {}
 			constexpr __dynamic_list(__dynamic_list const& that) : __dynamic_list(that.begin(), that.end()) {}
-			constexpr __dynamic_list(__dynamic_list&& that) noexcept(is_nothrow_move_constructible_v<AT>) : __base(move(that)) {}
+			constexpr __dynamic_list(__dynamic_list&& that) : __base(move(that)) {}
 			constexpr __dynamic_list& operator=(__dynamic_list&& that) { clear(); this->__move_assign(move(that)); return *this; }
 			constexpr __dynamic_list& operator=(__dynamic_list const& that) requires(copy_constructible<value_type>)
 			{
