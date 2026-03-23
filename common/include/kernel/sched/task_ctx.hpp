@@ -59,8 +59,8 @@ struct task_ctx
 	ooos::task_dtv dyn_thread								{};
 	pid_t next_assigned_thread_id							{};
 	thread_t* sigret_thread									{};
-	std::map<pid_t, thread_t*> thread_ptr_by_id				{};
-	std::map<pid_t, std::vector<thread_t*>> notify_threads	{};
+	std::vector<thread_t*> thread_ptrs						{};
+	std::vector<std::vector<thread_t*>> notify_threads		{};
 	std::vector<thread_t*> inactive_threads					{};
 	size_t active_added_thread_count						{};		// Active threads excluding the initial (thread 0)
 	bool impersonate										{};

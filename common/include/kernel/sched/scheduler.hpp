@@ -36,7 +36,7 @@ public:
 	bool interrupt_wait(kthread_ptr const& waiting);
 	bool interrupt_wait(task_t* task);
 	bool set_wait_timed(kthread_ptr const& task, clock_t time, bool can_interrupt = true);
-	void retrothread(task_t* task, thread_t* thread);
+	void set_main_thread(task_t* task, thread_t* thread);
 	kthread_ptr yield();
 	kthread_ptr fallthrough_yield();
 	static bool init_instance() noexcept;

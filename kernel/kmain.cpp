@@ -182,7 +182,7 @@ void net_tests()
 }
 void map_tests()
 {
-	using map_type = std::unordered_map<std::string, int>;
+	using map_type = std::map<std::string, int>;
 	map_type m{};
 	m.insert(std::make_pair("meep", 21));
 	m["gyeep"] = 63;
@@ -747,5 +747,19 @@ extern "C"
 		}
 		__cxa_finalize(nullptr);
 		__builtin_unreachable();
+	}
+	void debug_state(u8 idx, qword ecode)
+	{
+		direct_write(codes[idx]);
+		if(has_ecode(idx))
+		{
+			direct_write("(");
+			__dbg_num(ecode, __xdigits(ecode));
+			direct_write(")");
+		}
+		dwendl();
+		direct_write("Interrupted instruction: ");
+		__dbg_num(interrupted_state->rip, 16);
+		while(1);
 	}
 }

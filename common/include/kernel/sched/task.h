@@ -193,6 +193,7 @@ struct kthread_ptr
 	task_t* task_ptr;
 	thread_t* thread_ptr;
 	void activate() const noexcept;
+	void put_thread_base() const noexcept;
 	void set_blocking(bool can_interrupt) const noexcept;
 	void clear_blocking() const noexcept;
 	void set_wait_delta(clock_t ticks) const noexcept;

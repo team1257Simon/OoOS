@@ -34,7 +34,6 @@ namespace ooos
 		created->saved_regs.rsp	-= sizeof(register_t);
 		stack_real				-= sizeof(register_t);
 		stack_real.assign(data.landing);
-		execution_ctx->thread_ptr_by_id.insert(std::make_pair(created->ctl_info.thread_id, created));
 		kthread_ptr result(std::addressof(execution_ctx->task_struct), created);
 		sch.register_task(result);
 		created->ctl_info.state	= thread_state::RUNNING;

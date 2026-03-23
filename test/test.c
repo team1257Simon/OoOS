@@ -7,6 +7,26 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <pthread.h>
+typedef struct {
+	pthread_t id;
+	int num;
+	const char* str;
+} test_cookie;
+void* thread_fn(void* arg)
+{
+	test_cookie* cookie = arg;
+	printf("Hello from thread %i, with ID %i, and message %s\n", cookie->num, cookie->id, cookie->str);
+	return cookie;
+}
+static const char* strings[] = {
+	"Alfa",
+	"Bravo",
+	"Charlie",
+	"Delta"
+};
+extern void exit(int) __attribute__((noreturn));
+static pthread_attr_t attr = {};
 int	mkdir(const char *_path, mode_t __mode);
 int main(int argc, char** argv)
 {
@@ -46,20 +66,33 @@ int main(int argc, char** argv)
 		if(g) { fprintf(g, "sha-dizzle!\n"); fclose(g); }
 		else printf("no file ;-;\n");
 	}
-	long pid			= fork();
-	printf("forked\n");
-	int rv				= 0;
-	switch(pid)
-	{
-	case -1:
-		printf(":(\n");
-		return -1;
-	case 0:
-		printf("In child\n");
-		return 0;
-	default:
-		printf("Child PID is %li\n", pid);
-		wait(&rv);
-		return 0;
+	int status = pthread_attr_init(&attr);
+	if(status) {
+		printf("error in pthread_attr_init\n");
+		return status;
 	}
+	test_cookie* cookies = calloc(4, sizeof(test_cookie));
+	for(int i = 0; i < 4; i++)
+	{
+		cookies[i].num = i;
+		cookies[i].str = strings[i];
+		status = pthread_create(&cookies[i].id, &attr, &thread_fn, &cookies[i]);
+		if(status) {
+			printf("error in pthread_create\n");
+			goto end;
+		}
+	}
+	void* thread_result = NULL;
+	for(int i = 0; i < 4; i++)
+	{
+		status = pthread_join(cookies[i].id, &thread_result);
+		if(status) {
+			printf("error in pthread_join\n");
+			goto end;
+		}
+		else printf("Thread returned pointer %p\n", thread_result);
+	}
+end:
+	free(cookies);
+	return status;
 }

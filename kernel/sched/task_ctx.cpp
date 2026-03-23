@@ -13,7 +13,7 @@ constexpr static uint64_t ignored_mask = bit_mask<18, 19, 20, 21, 25, 32, 33, 34
 constexpr static std::allocator<shared_object_map> sm_alloc{};
 constexpr static addr_t pml4_of(addr_t frame) noexcept { return frame.deref<uframe_tag>().pml4; }
 static bool is_tls_sym(elf64_sym const& s) { return s.st_info.type == ST_TLS; }
-static thread_t* thread_0_ptr(task_ctx const& t) { return t.thread_ptr_by_id.contains(0U) ? t.thread_ptr_by_id.find(0U)->second : nullptr; }
+static thread_t* thread_0_ptr(task_ctx const& t) { return t.thread_ptrs.size() ? t.thread_ptrs[0U] : nullptr; }
 filesystem* task_ctx::get_vfs_ptr() { return ctx_filesystem; }
 void task_ctx::set_stdio_ptrs(std::array<file_vnode*, 3>&& ptrs) { array_copy(stdio_ptrs, ptrs.data(), 3UL); }
 void task_ctx::start_task() { start_task(addr_t(std::addressof(handle_exit))); }
@@ -170,7 +170,7 @@ task_ctx::task_ctx(task_ctx const& that) :
 	impersonate				{ that.impersonate },
 	imp_uid					{ that.imp_uid },
 	imp_gid					{ that.imp_gid }
-							{ thread_ptr_by_id.insert(std::make_pair(0U, thread_0_ptr(that))); }
+							{ thread_ptrs.push_back(thread_0_ptr(that)); }
 task_ctx::task_ctx(task_ctx&& that) :
 	task_struct					{ std::move(that.task_struct) },
 	child_tasks					{ std::move(that.child_tasks) },
@@ -199,7 +199,7 @@ task_ctx::task_ctx(task_ctx&& that) :
 	dyn_thread					{ std::move(that.dyn_thread) },
 	next_assigned_thread_id		{ that.next_assigned_thread_id },
 	sigret_thread				{ that.sigret_thread },
-	thread_ptr_by_id			{ std::move(that.thread_ptr_by_id) },
+	thread_ptrs					{ std::move(that.thread_ptrs) },
 	notify_threads				{ std::move(that.notify_threads) },
 	inactive_threads			{ std::move(that.inactive_threads) },
 	active_added_thread_count	{ that.active_added_thread_count },
@@ -464,8 +464,8 @@ bool task_ctx::set_fork()
 			kmm.map_to_current_frame(so->segment_blocks());
 			kmm.exit_frame();
 		}
-		task_struct.thread_ptr				= thread_ptr_by_id[0U] ? thread_ptr_by_id[0U]->self : nullptr;
-		thread_ptr_by_id[0U]				= new_frame->translate(task_struct.thread_ptr);
+		task_struct.thread_ptr				= thread_ptrs[0U] ? thread_ptrs[0U]->self : nullptr;
+		thread_ptrs[0U]						= new_frame->translate(task_struct.thread_ptr);
 		task_struct.task_ctl.vfork_dirty	= false;
 		if(opened_directories.empty()) return true;
 		std::map<int, posix_directory> old_dirs(std::move(opened_directories));
@@ -501,7 +501,7 @@ bool task_ctx::subsume(elf64_program_descriptor const& desc, cstrvec&& args, cst
 	uid_t cur_gid			= gid();
 	priority_val prio		= task_struct.task_ctl.prio_base;
 	uint16_t quantum		= task_struct.quantum_val;
-	thread_ptr_by_id.clear();
+	thread_ptrs.clear();
 	new(std::addressof(task_struct)) task_t
 	{
 		.self				{ std::addressof(task_struct) },
@@ -703,12 +703,15 @@ void task_ctx::init_thread_0()
 		.tls_start					= tls_block_start
 	};
 	init_fx(thread_0->fxsv);
-	thread_ptr_by_id.insert(std::make_pair(0U, thread_0));
+	if(thread_ptrs.empty()) thread_ptrs.push_back(thread_0);
+	else thread_ptrs[0]				= thread_0;
+	if(notify_threads.empty()) notify_threads.emplace_back();
+	else notify_threads[0]			= std::vector<thread_t*>();
 	dyn_thread.instantiate(*thread_0);
 	next_assigned_thread_id 		= 1U;
 	task_struct.thread_ptr			= tls_block_end;
 	write_thread_ptr(thread_0->self);
-	sch.retrothread(header(), thread_0);
+	sch.set_main_thread(header(), thread_0);
 	thread_0->ctl_info.state		= thread_state::RUNNING;
 }
 void task_ctx::thread_switch(pid_t to_thread)
@@ -716,8 +719,8 @@ void task_ctx::thread_switch(pid_t to_thread)
 	// don't mess with thread states if we're between vfork() and execve()
 	if(!task_struct.task_ctl.vfork_dirty)
 	{
-		if(!thread_ptr_by_id.contains(to_thread)) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(to_thread));
-		thread_t* next_thread		= thread_ptr_by_id[to_thread];
+		if(!(to_thread < thread_ptrs.size() && thread_ptrs[to_thread])) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(to_thread));
+		thread_t* next_thread		= thread_ptrs[to_thread];
 		thread_t* current_thread	= current_thread_ptr();
 		if(__unlikely(current_thread->ctl_info.thread_id == to_thread)) return;	// if the thread is already active there's nothing to do
 		if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault on switch");
@@ -763,7 +766,6 @@ pid_t task_ctx::thread_fork()
 	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::update_thread_state(*current_thread, task_struct);
 	thread_t* new_thread		= thread_init(*current_thread, true);
-	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread));
 	kthread_ptr kth(header(), new_thread);
 	sch.register_task(kth);
 	new_thread->ctl_info.state	= thread_state::RUNNING;
@@ -775,15 +777,13 @@ pid_t task_ctx::thread_add(addr_t entry_point, addr_t exit_point, size_t stack_t
 	thread_t* current_thread	= current_thread_ptr();
 	if(!current_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	ooos::update_thread_state(*current_thread, task_struct);
-	thread_t* new_thread		= thread_init(*current_thread, false, stack_target_size, start_detached);
-	addr_t real_stack			= get_frame().translate(new_thread->saved_regs.rsp.minus(sizeof(register_t)));
+	thread_t* new_thread		= thread_init(*current_thread, false, std::max(page_size, stack_target_size), start_detached);
+	new_thread->saved_regs.rsp	-= sizeof(register_t);
+	addr_t real_stack			= get_frame().translate(new_thread->saved_regs.rsp);
 	if(!real_stack) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
 	real_stack.assign(exit_point);
-	new_thread->saved_regs.rsp	-= sizeof(register_t);
-	new_thread->saved_regs.rbp	-= sizeof(register_t);
 	new_thread->saved_regs.rip	= entry_point;
 	new_thread->saved_regs.rdi	= arg;
-	thread_ptr_by_id.insert(std::make_pair(new_thread->ctl_info.thread_id, new_thread));
 	kthread_ptr kth(header(), new_thread);
 	sch.register_task(kth);
 	new_thread->ctl_info.state	= thread_state::RUNNING;
@@ -792,33 +792,31 @@ pid_t task_ctx::thread_add(addr_t entry_point, addr_t exit_point, size_t stack_t
 }
 void task_ctx::thread_exit(pid_t thread_id, register_t result_val)
 {
-	using iterator			= std::map<pid_t, thread_t*>::iterator;
-	iterator i				= thread_ptr_by_id.find(thread_id);
-	if(i == thread_ptr_by_id.end()) throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(thread_id));
-	thread_t* thread		= i->second;
-	kthread_ptr kth(header(), thread);
+	if(!(thread_id < thread_ptrs.size() && thread_ptrs[thread_id]))
+		throw std::invalid_argument("[EXEC/THREAD] no such thread ID: " + std::to_string(thread_id));
+	thread_t* thread		= thread_ptrs[thread_id];
 	ooos::update_thread_state(*thread, task_struct);
 	bool detached			= thread->ctl_info.detached;
+	kthread_ptr kth(header(), thread);
 	sch.unregister_task(kth);
 	thread->ctl_info.state	= thread->ctl_info.retrigger_capable ? thread_state::STOPPED : thread_state::TERMINATED;
 	if(active_added_thread_count && !thread->ctl_info.retrigger_capable) active_added_thread_count--;
-	if(notify_threads.contains(thread_id))
+	if(notify_threads[thread_id].size())
 	{
-		std::vector<thread_t*>& notif	= notify_threads[thread_id];
-		for(thread_t* tptr : notif)
+		for(thread_t* tptr : notify_threads[thread_id])
 		{
 			kthread_ptr tkth(header(), tptr);
 			// Pass the thread's return value to the waiting thread
 			tptr->saved_regs.rax	= result_val;
-			sch.interrupt_wait(tkth);
 			ooos::unlock_thread_mutex(*tptr);
+			sch.interrupt_wait(tkth);
 		}
 		detached					= true;
 	}
 	if(detached)
 	{
-		notify_threads.erase(thread_id);
-		thread_ptr_by_id.erase(i);
+		thread_ptrs[thread_id]		= nullptr;
+		notify_threads[thread_id].clear();
 		if(!thread->ctl_info.retrigger_capable)
 		{
 			dyn_thread.takedown(*thread);
@@ -867,8 +865,8 @@ thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_r
 	}
 	addr_t real_thread				= frame.translate(block_end);
 	if(!real_thread) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	uint32_t id 					= next_assigned_thread_id;
-	next_assigned_thread_id++;
+	pid_t id 						= next_assigned_thread_id ? next_assigned_thread_id : static_cast<pid_t>(thread_ptrs.size());
+	next_assigned_thread_id			= 0U;
 	thread_t* new_thread			= new(real_thread) thread_t
 	{
 		.self						= block_end,
@@ -911,17 +909,25 @@ thread_t* task_ctx::thread_init(thread_t const& template_thread, bool copy_all_r
 		array_copy<uint8_t>(real_stack, real_old_stack, template_thread.stack_size);
 	}
 	dyn_thread.instantiate(*new_thread);
+	if(id < thread_ptrs.size()) {
+		thread_ptrs[id]		= new_thread;
+		notify_threads[id]	= std::vector<thread_t*>();
+	}
+	else {
+		thread_ptrs.push_back(new_thread);
+		notify_threads.emplace_back();
+	}
 	return new_thread;
 }
 join_result task_ctx::thread_join(pid_t with_thread)
 {
-	using iterator				= std::map<pid_t, thread_t*>::iterator;
-	iterator i 					= thread_ptr_by_id.find(with_thread);
-	if(__unlikely(i == thread_ptr_by_id.end())) return join_result::NXTHREAD;
-	thread_t* thread			= i->second;
+	if(__unlikely(!(with_thread < thread_ptrs.size() && thread_ptrs[with_thread]))) return join_result::NXTHREAD;
+	thread_t* thread			= thread_ptrs[with_thread];
 	thread_t* current			= current_thread_ptr();
 	if(!current) throw std::out_of_range("[EXEC/THREAD] virtual address fault");
-	if(ooos::test_thread_mutex(*current) || ooos::test_thread_mutex(*thread)) throw std::runtime_error("[EXEC/THREAD] illegal join call");
+	if(ooos::test_thread_mutex(*thread)) throw std::runtime_error("[EXEC/THREAD] illegal join call on thread ID " + std::to_string(with_thread));
+	if(ooos::test_thread_mutex(*current)) throw std::runtime_error("[EXEC/THREAD] illegal join call from thread with ID " + std::to_string(current->ctl_info.thread_id));
+	ooos::update_thread_state(*current, task_struct);
 	ooos::lock_thread_mutex(*current);
 	if(thread->ctl_info.state == thread_state::TERMINATED || (thread->ctl_info.retrigger_capable && thread->ctl_info.state == thread_state::STOPPED))
 	{
@@ -929,8 +935,8 @@ join_result task_ctx::thread_join(pid_t with_thread)
 		if(!thread->ctl_info.retrigger_capable)
 		{
 			dyn_thread.takedown(*thread);
-			next_assigned_thread_id	= i->first;
-			thread_ptr_by_id.erase(i);
+			next_assigned_thread_id		= with_thread;
+			thread_ptrs[with_thread]	= nullptr;
 			inactive_threads.push_back(thread);
 		}
 		else if(thread->ctl_info.reset) (*thread->ctl_info.reset)(thread->ctl_info.callback_handle);
@@ -938,12 +944,13 @@ join_result task_ctx::thread_join(pid_t with_thread)
 		return join_result::IMMEDIATE;
 	}
 	notify_threads[with_thread].push_back(current);
+	ooos::unlock_thread_mutex(*current);
 	return join_result::DEFER;
 }
 int task_ctx::thread_detach(pid_t thread_id)
 {
-	if(__unlikely(!thread_ptr_by_id.contains(thread_id))) return -ESRCH;
-	thread_t* ptr			= thread_ptr_by_id[thread_id];
+	if(__unlikely(!(thread_id < thread_ptrs.size() && thread_ptrs[thread_id]))) return -ESRCH;
+	thread_t* ptr			= thread_ptrs[thread_id];
 	if(__unlikely(ptr->ctl_info.state != thread_state::RUNNING)) return -EINVAL;
 	if(ooos::test_thread_mutex(*ptr)) return 1;
 	ptr->ctl_info.detached	= true;

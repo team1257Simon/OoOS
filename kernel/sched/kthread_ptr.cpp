@@ -1,4 +1,5 @@
 #include <sched/task_ctx.hpp>
+void kthread_ptr::put_thread_base() const noexcept { asm volatile("wrfsbase %0" :: "r"(thread_ptr->self) : "memory"); }
 bool kthread_ptr::is_interruptible() const noexcept
 {
 	if(thread_ptr && thread_ptr->ctl_info.park)
@@ -33,34 +34,11 @@ clock_t kthread_ptr::get_wait_delta() const noexcept
 }
 void kthread_ptr::activate() const noexcept
 {
-	if(thread_ptr != task_ptr->thread_ptr && !task_ptr->task_ctl.vfork_dirty)
+	if(!task_ptr->task_ctl.vfork_dirty)
 	{
-		if(task_ptr->frame_ptr.deref<uint64_t>() == uframe_magic)
-		{
-			uframe_tag& frame		= task_ptr->frame_ptr.deref<uframe_tag>();
-			thread_t* current		= frame.translate(task_ptr->thread_ptr);
-			if(current) ooos::update_thread_state(*current, *task_ptr);
-			if(current || !task_ptr->thread_ptr)
-			{
-				task_ptr->saved_regs	= thread_ptr->saved_regs;
-				task_ptr->fxsv			= thread_ptr->fxsv;
-				task_ptr->thread_ptr	= thread_ptr->self;
-			}
-			else
-			{
-				task_ctx* tctx			= reinterpret_cast<task_ctx*>(task_ptr);
-				panic("[SCHED/KTHREAD] thread pointer segfault");
-				force_signal(tctx, 11);
-			}
-		}
-		else
-		{
-			thread_t* current		= task_ptr->thread_ptr;
-			if(current) ooos::update_thread_state(*current, *task_ptr);
-			task_ptr->saved_regs	= thread_ptr->saved_regs;
-			task_ptr->fxsv			= thread_ptr->fxsv;
-			task_ptr->thread_ptr	= thread_ptr->self;
-		}
+		task_ptr->saved_regs	= thread_ptr->saved_regs;
+		task_ptr->fxsv			= thread_ptr->fxsv;
+		task_ptr->thread_ptr	= thread_ptr->self;
 	}
 }
 void kthread_ptr::set_blocking(bool can_interrupt) const noexcept

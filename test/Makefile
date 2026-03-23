@@ -15,8 +15,11 @@ CSRC = test.c
 CPPSRC = $(wildcard *.cpp)
 OBJECTS = $(CPPSRC:%.cpp=%.o) $(CSRC:%.c=%.o)
 SYM_LOG := $(LOG_DIR)/test-syms.txt
-.PHONY: all
+.PHONY: all asmtest
 all: $(OBJECTS) $(OUTDIR) $(TARGET) $(SYM_LOG)
+asmtest: test.asm
+%.asm: %.c
+	$(CC) $(CCFLAGS) -S $< -o $@
 %.o: %.c
 	$(CC) $(CCFLAGS) -c $< -o $@
 %.o: %.cpp
@@ -26,6 +29,7 @@ $(TARGET): $(OBJECTS)
 clean:
 	rm *.o || true
 	rm $(TARGET) || true
+	rm test.asm || true
 $(OUTDIR) $(LOG_DIR):
 	@mkdir -p $@
 $(SYM_LOG):	$(TARGET)

@@ -97,8 +97,9 @@ extern "C"
 	[[noreturn]] void syscall_threadexit(register_t retval)
 	{
 		task_t* task		= current_active_task();
-		if(__unlikely(!task->thread_ptr)) handle_exit();
-		else handle_thread_exit(task->thread_ptr, retval);
+		thread_t* thread	= translate_user_pointer(task->thread_ptr);
+		if(__unlikely(!thread)) handle_exit();
+		else handle_thread_exit(thread, retval);
 		__builtin_unreachable();
 	}
 	[[noreturn]] void handle_thread_exit(thread_t* thread_ptr, register_t retval)
@@ -109,8 +110,9 @@ extern "C"
 		try { task->thread_exit(thread_id, retval); }
 		catch(std::out_of_range& e)	{ panic(e.what()); force_signal(task, 11UC); }
 		catch(std::exception& e)	{ panic(e.what()); force_signal(task, 12UC); }
-		task_lock_flag		= false;
-		kthread_ptr next	= sch.fallthrough_yield();
+		task->header()->thread_ptr	= nullptr;
+		task_lock_flag				= false;
+		kthread_ptr next			= sch.fallthrough_yield();
 		if(__unlikely(!next))
 		{
 			task->terminate();
@@ -346,6 +348,7 @@ extern "C"
 		kthread_ptr kth		= kthread_of(task);
 		if(__unlikely(!sch.set_wait_untimed(kth))) return -ENOMEM;
 		kthread_ptr next	= sch.yield();
+		ooos::lock_thread_mutex(*kth.thread_ptr);
 		return next->saved_regs.rax;
 	}
 	catch(std::runtime_error& e) { return panic(e.what()), -EBUSY; }

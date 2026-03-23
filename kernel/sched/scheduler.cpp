@@ -126,6 +126,7 @@ void scheduler::__do_task_change(kthread_ptr const& cur, kthread_ptr const& next
 	if(__unlikely(cur == next)) return;
 	next->quantum_rem	= next->quantum_val;
 	cur->next			= next.task_ptr;
+	if(thread_t* cth	= cur.thread_ptr) ooos::update_thread_state(*cth, *cur);
 	if(next.thread_ptr) next.activate();
 	task_change_flag.store(true);
 	uint64_t ts			= sched_times.timestamp_stopwatch.get();
@@ -215,7 +216,7 @@ bool scheduler::set_wait_timed(kthread_ptr const& task, clock_t time, bool can_i
 		return __set_wait_time(task, static_cast<clock_t>(__deferred_actions.compute_ticks(time)), can_interrupt);
 	return false;
 }
-void scheduler::retrothread(task_t* task, thread_t* thread)
+void scheduler::set_main_thread(task_t* task, thread_t* thread)
 {
 	kthread_ptr srch(task, nullptr);
 	for(priority_val pv		= task->task_ctl.prio_base; pv <= PVSYS; ++pv)
@@ -286,11 +287,19 @@ kthread_ptr scheduler::yield()
 	task_t* cptr		= current_active_task();
 	kthread_ptr cur		= kthread_of(cptr);
 	cur->quantum_rem	= 0US;
+	if(thread_t* cth	= cur.thread_ptr) ooos::update_thread_state(*cth, *cptr);
 	kthread_ptr next	= select_next();
 	if(!next) next		= cur;
-	else write_task_base(*next);
+	else
+	{
+		if(next.task_ptr != cptr)
+			write_task_base(*next.task_ptr);
+		if(next.thread_ptr)
+			next.activate();
+		if(cur.thread_ptr != next.thread_ptr)
+			next.put_thread_base();
+	}
 	next->quantum_rem	= next->quantum_val;
-	if(next.thread_ptr)	next.activate();
 	return next;
 }
 kthread_ptr scheduler::fallthrough_yield()

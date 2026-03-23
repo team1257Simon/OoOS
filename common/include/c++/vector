@@ -32,6 +32,8 @@ namespace std
 		constexpr static bool __nt_assign_elem() noexcept { return is_nothrow_copy_assignable_v<value_type>; }
 		template<typename ... Args> requires(constructible_from<T, Args...>)
 		constexpr static bool __nt_in_place() noexcept { return std::is_nothrow_constructible_v<value_type, Args...>; }
+		template<typename U> constexpr static bool __is_vector								= false;
+		template<typename U, typename B> constexpr static bool __is_vector<vector<U, B>>	= true;
 	public:
 		constexpr explicit vector(allocator_type const& alloc) noexcept(noexcept(allocator_type(alloc))) : __base(alloc) {}
 		constexpr vector() noexcept(noexcept(allocator_type())) : __base() {}
@@ -39,7 +41,7 @@ namespace std
 		constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type()) noexcept(__nt_copy_construct()) : __base(count, value, alloc) {}
 		template<matching_input_iterator<value_type> IT>
 		constexpr vector(IT start, IT end, allocator_type const& alloc = allocator_type()) noexcept(__nt_copy_construct()) : __base(start, end, alloc) {}
-		template<ranges::input_range RT>
+		template<ranges::input_range RT> requires(!__is_vector<remove_cvref_t<RT>>)
 		constexpr vector(RT&& r, allocator_type const& alloc = allocator_type())
 		noexcept(__nt_copy_construct() && noexcept(ranges::begin(r)) && noexcept(ranges::end(r))) : vector(ranges::begin(r), ranges::end(r), alloc) {}
 		constexpr vector(vector const& that) noexcept(__nt_copy_construct()) : __base(that) {}

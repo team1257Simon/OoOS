@@ -12,6 +12,7 @@ extern "C"
 	void dwendl();
 	void dwclear();
 	void direct_putch(wchar_t ch);
+	void debug_state(u8 idx, qword ecode);
 	extern struct __pack interrupt_stack
 	{
 		register_t rbp;

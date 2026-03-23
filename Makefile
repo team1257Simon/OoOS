@@ -82,3 +82,5 @@ asmtest: $(ATTR_PLUGIN)
 	cd lib && $(MAKE) asmtest
 asmtest_kernel: $(ATTR_PLUGIN)
 	cd kernel && $(MAKE) asmtest
+asmtest_user:
+	cd test && $(MAKE) asmtest

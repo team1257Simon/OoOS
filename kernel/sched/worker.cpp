@@ -19,7 +19,7 @@ namespace ooos
 		array_zero(task_struct.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
 		array_zero(task_struct.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));
 		array_zero(reinterpret_cast<void**>(worker_sig_info.signal_handlers), num_signals);
-		task_struct.saved_regs.rsp	-= 8Z;
+		task_struct.saved_regs.rsp	-= sizeof(register_t);
 		task_struct.saved_regs.rsp.assign(addr_t(worker_exit));
 	}
 	void worker::reset() noexcept

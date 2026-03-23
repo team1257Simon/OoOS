@@ -174,6 +174,7 @@ namespace std::__impl
 		template<output_iterator<T> IT, sentinel_for<IT> ET> constexpr __size_type __pop_elements(IT out_start, ET out_end) requires(!is_same_v<IT, __pointer>);
 		constexpr __size_type __pop_elements(__pointer out_start, __pointer out_end);
 		constexpr __size_type __erase_elements(__const_pointer start, __size_type n = 1UZ);
+		constexpr __size_type __erase_one(__const_pointer where);
 		constexpr __size_type __force_trim() { return __erase_before_next(); }
 		constexpr __pointer __insert(__const_pointer where, __const_reference what, __size_type how_many = 1UZ);
 		template<typename ... Args> requires constructible_from<T, Args...> constexpr __pointer __emplace_element(Args&& ... args) { if(__qmax() <= __end() && !__q_grow_buffer(1UL)) return nullptr; else { __pointer result = construct_at(__end(), forward<Args>(args)...); __bumpe(1L); return result; } }
@@ -287,29 +288,56 @@ namespace std::__impl
 		return n;
 	}
 	template<typename T, allocator_object<T> A>
+	constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__erase_one(__const_pointer where)
+	{
+		if(__unlikely(__q_out_of_range(where))) return 0UZ;
+		size_t s		= __qsize();
+		if(s == 1)
+		{
+			__qdestroy();
+			__my_queue_data.__reset();
+			return 1UZ;
+		}
+		size_t pos		= static_cast<size_t>(where - __qbeg());
+		if(__unlikely(pos >= s)) return 0UZ;
+		size_t nxpos	= __stell();
+		size_t rpos		= pos + 1Z;
+		size_t r		= static_cast<size_t>(__qsize() - rpos);
+		if(where < __qcur()) --nxpos;
+		__ptr_container tmp(__qallocator.allocate(__qcapacity() - 1), __qcapacity() - 1);
+		tmp.__bumpn(nxpos);
+		tmp.__bumpc(--s);
+		copy_or_move(tmp.__begin, __qbeg(), pos);
+		copy_or_move(tmp.__begin + pos, __qbeg() + rpos, r);
+		__qdestroy();
+		__my_queue_data.__copy_ptrs(tmp);
+		return 1UZ;
+	}
+	template<typename T, allocator_object<T> A>
 	constexpr typename __dynamic_queue<T, A>::__size_type __dynamic_queue<T, A>::__erase_elements(__const_pointer start, __size_type n)
 	{
 		if(__unlikely(__q_out_of_range(start))) return 0UL;
-		if(start + n > __qmax()) { n = static_cast<__size_type>(__qmax() - start); }
-		if(start == __qbeg() && start + n >= __end())
+		size_t r		= __qsize();
+		__pointer e		= __end();
+		if(__unlikely(start + n > e))
+			n			= static_cast<size_t>(e - start);
+		size_t pos		= static_cast<size_t>(start - __qbeg());
+		size_t rpos		= pos + n;
+		if(start == __qbeg() && rpos >= __qsize())
 		{
-			size_t r	= __qsize();
 			__qdestroy();
 			__my_queue_data.__reset();
 			return r;
 		}
+		size_t nxpos	= __stell();
+		if(start < __qcur()) nxpos -= min(nxpos, n);
+		r 				-= rpos;
+		size_t s		= static_cast<size_t>(__qsize() - n);
 		__ptr_container tmp(__qallocator.allocate(__qcapacity() - n), __qcapacity() - n);
-		if(__end() > start + n) tmp.__bumpn(__qsize() - n);
-		else if(__end() > start) tmp.__bumpn(start - __qbeg());
-		else tmp.__bumpn(__qsize());
-		if(__qcur() > start + n) tmp.__bumpc(__tell() - n);
-		else if(__qcur() > start) tmp.__bumpc(start - __qbeg());
-		else { tmp.__bumpc(__tell()); }
-		if(tmp.__next > tmp.__end) tmp.__next = tmp.__end;
-		__size_type pstart	= static_cast<__size_type>(start - __qbeg());
-		__size_type srem	= static_cast<__size_type>(__qmax() - (start + n));
-		array_move(tmp.__begin, __qbeg(), pstart);
-		if(srem) array_move(tmp.__q_get_ptr(pstart), __q_get_ptr(pstart) + n, srem);
+		tmp.__bumpn(nxpos);
+		tmp.__bumpc(s);
+		copy_or_move(tmp.__begin, __qbeg(), pos);
+		copy_or_move(tmp.__begin + pos, __qbeg() + rpos, r);
 		__qdestroy();
 		__my_queue_data.__copy_ptrs(tmp);
 		return n;
