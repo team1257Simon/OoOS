@@ -41,7 +41,7 @@ static bool			__is_readonly_page(addr_t addr) { return (addr_t(__code) <= addr &
 constexpr uint32_t	calculate_block_index(size_t size) { return size < min_block_size ? 0U : size > max_block_size ? max_block_index : (st_bits - __builtin_clzl(size)) - min_exponent; }
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t	region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, region_size)) : nearest(sz); }
-static paging_table	__get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_cr3()); }
+static paging_table	__get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_pt_root()); }
 constexpr uint32_t	add_align_size(addr_t tag, size_t align) { return static_cast<uint32_t>(align > 1UZ ? (up_to_nearest<size_t>(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.full + bt_offset)) : 0U); }
 kernel_memory_mgr&	kernel_memory_mgr::get() { return *__instance; }
 uintptr_t			kernel_memory_mgr::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
@@ -96,7 +96,7 @@ void kernel_memory_mgr::exit_frame() noexcept
 	this->__active_frame	= nullptr;
 	release(addressof(__heap_mutex));
 }
-static paging_table __find_table(addr_t of_page, paging_table pml4 = get_cr3())
+static paging_table __find_table(addr_t of_page, paging_table pml4 = get_pt_root())
 {
 	if(pml4[of_page.pml4_idx].present)
 		if(paging_table pdp		= addr_t(pml4[of_page.pml4_idx].physical_address << 12); pdp[of_page.pdp_idx].present)
@@ -293,15 +293,15 @@ static void __unmap_pages(addr_t start, size_t pages, addr_t pml4)
 }
 void kernel_memory_mgr::__suspend_frame() noexcept
 {
-	addr_t cur_cr3	= get_cr3();
+	addr_t cur_cr3	= get_pt_root();
 	if(cur_cr3 == addr_t(kernel_cr3)) return;
 	__suspended_cr3	= cur_cr3;
-	set_cr3(kernel_cr3);
+	get_pt_root(kernel_cr3);
 }
 void kernel_memory_mgr::__resume_frame() noexcept
 {
 	if(!__suspended_cr3) return;
-	set_cr3(__suspended_cr3);
+	get_pt_root(__suspended_cr3);
 	__suspended_cr3	= nullptr;
 }
 uintptr_t kernel_memory_mgr::__find_and_claim(size_t sz)
@@ -414,7 +414,7 @@ void kernel_memory_mgr::init_instance(mmap_t* mmap)
 	__instance->__mark_used(0UL, div_round_up(heap, region_size));
 	__set_kernel_page_flags(sb_addr);
 	remaining_memory				= total_memory	= total_mem;
-	kernel_cr3						= get_cr3();
+	kernel_cr3						= get_pt_root();
 	//	Make sure the framebuffer is mapped to the kernel, as it's not generally given in the memory map
 	__map_kernel_pages(sysinfo->fb_ptr, div_round_up(sysinfo->fb_width * sysinfo->fb_height * sysinfo->fb_pitch * 4, page_size), true);
 }
@@ -458,7 +458,7 @@ void kernel_memory_mgr::deallocate_dma(addr_t addr, size_t sz) noexcept
 }
 addr_t kernel_memory_mgr::allocate_user_block(size_t sz, addr_t start, size_t align, bool write, bool execute) noexcept
 {
-	addr_t pml4			= __active_frame ? __active_frame->pml4 : get_cr3();
+	addr_t pml4			= __active_frame ? __active_frame->pml4 : get_pt_root();
 	__userlock();
 	// allocate to the end of page so the userspace doesn't see kernel data structures
 	size_t rsz			= aligned_size(start, sz);
@@ -551,14 +551,14 @@ uintptr_t kernel_memory_mgr::frame_translate(addr_t addr)
 }
 void kernel_memory_mgr::map_to_current_frame(block_descriptor const& blk)
 {
-	addr_t pml4	= __active_frame ? __active_frame->pml4 : get_cr3();
+	addr_t pml4	= __active_frame ? __active_frame->pml4 : get_pt_root();
 	__lock();
 	__map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute);
 	__unlock();
 }
 void kernel_memory_mgr::map_to_current_frame(std::vector<block_descriptor> const& blocks)
 {
-	addr_t pml4	= __active_frame ? __active_frame->pml4 : get_cr3();
+	addr_t pml4	= __active_frame ? __active_frame->pml4 : get_pt_root();
 	__lock();
 	for(block_descriptor const& blk : blocks) { __map_user_pages(blk.virtual_start, blk.physical_start, div_round_up(blk.size, page_size), pml4, blk.write, blk.execute); }
 	__unlock();

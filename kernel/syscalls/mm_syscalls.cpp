@@ -39,8 +39,7 @@ extern "C"
 					return result;
 				}
 			}
-			catch(std::exception& e) { panic(e.what()); }
-			return addr_t(static_cast<uintptr_t>(-EBADF));
+			catch(std::exception& e) { return panic(e.what()), addr_t(static_cast<uintptr_t>(-EBADF)); }
 		}
 		return result;
 	}

@@ -44,8 +44,8 @@ extern "C"
 			}
 			return static_cast<uid_t>(-EACCES);
 		}
-		catch(std::out_of_range& e) { return panic(e.what()), static_cast<uid_t>(-EINVAL); }
-		catch(std::bad_alloc&) { return static_cast<uid_t>(-ENOMEM); }
+		catch(std::out_of_range& e)	{ return panic(e.what()), static_cast<uid_t>(-EINVAL); }
+		catch(std::bad_alloc&)		{ return static_cast<uid_t>(-ENOMEM); }
 	}
 	uid_t syscall_impersonate(const char* name, const char* pass)
 	{
@@ -61,8 +61,8 @@ extern "C"
 			std::string ustring(name);
 			return do_impersonate(current, inst.get_user(ustring), pass, task);
 		}
-		catch(std::out_of_range& e) { return panic(e.what()), static_cast<uid_t>(-EINVAL); }
-		catch(std::bad_alloc&) { return static_cast<uid_t>(-ENOMEM); }
+		catch(std::out_of_range& e)	{ return panic(e.what()), static_cast<uid_t>(-EINVAL); }
+		catch(std::bad_alloc&)		{ return static_cast<uid_t>(-ENOMEM); }
 	}
 	int syscall_setuid(uid_t id)
 	{
@@ -78,8 +78,8 @@ extern "C"
 			task->euid(id);
 			return 0;
 		}
-		catch(std::out_of_range& e) { return panic(e.what()), static_cast<uid_t>(-EINVAL); }
-		catch(std::bad_alloc&) { return static_cast<uid_t>(-ENOMEM); }
+		catch(std::out_of_range& e)	{ return panic(e.what()), static_cast<uid_t>(-EINVAL); }
+		catch(std::bad_alloc&)		{ return static_cast<uid_t>(-ENOMEM); }
 	}
 	int syscall_setgid(gid_t id)
 	{
@@ -101,8 +101,8 @@ extern "C"
 			task->egid(id);
 			return 0;
 		}
-		catch(std::out_of_range& e) { return panic(e.what()), static_cast<uid_t>(-EINVAL); }
-		catch(std::bad_alloc&) { return static_cast<uid_t>(-ENOMEM); }
+		catch(std::out_of_range& e)	{ return panic(e.what()), static_cast<uid_t>(-EINVAL); }
+		catch(std::bad_alloc&)		{ return static_cast<uid_t>(-ENOMEM); }
 	}
 	uid_t syscall_urevert()
 	{
@@ -136,7 +136,7 @@ extern "C"
 			}
 			return -EACCES;
 		}
-		catch(std::out_of_range& e) { return panic(e.what()), -EINVAL; }
-		catch(std::bad_alloc&) { return -ENOMEM; }
+		catch(std::out_of_range& e)	{ return panic(e.what()), -EINVAL; }
+		catch(std::bad_alloc&)		{ return -ENOMEM; }
 	}
 }

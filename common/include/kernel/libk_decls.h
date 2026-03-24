@@ -93,13 +93,13 @@ template<uint32_t V> using c_u32													= std::integral_constant<uint32_t, 
 template<uint64_t V> using c_u64													= std::integral_constant<uint64_t, V>;
 template<std::integral I, template<I> class S> constexpr bool is_integer_constant	= __integer_constant_helper<I, S>::value;
 template<typename T> constexpr T& nonnull_or_else(T* __this, T& __that) noexcept { return __this ? *__this : __that; }
-template<typename T> constexpr void set_fs_base(T* value) { asm volatile("wrfsbase %0" :: "r"(value) : "memory"); }
-template<typename T> constexpr void set_gs_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
-template<typename T> constexpr T* get_fs_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
-template<typename T> constexpr T* get_gs_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
-inline void set_cr3(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
-inline paging_table get_cr3() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
-inline void tlb_flush() noexcept { set_cr3(get_cr3()); }
+template<typename T> constexpr void set_thread_base(T* value) { asm volatile("wrfsbase %0" :: "r"(value) : "memory"); }
+template<typename T> constexpr void set_process_base(T* value) { asm volatile("wrgsbase %0" :: "r"(value) : "memory"); }
+template<typename T> constexpr T* get_thread_base() { T* result; asm volatile("rdfsbase %0" : "=r"(result) :: "memory"); return result; }
+template<typename T> constexpr T* get_process_base() { T* result; asm volatile("rdgsbase %0" : "=r"(result) :: "memory"); return result; }
+inline void get_pt_root(void* val) noexcept { asm volatile("movq %0, %%cr3" :: "a"(val) : "memory"); }
+inline paging_table get_pt_root() noexcept { paging_table result; asm volatile("movq %%cr3, %0" : "=a"(result) :: "memory"); return result; }
+inline void tlb_flush() noexcept { get_pt_root(get_pt_root()); }
 // If T is default-constructible, this default-initializes n elements at the destination location. Otherwise, this does nothing (use array_fill instead and provide constructor arguments)
 template<trivial_copy T> requires(std::not_larger<T, uint64_t>) constexpr T* array_zero(T* dest, std::size_t n) noexcept;
 template<trivial_copy T> requires(std::larger<T, uint64_t>) constexpr T* array_zero(T* dest, std::size_t n) noexcept;
@@ -143,7 +143,6 @@ constexpr T* array_fill(void* dest, T value, std::size_t n) noexcept
 		return static_cast<T*>(dest);
 	}
 	else return static_cast<T*>(__builtin_memset(dest, value, n));
-
 }
 template<trivial_copy T>
 constexpr T* array_init(T* dest, T const* src, size_t n)
@@ -160,8 +159,8 @@ template<typename T, typename IT>
 requires(std::is_assignable_v<T&, decltype(*std::declval<IT>())>)
 constexpr T* array_init(T* dest, IT src_start, IT src_end)
 {
-	T* p	= dest;
-	for(IT i = src_start; i != src_end; i++, p++) *p = *i;
+	T* p		= dest;
+	for(IT i	= src_start; i != src_end; i++, p++) *p = *i;
 	return dest;
 }
 // Constructs n elements at the destination location using the constructor arguments. If any of the arguments are move-assigned away from their original location by the constructor with n > 1, the behavior is undefined.

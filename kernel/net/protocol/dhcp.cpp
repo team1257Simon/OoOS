@@ -284,7 +284,7 @@ void protocol_dhcp::reset()
 		.time_to_live_tcp_default   { 0x40UC },
 		.current_state              { ipv4_client_state::INIT }
 	};
-	discover(std::forward<std::vector<net8>>({ SUBNET_MASK, DOMAIN_NAME_SERVER, DOMAIN_NAME, ROUTER }));
+	discover(std::vector<net8>({ SUBNET_MASK, DOMAIN_NAME_SERVER, DOMAIN_NAME, ROUTER }));
 }
 int protocol_dhcp::transition_state(ipv4_client_state to_state)
 {
@@ -307,6 +307,5 @@ int protocol_dhcp::transition_state(ipv4_client_state to_state)
 			return 0;
 		}
 	}
-	catch(std::runtime_error& e) { panic(e.what()); }
-	return -ENETDOWN;
+	catch(std::runtime_error& e) { return panic(e.what()), -ENETDOWN; }
 }

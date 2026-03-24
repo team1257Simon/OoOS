@@ -28,7 +28,7 @@ extern "C"
 			if(__unlikely(!n->check_permissions(*user, CHK_EXECUTE)))
 				return -EPERM;
 		}
-		elf64_executable* ex = prog_manager::get_instance().add(n);
+		elf64_executable* ex	= prog_manager::get_instance().add(n);
 		if(__unlikely(!ex)) return -ENOEXEC;
 		cstrvec argv_v{}, env_v{};
 		for(size_t i	= 0UZ; argv[i]; ++i) argv_v.push_back(argv[i]);
@@ -167,7 +167,7 @@ extern "C"
 		}
 		else
 		{
-			kthread_ptr next							= sch.yield();
+			kthread_ptr next								= sch.yield();
 			if(__unlikely(next == thr)) return -ECHILD;
 			if(sch.set_wait_untimed(thr))
 			{

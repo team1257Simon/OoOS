@@ -545,7 +545,7 @@ static const char* codes[] =
 };
 constexpr auto test_dbg_callback = [](u8 idx, qword ecode) -> void
 {
-	if(get_gs_base<task_t>()->frame_ptr.deref<uint64_t>() != kframe_magic) return;
+	if(get_process_base<task_t>()->frame_ptr.deref<uint64_t>() != kframe_magic) return;
 	if(idx < 0x20)
 	{
 		direct_write(codes[idx]);
@@ -662,7 +662,7 @@ extern "C"
 	{
 		tss_init(std::addressof(kernel_isr_stack_top));
 		set_kernel_gs_base(std::addressof(kproc));
-		kproc.saved_regs.cr3	= get_cr3();
+		kproc.saved_regs.cr3	= get_pt_root();
 		// The code segments and data segment for userspace are computed at offsets of 16 and 8, respectively, of IA32_STAR bits 63-48
 		init_syscall_msrs(addr_t(std::addressof(do_syscall)), 0x200UL, 0x08US, 0x10US);
 		fadt_t* fadt			= nullptr;
@@ -680,7 +680,7 @@ extern "C"
 		// The structure kproc will not contain all the normal data, but it shells the "next task" pointer for the scheduler if there is no task actually running.
 		// It stores the state of the floating-point registers during ISRs, and its "next task" points at the calling process during a syscall.
 		// If we ever attempt SMP, each processor will have its own one of these, but we'll burn that bridge when we get there. Er, cross it. Something.
-		set_gs_base(std::addressof(kproc));
+		set_process_base(std::addressof(kproc));
 		asm volatile("fxsave %0" : "=m"(kproc.fxsv) :: "memory");
 		array_zero(kproc.fxsv.xmm, sizeof(fx_state::xmm) / sizeof(int128_t));
 		array_zero(kproc.fxsv.stmm, sizeof(fx_state::stmm) / sizeof(long double));

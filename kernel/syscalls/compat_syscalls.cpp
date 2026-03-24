@@ -18,13 +18,13 @@ extern "C"
 {
 	uid_t syscall_getuid()
 	{
-		task_ctx* task = active_task_context();
+		task_ctx* task	= active_task_context();
 		if(__unlikely(!task)) return 0U;	// kernel workers are always effectively root (though they should not usually be calling these)
 		return task->uid();
 	}
 	gid_t syscall_getgid()
 	{
-		task_ctx* task = active_task_context();
+		task_ctx* task	= active_task_context();
 		if(__unlikely(!task)) return 0U;	// kernel workers are always effectively root (though they should not usually be calling these)
 		return task->gid();
 	}

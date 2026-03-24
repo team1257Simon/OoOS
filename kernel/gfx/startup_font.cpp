@@ -21,7 +21,7 @@ constexpr static size_t file_size = std::array
 constexpr static std::array<uint8_t, file_size> arr
 {
 	//	this time we get the data for real; technically this could be the symbol
-	//	however, doing it this way lets us use intellisense tooltips to inspect the data in the psf2 header
+	//	however, doing it this way lets us use intellisense tooltips to inspect the data in the psf2 header via some bit_cast abuse
 	#embed "startup_font.psf"
 };
 extern "C" { constinit psf2<file_size> __startup_font_data = std::bit_cast<psf2<file_size>>(arr); }

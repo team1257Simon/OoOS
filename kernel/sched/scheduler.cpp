@@ -149,7 +149,7 @@ bool scheduler::unregister_task(task_t* task)
 bool scheduler::unregister_task(kthread_ptr const& task)
 {
 	bool result				= false;
-	for(priority_val pv		= task->task_ctl.prio_base; pv <= PVSYS ; ++pv)
+	for(priority_val pv		= task->task_ctl.prio_base; pv <= PVSYS; ++pv)
 	{
 		task_citerator i	= __queues[pv].find(task, true);
 		if(i != __queues[pv].end()) {
@@ -321,7 +321,7 @@ void scheduler::remove_worker_task(kthread_ptr const& w)
 			__instance.__do_task_change(cur, next);
 	}
 	__instance.unregister_task(w.task_ptr);
-	if(__unlikely(!__instance.__total_tasks)) set_gs_base(std::addressof(kproc));
+	if(__unlikely(!__instance.__total_tasks)) set_process_base(std::addressof(kproc));
 }
 pid_t scheduler::active_pid() noexcept
 {

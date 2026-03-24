@@ -370,9 +370,9 @@ extern "C"
 		}
 		catch(std::bad_alloc&)			{ return -ENOMEM; }
 		catch(std::bad_cast&)			{ return -EINVAL; }
-		catch(std::invalid_argument& e)	{ panic(e.what()); return -EINVAL; }
-		catch(std::out_of_range& e)		{ panic(e.what()); return -EFAULT; }
-		catch(std::runtime_error& e)	{ panic(e.what()); return -ENOENT; }
+		catch(std::invalid_argument& e)	{ return panic(e.what()), -EINVAL; }
+		catch(std::out_of_range& e)		{ return panic(e.what()), -EFAULT; }
+		catch(std::runtime_error& e)	{ return panic(e.what()), -ENOENT; }
 		return 0;
 	}
 	addr_t syscall_tlget(tls_index* idx)
@@ -382,9 +382,9 @@ extern "C"
 		idx				= translate_user_pointer(idx);
 		if(__unlikely(!idx)) return addr_t(static_cast<uintptr_t>(-EFAULT));
 		try { return task->tls_get(idx->ti_module, idx->ti_offset); }
-		catch(std::invalid_argument& e) { panic(e.what()); return addr_t(static_cast<uintptr_t>(-EINVAL)); }
-		catch(std::out_of_range& e)		{ panic(e.what()); return addr_t(static_cast<uintptr_t>(-EFAULT)); }
-		catch(std::runtime_error& e)	{ panic(e.what()); return addr_t(static_cast<uintptr_t>(-ENOSYS)); }
+		catch(std::invalid_argument& e) { return panic(e.what()), addr_t(static_cast<uintptr_t>(-EINVAL)); }
+		catch(std::out_of_range& e)		{ return panic(e.what()), addr_t(static_cast<uintptr_t>(-EFAULT)); }
+		catch(std::runtime_error& e)	{ return panic(e.what()), addr_t(static_cast<uintptr_t>(-ENOSYS)); }
 		catch(std::bad_alloc&)			{ return addr_t(static_cast<uintptr_t>(-ENOMEM)); }
 	}
 }

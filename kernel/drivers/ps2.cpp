@@ -49,5 +49,5 @@ namespace ooos
 		ps2 << PSC_MEM_WRITE << cfg;
 		return true;
 	}
-	catch(std::exception& e) { panic(e.what()); return false; }
+	catch(std::exception& e) { return panic(e.what()), false; }
 }

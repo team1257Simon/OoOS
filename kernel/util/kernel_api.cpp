@@ -94,12 +94,12 @@ namespace ooos
 			}
 			int result			= ethernet_handler.receive(p);
 			if(!result) return 0;
-			if(result == -EPROTONOSUPPORT) { mod.logf("W: unrecognized protocol"); return 0; }
+			if(result == -EPROTONOSUPPORT) { return mod.logf("W: unrecognized protocol"), 0; }
 			return result;
 		}
 		catch(std::bad_alloc&)		{ return -ENOMEM; }
 		catch(std::bad_cast&)		{ return -EPROTO; }
-		catch(std::exception& e)	{ mod.logf(e.what()); return -EINVAL; }
+		catch(std::exception& e)	{ return mod.logf(e.what()), -EINVAL; }
 	}
 	static struct : kernel_api
 	{
