@@ -375,10 +375,10 @@ namespace std::__impl
 		constexpr __pointer __erase_range(__const_pointer start, __const_pointer end);
 		constexpr __pointer __insert_element(__const_pointer pos, T const& t) { return __insert_elements(pos, addressof(t), addressof(t) + 1Z); }
 		constexpr __pointer __beg() noexcept { return __my_data.__beg(); }
-		constexpr __const_pointer __beg() const noexcept { return __my_data.__beg(); }
 		constexpr __pointer __cur() noexcept { return __my_data.__cur(); }
-		constexpr __const_pointer __cur() const noexcept { return __my_data.__cur(); }
 		constexpr __pointer __max() noexcept { return __my_data.__max(); }
+		constexpr __const_pointer __beg() const noexcept { return __my_data.__beg(); }
+		constexpr __const_pointer __cur() const noexcept { return __my_data.__cur(); }
 		constexpr __const_pointer __max() const noexcept { return __my_data.__max(); }
 		constexpr __size_type __diff(__const_pointer pos) const noexcept { return __size_type(pos - __beg()); }
 		constexpr __difference_type __needed(__const_pointer pos) const noexcept { return pos - __max(); }
@@ -386,11 +386,11 @@ namespace std::__impl
 		constexpr bool __out_of_range(__const_pointer pos) const noexcept { return pos < __beg() || pos >= __max(); }
 		constexpr bool __out_of_range(__const_pointer start, __const_pointer end) const noexcept { return __out_of_range(start) || __out_of_range(end) || end < start; }
 		constexpr __pointer __get_ptr(__size_type __i) noexcept { return __beg() + __i; }
-		constexpr __const_pointer __get_ptr(__size_type __i) const noexcept { return __beg() + __i; }
-		constexpr __reference __get(__size_type __i) { return *__get_ptr(__i); }
-		constexpr __const_reference __get(__size_type __i) const { return *__get_ptr(__i); }
+		constexpr __reference __get(__size_type __i) noexcept { return *__get_ptr(__i); }
 		constexpr __reference __get_last() noexcept { return *__get_ptr(__size() - 1Z); }
-		constexpr __const_reference __get_last() const noexcept { return *__get_ptr(__size() - 1); }
+		constexpr __const_pointer __get_ptr(__size_type __i) const noexcept { return __beg() + __i; }
+		constexpr __const_reference __get(__size_type __i) const noexcept { return *__get_ptr(__i); }
+		constexpr __const_reference __get_last() const noexcept { return *__get_ptr(__size() - 1Z); }
 		constexpr void __setp(typename __container_select<T, NTS>::type const& ptrs) noexcept { __my_data.__copy_ptrs(ptrs); }
 		constexpr void __setp(__pointer beg, __pointer cur, __pointer end) noexcept requires(!__using_sso) { __my_data.__set_ptrs(beg, cur, end); }
 		constexpr void __setp(__pointer beg, __pointer end) noexcept requires(!__using_sso) { __setp(beg, beg, end); }

@@ -35,8 +35,8 @@ namespace std
 		template<typename U> constexpr static bool __is_vector								= false;
 		template<typename U, typename B> constexpr static bool __is_vector<vector<U, B>>	= true;
 	public:
-		constexpr explicit vector(allocator_type const& alloc) noexcept(noexcept(allocator_type(alloc))) : __base(alloc) {}
 		constexpr vector() noexcept(noexcept(allocator_type())) : __base() {}
+		constexpr explicit vector(allocator_type const& alloc) noexcept(noexcept(allocator_type(alloc))) : __base(alloc) {}
 		constexpr explicit vector(size_type count) noexcept(__nt_alloc() && noexcept(allocator_type())) : __base(count, allocator_type()) {}
 		constexpr explicit vector(size_type count, const_reference value, allocator_type const& alloc = allocator_type()) noexcept(__nt_copy_construct()) : __base(count, value, alloc) {}
 		template<matching_input_iterator<value_type> IT>

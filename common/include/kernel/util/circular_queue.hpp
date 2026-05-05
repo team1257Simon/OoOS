@@ -31,6 +31,8 @@ namespace ooos
 		constexpr static bool __trivial				= std::is_trivially_destructible_v<value_type> || std::is_trivial_v<value_type>;
 		constexpr static bool __nothrow_destruct	= __trivial || std::is_nothrow_destructible_v<value_type>;
 		constexpr static bool __nothrow_zero    	= noexcept(array_zero(std::declval<pointer>(), std::declval<size_t>())) && __nothrow_destruct;
+		template<typename ST> using __like_ptr		= std::add_pointer_t<copy_cv_t<ST, value_type>>;
+		template<typename ST> using __like_ref		= decltype(*std::declval<__like_ptr<ST>>());
 		struct __circular_buffer : allocator_type
 		{
 			pointer __base;
@@ -71,10 +73,8 @@ namespace ooos
 			constexpr void __rewind() noexcept { __curr = __back = __base; }
 			constexpr size_type __capacity() const noexcept { return static_cast<size_type>(__rmax - __base); }
 			constexpr void __create(size_type n) { __base = allocator_type::allocate(n); __curr = __back = __base; __rmax = __base + n; }
-			constexpr reference __peek() noexcept { return *__curr; }
-			constexpr const_reference __peek() const noexcept { return *__curr; }
-			constexpr reference __peek_back() noexcept { return *pclamp(__back - 1Z, __curr, __back); }
-			constexpr const_reference __peek_back() const noexcept { return *pclamp(__back - 1Z, __curr, __back); }
+			template<typename ST> constexpr __like_ref<ST> __peek(this ST&& self) noexcept { return *self.__curr; }
+			template<typename ST> constexpr __like_ref<ST> __peek_back(this ST&& self) noexcept { return *pclamp(self.__back - 1Z, self.__curr, self.__back); }
 			constexpr size_type __length() const noexcept { return this->__pos_of(__back); }
 			constexpr pointer __get_ptr(size_type n) const noexcept { return this->__adv_ptr(__curr, n); }
 			constexpr void __flush() noexcept requires(__trivial)
@@ -416,13 +416,11 @@ namespace ooos
 		constexpr void push(value_type const& v) requires(__copy_assign || __copy_construct) { create_if_empty(4UZ); __buffer.__push(v); }
 		constexpr void push(value_type&& v) requires(__move_assign || __move_construct) { create_if_empty(4UZ); __buffer.__push(std::move(v)); }
 		constexpr value_type pop() { return __buffer.__pop(); }
-		constexpr reference peek() noexcept { return __buffer.__peek(); }
-		constexpr const_reference peek() const noexcept { return __buffer.__peek(); }
-		constexpr reference peek_back() noexcept { return __buffer.__peek_back(); }
-		constexpr const_reference peek_back() const noexcept { return __buffer.__peek_back(); }
+		template<typename ST> constexpr __like_ref<ST> peek(this ST&& self) noexcept { return self.__buffer.__peek(); }
+		template<typename ST> constexpr __like_ref<ST> peek_back(this ST&& self) noexcept { return self.__buffer.__peek_back(); }
 		constexpr reference front() noexcept { return peek(); }
-		constexpr const_reference front() const noexcept { return peek(); }
 		constexpr reference back() noexcept { return peek_back(); }
+		constexpr const_reference front() const noexcept { return peek(); }
 		constexpr const_reference back() const noexcept { return peek_back(); }
 		constexpr void bump(size_type n) noexcept { __buffer.__adv_pop(n); }
 		constexpr void flush() noexcept requires(__trivial) { __buffer.__flush(); }

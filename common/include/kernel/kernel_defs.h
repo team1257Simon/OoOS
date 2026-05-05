@@ -1,5 +1,6 @@
 #ifndef __KERNEL_DEF
 #define __KERNEL_DEF
+//	stdint.h is copy-pasted here because the #include_next directive causes problems with vscode
 /* Copyright (C) 2008-2024 Free Software Foundation, Inc.
 This file is part of GCC.
 GCC is free software; you can redistribute it and/or modify
