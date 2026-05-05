@@ -39,14 +39,15 @@ namespace std
 		};
 		template<typename T> type_erasure get_erasure() { return type_erasure(typeid(T)); }
 		/**
-		 * If ptr is a virtual pointer to an object whose full type is U, then this returns the equivalent of dynamic_cast<T*>(static_cast<U*>(ptr)).
+		 * If ptr is a pointer to an object whose dynamic most-derived type is U, then reflective_cast<T>(ptr) is equivalent to dynamic_cast<T*>(static_cast<U*>(dynamic_cast<void*>(ptr))).
+		 * In other words, if ptr is a void pointer decayed from a pointer to B, and B is a base of U, then reflective_cast<T>(ptr) will return the same as dynamic_cast<T*>(dynamic_cast<U*>(static_cast<B*>(ptr))).
 		 * Otherwise, it will return a null pointer.
 		 * The type U need not be known to the caller, so this can be used to verify the inheritance of an unknown pointer from a given base.
-		 * Note: the full type is the type whose constructor was invoked to create the object pointed to by ptr.
+		 * Note: the dynamic most-derived type is the type whose constructor was invoked when the pointee object was constructed.
 		 * Because this only works with types that have virtual pointers, the type T must be polymorphic.
 		 */
 		template<typename T> requires(std::is_polymorphic_v<T>)
-		T* reflective_cast(void* ptr)
+		T* reflective_cast(void* ptr) noexcept
 		{
 			type_erasure erasure	= type_erasure(typeid(T));
 			void* result			= erasure.cast(ptr);

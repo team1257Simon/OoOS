@@ -105,7 +105,7 @@ constexpr dword sfmask		 	= 0xC0000084U;
 constexpr dword ia32_apic_base	= 0x0000001BU;
 constexpr dword apic_base_bsp	= 0x00000100U;
 constexpr dword apic_enable		= 0x00000800U;
-constexpr void set_kernel_gs_base(addr_t value) { write_msr<kernel_gs_base>(value.full); }
-constexpr void init_syscall_msrs(addr_t syscall_target, qword flag_mask, word pl0_segbase, word pl3_segbase) { qword star = syscall_target.full; star.hi.lo = pl0_segbase; star.hi.hi = pl3_segbase; qword stbase = syscall_target.full; write_msr<ia32_star>(star); write_msr<cstar>(stbase); write_msr<lstar>(stbase); write_msr<sfmask>(flag_mask); qword efer = read_msr<ia32_efer>(); efer |= 1; write_msr<ia32_efer>(efer); }
+constexpr void set_kernel_gs_base(addr_t value) { write_msr<kernel_gs_base>(value.addr_numeric); }
+constexpr void init_syscall_msrs(addr_t syscall_target, qword flag_mask, word pl0_segbase, word pl3_segbase) { qword star = syscall_target.addr_numeric; star.hi.lo = pl0_segbase; star.hi.hi = pl3_segbase; qword stbase = syscall_target.addr_numeric; write_msr<ia32_star>(star); write_msr<cstar>(stbase); write_msr<lstar>(stbase); write_msr<sfmask>(flag_mask); qword efer = read_msr<ia32_efer>(); efer |= 1; write_msr<ia32_efer>(efer); }
 #endif
 #endif

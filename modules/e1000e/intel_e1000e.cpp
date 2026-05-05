@@ -89,7 +89,7 @@ bool ie1000e::write_io(int reg_id, uint32_t const& w_in)
 void ie1000e::read_dma(int reg_id, uint32_t& r_out)
 {
 	addr_t where	= __mmio_region.plus(reg_id);
-	if(where.full % 4UL) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
+	if(where.addr_numeric % 4UL) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
 	r_out			= where.deref<uint32_t>();
 	fence();
 }
@@ -102,7 +102,7 @@ uint32_t ie1000e::read_dma(int reg_id)
 void ie1000e::write_dma(int reg_id, uint32_t const& w_in)
 {
 	addr_t where	= __mmio_region.plus(reg_id);
-	if(where.full % 4UL) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
+	if(where.addr_numeric % 4UL) throw std::invalid_argument("[e1000e] dma access must be on dword boundary");
 	where.assign(w_in);
 	fence();
 }

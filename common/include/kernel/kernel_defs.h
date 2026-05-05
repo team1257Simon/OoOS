@@ -413,7 +413,11 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 		uint16_t ext		: 16;
 #ifdef __cplusplus
 	};
-	uintptr_t full{};
+	void* addr_val{};
+	const void* addr_val_c;
+	volatile void* addr_val_v;
+	const volatile void* addr_val_cv;
+	uintptr_t addr_numeric;
 	constexpr explicit __vaddr(uint16_t offs, uint16_t idx0, uint16_t idx1, uint16_t idx2, uint16_t idx3, uint16_t sign) noexcept :
 		offset		{ offs },
 		page_idx	{ idx0 },
@@ -422,12 +426,12 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 		pml4_idx	{ idx3 },
 		ext			{ sign }
 					{}
-	constexpr explicit __vaddr(uintptr_t i) noexcept : full(i) {}
-	constexpr __vaddr(nullptr_t) noexcept : full(0UL) {}
-	constexpr __vaddr(void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-	constexpr __vaddr(const void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-	constexpr explicit __vaddr(volatile void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
-	constexpr explicit __vaddr(const volatile void* ptr) noexcept : __vaddr(__builtin_bit_cast(uintptr_t, ptr)) {}
+	constexpr explicit __vaddr(uintptr_t i) noexcept : addr_numeric(i) {}
+	constexpr __vaddr(nullptr_t) noexcept : addr_val(nullptr) {}
+	constexpr __vaddr(void* ptr) noexcept : addr_val(ptr) {}
+	constexpr __vaddr(const void* ptr) noexcept : addr_val_c(ptr) {}
+	constexpr explicit __vaddr(volatile void* ptr) noexcept : addr_val_v(ptr) {}
+	constexpr explicit __vaddr(const volatile void* ptr) noexcept : addr_val_cv(ptr) {}
 	template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(T* ptr) noexcept : __vaddr(static_cast<void*>(ptr)) {}
 	template<non_void T> requires(!std::is_function_v<T>) constexpr __vaddr(const T* ptr) noexcept : __vaddr(static_cast<const void*>(ptr)) {}
 	template<non_void T> requires(!std::is_function_v<T>) constexpr explicit __vaddr(volatile T* ptr) noexcept : __vaddr(static_cast<volatile void*>(ptr)) {}
@@ -439,48 +443,50 @@ typedef struct attribute(packed, aligned(8)) __vaddr
 	constexpr __vaddr(__vaddr &&) noexcept = default;
 	constexpr __vaddr& operator=(__vaddr const&) noexcept = default;
 	constexpr __vaddr& operator=(__vaddr &&) noexcept = default;
-	constexpr operator uintptr_t() const noexcept { return full; }
-	constexpr __vaddr operator+(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full + value)); }
-	constexpr __vaddr& operator+=(ptrdiff_t value) noexcept { full += value; return *this; }
-	constexpr __vaddr operator%(uint64_t unit) const noexcept { return __vaddr(full % unit); }
+	constexpr __vaddr operator+(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(addr_numeric + value)); }
+	constexpr __vaddr& operator+=(ptrdiff_t value) noexcept { return addr_numeric += value, *this; }
+	constexpr __vaddr operator%(uint64_t unit) const noexcept { return __vaddr(addr_numeric % unit); }
 	constexpr __vaddr& operator%=(uint64_t unit) noexcept { return *this = (*this % unit); }
-	constexpr __vaddr operator-(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full - value)); }
-	constexpr __vaddr& operator-=(ptrdiff_t value) noexcept { full -= value; return *this; }
-	constexpr __vaddr plus(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full + value)); }
-	constexpr __vaddr minus(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(full - value)); }
-	constexpr __vaddr trunc(size_t alignval) const noexcept { return alignval > 1UZ ? minus(full % alignval) : *this; }
-	constexpr __vaddr alignup(size_t alignval) const noexcept { return (alignval > 1UZ && full % alignval) ? plus(alignval).trunc(alignval) : *this; }
-	constexpr __vaddr page_aligned() const noexcept { return minus(full % PAGESIZE); }
-	constexpr __vaddr next_page_aligned() const noexcept { return full % PAGESIZE ? plus(PAGESIZE).page_aligned() : *this; }
+	constexpr __vaddr operator-(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(addr_numeric - value)); }
+	constexpr __vaddr& operator-=(ptrdiff_t value) noexcept { return addr_numeric -= value, *this; }
+	constexpr __vaddr plus(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(addr_numeric + value)); }
+	constexpr __vaddr minus(ptrdiff_t value) const noexcept { return __vaddr(static_cast<uintptr_t>(addr_numeric - value)); }
+	constexpr __vaddr trunc(size_t alignval) const noexcept { return alignval > 1UZ ? minus(addr_numeric % alignval) : *this; }
+	constexpr __vaddr alignup(size_t alignval) const noexcept { return (alignval > 1UZ && addr_numeric % alignval) ? plus(alignval).trunc(alignval) : *this; }
+	constexpr __vaddr page_aligned() const noexcept { return minus(addr_numeric % PAGESIZE); }
+	constexpr __vaddr next_page_aligned() const noexcept { return addr_numeric % PAGESIZE ? plus(PAGESIZE).page_aligned() : *this; }
 	typedef const void* cvptr;
 	typedef volatile void* vvptr;
 	typedef const volatile void* cvvptr;
 	template<non_void T> using ctptr = const T*;
 	template<non_void T> using vtptr = volatile T*;
 	template<non_void T> using cvtptr = const volatile T*;
-	template<typename T = void> constexpr T* as() const noexcept { return __builtin_bit_cast(std::remove_cv_t<T>*, full); }
-	template<typename T = void> constexpr vtptr<T> as() const volatile noexcept { return __builtin_bit_cast(volatile std::remove_cv_t<T>*, const_cast<__vaddr const*>(this)->full); }
+	template<typename T = void> requires(!std::is_function_v<T>) constexpr T* as() const volatile noexcept { return static_cast<T*>(addr_val); }
+	template<typename T> requires(std::is_function_v<T>) constexpr T* as() const noexcept { return __builtin_bit_cast(T*, addr_val); }
 	template<non_void T> constexpr T& deref() const noexcept { return *as<T>(); }
 	template<non_void T> constexpr T& assign(T const& value) const noexcept { return deref<T>() = value; }
 	template<non_void T> constexpr T& assign(T&& value) const noexcept { return deref<std::remove_reference_t<T>>() = std::move(value); }
 	template<typename T, typename ... Args> using functor_t = T(*)(Args...);
-	template<typename T, typename ... Args> constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) { if constexpr(std::is_void_v<std::invoke_result_t<T, Args...>>) { deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); } else { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }	}
-	constexpr operator void*() const noexcept { return this->as<void>(); }
-	constexpr operator cvptr() const noexcept { return this->as<const void>(); }
-	constexpr operator vvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<volatile void>(); }
-	constexpr operator cvvptr() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<const volatile void>(); }
-	template<non_void T> constexpr operator T*() const noexcept { return this->as<T>(); }
-	template<non_void T> constexpr operator ctptr<T>() const noexcept { return this->as<T const>(); }
-	template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T volatile>(); }
-	template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return const_cast<__vaddr const*>(this)->as<T const volatile>(); }
-	template<typename T, typename ... Args> inline operator functor_t<T, Args...>() const noexcept { return reinterpret_cast<functor_t<T, Args...>>(full); }
-	constexpr operator bool() const noexcept { return bool(full); }
-	friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full == __that.full; }
-	friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.full; }
-	friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full - __that.full; }
-	friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.full <=> __that.full; }
-	friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.full; }
-	friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.full <=> __that; }
+	template<typename T, typename ... Args>
+	constexpr std::invoke_result_t<T, Args...> invoke(Args&& ... args) const
+	noexcept(noexcept(deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...))) { return deref<std::remove_reference_t<T>>()(std::forward<Args>(args)...); }
+	constexpr operator void*() const noexcept { return addr_val; }
+	constexpr operator cvptr() const noexcept { return addr_val_c; }
+	constexpr operator vvptr() const volatile noexcept { return addr_val_v; }
+	constexpr operator cvvptr() const volatile noexcept { return addr_val_cv; }
+	constexpr operator uintptr_t() const noexcept { return addr_numeric; }
+	template<non_void T> constexpr operator T*() const noexcept { return static_cast<T*>(addr_val); }
+	template<non_void T> constexpr operator ctptr<T>() const noexcept { return static_cast<ctptr<T>>(addr_val_c); }
+	template<non_void T> constexpr operator vtptr<T>() const volatile noexcept { return static_cast<vtptr<T>>(addr_val_v); }
+	template<non_void T> constexpr operator cvtptr<T>() const volatile noexcept { return static_cast<cvtptr<T>>(addr_val_cv); }
+	template<typename T, typename ... Args> constexpr operator functor_t<T, Args...>() const noexcept { return __builtin_bit_cast(functor_t<T, Args...>, addr_val); }
+	constexpr operator bool() const noexcept { return static_cast<bool>(addr_val); }
+	friend constexpr bool operator==(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.addr_numeric == __that.addr_numeric; }
+	friend constexpr ptrdiff_t operator-(uintptr_t __this, __vaddr const& __that) noexcept { return __this - __that.addr_numeric; }
+	friend constexpr ptrdiff_t operator-(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.addr_numeric - __that.addr_numeric; }
+	friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, __vaddr const& __that) noexcept { return __this.addr_numeric <=> __that.addr_numeric; }
+	friend constexpr std::strong_ordering operator<=>(uintptr_t __this, __vaddr const& __that) noexcept { return __this <=> __that.addr_numeric; }
+	friend constexpr std::strong_ordering operator<=>(__vaddr const& __this, uintptr_t __that) noexcept { return __this.addr_numeric <=> __that; }
 	constexpr bool is_canonical() const noexcept { return (((pml4_idx & 0x100) == 0) && (ext == 0)) || (((pml4_idx & 0x100) != 0) && (ext == 0xFFFF)); }
 #endif
 } addr_t;
@@ -858,7 +864,7 @@ template<typename IT, std::integral JT> bit_reference(IT&, JT) -> bit_reference<
 typedef struct __s_u8
 {
 	uint8_t full{};
-	constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return (value ? 1 : 0) << bit; }
+	constexpr static uint8_t __of_bit(int bit, bool value) noexcept { return static_cast<uint8_t>(value ? 1 : 0) << bit; }
 	constexpr __s_u8(bool v0, bool v1, bool v2, bool v3, bool v4, bool v5, bool v6, bool v7) noexcept : full(__of_bit(0, v0) | __of_bit(1, v1) | __of_bit(2, v2) | __of_bit(3, v3) | __of_bit(4, v4) | __of_bit(5, v5) | __of_bit(6, v6) | __of_bit(7, v7)) {}
 	constexpr __s_u8(uint8_t i) noexcept : full(i) {}
 	template<convertible_other<uint8_t> IT> constexpr __s_u8(IT it) noexcept : __s_u8(static_cast<uint8_t>(it)) {}
@@ -1062,7 +1068,9 @@ typedef struct __s_be64
 // This is intended to allow adding literal operators to the standard in the future.
 // Seeing as it's a huge pain to build the cross-compilers, odds are we'll be on the same standard for a while (TM).
 // As such, I opted to omit the (frankly, pretty ugly in this context) underscore and create normal-looking suffixes for my literal operators.
+// Having literal operators for 16-bit integers in particular is something the C family is missing but would be quite useful; while a char literal can work for an 8-bit integer, that hurts readability.
 // UC stands for unsigned char, US stands for unsigned short, SC stands for signed char, and S stands for short.
+// H stands for half (as in half-word), W stands for word, X stands for eXtended word (D, for dword, could be a hex digit), and Q stands for quadword.
 // USBE stands for unsigned short big-endian, UBE stands for unsigned big-endian, and ULBE stands for unsigned long big-endian.
 // LA stands for literal address. Obviously, it can't be used to create an arbitrary constexpr pointer.
 // Instead, it's useful when establishing a minimum, maximum, or default value for some pointer to a generic memory location.
@@ -1071,6 +1079,10 @@ constexpr uint8_t operator""UC(unsigned long long i) noexcept { return static_ca
 constexpr uint16_t operator""US(unsigned long long i) noexcept { return static_cast<uint16_t>(i); }
 constexpr int8_t operator""SC(unsigned long long i) noexcept { return static_cast<int8_t>(i); }
 constexpr int16_t operator""S(unsigned long long i) noexcept { return static_cast<int16_t>(i); }
+constexpr u8 operator""H(unsigned long long i) noexcept { return u8(static_cast<uint8_t>(i)); }
+constexpr word operator""W(unsigned long long i) noexcept { return word(static_cast<uint16_t>(i)); }
+constexpr dword operator""X(unsigned long long i) noexcept { return dword(static_cast<uint32_t>(i)); }
+constexpr qword operator""Q(unsigned long long i) noexcept { return qword(static_cast<uint64_t>(i)); }
 constexpr __be16 operator""USBE(unsigned long long i) noexcept { return __be16(static_cast<uint16_t>(i)); }
 constexpr __be32 operator""UBE(unsigned long long i) noexcept { return __be32(static_cast<uint32_t>(i)); }
 constexpr __be64 operator""ULBE(unsigned long long i) noexcept { return __be64(static_cast<uint64_t>(i)); }

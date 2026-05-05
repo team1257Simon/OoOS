@@ -42,7 +42,7 @@ constexpr uint32_t	calculate_block_index(size_t size) { return size < min_block_
 constexpr block_size nearest(size_t sz) { return sz <= S04 ? S04 : sz <= S08 ? S08 : sz <= S16 ? S16 : sz <= S32 ? S32 : sz <= S64 ? S64 : sz <= S128 ? S128 : sz <= S256 ? S256 : S512; }
 constexpr size_t	region_size_for(size_t sz) { return sz > S512 ? (up_to_nearest(sz, region_size)) : nearest(sz); }
 static paging_table	__get_table(addr_t of_page, bool write_thru) { return __get_table(of_page, write_thru, get_pt_root()); }
-constexpr uint32_t	add_align_size(addr_t tag, size_t align) { return static_cast<uint32_t>(align > 1UZ ? (up_to_nearest<size_t>(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.full + bt_offset)) : 0U); }
+constexpr uint32_t	add_align_size(addr_t tag, size_t align) { return static_cast<uint32_t>(align > 1UZ ? (up_to_nearest<size_t>(tag + bt_offset, align) - static_cast<ptrdiff_t>(tag.addr_numeric + bt_offset)) : 0U); }
 kernel_memory_mgr&	kernel_memory_mgr::get() { return *__instance; }
 uintptr_t			kernel_memory_mgr::__claim_region(uintptr_t addr, block_idx idx) { __status(addr).set_used(idx); return block_offset(addr, idx); }
 void				kernel_memory_mgr::__lock() { lock(addressof(__heap_mutex)); __suspend_frame(); }
@@ -180,7 +180,7 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
 			if(__unlikely(!pt)) return nullptr;
 		}
 		pt_entry& entry	= pt[px];
-		if(entry.present && (entry.global || entry.physical_address == curr.full >> 12)) continue;
+		if(entry.present && (entry.global || entry.physical_address == curr.addr_numeric >> 12)) continue;
 		new(addressof(entry)) pt_entry
 		{
 			.present			= true,
@@ -189,7 +189,7 @@ static addr_t __map_kernel_pages(addr_t start, size_t pages, bool global)
 			.write_thru			= false,
 			.cache_disable		= false,
 			.global				= global,
-			.physical_address	= curr.full >> 12,
+			.physical_address	= curr.addr_numeric >> 12,
 		};
 		modified = true;
 	}
@@ -215,7 +215,7 @@ static addr_t __map_mmio_pages(addr_t start, size_t pages)
 			.user_access		= false,
 			.write_thru			= true,
 			.global				= true,
-			.physical_address	= curr.full >> 12,
+			.physical_address	= curr.addr_numeric >> 12,
 		};
 	}
 	tlb_flush();
@@ -240,7 +240,7 @@ static addr_t __map_uncached_mmio_pages(addr_t start, size_t pages)
 			.user_access		= false,
 			.cache_disable		= true,
 			.global				= true,
-			.physical_address	= curr.full >> 12,
+			.physical_address	= curr.addr_numeric >> 12,
 		};
 	}
 	tlb_flush();
@@ -286,7 +286,7 @@ static void __unmap_pages(addr_t start, size_t pages, addr_t pml4)
 				pt_entry& entry	= pt[curr.page_idx];
 				if(entry.global) continue;
 				addr_t(addressof(entry)).deref<uint64_t>() = 0UL;
-				asm volatile("invlpg (%0)" ::"r"(curr.full) : "memory");
+				asm volatile("invlpg (%0)" ::"r"(curr.addr_numeric) : "memory");
 			}
 		}
 	}
@@ -497,7 +497,7 @@ paging_table kernel_memory_mgr::allocate_pt() noexcept
 		if(__unlikely(!translate_vaddr(allocated))) __map_kernel_pages(allocated, rsz / page_size, true);
 		tag					= new(allocated) block_tag(rsz, pt_size);
 		tag->align_bytes	= add_align_size(tag, page_size);
-		__watermark			= std::max(allocated.full, __watermark);
+		__watermark			= std::max(allocated.addr_numeric, __watermark);
 	}
 	addr_t result		= tag->actual_start();
 	array_zero<uint8_t>(result, page_size);
@@ -517,7 +517,7 @@ addr_t kernel_memory_mgr::allocate_kernel_block(size_t sz) noexcept
 {
 	__lock();
 	addr_t result(__find_and_claim(sz) - sizeof(block_tag));
-	__watermark	= std::max(result.full, __watermark);
+	__watermark	= std::max(result.addr_numeric, __watermark);
 	__unlock();
 	return result;
 }
@@ -536,7 +536,7 @@ void kernel_memory_mgr::deallocate_block(addr_t base, size_t sz, bool should_unm
 void kernel_memory_mgr::deallocate_user_block(addr_t base, size_t sz, size_t align, bool should_unmap) noexcept
 {
 	addr_t pml4		= __active_frame ? __active_frame->pml4 : nullptr;
-	uintptr_t phys	= pml4 ? frame_translate(base) : base.full;
+	uintptr_t phys	= pml4 ? frame_translate(base) : base.addr_numeric;
 	if(__unlikely(!phys)) return;
 	__userlock();
 	__kernel_frame_tag->deallocate(addr_t(phys), align);

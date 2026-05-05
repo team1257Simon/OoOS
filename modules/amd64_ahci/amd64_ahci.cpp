@@ -344,7 +344,7 @@ void ahci_port::__build_h2d_io_fis(uintptr_t dest_start, size_t sector_count, ad
 	__builtin_memset(cmd.command_table, 0, command_table_size());
 	size_t bpe_max					= bytes_per_prdt_entry();
 	bool enable_ioc					= !ooos::get_element<3>(amd64_ahci::__cfg);
-	qword addr						= buffer.full;
+	qword addr						= buffer.addr_numeric;
 	size_t final_count				= (sector_count % (bpe_max / block_size())) * block_size();
 	barrier();
 	for(uint16_t i = 0US; i < cmd.prdt_length; i++, addr += bpe_max, barrier())

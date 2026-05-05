@@ -1,36 +1,36 @@
 #include <ext/type_erasure.hpp>
 using namespace ABI_NAMESPACE;
 using std::addressof;
+static bool __is_primitive(std::type_info const& t) noexcept { return dynamic_cast<__fundamental_type_info const*>(addressof(t)); }
 struct vtable_header
 {
-	ptrdiff_t					leaf_offset;	/** Offset of the leaf (full/primary) object. */
-	const __class_type_info*	type;			/** Type of the object. */
+	// Offset of the leaf (full/primary) object.
+	ptrdiff_t					leaf_offset;
+	// Type of the object.
+	const __class_type_info*	type;
 };
-static bool __is_primitive(std::type_info const& t) noexcept { return dynamic_cast<__fundamental_type_info const*>(addressof(t)); }
 static std::type_info const* __extract_type(void* obj) noexcept
 {
+	// null pointers have a special type, which has its own typeid
 	if(__unlikely(!obj)) return std::addressof(typeid(nullptr));
 	// treat obj as void**
 	addr_t vpointer							= addr_t(obj).deref<addr_t>();
-	// if obj points to something other than a virtual pointer, we can't dereference this or we'll fault
+	// if obj does not point to something that is itself a pointer (such as a vtable pointer), we can't dereference this or we'll fault
 	if(__unlikely(!vpointer.is_canonical())) return nullptr;
+	// the object could be a non-polymorphic object that has a pointer as its first member; to be able to tell the difference, we must check if the pointee is actually a vtable, using some dynamic_cast magic
 	vtable_header const& target_header		= vpointer.minus(sizeof(vtable_header)).deref<vtable_header const>();
-	// avoid passing an invalid pointer to dynamic_cast
+	// similarly to before, we need to avoid passing an invalid pointer to dynamic_cast
 	if(__unlikely(!addr_t(target_header.type).is_canonical())) return nullptr;
+	// this is declared as volatile to indicate that we aren't sure it actually points at a valid type_info; otherwise, the dynamic_cast will be optimized out
 	std::type_info const* volatile type_v	= target_header.type;
+	// any polymorphic type will have a class_type_info pointer here; this dynamic cast will return a null pointer if that is not the case...
 	__class_type_info const* volatile ctype	= dynamic_cast<__class_type_info const*>(type_v);
-	if(__unlikely(!ctype)) return nullptr;
+	// at which point we can't extract the type anymore
+	if(!ctype) return nullptr;
 	// if the type we have is valid, and the leaf offset is zero, we've found the type
-	if(!target_header.leaf_offset) return ctype;
-	addr_t leaf_vpointer					= addr_t(obj).plus(target_header.leaf_offset).deref<addr_t>();
-	vtable_header const& leaf_header		= leaf_vpointer.minus(sizeof(vtable_header)).deref<vtable_header const>();
-	return leaf_header.type;
-}
-static void* __extract_leaf(void* obj) noexcept
-{
-	// this will be called after the function above, meaning we've already checked this pointer
-	vtable_header const& target_header		= addr_t(obj).deref<addr_t>().minus(sizeof(vtable_header)).deref<vtable_header const>();
-	return addr_t(obj).plus(target_header.leaf_offset);
+	else if(!target_header.leaf_offset) return ctype;
+	// otherwise, there's a more-derived class to find; we already know the polymorphic pointers are valid, so we don't need to check again
+	else return addr_t(obj).plus(target_header.leaf_offset).deref<addr_t>().minus(sizeof(vtable_header)).deref<vtable_header const>().type;
 }
 static bool __is_derived_from(__class_type_info const* __type, __class_type_info const* __base) noexcept
 {
@@ -92,7 +92,8 @@ namespace std
 			if(__unlikely(!obj)) return nullptr;
 			type_info const* inferred_type	= __extract_type(obj);
 			if(__unlikely(!inferred_type)) return nullptr;
-			return __reflective_cast(*inferred_type, *info, __extract_leaf(obj));
+			addr_t obj_addr(obj);
+			return __reflective_cast(*inferred_type, *info, obj_addr.plus(obj_addr.deref<addr_t>().minus(sizeof(vtable_header)).deref<vtable_header const>().leaf_offset));
 		}
 		type_info const& extract_typeid(void* obj) noexcept
 		{

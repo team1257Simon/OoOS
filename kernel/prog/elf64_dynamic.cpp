@@ -109,7 +109,7 @@ void elf64_dynamic_object::apply_relocations()
 			klog("[PRG/DYN] W: invalid relocation");
 			xklog("[PRG/DYN] D: relocation offset was " + std::to_string(r.rela_entry.r_offset, std::ext::hex));
 			xklog("[PRG/DYN] D: relocation addend was " + std::to_string(r.rela_entry.r_addend, std::ext::hex));
-			if(result.target) xklog("[PRG/DYN] D: relocation target was " + std::to_string(result.target.full, std::ext::hex));
+			if(result.target) xklog("[PRG/DYN] D: relocation target was " + std::to_string(result.target.addr_numeric, std::ext::hex));
 			if(result.value) xklog("[PRG/DYN] D: relocation value was " + std::to_string(result.value, std::ext::hex));
 		}
 	}

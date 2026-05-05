@@ -33,7 +33,7 @@ void elf64_dynamic_executable::process_headers()
 	elf64_executable::process_headers();
 	if(virtual_load_base)
 	{
-		off_t diff = static_cast<off_t>(virtual_load_base.full);
+		off_t diff = static_cast<off_t>(virtual_load_base.addr_numeric);
 		if(diff > 0Z)
 		{
 			frame_base			+= diff;

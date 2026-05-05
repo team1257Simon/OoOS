@@ -34,7 +34,7 @@
 #include <string>
 namespace std
 {
-	class bad_alloc: public exception
+	class bad_alloc : public exception
 	{
 	public:
 		bad_alloc() noexcept;
@@ -43,7 +43,7 @@ namespace std
 		~bad_alloc() noexcept;
 		virtual const char* what() const noexcept;
 	};
-	class bad_cast: public exception
+	class bad_cast : public exception
 	{
 	public:
 		bad_cast() noexcept;
@@ -52,7 +52,7 @@ namespace std
 		virtual ~bad_cast() noexcept;
 		virtual const char* what() const noexcept;
 	};
-	class bad_typeid: public exception
+	class bad_typeid : public exception
 	{
 	public:
 		bad_typeid() noexcept;
@@ -61,7 +61,7 @@ namespace std
 		virtual ~bad_typeid() noexcept;
 		virtual const char* what() const noexcept;
 	};
-	class bad_array_new_length: public bad_alloc
+	class bad_array_new_length : public bad_alloc
 	{
 	public:
 		bad_array_new_length() noexcept;

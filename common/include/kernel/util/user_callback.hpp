@@ -47,7 +47,7 @@ namespace ooos
 			AT const* in_arg_value	= data.arg.pointer_argument;
 			AT* arg_pos				= stack_real;
 			array_copy(arg_pos, in_arg_value, 1UZ);
-			thread.saved_regs.rdi	= static_cast<register_t>(thread.saved_regs.rbp.full);
+			thread.saved_regs.rdi	= static_cast<register_t>(thread.saved_regs.rbp.addr_numeric);
 		}
 	};
 	template<register_passable AT>

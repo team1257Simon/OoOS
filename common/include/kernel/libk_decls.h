@@ -303,7 +303,7 @@ template<maskable<uintptr_t> T>
 constexpr T& mask_assign(T& t, addr_t val)
 {
 	uintptr_t p	= std::bit_cast<uintptr_t>(t);
-	addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, T::mask::value>(p, val.full));
+	addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, T::mask::value>(p, val.addr_numeric));
 	return t;
 }
 template<typename T, size_t N> requires(requires(T t) { std::bit_cast<uintptr_t>(t); })
@@ -315,7 +315,7 @@ struct maskable_addr
 		static_assert(std::derived_from<T, maskable_addr<T, N>>);
 		T& t		= static_cast<T&>(*this);
 		uintptr_t p	= std::bit_cast<uintptr_t>(t);
-		addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, mask::value>(p, val.full));
+		addr_t(std::addressof(t)).assign(mask_weave<uintptr_t, mask::value>(p, val.addr_numeric));
 		return t;
 	}
 	constexpr operator uintptr_t() const noexcept

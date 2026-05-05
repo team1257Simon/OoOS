@@ -643,7 +643,7 @@ extern "C"
 	void direct_write(const char* str) { if(direct_print_enable) startup_tty.print_text(str); }
 	void direct_writeln(const char* str) { if(direct_print_enable) startup_tty.print_line(str); }
 	void debug_print_num(uintptr_t num, int lenmax) { int len = num ? div_round_up((sizeof(uint64_t) * CHAR_BIT) - __builtin_clzl(num), 4) : 1; __dbg_num(num, std::min(len, lenmax)); direct_write(" "); }
-	void debug_print_addr(addr_t addr) { debug_print_num(addr.full); }
+	void debug_print_addr(addr_t addr) { debug_print_num(addr.addr_numeric); }
 	[[noreturn]] void abort() { __serial_write("KERNEL ABORT"); direct_writeln("abort() called in kernel"); while(1); }
 	void klog(const char* msg) noexcept {
 		direct_writeln(msg);

@@ -250,7 +250,7 @@ void task_ctx::init_task_state()
 	if(elf64_dynamic_object* dyn			= dynamic_cast<elf64_dynamic_object*>(program_handle))
 	{
 		rdi_val								= reinterpret_cast<register_t>(dyn);
-		task_struct.saved_regs.rbx			= static_cast<register_t>(entry.full);
+		task_struct.saved_regs.rbx			= static_cast<register_t>(entry.addr_numeric);
 		shared_object_map::iterator ldso	= shared_object_map::get_ldso_object(ctx_filesystem);
 		addr_t ldso_entry 					= ldso->entry_point();
 		if(ldso_entry)
@@ -302,7 +302,7 @@ void task_ctx::init_task_state()
 		old_ext				+= len + 1Z;
 	}
 	*env_real				= nullptr;
-	set_arg_registers(rdi_val, rt_argv_ptr.full, rt_env_ptr.full);
+	set_arg_registers(rdi_val, rt_argv_ptr.addr_numeric, rt_env_ptr.addr_numeric);
 }
 void task_ctx::set_arg_registers(register_t rdi, register_t rsi, register_t rdx)
 {
@@ -426,7 +426,7 @@ void task_ctx::set_signal(int sig, bool save_state)
 		task_struct.saved_regs.rsi			= reinterpret_cast<register_t>(handler);
 		task_sig_info.signal_handlers[sig]	= nullptr;
 		task_struct.saved_regs.rip			= addr_t(sigtramp_enter);
-		stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.full));
+		stack_push(static_cast<register_t>(task_sig_info.sigret_frame.rip.addr_numeric));
 	}
 }
 void task_ctx::end_signal()

@@ -131,7 +131,7 @@ inline task_ctx* active_task_context() { task_t* task = current_active_task(); i
 // Shortcut because this also gets used a lot
 inline addr_t active_frame() { return current_active_task()->frame_ptr; }
 // Shortcut because I said so
-inline void write_thread_ptr(addr_t value) { asm volatile("wrfsbase %0" :: "r"(value.full) : "memory"); }
+inline void write_thread_ptr(addr_t value) { asm volatile("wrfsbase %0" :: "r"(value.addr_numeric) : "memory"); }
 extern "C"
 {
 	[[noreturn]] void handle_exit();
