@@ -622,6 +622,7 @@ void kframe_tag::remove_block(block_tag* blk) noexcept
 }
 block_tag* kframe_tag::get_for_allocation(size_t size, size_t align) noexcept
 {
+	size						= std::max(size, 16UZ);
 	__lock();
 	int64_t	idx					= calculate_block_index(size);
 	block_tag* tag				= nullptr;
@@ -646,7 +647,7 @@ block_tag* kframe_tag::get_for_allocation(size_t size, size_t align) noexcept
 			direct_write("[MM] W: tag at ");
 			debug_print_addr(tag);
 			direct_writeln("is corrupted; check for buffer overruns");
-			tag->magic	= block_magic;
+			tag->magic			= block_magic;
 		}
 		size_t align_add		= add_align_size(tag, align);
 		if(tag->available_size() >= size + align_add)

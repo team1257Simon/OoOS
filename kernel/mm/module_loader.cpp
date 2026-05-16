@@ -18,11 +18,11 @@ static result_pair add_obj(std::unordered_map<std::string, elf64_kernel_object>&
 	if(mod)
 	{
 		std::string key(name_for(mod));
-		if(__unlikely(map.contains(key))) obj.unload_pre_init();
+		if(map.contains(key)) [[unlikely]] obj.unload_pre_init();
 		else
 		{
 			result_pair result	= map.emplace(std::move(key), std::move(obj));
-			if(__unlikely(!mod->initialize())) map.erase(result.first);
+			if(!mod->initialize()) [[unlikely]] map.erase(result.first);
 			else return result;
 		}
 	}
