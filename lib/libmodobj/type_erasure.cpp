@@ -62,7 +62,7 @@ static void* __reflective_cast(std::type_info const& from, std::type_info const&
 	}
 	__pointer_type_info const* pfrom	= dynamic_cast<__pointer_type_info const*>(addressof(from));
 	__pointer_type_info const* pto		= dynamic_cast<__pointer_type_info const*>(addressof(to));
-	if(pfrom && pto) return __reflective_cast(*pfrom->__pointee, *pto->__pointee, *static_cast<void**>(obj)); 
+	if(pfrom && pto) return __reflective_cast(*pfrom->__pointee, *pto->__pointee, *static_cast<void**>(obj));
 	return nullptr;
 }
 namespace std
