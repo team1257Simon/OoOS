@@ -10,8 +10,16 @@ namespace ooos
 		template<typename T>
 		class __member_tuple_helper
 		{
-			consteval static bool __is_pointable(std::meta::info i) { return !(std::meta::is_special_member_function(i) || std::meta::is_template(i)); }
-			template<bool SB, typename M> using __maybe_member_t = std::conditional_t<SB, M*, M T::*>;
+			consteval static bool __is_pointable(std::meta::info i)
+			{
+				if(std::meta::is_special_member_function(i) || std::meta::is_template(i) || std::meta::is_constructor(i) || std::meta::is_destructor(i))
+					return false;
+				else try { return (std::meta::type_of(i), true); } catch(...) { return false; }
+			}
+			template<typename M, bool S> struct __maybe_member;
+			template<typename M> struct __maybe_member<M, true> { typedef M* type; };
+			template<typename M> struct __maybe_member<M, false> { typedef M T::*type; };
+			template<bool SB, typename M> using __maybe_member_t = typename __maybe_member<M, SB>::type;
 			consteval static size_t __count_members()
 			{
 				return (std::meta::members_of(^^T, std::meta::access_context::current())
@@ -33,8 +41,7 @@ namespace ooos
 				typedef __maybe_member_t<std::meta::is_static_member(__get()), __base_type> __type;
 				constexpr static __type __value = std::meta::extract<__type>(__get());
 			};
-			template<size_t ... Is>
-			consteval static auto __get(std::index_sequence<Is...>) { return std::make_tuple(__member_at_index<__count - Is - 1>::__value...); }
+			template<size_t ... Is>	consteval static auto __get(std::index_sequence<Is...>) { return std::make_tuple(__member_at_index<__count - Is - 1>::__value...); }
 			typedef std::make_index_sequence<__count_members()> __indices;
 		public:
 			consteval static auto get() { return __get(__indices()); }
