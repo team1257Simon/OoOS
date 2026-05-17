@@ -12,7 +12,7 @@ namespace ooos
 		{
 			consteval static bool __is_pointable(std::meta::info i)
 			{
-				if(std::meta::is_special_member_function(i) || std::meta::is_template(i) || !std::meta::has_linkage(i))
+				if(std::meta::is_special_member_function(i) || std::meta::is_template(i))
 					return false;
 				else try { return (std::meta::type_of(i), true); } catch(...) { return false; }
 			}
