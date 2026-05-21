@@ -66,18 +66,18 @@ struct task_ctx
 	bool impersonate										{};
 	uid_t imp_uid											{};		// Effective UID if it is different from the real UID in task_struct; 0 otherwise
 	gid_t imp_gid											{};		// Effective GID if it is different from the real GID in task_struct; 0 otherwise
-	constexpr task_t* header() { return std::addressof(task_struct); }
+	template<self_type<task_ctx> ST> constexpr copy_cv_t<std::remove_reference_t<ST>, task_t>* header(this ST&& self) noexcept { return std::addressof(self.task_struct); }
+	constexpr uid_t uid() const noexcept { return task_struct.task_ctl.task_uid; }
+	constexpr gid_t gid() const noexcept { return task_struct.task_ctl.task_gid; }
+	constexpr uid_t euid() const noexcept { return impersonate ? imp_uid : uid(); }
+	constexpr gid_t egid() const noexcept { return impersonate ? imp_gid : gid(); }
+	constexpr task_ctx& uid(uid_t id) noexcept { task_struct.task_ctl.task_uid = id; return *this; }
+	constexpr task_ctx& gid(gid_t id) noexcept { task_struct.task_ctl.task_gid = id; return *this; }
+	constexpr task_ctx& euid(uid_t id) noexcept { (impersonate ? imp_uid : task_struct.task_ctl.task_uid) = id; return *this; }
+	constexpr task_ctx& egid(gid_t id) noexcept { (impersonate ? imp_gid : task_struct.task_ctl.task_gid) = id; return *this; }
 	constexpr pid_t get_pid() const noexcept { return task_struct.task_ctl.task_pid; }
 	constexpr spid_t get_parent_pid() const noexcept { return task_struct.task_ctl.parent_pid; }
 	constexpr uframe_tag& get_frame() const noexcept { return task_struct.frame_ptr.deref<uframe_tag>(); }
-	constexpr uid_t uid() const noexcept { return task_struct.task_ctl.task_uid; }
-	constexpr task_ctx& uid(uid_t id) noexcept { task_struct.task_ctl.task_uid = id; return *this; }
-	constexpr gid_t gid() const noexcept { return task_struct.task_ctl.task_gid; }
-	constexpr task_ctx& gid(gid_t id) noexcept { task_struct.task_ctl.task_gid = id; return *this; }
-	constexpr uid_t euid() const noexcept { return impersonate ? imp_uid : uid(); }
-	constexpr task_ctx& euid(uid_t id) noexcept { (impersonate ? imp_uid : task_struct.task_ctl.task_uid) = id; return *this; }
-	constexpr gid_t egid() const noexcept { return impersonate ? imp_gid : gid(); }
-	constexpr task_ctx& egid(gid_t id) noexcept { (impersonate ? imp_gid : task_struct.task_ctl.task_gid) = id; return *this; }
 	friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, task_ctx const& __that) noexcept { return __this.get_pid() <=> __that.get_pid(); }
 	friend constexpr std::strong_ordering operator<=>(task_ctx const& __this, pid_t __that) noexcept { return __this.get_pid() <=> __that; }
 	friend constexpr std::strong_ordering operator<=>(pid_t __this, task_ctx const& __that) noexcept { return __this <=> __that.get_pid(); }

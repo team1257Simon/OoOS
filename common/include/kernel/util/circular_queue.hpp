@@ -31,7 +31,7 @@ namespace ooos
 		constexpr static bool __trivial				= std::is_trivially_destructible_v<value_type> || std::is_trivial_v<value_type>;
 		constexpr static bool __nothrow_destruct	= __trivial || std::is_nothrow_destructible_v<value_type>;
 		constexpr static bool __nothrow_zero    	= noexcept(array_zero(std::declval<pointer>(), std::declval<size_t>())) && __nothrow_destruct;
-		template<typename ST> using __like_ptr		= std::add_pointer_t<copy_cv_t<ST, value_type>>;
+		template<typename ST> using __like_ptr		= std::add_pointer_t<copy_cv_t<std::remove_reference_t<ST>, value_type>>;
 		template<typename ST> using __like_ref		= decltype(*std::declval<__like_ptr<ST>>());
 		struct __circular_buffer : allocator_type
 		{
@@ -416,8 +416,8 @@ namespace ooos
 		constexpr void push(value_type const& v) requires(__copy_assign || __copy_construct) { create_if_empty(4UZ); __buffer.__push(v); }
 		constexpr void push(value_type&& v) requires(__move_assign || __move_construct) { create_if_empty(4UZ); __buffer.__push(std::move(v)); }
 		constexpr value_type pop() { return __buffer.__pop(); }
-		template<typename ST> constexpr __like_ref<ST> peek(this ST&& self) noexcept { return self.__buffer.__peek(); }
-		template<typename ST> constexpr __like_ref<ST> peek_back(this ST&& self) noexcept { return self.__buffer.__peek_back(); }
+		template<self_type<circular_queue> ST> constexpr __like_ref<ST> peek(this ST&& self) noexcept { return self.__buffer.__peek(); }
+		template<self_type<circular_queue> ST> constexpr __like_ref<ST> peek_back(this ST&& self) noexcept { return self.__buffer.__peek_back(); }
 		constexpr reference front() noexcept { return peek(); }
 		constexpr reference back() noexcept { return peek_back(); }
 		constexpr const_reference front() const noexcept { return peek(); }

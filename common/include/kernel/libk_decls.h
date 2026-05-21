@@ -325,12 +325,11 @@ struct maskable_addr
 		return std::bit_cast<uintptr_t>(t) & ~mask::value;
 	}
 };
-template<typename T, template<typename> class C, bool B> struct __maybe_apply { typedef std::conditional_t<B, C<T>, T> type; };
-template<typename T, template<typename> class C, bool B> using __maybe_apply_t = typename __maybe_apply<T, C, B>::type;
-template<typename T, bool B> using maybe_const_t = __maybe_apply_t<T, std::add_const_t, B>;
-template<typename T, bool B> using maybe_volatile_t = __maybe_apply_t<T, std::add_volatile_t, B>;
-template<typename T, typename U> using copy_cv_t = maybe_volatile_t<maybe_const_t<std::remove_cv_t<U>, std::is_const_v<T>>, std::is_volatile_v<T>>;
-template<typename T, typename U> using copy_cvref_t = copy_cv_t<T, std::__like_t<std::remove_cv_t<T>, U>>;
+template<typename T, bool B> using maybe_const_t	= std::conditional_t<B, std::add_const_t<T>, T>;
+template<typename T, bool B> using maybe_volatile_t	= std::conditional_t<B, std::add_volatile_t<T>, T>;
+template<typename T, typename U> using copy_cv_t	= maybe_volatile_t<maybe_const_t<std::remove_cv_t<U>, std::is_const_v<T>>, std::is_volatile_v<T>>;
+template<typename T, typename U> using copy_cvref_t	= copy_cv_t<T, std::__like_t<std::remove_cv_t<T>, U>>;
+template<typename S, typename T> concept self_type	= std::same_as<std::remove_cvref_t<S>, T>;
 namespace std
 {
 	enum class byte : unsigned char {};
